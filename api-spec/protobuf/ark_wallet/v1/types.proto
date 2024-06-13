@@ -2,161 +2,83 @@ syntax = "proto3";
 
 package ark_wallet.v1;
 
-message BuildInfo {
-  // Number of the version.
-  string version = 1;
-  // Hash of the commit.
-  string commit = 2;
-  // Date of the commit.
-  string date = 3;
-}
-
 message AccountInfo {
-  // Account namespace.
   string namespace = 1;
-  // Account label.
   string label = 2;
-  // Derivation path.
   string derivation_path = 3;
-  // Xpubs.
-  repeated string xpubs = 4;
-  // The master blinding key of the account to derive blinding keypairs from.
-  string master_blinding_key = 5;
-}
-
-message BalanceInfo {
-  // Balance of utxos with 1+ confirmations.
-  uint64 confirmed_balance = 1;
-  // Balance of utxos with no confirmations.
-  uint64 unconfirmed_balance = 2;
-  // Balance of locked utxos.
-  uint64 locked_balance = 3;
-  // Total balance.
-  uint64 total_balance = 4;
-}
-
-message Input {
-  // Previous output txid.
-  string txid = 1;
-  // Previous tx output index.
-  uint32 index = 2;
-  // Prevout script.
-  string script = 3;
-  // Input scriptsig size.
-  uint64 scriptsig_size = 4;
-  // Input witness size.
-  uint64 witness_size = 5;
-}
-
-message UnblindedInput {
-  // Index of the pset input.
-  uint32 index = 1;
-  // Revealed prevout asset.
-  string asset = 2;
-  // Revealed prevout amount.
-  uint64 amount = 3;
-  // Prevout asset blinder.
-  string asset_blinder = 4;
-  // Prevout amount blinder.
-  string amount_blinder = 5;
-}
-
-message Output {
-  // Asset hash.
-  string asset = 1;
-  // Sent amount.
-  uint64 amount = 2;
-  // Address to send funds to.
-  string address = 3;
-  // ScriptPubkey to send funds to (alternative to address).
-  string script = 4;
-  // Blinding public key to make output confidential (alternative to address).
-  string blinding_pubkey = 5;
-}
-
-message Utxos {
-  // Account namespace.
-  string account_name = 1;
-  // List of utxos.
-  repeated Utxo utxos = 2;
-}
-
-message UtxoStatus {
-  string txid = 1;
-  BlockDetails block_info = 2;
-  string txhex = 3;
-}
-
-message Utxo {
-  // Txid of the uxo.
-  string txid = 1;
-  // Output index.
-  uint32 index = 2;
-  // Asset.
-  string asset = 3;
-  // Value.
-  uint64 value = 4;
-  // Script.
-  string script = 5;
-  // Asset blinder for confidential utxo.
-  string asset_blinder = 6;
-  // Value blinder for confidential utxo.
-  string value_blinder = 7;
-  // Namespace of the account owning the utxo.
-  string account_name = 8;
-  // Info about utxo's spent status.
-  UtxoStatus spent_status = 9;
-  // Info about utxo's confirmation status.
-  UtxoStatus confirmed_status = 10;
-  // Redeem script locking the utxo in case its owned by a multisig account.
-  string redeem_script = 11;
+  string xpubs = 4;
 }
 
 message BlockDetails {
-  // Hash of the block.
   string hash = 1;
-  // Heighth (index) of the block.
   uint64 height = 2;
-  // Timestamp of the block.
   int64 timestamp = 3;
 }
 
-message Template {
-  enum Format {
-    FORMAT_UNSPECIFIED = 0;
-    FORMAT_DESCRIPTOR = 1;
-    FORMAT_MINISCRIPT = 2;
-    FORMAT_IONIO = 3;
-    FORMAT_RAW = 4;
-  }
-  Format format = 1;
-  string value = 2;
+message BuildInfo {
+  string version = 1;
+  string commit = 2;
+  string date = 3;
 }
 
-enum TxEventType {
-  TX_EVENT_TYPE_UNSPECIFIED = 0;
-  // Tx broadcasted.
-  TX_EVENT_TYPE_BROADCASTED = 1;
-  // Tx unconfirmed.
-  TX_EVENT_TYPE_UNCONFIRMED = 2;
-  // Tx confirmed.
-  TX_EVENT_TYPE_CONFIRMED = 3;
+message Input {
+  string txid = 1;
+  uint32 vout = 2;
 }
 
-enum UtxoEventType {
-  UTXO_EVENT_TYPE_UNSPECIFIED = 0;
-  UTXO_EVENT_TYPE_NEW = 1;
-  UTXO_EVENT_TYPE_CONFIRMED = 2;
-  UTXO_EVENT_TYPE_LOCKED = 3;
-  UTXO_EVENT_TYPE_UNLOCKED = 4;
-  UTXO_EVENT_TYPE_SPENT = 5;
-  UTXO_EVENT_TYPE_CONFIRMED_SPENT = 6;
+message Node {
+  string txid = 1;
+  string tx = 2;
+  string parent_txid = 3;
+}
+
+message Output {
+  string address = 1;
+  uint64 amount = 2;
+}
+
+message Round {
+  string id = 1;
+  int64 start = 2;
+  int64 end = 3;
+  string round_tx = 4;
+  Tree congestion_tree = 5;
+  repeated string forfeit_txs = 6;
+  repeated string connectors = 7;
+}
+
+message TransactionInfo {
+  string date = 1;
+  uint64 amount = 2;
+  string round_txid = 3;
+}
+
+message Tree {
+  repeated TreeLevel levels = 1;
+}
+
+message TreeLevel {
+  repeated Node nodes = 1;
+}
+
+message Vtxo {
+  Input outpoint = 1;
+  Output receiver = 2;
+  bool spent = 3;
+  string round_txid = 4;
+  string spent_by = 5;
+  int64 expire_at = 6;
+  bool swept = 7;
+}
+
+enum RoundEventType {
+  ROUND_EVENT_TYPE_UNSPECIFIED = 0;
+  ROUND_EVENT_TYPE_BROADCASTED = 1;
+  ROUND_EVENT_TYPE_UNCONFIRMED = 2;
+  ROUND_EVENT_TYPE_CONFIRMED = 3;
 }
 
 enum WebhookEventType {
   WEBHOOK_EVENT_TYPE_UNSPECIFIED = 0;
-  // Receive notification about transactions.
-  WEBHOOK_EVENT_TYPE_TRANSACTION = 1;
-  // Receive notifications about utxos.
-  WEBHOOK_EVENT_TYPE_UTXO = 2;
+  WEBHOOK_EVENT_TYPE_ROUND = 1;
 }
