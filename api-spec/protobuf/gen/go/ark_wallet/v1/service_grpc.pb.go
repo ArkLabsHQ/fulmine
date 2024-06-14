@@ -20,6 +20,8 @@ const _ = grpc.SupportPackageIsVersion8
 
 const (
 	Service_Balance_FullMethodName      = "/ark_wallet.v1.Service/Balance"
+	Service_Offboard_FullMethodName     = "/ark_wallet.v1.Service/Offboard"
+	Service_Onboard_FullMethodName      = "/ark_wallet.v1.Service/Onboard"
 	Service_Info_FullMethodName         = "/ark_wallet.v1.Service/Info"
 	Service_Receive_FullMethodName      = "/ark_wallet.v1.Service/Receive"
 	Service_Send_FullMethodName         = "/ark_wallet.v1.Service/Send"
@@ -32,6 +34,10 @@ const (
 type ServiceClient interface {
 	// Balance returns offchain balance.
 	Balance(ctx context.Context, in *BalanceRequest, opts ...grpc.CallOption) (*BalanceResponse, error)
+	// Offboard asks to send requested amount to requested onchain address
+	Offboard(ctx context.Context, in *OffboardRequest, opts ...grpc.CallOption) (*OffboardResponse, error)
+	// Onboard returns onchain address and invoice for requested amount
+	Onboard(ctx context.Context, in *OnboardRequest, opts ...grpc.CallOption) (*OnboardResponse, error)
 	// Info returns info about the HD wallet.
 	Info(ctx context.Context, in *InfoRequest, opts ...grpc.CallOption) (*InfoResponse, error)
 	// Receive requested amount on requested invoice.
@@ -54,6 +60,26 @@ func (c *serviceClient) Balance(ctx context.Context, in *BalanceRequest, opts ..
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(BalanceResponse)
 	err := c.cc.Invoke(ctx, Service_Balance_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) Offboard(ctx context.Context, in *OffboardRequest, opts ...grpc.CallOption) (*OffboardResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OffboardResponse)
+	err := c.cc.Invoke(ctx, Service_Offboard_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) Onboard(ctx context.Context, in *OnboardRequest, opts ...grpc.CallOption) (*OnboardResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OnboardResponse)
+	err := c.cc.Invoke(ctx, Service_Onboard_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -106,6 +132,10 @@ func (c *serviceClient) Transactions(ctx context.Context, in *TransactionsReques
 type ServiceServer interface {
 	// Balance returns offchain balance.
 	Balance(context.Context, *BalanceRequest) (*BalanceResponse, error)
+	// Offboard asks to send requested amount to requested onchain address
+	Offboard(context.Context, *OffboardRequest) (*OffboardResponse, error)
+	// Onboard returns onchain address and invoice for requested amount
+	Onboard(context.Context, *OnboardRequest) (*OnboardResponse, error)
 	// Info returns info about the HD wallet.
 	Info(context.Context, *InfoRequest) (*InfoResponse, error)
 	// Receive requested amount on requested invoice.
@@ -122,6 +152,12 @@ type UnimplementedServiceServer struct {
 
 func (UnimplementedServiceServer) Balance(context.Context, *BalanceRequest) (*BalanceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Balance not implemented")
+}
+func (UnimplementedServiceServer) Offboard(context.Context, *OffboardRequest) (*OffboardResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Offboard not implemented")
+}
+func (UnimplementedServiceServer) Onboard(context.Context, *OnboardRequest) (*OnboardResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Onboard not implemented")
 }
 func (UnimplementedServiceServer) Info(context.Context, *InfoRequest) (*InfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Info not implemented")
@@ -161,6 +197,42 @@ func _Service_Balance_Handler(srv interface{}, ctx context.Context, dec func(int
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).Balance(ctx, req.(*BalanceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_Offboard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OffboardRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).Offboard(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_Offboard_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).Offboard(ctx, req.(*OffboardRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_Onboard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OnboardRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).Onboard(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_Onboard_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).Onboard(ctx, req.(*OnboardRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -247,6 +319,14 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Balance",
 			Handler:    _Service_Balance_Handler,
+		},
+		{
+			MethodName: "Offboard",
+			Handler:    _Service_Offboard_Handler,
+		},
+		{
+			MethodName: "Onboard",
+			Handler:    _Service_Onboard_Handler,
 		},
 		{
 			MethodName: "Info",

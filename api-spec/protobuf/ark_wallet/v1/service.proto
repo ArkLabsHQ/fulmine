@@ -12,6 +12,20 @@ service Service {
       get: "/v1/balance"
     };
   };
+  // Offboard asks to send requested amount to requested onchain address
+  rpc Offboard(OffboardRequest) returns (OffboardResponse) {
+    option (google.api.http) = {
+      post: "/v1/offboard"
+      body: "*"
+    };
+  };
+  // Onboard returns onchain address and invoice for requested amount
+  rpc Onboard(OnboardRequest) returns (OnboardResponse) {
+    option (google.api.http) = {
+      post: "/v1/onboard"
+      body: "*"
+    };
+  };
   // Info returns info about the HD wallet.
   rpc Info(InfoRequest) returns (InfoResponse) {
     option (google.api.http) = {
@@ -44,7 +58,7 @@ service Service {
 message BalanceRequest {}
 message BalanceResponse {
   // total balance in sats
-  string amount = 1;
+  uint64 amount = 1;
 }
 
 message InfoRequest {}
@@ -63,6 +77,22 @@ message InfoResponse {
   BuildInfo build_info = 3;
 }
 
+message OffboardRequest {
+  string address = 1;
+  uint64 amount = 2;
+}
+message OffboardResponse {
+  string round_txid = 1;
+}
+
+message OnboardRequest {
+  uint64 amount = 2;
+}
+message OnboardResponse {
+  string address = 1;
+  string invoice = 2;
+}
+
 message TransactionsRequest {}
 message TransactionsResponse {
   // list containing all transactions
@@ -71,7 +101,7 @@ message TransactionsResponse {
 
 message ReceiveRequest {
   // requested amount
-  string amount = 1;
+  uint64 amount = 1;
   // requested invoice
   string invoice = 2;
 }
@@ -82,7 +112,7 @@ message ReceiveResponse {
 
 message SendRequest {
   // requested amount
-  string amount = 1;
+  uint64 amount = 1;
   // requested invoice
   string invoice = 2;
 }
