@@ -39,6 +39,12 @@ service Service {
       body: "*"
     };
   };
+  // Round returns round info for optional round_id
+  rpc Round(RoundRequest) returns (RoundResponse) {
+    option (google.api.http) = {
+      get: "/v1/round/{round_id}"
+    };
+  };
   // Send requested amount to requested invoice.
   rpc Send(SendRequest) returns (SendResponse) {
     option (google.api.http) = {
@@ -57,7 +63,6 @@ service Service {
 
 message BalanceRequest {}
 message BalanceResponse {
-  // total balance in sats
   uint64 amount = 1;
 }
 
@@ -77,12 +82,35 @@ message InfoResponse {
   BuildInfo build_info = 3;
 }
 
+message ReceiveRequest {
+  uint64 amount = 1;
+  string invoice = 2;
+}
+message ReceiveResponse {
+  string round_id = 1;
+}
+
+message RoundRequest {
+  string round_id = 1;
+}
+message RoundResponse {
+  Round round = 1;
+}
+
+message SendRequest {
+  uint64 amount = 1;
+  string invoice = 2;
+}
+message SendResponse {
+  string round_id = 1;
+}
+
 message OffboardRequest {
   string address = 1;
   uint64 amount = 2;
 }
 message OffboardResponse {
-  string round_txid = 1;
+  string round_id = 1;
 }
 
 message OnboardRequest {
@@ -95,28 +123,5 @@ message OnboardResponse {
 
 message TransactionsRequest {}
 message TransactionsResponse {
-  // list containing all transactions
   repeated TransactionInfo transactions = 1;
-}
-
-message ReceiveRequest {
-  // requested amount
-  uint64 amount = 1;
-  // requested invoice
-  string invoice = 2;
-}
-message ReceiveResponse {
-  // id of round transaction
-  string round_id = 1;
-}
-
-message SendRequest {
-  // requested amount
-  uint64 amount = 1;
-  // requested invoice
-  string invoice = 2;
-}
-message SendResponse {
-  // id of round transaction
-  string round_id = 1;
 }

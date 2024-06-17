@@ -24,6 +24,7 @@ const (
 	Service_Onboard_FullMethodName      = "/ark_wallet.v1.Service/Onboard"
 	Service_Info_FullMethodName         = "/ark_wallet.v1.Service/Info"
 	Service_Receive_FullMethodName      = "/ark_wallet.v1.Service/Receive"
+	Service_Round_FullMethodName        = "/ark_wallet.v1.Service/Round"
 	Service_Send_FullMethodName         = "/ark_wallet.v1.Service/Send"
 	Service_Transactions_FullMethodName = "/ark_wallet.v1.Service/Transactions"
 )
@@ -42,6 +43,8 @@ type ServiceClient interface {
 	Info(ctx context.Context, in *InfoRequest, opts ...grpc.CallOption) (*InfoResponse, error)
 	// Receive requested amount on requested invoice.
 	Receive(ctx context.Context, in *ReceiveRequest, opts ...grpc.CallOption) (*ReceiveResponse, error)
+	// Receive requested amount on requested invoice.
+	Round(ctx context.Context, in *RoundRequest, opts ...grpc.CallOption) (*RoundResponse, error)
 	// Send requested amount to requested invoice.
 	Send(ctx context.Context, in *SendRequest, opts ...grpc.CallOption) (*SendResponse, error)
 	// Transactions returns virtual transactions history
@@ -106,6 +109,16 @@ func (c *serviceClient) Receive(ctx context.Context, in *ReceiveRequest, opts ..
 	return out, nil
 }
 
+func (c *serviceClient) Round(ctx context.Context, in *RoundRequest, opts ...grpc.CallOption) (*RoundResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RoundResponse)
+	err := c.cc.Invoke(ctx, Service_Round_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *serviceClient) Send(ctx context.Context, in *SendRequest, opts ...grpc.CallOption) (*SendResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SendResponse)
@@ -140,6 +153,8 @@ type ServiceServer interface {
 	Info(context.Context, *InfoRequest) (*InfoResponse, error)
 	// Receive requested amount on requested invoice.
 	Receive(context.Context, *ReceiveRequest) (*ReceiveResponse, error)
+	// Receive requested amount on requested invoice.
+	Round(context.Context, *RoundRequest) (*RoundResponse, error)
 	// Send requested amount to requested invoice.
 	Send(context.Context, *SendRequest) (*SendResponse, error)
 	// Transactions returns virtual transactions history
@@ -164,6 +179,9 @@ func (UnimplementedServiceServer) Info(context.Context, *InfoRequest) (*InfoResp
 }
 func (UnimplementedServiceServer) Receive(context.Context, *ReceiveRequest) (*ReceiveResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Receive not implemented")
+}
+func (UnimplementedServiceServer) Round(context.Context, *RoundRequest) (*RoundResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Round not implemented")
 }
 func (UnimplementedServiceServer) Send(context.Context, *SendRequest) (*SendResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Send not implemented")
@@ -273,6 +291,24 @@ func _Service_Receive_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_Round_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RoundRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).Round(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_Round_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).Round(ctx, req.(*RoundRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Service_Send_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SendRequest)
 	if err := dec(in); err != nil {
@@ -335,6 +371,10 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Receive",
 			Handler:    _Service_Receive_Handler,
+		},
+		{
+			MethodName: "Round",
+			Handler:    _Service_Round_Handler,
 		},
 		{
 			MethodName: "Send",
