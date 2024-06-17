@@ -21,6 +21,11 @@ message BuildInfo {
   string date = 3;
 }
 
+message Fees {
+  uint64 boltz = 1;
+  uint64 network = 2;
+}
+
 message Input {
   string txid = 1;
   uint32 vout = 2;

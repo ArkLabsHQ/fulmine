@@ -5,8 +5,27 @@ package ark_wallet.v1;
 import "ark_wallet/v1/types.proto";
 import "google/api/annotations.proto";
 
+// Example usage:
+//
+// LSP has too much value on the other side of the channel:
+// - LSP wants to receive some funds on this side of the channel
+// - LSP creates invoice and asks for Receive(invoice)
+// - Boltz pays the invoice in return for ark sats
+//
+// LSP has too much value on this side of the channel:
+// - LSP wants to send some funds to the other side of the channel
+// - LSP asks wallet for new ark address and asks Send(address)
+// - Boltz generates invoice which is returned to LSP
+// - LSP pays invoice and receives ark sats in return
+
 service Service {
-  // Balance returns offchain balance.
+  // Address returns offchain address
+  rpc Address(AddressRequest) returns (AddressResponse) {
+    option (google.api.http) = {
+      get: "/v1/address"
+    };
+  };
+  // Balance returns offchain balance
   rpc Balance(BalanceRequest) returns (BalanceResponse) {
     option (google.api.http) = {
       get: "/v1/balance"
@@ -26,16 +45,23 @@ service Service {
       body: "*"
     };
   };
-  // Info returns info about the HD wallet.
+  // Info returns info about the HD wallet
   rpc Info(InfoRequest) returns (InfoResponse) {
     option (google.api.http) = {
       get: "/v1/info"
     };
   };
-  // Receive requested amount on requested invoice.
+  // Receive asks to receive funds on requested invoice
   rpc Receive(ReceiveRequest) returns (ReceiveResponse) {
     option (google.api.http) = {
       post: "/v1/receive"
+      body: "*"
+    };
+  };
+  // ReceiveFees returns fees charged to receive requested invoice
+  rpc ReceiveFees(ReceiveFeesRequest) returns (ReceiveFeesResponse) {
+    option (google.api.http) = {
+      post: "/v1/receive/fees"
       body: "*"
     };
   };
@@ -45,7 +71,14 @@ service Service {
       get: "/v1/round/{round_id}"
     };
   };
-  // Send requested amount to requested invoice.
+  // SendFees returns fees charged to send amount to ark adddress
+  rpc SendFees(SendFeesRequest) returns (SendFeesResponse) {
+    option (google.api.http) = {
+      post: "/v1/send/fees"
+      body: "*"
+    };
+  };
+  // Send requested amount to requested ark adddress
   rpc Send(SendRequest) returns (SendResponse) {
     option (google.api.http) = {
       post: "/v1/send"
@@ -59,6 +92,11 @@ service Service {
       body: "*"
     };
   };
+}
+
+message AddressRequest {}
+message AddressResponse {
+  string address = 1;
 }
 
 message BalanceRequest {}
@@ -83,11 +121,17 @@ message InfoResponse {
 }
 
 message ReceiveRequest {
-  uint64 amount = 1;
-  string invoice = 2;
+  string invoice = 1;
 }
 message ReceiveResponse {
   string round_id = 1;
+}
+
+message ReceiveFeesRequest {
+  string invoice = 1;
+}
+message ReceiveFeesResponse {
+  Fees fees = 1;
 }
 
 message RoundRequest {
@@ -99,10 +143,18 @@ message RoundResponse {
 
 message SendRequest {
   uint64 amount = 1;
-  string invoice = 2;
+  string address = 2;
 }
 message SendResponse {
-  string round_id = 1;
+  string invoice = 1;
+}
+
+message SendFeesRequest {
+  uint64 amount = 1;
+  string address = 2;
+}
+message SendFeesResponse {
+  Fees fees = 1;
 }
 
 message OffboardRequest {
@@ -114,7 +166,7 @@ message OffboardResponse {
 }
 
 message OnboardRequest {
-  uint64 amount = 2;
+  uint64 amount = 1;
 }
 message OnboardResponse {
   string address = 1;
