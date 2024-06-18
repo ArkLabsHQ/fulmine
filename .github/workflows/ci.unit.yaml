@@ -23,7 +23,7 @@ jobs:
         uses: securego/gosec@master
         with:
           args: '-confidence medium -severity high -quiet ./...'
-      - uses: bufbuild/buf-setup-action@v1.3.1
+      - uses: bufbuild/buf-setup-action@v1.33.0
       - name: check proto linting
         run: make proto-lint
       - run: go get -v -t -d ./...
