@@ -24,7 +24,7 @@ func LightningBodyContent() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p>Lightning</p>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"grid grid-cols-2 gap-y-4 gap-x-8 p-4 w-full text-left\"><p>Add inbound</p><p>Add outbound</p><div><label for=\"inbound_invoice\">Invoice</label> <input id=\"inbound_invoice\" type=\"text\" class=\"w-full\"></div><div><label for=\"outbound_amount\">Amount</label> <input id=\"outbound_amount\" type=\"number\" class=\"w-full\"></div><button>Increase inbound</button> <button>Generate invoice</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

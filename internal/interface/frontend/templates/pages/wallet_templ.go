@@ -24,7 +24,7 @@ func WalletBodyContent() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p>Wallet</p>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"grid grid-cols-2 gap-y-4 gap-x-8 p-4 w-full text-left\"><p>Send</p><p>Receive</p><div><label for=\"send_address\">Address</label> <input id=\"send_address\" type=\"text\" class=\"w-full\"> <label for=\"send_amount\">Amount</label> <input id=\"send_amount\" type=\"number\" class=\"w-full\"></div><div><label for=\"receive_amount\">Amounts</label> <input id=\"receive_amount\" type=\"number\" class=\"w-full\"></div><button>Send</button> <button>Generate address</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

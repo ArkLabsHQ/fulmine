@@ -29,7 +29,6 @@ a:hover {
 body {
   margin: 0;
   display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
   color: #242424;
@@ -42,7 +41,7 @@ h1 {
 }
 
 #app {
-  width: 600px;
+  width: 640px;
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
@@ -62,7 +61,8 @@ h1 {
 }
 
 .content {
-  padding: 2em;
+  padding: 1em;
+  border-radius: 0 0 10px 10px;
 }
 
 .read-the-docs {
@@ -93,4 +93,9 @@ button:focus-visible {
 
 .grid-cols-4 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+label {
+  font-size: 0.8rem;
+  color: #666;
 }

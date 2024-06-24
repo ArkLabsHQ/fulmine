@@ -24,7 +24,7 @@ func KeysBodyContent() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p>Keys</p>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"grid grid-cols-2 gap-y-4 gap-x-8 p-4 w-full text-left\"><p>Create new</p><p>Restore wallet</p><p class=\"text-sm align-middle\"><br>Creates a new random mnemonic.<br>Save it in a secure place.</p><div><label for=\"restore_mnemonic\">Mnemonic</label> <textarea id=\"restore_mnemonic\" class=\"w-full\"></textarea></div><button>Create wallet</button> <button>Restore wallet</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

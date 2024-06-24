@@ -2,5 +2,20 @@ package pages
 
 // BodyContent defines HTML content.
 templ KeysBodyContent() {
-	<p>Keys</p>
+	<div class="grid grid-cols-2 gap-y-4 gap-x-8 p-4 w-full text-left">
+		<p>Create new</p>
+		<p>Restore wallet</p>
+		<p class="text-sm align-middle">
+			<br/>
+			Creates a new random mnemonic.
+			<br/>
+			Save it in a secure place.
+		</p>
+		<div>
+			<label for="restore_mnemonic">Mnemonic</label>
+			<textarea id="restore_mnemonic" class="w-full"></textarea>
+		</div>
+		<button>Create wallet</button>
+		<button>Restore wallet</button>
+	</div>
 }

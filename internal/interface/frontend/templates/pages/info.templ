@@ -1,6 +1,28 @@
 package pages
 
+templ Line(value, when string) {
+	<div class="flex justify-between text-sm even:bg-gray-100">
+		<p>{ value }</p>
+		<p>{ when }</p>
+	</div>
+}
+
 // BodyContent defines HTML content.
 templ InfoBodyContent() {
-	<p>Info</p>
+	<div class="grid grid-cols-2 gap-y-4 gap-x-8 p-4 w-full text-left">
+		<p>Last transactions</p>
+		<p>VTXOs expirations</p>
+		<div>
+			@Line("Value", "When")
+			@Line("+4321", "3d ago")
+			@Line("+2100", "4d ago")
+			@Line("-3373", "5d ago")
+		</div>
+		<div>
+			@Line("Value", "When")
+			@Line("3373", "in 1d")
+			@Line("2100", "in 2d")
+			@Line("4321", "in 3d")
+		</div>
+	</div>
 }

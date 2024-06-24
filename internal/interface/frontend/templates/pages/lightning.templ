@@ -2,5 +2,18 @@ package pages
 
 // BodyContent defines HTML content.
 templ LightningBodyContent() {
-	<p>Lightning</p>
+	<div class="grid grid-cols-2 gap-y-4 gap-x-8 p-4 w-full text-left">
+		<p>Add inbound</p>
+		<p>Add outbound</p>
+		<div>
+			<label for="inbound_invoice">Invoice</label>
+			<input id="inbound_invoice" type="text" class="w-full"/>
+		</div>
+		<div>
+			<label for="outbound_amount">Amount</label>
+			<input id="outbound_amount" type="number" class="w-full"/>
+		</div>
+		<button>Increase inbound</button>
+		<button>Generate invoice</button>
+	</div>
 }
