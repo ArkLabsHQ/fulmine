@@ -19,17 +19,17 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	Service_Address_FullMethodName      = "/ark_wallet.v1.Service/Address"
-	Service_Balance_FullMethodName      = "/ark_wallet.v1.Service/Balance"
-	Service_Offboard_FullMethodName     = "/ark_wallet.v1.Service/Offboard"
-	Service_Onboard_FullMethodName      = "/ark_wallet.v1.Service/Onboard"
-	Service_Info_FullMethodName         = "/ark_wallet.v1.Service/Info"
-	Service_Receive_FullMethodName      = "/ark_wallet.v1.Service/Receive"
-	Service_ReceiveFees_FullMethodName  = "/ark_wallet.v1.Service/ReceiveFees"
-	Service_Round_FullMethodName        = "/ark_wallet.v1.Service/Round"
-	Service_SendFees_FullMethodName     = "/ark_wallet.v1.Service/SendFees"
-	Service_Send_FullMethodName         = "/ark_wallet.v1.Service/Send"
-	Service_Transactions_FullMethodName = "/ark_wallet.v1.Service/Transactions"
+	Service_Address_FullMethodName          = "/ark_wallet.v1.Service/Address"
+	Service_Balance_FullMethodName          = "/ark_wallet.v1.Service/Balance"
+	Service_Offboard_FullMethodName         = "/ark_wallet.v1.Service/Offboard"
+	Service_Onboard_FullMethodName          = "/ark_wallet.v1.Service/Onboard"
+	Service_Info_FullMethodName             = "/ark_wallet.v1.Service/Info"
+	Service_IncreaseInbound_FullMethodName  = "/ark_wallet.v1.Service/IncreaseInbound"
+	Service_InboundFees_FullMethodName      = "/ark_wallet.v1.Service/InboundFees"
+	Service_IncreaseOutbound_FullMethodName = "/ark_wallet.v1.Service/IncreaseOutbound"
+	Service_OutboundFees_FullMethodName     = "/ark_wallet.v1.Service/OutboundFees"
+	Service_Round_FullMethodName            = "/ark_wallet.v1.Service/Round"
+	Service_Transactions_FullMethodName     = "/ark_wallet.v1.Service/Transactions"
 )
 
 // ServiceClient is the client API for Service service.
@@ -46,16 +46,16 @@ type ServiceClient interface {
 	Onboard(ctx context.Context, in *OnboardRequest, opts ...grpc.CallOption) (*OnboardResponse, error)
 	// Info returns info about the HD wallet
 	Info(ctx context.Context, in *InfoRequest, opts ...grpc.CallOption) (*InfoResponse, error)
-	// Receive asks to receive funds on requested invoice
-	Receive(ctx context.Context, in *ReceiveRequest, opts ...grpc.CallOption) (*ReceiveResponse, error)
-	// ReceiveFees returns fees charged to receive requested invoice
-	ReceiveFees(ctx context.Context, in *ReceiveFeesRequest, opts ...grpc.CallOption) (*ReceiveFeesResponse, error)
+	// IncreaseInbound asks to receive funds on requested invoice
+	IncreaseInbound(ctx context.Context, in *IncreaseInboundRequest, opts ...grpc.CallOption) (*IncreaseInboundResponse, error)
+	// InboundFees returns fees charged to receive requested invoice
+	InboundFees(ctx context.Context, in *InboundFeesRequest, opts ...grpc.CallOption) (*InboundFeesResponse, error)
+	// IncreaseOutbound requests a ln invoice
+	IncreaseOutbound(ctx context.Context, in *IncreaseOutboundRequest, opts ...grpc.CallOption) (*IncreaseOutboundResponse, error)
+	// OutboundFees returns fees charged to send amount to ark adddress
+	OutboundFees(ctx context.Context, in *OutboundFeesRequest, opts ...grpc.CallOption) (*OutboundFeesResponse, error)
 	// Round returns round info for optional round_id
 	Round(ctx context.Context, in *RoundRequest, opts ...grpc.CallOption) (*RoundResponse, error)
-	// SendFees returns fees charged to send amount to ark adddress
-	SendFees(ctx context.Context, in *SendFeesRequest, opts ...grpc.CallOption) (*SendFeesResponse, error)
-	// Send requested amount to requested ark adddress
-	Send(ctx context.Context, in *SendRequest, opts ...grpc.CallOption) (*SendResponse, error)
 	// Transactions returns virtual transactions history
 	Transactions(ctx context.Context, in *TransactionsRequest, opts ...grpc.CallOption) (*TransactionsResponse, error)
 }
@@ -118,20 +118,40 @@ func (c *serviceClient) Info(ctx context.Context, in *InfoRequest, opts ...grpc.
 	return out, nil
 }
 
-func (c *serviceClient) Receive(ctx context.Context, in *ReceiveRequest, opts ...grpc.CallOption) (*ReceiveResponse, error) {
+func (c *serviceClient) IncreaseInbound(ctx context.Context, in *IncreaseInboundRequest, opts ...grpc.CallOption) (*IncreaseInboundResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ReceiveResponse)
-	err := c.cc.Invoke(ctx, Service_Receive_FullMethodName, in, out, cOpts...)
+	out := new(IncreaseInboundResponse)
+	err := c.cc.Invoke(ctx, Service_IncreaseInbound_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *serviceClient) ReceiveFees(ctx context.Context, in *ReceiveFeesRequest, opts ...grpc.CallOption) (*ReceiveFeesResponse, error) {
+func (c *serviceClient) InboundFees(ctx context.Context, in *InboundFeesRequest, opts ...grpc.CallOption) (*InboundFeesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ReceiveFeesResponse)
-	err := c.cc.Invoke(ctx, Service_ReceiveFees_FullMethodName, in, out, cOpts...)
+	out := new(InboundFeesResponse)
+	err := c.cc.Invoke(ctx, Service_InboundFees_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) IncreaseOutbound(ctx context.Context, in *IncreaseOutboundRequest, opts ...grpc.CallOption) (*IncreaseOutboundResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(IncreaseOutboundResponse)
+	err := c.cc.Invoke(ctx, Service_IncreaseOutbound_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) OutboundFees(ctx context.Context, in *OutboundFeesRequest, opts ...grpc.CallOption) (*OutboundFeesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OutboundFeesResponse)
+	err := c.cc.Invoke(ctx, Service_OutboundFees_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -142,26 +162,6 @@ func (c *serviceClient) Round(ctx context.Context, in *RoundRequest, opts ...grp
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RoundResponse)
 	err := c.cc.Invoke(ctx, Service_Round_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *serviceClient) SendFees(ctx context.Context, in *SendFeesRequest, opts ...grpc.CallOption) (*SendFeesResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SendFeesResponse)
-	err := c.cc.Invoke(ctx, Service_SendFees_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *serviceClient) Send(ctx context.Context, in *SendRequest, opts ...grpc.CallOption) (*SendResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SendResponse)
-	err := c.cc.Invoke(ctx, Service_Send_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -192,16 +192,16 @@ type ServiceServer interface {
 	Onboard(context.Context, *OnboardRequest) (*OnboardResponse, error)
 	// Info returns info about the HD wallet
 	Info(context.Context, *InfoRequest) (*InfoResponse, error)
-	// Receive asks to receive funds on requested invoice
-	Receive(context.Context, *ReceiveRequest) (*ReceiveResponse, error)
-	// ReceiveFees returns fees charged to receive requested invoice
-	ReceiveFees(context.Context, *ReceiveFeesRequest) (*ReceiveFeesResponse, error)
+	// IncreaseInbound asks to receive funds on requested invoice
+	IncreaseInbound(context.Context, *IncreaseInboundRequest) (*IncreaseInboundResponse, error)
+	// InboundFees returns fees charged to receive requested invoice
+	InboundFees(context.Context, *InboundFeesRequest) (*InboundFeesResponse, error)
+	// IncreaseOutbound requests a ln invoice
+	IncreaseOutbound(context.Context, *IncreaseOutboundRequest) (*IncreaseOutboundResponse, error)
+	// OutboundFees returns fees charged to send amount to ark adddress
+	OutboundFees(context.Context, *OutboundFeesRequest) (*OutboundFeesResponse, error)
 	// Round returns round info for optional round_id
 	Round(context.Context, *RoundRequest) (*RoundResponse, error)
-	// SendFees returns fees charged to send amount to ark adddress
-	SendFees(context.Context, *SendFeesRequest) (*SendFeesResponse, error)
-	// Send requested amount to requested ark adddress
-	Send(context.Context, *SendRequest) (*SendResponse, error)
 	// Transactions returns virtual transactions history
 	Transactions(context.Context, *TransactionsRequest) (*TransactionsResponse, error)
 }
@@ -225,20 +225,20 @@ func (UnimplementedServiceServer) Onboard(context.Context, *OnboardRequest) (*On
 func (UnimplementedServiceServer) Info(context.Context, *InfoRequest) (*InfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Info not implemented")
 }
-func (UnimplementedServiceServer) Receive(context.Context, *ReceiveRequest) (*ReceiveResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Receive not implemented")
+func (UnimplementedServiceServer) IncreaseInbound(context.Context, *IncreaseInboundRequest) (*IncreaseInboundResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IncreaseInbound not implemented")
 }
-func (UnimplementedServiceServer) ReceiveFees(context.Context, *ReceiveFeesRequest) (*ReceiveFeesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReceiveFees not implemented")
+func (UnimplementedServiceServer) InboundFees(context.Context, *InboundFeesRequest) (*InboundFeesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method InboundFees not implemented")
+}
+func (UnimplementedServiceServer) IncreaseOutbound(context.Context, *IncreaseOutboundRequest) (*IncreaseOutboundResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IncreaseOutbound not implemented")
+}
+func (UnimplementedServiceServer) OutboundFees(context.Context, *OutboundFeesRequest) (*OutboundFeesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method OutboundFees not implemented")
 }
 func (UnimplementedServiceServer) Round(context.Context, *RoundRequest) (*RoundResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Round not implemented")
-}
-func (UnimplementedServiceServer) SendFees(context.Context, *SendFeesRequest) (*SendFeesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendFees not implemented")
-}
-func (UnimplementedServiceServer) Send(context.Context, *SendRequest) (*SendResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Send not implemented")
 }
 func (UnimplementedServiceServer) Transactions(context.Context, *TransactionsRequest) (*TransactionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Transactions not implemented")
@@ -345,38 +345,74 @@ func _Service_Info_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Service_Receive_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReceiveRequest)
+func _Service_IncreaseInbound_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IncreaseInboundRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServiceServer).Receive(ctx, in)
+		return srv.(ServiceServer).IncreaseInbound(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Service_Receive_FullMethodName,
+		FullMethod: Service_IncreaseInbound_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).Receive(ctx, req.(*ReceiveRequest))
+		return srv.(ServiceServer).IncreaseInbound(ctx, req.(*IncreaseInboundRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Service_ReceiveFees_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReceiveFeesRequest)
+func _Service_InboundFees_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InboundFeesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServiceServer).ReceiveFees(ctx, in)
+		return srv.(ServiceServer).InboundFees(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Service_ReceiveFees_FullMethodName,
+		FullMethod: Service_InboundFees_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).ReceiveFees(ctx, req.(*ReceiveFeesRequest))
+		return srv.(ServiceServer).InboundFees(ctx, req.(*InboundFeesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_IncreaseOutbound_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IncreaseOutboundRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).IncreaseOutbound(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_IncreaseOutbound_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).IncreaseOutbound(ctx, req.(*IncreaseOutboundRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_OutboundFees_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OutboundFeesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).OutboundFees(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_OutboundFees_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).OutboundFees(ctx, req.(*OutboundFeesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -395,42 +431,6 @@ func _Service_Round_Handler(srv interface{}, ctx context.Context, dec func(inter
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).Round(ctx, req.(*RoundRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Service_SendFees_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SendFeesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).SendFees(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_SendFees_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).SendFees(ctx, req.(*SendFeesRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Service_Send_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SendRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).Send(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_Send_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).Send(ctx, req.(*SendRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -481,24 +481,24 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Service_Info_Handler,
 		},
 		{
-			MethodName: "Receive",
-			Handler:    _Service_Receive_Handler,
+			MethodName: "IncreaseInbound",
+			Handler:    _Service_IncreaseInbound_Handler,
 		},
 		{
-			MethodName: "ReceiveFees",
-			Handler:    _Service_ReceiveFees_Handler,
+			MethodName: "InboundFees",
+			Handler:    _Service_InboundFees_Handler,
+		},
+		{
+			MethodName: "IncreaseOutbound",
+			Handler:    _Service_IncreaseOutbound_Handler,
+		},
+		{
+			MethodName: "OutboundFees",
+			Handler:    _Service_OutboundFees_Handler,
 		},
 		{
 			MethodName: "Round",
 			Handler:    _Service_Round_Handler,
-		},
-		{
-			MethodName: "SendFees",
-			Handler:    _Service_SendFees_Handler,
-		},
-		{
-			MethodName: "Send",
-			Handler:    _Service_Send_Handler,
 		},
 		{
 			MethodName: "Transactions",

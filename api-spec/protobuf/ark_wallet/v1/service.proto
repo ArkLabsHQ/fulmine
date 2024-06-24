@@ -73,7 +73,7 @@ service Service {
     };
   };
   // OutboundFees returns fees charged to send amount to ark adddress
-  rpc OutboundFees(SendFeesRequest) returns (SendFeesResponse) {
+  rpc OutboundFees(OutboundFeesRequest) returns (OutboundFeesResponse) {
     option (google.api.http) = {
       post: "/v1/outbound/fees"
       body: "*"
