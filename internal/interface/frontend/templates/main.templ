@@ -1,0 +1,40 @@
+package templates
+
+import (
+	"github.com/ArkLabsHQ/ark-wallet/templates/pages"
+)
+
+templ Layout(bodyContent, tabsContent templ.Component) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<title>Fulmine</title>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+			<meta name="keywords" content="Ark"/>
+			<meta name="description" content="Fulmine frontend"/>
+			<meta name="theme-color" content="#FEFEF5"/>
+			<link rel="dns-prefetch" href="//fonts.googleapis.com"/>
+			<link rel="dns-prefetch" href="//fonts.gstatic.com"/>
+			<link rel="preconnect" href="//fonts.googleapis.com" crossorigin/>
+			<link rel="preconnect" href="//fonts.gstatic.com" crossorigin/>
+			<link rel="manifest" href="/static/manifest.webmanifest"/>
+			<link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
+			<link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon"/>
+			<link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
+			<link rel="icon" href="/static/favicon.png" sizes="any"/>
+			<link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet"/>
+			<link href="/static/styles.css" rel="stylesheet"/>
+		</head>
+		<body onload={ pages.BodyScripts() }>
+			<div id="app">
+				@tabsContent
+				<div class="bg-white p-2 w-full">
+					@bodyContent
+				</div>
+			</div>
+			<script src="/static/scripts.js"></script>
+		</body>
+	</html>
+}
