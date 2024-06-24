@@ -51,17 +51,31 @@ service Service {
       get: "/v1/info"
     };
   };
-  // Receive asks to receive funds on requested invoice
-  rpc Receive(ReceiveRequest) returns (ReceiveResponse) {
+  // IncreaseInbound asks to receive funds on requested invoice
+  rpc IncreaseInbound(IncreaseInboundRequest) returns (IncreaseInboundResponse) {
     option (google.api.http) = {
-      post: "/v1/receive"
+      post: "/v1/inbound"
       body: "*"
     };
   };
-  // ReceiveFees returns fees charged to receive requested invoice
-  rpc ReceiveFees(ReceiveFeesRequest) returns (ReceiveFeesResponse) {
+  // InboundFees returns fees charged to receive requested invoice
+  rpc InboundFees(InboundFeesRequest) returns (InboundFeesResponse) {
     option (google.api.http) = {
-      post: "/v1/receive/fees"
+      post: "/v1/inbound/fees"
+      body: "*"
+    };
+  };
+  // IncreaseOutbound requests a ln invoice
+  rpc IncreaseOutbound(IncreaseOutboundRequest) returns (IncreaseOutboundResponse) {
+    option (google.api.http) = {
+      post: "/v1/outbound"
+      body: "*"
+    };
+  };
+  // OutboundFees returns fees charged to send amount to ark adddress
+  rpc OutboundFees(SendFeesRequest) returns (SendFeesResponse) {
+    option (google.api.http) = {
+      post: "/v1/outbound/fees"
       body: "*"
     };
   };
@@ -69,20 +83,6 @@ service Service {
   rpc Round(RoundRequest) returns (RoundResponse) {
     option (google.api.http) = {
       get: "/v1/round/{round_id}"
-    };
-  };
-  // SendFees returns fees charged to send amount to ark adddress
-  rpc SendFees(SendFeesRequest) returns (SendFeesResponse) {
-    option (google.api.http) = {
-      post: "/v1/send/fees"
-      body: "*"
-    };
-  };
-  // Send requested amount to requested ark adddress
-  rpc Send(SendRequest) returns (SendResponse) {
-    option (google.api.http) = {
-      post: "/v1/send"
-      body: "*"
     };
   };
   // Transactions returns virtual transactions history
@@ -120,40 +120,33 @@ message InfoResponse {
   BuildInfo build_info = 3;
 }
 
-message ReceiveRequest {
+message IncreaseInboundRequest {
   string invoice = 1;
 }
-message ReceiveResponse {
+message IncreaseInboundResponse {
   string round_id = 1;
 }
 
-message ReceiveFeesRequest {
+message InboundFeesRequest {
   string invoice = 1;
 }
-message ReceiveFeesResponse {
+message InboundFeesResponse {
   Fees fees = 1;
 }
 
-message RoundRequest {
-  string round_id = 1;
-}
-message RoundResponse {
-  Round round = 1;
-}
-
-message SendRequest {
+message IncreaseOutboundRequest {
   uint64 amount = 1;
   string address = 2;
 }
-message SendResponse {
+message IncreaseOutboundResponse {
   string invoice = 1;
 }
 
-message SendFeesRequest {
+message OutboundFeesRequest {
   uint64 amount = 1;
   string address = 2;
 }
-message SendFeesResponse {
+message OutboundFeesResponse {
   Fees fees = 1;
 }
 
@@ -171,6 +164,13 @@ message OnboardRequest {
 message OnboardResponse {
   string address = 1;
   string invoice = 2;
+}
+
+message RoundRequest {
+  string round_id = 1;
+}
+message RoundResponse {
+  Round round = 1;
 }
 
 message TransactionsRequest {}
