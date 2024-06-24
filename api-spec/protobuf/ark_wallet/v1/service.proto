@@ -9,12 +9,12 @@ import "google/api/annotations.proto";
 //
 // LSP has too much value on the other side of the channel:
 // - LSP wants to receive some funds on this side of the channel
-// - LSP creates invoice and asks for Receive(invoice)
+// - LSP creates invoice and asks for IncreaseInbound(invoice)
 // - Boltz pays the invoice in return for ark sats
 //
 // LSP has too much value on this side of the channel:
 // - LSP wants to send some funds to the other side of the channel
-// - LSP asks wallet for new ark address and asks Send(address)
+// - LSP asks wallet for new ark address and asks IncreaseOutbound(address)
 // - Boltz generates invoice which is returned to LSP
 // - LSP pays invoice and receives ark sats in return
 
@@ -29,20 +29,6 @@ service Service {
   rpc Balance(BalanceRequest) returns (BalanceResponse) {
     option (google.api.http) = {
       get: "/v1/balance"
-    };
-  };
-  // Offboard asks to send requested amount to requested onchain address
-  rpc Offboard(OffboardRequest) returns (OffboardResponse) {
-    option (google.api.http) = {
-      post: "/v1/offboard"
-      body: "*"
-    };
-  };
-  // Onboard returns onchain address and invoice for requested amount
-  rpc Onboard(OnboardRequest) returns (OnboardResponse) {
-    option (google.api.http) = {
-      post: "/v1/onboard"
-      body: "*"
     };
   };
   // Info returns info about the HD wallet
@@ -76,6 +62,48 @@ service Service {
   rpc OutboundFees(OutboundFeesRequest) returns (OutboundFeesResponse) {
     option (google.api.http) = {
       post: "/v1/outbound/fees"
+      body: "*"
+    };
+  };
+  // Offboard asks to send requested amount to requested onchain address
+  rpc Offboard(OffboardRequest) returns (OffboardResponse) {
+    option (google.api.http) = {
+      post: "/v1/offboard"
+      body: "*"
+    };
+  };
+  // Onboard returns onchain address and invoice for requested amount
+  rpc Onboard(OnboardRequest) returns (OnboardResponse) {
+    option (google.api.http) = {
+      post: "/v1/onboard"
+      body: "*"
+    };
+  };
+  // Receive returns round info for optional round_id
+  rpc Receive(ReceiveRequest) returns (ReceiveResponse) {
+    option (google.api.http) = {
+      post: "/v1/receive"
+      body: "*"
+    };
+  };
+  // Receive returns round info for optional round_id
+  rpc ReceiveFees(ReceiveFeesRequest) returns (ReceiveFeesResponse) {
+    option (google.api.http) = {
+      post: "/v1/receive/fees"
+      body: "*"
+    };
+  };
+  // Send returns round info for optional round_id
+  rpc Send(SendRequest) returns (SendResponse) {
+    option (google.api.http) = {
+      post: "/v1/send"
+      body: "*"
+    };
+  };
+  // Send returns round info for optional round_id
+  rpc SendFees(SendFeesRequest) returns (SendFeesResponse) {
+    option (google.api.http) = {
+      post: "/v1/send/fees"
       body: "*"
     };
   };
@@ -164,6 +192,38 @@ message OnboardRequest {
 message OnboardResponse {
   string address = 1;
   string invoice = 2;
+}
+
+message ReceiveRequest {
+  string address = 1;
+  uint64 amount = 2;
+}
+message ReceiveResponse {
+  string round_id = 1;
+}
+
+message ReceiveFeesRequest {
+  string address = 1;
+  uint64 amount = 2;
+}
+message ReceiveFeesResponse {
+  Fees fees = 1;
+}
+
+message SendRequest {
+  string address = 1;
+  uint64 amount = 2;
+}
+message SendResponse {
+  string round_id = 1;
+}
+
+message SendFeesRequest {
+  string address = 1;
+  uint64 amount = 2;
+}
+message SendFeesResponse {
+  Fees fees = 1;
 }
 
 message RoundRequest {
