@@ -34,17 +34,3 @@ func HomeBodyContent() templ.Component {
 		return templ_7745c5c3_Err
 	})
 }
-
-// BodyScripts defines JavaScript code.
-func BodyScripts() templ.ComponentScript {
-	return templ.ComponentScript{
-		Name: `__templ_BodyScripts_3e71`,
-		Function: `function __templ_BodyScripts_3e71(){console.log(
-		"You're using Templ package to generate HTML content!",
-		"Edit this JavaScript code in the ` + "`" + `./templates/pages/index.templ` + "`" + ` file.",
-	);
-}`,
-		Call:       templ.SafeScript(`__templ_BodyScripts_3e71`),
-		CallInline: templ.SafeScriptInline(`__templ_BodyScripts_3e71`),
-	}
-}

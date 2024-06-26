@@ -1,24 +1,25 @@
 package pages
 
-templ Line(value, when string) {
-	<div class="flex justify-between text-sm even:bg-gray-100">
-		<p>{ value }</p>
-		<p>{ when }</p>
+templ Line(sats, when string) {
+	<div class="flex justify-between text-sm odd:bg-gray-100">
+		<p class="sats">{ sats }</p>
+		<p class="when">{ when }</p>
 	</div>
 }
 
 // BodyContent defines HTML content.
 templ InfoBodyContent() {
-	<div class="grid grid-cols-2 gap-y-4 gap-x-8 p-4 w-full text-left">
-		<p>Last transactions</p>
-		<p>VTXOs expirations</p>
+	<p class="p-4 text-left">Balance: <span class="sats">9794</span></p>
+	<div class="grid grid-cols-2 gap-x-8 p-4 w-full text-left">
 		<div>
+			<p class="mb-4">Last transactions</p>
 			@Line("Value", "When")
 			@Line("+4321", "3d ago")
 			@Line("+2100", "4d ago")
-			@Line("-3373", "5d ago")
+			@Line("+3373", "5d ago")
 		</div>
 		<div>
+			<p class="mb-4">VTXOs expirations</p>
 			@Line("Value", "When")
 			@Line("3373", "in 1d")
 			@Line("2100", "in 2d")
