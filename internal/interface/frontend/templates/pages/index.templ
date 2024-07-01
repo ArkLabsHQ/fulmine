@@ -4,3 +4,20 @@ package pages
 templ HomeBodyContent() {
 	<p class="py-12">Welcome to Fulmine</p>
 }
+
+script PagesScript() {
+	// from 4321 to 0.00004321 with '0' in gray
+  const prettySats = (data) => {
+    if (!/\d/.test(data)) return data // not a number
+    const prefix = /^[\D]/.test(data) ? data[0] : ''
+    const number = /^[\D]/.test(data) ? data.slice(1) : data
+	  const length = String(number).length
+    if (length > 8) return number
+    let padding = '0.'
+    for (let i = length; i < 8; i++) padding += '0'
+	  return `${prefix}<span class="text-gray-400">${padding}</span>${number}`
+  }
+  document.querySelectorAll('.sats').forEach((x) => {
+	  x.innerHTML = prettySats(x.textContent)
+  })
+}

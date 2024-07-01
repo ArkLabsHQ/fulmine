@@ -27,7 +27,7 @@ templ Layout(bodyContent, tabsContent templ.Component) {
 			<link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet"/>
 			<link href="/static/styles.css" rel="stylesheet"/>
 		</head>
-		<body onload={ pages.BodyScripts() }>
+		<body onload={ pages.PagesScript() }>
 			<div id="app">
 				@tabsContent
 				<div class="bg-white content w-full">
