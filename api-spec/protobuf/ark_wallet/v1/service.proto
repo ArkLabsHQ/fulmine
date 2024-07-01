@@ -9,112 +9,105 @@ import "google/api/annotations.proto";
 //
 // LSP has too much value on the other side of the channel:
 // - LSP wants to receive some funds on this side of the channel
-// - LSP creates invoice and asks for IncreaseInbound(invoice)
+// - LSP creates invoice and asks for IncreaseOutbound(invoice)
 // - Boltz pays the invoice in return for ark sats
 //
 // LSP has too much value on this side of the channel:
 // - LSP wants to send some funds to the other side of the channel
-// - LSP asks wallet for new ark address and asks IncreaseOutbound(address)
+// - LSP asks wallet for new ark address and asks IncreaseInbound(address)
 // - Boltz generates invoice which is returned to LSP
 // - LSP pays invoice and receives ark sats in return
 
 service Service {
-  // Address returns offchain address
-  rpc Address(AddressRequest) returns (AddressResponse) {
+  // GetAddress returns offchain address
+  rpc GetAddress(GetAddressRequest) returns (GetAddressResponse) {
     option (google.api.http) = {
       get: "/v1/address"
     };
   };
-  // Balance returns offchain balance
-  rpc Balance(BalanceRequest) returns (BalanceResponse) {
+  // GetBalance returns ark balance
+  rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse) {
     option (google.api.http) = {
       get: "/v1/balance"
     };
   };
-  // Info returns info about the HD wallet
-  rpc Info(InfoRequest) returns (InfoResponse) {
+  // GetInfo returns info about the ark account
+  rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
     option (google.api.http) = {
       get: "/v1/info"
     };
   };
-  // IncreaseInbound asks to receive funds on requested invoice
+  // IncreaseInbound requests a LN invoice to Boltz for me to pay
   rpc IncreaseInbound(IncreaseInboundRequest) returns (IncreaseInboundResponse) {
     option (google.api.http) = {
       post: "/v1/inbound"
       body: "*"
     };
   };
-  // InboundFees returns fees charged to receive requested invoice
-  rpc InboundFees(InboundFeesRequest) returns (InboundFeesResponse) {
+  // GetIncreaseInboundFees returns fees charged to increase inbound liquidity
+  rpc GetIncreaseInboundFees(GetIncreaseInboundFeesRequest) returns (GetIncreaseInboundFeesResponse) {
     option (google.api.http) = {
       post: "/v1/inbound/fees"
       body: "*"
     };
   };
-  // IncreaseOutbound requests a ln invoice
+  // IncreaseOutbound sends fresh LN invoice to be paid by Boltz
   rpc IncreaseOutbound(IncreaseOutboundRequest) returns (IncreaseOutboundResponse) {
     option (google.api.http) = {
       post: "/v1/outbound"
       body: "*"
     };
   };
-  // OutboundFees returns fees charged to send amount to ark adddress
-  rpc OutboundFees(OutboundFeesRequest) returns (OutboundFeesResponse) {
+  // GetIncreaseOutboundFees returns fees charged to increase outbound liquidity
+  rpc GetIncreaseOutboundFees(GetIncreaseOutboundFeesRequest) returns (GetIncreaseOutboundFeesResponse) {
     option (google.api.http) = {
       post: "/v1/outbound/fees"
       body: "*"
     };
   };
-  // Offboard asks to send requested amount to requested onchain address
-  rpc Offboard(OffboardRequest) returns (OffboardResponse) {
-    option (google.api.http) = {
-      post: "/v1/offboard"
-      body: "*"
-    };
-  };
-  // Onboard returns onchain address and invoice for requested amount
-  rpc Onboard(OnboardRequest) returns (OnboardResponse) {
+  // GetOnboardAddress returns onchain address and invoice for requested amount
+  rpc GetOnboardAddress(GetOnboardAddressRequest) returns (GetOnboardAddressResponse) {
     option (google.api.http) = {
       post: "/v1/onboard"
       body: "*"
     };
   };
-  // Receive returns round info for optional round_id
-  rpc Receive(ReceiveRequest) returns (ReceiveResponse) {
-    option (google.api.http) = {
-      post: "/v1/receive"
-      body: "*"
-    };
-  };
-  // Receive returns round info for optional round_id
-  rpc ReceiveFees(ReceiveFeesRequest) returns (ReceiveFeesResponse) {
-    option (google.api.http) = {
-      post: "/v1/receive/fees"
-      body: "*"
-    };
-  };
-  // Send returns round info for optional round_id
+  // Send asks to send amount to ark address
   rpc Send(SendRequest) returns (SendResponse) {
     option (google.api.http) = {
       post: "/v1/send"
       body: "*"
     };
   };
-  // Send returns round info for optional round_id
-  rpc SendFees(SendFeesRequest) returns (SendFeesResponse) {
+  // GetSendFees returns fees to pay for send request
+  rpc GetSendFees(GetSendFeesRequest) returns (GetSendFeesResponse) {
     option (google.api.http) = {
       post: "/v1/send/fees"
       body: "*"
     };
   };
+  // SendOnchain asks to send requested amount to requested onchain address
+  rpc SendOnchain(SendOnchainRequest) returns (SendOnchainResponse) {
+    option (google.api.http) = {
+      post: "/v1/send/onchain"
+      body: "*"
+    };
+  };
+  // SendOnchain asks to send requested amount to requested onchain address
+  rpc GetSendOnchainFees(GetSendOnchainFeesRequest) returns (GetSendOnchainFeesResponse) {
+    option (google.api.http) = {
+      post: "/v1/send/onchain/fees"
+      body: "*"
+    };
+  };
   // Round returns round info for optional round_id
-  rpc Round(RoundRequest) returns (RoundResponse) {
+  rpc GetRoundInfo(GetRoundInfoRequest) returns (GetRoundInfoResponse) {
     option (google.api.http) = {
       get: "/v1/round/{round_id}"
     };
   };
-  // Transactions returns virtual transactions history
-  rpc Transactions(TransactionsRequest) returns (TransactionsResponse) {
+  // GetTransactions returns virtual transactions history
+  rpc GetTransactions(GetTransactionsRequest) returns (GetTransactionsResponse) {
     option (google.api.http) = {
       post: "/v1/transactions"
       body: "*"
@@ -122,18 +115,18 @@ service Service {
   };
 }
 
-message AddressRequest {}
-message AddressResponse {
+message GetAddressRequest {}
+message GetAddressResponse {
   string address = 1;
 }
 
-message BalanceRequest {}
-message BalanceResponse {
+message GetBalanceRequest {}
+message GetBalanceResponse {
   uint64 amount = 1;
 }
 
-message InfoRequest {}
-message InfoResponse {
+message GetInfoRequest {}
+message GetInfoResponse {
   enum Network {
     NETWORK_UNSPECIFIED = 0;
     NETWORK_MAINNET = 1;
@@ -148,66 +141,42 @@ message InfoResponse {
   BuildInfo build_info = 3;
 }
 
-message IncreaseInboundRequest {
-  string invoice = 1;
-}
-message IncreaseInboundResponse {
-  string round_id = 1;
-}
-
-message InboundFeesRequest {
-  string invoice = 1;
-}
-message InboundFeesResponse {
-  Fees fees = 1;
-}
-
 message IncreaseOutboundRequest {
-  uint64 amount = 1;
-  string address = 2;
+  string invoice = 1;
 }
 message IncreaseOutboundResponse {
-  string invoice = 1;
+  string round_id = 1;
 }
 
-message OutboundFeesRequest {
+message GetIncreaseOutboundFeesRequest {
+  string invoice = 1;
+}
+message GetIncreaseOutboundFeesResponse {
+  Fees fees = 1;
+}
+
+message IncreaseInboundRequest {
   uint64 amount = 1;
   string address = 2;
 }
-message OutboundFeesResponse {
+message IncreaseInboundResponse {
+  string invoice = 1;
+}
+
+message GetIncreaseInboundFeesRequest {
+  uint64 amount = 1;
+  string address = 2;
+}
+message GetIncreaseInboundFeesResponse {
   Fees fees = 1;
 }
 
-message OffboardRequest {
-  string address = 1;
-  uint64 amount = 2;
-}
-message OffboardResponse {
-  string round_id = 1;
-}
-
-message OnboardRequest {
+message GetOnboardAddressRequest {
   uint64 amount = 1;
 }
-message OnboardResponse {
+message GetOnboardAddressResponse {
   string address = 1;
   string invoice = 2;
-}
-
-message ReceiveRequest {
-  string address = 1;
-  uint64 amount = 2;
-}
-message ReceiveResponse {
-  string round_id = 1;
-}
-
-message ReceiveFeesRequest {
-  string address = 1;
-  uint64 amount = 2;
-}
-message ReceiveFeesResponse {
-  Fees fees = 1;
 }
 
 message SendRequest {
@@ -218,22 +187,38 @@ message SendResponse {
   string round_id = 1;
 }
 
-message SendFeesRequest {
+message GetSendFeesRequest {
   string address = 1;
   uint64 amount = 2;
 }
-message SendFeesResponse {
+message GetSendFeesResponse {
   Fees fees = 1;
 }
 
-message RoundRequest {
+message SendOnchainRequest {
+  string address = 1;
+  uint64 amount = 2;
+}
+message SendOnchainResponse {
   string round_id = 1;
 }
-message RoundResponse {
+
+message GetSendOnchainFeesRequest {
+  string address = 1;
+  uint64 amount = 2;
+}
+message GetSendOnchainFeesResponse {
+  Fees fees = 1;
+}
+
+message GetRoundInfoRequest {
+  string round_id = 1;
+}
+message GetRoundInfoResponse {
   Round round = 1;
 }
 
-message TransactionsRequest {}
-message TransactionsResponse {
+message GetTransactionsRequest {}
+message GetTransactionsResponse {
   repeated TransactionInfo transactions = 1;
 }

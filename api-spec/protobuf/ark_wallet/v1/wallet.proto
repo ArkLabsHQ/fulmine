@@ -68,8 +68,8 @@ service WalletService {
     };
   };
 
-  // GetInfo returns info about the HD wallet.
-  rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
+  // GetWalletInfo returns info about the HD wallet.
+  rpc GetWalletInfo(GetWalletInfoRequest) returns (GetWalletInfoResponse) {
     option (google.api.http) = {
       get: "/v1/wallet/info"
     };
@@ -146,8 +146,8 @@ message StatusResponse{
   bool unlocked = 3;
 }
 
-message GetInfoRequest{}
-message GetInfoResponse{
+message GetWalletInfoRequest{}
+message GetWalletInfoResponse{
   enum Network {
     NETWORK_UNSPECIFIED = 0;
     NETWORK_MAINNET = 1;
