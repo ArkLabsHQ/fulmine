@@ -3,7 +3,7 @@ module github.com/ArkLabsHQ/ark-wallet
 go 1.22.0
 
 require (
-	github.com/a-h/templ v0.2.707
+	github.com/a-h/templ v0.2.731
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/gowebly/helpers v0.4.0
