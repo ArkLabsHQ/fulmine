@@ -79,13 +79,6 @@ service Service {
       body: "*"
     };
   };
-  // GetSendFees returns fees to pay for send request
-  rpc GetSendFees(GetSendFeesRequest) returns (GetSendFeesResponse) {
-    option (google.api.http) = {
-      post: "/v1/send/fees"
-      body: "*"
-    };
-  };
   // SendOnchain asks to send requested amount to requested onchain address
   rpc SendOnchain(SendOnchainRequest) returns (SendOnchainResponse) {
     option (google.api.http) = {
@@ -185,14 +178,6 @@ message SendRequest {
 }
 message SendResponse {
   string round_id = 1;
-}
-
-message GetSendFeesRequest {
-  string address = 1;
-  uint64 amount = 2;
-}
-message GetSendFeesResponse {
-  Fees fees = 1;
 }
 
 message SendOnchainRequest {

@@ -28,7 +28,6 @@ const (
 	Service_GetIncreaseOutboundFees_FullMethodName = "/ark_wallet.v1.Service/GetIncreaseOutboundFees"
 	Service_GetOnboardAddress_FullMethodName       = "/ark_wallet.v1.Service/GetOnboardAddress"
 	Service_Send_FullMethodName                    = "/ark_wallet.v1.Service/Send"
-	Service_GetSendFees_FullMethodName             = "/ark_wallet.v1.Service/GetSendFees"
 	Service_SendOnchain_FullMethodName             = "/ark_wallet.v1.Service/SendOnchain"
 	Service_GetSendOnchainFees_FullMethodName      = "/ark_wallet.v1.Service/GetSendOnchainFees"
 	Service_GetRoundInfo_FullMethodName            = "/ark_wallet.v1.Service/GetRoundInfo"
@@ -57,8 +56,6 @@ type ServiceClient interface {
 	GetOnboardAddress(ctx context.Context, in *GetOnboardAddressRequest, opts ...grpc.CallOption) (*GetOnboardAddressResponse, error)
 	// Send asks to send amount to ark address
 	Send(ctx context.Context, in *SendRequest, opts ...grpc.CallOption) (*SendResponse, error)
-	// GetSendFees returns fees to pay for send request
-	GetSendFees(ctx context.Context, in *GetSendFeesRequest, opts ...grpc.CallOption) (*GetSendFeesResponse, error)
 	// SendOnchain asks to send requested amount to requested onchain address
 	SendOnchain(ctx context.Context, in *SendOnchainRequest, opts ...grpc.CallOption) (*SendOnchainResponse, error)
 	// SendOnchain asks to send requested amount to requested onchain address
@@ -167,16 +164,6 @@ func (c *serviceClient) Send(ctx context.Context, in *SendRequest, opts ...grpc.
 	return out, nil
 }
 
-func (c *serviceClient) GetSendFees(ctx context.Context, in *GetSendFeesRequest, opts ...grpc.CallOption) (*GetSendFeesResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetSendFeesResponse)
-	err := c.cc.Invoke(ctx, Service_GetSendFees_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *serviceClient) SendOnchain(ctx context.Context, in *SendOnchainRequest, opts ...grpc.CallOption) (*SendOnchainResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SendOnchainResponse)
@@ -239,8 +226,6 @@ type ServiceServer interface {
 	GetOnboardAddress(context.Context, *GetOnboardAddressRequest) (*GetOnboardAddressResponse, error)
 	// Send asks to send amount to ark address
 	Send(context.Context, *SendRequest) (*SendResponse, error)
-	// GetSendFees returns fees to pay for send request
-	GetSendFees(context.Context, *GetSendFeesRequest) (*GetSendFeesResponse, error)
 	// SendOnchain asks to send requested amount to requested onchain address
 	SendOnchain(context.Context, *SendOnchainRequest) (*SendOnchainResponse, error)
 	// SendOnchain asks to send requested amount to requested onchain address
@@ -281,9 +266,6 @@ func (UnimplementedServiceServer) GetOnboardAddress(context.Context, *GetOnboard
 }
 func (UnimplementedServiceServer) Send(context.Context, *SendRequest) (*SendResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Send not implemented")
-}
-func (UnimplementedServiceServer) GetSendFees(context.Context, *GetSendFeesRequest) (*GetSendFeesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetSendFees not implemented")
 }
 func (UnimplementedServiceServer) SendOnchain(context.Context, *SendOnchainRequest) (*SendOnchainResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendOnchain not implemented")
@@ -471,24 +453,6 @@ func _Service_Send_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Service_GetSendFees_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetSendFeesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).GetSendFees(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_GetSendFees_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).GetSendFees(ctx, req.(*GetSendFeesRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Service_SendOnchain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SendOnchainRequest)
 	if err := dec(in); err != nil {
@@ -603,10 +567,6 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Send",
 			Handler:    _Service_Send_Handler,
-		},
-		{
-			MethodName: "GetSendFees",
-			Handler:    _Service_GetSendFees_Handler,
 		},
 		{
 			MethodName: "SendOnchain",
