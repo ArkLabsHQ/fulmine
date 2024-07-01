@@ -142,14 +142,14 @@ message GetInfoResponse {
 }
 
 message IncreaseOutboundRequest {
-  string invoice = 1;
+  string amount = 1;
 }
 message IncreaseOutboundResponse {
   string round_id = 1;
 }
 
 message GetIncreaseOutboundFeesRequest {
-  string invoice = 1;
+  string amount = 1;
 }
 message GetIncreaseOutboundFeesResponse {
   Fees fees = 1;
