@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/a-h/templ"
@@ -51,21 +50,4 @@ func walletViewHandler(c *gin.Context) {
 	bodyContent := pages.WalletBodyContent()
 	tabsContent := components.Tabs("wallet")
 	viewHandler(bodyContent, tabsContent, c)
-}
-
-// showContentAPIHandler handles an API endpoint to show content.
-func showContentAPIHandler(c *gin.Context) {
-	// Check, if the current request has a 'HX-Request' header.
-	// For more information, see https://htmx.org/docs/#request-headers
-	if !htmx.IsHTMX(c.Request) {
-		// If not, return HTTP 400 error.
-		c.AbortWithError(http.StatusBadRequest, errors.New("non-htmx request"))
-		return
-	}
-
-	// Write HTML content.
-	c.Writer.Write([]byte("<p>🎉 Yes, <strong>htmx</strong> is ready to use! (<code>GET /api/hello-world</code>)</p>"))
-
-	// Send htmx response.
-	htmx.NewResponse().Write(c.Writer)
 }

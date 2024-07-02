@@ -27,7 +27,7 @@ func LightningBodyContent() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"grid grid-cols-2 gap-y-4 gap-x-8 p-4 w-full text-left\"><p>Add inbound</p><p>Add outbound</p><div><label for=\"inbound_invoice\">Invoice</label> <input id=\"inbound_invoice\" type=\"text\" class=\"w-full\"></div><div><label for=\"outbound_amount\">Amount</label> <input id=\"outbound_amount\" type=\"number\" class=\"w-full\"></div><button>Increase inbound</button> <button>Generate invoice</button></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"grid grid-cols-2 gap-y-4 gap-x-8 p-4 w-full text-left\"><form><div class=\"flex flex-col gap-4\"><p>Add outbound liquidity</p><div><label for=\"outbound_invoice\">Invoice</label> <input id=\"outbound_invoice\" type=\"text\" class=\"w-full\"></div><button hx-post=\"/api/outbound\" hx-target=\"#outbound_result\">Pay invoice</button><div id=\"outbound_result\"></div></div></form><form><div class=\"flex flex-col gap-4\"><p>Add inbound liquidity</p><div><label for=\"inbound_amount\">Amount</label> <input id=\"inbound_amount\" type=\"number\" class=\"w-full\"></div><button hx-post=\"/api/inbound\" hx-target=\"#inbound_result\">Generate invoice</button><div id=\"inbound_result\"></div></div></form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

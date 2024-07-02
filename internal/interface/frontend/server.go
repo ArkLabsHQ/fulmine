@@ -73,6 +73,10 @@ func runServer() error {
 	router.GET("/wallet", walletViewHandler)
 
 	// Handle API endpoints.
+	router.POST("/api/inbound", inboundAPIHandler)
+	router.POST("/api/outbound", outboundAPIHandler)
+	router.POST("/api/receive", receiveAPIHandler)
+	router.POST("/api/send", sendAPIHandler)
 	router.GET("/api/hello-world", showContentAPIHandler)
 
 	// Create a new server instance with options from environment variables.
