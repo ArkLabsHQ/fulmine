@@ -19,19 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	Service_GetAddress_FullMethodName              = "/ark_wallet.v1.Service/GetAddress"
-	Service_GetBalance_FullMethodName              = "/ark_wallet.v1.Service/GetBalance"
-	Service_GetInfo_FullMethodName                 = "/ark_wallet.v1.Service/GetInfo"
-	Service_IncreaseInbound_FullMethodName         = "/ark_wallet.v1.Service/IncreaseInbound"
-	Service_GetIncreaseInboundFees_FullMethodName  = "/ark_wallet.v1.Service/GetIncreaseInboundFees"
-	Service_IncreaseOutbound_FullMethodName        = "/ark_wallet.v1.Service/IncreaseOutbound"
-	Service_GetIncreaseOutboundFees_FullMethodName = "/ark_wallet.v1.Service/GetIncreaseOutboundFees"
-	Service_GetOnboardAddress_FullMethodName       = "/ark_wallet.v1.Service/GetOnboardAddress"
-	Service_Send_FullMethodName                    = "/ark_wallet.v1.Service/Send"
-	Service_SendOnchain_FullMethodName             = "/ark_wallet.v1.Service/SendOnchain"
-	Service_GetSendOnchainFees_FullMethodName      = "/ark_wallet.v1.Service/GetSendOnchainFees"
-	Service_GetRoundInfo_FullMethodName            = "/ark_wallet.v1.Service/GetRoundInfo"
-	Service_GetTransactions_FullMethodName         = "/ark_wallet.v1.Service/GetTransactions"
+	Service_GetAddress_FullMethodName         = "/ark_wallet.v1.Service/GetAddress"
+	Service_GetBalance_FullMethodName         = "/ark_wallet.v1.Service/GetBalance"
+	Service_GetInfo_FullMethodName            = "/ark_wallet.v1.Service/GetInfo"
+	Service_GetOnboardAddress_FullMethodName  = "/ark_wallet.v1.Service/GetOnboardAddress"
+	Service_Send_FullMethodName               = "/ark_wallet.v1.Service/Send"
+	Service_SendOnchain_FullMethodName        = "/ark_wallet.v1.Service/SendOnchain"
+	Service_GetSendOnchainFees_FullMethodName = "/ark_wallet.v1.Service/GetSendOnchainFees"
+	Service_GetRoundInfo_FullMethodName       = "/ark_wallet.v1.Service/GetRoundInfo"
+	Service_GetTransactions_FullMethodName    = "/ark_wallet.v1.Service/GetTransactions"
 )
 
 // ServiceClient is the client API for Service service.
@@ -44,14 +40,6 @@ type ServiceClient interface {
 	GetBalance(ctx context.Context, in *GetBalanceRequest, opts ...grpc.CallOption) (*GetBalanceResponse, error)
 	// GetInfo returns info about the ark account
 	GetInfo(ctx context.Context, in *GetInfoRequest, opts ...grpc.CallOption) (*GetInfoResponse, error)
-	// IncreaseInbound requests a LN invoice to Boltz for me to pay
-	IncreaseInbound(ctx context.Context, in *IncreaseInboundRequest, opts ...grpc.CallOption) (*IncreaseInboundResponse, error)
-	// GetIncreaseInboundFees returns fees charged to increase inbound liquidity
-	GetIncreaseInboundFees(ctx context.Context, in *GetIncreaseInboundFeesRequest, opts ...grpc.CallOption) (*GetIncreaseInboundFeesResponse, error)
-	// IncreaseOutbound sends fresh LN invoice to be paid by Boltz
-	IncreaseOutbound(ctx context.Context, in *IncreaseOutboundRequest, opts ...grpc.CallOption) (*IncreaseOutboundResponse, error)
-	// GetIncreaseOutboundFees returns fees charged to increase outbound liquidity
-	GetIncreaseOutboundFees(ctx context.Context, in *GetIncreaseOutboundFeesRequest, opts ...grpc.CallOption) (*GetIncreaseOutboundFeesResponse, error)
 	// GetOnboardAddress returns onchain address and invoice for requested amount
 	GetOnboardAddress(ctx context.Context, in *GetOnboardAddressRequest, opts ...grpc.CallOption) (*GetOnboardAddressResponse, error)
 	// Send asks to send amount to ark address
@@ -98,46 +86,6 @@ func (c *serviceClient) GetInfo(ctx context.Context, in *GetInfoRequest, opts ..
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetInfoResponse)
 	err := c.cc.Invoke(ctx, Service_GetInfo_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *serviceClient) IncreaseInbound(ctx context.Context, in *IncreaseInboundRequest, opts ...grpc.CallOption) (*IncreaseInboundResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(IncreaseInboundResponse)
-	err := c.cc.Invoke(ctx, Service_IncreaseInbound_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *serviceClient) GetIncreaseInboundFees(ctx context.Context, in *GetIncreaseInboundFeesRequest, opts ...grpc.CallOption) (*GetIncreaseInboundFeesResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetIncreaseInboundFeesResponse)
-	err := c.cc.Invoke(ctx, Service_GetIncreaseInboundFees_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *serviceClient) IncreaseOutbound(ctx context.Context, in *IncreaseOutboundRequest, opts ...grpc.CallOption) (*IncreaseOutboundResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(IncreaseOutboundResponse)
-	err := c.cc.Invoke(ctx, Service_IncreaseOutbound_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *serviceClient) GetIncreaseOutboundFees(ctx context.Context, in *GetIncreaseOutboundFeesRequest, opts ...grpc.CallOption) (*GetIncreaseOutboundFeesResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetIncreaseOutboundFeesResponse)
-	err := c.cc.Invoke(ctx, Service_GetIncreaseOutboundFees_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -214,14 +162,6 @@ type ServiceServer interface {
 	GetBalance(context.Context, *GetBalanceRequest) (*GetBalanceResponse, error)
 	// GetInfo returns info about the ark account
 	GetInfo(context.Context, *GetInfoRequest) (*GetInfoResponse, error)
-	// IncreaseInbound requests a LN invoice to Boltz for me to pay
-	IncreaseInbound(context.Context, *IncreaseInboundRequest) (*IncreaseInboundResponse, error)
-	// GetIncreaseInboundFees returns fees charged to increase inbound liquidity
-	GetIncreaseInboundFees(context.Context, *GetIncreaseInboundFeesRequest) (*GetIncreaseInboundFeesResponse, error)
-	// IncreaseOutbound sends fresh LN invoice to be paid by Boltz
-	IncreaseOutbound(context.Context, *IncreaseOutboundRequest) (*IncreaseOutboundResponse, error)
-	// GetIncreaseOutboundFees returns fees charged to increase outbound liquidity
-	GetIncreaseOutboundFees(context.Context, *GetIncreaseOutboundFeesRequest) (*GetIncreaseOutboundFeesResponse, error)
 	// GetOnboardAddress returns onchain address and invoice for requested amount
 	GetOnboardAddress(context.Context, *GetOnboardAddressRequest) (*GetOnboardAddressResponse, error)
 	// Send asks to send amount to ark address
@@ -248,18 +188,6 @@ func (UnimplementedServiceServer) GetBalance(context.Context, *GetBalanceRequest
 }
 func (UnimplementedServiceServer) GetInfo(context.Context, *GetInfoRequest) (*GetInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInfo not implemented")
-}
-func (UnimplementedServiceServer) IncreaseInbound(context.Context, *IncreaseInboundRequest) (*IncreaseInboundResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method IncreaseInbound not implemented")
-}
-func (UnimplementedServiceServer) GetIncreaseInboundFees(context.Context, *GetIncreaseInboundFeesRequest) (*GetIncreaseInboundFeesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetIncreaseInboundFees not implemented")
-}
-func (UnimplementedServiceServer) IncreaseOutbound(context.Context, *IncreaseOutboundRequest) (*IncreaseOutboundResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method IncreaseOutbound not implemented")
-}
-func (UnimplementedServiceServer) GetIncreaseOutboundFees(context.Context, *GetIncreaseOutboundFeesRequest) (*GetIncreaseOutboundFeesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetIncreaseOutboundFees not implemented")
 }
 func (UnimplementedServiceServer) GetOnboardAddress(context.Context, *GetOnboardAddressRequest) (*GetOnboardAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOnboardAddress not implemented")
@@ -341,78 +269,6 @@ func _Service_GetInfo_Handler(srv interface{}, ctx context.Context, dec func(int
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).GetInfo(ctx, req.(*GetInfoRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Service_IncreaseInbound_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(IncreaseInboundRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).IncreaseInbound(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_IncreaseInbound_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).IncreaseInbound(ctx, req.(*IncreaseInboundRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Service_GetIncreaseInboundFees_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetIncreaseInboundFeesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).GetIncreaseInboundFees(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_GetIncreaseInboundFees_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).GetIncreaseInboundFees(ctx, req.(*GetIncreaseInboundFeesRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Service_IncreaseOutbound_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(IncreaseOutboundRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).IncreaseOutbound(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_IncreaseOutbound_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).IncreaseOutbound(ctx, req.(*IncreaseOutboundRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Service_GetIncreaseOutboundFees_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetIncreaseOutboundFeesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).GetIncreaseOutboundFees(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_GetIncreaseOutboundFees_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).GetIncreaseOutboundFees(ctx, req.(*GetIncreaseOutboundFeesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -543,22 +399,6 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetInfo",
 			Handler:    _Service_GetInfo_Handler,
-		},
-		{
-			MethodName: "IncreaseInbound",
-			Handler:    _Service_IncreaseInbound_Handler,
-		},
-		{
-			MethodName: "GetIncreaseInboundFees",
-			Handler:    _Service_GetIncreaseInboundFees_Handler,
-		},
-		{
-			MethodName: "IncreaseOutbound",
-			Handler:    _Service_IncreaseOutbound_Handler,
-		},
-		{
-			MethodName: "GetIncreaseOutboundFees",
-			Handler:    _Service_GetIncreaseOutboundFees_Handler,
 		},
 		{
 			MethodName: "GetOnboardAddress",

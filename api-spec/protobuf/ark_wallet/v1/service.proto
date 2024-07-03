@@ -5,19 +5,6 @@ package ark_wallet.v1;
 import "ark_wallet/v1/types.proto";
 import "google/api/annotations.proto";
 
-// Example usage:
-//
-// LSP has too much value on the other side of the channel:
-// - LSP wants to receive some funds on this side of the channel
-// - LSP creates invoice and asks for IncreaseOutbound(invoice)
-// - Boltz pays the invoice in return for ark sats
-//
-// LSP has too much value on this side of the channel:
-// - LSP wants to send some funds to the other side of the channel
-// - LSP asks wallet for new ark address and asks IncreaseInbound(address)
-// - Boltz generates invoice which is returned to LSP
-// - LSP pays invoice and receives ark sats in return
-
 service Service {
   // GetAddress returns offchain address
   rpc GetAddress(GetAddressRequest) returns (GetAddressResponse) {
@@ -35,34 +22,6 @@ service Service {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
     option (google.api.http) = {
       get: "/v1/info"
-    };
-  };
-  // IncreaseInbound requests a LN invoice to Boltz for me to pay
-  rpc IncreaseInbound(IncreaseInboundRequest) returns (IncreaseInboundResponse) {
-    option (google.api.http) = {
-      post: "/v1/inbound"
-      body: "*"
-    };
-  };
-  // GetIncreaseInboundFees returns fees charged to increase inbound liquidity
-  rpc GetIncreaseInboundFees(GetIncreaseInboundFeesRequest) returns (GetIncreaseInboundFeesResponse) {
-    option (google.api.http) = {
-      post: "/v1/inbound/fees"
-      body: "*"
-    };
-  };
-  // IncreaseOutbound sends fresh LN invoice to be paid by Boltz
-  rpc IncreaseOutbound(IncreaseOutboundRequest) returns (IncreaseOutboundResponse) {
-    option (google.api.http) = {
-      post: "/v1/outbound"
-      body: "*"
-    };
-  };
-  // GetIncreaseOutboundFees returns fees charged to increase outbound liquidity
-  rpc GetIncreaseOutboundFees(GetIncreaseOutboundFeesRequest) returns (GetIncreaseOutboundFeesResponse) {
-    option (google.api.http) = {
-      post: "/v1/outbound/fees"
-      body: "*"
     };
   };
   // GetOnboardAddress returns onchain address and invoice for requested amount
@@ -132,36 +91,6 @@ message GetInfoResponse {
   AccountInfo account = 2;
   // info about the current version of the ark wallet.
   BuildInfo build_info = 3;
-}
-
-message IncreaseOutboundRequest {
-  string amount = 1;
-}
-message IncreaseOutboundResponse {
-  string round_id = 1;
-}
-
-message GetIncreaseOutboundFeesRequest {
-  string amount = 1;
-}
-message GetIncreaseOutboundFeesResponse {
-  Fees fees = 1;
-}
-
-message IncreaseInboundRequest {
-  uint64 amount = 1;
-  string address = 2;
-}
-message IncreaseInboundResponse {
-  string invoice = 1;
-}
-
-message GetIncreaseInboundFeesRequest {
-  uint64 amount = 1;
-  string address = 2;
-}
-message GetIncreaseInboundFeesResponse {
-  Fees fees = 1;
 }
 
 message GetOnboardAddressRequest {
