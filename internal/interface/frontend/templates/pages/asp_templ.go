@@ -8,8 +8,7 @@ package pages
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-// BodyContent defines HTML content.
-func WalletBodyContent() templ.Component {
+func AspBodyContent() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -27,7 +26,7 @@ func WalletBodyContent() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"grid grid-cols-2 gap-y-4 gap-x-8 p-4 w-full text-left\"><form><div class=\"flex flex-col gap-4\"><p>Send</p><div><label for=\"send_address\">Address</label> <input id=\"send_address\" type=\"text\" class=\"w-full\" name=\"address\"></div><div><label for=\"send_amount\">Amount</label> <input id=\"send_amount\" type=\"number\" class=\"w-full\" name=\"amount\"></div><button hx-post=\"/api/send\" hx-target=\"#send_result\">Send</button><div id=\"send_result\"></div></div></form><form><div class=\"flex flex-col gap-4\"><p>Receive</p><div><label for=\"receive_amount\">Amount</label> <input id=\"receive_amount\" type=\"number\" class=\"w-full\" name=\"amount\"></div><button hx-post=\"/api/receive\" hx-target=\"#receive_result\">Generate address</button><div id=\"receive_result\"></div></div></form></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div><p>ASP page</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

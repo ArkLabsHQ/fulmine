@@ -1,0 +1,10 @@
+package modals
+
+templ TransactionInfoBody(hash string) {      
+  <p>Modal with info for tx {hash}</p>
+  <button onclick="console.log('buu')">Click me</button>
+}
+
+templ TransactionInfo(hash string) {
+  @Modal(TransactionInfoBody(hash))
+}

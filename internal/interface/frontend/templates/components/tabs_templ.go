@@ -8,27 +8,11 @@ package components
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-var tabNames = []string{
-	"lightning",
-	"wallet",
-	"info",
-	"keys",
-}
+import (
+	"strings"
+)
 
-func Icon(name string) templ.Component {
-	if name == tabNames[0] {
-		return LightningIcon()
-	}
-	if name == tabNames[1] {
-		return WalletIcon()
-	}
-	if name == tabNames[2] {
-		return InfoIcon()
-	}
-	return KeysIcon()
-}
-
-func InfoIcon() templ.Component {
+func SettingsIcon() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -46,7 +30,7 @@ func InfoIcon() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 mx-auto\" viewBox=\"0 0 48 48\"><g fill=\"none\"><path stroke=\"currentColor\" stroke-linejoin=\"round\" stroke-width=\"4\" d=\"M24 44a19.937 19.937 0 0 0 14.142-5.858A19.937 19.937 0 0 0 44 24a19.938 19.938 0 0 0-5.858-14.142A19.937 19.937 0 0 0 24 4A19.938 19.938 0 0 0 9.858 9.858A19.938 19.938 0 0 0 4 24a19.937 19.937 0 0 0 5.858 14.142A19.938 19.938 0 0 0 24 44Z\"></path> <path fill=\"currentColor\" fill-rule=\"evenodd\" d=\"M24 11a2.5 2.5 0 1 1 0 5a2.5 2.5 0 0 1 0-5Z\" clip-rule=\"evenodd\"></path> <path stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"4\" d=\"M24.5 34V20h-2M21 34h7\"></path></g></svg>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4\" viewBox=\"0 0 16 16\"><path fill=\"currentColor\" d=\"m6.43 1.168l-.74-.123l.74.123Zm-.156.939l.74.123l-.74-.123Zm-.173.2l.237.711l-.237-.711ZM4.02 3.509l-.498-.56l.498.56Zm-.26.05l.263-.702l-.263.702Zm-.893-.334l.263-.703l-.263.703Zm-.608.218l-.65-.375l.65.375ZM1.183 5.307l-.65-.375l.65.375Zm.115.636l.477-.579l-.477.58Zm.736.606l-.477.579l.477-.58Zm.086.25l.735.149l-.735-.15Zm0 2.403l.735-.15l-.735.15Zm-.086.25l.476.578l-.476-.579Zm-.736.605l-.476-.58l.476.58Zm-.115.636l-.65.375l.65-.375Zm1.077 1.864l.65-.375l-.65.375Zm.608.218l.263.703l-.263-.703Zm.893-.334l-.263-.703l.263.703Zm.26.05l-.498.56l.498-.56Zm2.08 1.202l.237-.711l-.237.711Zm.173.2l.74-.123l-.74.123Zm.156.94l.74-.124l-.74.123Zm3.14 0l-.74-.124l.74.123Zm.156-.94l.74.123l-.74-.123Zm.173-.2l.238.712l-.238-.712Zm2.08-1.202l-.497-.561l.497.56Zm.26-.05l.263-.703l-.263.703Zm.893.334l-.263.703l.263-.703Zm.609-.218l-.65-.375l.65.375Zm1.076-1.864l.65.375l-.65-.375Zm-.115-.636l-.477.579l.477-.58Zm-.736-.606l-.476.58l.476-.58Zm-.086-.25l.735.15l-.735-.15Zm0-2.403l.735-.15l-.735.15Zm.086-.25l-.476-.578l.476.579Zm.736-.605l-.477-.579l.477.58Zm.115-.636l.65-.375l-.65.375ZM13.74 3.443l-.65.375l.65-.375Zm-.609-.218l-.263-.703l.263.703Zm-.893.334l-.263-.702l.263.702Zm-.26-.05l-.497.561l.497-.56ZM9.9 2.307l-.237.711l.237-.711Zm-.173-.2l.74-.123l-.74.123Zm-.156-.94l-.74.124l.74-.123ZM6.924 1.5h2.152V0H6.924v1.5Zm.246-.209a.25.25 0 0 1-.246.209V0A1.25 1.25 0 0 0 5.69 1.044l1.48.247Zm-.156.94l.156-.94l-1.48-.246l-.156.939l1.48.246Zm-.676.787c.343-.114.613-.41.676-.788l-1.48-.246a.494.494 0 0 1 .33-.389l.474 1.423ZM4.518 4.07a5.244 5.244 0 0 1 1.82-1.052l-.474-1.423a6.744 6.744 0 0 0-2.34 1.353l.994 1.122Zm-1.02.192c.36.134.75.048 1.02-.192l-.995-1.122a.494.494 0 0 1 .501-.091l-.526 1.405Zm-.893-.335l.893.335l.526-1.405l-.893-.335l-.526 1.405Zm.304-.11a.25.25 0 0 1-.304.11l.526-1.405a1.25 1.25 0 0 0-1.521.546l1.3.75ZM1.833 5.683l1.076-1.864l-1.299-.75L.534 4.932l1.299.75Zm-.058-.318a.25.25 0 0 1 .058.318l-1.3-.75a1.25 1.25 0 0 0 .289 1.59l.953-1.158Zm.735.606l-.735-.606l-.953 1.158l.735.606l.953-1.158Zm.345.978a1.006 1.006 0 0 0-.345-.978l-.953 1.158a.494.494 0 0 1-.172-.48l1.47.3ZM2.75 8c0-.361.036-.713.105-1.052l-1.47-.3c-.088.438-.135.89-.135 1.352h1.5Zm.105 1.052A5.277 5.277 0 0 1 2.75 8h-1.5c0 .462.047.914.135 1.351l1.47-.299Zm-.345.978c.296-.243.417-.624.345-.978l-1.47.3a.494.494 0 0 1 .172-.48l.953 1.158Zm-.735.606l.735-.606l-.953-1.158l-.735.606l.953 1.158Zm.058-.318a.25.25 0 0 1-.058.318L.822 9.478a1.25 1.25 0 0 0-.288 1.59l1.299-.75Zm1.076 1.864l-1.076-1.864l-1.3.75l1.077 1.864l1.3-.75Zm-.304-.109a.25.25 0 0 1 .304.11l-1.299.75c.306.528.949.76 1.521.545l-.526-1.405Zm.893-.335l-.893.335l.526 1.405l.893-.335l-.526-1.405Zm1.02.192a1.006 1.006 0 0 0-1.02-.191l.526 1.404a.494.494 0 0 1-.5-.091l.994-1.122Zm1.82 1.052a5.243 5.243 0 0 1-1.82-1.052l-.995 1.122a6.745 6.745 0 0 0 2.34 1.353l.475-1.423Zm.676.788a1.006 1.006 0 0 0-.676-.788l-.474 1.423a.494.494 0 0 1-.33-.388l1.48-.247Zm.156.939l-.156-.94l-1.48.248l.157.939l1.48-.247Zm-.246-.209a.25.25 0 0 1 .246.209l-1.48.247A1.25 1.25 0 0 0 6.925 16v-1.5Zm2.152 0H6.924V16h2.152v-1.5Zm-.246.209a.25.25 0 0 1 .246-.209V16a1.25 1.25 0 0 0 1.233-1.044l-1.48-.247Zm.156-.94l-.156.94l1.48.247l.156-.94l-1.48-.246Zm.676-.787c-.343.114-.613.41-.676.788l1.48.246a.494.494 0 0 1-.33.389l-.474-1.423Zm1.82-1.052a5.244 5.244 0 0 1-1.82 1.052l.474 1.423a6.745 6.745 0 0 0 2.34-1.353l-.994-1.122Zm1.02-.191a1.006 1.006 0 0 0-1.02.19l.995 1.123a.494.494 0 0 1-.501.091l.526-1.405Zm.893.334l-.893-.335l-.526 1.405l.893.335l.526-1.405Zm-.304.11a.25.25 0 0 1 .304-.11l-.526 1.405a1.25 1.25 0 0 0 1.521-.546l-1.299-.75Zm1.076-1.865l-1.076 1.864l1.299.75l1.076-1.864l-1.299-.75Zm.058.318a.25.25 0 0 1-.058-.318l1.3.75a1.25 1.25 0 0 0-.289-1.59l-.953 1.158Zm-.735-.606l.735.606l.953-1.158l-.735-.606l-.953 1.158Zm-.345-.978c-.072.354.049.735.345.978l.953-1.158c.15.123.206.311.172.48l-1.47-.3ZM13.25 8c0 .361-.036.713-.105 1.052l1.47.3c.088-.438.135-.89.135-1.352h-1.5Zm-.105-1.052c.069.339.105.69.105 1.052h1.5c0-.462-.046-.914-.135-1.351l-1.47.299Zm.345-.978a1.007 1.007 0 0 0-.345.978l1.47-.3a.494.494 0 0 1-.172.48L13.49 5.97Zm.735-.606l-.735.606l.953 1.158l.735-.606l-.953-1.158Zm-.058.318a.25.25 0 0 1 .058-.318l.953 1.158a1.25 1.25 0 0 0 .288-1.59l-1.299.75Zm-1.076-1.864l1.076 1.864l1.3-.75l-1.077-1.864l-1.299.75Zm.304.109a.25.25 0 0 1-.304-.11l1.299-.75a1.25 1.25 0 0 0-1.521-.545l.526 1.405Zm-.893.334l.893-.334l-.526-1.405l-.893.335l.526 1.404Zm-1.02-.19c.27.24.66.325 1.02.19l-.526-1.404a.494.494 0 0 1 .5.091l-.994 1.122Zm-1.82-1.053a5.244 5.244 0 0 1 1.82 1.052l.995-1.122a6.744 6.744 0 0 0-2.34-1.353l-.475 1.423Zm-.676-.788c.063.379.333.674.676.788l.474-1.423a.494.494 0 0 1 .33.389l-1.48.246Zm-.156-.939l.156.94l1.48-.247l-.157-.94l-1.48.247Zm.246.209a.25.25 0 0 1-.246-.209l1.48-.246A1.25 1.25 0 0 0 9.075 0v1.5ZM10.25 8A2.25 2.25 0 0 1 8 10.25v1.5A3.75 3.75 0 0 0 11.75 8h-1.5ZM8 5.75A2.25 2.25 0 0 1 10.25 8h1.5A3.75 3.75 0 0 0 8 4.25v1.5ZM5.75 8A2.25 2.25 0 0 1 8 5.75v-1.5A3.75 3.75 0 0 0 4.25 8h1.5ZM8 10.25A2.25 2.25 0 0 1 5.75 8h-1.5A3.75 3.75 0 0 0 8 11.75v-1.5Z\"></path></svg>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -54,7 +38,7 @@ func InfoIcon() templ.Component {
 	})
 }
 
-func KeysIcon() templ.Component {
+func HistoryIcon() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -72,7 +56,33 @@ func KeysIcon() templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 mx-auto\" viewBox=\"0 0 512 512\"><path fill=\"currentColor\" d=\"M261.1 24.8c-6.3 0-12.7.43-19.2 1.18c-34.6 4.01-64.8 17.59-86.1 37.06c-21.4 19.48-34.2 45.56-31 73.16c2.8 24.6 17.8 45.2 39.1 59.4c2.6-6.2 5.9-11.9 9.2-16.5c-17.6-11.6-28.4-27.3-30.4-45c-2.3-19.7 6.7-39.58 24.8-56.14c18.2-16.57 45.3-29.06 76.6-32.68c31.3-3.63 60.6 2.33 82.1 14.3c21.4 11.98 34.7 29.31 37 48.92c2.2 19.3-6.2 38.8-23.4 55a69.91 69.91 0 0 0-35.4-10.6h-2.2c-5.1.1-10.1.7-15.3 1.8c-37.5 8.7-60.8 45.5-52.2 82.7c5.3 23 21.6 40.6 42.2 48.5l39.7 172.2l47 29.1l29.5-46.7l-23.5-14.5l14.8-23.4l-23.5-14.6l14.7-23.3l-23.5-14.6l14.8-23.4l-13.5-58.4c15.1-16.1 22-39.1 16.7-62.2c-2.7-11.7-8.2-22-15.8-30.4c18.9-19 29.8-43.5 26.8-69.2c-3.2-27.55-21.6-50.04-46.9-64.11c-20.5-11.45-45.8-17.77-73.1-17.59zm-20.2 135.5c-25.9 1.1-49.9 16.8-60.4 42.2c-9.1 21.9-6 45.7 6.2 64.2l-67.8 163l21.3 51l51.2-20.9l-10.7-25.5l25.6-10.4l-10.6-25.5l25.6-10.4l-10.7-25.5l25.6-10.5l22.8-54.8c-20.5-11.5-36.2-31.2-41.9-55.8c-6.9-30.3 3.1-60.6 23.8-81.1zm58 7.2c8.9-.1 17.3 3.5 23.4 9.4c-5.5 3.5-11.6 6.6-18 9.4c-1.6-.6-3.3-.8-5.1-.8c-.6 0-1.1 0-1.6.1c-7 .8-12.2 6.1-13.1 12.7c-.2 1-.2 2-.2 2.9c.1.3.1.7.1 1c1 8.4 8.3 14.2 16.7 13.2c6.8-.8 12-5.9 13-12.3c6.2-2.8 12-5.9 17.5-9.4c.2 1 .4 2 .5 3c2.1 18-11 34.5-29 36.6c-17.9 2.1-34.5-11-36.5-29c-2.1-18 11-34.5 29-36.6c1.1-.1 2.2-.2 3.3-.2z\"></path></svg>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4\" viewBox=\"0 0 512 512\"><path fill=\"currentColor\" d=\"M489.972 119.059a23.839 23.839 0 0 0-17-7.059H456V72a24.027 24.027 0 0 0-24-24H86.627A70.628 70.628 0 0 0 16 118.627v274.746A70.628 70.628 0 0 0 86.627 464h385.4a24.047 24.047 0 0 0 24-23.923l.944-303.995a23.837 23.837 0 0 0-6.999-17.023ZM464.053 432H86.627A38.627 38.627 0 0 1 48 393.373V118.627A38.627 38.627 0 0 1 86.627 80H424v32H88v32h376.947Z\"></path> <path fill=\"currentColor\" d=\"M392 264h32v32h-32z\"></path></svg>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return templ_7745c5c3_Err
+	})
+}
+
+func AspIcon() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var3 == nil {
+			templ_7745c5c3_Var3 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4\" viewBox=\"0 0 512 512\"><path fill=\"currentColor\" d=\"M256 428c-52.35 0-111.39-11.61-157.93-31c-17.07-7.19-31.69-18.82-43.64-28a4 4 0 0 0-6.43 3.18v12.58c0 28.07 23.49 53.22 66.14 70.82C152.29 471.33 202.67 480 256 480s103.7-8.67 141.86-24.42C440.51 438 464 412.83 464 384.76v-12.58a4 4 0 0 0-6.43-3.18c-11.95 9.17-26.57 20.81-43.65 28c-46.54 19.39-105.57 31-157.92 31Zm208-301.49c-.81-27.65-24.18-52.4-66-69.85C359.74 40.76 309.34 32 256 32s-103.74 8.76-141.91 24.66c-41.78 17.41-65.15 42.11-66 69.69L48 144c0 6.41 5.2 16.48 14.63 24.73c11.13 9.73 27.65 19.33 47.78 27.73C153.24 214.36 207.67 225 256 225s102.76-10.68 145.59-28.58c20.13-8.4 36.65-18 47.78-27.73C458.8 160.49 464 150.42 464 144Z\"></path> <path fill=\"currentColor\" d=\"M413.92 226c-46.53 19.43-105.57 31-157.92 31s-111.39-11.57-157.93-31c-17.07-7.15-31.69-18.79-43.64-28a4 4 0 0 0-6.43 3.22V232c0 6.41 5.2 14.48 14.63 22.73c11.13 9.74 27.65 19.33 47.78 27.74C153.24 300.34 207.67 311 256 311s102.76-10.68 145.59-28.57c20.13-8.41 36.65-18 47.78-27.74C458.8 246.47 464 238.41 464 232v-30.78a4 4 0 0 0-6.43-3.18c-11.95 9.17-26.57 20.81-43.65 27.96Z\"></path> <path fill=\"currentColor\" d=\"M413.92 312c-46.54 19.41-105.57 31-157.92 31s-111.39-11.59-157.93-31c-17.07-7.17-31.69-18.81-43.64-28a4 4 0 0 0-6.43 3.2V317c0 6.41 5.2 14.47 14.62 22.71c11.13 9.74 27.66 19.33 47.79 27.74C153.24 385.32 207.66 396 256 396s102.76-10.68 145.59-28.57c20.13-8.41 36.65-18 47.78-27.74C458.8 331.44 464 323.37 464 317v-29.8a4 4 0 0 0-6.43-3.18c-11.95 9.17-26.57 20.81-43.65 27.98Z\"></path></svg>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -93,9 +103,9 @@ func LightningIcon() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var3 == nil {
-			templ_7745c5c3_Var3 = templ.NopComponent
+		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var4 == nil {
+			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 mx-auto\" viewBox=\"0 0 48 48\"><path fill=\"none\" stroke=\"currentColor\" stroke-linejoin=\"round\" stroke-width=\"4\" d=\"M19 4h18L26 18h15L17 44l5-19H8L19 4Z\"></path></svg>")
@@ -106,33 +116,7 @@ func LightningIcon() templ.Component {
 	})
 }
 
-func WalletIcon() templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var4 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var4 == nil {
-			templ_7745c5c3_Var4 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 mx-auto\" viewBox=\"0 0 48 48\"><path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"4\" d=\"M24 16H29V4L44 19L29 34V24H18V13L4 28L18 44V32H23\"></path></svg>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return templ_7745c5c3_Err
-	})
-}
-
-func Tab(name string, active bool) templ.Component {
+func Tab(name, active string, icon templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -154,7 +138,7 @@ func Tab(name string, active bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var6 templ.SafeURL = templ.URL("/" + name)
+		var templ_7745c5c3_Var6 templ.SafeURL = templ.URL("/" + strings.ToLower(name))
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var6)))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -163,7 +147,7 @@ func Tab(name string, active bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var7 = []any{"first-letter:capitalize", "p-2", "text-center", templ.KV("active", active)}
+		var templ_7745c5c3_Var7 = []any{"py-2", "px-4", templ.KV("active", active == strings.ToLower(name))}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var7...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -185,11 +169,24 @@ func Tab(name string, active bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Icon(name).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = icon.Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></a>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<span class=\"ml-2\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var9 string
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(name)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/components/tabs.templ`, Line: 38, Col: 28}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span></p></a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -210,20 +207,30 @@ func Tabs(active string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var9 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var9 == nil {
-			templ_7745c5c3_Var9 = templ.NopComponent
+		templ_7745c5c3_Var10 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var10 == nil {
+			templ_7745c5c3_Var10 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<style>\n    p.active {\n      background-color: #fff;\n      border-radius: 10px 10px 0 0;\n    }\n  </style><div class=\"grid grid-cols-4 w-full\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<style>\n    #tabs p {\n\t\t\tborder-bottom: 1px solid #666;\n\t\t\t&.active {\n        border-bottom: 1px solid #ccc;\n\t\t  }\n    }\n\t\t#tabs svg {\n\t\t\tdisplay: inline;\n\t\t}\n  </style><div class=\"grid grid-cols-4 text-center\" id=\"tabs\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, name := range tabNames {
-			templ_7745c5c3_Err = Tab(name, active == name).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
+		templ_7745c5c3_Err = Tab("History", active, HistoryIcon()).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = Tab("ASP", active, AspIcon()).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = Tab("Lightning", active, LightningIcon()).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = Tab("Settings", active, SettingsIcon()).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div>")
 		if templ_7745c5c3_Err != nil {

@@ -66,18 +66,16 @@ func runServer() error {
 	router.Static("/static", "./static")
 
 	// Handle index page view.
-	router.GET("/", homeViewHandler)
-	router.GET("/info", infoViewHandler)
-	router.GET("/keys", keysViewHandler)
+	router.GET("/", historyViewHandler)
+	router.GET("/asp", aspViewHandler)
+	router.GET("/history", historyViewHandler)
 	router.GET("/lightning", lightningViewHandler)
-	router.GET("/wallet", walletViewHandler)
+	router.GET("/settings", settingsViewHandler)
 
 	// Handle API endpoints.
-	router.POST("/api/inbound", inboundAPIHandler)
-	router.POST("/api/outbound", outboundAPIHandler)
-	router.POST("/api/receive", receiveAPIHandler)
-	router.POST("/api/send", sendAPIHandler)
-	router.GET("/api/hello-world", showContentAPIHandler)
+	router.GET("/api/history/:hash", historyAPIHandler)
+	router.GET("/api/receive", receiveAPIHandler)
+	router.GET("/api/send", sendAPIHandler)
 
 	// Create a new server instance with options from environment variables.
 	// For more information, see https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/

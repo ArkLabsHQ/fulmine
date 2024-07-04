@@ -8,8 +8,8 @@
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #242424;
-  background-color: #fefef5;
+  color: #cdcdcd;
+  background-color: #202020;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -18,7 +18,7 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  // color: #646cff;
   text-decoration: inherit;
 }
 
@@ -31,8 +31,6 @@ body {
   display: flex;
   min-width: 320px;
   min-height: 100vh;
-  color: #242424;
-  background-color: #e3e5ff;
 }
 
 h1 {
@@ -43,8 +41,10 @@ h1 {
 #app {
   width: 640px;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  & > div {
+    color: white;
+    padding: 2rem;
+  }
 }
 
 #htmx-result {

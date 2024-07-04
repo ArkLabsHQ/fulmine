@@ -1,0 +1,14 @@
+package components
+
+templ Balance(currentBalance string) {
+  <div class="flex justify-between mb-6">
+	  <div>
+	    <p class="text-yellow-200">Balance</p>
+		  <p class="text-4xl">{currentBalance}</p>
+		</div>
+	  <div class="flex gap-4">
+	    <button hx-get="/api/send" hx-target="#modal">Send</button>
+	    <button hx-get="/api/receive" hx-target="#modal">Receive</button>
+	  </div>
+	</div>
+}

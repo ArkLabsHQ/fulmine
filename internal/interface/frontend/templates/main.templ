@@ -2,18 +2,19 @@ package templates
 
 import (
 	"github.com/ArkLabsHQ/ark-wallet/templates/pages"
+	"github.com/ArkLabsHQ/ark-wallet/templates/components"
 )
 
-templ Layout(bodyContent, tabsContent templ.Component) {
+templ Layout(bodyContent templ.Component, activeTab, currentBalance string) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
-			<title>Fulmine</title>
+			<title>Ark node</title>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<meta http-equiv="X-UA-Compatible" content="ie=edge"/>
 			<meta name="keywords" content="Ark"/>
-			<meta name="description" content="Fulmine frontend"/>
+			<meta name="description" content="Ark node frontend"/>
 			<meta name="theme-color" content="#FEFEF5"/>
 			<link rel="dns-prefetch" href="//fonts.googleapis.com"/>
 			<link rel="dns-prefetch" href="//fonts.gstatic.com"/>
@@ -27,12 +28,21 @@ templ Layout(bodyContent, tabsContent templ.Component) {
 			<link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet"/>
 			<link href="/static/styles.css" rel="stylesheet"/>
 		</head>
+		<style>
+		  #top {
+				background-image: linear-gradient(to top right, #bc3f20, #f4ac3f);
+				border-radius: 10px;
+				margin-top: 4px;
+			}
+		</style>
 		<body onload={ pages.PagesScript() }>
 			<div id="app">
-				@tabsContent
-				<div class="bg-white content w-full">
-					@bodyContent
+			  <div id="top">
+			  @components.Header()
+			  @components.Balance(currentBalance)
 				</div>
+				@components.Tabs(activeTab)
+				@bodyContent
 			</div>
 			<script src="/static/scripts.js"></script>
 		</body>
