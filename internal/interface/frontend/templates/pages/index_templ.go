@@ -38,10 +38,10 @@ func HomeBodyContent() templ.Component {
 // in order for tailwind to detect this classes, this javascript code
 // needs to be inside a .templ file, which means this script code
 // must be here, cannot be on /assets/script.js
-func PagesScript() templ.ComponentScript {
+func PagesScript2() templ.ComponentScript {
 	return templ.ComponentScript{
-		Name: `__templ_PagesScript_7a43`,
-		Function: `function __templ_PagesScript_7a43(){// from 4321 to 0.00004321 with '0' in gray
+		Name: `__templ_PagesScript2_7a43`,
+		Function: `function __templ_PagesScript2_7a43(){// from 4321 to 0.00004321 with '0' in gray
   const prettyBtc = (btc) => {
     if (!/\d/.test(btc)) return data // not a number
     const prefix = /^[\D]/.test(btc) ? btc[0] : ''
@@ -53,7 +53,7 @@ func PagesScript() templ.ComponentScript {
 	  return ` + "`" + `${prefix}<span class="text-gray-400">${padding}</span>${number}` + "`" + `
   }
 }`,
-		Call:       templ.SafeScript(`__templ_PagesScript_7a43`),
-		CallInline: templ.SafeScriptInline(`__templ_PagesScript_7a43`),
+		Call:       templ.SafeScript(`__templ_PagesScript2_7a43`),
+		CallInline: templ.SafeScriptInline(`__templ_PagesScript2_7a43`),
 	}
 }

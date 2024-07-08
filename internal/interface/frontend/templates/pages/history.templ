@@ -1,6 +1,10 @@
 package pages
 
-import "fmt"
+import (
+	"fmt"
+	
+	"github.com/ArkLabsHQ/ark-wallet/templates/components"
+)
 
 func HistoryIcon(kind string) templ.Component {
 	 switch kind {
@@ -85,6 +89,7 @@ templ HistoryLine(txid, kind, date, hour, sats string) {
 
 // BodyContent defines HTML content.
 templ HistoryBodyContent() {
+	@components.Hero("1930532")
 	<div>
 	  @HistoryLine("txid", "waiting", "08/08/2024", "21:42", "+212110")
 	  @HistoryLine("txid", "sent", "08/08/2024", "21:42", "-645543")
