@@ -4,15 +4,6 @@ import "fmt"
 
 var gridClass = "grid grid-cols-4 gap-x-8 gap-y-4 p-2 w-full"
 
-templ HistoryHeader() {
-	<div class={gridClass}>
-		<p class="uppercase text-xs text-gray-400 text-left">action</p>
-		<p class="uppercase text-xs text-gray-400 text-center">date</p>
-		<p class="uppercase text-xs text-gray-400 text-center">hash</p>
-		<p class="uppercase text-xs text-gray-400 text-right">amount</p>
-	</div>
-}
-
 templ HistoryLine(move, date, hash, sats string) {
 	<div class={gridClass + " cursor-pointer"} hx-get={fmt.Sprintf("/api/history/%s", hash)} hx-target="#modal">
 		<p class="move text-left">{ move }</p>
@@ -25,7 +16,6 @@ templ HistoryLine(move, date, hash, sats string) {
 // BodyContent defines HTML content.
 templ HistoryBodyContent() {
 	<div>
-	  @HistoryHeader()
 	  @HistoryLine("+0xgbf", "3d ago", "wewgdf", "-645543")
 	  @HistoryLine("+0xgbf", "3d ago", "wewgdf", "-645543")
 	  @HistoryLine("+0xgbf", "3d ago", "wewgdf", "-645543")
