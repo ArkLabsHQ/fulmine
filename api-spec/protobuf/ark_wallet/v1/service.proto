@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+package ark_wallet.v1;
+
+import "ark_wallet/v1/types.proto";
+import "google/api/annotations.proto";
+
+service Service {
+  // GetAddress returns offchain address
+  rpc GetAddress(GetAddressRequest) returns (GetAddressResponse) {
+    option (google.api.http) = {
+      get: "/v1/address"
+    };
+  };
+  // GetBalance returns ark balance
+  rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse) {
+    option (google.api.http) = {
+      get: "/v1/balance"
+    };
+  };
+  // GetInfo returns info about the ark account
+  rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
+    option (google.api.http) = {
+      get: "/v1/info"
+    };
+  };
+  // GetOnboardAddress returns onchain address and invoice for requested amount
+  rpc GetOnboardAddress(GetOnboardAddressRequest) returns (GetOnboardAddressResponse) {
+    option (google.api.http) = {
+      post: "/v1/onboard"
+      body: "*"
+    };
+  };
+  // Send asks to send amount to ark address
+  rpc Send(SendRequest) returns (SendResponse) {
+    option (google.api.http) = {
+      post: "/v1/send"
+      body: "*"
+    };
+  };
+  // SendOnchain asks to send requested amount to requested onchain address
+  rpc SendOnchain(SendOnchainRequest) returns (SendOnchainResponse) {
+    option (google.api.http) = {
+      post: "/v1/send/onchain"
+      body: "*"
+    };
+  };
+  // SendOnchain asks to send requested amount to requested onchain address
+  rpc GetSendOnchainFees(GetSendOnchainFeesRequest) returns (GetSendOnchainFeesResponse) {
+    option (google.api.http) = {
+      post: "/v1/send/onchain/fees"
+      body: "*"
+    };
+  };
+  // Round returns round info for optional round_id
+  rpc GetRoundInfo(GetRoundInfoRequest) returns (GetRoundInfoResponse) {
+    option (google.api.http) = {
+      get: "/v1/round/{round_id}"
+    };
+  };
+  // GetTransactions returns virtual transactions history
+  rpc GetTransactions(GetTransactionsRequest) returns (GetTransactionsResponse) {
+    option (google.api.http) = {
+      post: "/v1/transactions"
+      body: "*"
+    };
+  };
+}
+
+message GetAddressRequest {}
+message GetAddressResponse {
+  string address = 1;
+}
+
+message GetBalanceRequest {}
+message GetBalanceResponse {
+  uint64 amount = 1;
+}
+
+message GetInfoRequest {}
+message GetInfoResponse {
+  enum Network {
+    NETWORK_UNSPECIFIED = 0;
+    NETWORK_MAINNET = 1;
+    NETWORK_TESTNET = 2;
+    NETWORK_REGTEST = 3;
+  }
+  // the network of the wallet
+  Network network = 1;
+  // list containing info about the wallet accounts.
+  AccountInfo account = 2;
+  // info about the current version of the ark wallet.
+  BuildInfo build_info = 3;
+}
+
+message GetOnboardAddressRequest {
+  uint64 amount = 1;
+}
+message GetOnboardAddressResponse {
+  string address = 1;
+}
+
+message SendRequest {
+  string address = 1;
+  uint64 amount = 2;
+}
+message SendResponse {
+  string round_id = 1;
+}
+
+message SendOnchainRequest {
+  string address = 1;
+  uint64 amount = 2;
+}
+message SendOnchainResponse {
+  string round_id = 1;
+}
+
+message GetSendOnchainFeesRequest {
+  string address = 1;
+  uint64 amount = 2;
+}
+message GetSendOnchainFeesResponse {
+  Fees fees = 1;
+}
+
+message GetRoundInfoRequest {
+  string round_id = 1;
+}
+message GetRoundInfoResponse {
+  Round round = 1;
+}
+
+message GetTransactionsRequest {}
+message GetTransactionsResponse {
+  repeated TransactionInfo transactions = 1;
+}
