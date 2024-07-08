@@ -21,6 +21,11 @@ window.onload = () => {
     x.innerHTML = fromSatoshis(x.textContent)
   })
 
+  document.querySelectorAll('.btcm').forEach((x) => {
+    const sats = x.textContent
+    x.innerHTML = (sats.charAt(0) === '+' ? '+' : '') + fromSatoshis(sats)
+  })
+
   fetch('https://btcoracle.bordalix.workers.dev/').then((res) => {
     res.json().then((json) => {
       document.querySelectorAll('.usd').forEach((x) => {

@@ -73,7 +73,7 @@ templ HistoryLine(txid, kind, date, hour, sats string) {
 						templ.KV("text-green", kind == "received"),
 						templ.KV("text-yellow", kind == "waiting")
 					}>
-	  			  <span class="btc">{sats}</span> BTC
+	  			  <span class="btcm">{sats}</span> BTC
 	  			</span>
 	  			<br />
 	  		  <span class="text-offwhite/50 usd" sats={sats}>$ ...</span>
@@ -86,11 +86,11 @@ templ HistoryLine(txid, kind, date, hour, sats string) {
 // BodyContent defines HTML content.
 templ HistoryBodyContent() {
 	<div>
-	  @HistoryLine("txid", "waiting", "08/08/2024", "21:42", "212110")
+	  @HistoryLine("txid", "waiting", "08/08/2024", "21:42", "+212110")
 	  @HistoryLine("txid", "sent", "08/08/2024", "21:42", "-645543")
 	  @HistoryLine("txid", "sent", "07/08/2024", "21:42", "-645543")
 	  @HistoryLine("txid", "received", "06/08/2024", "21:42", "+56632")
 	  @HistoryLine("txid", "received", "05/08/2024", "21:42", "+655255")
-	  @HistoryLine("txid", "swap", "04/08/2024", "21:42", "42334")
+	  @HistoryLine("txid", "swap", "04/08/2024", "21:42", "+42334")
 	</div>
 }
