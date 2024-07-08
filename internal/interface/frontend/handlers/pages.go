@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"net/http"
@@ -20,22 +20,22 @@ func viewHandler(bodyContent templ.Component, c *gin.Context) {
 	}
 }
 
-func IndexViewHandler(c *gin.Context) {
+func Index(c *gin.Context) {
 	bodyContent := pages.HistoryBodyContent()
 	viewHandler(bodyContent, c)
 }
 
-func ReceiveViewHandler(c *gin.Context) {
+func Receive(c *gin.Context) {
 	bodyContent := pages.ReceiveBodyContent()
 	viewHandler(bodyContent, c)
 }
 
-func SendViewHandler(c *gin.Context) {
+func Send(c *gin.Context) {
 	bodyContent := pages.SendBodyContent()
 	viewHandler(bodyContent, c)
 }
 
-func SwapViewHandler(c *gin.Context) {
+func Swap(c *gin.Context) {
 	bodyContent := pages.SwapBodyContent()
 	viewHandler(bodyContent, c)
 }

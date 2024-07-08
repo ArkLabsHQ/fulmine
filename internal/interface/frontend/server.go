@@ -9,9 +9,10 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
+	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
 
-	"github.com/gin-gonic/gin"
+	"github.com/ArkLabsHQ/ark-wallet/handlers"
 
 	gowebly "github.com/gowebly/helpers"
 )
@@ -66,16 +67,16 @@ func runServer() error {
 	router.Static("/static", "./static")
 
 	// Handle index page view.
-	router.GET("/", IndexViewHandler)
-	router.GET("/receive", ReceiveViewHandler)
-	router.GET("/send", SendViewHandler)
-	router.GET("/swap", SwapViewHandler)
+	router.GET("/", handlers.Index)
+	router.GET("/send", handlers.Send)
+	router.GET("/swap", handlers.Swap)
+	router.GET("/receive", handlers.Receive)
 
 	// Handle API endpoints.
-	router.GET("/api/history/:hash", historyAPIHandler)
-	router.GET("/api/receive", receiveAPIHandler)
-	router.GET("/api/send", sendAPIHandler)
-	router.GET("/api/swap", swapAPIHandler)
+	router.GET("/api/history/:hash", handlers.HistoryAPIHandler)
+	router.GET("/api/receive", handlers.ReceiveAPIHandler)
+	router.GET("/api/send", handlers.SendAPIHandler)
+	router.GET("/api/swap", handlers.SwapAPIHandler)
 
 	// Create a new server instance with options from environment variables.
 	// For more information, see https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/

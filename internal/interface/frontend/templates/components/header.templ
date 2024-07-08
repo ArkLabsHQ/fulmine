@@ -1,25 +1,25 @@
 package components
 
 templ BackIcon() {
-	<div class="flex items-center w-8 h-8 bg-offwhite/10 rounded-full">
-	  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto text-offwhite/50" viewBox="0 0 42 42">
+	<div class="flex items-center w-10 h-10 bg-offwhite/10 rounded-full">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mx-auto text-offwhite/50" viewBox="0 0 42 42">
       <path fill="currentColor" fill-rule="evenodd" d="M27.066 1L7 21.068l19.568 19.569l4.934-4.933l-14.637-14.636L32 5.933z"/>
     </svg>
 	</div>
 }
 
 templ ShareIcon() {
-	<div class="flex items-center w-8 h-8 bg-offwhite/10 rounded-full ml-auto">
-    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto text-offwhite/50" viewBox="0 0 24 24">
+	<div class="flex items-center w-10 h-10 bg-offwhite/10 rounded-full ml-auto">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mx-auto text-offwhite/50" viewBox="0 0 24 24">
     <path fill="currentColor" d="M11.293 2.293a1 1 0 0 1 1.414 0l3 3a1 1 0 0 1-1.414 1.414L13 5.414V15a1 1 0 1 1-2 0V5.414L9.707 6.707a1 1 0 0 1-1.414-1.414l3-3zM4 11a2 2 0 0 1 2-2h2a1 1 0 0 1 0 2H6v9h12v-9h-2a1 1 0 1 1 0-2h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9z"/>
 </svg>
 	</div>
 }
 
 templ Header(title string) {
-	<div class="grid grid-cols-3 p-3 items-center">
+	<div class="grid grid-cols-3 p-3 items-center mb-16">
 	  <a href="/">@BackIcon()</a>
-		<p class="text-center">{title}</p>
+		<h1 class="text-lg text-center font-semibold">{title}</h1>
 		if title == "Receive" {
 			@ShareIcon()
 		}

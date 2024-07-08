@@ -4,7 +4,21 @@ import (
 	"github.com/ArkLabsHQ/ark-wallet/templates/components"
 )
 
+templ ArrowDown() {
+	<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20">
+    <path fill="currentColor" d="M10.103 12.778L16.81 6.08a.69.69 0 0 1 .99.012a.726.726 0 0 1-.012 1.012l-7.203 7.193a.69.69 0 0 1-.985-.006L2.205 6.72a.727.727 0 0 1 0-1.01a.69.69 0 0 1 .99 0l6.908 7.068Z"/>
+  </svg>
+}
+
 templ SendBodyContent() {
 	@components.Header("Send")
-	<div><p>Send page</p></div>
+	<div class="px-3">
+	  <p class="font-semibold mb-2">Amount</p>
+		<div class="bg-graybg p-4 flex items-center justify-between rounded-md">
+		  <input class="bg-graybg border-0" placeholder="5000" />
+			<p class="py-1 px-2 bg-offwhite/20 rounded-md">MAX</p>
+			<p class="py-1">SATS</p>
+			<p>@ArrowDown()</p>
+		</div>
+	</div>
 }
