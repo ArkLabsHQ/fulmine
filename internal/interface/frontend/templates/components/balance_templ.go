@@ -39,14 +39,14 @@ func Balance(currentBalance string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> SATS</p><p class=\"text-gray-200 usd\" sats=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> SATS</p><p class=\"text-gray-200 font-lg usd\" sats=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(currentBalance)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/components/balance.templ`, Line: 7, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/components/balance.templ`, Line: 7, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {

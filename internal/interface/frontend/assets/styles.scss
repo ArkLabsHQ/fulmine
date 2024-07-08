@@ -53,12 +53,16 @@ h1 {
   color: white;
   margin: 0 auto;
   max-width: 640px;
-  padding: 2px;
+  padding: 4px;
   width: 100%;
 }
 
 #top {
-  background-image: linear-gradient(to top right, #bc3f20, #f4ac3f);
+  background: radial-gradient(
+    85.35% 95.12% at 50% 11.59%,
+    #f28c52 0%,
+    #9c3b1c 100%
+  );
 }
 
 #htmx-result {
@@ -88,7 +92,7 @@ button {
   border: 1px solid transparent;
   padding: 0.6em 0;
   font-size: 1em;
-  font-weight: 700;
+  font-weight: 600;
   font-family: inherit;
   color: #1a1a1a;
   background-color: #fefef5;
