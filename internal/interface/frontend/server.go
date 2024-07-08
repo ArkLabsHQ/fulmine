@@ -66,11 +66,10 @@ func runServer() error {
 	router.Static("/static", "./static")
 
 	// Handle index page view.
-	router.GET("/", historyViewHandler)
-	router.GET("/asp", aspViewHandler)
-	router.GET("/history", historyViewHandler)
-	router.GET("/lightning", lightningViewHandler)
-	router.GET("/settings", settingsViewHandler)
+	router.GET("/", IndexViewHandler)
+	router.GET("/receive", ReceiveViewHandler)
+	router.GET("/send", SendViewHandler)
+	router.GET("/swap", SwapViewHandler)
 
 	// Handle API endpoints.
 	router.GET("/api/history/:hash", historyAPIHandler)

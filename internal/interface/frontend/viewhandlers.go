@@ -7,36 +7,40 @@ import (
 	"github.com/angelofallars/htmx-go"
 
 	"github.com/ArkLabsHQ/ark-wallet/templates"
+	"github.com/ArkLabsHQ/ark-wallet/templates/components"
 	"github.com/ArkLabsHQ/ark-wallet/templates/pages"
 
 	"github.com/gin-gonic/gin"
 )
 
-func viewHandler(bodyContent templ.Component, activeTab string, c *gin.Context) {
-	currentBalance := "1930124"
-	indexTemplate := templates.Layout(bodyContent, activeTab, currentBalance)
+func viewHandler(heroContent, bodyContent templ.Component, c *gin.Context) {
+	indexTemplate := templates.Layout(heroContent, bodyContent)
 	if err := htmx.NewResponse().RenderTempl(c.Request.Context(), c.Writer, indexTemplate); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 }
 
-func aspViewHandler(c *gin.Context) {
-	bodyContent := pages.AspBodyContent()
-	viewHandler(bodyContent, "asp", c)
-}
-
-func historyViewHandler(c *gin.Context) {
+func IndexViewHandler(c *gin.Context) {
+	heroContent := components.Hero("1930124")
 	bodyContent := pages.HistoryBodyContent()
-	viewHandler(bodyContent, "history", c)
+	viewHandler(heroContent, bodyContent, c)
 }
 
-func lightningViewHandler(c *gin.Context) {
-	bodyContent := pages.LightningBodyContent()
-	viewHandler(bodyContent, "lightning", c)
+func ReceiveViewHandler(c *gin.Context) {
+	heroContent := components.Header("Receive")
+	bodyContent := pages.ReceiveBodyContent()
+	viewHandler(heroContent, bodyContent, c)
 }
 
-func settingsViewHandler(c *gin.Context) {
-	bodyContent := pages.SettingsBodyContent()
-	viewHandler(bodyContent, "settings", c)
+func SendViewHandler(c *gin.Context) {
+	heroContent := components.Header("Send")
+	bodyContent := pages.SendBodyContent()
+	viewHandler(heroContent, bodyContent, c)
+}
+
+func SwapViewHandler(c *gin.Context) {
+	heroContent := components.Header("Swap")
+	bodyContent := pages.SwapBodyContent()
+	viewHandler(heroContent, bodyContent, c)
 }

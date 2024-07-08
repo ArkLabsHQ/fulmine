@@ -35,6 +35,9 @@ func HomeBodyContent() templ.Component {
 	})
 }
 
+// in order for tailwind to detect this classes, this javascript code
+// needs to be inside a .templ file, which means this script code
+// must be here, cannot be on /assets/script.js
 func PagesScript() templ.ComponentScript {
 	return templ.ComponentScript{
 		Name: `__templ_PagesScript_7a43`,

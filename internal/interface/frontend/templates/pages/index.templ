@@ -5,6 +5,9 @@ templ HomeBodyContent() {
 	<p class="py-12">Welcome to Fulmine</p>
 }
 
+// in order for tailwind to detect this classes, this javascript code
+// needs to be inside a .templ file, which means this script code
+// must be here, cannot be on /assets/script.js
 script PagesScript() {
 	// from 4321 to 0.00004321 with '0' in gray
   const prettyBtc = (btc) => {

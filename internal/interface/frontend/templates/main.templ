@@ -2,10 +2,9 @@ package templates
 
 import (
 	"github.com/ArkLabsHQ/ark-wallet/templates/pages"
-	"github.com/ArkLabsHQ/ark-wallet/templates/components"
 )
 
-templ Layout(bodyContent templ.Component, activeTab, currentBalance string) {
+templ Layout(heroContent, bodyContent templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -29,11 +28,7 @@ templ Layout(bodyContent templ.Component, activeTab, currentBalance string) {
 		</head>
 		<body onload={ pages.PagesScript() }>
 			<div id="app">
-			  <div id="top" class="rounded p-3 mb-10">
-			    @components.Header()
-			    @components.Balance(currentBalance)
-			    @components.Actions()
-				</div>
+			  @heroContent
 				@bodyContent
 	      <div id="modal"></div>
 			</div>
