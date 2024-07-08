@@ -89,17 +89,17 @@ h1 {
 
 a.button,
 button {
-  background-color: #fefef5;
   border-radius: 8px;
   border: 1px solid transparent;
-  color: #1a1a1a;
   cursor: pointer;
+  display: block;
   font-size: 1em;
   font-weight: 600;
   font-family: inherit;
-  padding: 0.6em 0;
+  padding: 1rem 0;
   text-align: center;
   transition: border-color 0.25s;
+  width: 100%;
 }
 
 a.button:hover,

@@ -12,6 +12,19 @@ const fromSatoshis = (sats) => {
   return Decimal.div(sats, 100_000_000).toNumber()
 }
 
+const copyToClipboard = async (text) => {
+  if (navigator.clipboard) {
+    return await navigator.clipboard.writeText(text)
+  }
+}
+
+const pasteFromClipboard = async () => {
+  if (navigator.clipboard) {
+    return await navigator.clipboard.readText()
+  }
+  return ''
+}
+
 window.onload = () => {
   document.querySelectorAll('.sats').forEach((x) => {
     x.innerHTML = prettyNum(x.textContent)

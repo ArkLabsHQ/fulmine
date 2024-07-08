@@ -4,21 +4,85 @@ import (
 	"github.com/ArkLabsHQ/ark-wallet/templates/components"
 )
 
-templ ArrowDown() {
-	<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20">
+templ ArrowDownIcon() {
+	<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-offwhite/50" viewBox="0 0 20 20">
     <path fill="currentColor" d="M10.103 12.778L16.81 6.08a.69.69 0 0 1 .99.012a.726.726 0 0 1-.012 1.012l-7.203 7.193a.69.69 0 0 1-.985-.006L2.205 6.72a.727.727 0 0 1 0-1.01a.69.69 0 0 1 .99 0l6.908 7.068Z"/>
   </svg>
 }
 
-templ SendBodyContent() {
-	@components.Header("Send")
-	<div class="px-3">
-	  <p class="font-semibold mb-2">Amount</p>
-		<div class="bg-graybg p-4 flex items-center justify-between rounded-md">
-		  <input class="bg-graybg border-0" placeholder="5000" />
-			<p class="py-1 px-2 bg-offwhite/20 rounded-md">MAX</p>
-			<p class="py-1">SATS</p>
-			<p>@ArrowDown()</p>
+templ PasteIcon() {
+	<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-offwhite/50" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M5.615 20q-.67 0-1.143-.472Q4 19.056 4 18.385V5.615q0-.67.472-1.143Q4.944 4 5.615 4h4.637q.14-.587.623-.986T12 2.615q.654 0 1.134.4q.48.398.62.985h4.63q.672 0 1.144.472q.472.472.472 1.143v12.77q0 .67-.472 1.143q-.472.472-1.143.472H5.615Zm0-1h12.77q.23 0 .423-.192q.192-.193.192-.423V5.615q0-.23-.192-.423Q18.615 5 18.385 5H16v2.23H8V5H5.615q-.23 0-.423.192Q5 5.385 5 5.615v12.77q0 .23.192.423q.193.192.423.192ZM12 5.23q.348 0 .578-.229q.23-.23.23-.578t-.23-.578q-.23-.23-.578-.23t-.578.23q-.23.23-.23.578t.23.578q.23.23.578.23Z"/>
+</svg>
+}
+
+templ SendBodyContent(currentBalance string) {
+	<div class="p-3 flex flex-col justify-between h-screen">
+	  <div>
+	    @components.Header("Send")
+	    <p class="font-semibold mb-2">Recipient's address</p>
+		  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
+		    <input class="bg-graybg border-0" id="sendAddress" placeholder="ark1ccc..." />
+		  	<p onclick="pasteAddressFromClipboard()">@PasteIcon()</p>
+		  </div>
+		  <p class="font-semibold mb-2 mt-10">Amount</p>
+		  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
+		    <input class="bg-graybg border-0" id="sendAmount" max={currentBalance} placeholder="5000" />
+		  	<p class="py-1 px-2 bg-offwhite/20 text-offwhite/50 rounded-lg" onclick="setMaxValue()">MAX</p>
+		  	<p class="py-1 w-10" id="unit">SATS</p>
+		  	<p onclick="toggleUnit()">@ArrowDownIcon()</p>
+		  </div>
+		  <p class="text-right text-sm" id="available">Available <span class="sats">{currentBalance}</span> SATS</p>
+		</div>
+		<div>
+		  <button class="bg-orange mb-2">Confirm</button>
+		  <a href="/" class="button bg-graybg w-full">Cancel</a>
 		</div>
 	</div>
+	<script>
+	  const prettyNum = (num, maximumFractionDigits = 2) => {
+      if (!num) return '0'
+      return new Intl.NumberFormat('en', {
+        style: 'decimal',
+        maximumFractionDigits,
+      }).format(num)
+    }
+
+    const fromSatoshis = (sats) => {
+      return Decimal.div(sats, 100_000_000).toNumber()
+    }
+
+		const toSatoshis = (btc) => {
+      return Decimal.mul(btc, 100_000_000).toNumber()
+    }
+
+	  const pasteAddressFromClipboard = () => {
+			if (navigator.clipboard) {
+        navigator.clipboard.readText().then((val) => {
+					document.querySelector('#sendAddress').value = val
+			  })
+      }
+		}
+		const setMaxValue = () => {
+			const sats = document.querySelector('#sendAmount').getAttribute('max')
+			if (isNaN(sats)) return
+			document.querySelector('#sendAmount').value = sats
+		}
+		const toggleUnit = () => {
+			const currUnit = document.querySelector('#unit').innerText
+			const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
+			// change unit
+			document.querySelector('#unit').innerText = nextUnit
+			// change availability
+			const maxSats = document.querySelector('#sendAmount').getAttribute('max')
+			document.querySelector('#available').innerText =
+			  `Available ${nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats)} ${nextUnit}`
+			// change value inside input
+			const currVal = document.querySelector('#sendAmount').value
+			if (currVal) {
+				const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
+				document.querySelector('#sendAmount').value = nextVal
+			}
+		}
+	</script>
 }

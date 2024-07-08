@@ -12,6 +12,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func getBalance() string {
+	return "1930547"
+}
+
 func viewHandler(bodyContent templ.Component, c *gin.Context) {
 	indexTemplate := templates.Layout(bodyContent)
 	if err := htmx.NewResponse().RenderTempl(c.Request.Context(), c.Writer, indexTemplate); err != nil {
@@ -21,21 +25,21 @@ func viewHandler(bodyContent templ.Component, c *gin.Context) {
 }
 
 func Index(c *gin.Context) {
-	bodyContent := pages.HistoryBodyContent()
+	bodyContent := pages.HistoryBodyContent(getBalance())
 	viewHandler(bodyContent, c)
 }
 
 func Receive(c *gin.Context) {
-	bodyContent := pages.ReceiveBodyContent()
+	bodyContent := pages.ReceiveBodyContent(getBalance())
 	viewHandler(bodyContent, c)
 }
 
 func Send(c *gin.Context) {
-	bodyContent := pages.SendBodyContent()
+	bodyContent := pages.SendBodyContent(getBalance())
 	viewHandler(bodyContent, c)
 }
 
 func Swap(c *gin.Context) {
-	bodyContent := pages.SwapBodyContent()
+	bodyContent := pages.SwapBodyContent(getBalance())
 	viewHandler(bodyContent, c)
 }

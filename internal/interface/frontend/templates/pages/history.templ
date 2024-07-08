@@ -88,8 +88,8 @@ templ HistoryLine(txid, kind, date, hour, sats string) {
 }
 
 // BodyContent defines HTML content.
-templ HistoryBodyContent() {
-	@components.Hero("1930532")
+templ HistoryBodyContent(currentBalance string) {
+	@components.Hero(currentBalance)
 	<div>
 	  @HistoryLine("txid", "waiting", "08/08/2024", "21:42", "+212110")
 	  @HistoryLine("txid", "sent", "08/08/2024", "21:42", "-645543")
