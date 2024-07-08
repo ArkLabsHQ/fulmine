@@ -25,7 +25,8 @@ func viewHandler(bodyContent templ.Component, c *gin.Context) {
 }
 
 func Index(c *gin.Context) {
-	bodyContent := pages.HistoryBodyContent(getBalance())
+	arkAddress := "ark18746676365652bcdabdbacdabcd63546354634"
+	bodyContent := pages.HistoryBodyContent(arkAddress, getBalance())
 	viewHandler(bodyContent, c)
 }
 

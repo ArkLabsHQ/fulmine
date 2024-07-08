@@ -40,22 +40,6 @@ templ SendBodyContent(currentBalance string) {
 		</div>
 	</div>
 	<script>
-	  const prettyNum = (num, maximumFractionDigits = 2) => {
-      if (!num) return '0'
-      return new Intl.NumberFormat('en', {
-        style: 'decimal',
-        maximumFractionDigits,
-      }).format(num)
-    }
-
-    const fromSatoshis = (sats) => {
-      return Decimal.div(sats, 100_000_000).toNumber()
-    }
-
-		const toSatoshis = (btc) => {
-      return Decimal.mul(btc, 100_000_000).toNumber()
-    }
-
 	  const pasteAddressFromClipboard = () => {
 			if (navigator.clipboard) {
         navigator.clipboard.readText().then((val) => {
@@ -63,11 +47,13 @@ templ SendBodyContent(currentBalance string) {
 			  })
       }
 		}
+		
 		const setMaxValue = () => {
 			const sats = document.querySelector('#sendAmount').getAttribute('max')
 			if (isNaN(sats)) return
 			document.querySelector('#sendAmount').value = sats
 		}
+
 		const toggleUnit = () => {
 			const currUnit = document.querySelector('#unit').innerText
 			const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
