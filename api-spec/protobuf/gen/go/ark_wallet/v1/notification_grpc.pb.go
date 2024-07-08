@@ -19,8 +19,6 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	NotificationService_WatchInvoice_FullMethodName       = "/ark_wallet.v1.NotificationService/WatchInvoice"
-	NotificationService_UnwatchInvoice_FullMethodName     = "/ark_wallet.v1.NotificationService/UnwatchInvoice"
 	NotificationService_RoundNotifications_FullMethodName = "/ark_wallet.v1.NotificationService/RoundNotifications"
 	NotificationService_AddWebhook_FullMethodName         = "/ark_wallet.v1.NotificationService/AddWebhook"
 	NotificationService_RemoveWebhook_FullMethodName      = "/ark_wallet.v1.NotificationService/RemoveWebhook"
@@ -36,14 +34,6 @@ const (
 // server-side stream or by subscribing webhooks invoked whenever an event
 // occurs.
 type NotificationServiceClient interface {
-	// WatchInvoice allows to get notified about vtxos/txs related to the given
-	// lightning invoice.
-	// The service answers with the label assigned to the given script.
-	// The label is used as identifier of the utxos/txs received from the streams.
-	WatchInvoice(ctx context.Context, in *WatchInvoiceRequest, opts ...grpc.CallOption) (*WatchInvoiceResponse, error)
-	// UnwatchInvoice allows to stop watching for the script identified with
-	// the given label.
-	UnwatchInvoice(ctx context.Context, in *UnwatchInvoiceRequest, opts ...grpc.CallOption) (*UnwatchInvoiceResponse, error)
 	// Notifies about events related to wallet transactions.
 	RoundNotifications(ctx context.Context, in *RoundNotificationsRequest, opts ...grpc.CallOption) (NotificationService_RoundNotificationsClient, error)
 	// Adds a webhook registered for some kind of event.
@@ -60,26 +50,6 @@ type notificationServiceClient struct {
 
 func NewNotificationServiceClient(cc grpc.ClientConnInterface) NotificationServiceClient {
 	return &notificationServiceClient{cc}
-}
-
-func (c *notificationServiceClient) WatchInvoice(ctx context.Context, in *WatchInvoiceRequest, opts ...grpc.CallOption) (*WatchInvoiceResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(WatchInvoiceResponse)
-	err := c.cc.Invoke(ctx, NotificationService_WatchInvoice_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *notificationServiceClient) UnwatchInvoice(ctx context.Context, in *UnwatchInvoiceRequest, opts ...grpc.CallOption) (*UnwatchInvoiceResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UnwatchInvoiceResponse)
-	err := c.cc.Invoke(ctx, NotificationService_UnwatchInvoice_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *notificationServiceClient) RoundNotifications(ctx context.Context, in *RoundNotificationsRequest, opts ...grpc.CallOption) (NotificationService_RoundNotificationsClient, error) {
@@ -154,14 +124,6 @@ func (c *notificationServiceClient) ListWebhooks(ctx context.Context, in *ListWe
 // server-side stream or by subscribing webhooks invoked whenever an event
 // occurs.
 type NotificationServiceServer interface {
-	// WatchInvoice allows to get notified about vtxos/txs related to the given
-	// lightning invoice.
-	// The service answers with the label assigned to the given script.
-	// The label is used as identifier of the utxos/txs received from the streams.
-	WatchInvoice(context.Context, *WatchInvoiceRequest) (*WatchInvoiceResponse, error)
-	// UnwatchInvoice allows to stop watching for the script identified with
-	// the given label.
-	UnwatchInvoice(context.Context, *UnwatchInvoiceRequest) (*UnwatchInvoiceResponse, error)
 	// Notifies about events related to wallet transactions.
 	RoundNotifications(*RoundNotificationsRequest, NotificationService_RoundNotificationsServer) error
 	// Adds a webhook registered for some kind of event.
@@ -176,12 +138,6 @@ type NotificationServiceServer interface {
 type UnimplementedNotificationServiceServer struct {
 }
 
-func (UnimplementedNotificationServiceServer) WatchInvoice(context.Context, *WatchInvoiceRequest) (*WatchInvoiceResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method WatchInvoice not implemented")
-}
-func (UnimplementedNotificationServiceServer) UnwatchInvoice(context.Context, *UnwatchInvoiceRequest) (*UnwatchInvoiceResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UnwatchInvoice not implemented")
-}
 func (UnimplementedNotificationServiceServer) RoundNotifications(*RoundNotificationsRequest, NotificationService_RoundNotificationsServer) error {
 	return status.Errorf(codes.Unimplemented, "method RoundNotifications not implemented")
 }
@@ -204,42 +160,6 @@ type UnsafeNotificationServiceServer interface {
 
 func RegisterNotificationServiceServer(s grpc.ServiceRegistrar, srv NotificationServiceServer) {
 	s.RegisterService(&NotificationService_ServiceDesc, srv)
-}
-
-func _NotificationService_WatchInvoice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(WatchInvoiceRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NotificationServiceServer).WatchInvoice(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: NotificationService_WatchInvoice_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NotificationServiceServer).WatchInvoice(ctx, req.(*WatchInvoiceRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NotificationService_UnwatchInvoice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UnwatchInvoiceRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NotificationServiceServer).UnwatchInvoice(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: NotificationService_UnwatchInvoice_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NotificationServiceServer).UnwatchInvoice(ctx, req.(*UnwatchInvoiceRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _NotificationService_RoundNotifications_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -324,14 +244,6 @@ var NotificationService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "ark_wallet.v1.NotificationService",
 	HandlerType: (*NotificationServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "WatchInvoice",
-			Handler:    _NotificationService_WatchInvoice_Handler,
-		},
-		{
-			MethodName: "UnwatchInvoice",
-			Handler:    _NotificationService_UnwatchInvoice_Handler,
-		},
 		{
 			MethodName: "AddWebhook",
 			Handler:    _NotificationService_AddWebhook_Handler,

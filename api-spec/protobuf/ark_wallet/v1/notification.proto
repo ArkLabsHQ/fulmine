@@ -9,15 +9,6 @@ import "ark_wallet/v1/types.proto";
 // server-side stream or by subscribing webhooks invoked whenever an event 
 // occurs.
 service NotificationService {
-  // WatchInvoice allows to get notified about vtxos/txs related to the given
-  // lightning invoice.
-  // The service answers with the label assigned to the given script.
-  // The label is used as identifier of the utxos/txs received from the streams.
-  rpc WatchInvoice(WatchInvoiceRequest) returns(WatchInvoiceResponse);
-  // UnwatchInvoice allows to stop watching for the script identified with
-  // the given label.
-  rpc UnwatchInvoice(UnwatchInvoiceRequest) returns(UnwatchInvoiceResponse);
-
   //**************//
   //   STREAMS    //
   //**************//
@@ -45,18 +36,6 @@ message RoundNotificationsResponse{
   string txhex = 2;
   string txid = 3;
   BlockDetails block_details = 4;
-}
-
-message UnwatchInvoiceRequest {
-  string label = 1;
-}
-message UnwatchInvoiceResponse {}
-
-message WatchInvoiceRequest {
-  string invoice = 1;
-}
-message WatchInvoiceResponse {
-  string label = 1;
 }
 
 message AddWebhookRequest {

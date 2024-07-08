@@ -129,185 +129,6 @@ func (x *RoundNotificationsResponse) GetBlockDetails() *BlockDetails {
 	return nil
 }
 
-type UnwatchInvoiceRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Label string `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
-}
-
-func (x *UnwatchInvoiceRequest) Reset() {
-	*x = UnwatchInvoiceRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_ark_wallet_v1_notification_proto_msgTypes[2]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *UnwatchInvoiceRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UnwatchInvoiceRequest) ProtoMessage() {}
-
-func (x *UnwatchInvoiceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ark_wallet_v1_notification_proto_msgTypes[2]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UnwatchInvoiceRequest.ProtoReflect.Descriptor instead.
-func (*UnwatchInvoiceRequest) Descriptor() ([]byte, []int) {
-	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *UnwatchInvoiceRequest) GetLabel() string {
-	if x != nil {
-		return x.Label
-	}
-	return ""
-}
-
-type UnwatchInvoiceResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *UnwatchInvoiceResponse) Reset() {
-	*x = UnwatchInvoiceResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_ark_wallet_v1_notification_proto_msgTypes[3]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *UnwatchInvoiceResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UnwatchInvoiceResponse) ProtoMessage() {}
-
-func (x *UnwatchInvoiceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ark_wallet_v1_notification_proto_msgTypes[3]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UnwatchInvoiceResponse.ProtoReflect.Descriptor instead.
-func (*UnwatchInvoiceResponse) Descriptor() ([]byte, []int) {
-	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{3}
-}
-
-type WatchInvoiceRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Invoice string `protobuf:"bytes,1,opt,name=invoice,proto3" json:"invoice,omitempty"`
-}
-
-func (x *WatchInvoiceRequest) Reset() {
-	*x = WatchInvoiceRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_ark_wallet_v1_notification_proto_msgTypes[4]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *WatchInvoiceRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WatchInvoiceRequest) ProtoMessage() {}
-
-func (x *WatchInvoiceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ark_wallet_v1_notification_proto_msgTypes[4]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WatchInvoiceRequest.ProtoReflect.Descriptor instead.
-func (*WatchInvoiceRequest) Descriptor() ([]byte, []int) {
-	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *WatchInvoiceRequest) GetInvoice() string {
-	if x != nil {
-		return x.Invoice
-	}
-	return ""
-}
-
-type WatchInvoiceResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Label string `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
-}
-
-func (x *WatchInvoiceResponse) Reset() {
-	*x = WatchInvoiceResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_ark_wallet_v1_notification_proto_msgTypes[5]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *WatchInvoiceResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WatchInvoiceResponse) ProtoMessage() {}
-
-func (x *WatchInvoiceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ark_wallet_v1_notification_proto_msgTypes[5]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WatchInvoiceResponse.ProtoReflect.Descriptor instead.
-func (*WatchInvoiceResponse) Descriptor() ([]byte, []int) {
-	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *WatchInvoiceResponse) GetLabel() string {
-	if x != nil {
-		return x.Label
-	}
-	return ""
-}
-
 type AddWebhookRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -325,7 +146,7 @@ type AddWebhookRequest struct {
 func (x *AddWebhookRequest) Reset() {
 	*x = AddWebhookRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ark_wallet_v1_notification_proto_msgTypes[6]
+		mi := &file_ark_wallet_v1_notification_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -338,7 +159,7 @@ func (x *AddWebhookRequest) String() string {
 func (*AddWebhookRequest) ProtoMessage() {}
 
 func (x *AddWebhookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ark_wallet_v1_notification_proto_msgTypes[6]
+	mi := &file_ark_wallet_v1_notification_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -351,7 +172,7 @@ func (x *AddWebhookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddWebhookRequest.ProtoReflect.Descriptor instead.
 func (*AddWebhookRequest) Descriptor() ([]byte, []int) {
-	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{6}
+	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *AddWebhookRequest) GetEndpoint() string {
@@ -387,7 +208,7 @@ type AddWebhookResponse struct {
 func (x *AddWebhookResponse) Reset() {
 	*x = AddWebhookResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ark_wallet_v1_notification_proto_msgTypes[7]
+		mi := &file_ark_wallet_v1_notification_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -400,7 +221,7 @@ func (x *AddWebhookResponse) String() string {
 func (*AddWebhookResponse) ProtoMessage() {}
 
 func (x *AddWebhookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ark_wallet_v1_notification_proto_msgTypes[7]
+	mi := &file_ark_wallet_v1_notification_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -413,7 +234,7 @@ func (x *AddWebhookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddWebhookResponse.ProtoReflect.Descriptor instead.
 func (*AddWebhookResponse) Descriptor() ([]byte, []int) {
-	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{7}
+	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *AddWebhookResponse) GetId() string {
@@ -435,7 +256,7 @@ type RemoveWebhookRequest struct {
 func (x *RemoveWebhookRequest) Reset() {
 	*x = RemoveWebhookRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ark_wallet_v1_notification_proto_msgTypes[8]
+		mi := &file_ark_wallet_v1_notification_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -448,7 +269,7 @@ func (x *RemoveWebhookRequest) String() string {
 func (*RemoveWebhookRequest) ProtoMessage() {}
 
 func (x *RemoveWebhookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ark_wallet_v1_notification_proto_msgTypes[8]
+	mi := &file_ark_wallet_v1_notification_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -461,7 +282,7 @@ func (x *RemoveWebhookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveWebhookRequest.ProtoReflect.Descriptor instead.
 func (*RemoveWebhookRequest) Descriptor() ([]byte, []int) {
-	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{8}
+	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RemoveWebhookRequest) GetId() string {
@@ -480,7 +301,7 @@ type RemoveWebhookResponse struct {
 func (x *RemoveWebhookResponse) Reset() {
 	*x = RemoveWebhookResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ark_wallet_v1_notification_proto_msgTypes[9]
+		mi := &file_ark_wallet_v1_notification_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -493,7 +314,7 @@ func (x *RemoveWebhookResponse) String() string {
 func (*RemoveWebhookResponse) ProtoMessage() {}
 
 func (x *RemoveWebhookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ark_wallet_v1_notification_proto_msgTypes[9]
+	mi := &file_ark_wallet_v1_notification_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -506,7 +327,7 @@ func (x *RemoveWebhookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveWebhookResponse.ProtoReflect.Descriptor instead.
 func (*RemoveWebhookResponse) Descriptor() ([]byte, []int) {
-	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{9}
+	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{5}
 }
 
 type ListWebhooksRequest struct {
@@ -521,7 +342,7 @@ type ListWebhooksRequest struct {
 func (x *ListWebhooksRequest) Reset() {
 	*x = ListWebhooksRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ark_wallet_v1_notification_proto_msgTypes[10]
+		mi := &file_ark_wallet_v1_notification_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -534,7 +355,7 @@ func (x *ListWebhooksRequest) String() string {
 func (*ListWebhooksRequest) ProtoMessage() {}
 
 func (x *ListWebhooksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ark_wallet_v1_notification_proto_msgTypes[10]
+	mi := &file_ark_wallet_v1_notification_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +368,7 @@ func (x *ListWebhooksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWebhooksRequest.ProtoReflect.Descriptor instead.
 func (*ListWebhooksRequest) Descriptor() ([]byte, []int) {
-	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{10}
+	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListWebhooksRequest) GetEventType() WebhookEventType {
@@ -569,7 +390,7 @@ type ListWebhooksResponse struct {
 func (x *ListWebhooksResponse) Reset() {
 	*x = ListWebhooksResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ark_wallet_v1_notification_proto_msgTypes[11]
+		mi := &file_ark_wallet_v1_notification_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -582,7 +403,7 @@ func (x *ListWebhooksResponse) String() string {
 func (*ListWebhooksResponse) ProtoMessage() {}
 
 func (x *ListWebhooksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ark_wallet_v1_notification_proto_msgTypes[11]
+	mi := &file_ark_wallet_v1_notification_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -595,7 +416,7 @@ func (x *ListWebhooksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWebhooksResponse.ProtoReflect.Descriptor instead.
 func (*ListWebhooksResponse) Descriptor() ([]byte, []int) {
-	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{11}
+	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListWebhooksResponse) GetWebhookInfo() []*WebhookInfo {
@@ -621,7 +442,7 @@ type WebhookInfo struct {
 func (x *WebhookInfo) Reset() {
 	*x = WebhookInfo{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_ark_wallet_v1_notification_proto_msgTypes[12]
+		mi := &file_ark_wallet_v1_notification_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -634,7 +455,7 @@ func (x *WebhookInfo) String() string {
 func (*WebhookInfo) ProtoMessage() {}
 
 func (x *WebhookInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_ark_wallet_v1_notification_proto_msgTypes[12]
+	mi := &file_ark_wallet_v1_notification_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -647,7 +468,7 @@ func (x *WebhookInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebhookInfo.ProtoReflect.Descriptor instead.
 func (*WebhookInfo) Descriptor() ([]byte, []int) {
-	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{12}
+	return file_ark_wallet_v1_notification_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *WebhookInfo) GetId() string {
@@ -693,62 +514,40 @@ var file_ark_wallet_v1_notification_proto_rawDesc = []byte{
 	0x73, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1b, 0x2e, 0x61, 0x72, 0x6b, 0x5f, 0x77, 0x61,
 	0x6c, 0x6c, 0x65, 0x74, 0x2e, 0x76, 0x31, 0x2e, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x44, 0x65, 0x74,
 	0x61, 0x69, 0x6c, 0x73, 0x52, 0x0c, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x44, 0x65, 0x74, 0x61, 0x69,
-	0x6c, 0x73, 0x22, 0x2d, 0x0a, 0x15, 0x55, 0x6e, 0x77, 0x61, 0x74, 0x63, 0x68, 0x49, 0x6e, 0x76,
-	0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x14, 0x0a, 0x05, 0x6c,
-	0x61, 0x62, 0x65, 0x6c, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x6c, 0x61, 0x62, 0x65,
-	0x6c, 0x22, 0x18, 0x0a, 0x16, 0x55, 0x6e, 0x77, 0x61, 0x74, 0x63, 0x68, 0x49, 0x6e, 0x76, 0x6f,
-	0x69, 0x63, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x2f, 0x0a, 0x13, 0x57,
-	0x61, 0x74, 0x63, 0x68, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x12, 0x18, 0x0a, 0x07, 0x69, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x07, 0x69, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x22, 0x2c, 0x0a, 0x14,
-	0x57, 0x61, 0x74, 0x63, 0x68, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x6c, 0x61, 0x62, 0x65, 0x6c, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x05, 0x6c, 0x61, 0x62, 0x65, 0x6c, 0x22, 0x87, 0x01, 0x0a, 0x11, 0x41,
-	0x64, 0x64, 0x57, 0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x12, 0x1a, 0x0a, 0x08, 0x65, 0x6e, 0x64, 0x70, 0x6f, 0x69, 0x6e, 0x74, 0x18, 0x01, 0x20, 0x01,
-	0x28, 0x09, 0x52, 0x08, 0x65, 0x6e, 0x64, 0x70, 0x6f, 0x69, 0x6e, 0x74, 0x12, 0x3e, 0x0a, 0x0a,
-	0x65, 0x76, 0x65, 0x6e, 0x74, 0x5f, 0x74, 0x79, 0x70, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e,
-	0x32, 0x1f, 0x2e, 0x61, 0x72, 0x6b, 0x5f, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x2e, 0x76, 0x31,
-	0x2e, 0x57, 0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x45, 0x76, 0x65, 0x6e, 0x74, 0x54, 0x79, 0x70,
-	0x65, 0x52, 0x09, 0x65, 0x76, 0x65, 0x6e, 0x74, 0x54, 0x79, 0x70, 0x65, 0x12, 0x16, 0x0a, 0x06,
-	0x73, 0x65, 0x63, 0x72, 0x65, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x73, 0x65,
-	0x63, 0x72, 0x65, 0x74, 0x22, 0x24, 0x0a, 0x12, 0x41, 0x64, 0x64, 0x57, 0x65, 0x62, 0x68, 0x6f,
-	0x6f, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22, 0x26, 0x0a, 0x14, 0x52, 0x65,
-	0x6d, 0x6f, 0x76, 0x65, 0x57, 0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02,
-	0x69, 0x64, 0x22, 0x17, 0x0a, 0x15, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x57, 0x65, 0x62, 0x68,
-	0x6f, 0x6f, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x55, 0x0a, 0x13, 0x4c,
-	0x69, 0x73, 0x74, 0x57, 0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x12, 0x3e, 0x0a, 0x0a, 0x65, 0x76, 0x65, 0x6e, 0x74, 0x5f, 0x74, 0x79, 0x70, 0x65,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x1f, 0x2e, 0x61, 0x72, 0x6b, 0x5f, 0x77, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x2e, 0x76, 0x31, 0x2e, 0x57, 0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x45, 0x76,
-	0x65, 0x6e, 0x74, 0x54, 0x79, 0x70, 0x65, 0x52, 0x09, 0x65, 0x76, 0x65, 0x6e, 0x74, 0x54, 0x79,
-	0x70, 0x65, 0x22, 0x55, 0x0a, 0x14, 0x4c, 0x69, 0x73, 0x74, 0x57, 0x65, 0x62, 0x68, 0x6f, 0x6f,
-	0x6b, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x3d, 0x0a, 0x0c, 0x77, 0x65,
-	0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x5f, 0x69, 0x6e, 0x66, 0x6f, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b,
-	0x32, 0x1a, 0x2e, 0x61, 0x72, 0x6b, 0x5f, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x2e, 0x76, 0x31,
-	0x2e, 0x57, 0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x49, 0x6e, 0x66, 0x6f, 0x52, 0x0b, 0x77, 0x65,
-	0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x49, 0x6e, 0x66, 0x6f, 0x22, 0x58, 0x0a, 0x0b, 0x57, 0x65, 0x62,
-	0x68, 0x6f, 0x6f, 0x6b, 0x49, 0x6e, 0x66, 0x6f, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01,
-	0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12, 0x1a, 0x0a, 0x08, 0x65, 0x6e, 0x64, 0x70,
-	0x6f, 0x69, 0x6e, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x65, 0x6e, 0x64, 0x70,
-	0x6f, 0x69, 0x6e, 0x74, 0x12, 0x1d, 0x0a, 0x0a, 0x69, 0x73, 0x5f, 0x73, 0x65, 0x63, 0x75, 0x72,
-	0x65, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x08, 0x52, 0x09, 0x69, 0x73, 0x53, 0x65, 0x63, 0x75,
-	0x72, 0x65, 0x64, 0x32, 0xc2, 0x04, 0x0a, 0x13, 0x4e, 0x6f, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61,
-	0x74, 0x69, 0x6f, 0x6e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x57, 0x0a, 0x0c, 0x57,
-	0x61, 0x74, 0x63, 0x68, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x12, 0x22, 0x2e, 0x61, 0x72,
-	0x6b, 0x5f, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x2e, 0x76, 0x31, 0x2e, 0x57, 0x61, 0x74, 0x63,
-	0x68, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x23, 0x2e, 0x61, 0x72, 0x6b, 0x5f, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x2e, 0x76, 0x31, 0x2e,
-	0x57, 0x61, 0x74, 0x63, 0x68, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x12, 0x5d, 0x0a, 0x0e, 0x55, 0x6e, 0x77, 0x61, 0x74, 0x63, 0x68, 0x49,
-	0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x12, 0x24, 0x2e, 0x61, 0x72, 0x6b, 0x5f, 0x77, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x2e, 0x76, 0x31, 0x2e, 0x55, 0x6e, 0x77, 0x61, 0x74, 0x63, 0x68, 0x49, 0x6e,
-	0x76, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x25, 0x2e, 0x61,
-	0x72, 0x6b, 0x5f, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x2e, 0x76, 0x31, 0x2e, 0x55, 0x6e, 0x77,
-	0x61, 0x74, 0x63, 0x68, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x12, 0x6b, 0x0a, 0x12, 0x52, 0x6f, 0x75, 0x6e, 0x64, 0x4e, 0x6f, 0x74, 0x69,
+	0x6c, 0x73, 0x22, 0x87, 0x01, 0x0a, 0x11, 0x41, 0x64, 0x64, 0x57, 0x65, 0x62, 0x68, 0x6f, 0x6f,
+	0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1a, 0x0a, 0x08, 0x65, 0x6e, 0x64, 0x70,
+	0x6f, 0x69, 0x6e, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x65, 0x6e, 0x64, 0x70,
+	0x6f, 0x69, 0x6e, 0x74, 0x12, 0x3e, 0x0a, 0x0a, 0x65, 0x76, 0x65, 0x6e, 0x74, 0x5f, 0x74, 0x79,
+	0x70, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x1f, 0x2e, 0x61, 0x72, 0x6b, 0x5f, 0x77,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x2e, 0x76, 0x31, 0x2e, 0x57, 0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b,
+	0x45, 0x76, 0x65, 0x6e, 0x74, 0x54, 0x79, 0x70, 0x65, 0x52, 0x09, 0x65, 0x76, 0x65, 0x6e, 0x74,
+	0x54, 0x79, 0x70, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x65, 0x63, 0x72, 0x65, 0x74, 0x18, 0x03,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x73, 0x65, 0x63, 0x72, 0x65, 0x74, 0x22, 0x24, 0x0a, 0x12,
+	0x41, 0x64, 0x64, 0x57, 0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02,
+	0x69, 0x64, 0x22, 0x26, 0x0a, 0x14, 0x52, 0x65, 0x6d, 0x6f, 0x76, 0x65, 0x57, 0x65, 0x62, 0x68,
+	0x6f, 0x6f, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22, 0x17, 0x0a, 0x15, 0x52, 0x65,
+	0x6d, 0x6f, 0x76, 0x65, 0x57, 0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x22, 0x55, 0x0a, 0x13, 0x4c, 0x69, 0x73, 0x74, 0x57, 0x65, 0x62, 0x68, 0x6f,
+	0x6f, 0x6b, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x3e, 0x0a, 0x0a, 0x65, 0x76,
+	0x65, 0x6e, 0x74, 0x5f, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x1f,
+	0x2e, 0x61, 0x72, 0x6b, 0x5f, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x2e, 0x76, 0x31, 0x2e, 0x57,
+	0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x45, 0x76, 0x65, 0x6e, 0x74, 0x54, 0x79, 0x70, 0x65, 0x52,
+	0x09, 0x65, 0x76, 0x65, 0x6e, 0x74, 0x54, 0x79, 0x70, 0x65, 0x22, 0x55, 0x0a, 0x14, 0x4c, 0x69,
+	0x73, 0x74, 0x57, 0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x12, 0x3d, 0x0a, 0x0c, 0x77, 0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x5f, 0x69, 0x6e,
+	0x66, 0x6f, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x61, 0x72, 0x6b, 0x5f, 0x77,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x2e, 0x76, 0x31, 0x2e, 0x57, 0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b,
+	0x49, 0x6e, 0x66, 0x6f, 0x52, 0x0b, 0x77, 0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x49, 0x6e, 0x66,
+	0x6f, 0x22, 0x58, 0x0a, 0x0b, 0x57, 0x65, 0x62, 0x68, 0x6f, 0x6f, 0x6b, 0x49, 0x6e, 0x66, 0x6f,
+	0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64,
+	0x12, 0x1a, 0x0a, 0x08, 0x65, 0x6e, 0x64, 0x70, 0x6f, 0x69, 0x6e, 0x74, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x08, 0x65, 0x6e, 0x64, 0x70, 0x6f, 0x69, 0x6e, 0x74, 0x12, 0x1d, 0x0a, 0x0a,
+	0x69, 0x73, 0x5f, 0x73, 0x65, 0x63, 0x75, 0x72, 0x65, 0x64, 0x18, 0x03, 0x20, 0x01, 0x28, 0x08,
+	0x52, 0x09, 0x69, 0x73, 0x53, 0x65, 0x63, 0x75, 0x72, 0x65, 0x64, 0x32, 0x8a, 0x03, 0x0a, 0x13,
+	0x4e, 0x6f, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x53, 0x65, 0x72, 0x76,
+	0x69, 0x63, 0x65, 0x12, 0x6b, 0x0a, 0x12, 0x52, 0x6f, 0x75, 0x6e, 0x64, 0x4e, 0x6f, 0x74, 0x69,
 	0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12, 0x28, 0x2e, 0x61, 0x72, 0x6b, 0x5f,
 	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x2e, 0x76, 0x31, 0x2e, 0x52, 0x6f, 0x75, 0x6e, 0x64, 0x4e,
 	0x6f, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52, 0x65, 0x71, 0x75,
@@ -799,45 +598,37 @@ func file_ark_wallet_v1_notification_proto_rawDescGZIP() []byte {
 	return file_ark_wallet_v1_notification_proto_rawDescData
 }
 
-var file_ark_wallet_v1_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_ark_wallet_v1_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_ark_wallet_v1_notification_proto_goTypes = []interface{}{
 	(*RoundNotificationsRequest)(nil),  // 0: ark_wallet.v1.RoundNotificationsRequest
 	(*RoundNotificationsResponse)(nil), // 1: ark_wallet.v1.RoundNotificationsResponse
-	(*UnwatchInvoiceRequest)(nil),      // 2: ark_wallet.v1.UnwatchInvoiceRequest
-	(*UnwatchInvoiceResponse)(nil),     // 3: ark_wallet.v1.UnwatchInvoiceResponse
-	(*WatchInvoiceRequest)(nil),        // 4: ark_wallet.v1.WatchInvoiceRequest
-	(*WatchInvoiceResponse)(nil),       // 5: ark_wallet.v1.WatchInvoiceResponse
-	(*AddWebhookRequest)(nil),          // 6: ark_wallet.v1.AddWebhookRequest
-	(*AddWebhookResponse)(nil),         // 7: ark_wallet.v1.AddWebhookResponse
-	(*RemoveWebhookRequest)(nil),       // 8: ark_wallet.v1.RemoveWebhookRequest
-	(*RemoveWebhookResponse)(nil),      // 9: ark_wallet.v1.RemoveWebhookResponse
-	(*ListWebhooksRequest)(nil),        // 10: ark_wallet.v1.ListWebhooksRequest
-	(*ListWebhooksResponse)(nil),       // 11: ark_wallet.v1.ListWebhooksResponse
-	(*WebhookInfo)(nil),                // 12: ark_wallet.v1.WebhookInfo
-	(RoundEventType)(0),                // 13: ark_wallet.v1.RoundEventType
-	(*BlockDetails)(nil),               // 14: ark_wallet.v1.BlockDetails
-	(WebhookEventType)(0),              // 15: ark_wallet.v1.WebhookEventType
+	(*AddWebhookRequest)(nil),          // 2: ark_wallet.v1.AddWebhookRequest
+	(*AddWebhookResponse)(nil),         // 3: ark_wallet.v1.AddWebhookResponse
+	(*RemoveWebhookRequest)(nil),       // 4: ark_wallet.v1.RemoveWebhookRequest
+	(*RemoveWebhookResponse)(nil),      // 5: ark_wallet.v1.RemoveWebhookResponse
+	(*ListWebhooksRequest)(nil),        // 6: ark_wallet.v1.ListWebhooksRequest
+	(*ListWebhooksResponse)(nil),       // 7: ark_wallet.v1.ListWebhooksResponse
+	(*WebhookInfo)(nil),                // 8: ark_wallet.v1.WebhookInfo
+	(RoundEventType)(0),                // 9: ark_wallet.v1.RoundEventType
+	(*BlockDetails)(nil),               // 10: ark_wallet.v1.BlockDetails
+	(WebhookEventType)(0),              // 11: ark_wallet.v1.WebhookEventType
 }
 var file_ark_wallet_v1_notification_proto_depIdxs = []int32{
-	13, // 0: ark_wallet.v1.RoundNotificationsResponse.event_type:type_name -> ark_wallet.v1.RoundEventType
-	14, // 1: ark_wallet.v1.RoundNotificationsResponse.block_details:type_name -> ark_wallet.v1.BlockDetails
-	15, // 2: ark_wallet.v1.AddWebhookRequest.event_type:type_name -> ark_wallet.v1.WebhookEventType
-	15, // 3: ark_wallet.v1.ListWebhooksRequest.event_type:type_name -> ark_wallet.v1.WebhookEventType
-	12, // 4: ark_wallet.v1.ListWebhooksResponse.webhook_info:type_name -> ark_wallet.v1.WebhookInfo
-	4,  // 5: ark_wallet.v1.NotificationService.WatchInvoice:input_type -> ark_wallet.v1.WatchInvoiceRequest
-	2,  // 6: ark_wallet.v1.NotificationService.UnwatchInvoice:input_type -> ark_wallet.v1.UnwatchInvoiceRequest
-	0,  // 7: ark_wallet.v1.NotificationService.RoundNotifications:input_type -> ark_wallet.v1.RoundNotificationsRequest
-	6,  // 8: ark_wallet.v1.NotificationService.AddWebhook:input_type -> ark_wallet.v1.AddWebhookRequest
-	8,  // 9: ark_wallet.v1.NotificationService.RemoveWebhook:input_type -> ark_wallet.v1.RemoveWebhookRequest
-	10, // 10: ark_wallet.v1.NotificationService.ListWebhooks:input_type -> ark_wallet.v1.ListWebhooksRequest
-	5,  // 11: ark_wallet.v1.NotificationService.WatchInvoice:output_type -> ark_wallet.v1.WatchInvoiceResponse
-	3,  // 12: ark_wallet.v1.NotificationService.UnwatchInvoice:output_type -> ark_wallet.v1.UnwatchInvoiceResponse
-	1,  // 13: ark_wallet.v1.NotificationService.RoundNotifications:output_type -> ark_wallet.v1.RoundNotificationsResponse
-	7,  // 14: ark_wallet.v1.NotificationService.AddWebhook:output_type -> ark_wallet.v1.AddWebhookResponse
-	9,  // 15: ark_wallet.v1.NotificationService.RemoveWebhook:output_type -> ark_wallet.v1.RemoveWebhookResponse
-	11, // 16: ark_wallet.v1.NotificationService.ListWebhooks:output_type -> ark_wallet.v1.ListWebhooksResponse
-	11, // [11:17] is the sub-list for method output_type
-	5,  // [5:11] is the sub-list for method input_type
+	9,  // 0: ark_wallet.v1.RoundNotificationsResponse.event_type:type_name -> ark_wallet.v1.RoundEventType
+	10, // 1: ark_wallet.v1.RoundNotificationsResponse.block_details:type_name -> ark_wallet.v1.BlockDetails
+	11, // 2: ark_wallet.v1.AddWebhookRequest.event_type:type_name -> ark_wallet.v1.WebhookEventType
+	11, // 3: ark_wallet.v1.ListWebhooksRequest.event_type:type_name -> ark_wallet.v1.WebhookEventType
+	8,  // 4: ark_wallet.v1.ListWebhooksResponse.webhook_info:type_name -> ark_wallet.v1.WebhookInfo
+	0,  // 5: ark_wallet.v1.NotificationService.RoundNotifications:input_type -> ark_wallet.v1.RoundNotificationsRequest
+	2,  // 6: ark_wallet.v1.NotificationService.AddWebhook:input_type -> ark_wallet.v1.AddWebhookRequest
+	4,  // 7: ark_wallet.v1.NotificationService.RemoveWebhook:input_type -> ark_wallet.v1.RemoveWebhookRequest
+	6,  // 8: ark_wallet.v1.NotificationService.ListWebhooks:input_type -> ark_wallet.v1.ListWebhooksRequest
+	1,  // 9: ark_wallet.v1.NotificationService.RoundNotifications:output_type -> ark_wallet.v1.RoundNotificationsResponse
+	3,  // 10: ark_wallet.v1.NotificationService.AddWebhook:output_type -> ark_wallet.v1.AddWebhookResponse
+	5,  // 11: ark_wallet.v1.NotificationService.RemoveWebhook:output_type -> ark_wallet.v1.RemoveWebhookResponse
+	7,  // 12: ark_wallet.v1.NotificationService.ListWebhooks:output_type -> ark_wallet.v1.ListWebhooksResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
@@ -875,54 +666,6 @@ func file_ark_wallet_v1_notification_proto_init() {
 			}
 		}
 		file_ark_wallet_v1_notification_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UnwatchInvoiceRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_ark_wallet_v1_notification_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UnwatchInvoiceResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_ark_wallet_v1_notification_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*WatchInvoiceRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_ark_wallet_v1_notification_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*WatchInvoiceResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_ark_wallet_v1_notification_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*AddWebhookRequest); i {
 			case 0:
 				return &v.state
@@ -934,7 +677,7 @@ func file_ark_wallet_v1_notification_proto_init() {
 				return nil
 			}
 		}
-		file_ark_wallet_v1_notification_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
+		file_ark_wallet_v1_notification_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*AddWebhookResponse); i {
 			case 0:
 				return &v.state
@@ -946,7 +689,7 @@ func file_ark_wallet_v1_notification_proto_init() {
 				return nil
 			}
 		}
-		file_ark_wallet_v1_notification_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
+		file_ark_wallet_v1_notification_proto_msgTypes[4].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*RemoveWebhookRequest); i {
 			case 0:
 				return &v.state
@@ -958,7 +701,7 @@ func file_ark_wallet_v1_notification_proto_init() {
 				return nil
 			}
 		}
-		file_ark_wallet_v1_notification_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
+		file_ark_wallet_v1_notification_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*RemoveWebhookResponse); i {
 			case 0:
 				return &v.state
@@ -970,7 +713,7 @@ func file_ark_wallet_v1_notification_proto_init() {
 				return nil
 			}
 		}
-		file_ark_wallet_v1_notification_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
+		file_ark_wallet_v1_notification_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ListWebhooksRequest); i {
 			case 0:
 				return &v.state
@@ -982,7 +725,7 @@ func file_ark_wallet_v1_notification_proto_init() {
 				return nil
 			}
 		}
-		file_ark_wallet_v1_notification_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
+		file_ark_wallet_v1_notification_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ListWebhooksResponse); i {
 			case 0:
 				return &v.state
@@ -994,7 +737,7 @@ func file_ark_wallet_v1_notification_proto_init() {
 				return nil
 			}
 		}
-		file_ark_wallet_v1_notification_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+		file_ark_wallet_v1_notification_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*WebhookInfo); i {
 			case 0:
 				return &v.state
@@ -1013,7 +756,7 @@ func file_ark_wallet_v1_notification_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_ark_wallet_v1_notification_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
