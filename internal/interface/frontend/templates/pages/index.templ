@@ -7,17 +7,14 @@ templ HomeBodyContent() {
 
 script PagesScript() {
 	// from 4321 to 0.00004321 with '0' in gray
-  const prettySats = (data) => {
-    if (!/\d/.test(data)) return data // not a number
-    const prefix = /^[\D]/.test(data) ? data[0] : ''
-    const number = /^[\D]/.test(data) ? data.slice(1) : data
+  const prettyBtc = (btc) => {
+    if (!/\d/.test(btc)) return data // not a number
+    const prefix = /^[\D]/.test(btc) ? btc[0] : ''
+    const number = /^[\D]/.test(btc) ? btc.slice(1) : btc
 	  const length = String(number).length
     if (length > 8) return number
     let padding = '0.'
     for (let i = length; i < 8; i++) padding += '0'
 	  return `${prefix}<span class="text-gray-400">${padding}</span>${number}`
   }
-  document.querySelectorAll('.sats').forEach((x) => {
-	  x.innerHTML = prettySats(x.textContent)
-  })
 }

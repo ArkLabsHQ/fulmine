@@ -4,8 +4,19 @@
 
 /* User styles */
 
+@font-face {
+  font-family: 'Switzer-Variable';
+  src:
+    url('/static/fonts/Switzer-Variable.woff2') format('woff2'),
+    url('/static/fonts/Switzer-Variable.woff') format('woff'),
+    url('/static/fonts/Switzer-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+}
+
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Switzer-Variable', sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: #cdcdcd;
@@ -23,7 +34,7 @@ a {
 }
 
 a:hover {
-  color: #535bf2;
+  color: #bc3f20;
 }
 
 body {
@@ -39,12 +50,15 @@ h1 {
 }
 
 #app {
-  width: 640px;
+  color: white;
   margin: 0 auto;
-  & > div {
-    color: white;
-    padding: 2rem;
-  }
+  max-width: 640px;
+  padding: 2px;
+  width: 100%;
+}
+
+#top {
+  background-image: linear-gradient(to top right, #bc3f20, #f4ac3f);
 }
 
 #htmx-result {
@@ -72,12 +86,12 @@ h1 {
 button {
   border-radius: 8px;
   border: 1px solid transparent;
-  padding: 0.6em 1.2em;
+  padding: 0.6em 0;
   font-size: 1em;
-  font-weight: 500;
+  font-weight: 700;
   font-family: inherit;
-  color: #fefef5;
-  background-color: #1a1a1a;
+  color: #1a1a1a;
+  background-color: #fefef5;
   cursor: pointer;
   transition: border-color 0.25s;
 }

@@ -76,6 +76,7 @@ func runServer() error {
 	router.GET("/api/history/:hash", historyAPIHandler)
 	router.GET("/api/receive", receiveAPIHandler)
 	router.GET("/api/send", sendAPIHandler)
+	router.GET("/api/swap", swapAPIHandler)
 
 	// Create a new server instance with options from environment variables.
 	// For more information, see https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/

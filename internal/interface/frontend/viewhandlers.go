@@ -13,7 +13,7 @@ import (
 )
 
 func viewHandler(bodyContent templ.Component, activeTab string, c *gin.Context) {
-	currentBalance := "197543"
+	currentBalance := "1930124"
 	indexTemplate := templates.Layout(bodyContent, activeTab, currentBalance)
 	if err := htmx.NewResponse().RenderTempl(c.Request.Context(), c.Writer, indexTemplate); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)

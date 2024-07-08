@@ -25,24 +25,20 @@ templ Layout(bodyContent templ.Component, activeTab, currentBalance string) {
 			<link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon"/>
 			<link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
 			<link rel="icon" href="/static/favicon.png" sizes="any"/>
-			<link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet"/>
 			<link href="/static/styles.css" rel="stylesheet"/>
 		</head>
-		<style>
-		  #top {
-				background-image: linear-gradient(to top right, #bc3f20, #f4ac3f);
-				border-radius: 10px;
-				margin-top: 4px;
-			}
-		</style>
 		<body onload={ pages.PagesScript() }>
 			<div id="app">
-			  <div id="top">
-			  @components.Header()
-			  @components.Balance(currentBalance)
+			  <div id="top" class="rounded p-3 mb-10">
+			    @components.Header()
+			    @components.Balance(currentBalance)
+			    @components.Actions()
 				</div>
 				@components.Tabs(activeTab)
-				@bodyContent
+				<div class="p-3">
+				  @bodyContent
+				</div>
+	      <div id="modal"></div>
 			</div>
 			<script src="/static/scripts.js"></script>
 		</body>

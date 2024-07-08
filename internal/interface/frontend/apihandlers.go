@@ -34,3 +34,8 @@ func sendAPIHandler(c *gin.Context) {
 	info := modals.Send()
 	apiHandler(c, info)
 }
+
+func swapAPIHandler(c *gin.Context) {
+	info := modals.Swap()
+	apiHandler(c, info)
+}
