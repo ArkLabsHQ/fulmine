@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/ArkLabsHQ/ark-wallet/templates/modals"
@@ -26,7 +27,10 @@ func HistoryAPIHandler(c *gin.Context) {
 }
 
 func ReceiveAPIHandler(c *gin.Context) {
-	info := modals.Receive()
+	addr := getAddress()
+	sats := c.PostForm("sats")
+	bip21 := fmt.Sprintf("ark:%s?amount:%s", addr, sats)
+	info := modals.Receive(bip21)
 	apiHandler(c, info)
 }
 

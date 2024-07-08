@@ -297,7 +297,7 @@ func Actions() templ.Component {
 			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"grid grid-cols-3 gap-4\"><a class=\"button bg-offwhite text-black\" href=\"/send\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"grid grid-cols-3 gap-4\"><button class=\"bg-offwhite text-black\" hx-on:click=\"redirect(&#39;/send&#39;)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -305,7 +305,7 @@ func Actions() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Send</a> <a class=\"button bg-offwhite text-black\" href=\"/receive\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Send</button> <button class=\"bg-offwhite text-black\" hx-on:click=\"redirect(&#39;/receive&#39;)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -313,7 +313,7 @@ func Actions() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Receive</a> <a class=\"button bg-offwhite text-black\" href=\"/swap\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Receive</button> <button class=\"bg-offwhite text-black\" hx-on:click=\"redirect(&#39;/swap&#39;)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -321,7 +321,7 @@ func Actions() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Swap</a></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Swap</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -347,7 +347,7 @@ func Hero(arkAddress, currentBalance string) templ.Component {
 			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"top\" class=\"rounded p-3 mb-10\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"top\" class=\"rounded-lg p-3 mb-10\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -363,7 +363,7 @@ func Hero(arkAddress, currentBalance string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><style>\n\t  #top {\n      background: radial-gradient(\n        85.35% 95.12% at 50% 11.59%,\n        #f28c52 0%,\n        #9c3b1c 100%\n      );\n    }\n\t</style>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

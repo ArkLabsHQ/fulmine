@@ -12,10 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func getBalance() string {
-	return "1930547"
-}
-
 func viewHandler(bodyContent templ.Component, c *gin.Context) {
 	indexTemplate := templates.Layout(bodyContent)
 	if err := htmx.NewResponse().RenderTempl(c.Request.Context(), c.Writer, indexTemplate); err != nil {
@@ -25,8 +21,7 @@ func viewHandler(bodyContent templ.Component, c *gin.Context) {
 }
 
 func Index(c *gin.Context) {
-	arkAddress := "ark18746676365652bcdabdbacdabcd63546354634"
-	bodyContent := pages.HistoryBodyContent(arkAddress, getBalance())
+	bodyContent := pages.HistoryBodyContent(getBalance(), getAddress())
 	viewHandler(bodyContent, c)
 }
 

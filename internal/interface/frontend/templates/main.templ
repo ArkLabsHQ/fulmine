@@ -64,6 +64,10 @@ templ Layout(bodyContent templ.Component) {
         return Decimal.mul(btc, 100_000_000).toNumber()
       }
 
+			const redirect = (path) => {
+				window.location.href = path
+			}
+
       window.onload = () => {
         document.querySelectorAll('.sats').forEach((x) => {
           x.innerHTML = prettyNum(x.textContent)
@@ -89,7 +93,6 @@ templ Layout(bodyContent templ.Component) {
           })
         })
       }
-
 		</script>
 	</html>
 }

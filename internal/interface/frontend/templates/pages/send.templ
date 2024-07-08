@@ -28,15 +28,17 @@ templ SendBodyContent(currentBalance string) {
 		  <p class="font-semibold mb-2 mt-10">Amount</p>
 		  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
 		    <input class="bg-graybg border-0" id="sendAmount" max={currentBalance} placeholder="5000" />
-		  	<p class="py-1 px-2 bg-offwhite/20 text-offwhite/50 rounded-lg" onclick="setMaxValue()">MAX</p>
-		  	<p class="py-1 w-10" id="unit">SATS</p>
-		  	<p onclick="toggleUnit()">@ArrowDownIcon()</p>
+		  	<div class="flex items-center gap-4">
+				  <p class="py-1 px-2 bg-offwhite/20 text-offwhite/50 rounded-lg" onclick="setMaxValue()">MAX</p>
+		  	  <p class="py-1 w-10" id="unit">SATS</p>
+		  	  <p onclick="toggleUnit()">@ArrowDownIcon()</p>
+				</div>
 		  </div>
 		  <p class="text-right text-sm" id="available">Available <span class="sats">{currentBalance}</span> SATS</p>
 		</div>
 		<div>
 		  <button class="bg-orange mb-2">Confirm</button>
-		  <a href="/" class="button bg-graybg w-full">Cancel</a>
+		  <button class="bg-graybg w-full" onclick="redirect('/')">Cancel</button>
 		</div>
 	</div>
 	<script>

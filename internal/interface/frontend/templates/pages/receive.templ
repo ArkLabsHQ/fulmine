@@ -5,6 +5,39 @@ import (
 )
 
 templ ReceiveBodyContent(currentBalance string) {
-	@components.Header("Receive")
-	<div><p>Receive page</p></div>
+	<form hx-post="/api/receive" hx-target="#receiveBody">
+	  <div class="p-3 flex flex-col justify-between h-screen">
+	    <div>
+	      @components.Header("Receive")
+	  		<div id="receiveBody">
+	        <p class="font-semibold mb-2">Amount</p>
+	  	    <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
+	  	      <input class="bg-graybg border-0" id="receiveAmount" max={currentBalance} name="sats" placeholder="5000" />
+	  	    	<div class="flex items-center gap-4">
+	  		  	  <p class="py-1 w-10" id="unit">SATS</p>
+	  	    	  <p onclick="toggleUnit()">@ArrowDownIcon()</p>
+	  		  	</div>
+	  	    </div>
+	  		</div>
+	  	</div>
+	  	<div>
+	  	  <button class="bg-orange mb-2" type="submit">Confirm</button>
+	  	  <button class="bg-graybg w-full" onclick="redirect('/')">Cancel</button>
+	  	</div>
+	  </div>
+	</form>
+	<script>
+	  const toggleUnit = () => {
+			const currUnit = document.querySelector('#unit').innerText
+			const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
+			// change unit
+			document.querySelector('#unit').innerText = nextUnit
+			// change value inside input
+			const currVal = document.querySelector('#receiveAmount').value
+			if (currVal) {
+				const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
+				document.querySelector('#receiveAmount').value = nextVal
+			}
+		}
+	</script>
 }

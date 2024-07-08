@@ -111,7 +111,7 @@ func SendBodyContent(currentBalance string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" placeholder=\"5000\"><p class=\"py-1 px-2 bg-offwhite/20 text-offwhite/50 rounded-lg\" onclick=\"setMaxValue()\">MAX</p><p class=\"py-1 w-10\" id=\"unit\">SATS</p><p onclick=\"toggleUnit()\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" placeholder=\"5000\"><div class=\"flex items-center gap-4\"><p class=\"py-1 px-2 bg-offwhite/20 text-offwhite/50 rounded-lg\" onclick=\"setMaxValue()\">MAX</p><p class=\"py-1 w-10\" id=\"unit\">SATS</p><p onclick=\"toggleUnit()\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -119,20 +119,20 @@ func SendBodyContent(currentBalance string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div><p class=\"text-right text-sm\" id=\"available\">Available <span class=\"sats\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div></div><p class=\"text-right text-sm\" id=\"available\">Available <span class=\"sats\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(currentBalance)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 35, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 37, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> SATS</p></div><div><button class=\"bg-orange mb-2\">Confirm</button> <a href=\"/\" class=\"button bg-graybg w-full\">Cancel</a></div></div><script>\n\t  const pasteAddressFromClipboard = () => {\n\t\t\tif (navigator.clipboard) {\n        navigator.clipboard.readText().then((val) => {\n\t\t\t\t\tdocument.querySelector('#sendAddress').value = val\n\t\t\t  })\n      }\n\t\t}\n\t\t\n\t\tconst setMaxValue = () => {\n\t\t\tconst sats = document.querySelector('#sendAmount').getAttribute('max')\n\t\t\tif (isNaN(sats)) return\n\t\t\tdocument.querySelector('#sendAmount').value = sats\n\t\t}\n\n\t\tconst toggleUnit = () => {\n\t\t\tconst currUnit = document.querySelector('#unit').innerText\n\t\t\tconst nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'\n\t\t\t// change unit\n\t\t\tdocument.querySelector('#unit').innerText = nextUnit\n\t\t\t// change availability\n\t\t\tconst maxSats = document.querySelector('#sendAmount').getAttribute('max')\n\t\t\tdocument.querySelector('#available').innerText =\n\t\t\t  `Available ${nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats)} ${nextUnit}`\n\t\t\t// change value inside input\n\t\t\tconst currVal = document.querySelector('#sendAmount').value\n\t\t\tif (currVal) {\n\t\t\t\tconst nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)\n\t\t\t\tdocument.querySelector('#sendAmount').value = nextVal\n\t\t\t}\n\t\t}\n\t</script>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> SATS</p></div><div><button class=\"bg-orange mb-2\">Confirm</button> <button class=\"bg-graybg w-full\" onclick=\"redirect(&#39;/&#39;)\">Cancel</button></div></div><script>\n\t  const pasteAddressFromClipboard = () => {\n\t\t\tif (navigator.clipboard) {\n        navigator.clipboard.readText().then((val) => {\n\t\t\t\t\tdocument.querySelector('#sendAddress').value = val\n\t\t\t  })\n      }\n\t\t}\n\t\t\n\t\tconst setMaxValue = () => {\n\t\t\tconst sats = document.querySelector('#sendAmount').getAttribute('max')\n\t\t\tif (isNaN(sats)) return\n\t\t\tdocument.querySelector('#sendAmount').value = sats\n\t\t}\n\n\t\tconst toggleUnit = () => {\n\t\t\tconst currUnit = document.querySelector('#unit').innerText\n\t\t\tconst nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'\n\t\t\t// change unit\n\t\t\tdocument.querySelector('#unit').innerText = nextUnit\n\t\t\t// change availability\n\t\t\tconst maxSats = document.querySelector('#sendAmount').getAttribute('max')\n\t\t\tdocument.querySelector('#available').innerText =\n\t\t\t  `Available ${nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats)} ${nextUnit}`\n\t\t\t// change value inside input\n\t\t\tconst currVal = document.querySelector('#sendAmount').value\n\t\t\tif (currVal) {\n\t\t\t\tconst nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)\n\t\t\t\tdocument.querySelector('#sendAmount').value = nextVal\n\t\t\t}\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

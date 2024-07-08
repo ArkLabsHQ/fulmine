@@ -87,16 +87,25 @@ templ SwapIcon() {
 
 templ Actions() {
 	<div class="grid grid-cols-3 gap-4">
-	  <a class="button bg-offwhite text-black" href="/send">@SendIcon() Send</a>
-	  <a class="button bg-offwhite text-black" href="/receive">@ReceiveIcon() Receive</a>
-	  <a class="button bg-offwhite text-black" href="/swap">@SwapIcon() Swap</a>
+	  <button class="bg-offwhite text-black" hx-on:click="redirect('/send')">@SendIcon() Send</button>
+	  <button class="bg-offwhite text-black" hx-on:click="redirect('/receive')">@ReceiveIcon() Receive</button>
+	  <button class="bg-offwhite text-black" hx-on:click="redirect('/swap')">@SwapIcon() Swap</button>
 	</div>
 }
 
 templ Hero(arkAddress, currentBalance string) {
-  <div id="top" class="rounded p-3 mb-10">
+  <div id="top" class="rounded-lg p-3 mb-10">
 	  @HeroHeader(arkAddress)
 	  @HeroBalance(currentBalance)
 	  @Actions()
 	</div>
+	<style>
+	  #top {
+      background: radial-gradient(
+        85.35% 95.12% at 50% 11.59%,
+        #f28c52 0%,
+        #9c3b1c 100%
+      );
+    }
+	</style>
 }

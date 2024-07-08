@@ -74,7 +74,7 @@ func runServer() error {
 
 	// Handle API endpoints.
 	router.GET("/api/history/:hash", handlers.HistoryAPIHandler)
-	router.GET("/api/receive", handlers.ReceiveAPIHandler)
+	router.POST("/api/receive", handlers.ReceiveAPIHandler)
 	router.GET("/api/send", handlers.SendAPIHandler)
 	router.GET("/api/swap", handlers.SwapAPIHandler)
 
