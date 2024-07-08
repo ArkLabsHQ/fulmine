@@ -413,9 +413,6 @@
       "properties": {
         "address": {
           "type": "string"
-        },
-        "invoice": {
-          "type": "string"
         }
       }
     },

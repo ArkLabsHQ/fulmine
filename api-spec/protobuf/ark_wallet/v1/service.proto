@@ -98,7 +98,6 @@ message GetOnboardAddressRequest {
 }
 message GetOnboardAddressResponse {
   string address = 1;
-  string invoice = 2;
 }
 
 message SendRequest {
