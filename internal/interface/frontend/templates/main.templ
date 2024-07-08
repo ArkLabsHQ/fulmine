@@ -34,12 +34,10 @@ templ Layout(bodyContent templ.Component, activeTab, currentBalance string) {
 			    @components.Balance(currentBalance)
 			    @components.Actions()
 				</div>
-				@components.Tabs(activeTab)
-				<div class="p-3">
-				  @bodyContent
-				</div>
+				@bodyContent
 	      <div id="modal"></div>
 			</div>
+			<script src="/static/decimal.js"></script>
 			<script src="/static/scripts.js"></script>
 		</body>
 	</html>
