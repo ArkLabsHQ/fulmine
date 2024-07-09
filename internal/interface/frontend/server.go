@@ -72,6 +72,7 @@ func runServer() error {
 	router.GET("/swap", handlers.Swap)
 	router.GET("/receive", handlers.Receive)
 	router.GET("/tx/:txid", handlers.Tx)
+	router.GET("/welcome", handlers.Welcome)
 
 	router.GET("/modal/info", handlers.InfoModal)
 

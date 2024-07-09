@@ -82,3 +82,8 @@ func Tx(c *gin.Context) {
 	bodyContent := pages.TxBodyContent(transaction)
 	pageViewHandler(bodyContent, c)
 }
+
+func Welcome(c *gin.Context) {
+	bodyContent := pages.Welcome()
+	pageViewHandler(bodyContent, c)
+}

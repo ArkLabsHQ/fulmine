@@ -70,16 +70,6 @@ h1 {
   filter: drop-shadow(0 0 2em #f3c077aa);
 }
 
-.content {
-  padding: 1em;
-  border-radius: 0 0 10px 10px;
-}
-
-.read-the-docs {
-  color: #888888;
-}
-
-a.button,
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -94,13 +84,10 @@ button {
   width: 100%;
 }
 
-a.button:hover,
 button:hover {
-  border-color: #646cff;
+  border-color: #bc3f20;
 }
 
-a.button:focus,
-a.button:focus-visible,
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
