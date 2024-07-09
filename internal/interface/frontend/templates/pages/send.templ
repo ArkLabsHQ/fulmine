@@ -13,33 +13,56 @@ templ ArrowDownIcon() {
 templ PasteIcon() {
 	<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-offwhite/50" viewBox="0 0 24 24">
     <path fill="currentColor" d="M5.615 20q-.67 0-1.143-.472Q4 19.056 4 18.385V5.615q0-.67.472-1.143Q4.944 4 5.615 4h4.637q.14-.587.623-.986T12 2.615q.654 0 1.134.4q.48.398.62.985h4.63q.672 0 1.144.472q.472.472.472 1.143v12.77q0 .67-.472 1.143q-.472.472-1.143.472H5.615Zm0-1h12.77q.23 0 .423-.192q.192-.193.192-.423V5.615q0-.23-.192-.423Q18.615 5 18.385 5H16v2.23H8V5H5.615q-.23 0-.423.192Q5 5.385 5 5.615v12.77q0 .23.192.423q.193.192.423.192ZM12 5.23q.348 0 .578-.229q.23-.23.23-.578t-.23-.578q-.23-.23-.578-.23t-.578.23q-.23.23-.23.578t.23.578q.23.23.578.23Z"/>
-</svg>
+  </svg>
+}
+
+templ SendPreviewIcon() {
+	<div class="flex items-center w-16 h-16 bg-offwhite/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-offwhite" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2">
+        <path stroke-miterlimit="10" d="M17.657 6.343L6.343 17.657"/>
+        <path stroke-linejoin="round" d="M18.101 16.733V7.437A1.53 1.53 0 0 0 16.563 5.9H7.267"/>
+      </g>
+    </svg>
+	</div>
+}
+
+templ SuccessIcon() {
+	<div class="flex items-center w-16 h-16 bg-green/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-green" viewBox="0 0 376 384">
+      <path fill="currentColor" d="M119 282L346 55l29 30l-256 256L0 222l30-30z"/>
+    </svg>
+	</div>
 }
 
 templ SendBodyContent(currentBalance string) {
-	<div class="p-3 flex flex-col justify-between h-screen">
-	  <div>
-	    @components.Header("Send")
-	    <p class="font-semibold mb-2">Recipient's address</p>
-		  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
-		    <input class="bg-graybg border-0" id="sendAddress" placeholder="ark1ccc..." />
-		  	<p onclick="pasteAddressFromClipboard()">@PasteIcon()</p>
-		  </div>
-		  <p class="font-semibold mb-2 mt-10">Amount</p>
-		  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
-		    <input class="bg-graybg border-0" id="sendAmount" max={currentBalance} placeholder="5000" />
-		  	<div class="flex items-center gap-4">
-				  <p class="py-1 px-2 bg-offwhite/20 text-offwhite/50 rounded-lg" onclick="setMaxValue()">MAX</p>
-		  	  <p class="py-1 w-10" id="unit">SATS</p>
-		  	  <p onclick="toggleUnit()">@ArrowDownIcon()</p>
-				</div>
-		  </div>
-		  <p class="text-right text-sm" id="available">Available <span class="sats">{currentBalance}</span> SATS</p>
-		</div>
-		<div>
-		  <button class="bg-orange mb-2">Confirm</button>
-		  <button class="bg-graybg w-full" onclick="redirect('/')">Cancel</button>
-		</div>
+	<div id="sendBody">
+	  <form hx-post="/send/preview" hx-target="#sendBody" hx-target="outerHTML">
+	    <div class="p-3 flex flex-col justify-between h-screen">
+	      <div>
+	        @components.Header("Send")
+	        <p class="font-semibold mb-2 mt-16">Recipient's address</p>
+	    	  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
+	    	    <input class="bg-graybg border-0" id="sendAddress" name="address" placeholder="ark1ccc..." />
+	    	  	<p onclick="pasteAddressFromClipboard()">@PasteIcon()</p>
+	    	  </div>
+	    	  <p class="font-semibold mb-2 mt-10">Amount</p>
+	    	  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
+	    	    <input class="bg-graybg border-0" id="sendAmount" name="amount" max={currentBalance} placeholder="5000" />
+	    	  	<div class="flex items-center gap-4">
+	    			  <p class="py-1 px-2 bg-offwhite/20 text-offwhite/50 rounded-lg" onclick="setMaxValue()">MAX</p>
+	    	  	  <p class="py-1 w-10" id="unit">SATS</p>
+	    	  	  <p onclick="toggleUnit()">@ArrowDownIcon()</p>
+	    			</div>
+	    	  </div>
+	    	  <p class="text-right text-sm" id="available">Available <span class="sats">{currentBalance}</span> SATS</p>
+	    	</div>
+	    	<div>
+	    	  <button class="bg-orange mb-2" type="submit">Preview send</button>
+	    	  <button class="bg-graybg w-full" onclick="redirect('/')">Cancel</button>
+	    	</div>
+	    </div>
+	  </form>
 	</div>
 	<script>
 	  const pasteAddressFromClipboard = () => {
@@ -73,4 +96,65 @@ templ SendBodyContent(currentBalance string) {
 			}
 		}
 	</script>
+}
+
+templ SendPreviewContent(address, amount string) {
+	<div id="sendBody">
+	  <form hx-post="/send/confirm" hx-target="#sendBody" hx-target="outerHTML">
+		  <input type="hidden" name="address" value={address}>
+		  <input type="hidden" name="amount" value={amount}>
+	    <div class="p-3 flex flex-col justify-between h-screen">
+	      <div class="flex flex-col items-center">
+	        @components.Header("Confirm Send")
+	        <p class="mt-16">@SendPreviewIcon()</p>
+					<p class="mt-8">Send</p>
+					<p class="mt-8 text-3xl">
+					  <span class="sats">{amount}</span>
+						<span class="text-offwhite/50">SATS</span>
+					</p>
+					<div class="flex mt-8 w-64 gap-2">
+					  <p class="text-offwhite/50">to</p>
+						<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
+						<p class="text-offwhite/50">@CopyIcon()</p>
+					</div>
+					<div class="bg-offwhite/10 p-4 w-full mt-8 rounded-lg">
+            @TxLine("network fee", "500")
+            @TxLine("ark fee", "0.5%")
+            @TxLine("est. time", "~10 min.")
+            <hr class="text-offwhite/50 mb-2" />
+            <div class="flex justify-between mb-2">
+              <p class="text-offwhite/50">TOTAL</p>
+              <p><span class="sats">{amount}</span> SATS</p>
+            </div>
+          </div>
+	    	</div>
+	    	<div>
+	    	  <button class="bg-orange mb-2" type="submit">Confirm</button>
+	    	  <button class="bg-graybg w-full" onclick="redirect('/')">Cancel</button>
+	    	</div>
+	    </div>
+	  </form>
+	</div>
+}
+
+templ SendSuccessContent(address, amount string) {
+	<div class="p-3 flex flex-col justify-between h-screen">
+	  @components.Header("Sent")
+	  <div class="flex flex-col items-center mt-16">
+	    @SuccessIcon()
+			<p class="mt-8">Sent successfully</p>
+			<p class="mt-8 text-3xl">
+			  <span class="sats">{amount}</span>
+				<span class="text-offwhite/50">SATS</span>
+			</p>
+			<div class="flex mt-8 w-64 gap-2">
+			  <p class="text-offwhite/50">to</p>
+				<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
+				<p class="text-offwhite/50">@CopyIcon()</p>
+			</div>
+		</div>
+		<div>
+		  <button class="bg-graybg w-full" onclick="redirect('https://mempool.space')">View transaction</button>
+		</div>
+	</div>
 }

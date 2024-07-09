@@ -71,7 +71,7 @@ templ TxLine(left, right string) {
 templ TxBodyContent(tx []string) {
 	<div class="p-3">
 	  @components.Header("Transaction details")
-    <div class="flex flex-col items-center">
+    <div class="flex flex-col items-center mt-16">
       @TxIcon(tx[1])
       <p class="mt-4 capitalize">{tx[1]}</p>
       <p class="mt-4 text-3xl">

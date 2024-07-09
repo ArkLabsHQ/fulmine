@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/a-h/templ"
@@ -12,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func viewHandler(bodyContent templ.Component, c *gin.Context) {
+func pageViewHandler(bodyContent templ.Component, c *gin.Context) {
 	indexTemplate := templates.Layout(bodyContent)
 	if err := htmx.NewResponse().RenderTempl(c.Request.Context(), c.Writer, indexTemplate); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
@@ -20,24 +21,53 @@ func viewHandler(bodyContent templ.Component, c *gin.Context) {
 	}
 }
 
+func partialViewHandler(bodyContent templ.Component, c *gin.Context) {
+	if err := htmx.NewResponse().RenderTempl(c.Request.Context(), c.Writer, bodyContent); err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+}
+
 func Index(c *gin.Context) {
 	bodyContent := pages.HistoryBodyContent(getBalance(), getAddress(), getTransactions())
-	viewHandler(bodyContent, c)
+	pageViewHandler(bodyContent, c)
 }
 
 func Receive(c *gin.Context) {
 	bodyContent := pages.ReceiveBodyContent(getBalance())
-	viewHandler(bodyContent, c)
+	pageViewHandler(bodyContent, c)
+}
+
+func ReceivePreview(c *gin.Context) {
+	addr := getAddress()
+	sats := c.PostForm("sats")
+	bip21 := fmt.Sprintf("ark:%s?amount:%s", addr, sats)
+	info := pages.ReceivePreview(bip21)
+	partialViewHandler(info, c)
 }
 
 func Send(c *gin.Context) {
 	bodyContent := pages.SendBodyContent(getBalance())
-	viewHandler(bodyContent, c)
+	pageViewHandler(bodyContent, c)
+}
+
+func SendPreview(c *gin.Context) {
+	address := c.PostForm("address")
+	amount := c.PostForm("amount")
+	bodyContent := pages.SendPreviewContent(address, amount)
+	partialViewHandler(bodyContent, c)
+}
+
+func SendConfirm(c *gin.Context) {
+	address := c.PostForm("address")
+	amount := c.PostForm("amount")
+	bodyContent := pages.SendSuccessContent(address, amount)
+	partialViewHandler(bodyContent, c)
 }
 
 func Swap(c *gin.Context) {
 	bodyContent := pages.SwapBodyContent(getBalance())
-	viewHandler(bodyContent, c)
+	pageViewHandler(bodyContent, c)
 }
 
 func Tx(c *gin.Context) {
@@ -50,5 +80,5 @@ func Tx(c *gin.Context) {
 		}
 	}
 	bodyContent := pages.TxBodyContent(transaction)
-	viewHandler(bodyContent, c)
+	pageViewHandler(bodyContent, c)
 }

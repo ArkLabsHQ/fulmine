@@ -73,11 +73,9 @@ func runServer() error {
 	router.GET("/receive", handlers.Receive)
 	router.GET("/tx/:txid", handlers.Tx)
 
-	// Handle API endpoints.
-	router.GET("/api/history/:hash", handlers.HistoryAPIHandler)
-	router.POST("/api/receive", handlers.ReceiveAPIHandler)
-	router.GET("/api/send", handlers.SendAPIHandler)
-	router.GET("/api/swap", handlers.SwapAPIHandler)
+	router.POST("/send/preview", handlers.SendPreview)
+	router.POST("/send/confirm", handlers.SendConfirm)
+	router.POST("/receive/preview", handlers.ReceivePreview)
 
 	// Create a new server instance with options from environment variables.
 	// For more information, see https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/

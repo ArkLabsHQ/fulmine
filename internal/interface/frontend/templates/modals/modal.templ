@@ -1,9 +1,0 @@
-package modals
-
-templ Modal(content templ.Component) {
-  <div onclick="this.style.display='none'" class="fixed inset-0 flex justify-center items-center bg-black/60">
-    <div onclick="event.stopPropagation()" class="bg-gray-800 rounded-xl shadow p-6 transition-all">
-      @content
-    </div>
-  </div>
-}

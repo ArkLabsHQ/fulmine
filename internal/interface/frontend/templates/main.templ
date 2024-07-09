@@ -68,13 +68,14 @@ templ Layout(bodyContent templ.Component) {
 				window.location.href = path
 			}
 
-      window.onload = () => {
+      document.addEventListener('htmx:load', () => {
         document.querySelectorAll('.sats').forEach((x) => {
           if (isNaN(x.textContent)) return
           x.innerHTML = prettyNum(x.textContent)
         })
 
         document.querySelectorAll('.btc').forEach((x) => {
+          if (isNaN(x.textContent)) return
           x.innerHTML = fromSatoshis(x.textContent)
         })
 
@@ -93,7 +94,7 @@ templ Layout(bodyContent templ.Component) {
             })
           })
         })
-      }
+      })
 		</script>
 	</html>
 }
