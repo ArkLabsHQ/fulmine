@@ -119,7 +119,13 @@ templ SendPreviewContent(address, amount string) {
 					</div>
 					<div class="bg-offwhite/10 p-4 w-full mt-8 rounded-lg">
             @TxLine("network fee", "500")
-            @TxLine("ark fee", "0.5%")
+            <div class="flex justify-between mb-2">
+              <div class="flex items-center gap-2 text-offwhite/50">
+                <p>ARK FEE</p>
+                <p hx-get="/modal/info" hx-target="#modal">@components.InfoIcon()</p>
+              </div>
+              <p>0.5%</p>
+            </div>
             @TxLine("est. time", "~10 min.")
             <hr class="text-offwhite/50 mb-2" />
             <div class="flex justify-between mb-2">

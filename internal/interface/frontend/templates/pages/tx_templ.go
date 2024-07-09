@@ -243,7 +243,7 @@ func TxBodyContent(tx []string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> <span class=\"text-offwhite/50\">SATS</span></p></div><div class=\"bg-offwhite/10 p-4 mt-10\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> <span class=\"text-offwhite/50\">SATS</span></p></div><div class=\"bg-offwhite/10 p-4 mt-10 rounded-lg\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -263,18 +263,22 @@ func TxBodyContent(tx []string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = TxLine("ark fee", "0.5%").Render(ctx, templ_7745c5c3_Buffer)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex justify-between mb-2\"><div class=\"flex items-center gap-2 text-offwhite/50\"><p>ARK FEE</p><p hx-get=\"/modal/info\" hx-target=\"#modal\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<hr class=\"text-offwhite/50 mb-2\"><div class=\"flex justify-between mb-2\"><p class=\"text-offwhite/50\">TOTAL</p><p><span class=\"sats\">")
+		templ_7745c5c3_Err = components.InfoIcon().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div><p>0.5%</p></div><hr class=\"text-offwhite/50 mb-2\"><div class=\"flex justify-between mb-2\"><p class=\"text-offwhite/50\">TOTAL</p><p><span class=\"sats\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(tx[4])
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/tx.templ`, Line: 94, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/tx.templ`, Line: 100, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {

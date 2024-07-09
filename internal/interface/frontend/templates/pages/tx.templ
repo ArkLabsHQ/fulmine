@@ -79,7 +79,7 @@ templ TxBodyContent(tx []string) {
         <span class="text-offwhite/50">SATS</span>
       </p>
     </div>
-    <div class="bg-offwhite/10 p-4 mt-10">
+    <div class="bg-offwhite/10 p-4 mt-10 rounded-lg">
       @TxLine("date", tx[2] + " " + tx[3])
       <div class="flex justify-between mb-2">
         <p class="text-offwhite/50">STATUS</p>
@@ -87,7 +87,13 @@ templ TxBodyContent(tx []string) {
       </div>
       @TxLine("network", "Ark")
       @TxLine("network fee", "500")
-      @TxLine("ark fee", "0.5%")
+      <div class="flex justify-between mb-2">
+        <div class="flex items-center gap-2 text-offwhite/50">
+          <p>ARK FEE</p>
+          <p hx-get="/modal/info" hx-target="#modal">@components.InfoIcon()</p>
+        </div>
+        <p>0.5%</p>
+      </div>
       <hr class="text-offwhite/50 mb-2" />
       <div class="flex justify-between mb-2">
         <p class="text-offwhite/50">TOTAL</p>

@@ -52,9 +52,13 @@ templ ReceivePreview(bip21 string) {
 	<div class="p-3">
 	  @components.Header("Receive")
     <div class="flex flex-col items-center mt-16 gap-10">
-      <div class="bg-offwhite p-4 mb-10">
-        <img src={"https://api.qrserver.com/v1/create-qr-code/?data=" + bip21 + "&amp;size=100x100"} alt="" title={bip21} />
-      </div>
+		  <div class="h-72">
+        <img
+				  src={"https://api.qrserver.com/v1/create-qr-code/?color=fbfbfb&bgcolor=202020&size=288x288&data=" + bip21}
+					alt="qrcode for receive address"
+					title={bip21}
+				/>
+			</div>
       <div class="rounded-lg bg-offwhite/10 p-2 flex justify-between items-center gap-4 w-72">
 	      <p class="overflow-hidden text-ellipsis whitespace-nowrap" id="bip21">{bip21}</p>
 	  	  <p onclick="copyBip21()">@CopyIcon()</p>

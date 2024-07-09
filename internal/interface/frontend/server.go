@@ -73,6 +73,8 @@ func runServer() error {
 	router.GET("/receive", handlers.Receive)
 	router.GET("/tx/:txid", handlers.Tx)
 
+	router.GET("/modal/info", handlers.InfoModal)
+
 	router.POST("/send/preview", handlers.SendPreview)
 	router.POST("/send/confirm", handlers.SendConfirm)
 	router.POST("/receive/preview", handlers.ReceivePreview)

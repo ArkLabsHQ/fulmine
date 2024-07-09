@@ -112,14 +112,14 @@ func HeroHeader(arkAddress string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div><p class=\"leading-4 font-bold\">ARK</p><p class=\"leading-4 font-bold\">NODE</p></div></div><div class=\"flex gap-4 text-offwhite/60\"><div class=\"rounded-lg bg-offwhite/10 py-1 px-2 flex items-center gap-4\"><p class=\"overflow-hidden text-ellipsis w-16\" id=\"arkAddress\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div><p class=\"leading-4 font-bold\">ARK</p><p class=\"leading-4 font-bold\">NODE</p></div></div><div class=\"flex gap-4 text-offwhite/60\"><div class=\"rounded-lg bg-offwhite/10 py-1 px-2 flex items-center gap-4\"><p class=\"overflow-hidden text-ellipsis w-16 md:w-32\" id=\"arkAddress\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(arkAddress)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/components/hero.templ`, Line: 37, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/components/hero.templ`, Line: 37, Col: 86}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
