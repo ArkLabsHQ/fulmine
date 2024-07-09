@@ -21,7 +21,7 @@ func viewHandler(bodyContent templ.Component, c *gin.Context) {
 }
 
 func Index(c *gin.Context) {
-	bodyContent := pages.HistoryBodyContent(getBalance(), getAddress())
+	bodyContent := pages.HistoryBodyContent(getBalance(), getAddress(), getTransactions())
 	viewHandler(bodyContent, c)
 }
 
@@ -37,5 +37,18 @@ func Send(c *gin.Context) {
 
 func Swap(c *gin.Context) {
 	bodyContent := pages.SwapBodyContent(getBalance())
+	viewHandler(bodyContent, c)
+}
+
+func Tx(c *gin.Context) {
+	txid := c.Param("txid")
+	var transaction []string
+	for _, tx := range getTransactions() {
+		if tx[0] == txid {
+			transaction = tx
+			break
+		}
+	}
+	bodyContent := pages.TxBodyContent(transaction)
 	viewHandler(bodyContent, c)
 }

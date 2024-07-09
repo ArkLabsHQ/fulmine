@@ -70,6 +70,7 @@ templ Layout(bodyContent templ.Component) {
 
       window.onload = () => {
         document.querySelectorAll('.sats').forEach((x) => {
+          if (isNaN(x.textContent)) return
           x.innerHTML = prettyNum(x.textContent)
         })
 

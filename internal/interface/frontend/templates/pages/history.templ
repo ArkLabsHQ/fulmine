@@ -1,8 +1,6 @@
 package pages
 
 import (
-	"fmt"
-	
 	"github.com/ArkLabsHQ/ark-wallet/templates/components"
 )
 
@@ -64,7 +62,7 @@ templ WaitingIcon() {
 }
 
 templ HistoryLine(txid, kind, date, hour, sats string) {
-	<div hx-get={fmt.Sprintf("/api/history/%s", txid)} hx-target="#modal">
+	<div txid={txid} onclick="showTx(this)">
 	  <div class="flex justify-between cursor-pointer p-3 rounded hover:bg-offwhite/10" >
 	  	<div class="flex">
 	  	  @HistoryIcon(kind)
@@ -88,14 +86,15 @@ templ HistoryLine(txid, kind, date, hour, sats string) {
 }
 
 // BodyContent defines HTML content.
-templ HistoryBodyContent(currentBalance, arkAddress string) {
+templ HistoryBodyContent(currentBalance, arkAddress string, transactions [][]string) {
 	@components.Hero(arkAddress, currentBalance)
-	<div>
-	  @HistoryLine("txid", "waiting", "08/08/2024", "21:42", "+212110")
-	  @HistoryLine("txid", "sent", "08/08/2024", "21:42", "-645543")
-	  @HistoryLine("txid", "sent", "07/08/2024", "21:42", "-645543")
-	  @HistoryLine("txid", "received", "06/08/2024", "21:42", "+56632")
-	  @HistoryLine("txid", "received", "05/08/2024", "21:42", "+655255")
-	  @HistoryLine("txid", "swap", "04/08/2024", "21:42", "+42334")
-	</div>
+	for _, tx := range transactions {
+		@HistoryLine(tx[0], tx[1], tx[2], tx[3], tx[4])
+	}
+	<script>
+	  const showTx = (el) => {
+			const txid = el.getAttribute("txid")
+			if (txid) redirect(`/tx/${txid}`)
+		}
+	</script>
 }
