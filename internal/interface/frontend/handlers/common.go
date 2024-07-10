@@ -1,5 +1,7 @@
 package handlers
 
+import "github.com/gin-gonic/gin"
+
 func getBalance() string {
 	return "1930547"
 }
@@ -17,4 +19,9 @@ func getTransactions() [][]string {
 	transactions = append(transactions, []string{"ffee", "received", "05/08/2024", "21:42", "+655255"})
 	transactions = append(transactions, []string{"445d", "swap", "04/08/2024", "21:42", "+42334"})
 	return transactions
+}
+
+func redirect(path string, c *gin.Context) {
+	c.Header("HX-Redirect", path)
+	c.Status(303)
 }

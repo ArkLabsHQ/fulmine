@@ -85,18 +85,9 @@ templ Actions() {
 }
 
 templ Hero(arkAddress, currentBalance string) {
-  <div id="top" class="rounded-lg p-3 mb-10">
+  <div class="bg-radial-gradient rounded-lg p-3 mb-10">
 	  @HeroHeader(arkAddress)
 	  @HeroBalance(currentBalance)
 	  @Actions()
 	</div>
-	<style>
-	  #top {
-      background: radial-gradient(
-        85.35% 95.12% at 50% 11.59%,
-        #f28c52 0%,
-        #9c3b1c 100%
-      );
-    }
-	</style>
 }

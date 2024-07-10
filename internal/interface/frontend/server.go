@@ -72,6 +72,7 @@ func runServer() error {
 	router.GET("/swap", handlers.Swap)
 	router.GET("/receive", handlers.Receive)
 	router.GET("/tx/:txid", handlers.Tx)
+	router.GET("/locked", handlers.Locked)
 	router.GET("/welcome", handlers.Welcome)
 
 	router.GET("/modal/info", handlers.InfoModal)
@@ -79,6 +80,7 @@ func runServer() error {
 	router.POST("/send/preview", handlers.SendPreview)
 	router.POST("/send/confirm", handlers.SendConfirm)
 	router.POST("/receive/preview", handlers.ReceivePreview)
+	router.POST("/unlock", handlers.Unlock)
 
 	// Create a new server instance with options from environment variables.
 	// For more information, see https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/

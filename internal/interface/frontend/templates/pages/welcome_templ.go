@@ -30,7 +30,7 @@ func Welcome() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"top\" class=\"p-3 flex flex-col justify-between h-screen\"><div class=\"flex flex-col items-center gap-6\"><div class=\"flex items-center mt-32\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-radial-gradient p-3 flex flex-col justify-between h-screen\"><div class=\"flex flex-col items-center gap-6\"><div class=\"flex items-center mt-24\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -62,7 +62,7 @@ func Welcome() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><p>Faster and less expensive</p></div></div></div><div class=\"flex flex-col gap-2\"><button class=\"bg-white text-black\" onclick=\"redirect(&#39;/wallet/new&#39;)\">&#65291; Create wallet</button> <button class=\"bg-white/20 w-full\" onclick=\"redirect(&#39;/wallet/import&#39;)\">Import</button></div></div><style>\n\t  #top {\n      background: radial-gradient(\n        85.35% 95.12% at 50% 11.59%,\n        #f28c52 0%,\n        #9c3b1c 100%\n      );\n    }\n\t</style>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><p>Faster and less expensive</p></div></div></div><div class=\"flex flex-col gap-2\"><button class=\"bg-white text-black\" onclick=\"redirect(&#39;/wallet/new&#39;)\">&#65291; Create wallet</button> <button class=\"bg-white/20 w-full\" onclick=\"redirect(&#39;/wallet/import&#39;)\">Import</button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

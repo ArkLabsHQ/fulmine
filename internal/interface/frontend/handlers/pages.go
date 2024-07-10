@@ -33,6 +33,11 @@ func Index(c *gin.Context) {
 	pageViewHandler(bodyContent, c)
 }
 
+func Locked(c *gin.Context) {
+	bodyContent := pages.Locked()
+	pageViewHandler(bodyContent, c)
+}
+
 func Receive(c *gin.Context) {
 	bodyContent := pages.ReceiveBodyContent(getBalance())
 	pageViewHandler(bodyContent, c)
@@ -81,6 +86,12 @@ func Tx(c *gin.Context) {
 	}
 	bodyContent := pages.TxBodyContent(transaction)
 	pageViewHandler(bodyContent, c)
+}
+
+func Unlock(c *gin.Context) {
+	// TODO: unlock wallet
+	// then redirect to home
+	redirect("/", c)
 }
 
 func Welcome(c *gin.Context) {

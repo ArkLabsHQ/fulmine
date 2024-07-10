@@ -101,3 +101,11 @@ label {
   font-size: 0.8rem;
   color: #666;
 }
+
+.bg-radial-gradient {
+  background: radial-gradient(
+    85.35% 95.12% at 50% 11.59%,
+    #f28c52 0%,
+    #9c3b1c 100%
+  );
+}
