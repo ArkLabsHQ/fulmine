@@ -25,7 +25,6 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --tw-ring-color: #bc3f20;
 }
 
 a {
@@ -36,6 +35,10 @@ a {
 
 a:hover {
   color: #bc3f20;
+}
+
+input:focus {
+  border: 1px solid #bc3f20;
 }
 
 body {
@@ -92,6 +95,10 @@ button:hover {
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+
+button:disabled {
+  opacity: 0.5;
 }
 
 .grid-cols-4 {

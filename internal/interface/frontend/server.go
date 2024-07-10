@@ -71,6 +71,7 @@ func runServer() error {
 	router.GET("/import", handlers.ImportWallet)
 	router.GET("/locked", handlers.Locked)
 	router.GET("/new", handlers.NewWallet)
+	router.GET("/password", handlers.SetPassword)
 	router.GET("/send", handlers.Send)
 	router.GET("/swap", handlers.Swap)
 	router.GET("/receive", handlers.Receive)

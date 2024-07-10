@@ -80,6 +80,11 @@ func SendConfirm(c *gin.Context) {
 	partialViewHandler(bodyContent, c)
 }
 
+func SetPassword(c *gin.Context) {
+	bodyContent := pages.SetPasswordContent()
+	pageViewHandler(bodyContent, c)
+}
+
 func Swap(c *gin.Context) {
 	bodyContent := pages.SwapBodyContent(getBalance())
 	pageViewHandler(bodyContent, c)

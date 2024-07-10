@@ -62,7 +62,7 @@ func Welcome() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><p>Faster and less expensive</p></div></div></div><div class=\"flex flex-col gap-2\"><button class=\"bg-white text-black\" onclick=\"redirect(&#39;/new&#39;)\">&#65291; Create wallet</button> <button class=\"bg-white/20 w-full\" onclick=\"redirect(&#39;/import&#39;)\">Import</button></div></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><p>Faster and less expensive</p></div></div></div><div class=\"flex flex-col gap-2\"><button class=\"bg-white text-black\" onclick=\"redirect(&#39;/new&#39;)\">&#65291; Create new wallet</button> <button class=\"bg-white/20 w-full\" onclick=\"redirect(&#39;/import&#39;)\">Import</button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
