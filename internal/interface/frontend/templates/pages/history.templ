@@ -61,13 +61,18 @@ templ WaitingIcon() {
 	</div>
 }
 
-templ HistoryLine(txid, kind, date, hour, sats string) {
+templ HistoryLine(txid, kind, date, hour, sats, pending string) {
 	<div txid={txid} onclick="showTx(this)">
 	  <div class="flex justify-between cursor-pointer p-3 rounded hover:bg-offwhite/10" >
 	  	<div class="flex">
 	  	  @HistoryIcon(kind)
 	  	  <p class="leading-4">{date}<br /><span class="text-offwhite/50">{hour}</span></p>
 	  	</div>
+			if len(pending) > 0 {
+				<div class="flex items-center">
+				  <p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
+				</div>
+			}
 	  	<div>
 	  	  <p class="leading-4 text-end">
 	  		  <span class={
@@ -89,7 +94,7 @@ templ HistoryLine(txid, kind, date, hour, sats string) {
 templ HistoryBodyContent(currentBalance, arkAddress string, transactions [][]string) {
 	@components.Hero(arkAddress, currentBalance)
 	for _, tx := range transactions {
-		@HistoryLine(tx[0], tx[1], tx[2], tx[3], tx[4])
+		@HistoryLine(tx[0], tx[1], tx[2], tx[3], tx[4], tx[5])
 	}
 	<script>
 	  const showTx = (el) => {

@@ -18,7 +18,13 @@ templ ReceiveBodyContent(currentBalance string) {
 	        @components.Header("Receive")
 	        <p class="font-semibold mb-2 mt-16">Amount</p>
 	    	  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
-	    	    <input class="bg-graybg border-0" id="receiveAmount" max={currentBalance} name="sats" placeholder="5000" />
+					  <input class="hidden" id="receiveSats" name="sats">
+	    	    <input
+						  class="bg-graybg border-0"
+							id="receiveAmount"
+							max={currentBalance}
+							onchange="updateSats()"
+							placeholder="5000" />
 	    	  	<div class="flex items-center gap-4">
 	    			  <p class="py-1 w-10" id="unit">SATS</p>
 	    	  	  <p onclick="toggleUnit()">@ArrowDownIcon()</p>
@@ -44,6 +50,12 @@ templ ReceiveBodyContent(currentBalance string) {
 				const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
 				document.querySelector('#receiveAmount').value = nextVal
 			}
+		}
+
+		const updateSats = () => {
+			const unit = document.querySelector('#unit').innerText
+			const amount = document.querySelector('#receiveAmount').value
+      document.querySelector('#receiveSats').value = unit === 'SATS' ? amount : toSatoshis(amount)
 		}
 	</script>
 }

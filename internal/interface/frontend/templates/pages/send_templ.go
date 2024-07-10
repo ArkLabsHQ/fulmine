@@ -150,20 +150,20 @@ func SendBodyContent(currentBalance string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div><p class=\"font-semibold mb-2 mt-10\">Amount</p><div class=\"bg-graybg p-4 flex items-center justify-between rounded-lg\"><input class=\"bg-graybg border-0\" id=\"sendAmount\" name=\"amount\" max=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div><p class=\"font-semibold mb-2 mt-10\">Amount</p><div class=\"bg-graybg p-4 flex items-center justify-between rounded-lg\"><input class=\"hidden\" id=\"sendSats\" name=\"sats\"> <input class=\"bg-graybg border-0\" id=\"sendAmount\" max=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(currentBalance)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 51, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 55, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" placeholder=\"5000\"><div class=\"flex items-center gap-4\"><p class=\"py-1 px-2 bg-offwhite/20 text-offwhite/50 rounded-lg\" onclick=\"setMaxValue()\">MAX</p><p class=\"py-1 w-10\" id=\"unit\">SATS</p><p onclick=\"toggleUnit()\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" onchange=\"updateSats()\" placeholder=\"5000\"><div class=\"flex items-center gap-4\"><p class=\"py-1 px-2 bg-offwhite/20 text-offwhite/50 rounded-lg\" onclick=\"setMaxValue()\">MAX</p><p class=\"py-1 w-10\" id=\"unit\">SATS</p><p onclick=\"toggleUnit()\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -178,13 +178,13 @@ func SendBodyContent(currentBalance string) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(currentBalance)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 58, Col: 97}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 64, Col: 97}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> SATS</p></div><div><button class=\"bg-orange mb-2\" type=\"submit\">Preview send</button> <button class=\"bg-graybg w-full\" onclick=\"redirect(&#39;/&#39;)\">Cancel</button></div></div></form></div><script>\n\t  const pasteAddressFromClipboard = () => {\n\t\t\tif (navigator.clipboard) {\n        navigator.clipboard.readText().then((val) => {\n\t\t\t\t\tdocument.querySelector('#sendAddress').value = val\n\t\t\t  })\n      }\n\t\t}\n\t\t\n\t\tconst setMaxValue = () => {\n\t\t\tconst sats = document.querySelector('#sendAmount').getAttribute('max')\n\t\t\tif (isNaN(sats)) return\n\t\t\tdocument.querySelector('#sendAmount').value = sats\n\t\t}\n\n\t\tconst toggleUnit = () => {\n\t\t\tconst currUnit = document.querySelector('#unit').innerText\n\t\t\tconst nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'\n\t\t\t// change unit\n\t\t\tdocument.querySelector('#unit').innerText = nextUnit\n\t\t\t// change availability\n\t\t\tconst maxSats = document.querySelector('#sendAmount').getAttribute('max')\n\t\t\tdocument.querySelector('#available').innerText =\n\t\t\t  `Available ${nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats)} ${nextUnit}`\n\t\t\t// change value inside input\n\t\t\tconst currVal = document.querySelector('#sendAmount').value\n\t\t\tif (currVal) {\n\t\t\t\tconst nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)\n\t\t\t\tdocument.querySelector('#sendAmount').value = nextVal\n\t\t\t}\n\t\t}\n\t</script>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> SATS</p></div><div><button class=\"bg-orange mb-2\" type=\"submit\">Preview send</button> <button class=\"bg-graybg w-full\" onclick=\"redirect(&#39;/&#39;)\">Cancel</button></div></div></form></div><script>\n\t  const pasteAddressFromClipboard = () => {\n\t\t\tif (navigator.clipboard) {\n        navigator.clipboard.readText().then((addr) => {\n\t\t\t\t\tdocument.querySelector('#sendAddress').value = addr\n\t\t\t\t\tconst asAmount = addr.match(/amount:(\\d+)/)\n\t\t\t\t\tif (asAmount) {\n\t\t\t\t\t\tconst sats = asAmount[1]\n\t\t\t\t\t\tconst unit = document.querySelector('#unit').innerText\n\t\t\t\t\t\tdocument.querySelector('#sendAmount').value = unit === 'SATS' ? sats : fromSatoshis(sats)\n\t\t\t\t\t\tdocument.querySelector('#sendSats').value = sats\n\t\t\t\t\t}\n\t\t\t  })\n      }\n\t\t}\n\t\t\n\t\tconst setMaxValue = () => {\n\t\t\tconst sats = document.querySelector('#sendAmount').getAttribute('max')\n\t\t\tif (isNaN(sats)) return\n\t\t\tdocument.querySelector('#sendAmount').value = sats\n\t\t}\n\n\t\tconst toggleUnit = () => {\n\t\t\tconst currUnit = document.querySelector('#unit').innerText\n\t\t\tconst nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'\n\t\t\t// change unit\n\t\t\tdocument.querySelector('#unit').innerText = nextUnit\n\t\t\t// change availability\n\t\t\tconst maxSats = document.querySelector('#sendAmount').getAttribute('max')\n\t\t\tdocument.querySelector('#available').innerText =\n\t\t\t  `Available ${nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats)} ${nextUnit}`\n\t\t\t// change value inside input\n\t\t\tconst currVal = document.querySelector('#sendAmount').value\n\t\t\tif (currVal) {\n\t\t\t\tconst nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)\n\t\t\t\tdocument.querySelector('#sendAmount').value = nextVal\n\t\t\t}\n\t\t}\n\n\t\tconst updateSats = () => {\n\t\t\tconst unit = document.querySelector('#unit').innerText\n\t\t\tconst amount = document.querySelector('#sendAmount').value\n      document.querySelector('#sendSats').value = unit === 'SATS' ? amount : toSatoshis(amount)\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -217,7 +217,7 @@ func SendPreviewContent(address, amount string) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(address)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 104, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 123, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -230,7 +230,7 @@ func SendPreviewContent(address, amount string) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(amount)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 105, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 124, Col: 52}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -259,7 +259,7 @@ func SendPreviewContent(address, amount string) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(amount)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 112, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 131, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -272,7 +272,7 @@ func SendPreviewContent(address, amount string) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(address)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 117, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 136, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -317,7 +317,7 @@ func SendPreviewContent(address, amount string) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(amount)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 133, Col: 43}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 152, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -372,7 +372,7 @@ func SendSuccessContent(address, amount string) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(amount)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 153, Col: 31}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 172, Col: 31}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
@@ -385,7 +385,7 @@ func SendSuccessContent(address, amount string) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(address)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 158, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/send.templ`, Line: 177, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {

@@ -71,7 +71,7 @@ func runServer() error {
 	router.GET("/import", handlers.ImportWallet)
 	router.GET("/locked", handlers.Locked)
 	router.GET("/new", handlers.NewWallet)
-	router.GET("/password", handlers.SetPassword)
+	router.GET("/password", handlers.Password)
 	router.GET("/send", handlers.Send)
 	router.GET("/swap", handlers.Swap)
 	router.GET("/receive", handlers.Receive)
@@ -80,6 +80,7 @@ func runServer() error {
 
 	router.GET("/modal/info", handlers.InfoModal)
 
+	router.POST("/password", handlers.SetPassword)
 	router.POST("/send/preview", handlers.SendPreview)
 	router.POST("/send/confirm", handlers.SendConfirm)
 	router.POST("/receive/preview", handlers.ReceivePreview)

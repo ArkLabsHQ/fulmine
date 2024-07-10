@@ -48,6 +48,11 @@ func NewWallet(c *gin.Context) {
 	pageViewHandler(bodyContent, c)
 }
 
+func Password(c *gin.Context) {
+	bodyContent := pages.SetPasswordContent()
+	pageViewHandler(bodyContent, c)
+}
+
 func Receive(c *gin.Context) {
 	bodyContent := pages.ReceiveBodyContent(getBalance())
 	pageViewHandler(bodyContent, c)
@@ -68,8 +73,8 @@ func Send(c *gin.Context) {
 
 func SendPreview(c *gin.Context) {
 	address := c.PostForm("address")
-	amount := c.PostForm("amount")
-	bodyContent := pages.SendPreviewContent(address, amount)
+	sats := c.PostForm("sats")
+	bodyContent := pages.SendPreviewContent(address, sats)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -81,8 +86,9 @@ func SendConfirm(c *gin.Context) {
 }
 
 func SetPassword(c *gin.Context) {
-	bodyContent := pages.SetPasswordContent()
-	pageViewHandler(bodyContent, c)
+	// TODO: set wallet password
+	// then redirect to home
+	redirect("/", c)
 }
 
 func Swap(c *gin.Context) {

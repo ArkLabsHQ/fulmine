@@ -48,7 +48,13 @@ templ SendBodyContent(currentBalance string) {
 	    	  </div>
 	    	  <p class="font-semibold mb-2 mt-10">Amount</p>
 	    	  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
-	    	    <input class="bg-graybg border-0" id="sendAmount" name="amount" max={currentBalance} placeholder="5000" />
+					  <input class="hidden" id="sendSats" name="sats" />
+	    	    <input
+						  class="bg-graybg border-0"
+							id="sendAmount"
+							max={currentBalance}
+							onchange="updateSats()"
+							placeholder="5000" />
 	    	  	<div class="flex items-center gap-4">
 	    			  <p class="py-1 px-2 bg-offwhite/20 text-offwhite/50 rounded-lg" onclick="setMaxValue()">MAX</p>
 	    	  	  <p class="py-1 w-10" id="unit">SATS</p>
@@ -67,8 +73,15 @@ templ SendBodyContent(currentBalance string) {
 	<script>
 	  const pasteAddressFromClipboard = () => {
 			if (navigator.clipboard) {
-        navigator.clipboard.readText().then((val) => {
-					document.querySelector('#sendAddress').value = val
+        navigator.clipboard.readText().then((addr) => {
+					document.querySelector('#sendAddress').value = addr
+					const asAmount = addr.match(/amount:(\d+)/)
+					if (asAmount) {
+						const sats = asAmount[1]
+						const unit = document.querySelector('#unit').innerText
+						document.querySelector('#sendAmount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
+						document.querySelector('#sendSats').value = sats
+					}
 			  })
       }
 		}
@@ -94,6 +107,12 @@ templ SendBodyContent(currentBalance string) {
 				const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
 				document.querySelector('#sendAmount').value = nextVal
 			}
+		}
+
+		const updateSats = () => {
+			const unit = document.querySelector('#unit').innerText
+			const amount = document.querySelector('#sendAmount').value
+      document.querySelector('#sendSats').value = unit === 'SATS' ? amount : toSatoshis(amount)
 		}
 	</script>
 }
