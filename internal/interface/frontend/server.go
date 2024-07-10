@@ -68,11 +68,13 @@ func runServer() error {
 
 	// Handle index page view.
 	router.GET("/", handlers.Index)
+	router.GET("/import", handlers.ImportWallet)
+	router.GET("/locked", handlers.Locked)
+	router.GET("/new", handlers.NewWallet)
 	router.GET("/send", handlers.Send)
 	router.GET("/swap", handlers.Swap)
 	router.GET("/receive", handlers.Receive)
 	router.GET("/tx/:txid", handlers.Tx)
-	router.GET("/locked", handlers.Locked)
 	router.GET("/welcome", handlers.Welcome)
 
 	router.GET("/modal/info", handlers.InfoModal)

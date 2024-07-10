@@ -16,9 +16,13 @@ templ ShareIcon() {
 	</div>
 }
 
-templ Header(title string) {
+templ Header(title string, backPath ...string) {
 	<div class="grid grid-cols-[1fr_5fr_1fr] items-center w-full">
-	  <a href="/">@BackIcon()</a>
+	  if len(backPath) > 0 {
+	    <a href={templ.URL(backPath[0])}>@BackIcon()</a>
+		} else {
+	    <a href="/">@BackIcon()</a>
+		}
 		<h1 class="text-lg text-center font-semibold">{title}</h1>
 		if title == "Receive" {
 			@ShareIcon()

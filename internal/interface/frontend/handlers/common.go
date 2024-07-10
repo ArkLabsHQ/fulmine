@@ -1,6 +1,10 @@
 package handlers
 
-import "github.com/gin-gonic/gin"
+import (
+	"strings"
+
+	"github.com/gin-gonic/gin"
+)
 
 func getBalance() string {
 	return "1930547"
@@ -8,6 +12,11 @@ func getBalance() string {
 
 func getAddress() string {
 	return "ark18746676365652bcdabdbacdabcd63546354634"
+}
+
+func getNewMnemonic() []string {
+	mnemonic := "ski this panic exit erode peasant nose swim spell sleep unique bag"
+	return strings.Fields(mnemonic)
 }
 
 func getTransactions() [][]string {

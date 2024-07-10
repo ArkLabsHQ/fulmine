@@ -33,8 +33,18 @@ func Index(c *gin.Context) {
 	pageViewHandler(bodyContent, c)
 }
 
+func ImportWallet(c *gin.Context) {
+	bodyContent := pages.ImportWalletContent()
+	pageViewHandler(bodyContent, c)
+}
+
 func Locked(c *gin.Context) {
 	bodyContent := pages.Locked()
+	pageViewHandler(bodyContent, c)
+}
+
+func NewWallet(c *gin.Context) {
+	bodyContent := pages.NewWalletContent(getNewMnemonic())
 	pageViewHandler(bodyContent, c)
 }
 
