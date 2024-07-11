@@ -6,6 +6,8 @@ import (
 
 func HistoryIcon(kind string) templ.Component {
 	 switch kind {
+    case "pending":
+        return PendingIcon()
     case "received":
         return ReceivedIcon()
     case "sent":
@@ -17,6 +19,25 @@ func HistoryIcon(kind string) templ.Component {
     default:
         return SwapIcon()
     }
+}
+
+templ PendingIcon() {
+	<div class="flex items-center w-8 h-8 bg-greenbg/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-yellow" viewBox="0 0 2048 2048">
+      <path fill="currentColor" d="M1536 0v128H384V0h1152zm45 979l-90 90l-467-470v1449H896V599l-467 470l-90-90l621-626l621 626z"/>
+    </svg>
+	</div>
+}
+
+templ ReceivedIcon() {
+	<div class="flex items-center w-8 h-8 bg-greenbg/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-green" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2">
+        <path stroke-miterlimit="10" d="M6.343 17.657L17.657 6.343"/>
+        <path stroke-linejoin="round" d="M5.899 7.267v9.296A1.53 1.53 0 0 0 7.437 18.1h9.296"/>
+      </g>
+    </svg>
+	</div>
 }
 
 templ SentIcon() {
@@ -42,17 +63,6 @@ templ SwapIcon() {
 	</div>
 }
 
-templ ReceivedIcon() {
-	<div class="flex items-center w-8 h-8 bg-greenbg/10 rounded-full mr-2">
-	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-green" viewBox="0 0 24 24">
-      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2">
-        <path stroke-miterlimit="10" d="M6.343 17.657L17.657 6.343"/>
-        <path stroke-linejoin="round" d="M5.899 7.267v9.296A1.53 1.53 0 0 0 7.437 18.1h9.296"/>
-      </g>
-    </svg>
-	</div>
-}
-
 templ WaitingIcon() {
 	<div class="flex items-center w-8 h-8 bg-yellowbg/10 rounded-full mr-2">
 	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-yellow" viewBox="0 0 24 24">
@@ -61,14 +71,14 @@ templ WaitingIcon() {
 	</div>
 }
 
-templ HistoryLine(txid, kind, date, hour, sats, pending string) {
+templ HistoryLine(txid, kind, date, hour, sats string) {
 	<div txid={txid} onclick="showTx(this)">
 	  <div class="flex justify-between cursor-pointer p-3 rounded hover:bg-offwhite/10" >
 	  	<div class="flex">
 	  	  @HistoryIcon(kind)
 	  	  <p class="leading-4">{date}<br /><span class="text-offwhite/50">{hour}</span></p>
 	  	</div>
-			if len(pending) > 0 {
+			if kind == "pending" {
 				<div class="flex items-center">
 				  <p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
 				</div>
@@ -77,6 +87,7 @@ templ HistoryLine(txid, kind, date, hour, sats, pending string) {
 	  	  <p class="leading-4 text-end">
 	  		  <span class={
 						templ.KV("text-red", kind == "sent"),
+						templ.KV("text-yellow", kind == "pending"),
 						templ.KV("text-green", kind == "received"),
 						templ.KV("text-yellow", kind == "waiting")
 					}>
@@ -94,7 +105,7 @@ templ HistoryLine(txid, kind, date, hour, sats, pending string) {
 templ HistoryBodyContent(currentBalance, arkAddress string, transactions [][]string) {
 	@components.Hero(arkAddress, currentBalance)
 	for _, tx := range transactions {
-		@HistoryLine(tx[0], tx[1], tx[2], tx[3], tx[4], tx[5])
+		@HistoryLine(tx[0], tx[1], tx[2], tx[3], tx[4])
 	}
 	<script>
 	  const showTx = (el) => {

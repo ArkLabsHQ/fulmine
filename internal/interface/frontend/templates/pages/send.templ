@@ -11,7 +11,7 @@ templ ArrowDownIcon() {
 }
 
 templ PasteIcon() {
-	<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-offwhite/50" viewBox="0 0 24 24">
+	<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-white/50 hover:text-white" viewBox="0 0 24 24">
     <path fill="currentColor" d="M5.615 20q-.67 0-1.143-.472Q4 19.056 4 18.385V5.615q0-.67.472-1.143Q4.944 4 5.615 4h4.637q.14-.587.623-.986T12 2.615q.654 0 1.134.4q.48.398.62.985h4.63q.672 0 1.144.472q.472.472.472 1.143v12.77q0 .67-.472 1.143q-.472.472-1.143.472H5.615Zm0-1h12.77q.23 0 .423-.192q.192-.193.192-.423V5.615q0-.23-.192-.423Q18.615 5 18.385 5H16v2.23H8V5H5.615q-.23 0-.423.192Q5 5.385 5 5.615v12.77q0 .23.192.423q.193.192.423.192ZM12 5.23q.348 0 .578-.229q.23-.23.23-.578t-.23-.578q-.23-.23-.578-.23t-.578.23q-.23.23-.23.578t.23.578q.23.23.578.23Z"/>
   </svg>
 }
@@ -89,7 +89,9 @@ templ SendBodyContent(currentBalance string) {
 		const setMaxValue = () => {
 			const sats = document.querySelector('#sendAmount').getAttribute('max')
 			if (isNaN(sats)) return
-			document.querySelector('#sendAmount').value = sats
+			const unit = document.querySelector('#unit').innerText
+			document.querySelector('#sendAmount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
+			document.querySelector('#sendSats').value = sats
 		}
 
 		const toggleUnit = () => {
