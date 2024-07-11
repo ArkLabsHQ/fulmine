@@ -27,16 +27,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  // color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #bc3f20;
-}
-
 input:focus {
   border: 1px solid #bc3f20;
 }
@@ -63,6 +53,13 @@ h1 {
 
 #htmx-result {
   padding: 2rem 0;
+}
+
+#toast {
+  display: flex;
+  position: absolute;
+  top: 60px;
+  width: 100%;
 }
 
 .logo {

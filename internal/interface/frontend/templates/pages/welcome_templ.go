@@ -38,7 +38,7 @@ func Welcome() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div><p class=\"leading-5 font-bold text-2xl\">ARK</p><p class=\"leading-5 font-bold text-2xl\">NODE</p></div></div><p class=\"font-medium text-3xl text-center p-8\">Start sending and receiving Bitcoin fast and private</p><div class=\"flex flex-col gap-5 bg-offwhite/10 p-4 mt-10 rounded-lg w-80 md:w-96\"><div class=\"flex items-center gap-2\"><p>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div><p class=\"leading-5 font-bold text-2xl\">ARK</p><p class=\"leading-5 font-bold text-2xl\">NODE</p></div></div><p class=\"font-medium text-3xl text-center p-8\">Start sending and receiving Bitcoin fast and private</p><div class=\"flex flex-col gap-5 bg-white/10 p-4 mt-10 rounded-lg w-80 md:w-96\"><div class=\"flex items-center gap-2\"><p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

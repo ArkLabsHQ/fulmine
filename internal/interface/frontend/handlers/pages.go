@@ -91,6 +91,14 @@ func SetPassword(c *gin.Context) {
 	redirect("/", c)
 }
 
+func Settings(c *gin.Context) {
+	active := c.Param("active")
+	settings := getSettings()
+	nodeStatus := true
+	bodyContent := pages.SettingsBodyContent(active, settings, nodeStatus)
+	pageViewHandler(bodyContent, c)
+}
+
 func Swap(c *gin.Context) {
 	bodyContent := pages.SwapBodyContent(getBalance())
 	pageViewHandler(bodyContent, c)

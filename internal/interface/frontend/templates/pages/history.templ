@@ -54,8 +54,8 @@ templ SentIcon() {
 }
 
 templ SwapIcon() {
-	<div class="flex items-center w-8 h-8 bg-offwhite/10 rounded-full mr-2">
-	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-offwhite" viewBox="0 0 21 21">
+	<div class="flex items-center w-8 h-8 bg-white/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-white" viewBox="0 0 21 21">
       <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
         <path d="M13 8h5V3"/>
         <path d="M18 8c-2.837-3.333-5.67-5-8.5-5S4.17 4 2 6m4.5 5.5h-5v5"/>
@@ -75,10 +75,10 @@ templ WaitingIcon() {
 
 templ HistoryLine(txid, kind, status, date, hour, sats string) {
 	<div txid={txid} onclick="showTx(this)">
-	  <div class="flex justify-between cursor-pointer p-3 rounded hover:bg-offwhite/10" >
+	  <div class="flex justify-between cursor-pointer p-3 rounded hover:bg-white/10" >
 	  	<div class="flex">
 	  	  @HistoryIcon(kind, status)
-	  	  <p class="leading-4">{date}<br /><span class="text-offwhite/50">{hour}</span></p>
+	  	  <p class="leading-4">{date}<br /><span class="text-white/50">{hour}</span></p>
 	  	</div>
 			if status == "pending" {
 				<div class="flex items-center">
@@ -100,7 +100,7 @@ templ HistoryLine(txid, kind, status, date, hour, sats string) {
 	  			  <span class="btcm">{sats}</span> BTC
 	  			</span>
 	  			<br />
-	  		  <span class="text-offwhite/50 usd" sats={sats}>$ ...</span>
+	  		  <span class="text-white/50 usd" sats={sats}>$ ...</span>
 	  		</p>
 	  	</div>
 	  </div>

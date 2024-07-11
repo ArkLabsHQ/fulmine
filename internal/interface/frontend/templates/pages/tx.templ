@@ -53,8 +53,8 @@ templ SentTxIcon() {
 }
 
 templ SwapTxIcon() {
-	<div class="flex items-center w-16 h-16 bg-offwhite/10 rounded-full mr-2">
-	  <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-offwhite" viewBox="0 0 21 21">
+	<div class="flex items-center w-16 h-16 bg-white/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-white" viewBox="0 0 21 21">
       <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
         <path d="M13 8h5V3"/>
         <path d="M18 8c-2.837-3.333-5.67-5-8.5-5S4.17 4 2 6m4.5 5.5h-5v5"/>
@@ -85,7 +85,7 @@ templ WaitingTxIcon() {
 
 templ TxLine(left, right string) {
   <div class="flex justify-between mb-2">
-    <p class="text-offwhite/50 uppercase">{left}</p>
+    <p class="text-white/50 uppercase">{left}</p>
     <p>{right}</p>
   </div>
 }
@@ -98,13 +98,13 @@ templ TxBodyContent(txid, kind, status, date, hour, sats string) {
       <p class="mt-4 capitalize">{kind}</p>
       <p class="mt-4 text-3xl">
         <span class="sats">{sats}</span>
-        <span class="text-offwhite/50">SATS</span>
+        <span class="text-white/50">SATS</span>
       </p>
     </div>
-    <div class="bg-offwhite/10 p-4 mt-10 rounded-lg">
+    <div class="bg-white/10 p-4 mt-10 rounded-lg">
       @TxLine("date", date + " " + hour)
       <div class="flex justify-between mb-2">
-        <p class="text-offwhite/50">STATUS</p>
+        <p class="text-white/50">STATUS</p>
         if status == "success" {
           <p class="text-green">Succeeded</p>
         } else if status == "failure" {
@@ -120,15 +120,15 @@ templ TxBodyContent(txid, kind, status, date, hour, sats string) {
       @TxLine("network", "Ark")
       @TxLine("network fee", "500")
       <div class="flex justify-between mb-2">
-        <div class="flex items-center gap-2 text-offwhite/50">
+        <div class="flex items-center gap-2 text-white/50">
           <p>ARK FEE</p>
           <p hx-get="/modal/info" hx-target="#modal">@components.InfoIcon()</p>
         </div>
         <p>0.5%</p>
       </div>
-      <hr class="text-offwhite/50 mb-2" />
+      <hr class="text-white/50 mb-2" />
       <div class="flex justify-between mb-2">
-        <p class="text-offwhite/50">TOTAL</p>
+        <p class="text-white/50">TOTAL</p>
         <p><span class="sats">{sats}</span> SATS</p>
       </div>
     </div>

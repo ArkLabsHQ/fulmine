@@ -26,7 +26,7 @@ func SettingsIcon() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center w-10 h-10 bg-offwhite/10 rounded-full\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-6 w-6 mx-auto\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M19.9 12.66a1 1 0 0 1 0-1.32l1.28-1.44a1 1 0 0 0 .12-1.17l-2-3.46a1 1 0 0 0-1.07-.48l-1.88.38a1 1 0 0 1-1.15-.66l-.61-1.83a1 1 0 0 0-.95-.68h-4a1 1 0 0 0-1 .68l-.56 1.83a1 1 0 0 1-1.15.66L5 4.79a1 1 0 0 0-1 .48L2 8.73a1 1 0 0 0 .1 1.17l1.27 1.44a1 1 0 0 1 0 1.32L2.1 14.1a1 1 0 0 0-.1 1.17l2 3.46a1 1 0 0 0 1.07.48l1.88-.38a1 1 0 0 1 1.15.66l.61 1.83a1 1 0 0 0 1 .68h4a1 1 0 0 0 .95-.68l.61-1.83a1 1 0 0 1 1.15-.66l1.88.38a1 1 0 0 0 1.07-.48l2-3.46a1 1 0 0 0-.12-1.17ZM18.41 14l.8.9l-1.28 2.22l-1.18-.24a3 3 0 0 0-3.45 2L12.92 20h-2.56L10 18.86a3 3 0 0 0-3.45-2l-1.18.24l-1.3-2.21l.8-.9a3 3 0 0 0 0-4l-.8-.9l1.28-2.2l1.18.24a3 3 0 0 0 3.45-2L10.36 4h2.56l.38 1.14a3 3 0 0 0 3.45 2l1.18-.24l1.28 2.22l-.8.9a3 3 0 0 0 0 3.98Zm-6.77-6a4 4 0 1 0 4 4a4 4 0 0 0-4-4Zm0 6a2 2 0 1 1 2-2a2 2 0 0 1-2 2Z\"></path></svg></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center w-10 h-10 bg-white/10 rounded-full\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-6 w-6 mx-auto\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M19.9 12.66a1 1 0 0 1 0-1.32l1.28-1.44a1 1 0 0 0 .12-1.17l-2-3.46a1 1 0 0 0-1.07-.48l-1.88.38a1 1 0 0 1-1.15-.66l-.61-1.83a1 1 0 0 0-.95-.68h-4a1 1 0 0 0-1 .68l-.56 1.83a1 1 0 0 1-1.15.66L5 4.79a1 1 0 0 0-1 .48L2 8.73a1 1 0 0 0 .1 1.17l1.27 1.44a1 1 0 0 1 0 1.32L2.1 14.1a1 1 0 0 0-.1 1.17l2 3.46a1 1 0 0 0 1.07.48l1.88-.38a1 1 0 0 1 1.15.66l.61 1.83a1 1 0 0 0 1 .68h4a1 1 0 0 0 .95-.68l.61-1.83a1 1 0 0 1 1.15-.66l1.88.38a1 1 0 0 0 1.07-.48l2-3.46a1 1 0 0 0-.12-1.17ZM18.41 14l.8.9l-1.28 2.22l-1.18-.24a3 3 0 0 0-3.45 2L12.92 20h-2.56L10 18.86a3 3 0 0 0-3.45-2l-1.18.24l-1.3-2.21l.8-.9a3 3 0 0 0 0-4l-.8-.9l1.28-2.2l1.18.24a3 3 0 0 0 3.45-2L10.36 4h2.56l.38 1.14a3 3 0 0 0 3.45 2l1.18-.24l1.28 2.22l-.8.9a3 3 0 0 0 0 3.98Zm-6.77-6a4 4 0 1 0 4 4a4 4 0 0 0-4-4Zm0 6a2 2 0 1 1 2-2a2 2 0 0 1-2 2Z\"></path></svg></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -86,7 +86,7 @@ func HeroHeader(arkAddress string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div><p class=\"leading-4 font-bold\">ARK</p><p class=\"leading-4 font-bold\">NODE</p></div></div><div class=\"flex gap-4 text-offwhite/60\"><div class=\"rounded-lg bg-offwhite/10 py-1 px-2 flex items-center gap-4\"><p class=\"overflow-hidden text-ellipsis w-16 md:w-32\" id=\"arkAddress\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div><p class=\"leading-4 font-bold\">ARK</p><p class=\"leading-4 font-bold\">NODE</p></div></div><div class=\"flex gap-4 text-white/60\"><div class=\"rounded-lg bg-white/10 py-1 px-2 flex items-center gap-4\"><p class=\"overflow-hidden text-ellipsis w-16 md:w-32\" id=\"arkAddress\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -107,7 +107,7 @@ func HeroHeader(arkAddress string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div><a href=\"/settings/general\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -115,7 +115,7 @@ func HeroHeader(arkAddress string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div><script>\n\t  const copyArkAddress = () => {\n\t\t\tif (!navigator.clipboard) return\n\t\t\tconst addr = document.querySelector(\"#arkAddress\").innerText\n      navigator.clipboard.writeText(addr)\n\t\t}\n\t</script>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</a></div></div><script>\n\t  const copyArkAddress = () => {\n\t\t\tif (!navigator.clipboard) return\n\t\t\tconst addr = document.querySelector(\"#arkAddress\").innerText\n      navigator.clipboard.writeText(addr)\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -271,7 +271,7 @@ func Actions() templ.Component {
 			templ_7745c5c3_Var11 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"grid grid-cols-3 gap-4\"><button class=\"bg-offwhite text-black\" hx-on:click=\"redirect(&#39;/send&#39;)\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"grid grid-cols-3 gap-4\"><button class=\"bg-white text-black\" hx-on:click=\"redirect(&#39;/send&#39;)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -279,7 +279,7 @@ func Actions() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Send</button> <button class=\"bg-offwhite text-black\" hx-on:click=\"redirect(&#39;/receive&#39;)\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Send</button> <button class=\"bg-white text-black\" hx-on:click=\"redirect(&#39;/receive&#39;)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -287,7 +287,7 @@ func Actions() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Receive</button> <button class=\"bg-offwhite text-black\" hx-on:click=\"redirect(&#39;/swap&#39;)\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Receive</button> <button class=\"bg-white text-black\" hx-on:click=\"redirect(&#39;/swap&#39;)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

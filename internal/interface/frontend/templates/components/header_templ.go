@@ -26,7 +26,7 @@ func BackIcon() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center w-10 h-10 bg-offwhite/10 rounded-full\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 mx-auto text-offwhite/50\" viewBox=\"0 0 42 42\"><path fill=\"currentColor\" fill-rule=\"evenodd\" d=\"M27.066 1L7 21.068l19.568 19.569l4.934-4.933l-14.637-14.636L32 5.933z\"></path></svg></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center w-10 h-10 bg-white/10 rounded-full\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 mx-auto text-white/50\" viewBox=\"0 0 42 42\"><path fill=\"currentColor\" fill-rule=\"evenodd\" d=\"M27.066 1L7 21.068l19.568 19.569l4.934-4.933l-14.637-14.636L32 5.933z\"></path></svg></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -52,7 +52,7 @@ func ShareIcon() templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center w-10 h-10 bg-offwhite/10 rounded-full ml-auto\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 mx-auto text-offwhite/50\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M11.293 2.293a1 1 0 0 1 1.414 0l3 3a1 1 0 0 1-1.414 1.414L13 5.414V15a1 1 0 1 1-2 0V5.414L9.707 6.707a1 1 0 0 1-1.414-1.414l3-3zM4 11a2 2 0 0 1 2-2h2a1 1 0 0 1 0 2H6v9h12v-9h-2a1 1 0 1 1 0-2h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9z\"></path></svg></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center w-10 h-10 bg-white/10 rounded-full ml-auto\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 mx-auto text-white/50\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M11.293 2.293a1 1 0 0 1 1.414 0l3 3a1 1 0 0 1-1.414 1.414L13 5.414V15a1 1 0 1 1-2 0V5.414L9.707 6.707a1 1 0 0 1-1.414-1.414l3-3zM4 11a2 2 0 0 1 2-2h2a1 1 0 0 1 0 2H6v9h12v-9h-2a1 1 0 1 1 0-2h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9z\"></path></svg></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -78,7 +78,7 @@ func Header(title string, backPath ...string) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"grid grid-cols-[1fr_5fr_1fr] items-center w-full\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"grid grid-cols-[1fr_6fr_1fr] items-center w-full\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -129,7 +129,7 @@ func SwapTxIcon() templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center w-16 h-16 bg-offwhite/10 rounded-full mr-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"w-12 h-12 mx-auto text-offwhite\" viewBox=\"0 0 21 21\"><g fill=\"none\" fill-rule=\"evenodd\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M13 8h5V3\"></path> <path d=\"M18 8c-2.837-3.333-5.67-5-8.5-5S4.17 4 2 6m4.5 5.5h-5v5\"></path> <path d=\"M1.5 11.5c2.837 3.333 5.67 5 8.5 5s5.33-1 7.5-3\"></path></g></svg></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center w-16 h-16 bg-white/10 rounded-full mr-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"w-12 h-12 mx-auto text-white\" viewBox=\"0 0 21 21\"><g fill=\"none\" fill-rule=\"evenodd\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M13 8h5V3\"></path> <path d=\"M18 8c-2.837-3.333-5.67-5-8.5-5S4.17 4 2 6m4.5 5.5h-5v5\"></path> <path d=\"M1.5 11.5c2.837 3.333 5.67 5 8.5 5s5.33-1 7.5-3\"></path></g></svg></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -207,14 +207,14 @@ func TxLine(left, right string) templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex justify-between mb-2\"><p class=\"text-offwhite/50 uppercase\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex justify-between mb-2\"><p class=\"text-white/50 uppercase\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(left)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/tx.templ`, Line: 88, Col: 47}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/tx.templ`, Line: 88, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -301,7 +301,7 @@ func TxBodyContent(txid, kind, status, date, hour, sats string) templ.Component 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> <span class=\"text-offwhite/50\">SATS</span></p></div><div class=\"bg-offwhite/10 p-4 mt-10 rounded-lg\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> <span class=\"text-white/50\">SATS</span></p></div><div class=\"bg-white/10 p-4 mt-10 rounded-lg\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -309,7 +309,7 @@ func TxBodyContent(txid, kind, status, date, hour, sats string) templ.Component 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex justify-between mb-2\"><p class=\"text-offwhite/50\">STATUS</p>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex justify-between mb-2\"><p class=\"text-white/50\">STATUS</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -351,7 +351,7 @@ func TxBodyContent(txid, kind, status, date, hour, sats string) templ.Component 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex justify-between mb-2\"><div class=\"flex items-center gap-2 text-offwhite/50\"><p>ARK FEE</p><p hx-get=\"/modal/info\" hx-target=\"#modal\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex justify-between mb-2\"><div class=\"flex items-center gap-2 text-white/50\"><p>ARK FEE</p><p hx-get=\"/modal/info\" hx-target=\"#modal\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -359,7 +359,7 @@ func TxBodyContent(txid, kind, status, date, hour, sats string) templ.Component 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div><p>0.5%</p></div><hr class=\"text-offwhite/50 mb-2\"><div class=\"flex justify-between mb-2\"><p class=\"text-offwhite/50\">TOTAL</p><p><span class=\"sats\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div><p>0.5%</p></div><hr class=\"text-white/50 mb-2\"><div class=\"flex justify-between mb-2\"><p class=\"text-white/50\">TOTAL</p><p><span class=\"sats\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

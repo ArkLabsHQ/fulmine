@@ -4,19 +4,31 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-)
 
-func getBalance() string {
-	return "1930547"
-}
+	"github.com/ArkLabsHQ/ark-wallet/types"
+)
 
 func getAddress() string {
 	return "ark18746676365652bcdabdbacdabcd63546354634"
 }
 
+func getBalance() string {
+	return "1930547"
+}
+
 func getNewMnemonic() []string {
 	mnemonic := "ski this panic exit erode peasant nose swim spell sleep unique bag"
 	return strings.Fields(mnemonic)
+}
+
+func getSettings() types.Settings {
+	return types.Settings{
+		ApiRoot:     "https://fulmine.io/api/D9D90N192031",
+		Currency:    "usd",
+		FullNode:    "http://arklabs.to/node/213908123",
+		EventServer: "http://arklabs.to/node/jupiter29",
+		Unit:        "sat",
+	}
 }
 
 func getTransactions() [][]string {

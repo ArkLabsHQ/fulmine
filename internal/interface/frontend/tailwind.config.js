@@ -15,7 +15,7 @@ module.exports = {
         redbg: '#ff3838',
         greenbg: '#89e55f',
         yellowbg: '#d09c17',
-        offwhite: '#fbfbfb',
+        white: '#fbfbfb',
         graybg: '#2a2a2a',
       },
     },

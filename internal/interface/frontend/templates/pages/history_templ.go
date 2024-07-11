@@ -127,7 +127,7 @@ func SwapIcon() templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center w-8 h-8 bg-offwhite/10 rounded-full mr-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"w-4 h-4 mx-auto text-offwhite\" viewBox=\"0 0 21 21\"><g fill=\"none\" fill-rule=\"evenodd\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M13 8h5V3\"></path> <path d=\"M18 8c-2.837-3.333-5.67-5-8.5-5S4.17 4 2 6m4.5 5.5h-5v5\"></path> <path d=\"M1.5 11.5c2.837 3.333 5.67 5 8.5 5s5.33-1 7.5-3\"></path></g></svg></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center w-8 h-8 bg-white/10 rounded-full mr-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"w-4 h-4 mx-auto text-white\" viewBox=\"0 0 21 21\"><g fill=\"none\" fill-rule=\"evenodd\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M13 8h5V3\"></path> <path d=\"M18 8c-2.837-3.333-5.67-5-8.5-5S4.17 4 2 6m4.5 5.5h-5v5\"></path> <path d=\"M1.5 11.5c2.837 3.333 5.67 5 8.5 5s5.33-1 7.5-3\"></path></g></svg></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -192,7 +192,7 @@ func HistoryLine(txid, kind, status, date, hour, sats string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" onclick=\"showTx(this)\"><div class=\"flex justify-between cursor-pointer p-3 rounded hover:bg-offwhite/10\"><div class=\"flex\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" onclick=\"showTx(this)\"><div class=\"flex justify-between cursor-pointer p-3 rounded hover:bg-white/10\"><div class=\"flex\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -213,14 +213,14 @@ func HistoryLine(txid, kind, status, date, hour, sats string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<br><span class=\"text-offwhite/50\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<br><span class=\"text-white/50\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(hour)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/history.templ`, Line: 81, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/history.templ`, Line: 81, Col: 72}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -281,14 +281,14 @@ func HistoryLine(txid, kind, status, date, hour, sats string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> BTC</span><br><span class=\"text-offwhite/50 usd\" sats=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> BTC</span><br><span class=\"text-white/50 usd\" sats=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/history.templ`, Line: 103, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/history.templ`, Line: 103, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {

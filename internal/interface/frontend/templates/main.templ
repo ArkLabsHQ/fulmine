@@ -41,8 +41,9 @@ templ Layout(bodyContent templ.Component) {
 		</head>
 		<body onload={ PagesScript() }>
 			<div id="app">
-				@bodyContent
+        <div id="toast"></div>
 	      <div id="modal"></div>
+				@bodyContent
 			</div>
 			<script src="/static/decimal.js"></script>
 			<script src="/static/scripts.js"></script>
@@ -94,6 +95,10 @@ templ Layout(bodyContent templ.Component) {
             })
           })
         })
+      })
+
+      document.body.addEventListener("toast", (e) => {
+        setTimeout(() => document.querySelector("#toast").innerHTML = "", 2000)
       })
 		</script>
 	</html>
