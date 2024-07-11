@@ -12,18 +12,20 @@ import (
 	"github.com/ArkLabsHQ/ark-wallet/templates/components"
 )
 
-func HistoryIcon(kind string) templ.Component {
-	switch kind {
-	case "pending":
+func HistoryIcon(kind, status string) templ.Component {
+	if status == "pending" {
 		return PendingIcon()
-	case "received":
+	}
+	if status == "waiting" {
+		return WaitingIcon()
+	}
+	switch kind {
+	case "recv":
 		return ReceivedIcon()
-	case "sent":
+	case "send":
 		return SentIcon()
 	case "swap":
 		return SwapIcon()
-	case "waiting":
-		return WaitingIcon()
 	default:
 		return SwapIcon()
 	}
@@ -159,7 +161,7 @@ func WaitingIcon() templ.Component {
 	})
 }
 
-func HistoryLine(txid, kind, date, hour, sats string) templ.Component {
+func HistoryLine(txid, kind, status, date, hour, sats string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -184,7 +186,7 @@ func HistoryLine(txid, kind, date, hour, sats string) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(txid)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/history.templ`, Line: 75, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/history.templ`, Line: 77, Col: 16}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -194,7 +196,7 @@ func HistoryLine(txid, kind, date, hour, sats string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = HistoryIcon(kind).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = HistoryIcon(kind, status).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -205,7 +207,7 @@ func HistoryLine(txid, kind, date, hour, sats string) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(date)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/history.templ`, Line: 79, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/history.templ`, Line: 81, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -218,7 +220,7 @@ func HistoryLine(txid, kind, date, hour, sats string) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(hour)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/history.templ`, Line: 79, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/history.templ`, Line: 81, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -228,8 +230,14 @@ func HistoryLine(txid, kind, date, hour, sats string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if kind == "pending" {
+		if status == "pending" {
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center\"><p class=\"bg-orange/20 px-2 py-1 rounded-md text-sm text-orange\">Pending</p></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		if status == "failure" {
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center\"><p class=\"bg-red/20 px-2 py-1 rounded-md text-sm text-red\">Failed</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -239,10 +247,10 @@ func HistoryLine(txid, kind, date, hour, sats string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 = []any{
-			templ.KV("text-red", kind == "sent"),
-			templ.KV("text-yellow", kind == "pending"),
-			templ.KV("text-green", kind == "received"),
-			templ.KV("text-yellow", kind == "waiting")}
+			templ.KV("text-red", (status == "success" || status == "failure") && kind == "send"),
+			templ.KV("text-green", (status == "success" || status == "failure") && kind == "recv"),
+			templ.KV("text-yellow", status == "pending" || status == "waiting"),
+		}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var10...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -267,7 +275,7 @@ func HistoryLine(txid, kind, date, hour, sats string) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/history.templ`, Line: 94, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/history.templ`, Line: 100, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -280,7 +288,7 @@ func HistoryLine(txid, kind, date, hour, sats string) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/history.templ`, Line: 97, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/pages/history.templ`, Line: 103, Col: 52}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -318,7 +326,7 @@ func HistoryBodyContent(currentBalance, arkAddress string, transactions [][]stri
 			return templ_7745c5c3_Err
 		}
 		for _, tx := range transactions {
-			templ_7745c5c3_Err = HistoryLine(tx[0], tx[1], tx[2], tx[3], tx[4]).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = HistoryLine(tx[0], tx[1], tx[2], tx[3], tx[4], tx[5]).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

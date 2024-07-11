@@ -4,21 +4,33 @@ import (
 	"github.com/ArkLabsHQ/ark-wallet/templates/components"
 )
 
-func TxIcon(kind string) templ.Component {
-	switch kind {
+func TxIcon(kind, status string) templ.Component {
+	switch status {
+    case "failure":
+        return FailureTxIcon()
     case "pending":
-      return PendingTxIcon()
-    case "received":
-      return ReceivedTxIcon()
-    case "sent":
-      return SentTxIcon()
-    case "swap":
-      return SwapTxIcon()
+        return PendingTxIcon()
     case "waiting":
-      return WaitingTxIcon()
+        return WaitingTxIcon()
+  }
+	switch kind {
+    case "recv":
+        return RecvTxIcon()
+    case "send":
+        return SentTxIcon()
+    case "swap":
+        return SwapTxIcon()
     default:
-      return SwapTxIcon()
-    }
+        return SwapTxIcon()
+  }
+}
+
+templ FailureTxIcon() {
+	<div class="flex items-center w-16 h-16 bg-red/10 rounded-full mr-2">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-red" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M18.36 19.78L12 13.41l-6.36 6.37l-1.42-1.42L10.59 12L4.22 5.64l1.42-1.42L12 10.59l6.36-6.36l1.41 1.41L13.41 12l6.36 6.36z"/>
+    </svg>
+  </div>
 }
 
 templ PendingTxIcon() {
@@ -52,7 +64,7 @@ templ SwapTxIcon() {
 	</div>
 }
 
-templ ReceivedTxIcon() {
+templ RecvTxIcon() {
 	<div class="flex items-center w-16 h-16 bg-greenbg/10 rounded-full mr-2">
 	  <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-green" viewBox="0 0 24 24">
       <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2">
@@ -78,22 +90,32 @@ templ TxLine(left, right string) {
   </div>
 }
 
-templ TxBodyContent(tx []string) {
+templ TxBodyContent(txid, kind, status, date, hour, sats string) {
 	<div class="p-3">
 	  @components.Header("Transaction details")
     <div class="flex flex-col items-center mt-16">
-      @TxIcon(tx[1])
-      <p class="mt-4 capitalize">{tx[1]}</p>
+      @TxIcon(kind, status)
+      <p class="mt-4 capitalize">{kind}</p>
       <p class="mt-4 text-3xl">
-        <span class="sats">{tx[4]}</span>
+        <span class="sats">{sats}</span>
         <span class="text-offwhite/50">SATS</span>
       </p>
     </div>
     <div class="bg-offwhite/10 p-4 mt-10 rounded-lg">
-      @TxLine("date", tx[2] + " " + tx[3])
+      @TxLine("date", date + " " + hour)
       <div class="flex justify-between mb-2">
         <p class="text-offwhite/50">STATUS</p>
-        <p class="text-green">Succeeded</p>
+        if status == "success" {
+          <p class="text-green">Succeeded</p>
+        } else if status == "failure" {
+          <p class="text-red">Failed</p>
+        } else if status == "pending" {
+          <p class="text-yellow">Pending for claim</p>
+        } else if status == "waiting" {
+          <p class="text-yellow">Waiting</p>
+        } else {
+          <p>Unknown</p>
+        }
       </div>
       @TxLine("network", "Ark")
       @TxLine("network fee", "500")
@@ -107,7 +129,7 @@ templ TxBodyContent(tx []string) {
       <hr class="text-offwhite/50 mb-2" />
       <div class="flex justify-between mb-2">
         <p class="text-offwhite/50">TOTAL</p>
-        <p><span class="sats">{tx[4]}</span> SATS</p>
+        <p><span class="sats">{sats}</span> SATS</p>
       </div>
     </div>
 	</div>

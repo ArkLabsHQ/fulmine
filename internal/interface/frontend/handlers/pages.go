@@ -98,14 +98,14 @@ func Swap(c *gin.Context) {
 
 func Tx(c *gin.Context) {
 	txid := c.Param("txid")
-	var transaction []string
-	for _, tx := range getTransactions() {
-		if tx[0] == txid {
-			transaction = tx
+	var tx []string
+	for _, transaction := range getTransactions() {
+		if transaction[0] == txid {
+			tx = transaction
 			break
 		}
 	}
-	bodyContent := pages.TxBodyContent(transaction)
+	bodyContent := pages.TxBodyContent(tx[0], tx[1], tx[2], tx[3], tx[4], tx[5])
 	pageViewHandler(bodyContent, c)
 }
 

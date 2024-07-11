@@ -4,21 +4,23 @@ import (
 	"github.com/ArkLabsHQ/ark-wallet/templates/components"
 )
 
-func HistoryIcon(kind string) templ.Component {
-	 switch kind {
-    case "pending":
-        return PendingIcon()
-    case "received":
+func HistoryIcon(kind, status string) templ.Component {
+	if status == "pending" {
+		return PendingIcon()
+	}
+	if status == "waiting" {
+		return WaitingIcon()
+	}
+	switch kind {
+    case "recv":
         return ReceivedIcon()
-    case "sent":
+    case "send":
         return SentIcon()
     case "swap":
         return SwapIcon()
-    case "waiting":
-        return WaitingIcon()
     default:
         return SwapIcon()
-    }
+  }
 }
 
 templ PendingIcon() {
@@ -71,25 +73,29 @@ templ WaitingIcon() {
 	</div>
 }
 
-templ HistoryLine(txid, kind, date, hour, sats string) {
+templ HistoryLine(txid, kind, status, date, hour, sats string) {
 	<div txid={txid} onclick="showTx(this)">
 	  <div class="flex justify-between cursor-pointer p-3 rounded hover:bg-offwhite/10" >
 	  	<div class="flex">
-	  	  @HistoryIcon(kind)
+	  	  @HistoryIcon(kind, status)
 	  	  <p class="leading-4">{date}<br /><span class="text-offwhite/50">{hour}</span></p>
 	  	</div>
-			if kind == "pending" {
+			if status == "pending" {
 				<div class="flex items-center">
 				  <p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
+				</div>
+			}
+			if status == "failure" {
+				<div class="flex items-center">
+				  <p class="bg-red/20 px-2 py-1 rounded-md text-sm text-red">Failed</p>
 				</div>
 			}
 	  	<div>
 	  	  <p class="leading-4 text-end">
 	  		  <span class={
-						templ.KV("text-red", kind == "sent"),
-						templ.KV("text-yellow", kind == "pending"),
-						templ.KV("text-green", kind == "received"),
-						templ.KV("text-yellow", kind == "waiting")
+						templ.KV("text-red", (status == "success" || status == "failure") && kind == "send"),
+						templ.KV("text-green", (status == "success" || status == "failure") && kind == "recv"),
+						templ.KV("text-yellow", status == "pending" || status == "waiting"),
 					}>
 	  			  <span class="btcm">{sats}</span> BTC
 	  			</span>
@@ -105,7 +111,7 @@ templ HistoryLine(txid, kind, date, hour, sats string) {
 templ HistoryBodyContent(currentBalance, arkAddress string, transactions [][]string) {
 	@components.Hero(arkAddress, currentBalance)
 	for _, tx := range transactions {
-		@HistoryLine(tx[0], tx[1], tx[2], tx[3], tx[4])
+		@HistoryLine(tx[0], tx[1], tx[2], tx[3], tx[4], tx[5])
 	}
 	<script>
 	  const showTx = (el) => {

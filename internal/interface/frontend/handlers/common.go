@@ -21,13 +21,13 @@ func getNewMnemonic() []string {
 
 func getTransactions() [][]string {
 	var transactions [][]string
-	transactions = append(transactions, []string{"cd21", "pending", "10/08/2024", "21:42", "+56632"})
-	transactions = append(transactions, []string{"abcd", "waiting", "08/08/2024", "21:42", "+212110"})
-	transactions = append(transactions, []string{"1234", "sent", "08/08/2024", "21:42", "-645543"})
-	transactions = append(transactions, []string{"ab12", "sent", "07/08/2024", "21:42", "-645543"})
-	transactions = append(transactions, []string{"cd21", "received", "06/08/2024", "21:42", "+56632"})
-	transactions = append(transactions, []string{"ffee", "received", "05/08/2024", "21:42", "+655255"})
-	transactions = append(transactions, []string{"445d", "swap", "04/08/2024", "21:42", "+42334"})
+	transactions = append(transactions, []string{"cd21", "send", "pending", "10/08/2024", "21:42", "+56632"})
+	transactions = append(transactions, []string{"abcd", "send", "waiting", "09/08/2024", "21:42", "+212110"})
+	transactions = append(transactions, []string{"1234", "send", "success", "08/08/2024", "21:42", "-645543"})
+	transactions = append(transactions, []string{"ab12", "send", "success", "07/08/2024", "21:42", "-645543"})
+	transactions = append(transactions, []string{"f3f3", "recv", "success", "06/08/2024", "21:42", "+56632"})
+	transactions = append(transactions, []string{"ffee", "recv", "failure", "05/08/2024", "21:42", "+655255"})
+	transactions = append(transactions, []string{"445d", "swap", "success", "04/08/2024", "21:42", "+42334"})
 	return transactions
 }
 
