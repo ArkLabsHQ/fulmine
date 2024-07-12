@@ -29,17 +29,17 @@ templ Status(ok bool) {
   </div>
 }
 
-templ Tab(text, path string, active bool) {
+templ SettingsTab(text, path string, active bool) {
   <a href={templ.URL(path)}>
     <p class={"px-3", "py-2.5", "rounded-lg", templ.KV("bg-white", active), templ.KV("text-black", active)}>{text}</p>
   </a>
 }
 
-templ Tabs(active string) {
+templ SettingsTabs(active string) {
   <div class="flex gap-2 mt-10 mb-8 text-sm text-white/80 font-semibold">
-    @Tab("General", "/settings/general", active == "general")
-    @Tab("ASP", "/settings/asp", active == "asp")
-    @Tab("Lightning", "/settings/lightning", active == "lightning")
+    @SettingsTab("General", "/settings/general", active == "general")
+    @SettingsTab("ASP", "/settings/asp", active == "asp")
+    @SettingsTab("Lightning", "/settings/lightning", active == "lightning")
   </div>
 }
 
@@ -47,7 +47,7 @@ templ SettingsBodyContent(active string, settings types.Settings, nodeStatus boo
   <div class="p-3 flex flex-col justify-between h-screen">
 	  <div>
 	    @components.Header("Settings")
-      @Tabs(active)
+      @SettingsTabs(active)
       if active == "general" {
         @SettingsGeneralContent(settings, nodeStatus)
       }

@@ -74,7 +74,7 @@ func runServer() error {
 	router.GET("/password", handlers.Password)
 	router.GET("/send", handlers.Send)
 	router.GET("/settings/:active", handlers.Settings)
-	router.GET("/swap", handlers.Swap)
+	router.GET("/swap/:active", handlers.Swap)
 	router.GET("/receive", handlers.Receive)
 	router.GET("/tx/:txid", handlers.Tx)
 	router.GET("/welcome", handlers.Welcome)
@@ -82,9 +82,11 @@ func runServer() error {
 	router.GET("/modal/info", handlers.InfoModal)
 
 	router.POST("/password", handlers.SetPassword)
+	router.POST("/receive/preview", handlers.ReceivePreview)
 	router.POST("/send/preview", handlers.SendPreview)
 	router.POST("/send/confirm", handlers.SendConfirm)
-	router.POST("/receive/preview", handlers.ReceivePreview)
+	router.POST("/swap/preview", handlers.SwapPreview)
+	router.POST("/swap/confirm", handlers.SwapConfirm)
 	router.POST("/unlock", handlers.Unlock)
 
 	router.POST("/api/settings", handlers.SettingsApiPost)

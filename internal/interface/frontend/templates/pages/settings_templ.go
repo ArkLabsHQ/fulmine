@@ -132,7 +132,7 @@ func Status(ok bool) templ.Component {
 	})
 }
 
-func Tab(text, path string, active bool) templ.Component {
+func SettingsTab(text, path string, active bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -202,7 +202,7 @@ func Tab(text, path string, active bool) templ.Component {
 	})
 }
 
-func Tabs(active string) templ.Component {
+func SettingsTabs(active string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -224,15 +224,15 @@ func Tabs(active string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Tab("General", "/settings/general", active == "general").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = SettingsTab("General", "/settings/general", active == "general").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Tab("ASP", "/settings/asp", active == "asp").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = SettingsTab("ASP", "/settings/asp", active == "asp").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Tab("Lightning", "/settings/lightning", active == "lightning").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = SettingsTab("Lightning", "/settings/lightning", active == "lightning").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -270,7 +270,7 @@ func SettingsBodyContent(active string, settings types.Settings, nodeStatus bool
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Tabs(active).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = SettingsTabs(active).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

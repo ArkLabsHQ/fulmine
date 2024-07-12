@@ -16,6 +16,10 @@ func getBalance() string {
 	return "1930547"
 }
 
+func getNodeBalance() string {
+	return "50640"
+}
+
 func getNewMnemonic() []string {
 	mnemonic := "ski this panic exit erode peasant nose swim spell sleep unique bag"
 	return strings.Fields(mnemonic)

@@ -71,6 +71,13 @@ func Send(c *gin.Context) {
 	pageViewHandler(bodyContent, c)
 }
 
+func SendConfirm(c *gin.Context) {
+	address := c.PostForm("address")
+	amount := c.PostForm("amount")
+	bodyContent := pages.SendSuccessContent(address, amount)
+	partialViewHandler(bodyContent, c)
+}
+
 func SendPreview(c *gin.Context) {
 	address := c.PostForm("address")
 	sats := c.PostForm("sats")
@@ -78,10 +85,17 @@ func SendPreview(c *gin.Context) {
 	partialViewHandler(bodyContent, c)
 }
 
-func SendConfirm(c *gin.Context) {
-	address := c.PostForm("address")
-	amount := c.PostForm("amount")
-	bodyContent := pages.SendSuccessContent(address, amount)
+func SwapConfirm(c *gin.Context) {
+	kind := c.PostForm("kind")
+	sats := c.PostForm("sats")
+	bodyContent := pages.SwapSuccessContent(kind, sats)
+	partialViewHandler(bodyContent, c)
+}
+
+func SwapPreview(c *gin.Context) {
+	kind := c.PostForm("kind")
+	sats := c.PostForm("sats")
+	bodyContent := pages.SwapPreviewContent(kind, sats)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -100,7 +114,8 @@ func Settings(c *gin.Context) {
 }
 
 func Swap(c *gin.Context) {
-	bodyContent := pages.SwapBodyContent(getBalance())
+	active := c.Param("active")
+	bodyContent := pages.SwapBodyContent(active, getBalance(), getNodeBalance())
 	pageViewHandler(bodyContent, c)
 }
 
