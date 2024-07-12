@@ -22,7 +22,7 @@ templ ImportWalletContent() {
 	<div class="p-3 flex flex-col justify-between h-screen">
 	  <div>
 	    @components.Header("Import wallet", "/welcome")
-			<p class="mt-16 mb-10">Insert your 12-word secret seed phrase.</p>
+			<p class="mb-10">Insert your 12-word secret seed phrase.</p>
 		  <div class="grid grid-cols-2 gap-6">
 			  for i := 0; i < 12; i++ {
           @Word(i+1)
@@ -50,7 +50,7 @@ templ NewWalletContent(mnemonic []string) {
 	<div class="p-3 flex flex-col justify-between h-screen">
 	  <div>
 	    @components.Header("New wallet", "/welcome")
-			<p class="mt-16 mb-10">Write down the following words in a secure place.</p>
+			<p class="mb-10">Write down the following words in a secure place.</p>
 		  <div class="grid grid-cols-2 gap-6">
 			  for i, w := range mnemonic {
           @Word(i+1, w)

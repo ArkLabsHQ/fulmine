@@ -37,12 +37,13 @@ templ SuccessIcon() {
 }
 
 templ SendBodyContent(currentBalance string) {
+	@components.DesktopHeader()
 	<div id="sendBody">
-	  <form hx-post="/send/preview" hx-target="#sendBody" hx-target="outerHTML">
-	    <div class="p-3 flex flex-col justify-between h-screen">
+	  <form hx-post="/send/preview" hx-target="#sendBody" hx-swap="outerHTML">
+	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
 	      <div>
 	        @components.Header("Send")
-	        <p class="font-semibold mb-2 mt-16">Recipient's address</p>
+	        <p class="font-semibold mb-2">Recipient's address</p>
 	    	  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
 	    	    <input class="bg-graybg border-0" id="sendAddress" name="address" placeholder="ark1ccc..." />
 	    	  	<p class="cursor-pointer text-white/50" onclick="pasteAddressFromClipboard()">@PasteIconXL()</p>
@@ -59,14 +60,14 @@ templ SendBodyContent(currentBalance string) {
 	    	  	<div class="flex items-center gap-4">
 	    			  <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
 	    	  	  <p class="py-1 w-10" id="unit">SATS</p>
-	    	  	  <p class="cursor-pointer" onclick="toggleUnit()">@ArrowDownIcon()</p>
+	    	  	  <p class="cursor-pointer" onclick="toggleUnit()">@ChevronDownIcon()</p>
 	    			</div>
 	    	  </div>
 	    	  <p class="text-right text-sm" id="available">Available <span class="sats">{currentBalance}</span> SATS</p>
 	    	</div>
-	    	<div>
-	    	  <button class="bg-orange mb-2" type="submit">Preview send</button>
-	    	  <button class="bg-graybg w-full" onclick="redirect('/')">Cancel</button>
+	    	<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
+	    	  <button class="bg-orange md:w-auto mb-2" type="submit">Preview send</button>
+	    	  <button class="bg-graybg md:w-auto" onclick="redirect('/')">Cancel</button>
 	    	</div>
 	    </div>
 	  </form>
@@ -125,10 +126,10 @@ templ SendPreviewContent(address, amount string) {
 	  <form hx-post="/send/confirm" hx-target="#sendBody" hx-target="outerHTML">
 		  <input type="hidden" name="address" value={address}>
 		  <input type="hidden" name="amount" value={amount}>
-	    <div class="p-3 flex flex-col justify-between h-screen">
+	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
 	      <div class="flex flex-col items-center">
 	        @components.Header("Confirm Send")
-	        <p class="mt-16">@SendPreviewIcon()</p>
+	        @SendPreviewIcon()
 					<p class="mt-8">Send</p>
 					<p class="mt-8 text-3xl">
 					  <span class="sats">{amount}</span>
@@ -156,9 +157,9 @@ templ SendPreviewContent(address, amount string) {
             </div>
           </div>
 	    	</div>
-	    	<div>
-	    	  <button class="bg-orange mb-2" type="submit">Confirm</button>
-	    	  <button class="bg-graybg w-full" onclick="redirect('/')">Cancel</button>
+	    	<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
+	    	  <button class="bg-orange md:w-auto mb-2" type="submit">Confirm</button>
+	    	  <button class="bg-graybg md:w-auto" onclick="redirect('/')">Cancel</button>
 	    	</div>
 	    </div>
 	  </form>
@@ -166,9 +167,9 @@ templ SendPreviewContent(address, amount string) {
 }
 
 templ SendSuccessContent(address, amount string) {
-	<div class="p-3 flex flex-col justify-between h-screen">
+	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
 	  @components.Header("Sent")
-	  <div class="flex flex-col items-center mt-16">
+	  <div class="flex flex-col items-center">
 	    @SuccessIcon()
 			<p class="mt-8">Sent successfully</p>
 			<p class="mt-8 text-3xl">
@@ -181,8 +182,8 @@ templ SendSuccessContent(address, amount string) {
 				<p class="text-white/50">@CopyIcon()</p>
 			</div>
 		</div>
-		<div>
-		  <button class="bg-graybg w-full" onclick="redirect('https://mempool.space')">View transaction</button>
+		<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
+	    <button class="bg-graybg md:w-auto" onclick="redirect('https://mempool.space')">View transaction</button>
 		</div>
 	</div>
 }

@@ -150,7 +150,7 @@ func SetPasswordContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"mt-16 mb-10\">Create a password that will be used to unlock your wallet.</p><p class=\"mb-2\">Password</p><div class=\"flex justify-between items-center gap-4 bg-graybg border-1 border-white/10 p-2 rounded w-full\"><div class=\"grow\"><input autocomplete=\"new-password\" class=\"bg-graybg border-0 w-full\" name=\"password\" oninput=\"checkPass()\" type=\"password\"></div><p class=\"eyes\" onclick=\"toggleVisibility()\"><span>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"mb-10\">Create a password that will be used to unlock your wallet.</p><p class=\"mb-2\">Password</p><div class=\"flex justify-between items-center gap-4 bg-graybg border-1 border-white/10 p-2 rounded w-full\"><div class=\"grow\"><input autocomplete=\"new-password\" class=\"bg-graybg border-0 w-full\" name=\"password\" oninput=\"checkPass()\" type=\"password\"></div><p class=\"eyes\" onclick=\"toggleVisibility()\"><span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

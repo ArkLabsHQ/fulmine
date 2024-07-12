@@ -85,12 +85,13 @@ templ SwapTabs(active string) {
 }
 
 templ SwapBodyContent(active, currentBalance, nodeBalance string) {
+  @components.DesktopHeader()
 	<div id="swapBody">
     <form hx-post="/swap/preview" hx-target="#swapBody" hx-target="outerHTML">
-      <div class="p-3 flex flex-col justify-between h-screen">
+	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
 	      <div>
 	        @components.Header("Swap")
-	        <div class="flex justify-between items-center mt-10">
+	        <div class="flex justify-between items-center">
 	          <div class="flex items-center gap-4">
 	            <p>@ArkBalanceIcon()</p>
 	        		<div>
@@ -119,10 +120,10 @@ templ SwapBodyContent(active, currentBalance, nodeBalance string) {
 					}
 					@SwapFeesComponent("")
 	    	</div>
-	      <div>
-	        <button class="bg-orange mb-2" type="submit">Preview swap</button>
-	        <button class="bg-graybg w-full" onclick="redirect('/')">Cancel</button>
-	      </div>
+	    	<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
+	    	  <button class="bg-orange md:w-auto mb-2" type="submit">Preview swap</button>
+	    	  <button class="bg-graybg md:w-auto" onclick="redirect('/')">Cancel</button>
+	    	</div>
 	    </div>
 	  </form>
 	</div>
@@ -133,17 +134,17 @@ templ SwapPreviewContent(kind, sats string) {
 	  <form hx-post="/swap/confirm" hx-target="#swapBody" hx-target="outerHTML">
 		  <input type="hidden" name="sats" value={sats}>
 		  <input type="hidden" name="kind" value={kind}>
-	    <div class="p-3 flex flex-col justify-between h-screen">
+	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
 	      <div class="flex flex-col items-center">
 	        @components.Header("Confirm Swap")
-	        <p class="mt-16">@SwapPreviewIcon()</p>
+	        @SwapPreviewIcon()
 					<p class="mt-8">Swap</p>
 					@SwapMovementComponent(kind, sats)
 					@SwapFeesComponent(sats)
 	    	</div>
-	    	<div>
-	    	  <button class="bg-orange mb-2" type="submit">Confirm</button>
-	    	  <button class="bg-graybg w-full" onclick="redirect('/')">Cancel</button>
+	    	<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
+	    	  <button class="bg-orange md:w-auto mb-2" type="submit">Confirm</button>
+	    	  <button class="bg-graybg md:w-auto" onclick="redirect('/')">Cancel</button>
 	    	</div>
 	    </div>
 	  </form>
@@ -151,15 +152,15 @@ templ SwapPreviewContent(kind, sats string) {
 }
 
 templ SwapSuccessContent(kind, sats string) {
-	<div class="p-3 flex flex-col justify-between h-screen">
+	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
 	  @components.Header("Swap")
-	  <div class="flex flex-col items-center mt-16">
+	  <div class="flex flex-col items-center">
 	    @SuccessIcon()
 			<p class="mt-8">Swap successfully</p>
 			@SwapMovementComponent(kind, sats)
 		</div>
-		<div>
-		  <button class="bg-graybg w-full" onclick="redirect('https://mempool.space')">View transaction</button>
+	  <div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
+	    <button class="bg-graybg md:w-auto" onclick="redirect('https://mempool.space')">View transaction</button>
 		</div>
 	</div>
 }
