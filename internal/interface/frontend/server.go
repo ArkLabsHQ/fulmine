@@ -88,6 +88,8 @@ func runServer() error {
 	router.POST("/unlock", handlers.Unlock)
 
 	router.POST("/api/settings", handlers.SettingsApiPost)
+	router.POST("/api/node/connect", handlers.NodeConnectApiPost)
+	router.POST("/api/node/disconnect", handlers.NodeDisconnectApiPost)
 
 	// Create a new server instance with options from environment variables.
 	// For more information, see https://blog.cloudflare.com/the-complete-guide-to-golang-net-http-timeouts/

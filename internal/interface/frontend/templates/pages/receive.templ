@@ -73,15 +73,8 @@ templ ReceivePreview(bip21 string) {
 			</div>
       <div class="rounded-lg bg-white/10 p-2 flex justify-between items-center gap-4 w-72">
 	      <p class="overflow-hidden text-ellipsis whitespace-nowrap" id="bip21">{bip21}</p>
-	  	  <p onclick="copyBip21()">@CopyIcon()</p>
+	  	  <p onclick="copyToClipboard('#bip21')">@CopyIcon()</p>
 	    </div>
 		</div>
 	</div>
-	<script>
-	  const copyBip21 = () => {
-			if (!navigator.clipboard) return
-			const addr = document.querySelector("#bip21").innerText
-      navigator.clipboard.writeText(addr)
-		}
-	</script>
 }

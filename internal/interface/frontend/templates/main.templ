@@ -69,6 +69,20 @@ templ Layout(bodyContent templ.Component) {
 				window.location.href = path
 			}
 
+      const copyToClipboard = (id) => {
+		  	if (!navigator.clipboard) return
+		  	const addr = document.querySelector(id).innerText
+        navigator.clipboard.writeText(addr)
+		  }
+
+      const pasteFromClipboard = (id) => {
+		  	if (navigator.clipboard) {
+          navigator.clipboard.readText().then((addr) => {
+		  			document.querySelector(id).value = addr
+		  	  })
+        }
+		  }
+
       document.addEventListener('htmx:load', () => {
         document.querySelectorAll('.sats').forEach((x) => {
           if (isNaN(x.textContent)) return

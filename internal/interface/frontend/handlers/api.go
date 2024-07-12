@@ -24,6 +24,18 @@ func toastHandler(t templ.Component, c *gin.Context) {
 
 func SettingsApiPost(c *gin.Context) {
 	// TODO: manage new settings posted
-	info := components.Toast("Saved")
-	toastHandler(info, c)
+	toast := components.Toast("Saved")
+	toastHandler(toast, c)
+}
+
+func NodeConnectApiPost(c *gin.Context) {
+	// TODO: manage node connection
+	toast := components.Toast("Connected")
+	toastHandler(toast, c)
+}
+
+func NodeDisconnectApiPost(c *gin.Context) {
+	// TODO: manage node connection
+	toast := components.Toast("Disconnected")
+	toastHandler(toast, c)
 }
