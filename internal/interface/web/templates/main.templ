@@ -1,0 +1,119 @@
+package templates
+
+// in order for tailwind to detect this classes, this javascript code
+// needs to be inside a .templ file, which means this script code
+// must be here, cannot be on /assets/script.js
+script PagesScript() {
+	// from 4321 to 0.00004321 with '0' in gray
+  const prettyBtc = (btc) => {
+    if (!/\d/.test(btc)) return data // not a number
+    const prefix = /^[\D]/.test(btc) ? btc[0] : ''
+    const number = /^[\D]/.test(btc) ? btc.slice(1) : btc
+	  const length = String(number).length
+    if (length > 8) return number
+    let padding = '0.'
+    for (let i = length; i < 8; i++) padding += '0'
+	  return `${prefix}<span class="text-gray-400">${padding}</span>${number}`
+  }
+}
+
+templ Layout(bodyContent templ.Component) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<title>Ark node</title>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+			<meta name="keywords" content="Ark"/>
+			<meta name="description" content="Ark node frontend"/>
+			<meta name="theme-color" content="#FEFEF5"/>
+			<link rel="dns-prefetch" href="//fonts.googleapis.com"/>
+			<link rel="dns-prefetch" href="//fonts.gstatic.com"/>
+			<link rel="preconnect" href="//fonts.googleapis.com" crossorigin/>
+			<link rel="preconnect" href="//fonts.gstatic.com" crossorigin/>
+			<link rel="manifest" href="/static/manifest.webmanifest"/>
+			<link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
+			<link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon"/>
+			<link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
+			<link rel="icon" href="/static/favicon.png" sizes="any"/>
+			<link href="/static/styles.css" rel="stylesheet"/>
+		</head>
+		<body onload={ PagesScript() }>
+			<div id="app">
+        <div id="toast"></div>
+	      <div id="modal"></div>
+				@bodyContent
+			</div>
+			<script src="/static/decimal.js"></script>
+			<script src="/static/scripts.js"></script>
+		</body>
+		<script>
+      const prettyNum = (num, maximumFractionDigits = 2) => {
+        if (!num) return '0'
+        return new Intl.NumberFormat('en', {
+          style: 'decimal',
+          maximumFractionDigits,
+        }).format(num)
+      }
+
+      const fromSatoshis = (sats) => {
+        return Decimal.div(sats, 100_000_000).toNumber()
+      }
+
+			const toSatoshis = (btc) => {
+        return Decimal.mul(btc, 100_000_000).toNumber()
+      }
+
+			const redirect = (path) => {
+				window.location.href = path
+			}
+
+      const copyToClipboard = (id) => {
+		  	if (!navigator.clipboard) return
+		  	const addr = document.querySelector(id).innerText
+        navigator.clipboard.writeText(addr)
+		  }
+
+      const pasteFromClipboard = (id) => {
+		  	if (navigator.clipboard) {
+          navigator.clipboard.readText().then((addr) => {
+		  			document.querySelector(id).value = addr
+		  	  })
+        }
+		  }
+
+      document.addEventListener('htmx:load', () => {
+        document.querySelectorAll('.sats').forEach((x) => {
+          if (isNaN(x.textContent)) return
+          x.innerHTML = prettyNum(x.textContent)
+        })
+
+        document.querySelectorAll('.btc').forEach((x) => {
+          if (isNaN(x.textContent)) return
+          x.innerHTML = fromSatoshis(x.textContent)
+        })
+
+        document.querySelectorAll('.btcm').forEach((x) => {
+          const sats = x.textContent
+          x.innerHTML = (sats.charAt(0) === '+' ? '+' : '') + fromSatoshis(sats)
+        })
+
+        fetch('https://btcoracle.bordalix.workers.dev/').then((res) => {
+          res.json().then((json) => {
+            document.querySelectorAll('.usd').forEach((x) => {
+              const sats = parseInt(x.getAttribute('sats'))
+              if (isNaN(sats)) return
+              const usd = (sats * json.pricefeed.usd) / 100_000_000
+              x.innerHTML = `$ ${prettyNum(usd)}`
+            })
+          })
+        })
+      })
+
+      document.body.addEventListener("toast", (e) => {
+        setTimeout(() => document.querySelector("#toast").innerHTML = "", 2000)
+      })
+		</script>
+	</html>
+}

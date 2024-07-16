@@ -1,0 +1,13 @@
+package modals
+
+templ Modal(content templ.Component) {
+  <div id="modalContainer" onclick="closeModal()" class="fixed inset-0 flex justify-center items-center bg-black/60">
+    <div onclick="event.stopPropagation()" class="bg-graybg rounded-xl shadow p-6 transition-all max-w-64 md:max-w-96 ">
+      @content
+      <button class="border-1 border-white/20 mt-4" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+  <script>
+    const closeModal = () => document.querySelector("#modalContainer").style.display = 'none'
+  </script>
+}

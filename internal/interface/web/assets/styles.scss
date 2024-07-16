@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* User styles */
+
+@font-face {
+  font-family: 'Switzer-Variable';
+  src:
+    url('/static/fonts/Switzer-Variable.woff2') format('woff2'),
+    url('/static/fonts/Switzer-Variable.woff') format('woff'),
+    url('/static/fonts/Switzer-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+}
+
+:root {
+  font-family: 'Switzer-Variable', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #cdcdcd;
+  background-color: #010101;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+input:focus {
+  border: 1px solid #bc3f20;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+#app {
+  color: white;
+  margin: 0 auto;
+  max-width: 640px;
+  padding: 4px;
+  width: 100%;
+}
+
+#htmx-result {
+  padding: 2rem 0;
+}
+
+#toast {
+  display: flex;
+  position: absolute;
+  top: 60px;
+  width: 100%;
+}
+
+.logo {
+  height: 12em;
+  padding: 2em;
+  display: inline;
+  will-change: filter;
+  transition: filter 300ms;
+  filter: drop-shadow(0 0 2em #f3c077aa);
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: block;
+  font-size: 1em;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 1rem;
+  text-align: center;
+  transition: border-color 0.25s;
+  width: 100%;
+}
+
+button:hover {
+  border-color: #bc3f20;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+button:disabled {
+  opacity: 0.5;
+}
+
+.grid-cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+label {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.bg-radial-gradient {
+  background: radial-gradient(
+    85.35% 95.12% at 50% 11.59%,
+    #f28c52 0%,
+    #9c3b1c 100%
+  );
+}

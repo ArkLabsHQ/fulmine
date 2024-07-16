@@ -1,0 +1,64 @@
+package pages
+
+import (
+	"strconv"
+	"github.com/ArkLabsHQ/ark-wallet/internal/interface/web/templates/components"
+)
+
+templ Word(i int, words ...string) {
+	<div class="bg-graybg rounded p-1 flex items-center gap-2 w-full">
+	  <div class="bg-white/10 rounded flex justify-center items-center h-8 w-10">
+	    <p>{strconv.Itoa(i)}</p>
+		</div>
+		if len(words) > 0 {
+	  	<p>{words[0]}</p>
+	  } else {
+	  	<input class="bg-graybg border-0 p-1 w-full" id={"word_" + strconv.Itoa(i)} oninput="fullPaste()" />
+	  }
+	</div>
+}
+
+templ ImportWalletContent() {
+	<div class="p-3 flex flex-col justify-between h-screen">
+	  <div>
+	    @components.Header("Import wallet", "/welcome")
+			<p class="mb-10">Insert your 12-word secret seed phrase.</p>
+		  <div class="grid grid-cols-2 gap-6">
+			  for i := 0; i < 12; i++ {
+          @Word(i+1)
+        }
+			</div>
+		</div>
+		<div>
+		  <button class="bg-orange text-white" onclick="redirect('/password')">Import wallet</button>
+		</div>
+	</div>
+	<script>
+	  const fullPaste = () => {
+			const text = document.querySelector("#word_1").value
+			if (text && text.split(/\s+/).length === 12) {
+				const words = text.split(/\s+/)
+				for (let i = 0; i < 12; i++) {
+					document.querySelector(`#word_${i+1}`).value = words[i]
+				}
+			}
+		}
+	</script>
+}
+
+templ NewWalletContent(mnemonic []string) {
+	<div class="p-3 flex flex-col justify-between h-screen">
+	  <div>
+	    @components.Header("New wallet", "/welcome")
+			<p class="mb-10">Write down the following words in a secure place.</p>
+		  <div class="grid grid-cols-2 gap-6">
+			  for i, w := range mnemonic {
+          @Word(i+1, w)
+        }
+			</div>
+		</div>
+		<div>
+		  <button class="bg-orange text-white" onclick="redirect('/password')">Create wallet</button>
+		</div>
+	</div>
+}

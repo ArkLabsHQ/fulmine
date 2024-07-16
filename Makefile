@@ -1,9 +1,15 @@
-.PHONY: build clean cov help intergrationtest lint run test vet proto proto-lint
+.PHONY: build build-templates clean cov help intergrationtest lint run test vet proto proto-lint
 
 ## build: build for all platforms
 build:
 	@echo "Building ark-wallet binary..."
 	@bash ./scripts/build
+
+## build-templates: build html templates for embedded frontend
+build-templates:
+	@echo "Building templates..."
+	@go run github.com/a-h/templ/cmd/templ@latest generate
+		
 
 ## clean: cleans the binary
 clean:
@@ -55,4 +61,3 @@ proto: proto-lint
 proto-lint:
 	@echo "Linting protos..."
 	@buf lint
-		
