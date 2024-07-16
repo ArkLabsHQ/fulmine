@@ -5,8 +5,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ArkLabsHQ/ark-wallet/internal/config"
-	grpcservice "github.com/ArkLabsHQ/ark-wallet/internal/interface/grpc"
+	"github.com/ArkLabsHQ/ark-node/internal/config"
+	grpcservice "github.com/ArkLabsHQ/ark-node/internal/interface/grpc"
 	log "github.com/sirupsen/logrus"
 )
 

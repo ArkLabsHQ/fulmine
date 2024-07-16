@@ -16,7 +16,7 @@ And some words [about the Gowebly CLI](#about-the-gowebly-cli).
 
 Backend:
 
-- Module name in the go.mod file: `github.com/ArkLabsHQ/ark-wallet`
+- Module name in the go.mod file: `github.com/ArkLabsHQ/ark-node`
 - Go web framework/router: `gin`
 - Server port: `7000`
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/ArkLabsHQ/ark-wallet/api-spec/protobuf/gen/go/ark_wallet/v1"
+	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 )
 
 type serviceHandler struct{}

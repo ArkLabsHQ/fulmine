@@ -2,7 +2,7 @@
 
 ## build: build for all platforms
 build:
-	@echo "Building ark-wallet binary..."
+	@echo "Building ark-node binary..."
 	@bash ./scripts/build
 
 ## build-templates: build html templates for embedded frontend
@@ -38,8 +38,8 @@ lint:
 
 ## run: run in dev mode
 run: clean
-	@echo "Running ark-wallet in dev mode..."
-	@go run ./cmd/ark-wallet
+	@echo "Running ark-node in dev mode..."
+	@go run ./cmd/ark-node
 
 ## test: runs unit and component tests
 test:

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package ark_wallet.v1;
+package ark_node.v1;
 
 message AccountInfo {
   string namespace = 1;

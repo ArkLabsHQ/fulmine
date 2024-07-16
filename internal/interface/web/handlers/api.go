@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/ArkLabsHQ/ark-wallet/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 

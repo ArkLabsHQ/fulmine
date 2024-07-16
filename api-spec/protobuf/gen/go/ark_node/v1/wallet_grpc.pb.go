@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             (unknown)
-// source: ark_wallet/v1/wallet.proto
+// source: ark_node/v1/wallet.proto
 
-package ark_walletv1
+package ark_nodev1
 
 import (
 	context "context"
@@ -19,15 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	WalletService_GenSeed_FullMethodName        = "/ark_wallet.v1.WalletService/GenSeed"
-	WalletService_CreateWallet_FullMethodName   = "/ark_wallet.v1.WalletService/CreateWallet"
-	WalletService_Unlock_FullMethodName         = "/ark_wallet.v1.WalletService/Unlock"
-	WalletService_Lock_FullMethodName           = "/ark_wallet.v1.WalletService/Lock"
-	WalletService_ChangePassword_FullMethodName = "/ark_wallet.v1.WalletService/ChangePassword"
-	WalletService_RestoreWallet_FullMethodName  = "/ark_wallet.v1.WalletService/RestoreWallet"
-	WalletService_Status_FullMethodName         = "/ark_wallet.v1.WalletService/Status"
-	WalletService_GetWalletInfo_FullMethodName  = "/ark_wallet.v1.WalletService/GetWalletInfo"
-	WalletService_Auth_FullMethodName           = "/ark_wallet.v1.WalletService/Auth"
+	WalletService_GenSeed_FullMethodName        = "/ark_node.v1.WalletService/GenSeed"
+	WalletService_CreateWallet_FullMethodName   = "/ark_node.v1.WalletService/CreateWallet"
+	WalletService_Unlock_FullMethodName         = "/ark_node.v1.WalletService/Unlock"
+	WalletService_Lock_FullMethodName           = "/ark_node.v1.WalletService/Lock"
+	WalletService_ChangePassword_FullMethodName = "/ark_node.v1.WalletService/ChangePassword"
+	WalletService_RestoreWallet_FullMethodName  = "/ark_node.v1.WalletService/RestoreWallet"
+	WalletService_Status_FullMethodName         = "/ark_node.v1.WalletService/Status"
+	WalletService_GetWalletInfo_FullMethodName  = "/ark_node.v1.WalletService/GetWalletInfo"
+	WalletService_Auth_FullMethodName           = "/ark_node.v1.WalletService/Auth"
 )
 
 // WalletServiceClient is the client API for WalletService service.
@@ -429,7 +429,7 @@ func _WalletService_Auth_Handler(srv interface{}, ctx context.Context, dec func(
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var WalletService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "ark_wallet.v1.WalletService",
+	ServiceName: "ark_node.v1.WalletService",
 	HandlerType: (*WalletServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -472,5 +472,5 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "ark_wallet/v1/wallet.proto",
+	Metadata: "ark_node/v1/wallet.proto",
 }

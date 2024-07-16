@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/ArkLabsHQ/ark-wallet/internal/interface/web/templates/modals"
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/modals"
 )
 
 func modalHandler(t templ.Component, c *gin.Context) {

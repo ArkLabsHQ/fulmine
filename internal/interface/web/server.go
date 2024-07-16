@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
 
-	"github.com/ArkLabsHQ/ark-wallet/internal/interface/web/handlers"
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/handlers"
 )
 
 //go:embed static/*

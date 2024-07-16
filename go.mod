@@ -1,4 +1,4 @@
-module github.com/ArkLabsHQ/ark-wallet
+module github.com/ArkLabsHQ/ark-node
 
 go 1.22.1
 

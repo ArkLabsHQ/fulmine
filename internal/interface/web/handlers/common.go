@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/ArkLabsHQ/ark-wallet/internal/interface/web/types"
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
 )
 
 func getAddress() string {

@@ -11,7 +11,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-X 'main.Version=${VERSION}' -X 'main.Commit=${COMMIT}' -X 'main.Date=${DATE}}'" -o bin/ark-wallet cmd/ark-wallet/main.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-X 'main.Version=${VERSION}' -X 'main.Commit=${COMMIT}' -X 'main.Date=${DATE}}'" -o bin/ark-node cmd/ark-node/main.go
 
 # Second image, running the arkd executable
 FROM alpine:3.12
@@ -26,5 +26,5 @@ ENV ARK_NODE_DATADIR=/app/data
 # Expose volume containing all 'arkd' data
 VOLUME /app/data
 
-ENTRYPOINT [ "ark-wallet" ]
+ENTRYPOINT [ "ark-node" ]
     

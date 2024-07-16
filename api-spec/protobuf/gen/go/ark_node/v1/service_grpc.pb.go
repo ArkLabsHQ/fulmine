@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             (unknown)
-// source: ark_wallet/v1/service.proto
+// source: ark_node/v1/service.proto
 
-package ark_walletv1
+package ark_nodev1
 
 import (
 	context "context"
@@ -19,15 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	Service_GetAddress_FullMethodName         = "/ark_wallet.v1.Service/GetAddress"
-	Service_GetBalance_FullMethodName         = "/ark_wallet.v1.Service/GetBalance"
-	Service_GetInfo_FullMethodName            = "/ark_wallet.v1.Service/GetInfo"
-	Service_GetOnboardAddress_FullMethodName  = "/ark_wallet.v1.Service/GetOnboardAddress"
-	Service_Send_FullMethodName               = "/ark_wallet.v1.Service/Send"
-	Service_SendOnchain_FullMethodName        = "/ark_wallet.v1.Service/SendOnchain"
-	Service_GetSendOnchainFees_FullMethodName = "/ark_wallet.v1.Service/GetSendOnchainFees"
-	Service_GetRoundInfo_FullMethodName       = "/ark_wallet.v1.Service/GetRoundInfo"
-	Service_GetTransactions_FullMethodName    = "/ark_wallet.v1.Service/GetTransactions"
+	Service_GetAddress_FullMethodName         = "/ark_node.v1.Service/GetAddress"
+	Service_GetBalance_FullMethodName         = "/ark_node.v1.Service/GetBalance"
+	Service_GetInfo_FullMethodName            = "/ark_node.v1.Service/GetInfo"
+	Service_GetOnboardAddress_FullMethodName  = "/ark_node.v1.Service/GetOnboardAddress"
+	Service_Send_FullMethodName               = "/ark_node.v1.Service/Send"
+	Service_SendOnchain_FullMethodName        = "/ark_node.v1.Service/SendOnchain"
+	Service_GetSendOnchainFees_FullMethodName = "/ark_node.v1.Service/GetSendOnchainFees"
+	Service_GetRoundInfo_FullMethodName       = "/ark_node.v1.Service/GetRoundInfo"
+	Service_GetTransactions_FullMethodName    = "/ark_node.v1.Service/GetTransactions"
 )
 
 // ServiceClient is the client API for Service service.
@@ -385,7 +385,7 @@ func _Service_GetTransactions_Handler(srv interface{}, ctx context.Context, dec 
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Service_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "ark_wallet.v1.Service",
+	ServiceName: "ark_node.v1.Service",
 	HandlerType: (*ServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -426,5 +426,5 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "ark_wallet/v1/service.proto",
+	Metadata: "ark_node/v1/service.proto",
 }

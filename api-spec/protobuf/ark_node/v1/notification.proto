@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package ark_wallet.v1;
+package ark_node.v1;
 
-import "ark_wallet/v1/types.proto";
+import "ark_node/v1/types.proto";
 
 // NotificationService is used to get notification about wallet events.
 // It offers 2 way of getting notified about events: with the help of grpc 

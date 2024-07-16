@@ -1,1 +1,1 @@
-# ark-wallet
+# ark-node

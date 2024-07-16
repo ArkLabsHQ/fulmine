@@ -7,8 +7,8 @@ import (
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 
-	"github.com/ArkLabsHQ/ark-wallet/internal/interface/web/templates"
-	"github.com/ArkLabsHQ/ark-wallet/internal/interface/web/templates/pages"
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates"
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/pages"
 
 	"github.com/gin-gonic/gin"
 )

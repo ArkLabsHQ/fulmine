@@ -9,8 +9,8 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/ArkLabsHQ/ark-wallet/internal/interface/web/templates/components"
-	"github.com/ArkLabsHQ/ark-wallet/internal/interface/web/types"
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
 )
 
 func Label(text string) templ.Component {
