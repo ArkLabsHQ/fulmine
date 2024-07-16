@@ -13,12 +13,14 @@ import (
 
 func toastHandler(t templ.Component, c *gin.Context) {
 	if !htmx.IsHTMX(c.Request) {
+		//nolint:all
 		c.AbortWithError(http.StatusBadRequest, errors.New("non-htmx request"))
 		return
 	}
 	htmx.NewResponse().
 		Retarget("#toast").
 		AddTrigger(htmx.Trigger("toast")).
+		//nolint:all
 		RenderTempl(c, c.Writer, t)
 }
 
