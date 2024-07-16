@@ -1,0 +1,255 @@
+package pages
+
+import (
+	"github.com/ArkLabsHQ/ark-wallet/internal/interface/web/templates/components"
+)
+
+templ InboundIcon() {
+	<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10.0003 10.625V15.625C10.0003 15.7908 9.9345 15.9497 9.81729 16.0669C9.70008 16.1842 9.54111 16.25 9.37535 16.25C9.20959 16.25 9.05062 16.1842 8.93341 16.0669C8.8162 15.9497 8.75035 15.7908 8.75035 15.625V12.1344L3.56753 17.3172C3.50947 17.3753 3.44053 17.4213 3.36466 17.4527C3.28879 17.4842 3.20747 17.5003 3.12535 17.5003C3.04323 17.5003 2.96191 17.4842 2.88604 17.4527C2.81017 17.4213 2.74123 17.3753 2.68316 17.3172C2.62509 17.2591 2.57903 17.1902 2.5476 17.1143C2.51618 17.0384 2.5 16.9571 2.5 16.875C2.5 16.7929 2.51618 16.7116 2.5476 16.6357C2.57903 16.5598 2.62509 16.4909 2.68316 16.4328L7.86597 11.25H4.37535C4.20959 11.25 4.05062 11.1842 3.93341 11.0669C3.8162 10.9497 3.75035 10.7908 3.75035 10.625C3.75035 10.4592 3.8162 10.3003 3.93341 10.1831C4.05062 10.0658 4.20959 10 4.37535 10H9.37535C9.54111 10 9.70008 10.0658 9.81729 10.1831C9.9345 10.3003 10.0003 10.4592 10.0003 10.625ZM16.2503 2.5H6.25035C5.91883 2.5 5.60088 2.6317 5.36646 2.86612C5.13204 3.10054 5.00035 3.41848 5.00035 3.75V7.5C5.00035 7.66576 5.0662 7.82473 5.18341 7.94194C5.30062 8.05915 5.45959 8.125 5.62535 8.125C5.79111 8.125 5.95008 8.05915 6.06729 7.94194C6.1845 7.82473 6.25035 7.66576 6.25035 7.5V3.75H16.2503V13.75H12.5003C12.3346 13.75 12.1756 13.8158 12.0584 13.9331C11.9412 14.0503 11.8753 14.2092 11.8753 14.375C11.8753 14.5408 11.9412 14.6997 12.0584 14.8169C12.1756 14.9342 12.3346 15 12.5003 15H16.2503C16.5819 15 16.8998 14.8683 17.1342 14.6339C17.3687 14.3995 17.5003 14.0815 17.5003 13.75V3.75C17.5003 3.41848 17.3687 3.10054 17.1342 2.86612C16.8998 2.6317 16.5819 2.5 16.2503 2.5Z" fill="currentColor"/>
+  </svg>
+}
+
+templ OutboundIcon() {
+	<svg width="21" height="20" viewBox="0 0 21 20" xmlns="http://www.w3.org/2000/svg">
+    <path d="M18 8.125C18 8.29076 17.9342 8.44973 17.8169 8.56694C17.6997 8.68415 17.5408 8.75 17.375 8.75C17.2092 8.75 17.0503 8.68415 16.9331 8.56694C16.8158 8.44973 16.75 8.29076 16.75 8.125V4.63438L11.568 9.81719C11.4507 9.93446 11.2916 10.0003 11.1258 10.0003C10.9599 10.0003 10.8009 9.93446 10.6836 9.81719C10.5663 9.69991 10.5004 9.54085 10.5004 9.375C10.5004 9.20915 10.5663 9.05009 10.6836 8.93281L15.8656 3.75H12.375C12.2092 3.75 12.0503 3.68415 11.9331 3.56694C11.8158 3.44973 11.75 3.29076 11.75 3.125C11.75 2.95924 11.8158 2.80027 11.9331 2.68306C12.0503 2.56585 12.2092 2.5 12.375 2.5H17.375C17.5408 2.5 17.6997 2.56585 17.8169 2.68306C17.9342 2.80027 18 2.95924 18 3.125V8.125ZM14.875 10C14.7092 10 14.5503 10.0658 14.4331 10.1831C14.3158 10.3003 14.25 10.4592 14.25 10.625V16.25H4.25V6.25H9.875C10.0408 6.25 10.1997 6.18415 10.3169 6.06694C10.4342 5.94973 10.5 5.79076 10.5 5.625C10.5 5.45924 10.4342 5.30027 10.3169 5.18306C10.1997 5.06585 10.0408 5 9.875 5H4.25C3.91848 5 3.60054 5.1317 3.36612 5.36612C3.1317 5.60054 3 5.91848 3 6.25V16.25C3 16.5815 3.1317 16.8995 3.36612 17.1339C3.60054 17.3683 3.91848 17.5 4.25 17.5H14.25C14.5815 17.5 14.8995 17.3683 15.1339 17.1339C15.3683 16.8995 15.5 16.5815 15.5 16.25V10.625C15.5 10.4592 15.4342 10.3003 15.3169 10.1831C15.1997 10.0658 15.0408 10 14.875 10Z" fill="currentColor" />
+  </svg>
+}
+
+templ ArkBalanceIcon() {
+	<svg width="44" height="45" viewBox="0 0 44 45" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M39.3991 25.338C36.7279 36.0524 25.876 42.573 15.1604 39.9011C4.44912 37.2299 -2.07151 26.3774 0.600991 15.6636C3.27099 4.94801 14.1229 -1.57324 24.8354 1.09801C35.5504 3.76926 42.0704 14.623 39.3991 25.338Z" fill="#F7931A"/>
+    <path d="M28.8181 17.6506C29.2162 14.9894 27.19 13.5588 24.4194 12.6044L25.3181 8.99938L23.1237 8.4525L22.2487 11.9625C21.6719 11.8188 21.0794 11.6831 20.4906 11.5488L21.3719 8.01563L19.1787 7.46875L18.2794 11.0725C17.8019 10.9638 17.3331 10.8563 16.8781 10.7431L16.8806 10.7319L13.8544 9.97625L13.2706 12.32C13.2706 12.32 14.8987 12.6931 14.8644 12.7163C15.7531 12.9381 15.9137 13.5263 15.8869 13.9925L14.8631 18.0994C14.9244 18.115 15.0037 18.1375 15.0912 18.1725C15.0181 18.1544 14.94 18.1344 14.8594 18.115L13.4244 23.8681C13.3156 24.1381 13.04 24.5431 12.4187 24.3894C12.4406 24.4213 10.8237 23.9913 10.8237 23.9913L9.73438 26.5031L12.59 27.215C13.1212 27.3481 13.6419 27.4875 14.1544 27.6188L13.2462 31.265L15.4381 31.8119L16.3375 28.2044C16.9362 28.3669 17.5175 28.5169 18.0862 28.6581L17.19 32.2488L19.3844 32.7956L20.2925 29.1563C24.0344 29.8644 26.8481 29.5788 28.0325 26.1944C28.9869 23.4694 27.985 21.8975 26.0162 20.8725C27.45 20.5419 28.53 19.5988 28.8181 17.6506ZM23.8044 24.6813C23.1262 27.4063 18.5381 25.9331 17.0506 25.5638L18.2556 20.7331C19.7431 21.1044 24.5131 21.8394 23.8044 24.6813ZM24.4831 17.6113C23.8644 20.09 20.0456 18.8306 18.8069 18.5219L19.8994 14.1406C21.1381 14.4494 25.1275 15.0256 24.4831 17.6113Z" fill="white"/>
+    <rect x="24" y="24.5" width="20" height="20" rx="10" fill="#EB894E"/>
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M35.5791 34.734L34.2821 31.5561H31.0395L32.0912 29H35.9121L38.8567 36.2021H37.805C36.806 36.2021 35.9472 35.6494 35.5791 34.734ZM38.9969 36.5475L40 39H37.3318H31.0395L31.5654 37.7219C31.8633 36.9965 32.5469 36.5475 33.3356 36.5475H38.9969ZM32.8098 32.4024C33.0376 32.7306 33.0727 33.1105 32.9325 33.4732L30.6686 39H28L30.8993 31.8843H31.8283C32.2314 31.8843 32.5819 32.0743 32.8098 32.4024Z" fill="white"/>
+  </svg>
+}
+
+templ ArrowDownIcon() {
+	<div class="flex items-center w-10 h-10 bg-white/10 rounded-full">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mx-auto" viewBox="0 0 24 24">
+      <path fill="currentColor" d="m12 20l-.707.707l.707.707l.707-.707zm1-15a1 1 0 1 0-2 0zm-7.707 9.707l6 6l1.414-1.414l-6-6zm7.414 6l6-6l-1.414-1.414l-6 6zM13 20V5h-2v15z"/>
+    </svg>
+	</div>
+}
+
+templ LnBalanceIcon() {
+	<svg width="44" height="45" viewBox="0 0 44 45" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M39.3991 25.338C36.7279 36.0524 25.876 42.573 15.1604 39.9011C4.44912 37.2299 -2.07151 26.3774 0.600991 15.6636C3.27099 4.94801 14.1229 -1.57324 24.8354 1.09801C35.5504 3.76926 42.0704 14.623 39.3991 25.338Z" fill="#F7931A"/>
+    <path d="M28.8181 17.6506C29.2162 14.9894 27.19 13.5588 24.4194 12.6044L25.3181 8.99938L23.1237 8.4525L22.2487 11.9625C21.6719 11.8188 21.0794 11.6831 20.4906 11.5488L21.3719 8.01563L19.1787 7.46875L18.2794 11.0725C17.8019 10.9638 17.3331 10.8563 16.8781 10.7431L16.8806 10.7319L13.8544 9.97625L13.2706 12.32C13.2706 12.32 14.8987 12.6931 14.8644 12.7163C15.7531 12.9381 15.9137 13.5263 15.8869 13.9925L14.8631 18.0994C14.9244 18.115 15.0037 18.1375 15.0912 18.1725C15.0181 18.1544 14.94 18.1344 14.8594 18.115L13.4244 23.8681C13.3156 24.1381 13.04 24.5431 12.4187 24.3894C12.4406 24.4213 10.8237 23.9913 10.8237 23.9913L9.73438 26.5031L12.59 27.215C13.1212 27.3481 13.6419 27.4875 14.1544 27.6188L13.2462 31.265L15.4381 31.8119L16.3375 28.2044C16.9362 28.3669 17.5175 28.5169 18.0862 28.6581L17.19 32.2488L19.3844 32.7956L20.2925 29.1563C24.0344 29.8644 26.8481 29.5788 28.0325 26.1944C28.9869 23.4694 27.985 21.8975 26.0162 20.8725C27.45 20.5419 28.53 19.5988 28.8181 17.6506ZM23.8044 24.6813C23.1262 27.4063 18.5381 25.9331 17.0506 25.5638L18.2556 20.7331C19.7431 21.1044 24.5131 21.8394 23.8044 24.6813ZM24.4831 17.6113C23.8644 20.09 20.0456 18.8306 18.8069 18.5219L19.8994 14.1406C21.1381 14.4494 25.1275 15.0256 24.4831 17.6113Z" fill="white"/>
+    <g clip-path="url(#clip0_475_1894)">
+      <mask id="mask0_475_1894" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="24" y="24" width="20" height="21">
+        <path d="M44 24.5H24V44.5H44V24.5Z" fill="white"/>
+      </mask>
+      <g mask="url(#mask0_475_1894)">
+        <path d="M33.998 44.5005C39.5209 44.5005 43.998 40.0233 43.998 34.5005C43.998 28.9776 39.5209 24.5005 33.998 24.5005C28.4752 24.5005 23.998 28.9776 23.998 34.5005C23.998 40.0233 28.4752 44.5005 33.998 44.5005Z" fill="#7B1AF7"/>
+        <path d="M29.6566 34.7162L36.3233 28.9715C36.6138 28.7855 36.8906 28.9715 36.7133 29.2906L34.5857 33.4751H38.38C38.38 33.4751 38.9828 33.4751 38.38 33.9715L31.8197 39.7517C31.3587 40.1417 31.0396 39.929 31.3587 39.3261L33.4155 35.2481H29.6566C29.6566 35.2481 29.0538 35.2481 29.6566 34.7162Z" fill="white"/>
+      </g>
+    </g>
+    <defs>
+      <clipPath id="clip0_475_1894">
+        <rect width="20" height="20" fill="white" transform="translate(24 24.5)"/>
+      </clipPath>
+    </defs>
+  </svg>
+}
+
+templ SwapPreviewIcon() {
+	<div class="flex items-center w-16 h-16 bg-white/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto" viewBox="0 0 20 20">
+      <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+        <path d="M13 8h5V3"/>
+        <path d="M18 8c-2.837-3.333-5.67-5-8.5-5S4.17 4 2 6m4.5 5.5h-5v5"/>
+        <path d="M1.5 11.5c2.837 3.333 5.67 5 8.5 5s5.33-1 7.5-3"/>
+      </g>
+    </svg>
+	</div>
+}
+
+templ SwapTab(text, path string, icon templ.Component, active bool) {
+  <a href={templ.URL(path)}>
+    <div class={"flex", "rounded-lg", templ.KV("bg-white", active), templ.KV("text-black", active)}>
+      <p class="px-3 py-2.5 flex items-center gap-2 mx-auto">
+		    @icon
+		  	{text}
+		  </p>
+		</div>
+  </a>
+}
+
+templ SwapTabs(active string) {
+  <div class="grid grid-cols-2 gap-2 mt-10 mb-8 text-sm text-white/80 font-semibold">
+    @SwapTab("Increase inbound", "/swap/inbound", InboundIcon(), active == "inbound")
+    @SwapTab("Increase outbound", "/swap/outbound", OutboundIcon(), active == "outbound")
+  </div>
+}
+
+templ SwapBodyContent(active, currentBalance, nodeBalance string) {
+  @components.DesktopHeader()
+	<div id="swapBody">
+    <form hx-post="/swap/preview" hx-target="#swapBody" hx-target="outerHTML">
+	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+	      <div>
+	        @components.Header("Swap")
+	        <div class="flex justify-between items-center">
+	          <div class="flex items-center gap-4">
+	            <p>@ArkBalanceIcon()</p>
+	        		<div>
+	        		  <p class="text-sm text-white/50">Available</p>
+	        			<p><span class="sats">{currentBalance}</span> SATS</p>
+	        		</div>
+	        	</div>
+            <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
+	        </div>
+	        <div class="flex justify-between items-center mt-6">
+	          <div class="flex items-center gap-4">
+	            <p>@LnBalanceIcon()</p>
+	        		<div>
+	        		  <p class="text-sm text-white/50">Lightning node balance</p>
+	        			<p><span class="sats">{nodeBalance}</span> SATS</p>
+	        		</div>
+	        	</div>
+            <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
+	        </div>
+	    		@SwapTabs(active)
+	        @Label("Amount")
+					if active == "inbound" {
+						@SwapInputAmountComponent("inbound", nodeBalance)
+					} else {
+						@SwapInputAmountComponent("outbound", currentBalance)
+					}
+					@SwapFeesComponent("")
+	    	</div>
+	    	<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
+	    	  <button class="bg-orange md:w-auto mb-2" type="submit">Preview swap</button>
+	    	  <button class="bg-graybg md:w-auto" onclick="redirect('/')">Cancel</button>
+	    	</div>
+	    </div>
+	  </form>
+	</div>
+}
+
+templ SwapPreviewContent(kind, sats string) {
+	<div id="swapBody">
+	  <form hx-post="/swap/confirm" hx-target="#swapBody" hx-target="outerHTML">
+		  <input type="hidden" name="sats" value={sats}>
+		  <input type="hidden" name="kind" value={kind}>
+	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+	      <div class="flex flex-col items-center">
+	        @components.Header("Confirm Swap")
+	        @SwapPreviewIcon()
+					<p class="mt-8">Swap</p>
+					@SwapMovementComponent(kind, sats)
+					@SwapFeesComponent(sats)
+	    	</div>
+	    	<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
+	    	  <button class="bg-orange md:w-auto mb-2" type="submit">Confirm</button>
+	    	  <button class="bg-graybg md:w-auto" onclick="redirect('/')">Cancel</button>
+	    	</div>
+	    </div>
+	  </form>
+	</div>
+}
+
+templ SwapSuccessContent(kind, sats string) {
+	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+	  @components.Header("Swap")
+	  <div class="flex flex-col items-center">
+	    @SuccessIcon()
+			<p class="mt-8">Swap successfully</p>
+			@SwapMovementComponent(kind, sats)
+		</div>
+	  <div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
+	    <button class="bg-graybg md:w-auto" onclick="redirect('https://mempool.space')">View transaction</button>
+		</div>
+	</div>
+}
+
+templ SwapMovementComponent(kind, sats string) {
+  <div class="flex flex-col items-center gap-4 my-8 text-3xl text-white/50">
+	  <div class="flex items-center gap-4">
+		  if kind == "outbound" {
+	      <p>@ArkBalanceIcon()</p>
+			} else {
+				<p>@LnBalanceIcon()</p>
+			}
+			<p><span class="sats text-white">{sats}</span> SATS</p>
+		</div>
+		@ArrowDownIcon()
+		<div class="flex items-center gap-4">
+	    if kind == "inbound" {
+	      <p>@ArkBalanceIcon()</p>
+			} else {
+				<p>@LnBalanceIcon()</p>
+			}
+			<p><span class="sats text-white">{sats}</span> SATS</p>
+		</div>
+	</div>
+}
+
+templ SwapFeesComponent(sats string) {
+	<div class="bg-graybg p-4 w-full mt-8 rounded-lg">
+    @TxLine("network fee", "500")
+    <div class="flex justify-between mb-2">
+      <div class="flex items-center gap-2 text-white/50">
+        <p>ARK FEE</p>
+        <p hx-get="/modal/info" hx-target="#modal">@components.InfoIcon()</p>
+      </div>
+      <p>0.5%</p>
+    </div>
+    @TxLine("est. time", "~10 min.")
+		if len(sats) > 0 {
+      <hr class="text-white/50 mb-2" />
+      <div class="flex justify-between mb-2">
+        <p class="text-white/50">TOTAL</p>
+        <p><span class="sats">{sats}</span> SATS</p>
+      </div>
+		}
+  </div>
+}
+
+templ SwapInputAmountComponent(kind, maxBalance string) {
+	<div class="bg-graybg p-3 flex items-center justify-between rounded-lg">
+	  <input class="hidden" id="swapSats" name="sats" />
+	  <input class="hidden" id="swapKind" name="kind" value={kind} />
+	  <input
+		  class="bg-graybg border-0"
+			id="swapAmount"
+      max={maxBalance}
+			onchange="updateSats()"
+			placeholder="5000" />
+		<div class="flex items-center gap-4">
+		  <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
+		  <p class="py-1 w-10" id="unit">SATS</p>
+		  <p class="cursor-pointer" onclick="toggleUnit()">@ArrowDownIcon()</p>
+		</div>
+	</div>
+	<script>
+	  const setMaxValue = () => {
+			const sats = document.querySelector('#swapAmount').getAttribute('max')
+			if (isNaN(sats)) return
+			const unit = document.querySelector('#unit').innerText
+			document.querySelector('#swapAmount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
+			document.querySelector('#swapSats').value = sats
+		}
+
+		const toggleUnit = () => {
+			const currUnit = document.querySelector('#unit').innerText
+			const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
+			// change unit
+			document.querySelector('#unit').innerText = nextUnit
+			// change value inside input
+			const currVal = document.querySelector('#swapAmount').value
+			if (currVal) {
+				const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
+				document.querySelector('#swapAmount').value = nextVal
+			}
+		}
+		
+		const updateSats = () => {
+			const unit = document.querySelector('#unit').innerText
+			const amount = document.querySelector('#swapAmount').value
+      document.querySelector('#swapSats').value = unit === 'SATS' ? amount : toSatoshis(amount)
+		}
+	</script>
+}

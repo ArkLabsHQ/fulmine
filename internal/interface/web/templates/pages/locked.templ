@@ -1,0 +1,29 @@
+package pages
+
+import (
+	"github.com/ArkLabsHQ/ark-wallet/internal/interface/web/templates/components"
+)
+
+templ Locked() {
+  <form hx-post="/unlock">
+    <div class="bg-radial-gradient p-3 flex flex-col justify-between h-screen">
+      <div class="px-3">
+        <div class="flex flex-col items-center gap-6">
+          <div class="flex items-center mt-24">
+	          @components.LogoXL()
+	  	  	  <div>
+	  	  	    <p class="leading-5 font-bold text-2xl">ARK</p>
+	  	  		  <p class="leading-5 font-bold text-2xl">NODE</p>
+	  	  	  </div>
+	  	    </div>
+          <p class="font-medium text-3xl p-8">Enter your password</p> 
+        </div>
+        <p class="font-semibold mt-10 mb-2">Password</p>
+        <input class="text-black w-full p-4 rounded border-0" name="password" type="password">
+      </div>
+      <div class="flex flex-col gap-2">
+	      <button class="bg-white text-black" type="submit">Unlock</button>
+	    </div>
+    </div>
+  </form>
+}

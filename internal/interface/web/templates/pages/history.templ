@@ -1,0 +1,122 @@
+package pages
+
+import (
+	"github.com/ArkLabsHQ/ark-wallet/internal/interface/web/templates/components"
+)
+
+func HistoryIcon(kind, status string) templ.Component {
+	if status == "pending" {
+		return PendingIcon()
+	}
+	if status == "waiting" {
+		return WaitingIcon()
+	}
+	switch kind {
+    case "recv":
+        return ReceivedIcon()
+    case "send":
+        return SentIcon()
+    case "swap":
+        return SwapIcon()
+    default:
+        return SwapIcon()
+  }
+}
+
+templ PendingIcon() {
+	<div class="flex items-center w-8 h-8 bg-greenbg/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-yellow" viewBox="0 0 2048 2048">
+      <path fill="currentColor" d="M1536 0v128H384V0h1152zm45 979l-90 90l-467-470v1449H896V599l-467 470l-90-90l621-626l621 626z"/>
+    </svg>
+	</div>
+}
+
+templ ReceivedIcon() {
+	<div class="flex items-center w-8 h-8 bg-greenbg/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-green" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2">
+        <path stroke-miterlimit="10" d="M6.343 17.657L17.657 6.343"/>
+        <path stroke-linejoin="round" d="M5.899 7.267v9.296A1.53 1.53 0 0 0 7.437 18.1h9.296"/>
+      </g>
+    </svg>
+	</div>
+}
+
+templ SentIcon() {
+	<div class="flex items-center w-8 h-8 bg-redbg/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-red" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2">
+        <path stroke-miterlimit="10" d="M17.657 6.343L6.343 17.657"/>
+        <path stroke-linejoin="round" d="M18.101 16.733V7.437A1.53 1.53 0 0 0 16.563 5.9H7.267"/>
+      </g>
+    </svg>
+	</div>
+}
+
+templ SwapIcon() {
+	<div class="flex items-center w-8 h-8 bg-white/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-white" viewBox="0 0 21 21">
+      <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+        <path d="M13 8h5V3"/>
+        <path d="M18 8c-2.837-3.333-5.67-5-8.5-5S4.17 4 2 6m4.5 5.5h-5v5"/>
+        <path d="M1.5 11.5c2.837 3.333 5.67 5 8.5 5s5.33-1 7.5-3"/>
+      </g>
+    </svg>
+	</div>
+}
+
+templ WaitingIcon() {
+	<div class="flex items-center w-8 h-8 bg-yellowbg/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-yellow" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v3m6.366-.366l-2.12 2.12M21 12h-3m.366 6.366l-2.12-2.12M12 21v-3m-6.366.366l2.12-2.12M3 12h3m-.366-6.366l2.12 2.12"/>
+    </svg>
+	</div>
+}
+
+templ HistoryLine(txid, kind, status, date, hour, sats string) {
+	<div txid={txid} onclick="showTx(this)">
+	  <div class="flex justify-between cursor-pointer p-3 rounded hover:bg-white/10" >
+	  	<div class="flex">
+	  	  @HistoryIcon(kind, status)
+	  	  <p class="leading-4">{date}<br /><span class="text-white/50">{hour}</span></p>
+	  	</div>
+			if status == "pending" {
+				<div class="flex items-center">
+				  <p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
+				</div>
+			}
+			if status == "failure" {
+				<div class="flex items-center">
+				  <p class="bg-red/20 px-2 py-1 rounded-md text-sm text-red">Failed</p>
+				</div>
+			}
+	  	<div>
+	  	  <p class="leading-4 text-end">
+	  		  <span class={
+						templ.KV("text-red", (status == "success" || status == "failure") && kind == "send"),
+						templ.KV("text-green", (status == "success" || status == "failure") && kind == "recv"),
+						templ.KV("text-yellow", status == "pending" || status == "waiting"),
+					}>
+	  			  <span class="btcm">{sats}</span> BTC
+	  			</span>
+	  			<br />
+	  		  <span class="text-white/50 usd" sats={sats}>$ ...</span>
+	  		</p>
+	  	</div>
+	  </div>
+	</div>
+}
+
+// BodyContent defines HTML content.
+templ HistoryBodyContent(currentBalance, arkAddress string, transactions [][]string) {
+	@components.Hero(arkAddress, currentBalance)
+	for _, tx := range transactions {
+		@HistoryLine(tx[0], tx[1], tx[2], tx[3], tx[4], tx[5])
+	}
+	<script>
+	  const showTx = (el) => {
+			const txid = el.getAttribute("txid")
+			if (txid) redirect(`/tx/${txid}`)
+		}
+	</script>
+}

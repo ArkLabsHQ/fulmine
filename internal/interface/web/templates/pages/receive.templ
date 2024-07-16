@@ -1,0 +1,81 @@
+package pages
+
+import (
+	"github.com/ArkLabsHQ/ark-wallet/internal/interface/web/templates/components"
+)
+
+templ CopyIcon() {
+	<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline" viewBox="0 0 256 256">
+    <path fill="currentColor" d="M216 32H88a8 8 0 0 0-8 8v40H40a8 8 0 0 0-8 8v128a8 8 0 0 0 8 8h128a8 8 0 0 0 8-8v-40h40a8 8 0 0 0 8-8V40a8 8 0 0 0-8-8Zm-56 176H48V96h112Zm48-48h-32V88a8 8 0 0 0-8-8H96V48h112Z"/>
+  </svg>
+}
+
+templ ReceiveBodyContent(currentBalance string) {
+	@components.DesktopHeader()
+	<div id="receiveBody">
+	  <form hx-post="/receive/preview" hx-target="#receiveBody" hx-swap="outerHTML">
+	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+	      <div>
+	        @components.Header("Receive")
+	        <p class="font-semibold mb-2">Amount</p>
+	    	  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
+					  <input class="hidden" id="receiveSats" name="sats">
+	    	    <input
+						  class="bg-graybg border-0"
+							id="receiveAmount"
+							max={currentBalance}
+							onchange="updateSats()"
+							placeholder="5000" />
+	    	  	<div class="flex items-center gap-4">
+	    			  <p class="py-1 w-10" id="unit">SATS</p>
+	    	  	  <p onclick="toggleUnit()">@ChevronDownIcon()</p>
+	    			</div>
+	    	  </div>
+	    	</div>
+	    	<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
+	    	  <button class="bg-orange md:w-auto mb-2" type="submit">Confirm</button>
+	    	  <button class="bg-graybg md:w-auto" onclick="redirect('/')">Cancel</button>
+	    	</div>
+	    </div>
+	  </form>
+	</div>
+	<script>
+	  const toggleUnit = () => {
+			const currUnit = document.querySelector('#unit').innerText
+			const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
+			// change unit
+			document.querySelector('#unit').innerText = nextUnit
+			// change value inside input
+			const currVal = document.querySelector('#receiveAmount').value
+			if (currVal) {
+				const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
+				document.querySelector('#receiveAmount').value = nextVal
+			}
+		}
+
+		const updateSats = () => {
+			const unit = document.querySelector('#unit').innerText
+			const amount = document.querySelector('#receiveAmount').value
+      document.querySelector('#receiveSats').value = unit === 'SATS' ? amount : toSatoshis(amount)
+		}
+	</script>
+}
+
+templ ReceivePreview(bip21 string) {
+	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+	  @components.Header("Receive")
+    <div class="flex flex-col items-center gap-10 pb-10">
+		  <div class="h-72">
+        <img
+				  src={"https://api.qrserver.com/v1/create-qr-code/?color=fbfbfb&bgcolor=202020&size=288x288&data=" + bip21}
+					alt="qrcode for receive address"
+					title={bip21}
+				/>
+			</div>
+      <div class="rounded-lg bg-white/10 p-2 flex justify-between items-center gap-4 w-72">
+	      <p class="overflow-hidden text-ellipsis whitespace-nowrap" id="bip21">{bip21}</p>
+	  	  <p onclick="copyToClipboard('#bip21')">@CopyIcon()</p>
+	    </div>
+		</div>
+	</div>
+}
