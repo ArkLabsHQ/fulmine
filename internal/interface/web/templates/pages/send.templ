@@ -65,8 +65,8 @@ templ SendBodyContent(currentBalance string) {
 	    	  </div>
 	    	  <p class="text-right text-sm" id="available">Available <span class="sats">{currentBalance}</span> SATS</p>
 	    	</div>
-	    	<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
-	    	  <button class="bg-orange md:w-auto mb-2" type="submit">Preview send</button>
+	    	<div class="flex flex-col md:flex-row-reverse justify-start gap-4 mt-16 mb-2">
+	    	  <button class="bg-orange md:w-auto" type="submit">Preview send</button>
 	    	  <button class="bg-graybg md:w-auto" onclick="redirect('/')">Cancel</button>
 	    	</div>
 	    </div>
@@ -157,8 +157,8 @@ templ SendPreviewContent(address, amount string) {
             </div>
           </div>
 	    	</div>
-	    	<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
-	    	  <button class="bg-orange md:w-auto mb-2" type="submit">Confirm</button>
+	    	<div class="flex flex-col md:flex-row-reverse justify-start gap-4 mt-16 mb-2">
+	    	  <button class="bg-orange md:w-auto" type="submit">Confirm</button>
 	    	  <button class="bg-graybg md:w-auto" onclick="redirect('/')">Cancel</button>
 	    	</div>
 	    </div>

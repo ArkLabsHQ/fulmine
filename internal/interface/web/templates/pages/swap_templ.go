@@ -379,7 +379,7 @@ func SwapBodyContent(active, currentBalance, nodeBalance string) templ.Component
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><div class=\"md:flex flex-row-reverse justify-start gap-4 mt-16\"><button class=\"bg-orange md:w-auto mb-2\" type=\"submit\">Preview swap</button> <button class=\"bg-graybg md:w-auto\" onclick=\"redirect(&#39;/&#39;)\">Cancel</button></div></div></form></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><div class=\"flex flex-col md:flex-row-reverse justify-start gap-4 mt-16 mb-2\"><button class=\"bg-orange md:w-auto\" type=\"submit\">Preview swap</button> <button class=\"bg-graybg md:w-auto\" onclick=\"redirect(&#39;/&#39;)\">Cancel</button></div></div></form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -455,7 +455,7 @@ func SwapPreviewContent(kind, sats string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><div class=\"md:flex flex-row-reverse justify-start gap-4 mt-16\"><button class=\"bg-orange md:w-auto mb-2\" type=\"submit\">Confirm</button> <button class=\"bg-graybg md:w-auto\" onclick=\"redirect(&#39;/&#39;)\">Cancel</button></div></div></form></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><div class=\"flex flex-col md:flex-row-reverse justify-start gap-4 mt-16 mb-2\"><button class=\"bg-orange md:w-auto\" type=\"submit\">Confirm</button> <button class=\"bg-graybg md:w-auto\" onclick=\"redirect(&#39;/&#39;)\">Cancel</button></div></div></form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
