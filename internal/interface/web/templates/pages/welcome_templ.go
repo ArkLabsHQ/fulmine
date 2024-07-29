@@ -30,7 +30,7 @@ func Welcome() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-radial-gradient p-3 flex flex-col justify-between h-screen\"><div class=\"flex flex-col items-center gap-6\"><div class=\"flex items-center mt-24\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-radial-gradient p-3 flex flex-col justify-between h-screen\"><div class=\"flex flex-col items-center gap-6\"><div class=\"flex items-center mt-24 gap-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
