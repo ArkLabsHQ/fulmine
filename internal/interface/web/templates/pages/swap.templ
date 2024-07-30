@@ -156,7 +156,11 @@ templ SwapSuccessContent(kind, sats string) {
 			@SwapMovementComponent(kind, sats)
 		</div>
 	  <div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
-	    <button class="bg-graybg md:w-auto" onclick="redirect('https://mempool.space')">View transaction</button>
+	    <button
+			  class="bg-graybg md:w-auto"
+				onclick="window.open('https://mempool.space', '_blank')">
+				View transaction
+			</button>
 		</div>
 	</div>
 }
