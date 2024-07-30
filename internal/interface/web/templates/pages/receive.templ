@@ -19,10 +19,7 @@ templ ReceiveBodyContent(currentBalance string) {
 	        @components.Header("Receive")
 	        @components.ReceiveAmount()
 	    	</div>
-	    	<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
-	    	  <button class="bg-orange md:w-auto mb-2" type="submit">Confirm</button>
-	    	  <button class="bg-graybg md:w-auto" onclick="redirect('/')">Cancel</button>
-	    	</div>
+	    	@components.ActionButtons("Confirm")
 	    </div>
 	  </form>
 	</div>

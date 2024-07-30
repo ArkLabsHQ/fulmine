@@ -1,0 +1,8 @@
+package components
+
+templ ActionButtons(action string) {
+  <div class="flex flex-col md:flex-row-reverse justify-start gap-4 mt-16 mb-2">
+	  <button class="bg-orange md:w-auto" type="submit">{action}</button>
+	  <button class="bg-graybg md:w-auto" onclick="redirect('/')">Cancel</button>
+	</div>
+}
