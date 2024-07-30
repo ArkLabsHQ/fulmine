@@ -67,14 +67,15 @@ templ SwapPreviewIcon() {
 }
 
 templ SwapTab(text, path string, icon templ.Component, active bool) {
-  <a href={templ.URL(path)}>
-    <div class={"flex", "rounded-lg", templ.KV("bg-white", active), templ.KV("text-black", active)}>
-      <p class="px-3 py-2.5 flex items-center gap-2 mx-auto">
-		    @icon
-		  	{text}
-		  </p>
-		</div>
-  </a>
+  <div
+	  class={"flex", "rounded-lg", templ.KV("bg-white", active), templ.KV("text-black", active)}
+		hx-get={path}
+		hx-target="#swapPartial">
+    <p class="px-3 py-2.5 flex items-center gap-2 mx-auto cursor-pointer">
+	    @icon
+	  	{text}
+	  </p>
+	</div>
 }
 
 templ SwapTabs(active string) {
@@ -84,7 +85,15 @@ templ SwapTabs(active string) {
   </div>
 }
 
-templ SwapBodyContent(active, currentBalance, nodeBalance string) {
+templ SwapPartialContent(active, balance string) {
+	<div id="swapPartial">
+	  @SwapTabs(active)
+	  @SwapInputAmountComponent(active, balance)
+    @SwapFeesComponent("")
+	</div>
+}
+
+templ SwapBodyContent(currentBalance, nodeBalance string) {
   @components.DesktopHeader()
 	<div id="swapBody">
     <form hx-post="/swap/preview" hx-target="#swapBody" hx-target="outerHTML">
@@ -111,13 +120,7 @@ templ SwapBodyContent(active, currentBalance, nodeBalance string) {
 	        	</div>
             <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
 	        </div>
-	    		@SwapTabs(active)
-					if active == "inbound" {
-						@SwapInputAmountComponent("inbound", nodeBalance)
-					} else {
-						@SwapInputAmountComponent("outbound", currentBalance)
-					}
-					@SwapFeesComponent("")
+					@SwapPartialContent("inbound", nodeBalance)
 	    	</div>
 	    	@components.ActionButtons("Preview swap")
 	    </div>

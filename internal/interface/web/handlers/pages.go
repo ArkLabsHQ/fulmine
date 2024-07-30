@@ -114,9 +114,20 @@ func Settings(c *gin.Context) {
 }
 
 func Swap(c *gin.Context) {
-	active := c.Param("active")
-	bodyContent := pages.SwapBodyContent(active, getBalance(), getNodeBalance())
+	bodyContent := pages.SwapBodyContent(getBalance(), getNodeBalance())
 	pageViewHandler(bodyContent, c)
+}
+
+func SwapActive(c *gin.Context) {
+	active := c.Param("active")
+	var balance string
+	if active == "inbound" {
+		balance = getNodeBalance()
+	} else {
+		balance = getBalance()
+	}
+	bodyContent := pages.SwapPartialContent(active, balance)
+	partialViewHandler(bodyContent, c)
 }
 
 func Tx(c *gin.Context) {

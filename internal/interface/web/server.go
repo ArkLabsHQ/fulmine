@@ -78,10 +78,12 @@ func NewService() *service {
 	svc.GET("/password", handlers.Password)
 	svc.GET("/send", handlers.Send)
 	svc.GET("/settings/:active", handlers.Settings)
-	svc.GET("/swap/:active", handlers.Swap)
+	svc.GET("/swap/", handlers.Swap)
 	svc.GET("/receive", handlers.Receive)
 	svc.GET("/tx/:txid", handlers.Tx)
 	svc.GET("/welcome", handlers.Welcome)
+
+	svc.GET("/swap/:active", handlers.SwapActive)
 
 	svc.GET("/modal/info", handlers.InfoModal)
 
