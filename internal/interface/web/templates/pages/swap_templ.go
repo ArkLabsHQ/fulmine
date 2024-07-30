@@ -108,7 +108,7 @@ func ArrowDownIcon() templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex items-center w-10 h-10 bg-white/10 rounded-full\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 mx-auto\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"m12 20l-.707.707l.707.707l.707-.707zm1-15a1 1 0 1 0-2 0zm-7.707 9.707l6 6l1.414-1.414l-6-6zm7.414 6l6-6l-1.414-1.414l-6 6zM13 20V5h-2v15z\"></path></svg></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 mx-auto\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"m12 20l-.707.707l.707.707l.707-.707zm1-15a1 1 0 1 0-2 0zm-7.707 9.707l6 6l1.414-1.414l-6-6zm7.414 6l6-6l-1.414-1.414l-6 6zM13 20V5h-2v15z\"></path></svg>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -228,7 +228,7 @@ func SwapTab(text, path string, icon templ.Component, active bool) templ.Compone
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 74, Col: 10}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 72, Col: 10}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -325,7 +325,7 @@ func SwapBodyContent(active, currentBalance, nodeBalance string) templ.Component
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(currentBalance)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 99, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 97, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
@@ -346,7 +346,7 @@ func SwapBodyContent(active, currentBalance, nodeBalance string) templ.Component
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(nodeBalance)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 109, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 107, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
@@ -357,10 +357,6 @@ func SwapBodyContent(active, currentBalance, nodeBalance string) templ.Component
 			return templ_7745c5c3_Err
 		}
 		templ_7745c5c3_Err = SwapTabs(active).Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = Label("Amount").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -412,7 +408,7 @@ func SwapPreviewContent(kind, sats string) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 135, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 132, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -425,7 +421,7 @@ func SwapPreviewContent(kind, sats string) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(kind)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 136, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 133, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
@@ -569,7 +565,7 @@ func SwapMovementComponent(kind, sats string) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 176, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 173, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -621,7 +617,7 @@ func SwapMovementComponent(kind, sats string) templ.Component {
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 185, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 182, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 		if templ_7745c5c3_Err != nil {
@@ -685,7 +681,7 @@ func SwapFeesComponent(sats string) templ.Component {
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 205, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 202, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 			if templ_7745c5c3_Err != nil {
@@ -722,41 +718,24 @@ func SwapInputAmountComponent(kind, maxBalance string) templ.Component {
 			templ_7745c5c3_Var25 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-graybg p-3 flex items-center justify-between rounded-lg\"><input class=\"hidden\" id=\"swapSats\" name=\"sats\"> <input class=\"hidden\" id=\"swapKind\" name=\"kind\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<input class=\"hidden\" id=\"swapKind\" name=\"kind\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(kind)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 214, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 209, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"> <input class=\"bg-graybg border-0\" id=\"swapAmount\" max=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var27 string
-		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(maxBalance)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 218, Col: 21}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" onchange=\"updateSats()\" placeholder=\"5000\"><div class=\"flex items-center gap-4\"><p class=\"py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer\" onclick=\"setMaxValue()\">MAX</p><p class=\"py-1 w-10\" id=\"unit\">SATS</p><p class=\"cursor-pointer\" onclick=\"toggleUnit()\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = ArrowDownIcon().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div></div><script>\n\t  const setMaxValue = () => {\n\t\t\tconst sats = document.querySelector('#swapAmount').getAttribute('max')\n\t\t\tif (isNaN(sats)) return\n\t\t\tconst unit = document.querySelector('#unit').innerText\n\t\t\tdocument.querySelector('#swapAmount').value = unit === 'SATS' ? sats : fromSatoshis(sats)\n\t\t\tdocument.querySelector('#swapSats').value = sats\n\t\t}\n\n\t\tconst toggleUnit = () => {\n\t\t\tconst currUnit = document.querySelector('#unit').innerText\n\t\t\tconst nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'\n\t\t\t// change unit\n\t\t\tdocument.querySelector('#unit').innerText = nextUnit\n\t\t\t// change value inside input\n\t\t\tconst currVal = document.querySelector('#swapAmount').value\n\t\t\tif (currVal) {\n\t\t\t\tconst nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)\n\t\t\t\tdocument.querySelector('#swapAmount').value = nextVal\n\t\t\t}\n\t\t}\n\t\t\n\t\tconst updateSats = () => {\n\t\t\tconst unit = document.querySelector('#unit').innerText\n\t\t\tconst amount = document.querySelector('#swapAmount').value\n      document.querySelector('#swapSats').value = unit === 'SATS' ? amount : toSatoshis(amount)\n\t\t}\n\t</script>")
+		templ_7745c5c3_Err = components.SendAmount(maxBalance).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

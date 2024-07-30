@@ -1,0 +1,90 @@
+package components
+
+templ SendAmount(max string) {
+  @InputAmount(max)
+}
+
+templ ReceiveAmount() {
+  @InputAmount("")
+}
+
+templ InputAmount(max string) {
+  @Label("Amount")
+  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
+	  <input class="hidden" id="sats" name="sats" />
+	  <input
+	    class="bg-graybg border-0 p-0"
+	    id="amount"
+      if (len(max) > 0) {
+	      max={max}
+      }
+	    onchange="updateSats()"
+	    placeholder="5000" />
+		<div class="flex items-center gap-2">
+      if (len(max) > 0) {
+        <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
+      }
+		  <p class="py-1 w-10 text-center" id="unit">SATS</p>
+		  <p class="cursor-pointer" onclick="toggleUnit()">@ChevronDownIcon()</p>
+		</div>
+	</div>
+  if (len(max) > 0) {
+    <p class="text-right text-sm" id="available">Available <span class="sats">{max}</span> SATS</p>
+  }
+  <script>
+		const setMaxValue = () => {
+			const sats = document.querySelector('#amount').getAttribute('max')
+			if (isNaN(sats)) return
+			const unit = document.querySelector('#unit').innerText
+			document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
+			document.querySelector('#sats').value = sats
+		}
+
+		const toggleUnit = () => {
+			const currUnit = document.querySelector('#unit').innerText
+			const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
+			// change unit
+			document.querySelector('#unit').innerText = nextUnit
+			// change availability
+			const maxSats = document.querySelector('#amount').getAttribute('max')
+			document.querySelector('#available').innerText =
+			  `Available ${nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats)} ${nextUnit}`
+			// change value inside input
+			const currVal = document.querySelector('#amount').value
+			if (currVal) {
+				const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
+				document.querySelector('#amount').value = nextVal
+			}
+		}
+
+		const updateSats = () => {
+			const unit = document.querySelector('#unit').innerText
+			const amount = document.querySelector('#amount').value
+      document.querySelector('#sats').value = unit === 'SATS' ? amount : toSatoshis(amount)
+		}
+	</script>
+}
+
+templ InputAddress() {
+  @Label("Address")
+	<div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
+	  <input class="bg-graybg border-0 p-0" id="address" name="address" placeholder="ark1ccc..." />
+		<p class="cursor-pointer text-white/50" onclick="pasteAddressFromClipboard()">@PasteIcon()</p>
+	</div>
+	<script>
+	  const pasteAddressFromClipboard = () => {
+			if (navigator.clipboard) {
+        navigator.clipboard.readText().then((addr) => {
+					document.querySelector('#address').value = addr
+					const asAmount = addr.match(/amount:(\d+)/)
+					if (asAmount) {
+						const sats = asAmount[1]
+						const unit = document.querySelector('#unit').innerText
+						document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
+						document.querySelector('#sats').value = sats
+					}
+			  })
+      }
+		}
+	</script>
+}

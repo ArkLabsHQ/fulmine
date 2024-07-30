@@ -28,7 +28,7 @@ templ ArkBalanceIcon() {
 templ ArrowDownIcon() {
 	<div class="flex items-center w-10 h-10 bg-white/10 rounded-full">
 	  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mx-auto" viewBox="0 0 24 24">
-      <path fill="currentColor" d="m12 20l-.707.707l.707.707l.707-.707zm1-15a1 1 0 1 0-2 0zm-7.707 9.707l6 6l1.414-1.414l-6-6zm7.414 6l6-6l-1.414-1.414l-6 6zM13 20V5h-2v15z"/>
+      <path fill="currentColor" d="m12 20l-.707.707l.707.707l.707-.707zm1-15a1 1 0 1 0-2 0zm-7.707 9.707l6 6l1.414-1.  414l-6-6zm7.414 6l6-6l-1.414-1.414l-6 6zM13 20V5h-2v15z"/>
     </svg>
 	</div>
 }
@@ -112,7 +112,6 @@ templ SwapBodyContent(active, currentBalance, nodeBalance string) {
             <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
 	        </div>
 	    		@SwapTabs(active)
-	        @Label("Amount")
 					if active == "inbound" {
 						@SwapInputAmountComponent("inbound", nodeBalance)
 					} else {
@@ -209,47 +208,6 @@ templ SwapFeesComponent(sats string) {
 }
 
 templ SwapInputAmountComponent(kind, maxBalance string) {
-	<div class="bg-graybg p-3 flex items-center justify-between rounded-lg">
-	  <input class="hidden" id="swapSats" name="sats" />
-	  <input class="hidden" id="swapKind" name="kind" value={kind} />
-	  <input
-		  class="bg-graybg border-0"
-			id="swapAmount"
-      max={maxBalance}
-			onchange="updateSats()"
-			placeholder="5000" />
-		<div class="flex items-center gap-4">
-		  <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
-		  <p class="py-1 w-10" id="unit">SATS</p>
-		  <p class="cursor-pointer" onclick="toggleUnit()">@ArrowDownIcon()</p>
-		</div>
-	</div>
-	<script>
-	  const setMaxValue = () => {
-			const sats = document.querySelector('#swapAmount').getAttribute('max')
-			if (isNaN(sats)) return
-			const unit = document.querySelector('#unit').innerText
-			document.querySelector('#swapAmount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
-			document.querySelector('#swapSats').value = sats
-		}
-
-		const toggleUnit = () => {
-			const currUnit = document.querySelector('#unit').innerText
-			const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
-			// change unit
-			document.querySelector('#unit').innerText = nextUnit
-			// change value inside input
-			const currVal = document.querySelector('#swapAmount').value
-			if (currVal) {
-				const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
-				document.querySelector('#swapAmount').value = nextVal
-			}
-		}
-		
-		const updateSats = () => {
-			const unit = document.querySelector('#unit').innerText
-			const amount = document.querySelector('#swapAmount').value
-      document.querySelector('#swapSats').value = unit === 'SATS' ? amount : toSatoshis(amount)
-		}
-	</script>
+	<input class="hidden" id="swapKind" name="kind" value={kind} />
+	@components.SendAmount(maxBalance)
 }

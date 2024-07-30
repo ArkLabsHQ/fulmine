@@ -5,10 +5,6 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
 )
 
-templ Label(text string) {
-  <p class="font-semibold mb-2 mt-4">{text}</p>
-}
-
 templ Separator(text string) {
   <p class="uppercase text-sm text-white/50 mb-4 mt-8">{text}</p>
 }
@@ -65,21 +61,21 @@ templ SettingsBodyContent(active string, settings types.Settings, nodeStatus boo
 templ SettingsGeneralContent(settings types.Settings, nodeStatus bool) {
   <form hx-post="/api/settings" hx-trigger="change">
     @Separator("Details")
-    @Label("Bitcoin unit")
+    @components.Label("Bitcoin unit")
     <select class="bg-graybg p-4 rounded text-white/50 w-full" name="unit" value={settings.Unit}>
       <option value="sat">Satoshi (0.00000001 BTC)</option>
       <option value="btc">Bitcoin (100.000.000 SATS)</option>
     </select>
-    @Label("Reference currency")
+    @components.Label("Reference currency")
     <select class="bg-graybg p-4 rounded text-white/50 w-full" name="currency" value={settings.Currency}>
       <option value="usd">USD ($)</option>
       <option value="eur">EURO (€)</option>
     </select>
-    @Label("ASP API root")
+    @components.Label("ASP API root")
     <input class="bg-graybg p-4 rounded text-white/50 focus:text-white w-full" name="apiroot" value={settings.ApiRoot}>
     @Separator("Network status")
     @Status(nodeStatus)
-    @Label("Node")
+    @components.Label("Node")
     <div class="bg-graybg rounded p-3 text-sm">
       <p>Lightning network node 1</p>
       <hr class="my-4 text-white/20" />
@@ -106,7 +102,7 @@ templ SettingsGeneralContent(settings types.Settings, nodeStatus bool) {
 templ SettingsASPContent(settings types.Settings) {
   <form hx-post="/api/settings" hx-trigger="change">
     @Separator("Link")
-    @Label("ASP Link")
+    @components.Label("ASP Link")
     <div class="border border-1 border-white/50 flex bg-graybg items-center justify-between rounded gap-4 pr-3">
       <input
         class="border-0 bg-graybg p-4 rounded text-white/50 focus:text-white w-full"
@@ -119,11 +115,11 @@ templ SettingsASPContent(settings types.Settings) {
       </div>
     </div>
     @Separator("Host settings")
-    @Label("ASP Host")
+    @components.Label("ASP Host")
     <input class="bg-graybg p-4 rounded text-white/50 focus:text-white w-full" name="asphost" value={settings.ApiRoot}>
-    @Label("ASP Port")
+    @components.Label("ASP Port")
     <input class="bg-graybg p-4 rounded text-white/50 focus:text-white w-full" name="aspport" value={settings.ApiRoot}>
-    @Label("ASP API Root")
+    @components.Label("ASP API Root")
     <input class="bg-graybg p-4 rounded text-white/50 focus:text-white w-full" name="apiroot" value={settings.ApiRoot}>
   </form>
 }
@@ -134,7 +130,7 @@ templ SettingsLightningContent(settings types.Settings, nodeStatus bool) {
     @Status(nodeStatus)
     @Separator("Connect")
     <p>Enter details manually or scan to connect</p>
-    @Label("URL")
+    @components.Label("URL")
     <div class="border border-1 border-white/50 bg-graybg rounded">
       if nodeStatus {
         <p class="px-3 py-4 truncate text-white/30">{settings.LnUrl}</p>

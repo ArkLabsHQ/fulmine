@@ -17,20 +17,7 @@ templ ReceiveBodyContent(currentBalance string) {
 	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
 	      <div>
 	        @components.Header("Receive")
-	        <p class="font-semibold mb-2">Amount</p>
-	    	  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
-					  <input class="hidden" id="receiveSats" name="sats">
-	    	    <input
-						  class="bg-graybg border-0"
-							id="receiveAmount"
-							max={currentBalance}
-							onchange="updateSats()"
-							placeholder="5000" />
-	    	  	<div class="flex items-center gap-4">
-	    			  <p class="py-1 w-10" id="unit">SATS</p>
-	    	  	  <p onclick="toggleUnit()">@ChevronDownIcon()</p>
-	    			</div>
-	    	  </div>
+	        @components.ReceiveAmount()
 	    	</div>
 	    	<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
 	    	  <button class="bg-orange md:w-auto mb-2" type="submit">Confirm</button>
@@ -39,26 +26,6 @@ templ ReceiveBodyContent(currentBalance string) {
 	    </div>
 	  </form>
 	</div>
-	<script>
-	  const toggleUnit = () => {
-			const currUnit = document.querySelector('#unit').innerText
-			const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
-			// change unit
-			document.querySelector('#unit').innerText = nextUnit
-			// change value inside input
-			const currVal = document.querySelector('#receiveAmount').value
-			if (currVal) {
-				const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
-				document.querySelector('#receiveAmount').value = nextVal
-			}
-		}
-
-		const updateSats = () => {
-			const unit = document.querySelector('#unit').innerText
-			const amount = document.querySelector('#receiveAmount').value
-      document.querySelector('#receiveSats').value = unit === 'SATS' ? amount : toSatoshis(amount)
-		}
-	</script>
 }
 
 templ ReceivePreview(bip21 string) {

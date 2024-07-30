@@ -4,19 +4,6 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
-templ ChevronDownIcon() {
-	<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white/50" viewBox="0 0 20 20">
-    <path fill="currentColor" d="M10.103 12.778L16.81 6.08a.69.69 0 0 1 .99.012a.726.726 0 0 1-.012 1.012l-7.203 7.193a.69.69 0 0 1-.985-.006L2.205 6.72a.727.727 0 0 1 0-1.01a.69.69 0 0 1 .99 0l6.908 7.068Z"/>
-  </svg>
-}
-
-templ PasteIconXL() {
-	<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" viewBox="0 0 24 24">
-    <path fill="currentColor" d="M5.962 2.513a.75.75 0 0 1-.475.949l-.816.272a.25.25 0 0 0-.171.237V21.25c0 .138.112.25.25.25h14.5a.25.25 0 0 0 .25-.25V3.97a.25.25 0 0 0-.17-.236l-.817-.272a.75.75 0 0 1 .474-1.424l.816.273A1.751 1.751 0 0 1 21 3.97v17.28A1.75 1.75 0 0 1 19.25 23H4.75A1.75 1.75 0 0 1 3 21.25V3.97a1.75 1.75 0 0 1 1.197-1.66l.816-.272a.75.75 0 0 1 .949.475Z"/>
-    <path fill="currentColor" d="M7 1.75C7 .784 7.784 0 8.75 0h6.5C16.216 0 17 .784 17 1.75v1.5A1.75 1.75 0 0 1 15.25 5h-6.5A1.75 1.75 0 0 1 7 3.25Zm1.75-.25a.25.25 0 0 0-.25.25v1.5c0 .138.112.25.25.25h6.5a.25.25 0 0 0 .25-.25v-1.5a.25.25 0 0 0-.25-.25Z"/>
-  </svg>
-}
-
 templ SendPreviewIcon() {
 	<div class="flex items-center w-16 h-16 bg-white/10 rounded-full mr-2">
 	  <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-white" viewBox="0 0 24 24">
@@ -43,27 +30,8 @@ templ SendBodyContent(currentBalance string) {
 	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
 	      <div>
 	        @components.Header("Send")
-	        <p class="font-semibold mb-2">Recipient's address</p>
-	    	  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
-	    	    <input class="bg-graybg border-0" id="sendAddress" name="address" placeholder="ark1ccc..." />
-	    	  	<p class="cursor-pointer text-white/50" onclick="pasteAddressFromClipboard()">@PasteIconXL()</p>
-	    	  </div>
-	    	  <p class="font-semibold mb-2 mt-10">Amount</p>
-	    	  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
-					  <input class="hidden" id="sendSats" name="sats" />
-	    	    <input
-						  class="bg-graybg border-0"
-							id="sendAmount"
-							max={currentBalance}
-							onchange="updateSats()"
-							placeholder="5000" />
-	    	  	<div class="flex items-center gap-4">
-	    			  <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
-	    	  	  <p class="py-1 w-10" id="unit">SATS</p>
-	    	  	  <p class="cursor-pointer" onclick="toggleUnit()">@ChevronDownIcon()</p>
-	    			</div>
-	    	  </div>
-	    	  <p class="text-right text-sm" id="available">Available <span class="sats">{currentBalance}</span> SATS</p>
+					@components.InputAddress()
+					@components.SendAmount(currentBalance)
 	    	</div>
 	    	<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
 	    	  <button class="bg-orange md:w-auto mb-2" type="submit">Preview send</button>
@@ -72,53 +40,6 @@ templ SendBodyContent(currentBalance string) {
 	    </div>
 	  </form>
 	</div>
-	<script>
-	  const pasteAddressFromClipboard = () => {
-			if (navigator.clipboard) {
-        navigator.clipboard.readText().then((addr) => {
-					document.querySelector('#sendAddress').value = addr
-					const asAmount = addr.match(/amount:(\d+)/)
-					if (asAmount) {
-						const sats = asAmount[1]
-						const unit = document.querySelector('#unit').innerText
-						document.querySelector('#sendAmount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
-						document.querySelector('#sendSats').value = sats
-					}
-			  })
-      }
-		}
-		
-		const setMaxValue = () => {
-			const sats = document.querySelector('#sendAmount').getAttribute('max')
-			if (isNaN(sats)) return
-			const unit = document.querySelector('#unit').innerText
-			document.querySelector('#sendAmount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
-			document.querySelector('#sendSats').value = sats
-		}
-
-		const toggleUnit = () => {
-			const currUnit = document.querySelector('#unit').innerText
-			const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
-			// change unit
-			document.querySelector('#unit').innerText = nextUnit
-			// change availability
-			const maxSats = document.querySelector('#sendAmount').getAttribute('max')
-			document.querySelector('#available').innerText =
-			  `Available ${nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats)} ${nextUnit}`
-			// change value inside input
-			const currVal = document.querySelector('#sendAmount').value
-			if (currVal) {
-				const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
-				document.querySelector('#sendAmount').value = nextVal
-			}
-		}
-
-		const updateSats = () => {
-			const unit = document.querySelector('#unit').innerText
-			const amount = document.querySelector('#sendAmount').value
-      document.querySelector('#sendSats').value = unit === 'SATS' ? amount : toSatoshis(amount)
-		}
-	</script>
 }
 
 templ SendPreviewContent(address, amount string) {
