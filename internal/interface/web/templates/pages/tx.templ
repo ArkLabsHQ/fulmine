@@ -92,7 +92,7 @@ templ TxLine(left, right string) {
 
 templ TxBodyContent(txid, kind, status, date, hour, sats string) {
   @components.DesktopHeader()
-	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+	<div class="p-3 flex flex-col justify-between rounded-md md:bg-desktopbg">
 	  @components.Header("Transaction details")
     <div class="flex flex-col items-center">
       @TxIcon(kind, status)
