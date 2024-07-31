@@ -71,9 +71,9 @@ templ SwapIcon() {
 
 templ Actions() {
 	<div class="grid grid-cols-3 gap-4">
-	  <button class="bg-white text-black" hx-on:click="redirect('/send')">@SendIcon() Send</button>
-	  <button class="bg-white text-black" hx-on:click="redirect('/receive')">@ReceiveIcon() Receive</button>
-	  <button class="bg-white text-black" hx-on:click="redirect('/swap/inbound')">@SwapIcon() Swap</button>
+	  <button class="bg-white text-black px-2" hx-on:click="redirect('/send')">@SendIcon() Send</button>
+	  <button class="bg-white text-black px-2" hx-on:click="redirect('/receive')">@ReceiveIcon() Receive</button>
+	  <button class="bg-white text-black px-2" hx-on:click="redirect('/swap/inbound')">@SwapIcon() Swap</button>
 	</div>
 }
 
