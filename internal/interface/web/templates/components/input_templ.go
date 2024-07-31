@@ -123,19 +123,19 @@ func InputAmount(max string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div></div><div class=\"flex justify-between w-full text-sm text-white/50 mt-2\"><p id=\"usd\" class=\"usd\">$</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(max) > 0 {
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"text-right text-sm\" id=\"available\">Available <span class=\"sats\">")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p id=\"available\">Available <span class=\"sats\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(max)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/input.templ`, Line: 32, Col: 82}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/input.templ`, Line: 34, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -146,7 +146,7 @@ func InputAmount(max string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<script>\n\t\tconst setMaxValue = () => {\n\t\t\tconst sats = document.querySelector('#amount').getAttribute('max')\n\t\t\tif (isNaN(sats)) return\n\t\t\tconst unit = document.querySelector('#unit').innerText\n\t\t\tdocument.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)\n\t\t\tdocument.querySelector('#sats').value = sats\n\t\t}\n\n\t\tconst toggleUnit = () => {\n\t\t\tconst currUnit = document.querySelector('#unit').innerText\n\t\t\tconst nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'\n\t\t\t// change unit\n\t\t\tdocument.querySelector('#unit').innerText = nextUnit\n\t\t\t// change availability\n\t\t\tconst maxSats = document.querySelector('#amount').getAttribute('max')\n\t\t\tdocument.querySelector('#available').innerText =\n\t\t\t  `Available ${nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats)} ${nextUnit}`\n\t\t\t// change value inside input\n\t\t\tconst currVal = document.querySelector('#amount').value\n\t\t\tif (currVal) {\n\t\t\t\tconst nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)\n\t\t\t\tdocument.querySelector('#amount').value = nextVal\n\t\t\t}\n\t\t}\n\n\t\tconst updateSats = () => {\n\t\t\tconst unit = document.querySelector('#unit').innerText\n\t\t\tconst amount = document.querySelector('#amount').value\n      document.querySelector('#sats').value = unit === 'SATS' ? amount : toSatoshis(amount)\n\t\t}\n\t</script>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><script>\n\t\tconst setMaxValue = () => {\n\t\t\tconst sats = document.querySelector('#amount').getAttribute('max')\n\t\t\tif (isNaN(sats)) return\n\t\t\tconst unit = document.querySelector('#unit').innerText\n\t\t\tdocument.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)\n\t\t\tdocument.querySelector('#sats').value = sats\n\t\t}\n\n\t\tconst toggleUnit = () => {\n\t\t\tconst currUnit = document.querySelector('#unit').innerText\n\t\t\tconst nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'\n\t\t\t// change unit\n\t\t\tdocument.querySelector('#unit').innerText = nextUnit\n\t\t\t// change availability\n\t\t\tconst maxSats = document.querySelector('#amount').getAttribute('max')\n\t\t\tdocument.querySelector('#available').innerText =\n\t\t\t  `Available ${nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats)} ${nextUnit}`\n\t\t\t// change value inside input\n\t\t\tconst currVal = document.querySelector('#amount').value\n\t\t\tif (currVal) {\n\t\t\t\tconst nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)\n\t\t\t\tdocument.querySelector('#amount').value = nextVal\n\t\t\t}\n\t\t}\n\n\t\tconst updateSats = () => {\n\t\t\tconst unit = document.querySelector('#unit').innerText\n\t\t\tconst amount = document.querySelector('#amount').value\n\t\t\tconst sats = unit === 'SATS' ? amount : toSatoshis(amount)\n      document.querySelector('#sats').value = sats\n      document.querySelector('#usd').setAttribute('sats', sats)\n\t\t\tupdateFiatValues()\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

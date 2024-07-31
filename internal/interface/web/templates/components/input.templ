@@ -28,9 +28,12 @@ templ InputAmount(max string) {
 		  <p class="cursor-pointer" onclick="toggleUnit()">@ChevronDownIcon()</p>
 		</div>
 	</div>
-  if (len(max) > 0) {
-    <p class="text-right text-sm" id="available">Available <span class="sats">{max}</span> SATS</p>
-  }
+	<div class="flex justify-between w-full text-sm text-white/50 mt-2">
+	  <p id="usd" class="usd">$</p>
+    if (len(max) > 0) {
+      <p id="available">Available <span class="sats">{max}</span> SATS</p>
+    }
+	</div>
   <script>
 		const setMaxValue = () => {
 			const sats = document.querySelector('#amount').getAttribute('max')
@@ -60,7 +63,10 @@ templ InputAmount(max string) {
 		const updateSats = () => {
 			const unit = document.querySelector('#unit').innerText
 			const amount = document.querySelector('#amount').value
-      document.querySelector('#sats').value = unit === 'SATS' ? amount : toSatoshis(amount)
+			const sats = unit === 'SATS' ? amount : toSatoshis(amount)
+      document.querySelector('#sats').value = sats
+      document.querySelector('#usd').setAttribute('sats', sats)
+			updateFiatValues()
 		}
 	</script>
 }

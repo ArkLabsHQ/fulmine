@@ -86,6 +86,19 @@ templ Layout(bodyContent templ.Component) {
         }
 		  }
 
+      const updateFiatValues = () => {
+        fetch('https://btcoracle.bordalix.workers.dev/').then((res) => {
+          res.json().then((json) => {
+            document.querySelectorAll('.usd').forEach((x) => {
+              const sats = parseInt(x.getAttribute('sats'))
+              if (isNaN(sats)) return
+              const usd = (sats * json.pricefeed.usd) / 100_000_000
+              x.innerHTML = `$ ${prettyNum(usd)}`
+            })
+          })
+        })
+      }
+
       document.addEventListener('htmx:load', () => {
         document.querySelectorAll('.sats').forEach((x) => {
           if (isNaN(x.textContent)) return
@@ -102,16 +115,7 @@ templ Layout(bodyContent templ.Component) {
           x.innerHTML = (sats.charAt(0) === '+' ? '+' : '') + fromSatoshis(sats)
         })
 
-        fetch('https://btcoracle.bordalix.workers.dev/').then((res) => {
-          res.json().then((json) => {
-            document.querySelectorAll('.usd').forEach((x) => {
-              const sats = parseInt(x.getAttribute('sats'))
-              if (isNaN(sats)) return
-              const usd = (sats * json.pricefeed.usd) / 100_000_000
-              x.innerHTML = `$ ${prettyNum(usd)}`
-            })
-          })
-        })
+        updateFiatValues()
       })
 
       document.body.addEventListener("toast", (e) => {
