@@ -287,7 +287,7 @@ func Actions() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Receive</button> <button class=\"bg-white text-black px-2\" hx-on:click=\"redirect(&#39;/swap/inbound&#39;)\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Receive</button> <button class=\"bg-white text-black px-2\" hx-on:click=\"redirect(&#39;/swap&#39;)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
