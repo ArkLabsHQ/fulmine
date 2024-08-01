@@ -66,22 +66,23 @@ templ SwapPreviewIcon() {
 	</div>
 }
 
-templ SwapTab(text, path string, icon templ.Component, active bool) {
+templ SwapTab(kind string, icon templ.Component, active bool) {
   <div
+	  id={kind}
 	  class={"flex", "rounded-lg", templ.KV("bg-white", active), templ.KV("text-black", active)}
-		hx-get={path}
+		hx-get={"/swap/" + kind}
 		hx-target="#swapPartial">
     <p class="px-3 py-2.5 flex items-center gap-2 mx-auto cursor-pointer">
 	    @icon
-	  	{text}
+	  	{"Increase " + kind}
 	  </p>
 	</div>
 }
 
 templ SwapTabs(active string) {
   <div class="grid grid-cols-2 gap-2 mt-10 mb-8 text-sm text-white/80 font-semibold">
-    @SwapTab("Increase inbound", "/swap/inbound", InboundIcon(), active == "inbound")
-    @SwapTab("Increase outbound", "/swap/outbound", OutboundIcon(), active == "outbound")
+    @SwapTab("inbound", InboundIcon(), active == "inbound")
+    @SwapTab("outbound", OutboundIcon(), active == "outbound")
   </div>
 }
 
@@ -108,7 +109,13 @@ templ SwapBodyContent(currentBalance, nodeBalance string) {
 	        			<p><span class="sats">{currentBalance}</span> SATS</p>
 	        		</div>
 	        	</div>
-            <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
+            <p
+						  class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer"
+							onclick="setMax(this)"
+							sats={currentBalance}
+							kind="outbound">
+							MAX
+						</p>
 	        </div>
 	        <div class="flex justify-between items-center mt-6">
 	          <div class="flex items-center gap-4">
@@ -118,7 +125,13 @@ templ SwapBodyContent(currentBalance, nodeBalance string) {
 	        			<p><span class="sats">{nodeBalance}</span> SATS</p>
 	        		</div>
 	        	</div>
-            <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
+            <p
+						  class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer"
+							onclick="setMax(this)"
+							sats={nodeBalance}
+							kind="inbound">
+							MAX
+						</p>
 	        </div>
 					@SwapPartialContent("inbound", nodeBalance)
 	    	</div>
@@ -126,6 +139,15 @@ templ SwapBodyContent(currentBalance, nodeBalance string) {
 	    </div>
 	  </form>
 	</div>
+	<script>
+	  const setMax = (el) => {
+			const kind = el.getAttribute('kind')
+			const sats = el.getAttribute('sats')
+			if (!kind || !sats) return
+			document.querySelector(`#${kind}`).click()
+			setTimeout(() => setMaxValue(sats), 1000)
+		}
+	</script>
 }
 
 templ SwapPreviewContent(kind, sats string) {
