@@ -34,41 +34,6 @@ templ InputAmount(max string) {
       <p id="available">Available <span class="sats">{max}</span> SATS</p>
     }
 	</div>
-  <script>
-		const setMaxValue = () => {
-			const sats = document.querySelector('#amount').getAttribute('max')
-			if (isNaN(sats)) return
-			const unit = document.querySelector('#unit').innerText
-			document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
-			document.querySelector('#sats').value = sats
-		}
-
-		const toggleUnit = () => {
-			const currUnit = document.querySelector('#unit').innerText
-			const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
-			// change unit
-			document.querySelector('#unit').innerText = nextUnit
-			// change availability
-			const maxSats = document.querySelector('#amount').getAttribute('max')
-			document.querySelector('#available').innerText =
-			  `Available ${nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats)} ${nextUnit}`
-			// change value inside input
-			const currVal = document.querySelector('#amount').value
-			if (currVal) {
-				const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
-				document.querySelector('#amount').value = nextVal
-			}
-		}
-
-		const updateSats = () => {
-			const unit = document.querySelector('#unit').innerText
-			const amount = document.querySelector('#amount').value
-			const sats = unit === 'SATS' ? amount : toSatoshis(amount)
-      document.querySelector('#sats').value = sats
-      document.querySelector('#usd').setAttribute('sats', sats)
-			updateFiatValues()
-		}
-	</script>
 }
 
 templ InputAddress() {
