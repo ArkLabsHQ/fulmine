@@ -1,1 +1,1 @@
-# ark-node
+# The Ark Node
