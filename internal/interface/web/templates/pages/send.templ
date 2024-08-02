@@ -56,7 +56,7 @@ templ SendPreviewContent(address, amount string) {
 					<div class="flex mt-8 w-64 gap-2">
 					  <p class="text-white/50">to</p>
 						<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
-						<p class="text-white/50">@CopyIcon()</p>
+						<p class="text-white/50">@components.CopyIcon()</p>
 					</div>
 					<div class="bg-white/10 p-4 w-full mt-8 rounded-lg">
             @TxLine("network fee", "500")
@@ -94,7 +94,7 @@ templ SendSuccessContent(address, amount string) {
 			<div class="flex mt-8 w-64 gap-2">
 			  <p class="text-white/50">to</p>
 				<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
-				<p class="text-white/50">@CopyIcon()</p>
+				<p class="text-white/50">@components.CopyIcon()</p>
 			</div>
 		</div>
 		<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
