@@ -104,6 +104,7 @@ templ Layout(bodyContent templ.Component) {
         if (isNaN(sats)) return
 		  	const unit = document.querySelector('#unit').innerText
 		  	document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
+				document.querySelector('#amount').dispatchEvent(new Event('change'))
 		  	document.querySelector('#sats').value = sats
 		  }
   
