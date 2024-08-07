@@ -28,10 +28,21 @@
 }
 
 input {
+  border: none;
+  color: #fbfbfb80;
   width: 100%;
   &:focus {
-    border: 1px solid #bc3f20;
+    border: none;
+    box-shadow: none;
+    color: #fbfbfb;
+    outline: none;
   }
+}
+
+select:focus {
+  border: 1px solid #bc3f20;
+  box-shadow: none;
+  outline: none;
 }
 
 body {
@@ -44,6 +55,14 @@ body {
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
+}
+
+div:has(> input:not(.hidden):not(.unframed)) {
+  border: 1px solid #fbfbfb33;
+}
+
+div:has(> input:not(.hidden):not(.unframed):focus) {
+  border: 1px solid #bc3f20;
 }
 
 #app {
@@ -59,8 +78,8 @@ h1 {
 
 #toast {
   display: flex;
-  position: absolute;
-  top: 60px;
+  position: fixed;
+  top: 50px;
   width: 100%;
 }
 

@@ -10,18 +10,17 @@ templ ReceiveAmount() {
 
 templ InputAmount(max string) {
   @Label("Amount")
-  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
-    <div class="grow pr-4">
-	    <input class="hidden" id="sats" name="sats" />
-	    <input
-	      class="bg-graybg border-0 p-0"
-	      id="amount"
-        if (len(max) > 0) {
-	        max={max}
-        }
-	      onchange="updateSats()"
-	      placeholder="5000" />
-		</div>
+  <div class="bg-graybg px-4 py-3 flex items-center justify-between rounded-lg">
+    <input class="hidden" id="sats" name="sats" />
+	  <input
+	    class="bg-graybg border-0 p-0"
+	    id="amount"
+      if (len(max) > 0) {
+	      max={max}
+      }
+	    onchange="updateSats()"
+	    placeholder="5000"
+		/>
 		<div class="flex items-center gap-2">
       if (len(max) > 0) {
         <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
@@ -71,4 +70,44 @@ templ InputAddress() {
       }
 		}
 	</script>
+}
+
+templ InputGeneric(id, placeholder, value string) {
+  <div class="bg-graybg p-4 rounded-md">
+	  <input
+		  class="bg-graybg border-0 p-0 mr-4"
+			id={id}
+			name={id}
+			placeholder={placeholder}
+			value={value}
+		/>
+	</div>
+}
+
+templ InputWithPaste(id, placeholder, value string) {
+  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
+	  <input
+		  class="bg-graybg border-0 p-0 mr-4"
+			id={id}
+			name={id}
+			placeholder={placeholder}
+			value={value}
+		/>
+		<p class="cursor-pointer text-white/50" onclick="pasteFromClipboard()">@PasteIcon()</p>
+	</div>
+	<script>
+	  const pasteFromClipboard = () => {
+			if (navigator.clipboard) {
+        navigator.clipboard.readText().then((addr) => {
+					document.querySelector(`#${id}`).value = addr
+			  })
+      }
+		}
+	</script>
+}
+
+templ InputFake(text string) {
+  <div class="border border-1 border-white/20 bg-graybg p-4 rounded-md">
+	  <p class="truncate text-white/50">{text}</p>
+	</div>
 }
