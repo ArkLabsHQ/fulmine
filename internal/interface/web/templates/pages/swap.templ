@@ -113,11 +113,11 @@ templ SwapPreviewContent(kind, sats string) {
 		  <input type="hidden" name="sats" value={sats}>
 		  <input type="hidden" name="kind" value={kind}>
 	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
-				<div class="flex flex-col items-center">
-				  @components.Header("Confirm Swap")
-	        @SwapPreviewIcon()
-					@SwapMovementComponent(kind, sats)
-					@SwapFeesComponent(sats)
+        <div class="flex flex-col items-center">
+          @components.Header("Confirm Swap")
+          @SwapPreviewIcon()
+          @SwapMovementComponent(kind, sats)
+          @SwapFeesComponent(sats)
 	    	</div>
 	    	@components.ActionButtons("Confirm")
 	    </div>
@@ -152,7 +152,7 @@ templ SwapMovementComponent(kind, sats string) {
 			}
 			<p><span class="sats text-white">{sats}</span> SATS</p>
 		</div>
-		  @ArrowDownIcon()
+		@ArrowDownIcon()
 		<div class="flex items-center gap-4">
 	    if kind == "inbound" {
 	      <p>@components.ArkBalanceIcon()</p>
