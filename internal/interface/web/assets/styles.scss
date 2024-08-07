@@ -27,8 +27,11 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-input:focus {
-  border: 1px solid #bc3f20;
+input {
+  width: 100%;
+  &:focus {
+    border: 1px solid #bc3f20;
+  }
 }
 
 body {
@@ -47,7 +50,6 @@ h1 {
   color: white;
   margin: 0 auto;
   max-width: 720px;
-  padding: 4px;
   width: 100%;
 }
 

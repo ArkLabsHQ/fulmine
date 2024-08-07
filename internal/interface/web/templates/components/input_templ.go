@@ -82,7 +82,7 @@ func InputAmount(max string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-graybg p-4 flex items-center justify-between rounded-lg\"><input class=\"hidden\" id=\"sats\" name=\"sats\"> <input class=\"bg-graybg border-0 p-0\" id=\"amount\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-graybg p-4 flex items-center justify-between rounded-lg\"><div class=\"grow pr-4\"><input class=\"hidden\" id=\"sats\" name=\"sats\"> <input class=\"bg-graybg border-0 p-0\" id=\"amount\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -94,7 +94,7 @@ func InputAmount(max string) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(max)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/input.templ`, Line: 19, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/input.templ`, Line: 20, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -105,7 +105,7 @@ func InputAmount(max string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" onchange=\"updateSats()\" placeholder=\"5000\"><div class=\"flex items-center gap-2\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" onchange=\"updateSats()\" placeholder=\"5000\"></div><div class=\"flex items-center gap-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -135,7 +135,7 @@ func InputAmount(max string) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(max)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/input.templ`, Line: 34, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/input.templ`, Line: 36, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -176,7 +176,7 @@ func InputAddress() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-graybg p-4 flex items-center justify-between rounded-lg\"><input class=\"bg-graybg border-0 p-0\" id=\"address\" name=\"address\" placeholder=\"ark1ccc...\"><p class=\"cursor-pointer text-white/50\" onclick=\"pasteAddressFromClipboard()\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-graybg p-4 flex items-center justify-between rounded-lg\"><input class=\"bg-graybg border-0 p-0 mr-4\" id=\"address\" name=\"address\" placeholder=\"ark1ccc...\"><p class=\"cursor-pointer text-white/50\" onclick=\"pasteAddressFromClipboard()\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -184,7 +184,7 @@ func InputAddress() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div><script>\n\t  const pasteAddressFromClipboard = () => {\n\t\t\tif (navigator.clipboard) {\n        navigator.clipboard.readText().then((addr) => {\n\t\t\t\t\tdocument.querySelector('#address').value = addr\n\t\t\t\t\tconst asAmount = addr.match(/amount:(\\d+)/)\n\t\t\t\t\tif (asAmount) {\n\t\t\t\t\t\tconst sats = asAmount[1]\n\t\t\t\t\t\tconst unit = document.querySelector('#unit').innerText\n\t\t\t\t\t\tdocument.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)\n\t\t\t\t\t\tdocument.querySelector('#sats').value = sats\n\t\t\t\t\t}\n\t\t\t  })\n      }\n\t\t}\n\t</script>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div><script>\n\t  const pasteAddressFromClipboard = () => {\n\t\t\tif (navigator.clipboard) {\n        navigator.clipboard.readText().then((addr) => {\n\t\t\t\t\tdocument.querySelector('#address').value = addr\n\t\t\t\t\tconst asAmount = addr.match(/amount:(\\d+)/)\n\t\t\t\t\tif (asAmount) {\n\t\t\t\t\t\tconst sats = asAmount[1]\n\t\t\t\t\t\tconst unit = document.querySelector('#unit').innerText\n\t\t\t\t\t\tdocument.querySelector('#sats').value = sats\n\t\t\t\t\t\tdocument.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)\n\t\t\t\t\t\tdocument.querySelector('#amount').dispatchEvent(new Event('change'))\n\t\t\t\t\t}\n\t\t\t  })\n      }\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

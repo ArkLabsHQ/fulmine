@@ -11,15 +11,17 @@ templ ReceiveAmount() {
 templ InputAmount(max string) {
   @Label("Amount")
   <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
-	  <input class="hidden" id="sats" name="sats" />
-	  <input
-	    class="bg-graybg border-0 p-0"
-	    id="amount"
-      if (len(max) > 0) {
-	      max={max}
-      }
-	    onchange="updateSats()"
-	    placeholder="5000" />
+    <div class="grow pr-4">
+	    <input class="hidden" id="sats" name="sats" />
+	    <input
+	      class="bg-graybg border-0 p-0"
+	      id="amount"
+        if (len(max) > 0) {
+	        max={max}
+        }
+	      onchange="updateSats()"
+	      placeholder="5000" />
+		</div>
 		<div class="flex items-center gap-2">
       if (len(max) > 0) {
         <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
@@ -39,7 +41,7 @@ templ InputAmount(max string) {
 templ InputAddress() {
   @Label("Address")
 	<div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
-	  <input class="bg-graybg border-0 p-0" id="address" name="address" placeholder="ark1ccc..." />
+	  <input class="bg-graybg border-0 p-0 mr-4" id="address" name="address" placeholder="ark1ccc..." />
 		<p class="cursor-pointer text-white/50" onclick="pasteAddressFromClipboard()">@PasteIcon()</p>
 	</div>
 	<script>
@@ -51,8 +53,9 @@ templ InputAddress() {
 					if (asAmount) {
 						const sats = asAmount[1]
 						const unit = document.querySelector('#unit').innerText
-						document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
 						document.querySelector('#sats').value = sats
+						document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
+						document.querySelector('#amount').dispatchEvent(new Event('change'))
 					}
 			  })
       }
