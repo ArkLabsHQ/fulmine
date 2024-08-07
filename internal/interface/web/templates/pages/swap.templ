@@ -165,7 +165,7 @@ templ SwapMovementComponent(kind, sats string) {
 }
 
 templ SwapFeesComponent(sats string) {
-	<div class="bg-graybg p-4 w-full mt-8 rounded-lg">
+	<div class="border border-white/20 p-4 w-full mt-8 rounded-lg">
     @TxLine("network fee", "500")
     <div class="flex justify-between mb-2">
       <div class="flex items-center gap-2 text-white/50">
@@ -176,7 +176,7 @@ templ SwapFeesComponent(sats string) {
     </div>
     @TxLine("est. time", "~10 min.")
 		if len(sats) > 0 {
-      <hr class="text-white/50 mb-2" />
+      <hr class="text-white/20 mb-2" />
       <div class="flex justify-between">
         <p class="text-white/50">TOTAL</p>
         <p><span class="sats">{sats}</span> SATS</p>

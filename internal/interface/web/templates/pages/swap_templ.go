@@ -611,7 +611,7 @@ func SwapFeesComponent(sats string) templ.Component {
 			templ_7745c5c3_Var23 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-graybg p-4 w-full mt-8 rounded-lg\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"border border-white/20 p-4 w-full mt-8 rounded-lg\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -636,7 +636,7 @@ func SwapFeesComponent(sats string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if len(sats) > 0 {
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<hr class=\"text-white/50 mb-2\"><div class=\"flex justify-between\"><p class=\"text-white/50\">TOTAL</p><p><span class=\"sats\">")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<hr class=\"text-white/20 mb-2\"><div class=\"flex justify-between\"><p class=\"text-white/50\">TOTAL</p><p><span class=\"sats\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
