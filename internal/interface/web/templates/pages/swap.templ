@@ -57,8 +57,8 @@ templ SwapBodyContent(currentBalance, nodeBalance string) {
 	<div id="swapBody">
     <form hx-post="/swap/preview" hx-target="#swapBody" hx-target="outerHTML">
 	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
-	      <div>
-	        @components.Header("Swap")
+	      @components.Header("Swap")
+				<div class="overflow-scroll">
 	        <div class="flex justify-between items-center">
 	          <div class="flex items-center gap-4">
 	            <p>@components.ArkBalanceIcon()</p>
@@ -128,11 +128,11 @@ templ SwapPreviewContent(kind, sats string) {
 }
 
 templ SwapSuccessContent(kind, sats string) {
-	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
-	  @components.Header("Swap")
+	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">  
 	  <div class="flex flex-col items-center">
+		  @components.Header("Swap")
 	    @SuccessIcon()
-			<p class="mt-8">Swap successfully</p>
+			<p class="mt-8">Swaped successfully</p>
 			@SwapMovementComponent(kind, sats)
 		</div>
 	  <div class="md:flex flex-row-reverse justify-start gap-4 mt-16">

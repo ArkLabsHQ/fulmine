@@ -26,7 +26,7 @@ func ActionButtons(action string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col md:flex-row-reverse justify-start gap-4 mt-16 mb-2\"><button class=\"bg-orange md:w-auto\" type=\"submit\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col md:flex-row-reverse justify-start gap-4 mt-4 mb-2\"><button class=\"bg-orange md:w-auto\" type=\"submit\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -103,9 +103,9 @@ templ Layout(bodyContent templ.Component) {
 		  	const sats = val || document.querySelector('#amount').getAttribute('max')
         if (isNaN(sats)) return
 		  	const unit = document.querySelector('#unit').innerText
+				document.querySelector('#sats').value = sats
 		  	document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
 				document.querySelector('#amount').dispatchEvent(new Event('change'))
-		  	document.querySelector('#sats').value = sats
 		  }
   
 		  const toggleUnit = () => {

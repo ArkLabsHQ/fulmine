@@ -253,7 +253,7 @@ func SwapBodyContent(currentBalance, nodeBalance string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"swapBody\"><form hx-post=\"/swap/preview\" hx-target=\"#swapBody\" hx-target=\"outerHTML\"><div class=\"p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg\"><div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"swapBody\"><form hx-post=\"/swap/preview\" hx-target=\"#swapBody\" hx-target=\"outerHTML\"><div class=\"p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -261,7 +261,7 @@ func SwapBodyContent(currentBalance, nodeBalance string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex justify-between items-center\"><div class=\"flex items-center gap-4\"><p>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"overflow-scroll\"><div class=\"flex justify-between items-center\"><div class=\"flex items-center gap-4\"><p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -455,7 +455,7 @@ func SwapSuccessContent(kind, sats string) templ.Component {
 			templ_7745c5c3_Var19 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg\"><div class=\"flex flex-col items-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -463,15 +463,11 @@ func SwapSuccessContent(kind, sats string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col items-center\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
 		templ_7745c5c3_Err = SuccessIcon().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"mt-8\">Swap successfully</p>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"mt-8\">Swaped successfully</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -48,17 +48,17 @@ templ SendPreviewContent(address, amount string) {
 	      <div class="flex flex-col items-center">
 	        @components.Header("Confirm Send")
 	        @SendPreviewIcon()
-					<p class="mt-8">Send</p>
-					<p class="mt-8 text-3xl">
+					<p class="mt-4">Send</p>
+					<p class="mt-4 text-3xl">
 					  <span class="sats">{amount}</span>
 						<span class="text-white/50">SATS</span>
 					</p>
-					<div class="flex mt-8 w-64 gap-2">
+					<div class="flex mt-4 w-64 gap-2">
 					  <p class="text-white/50">to</p>
 						<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
 						<p class="text-white/50">@components.CopyIcon()</p>
 					</div>
-					<div class="bg-white/10 p-4 w-full mt-8 rounded-lg">
+					<div class="bg-white/10 p-4 w-full mt-4 rounded-lg">
             @TxLine("network fee", "500")
             <div class="flex justify-between mb-2">
               <div class="flex items-center gap-2 text-white/50">
@@ -83,8 +83,8 @@ templ SendPreviewContent(address, amount string) {
 
 templ SendSuccessContent(address, amount string) {
 	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
-	  @components.Header("Sent")
 	  <div class="flex flex-col items-center">
+		  @components.Header("Sent")
 	    @SuccessIcon()
 			<p class="mt-8">Sent successfully</p>
 			<p class="mt-8 text-3xl">

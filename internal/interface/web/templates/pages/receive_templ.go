@@ -88,12 +88,12 @@ func ReceivePreview(bip21 string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col items-center gap-10 pb-10\"><div class=\"h-72\"><img src=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col justify-center items-center gap-2 overflow-auto\"><div class=\"h-64\"><img src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs("https://api.qrserver.com/v1/create-qr-code/?color=fbfbfb&bgcolor=202020&size=288x288&data=" + bip21)
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs("https://api.qrserver.com/v1/create-qr-code/?color=fbfbfb&bgcolor=202020&size=256x256&data=" + bip21)
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/receive.templ`, Line: 28, Col: 111}
 		}
@@ -127,7 +127,7 @@ func ReceivePreview(bip21 string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div></div><div class=\"flex flex-col md:flex-row-reverse justify-start gap-4 mt-16 mb-2\"><button class=\"bg-graybg md:w-auto\" onclick=\"copyToClipboard(&#39;#bip21&#39;)\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div></div><div class=\"flex flex-col md:flex-row-reverse justify-start gap-4 mt-4 mb-2\"><button class=\"bg-graybg md:w-auto\" onclick=\"copyToClipboard(&#39;#bip21&#39;)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
