@@ -90,7 +90,15 @@ func SetPasswordContent() templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/password\"><div class=\"p-3 flex flex-col justify-between h-screen\"><div id=\"setPassComponent\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/password\"><div class=\"flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3\"><div id=\"setPassComponent\"><div class=\"hidden md:block\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = LogoWhite().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -146,7 +154,7 @@ func SetPasswordContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div><div><button class=\"bg-orange text-white\" disabled type=\"submit\">Create wallet</button></div></div></form><script>\n    const toggleVisibility = () => {\n      document.querySelectorAll(\".eyes span\").forEach((el) => {\n        el.style.display = el.style.display === 'none' ? 'block' : 'none'\n      })\n      document.querySelectorAll(\"input\").forEach((el) => {\n        el.type = el.type === 'text' ? 'password' : 'text'\n      })\n    }\n\n    const toggleCheck = (id, ok) => {\n      document.querySelector(id).classList.remove(\"text-green\");\n      document.querySelector(id).classList.remove(\"text-white/50\");\n      if (ok) {\n        document.querySelector(id).classList.add(\"text-green\");\n      } else {\n        document.querySelector(id).classList.add(\"text-white/50\");\n      }\n      return ok\n    }\n\n    const checkPass = () => {\n      // check they are equals and enable button\n      const pass = document.querySelector(\"input[name='password']\").value\n      const conf = document.querySelector(\"input[name='pconfirm']\").value\n      let enabled = pass && pass.length > 0 && pass === conf\n      // check other conditions\n      enabled &&= toggleCheck(\"#minchar\", pass.length > 7)\n      enabled &&= toggleCheck(\"#onenumb\", /\\d/.test(pass))\n      enabled &&= toggleCheck(\"#special\", /[^a-zA-Z0-9]/.test(pass))\n      // enable / disable button\n      document.querySelector('button').disabled = !enabled\n    }\n  </script>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div><button class=\"bg-orange text-white\" disabled type=\"submit\">Create wallet</button></div></form><script>\n    const toggleVisibility = () => {\n      document.querySelectorAll(\".eyes span\").forEach((el) => {\n        el.style.display = el.style.display === 'none' ? 'block' : 'none'\n      })\n      document.querySelectorAll(\"input\").forEach((el) => {\n        el.type = el.type === 'text' ? 'password' : 'text'\n      })\n    }\n\n    const toggleCheck = (id, ok) => {\n      document.querySelector(id).classList.remove(\"text-green\");\n      document.querySelector(id).classList.remove(\"text-white/50\");\n      if (ok) {\n        document.querySelector(id).classList.add(\"text-green\");\n      } else {\n        document.querySelector(id).classList.add(\"text-white/50\");\n      }\n      return ok\n    }\n\n    const checkPass = () => {\n      // check they are equals and enable button\n      const pass = document.querySelector(\"input[name='password']\").value\n      const conf = document.querySelector(\"input[name='pconfirm']\").value\n      let enabled = pass && pass.length > 0 && pass === conf\n      // check other conditions\n      enabled &&= toggleCheck(\"#minchar\", pass.length > 7)\n      enabled &&= toggleCheck(\"#onenumb\", /\\d/.test(pass))\n      enabled &&= toggleCheck(\"#special\", /[^a-zA-Z0-9]/.test(pass))\n      // enable / disable button\n      document.querySelector('button').disabled = !enabled\n    }\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -71,6 +71,9 @@ div:has(> input:not(.hidden):not(.unframed):focus) {
   margin: 0 auto;
   max-width: 720px;
   width: 100%;
+  &:has(div.fullscreen) {
+    max-width: 100%;
+  }
 }
 
 #htmx-result {

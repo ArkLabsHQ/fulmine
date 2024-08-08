@@ -30,15 +30,23 @@ func Locked() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/unlock\"><div class=\"bg-radial-gradient p-3 flex flex-col justify-between h-screen\"><div class=\"px-3\"><div class=\"flex flex-col items-center gap-6\"><div class=\"flex items-center mt-24\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/unlock\"><div class=\"bg-radial-gradient h-screen fullscreen\"><div class=\"flex flex-col h-screen justify-between md:h-auto md:gap-10 w-80 m-auto p-3\"><div><div class=\"flex flex-col items-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.LogoXL().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = LogoWhite().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div><p class=\"leading-5 font-bold text-2xl\">ARK</p><p class=\"leading-5 font-bold text-2xl\">NODE</p></div></div><p class=\"font-medium text-3xl p-8\">Enter your password</p></div><p class=\"font-semibold mt-10 mb-2\">Password</p><input class=\"text-black w-full p-4 rounded border-0\" name=\"password\" type=\"password\"></div><div class=\"flex flex-col gap-2\"><button class=\"bg-white text-black\" type=\"submit\">Unlock</button></div></div></form>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"font-medium text-center text-3xl pb-8\">Enter your password</p></div><div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = components.Label("Password").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<input class=\"text-black w-full border-0 p-4 rounded-md unframed\" name=\"password\" type=\"password\"></div></div><button class=\"bg-white text-black mt-10\" type=\"submit\">Unlock</button></div></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

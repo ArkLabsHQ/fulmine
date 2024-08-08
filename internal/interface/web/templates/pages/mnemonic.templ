@@ -24,8 +24,9 @@ templ Word(i int, words ...string) {
 
 templ ImportWalletContent() {
 	<form hx-post="/api/mnemonic/validate" hx-trigger="change">
-	  <div class="p-3 flex flex-col justify-between h-screen">
+	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	    <div>
+			  @LogoWhite()
 	      @components.Header("Import wallet", "/welcome")
 	  		<p class="mb-10">Insert your 12-word secret seed phrase.</p>
 	  	  <div class="grid grid-cols-2 gap-6">
@@ -34,9 +35,7 @@ templ ImportWalletContent() {
           }
 	  		</div>
 	  	</div>
-	  	<div>
-	  	  <button class="bg-orange text-white" onclick="redirect('/password')">Import wallet</button>
-	  	</div>
+			<button class="bg-orange text-white" onclick="redirect('/password')">Import wallet</button>
 	  </div>
 	</form>
 	<script>
@@ -53,8 +52,9 @@ templ ImportWalletContent() {
 }
 
 templ NewWalletContent(mnemonic []string) {
-	<div class="p-3 flex flex-col justify-between h-screen">
+	<div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	  <div>
+		  <div class="hidden md:block">@LogoWhite()</div>
 	    @components.Header("New wallet", "/welcome")
 			<p class="mb-10">Write down the following words in a secure place.</p>
 		  <div class="grid grid-cols-2 gap-6">
@@ -63,8 +63,6 @@ templ NewWalletContent(mnemonic []string) {
         }
 			</div>
 		</div>
-		<div>
-		  <button class="bg-orange text-white" onclick="redirect('/password')">Create wallet</button>
-		</div>
+		<button class="bg-orange text-white" onclick="redirect('/password')">Create wallet</button>
 	</div>
 }

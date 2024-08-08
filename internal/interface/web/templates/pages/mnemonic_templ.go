@@ -124,7 +124,11 @@ func ImportWalletContent() templ.Component {
 			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/api/mnemonic/validate\" hx-trigger=\"change\"><div class=\"p-3 flex flex-col justify-between h-screen\"><div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/api/mnemonic/validate\" hx-trigger=\"change\"><div class=\"flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3\"><div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = LogoWhite().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -142,7 +146,7 @@ func ImportWalletContent() templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div><div><button class=\"bg-orange text-white\" onclick=\"redirect(&#39;/password&#39;)\">Import wallet</button></div></div></form><script>\n\t  const fullPaste = () => {\n\t\t\tconst text = document.querySelector(\"#word_1\").value\n\t\t\tif (text && text.split(/\\s+/).length === 12) {\n\t\t\t\tconst words = text.split(/\\s+/)\n\t\t\t\tfor (let i = 0; i < 12; i++) {\n\t\t\t\t\tdocument.querySelector(`#word_${i+1}`).value = words[i]\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t</script>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div><button class=\"bg-orange text-white\" onclick=\"redirect(&#39;/password&#39;)\">Import wallet</button></div></form><script>\n\t  const fullPaste = () => {\n\t\t\tconst text = document.querySelector(\"#word_1\").value\n\t\t\tif (text && text.split(/\\s+/).length === 12) {\n\t\t\t\tconst words = text.split(/\\s+/)\n\t\t\t\tfor (let i = 0; i < 12; i++) {\n\t\t\t\t\tdocument.querySelector(`#word_${i+1}`).value = words[i]\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -168,7 +172,15 @@ func NewWalletContent(mnemonic []string) templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"p-3 flex flex-col justify-between h-screen\"><div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3\"><div><div class=\"hidden md:block\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = LogoWhite().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -186,7 +198,7 @@ func NewWalletContent(mnemonic []string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div><div><button class=\"bg-orange text-white\" onclick=\"redirect(&#39;/password&#39;)\">Create wallet</button></div></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div><button class=\"bg-orange text-white\" onclick=\"redirect(&#39;/password&#39;)\">Create wallet</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
