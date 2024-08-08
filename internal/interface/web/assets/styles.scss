@@ -27,11 +27,19 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+body {
+  margin: 0;
+  display: flex;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
 input {
   border: none;
   color: #fbfbfb80;
   width: 100%;
-  &:focus {
+  &:focus,
+  &[type='password']:focus {
     border: none;
     box-shadow: none;
     color: #fbfbfb;
@@ -43,13 +51,6 @@ select:focus {
   border: 1px solid #bc3f20;
   box-shadow: none;
   outline: none;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  min-width: 320px;
-  min-height: 100vh;
 }
 
 h1 {
