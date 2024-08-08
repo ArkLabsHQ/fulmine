@@ -98,6 +98,7 @@ func NewService() *service {
 	svc.POST("/api/settings", handlers.SettingsApiPost)
 	svc.POST("/api/node/connect", handlers.NodeConnectApiPost)
 	svc.POST("/api/node/disconnect", handlers.NodeDisconnectApiPost)
+	svc.POST("/api/mnemonic/validate", handlers.ValidateMnemonicApiPost)
 
 	return svc
 }

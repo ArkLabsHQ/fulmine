@@ -93,6 +93,10 @@ div:has(> input:not(.hidden):not(.unframed):focus) {
   filter: drop-shadow(0 0 2em #f3c077aa);
 }
 
+.square {
+  aspect-ratio: 1 / 1;
+}
+
 button {
   border-radius: 8px;
   border: 1px solid transparent;

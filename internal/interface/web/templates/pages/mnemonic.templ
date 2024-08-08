@@ -7,32 +7,38 @@ import (
 
 templ Word(i int, words ...string) {
 	<div class="bg-graybg rounded p-1 flex items-center gap-2 w-full">
-	  <div class="bg-white/10 rounded flex justify-center items-center h-8 w-10">
+	  <div class="bg-white/10 rounded flex justify-center items-center h-8 square">
 	    <p>{strconv.Itoa(i)}</p>
 		</div>
 		if len(words) > 0 {
 	  	<p>{words[0]}</p>
 	  } else {
-	  	<input class="bg-graybg border-0 p-1 w-full" id={"word_" + strconv.Itoa(i)} oninput="fullPaste()" />
+	  	<input
+			  class="bg-graybg border-0 p-1"
+				id={"word_" + strconv.Itoa(i)}
+				name={"word_" + strconv.Itoa(i)}
+				oninput="fullPaste()" />
 	  }
 	</div>
 }
 
 templ ImportWalletContent() {
-	<div class="p-3 flex flex-col justify-between h-screen">
-	  <div>
-	    @components.Header("Import wallet", "/welcome")
-			<p class="mb-10">Insert your 12-word secret seed phrase.</p>
-		  <div class="grid grid-cols-2 gap-6">
-			  for i := 0; i < 12; i++ {
-          @Word(i+1)
-        }
-			</div>
-		</div>
-		<div>
-		  <button class="bg-orange text-white" onclick="redirect('/password')">Import wallet</button>
-		</div>
-	</div>
+	<form hx-post="/api/mnemonic/validate" hx-trigger="change">
+	  <div class="p-3 flex flex-col justify-between h-screen">
+	    <div>
+	      @components.Header("Import wallet", "/welcome")
+	  		<p class="mb-10">Insert your 12-word secret seed phrase.</p>
+	  	  <div class="grid grid-cols-2 gap-6">
+	  		  for i := 0; i < 12; i++ {
+            @Word(i+1)
+          }
+	  		</div>
+	  	</div>
+	  	<div>
+	  	  <button class="bg-orange text-white" onclick="redirect('/password')">Import wallet</button>
+	  	</div>
+	  </div>
+	</form>
 	<script>
 	  const fullPaste = () => {
 			const text = document.querySelector("#word_1").value
