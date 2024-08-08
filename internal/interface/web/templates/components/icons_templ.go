@@ -657,3 +657,29 @@ func SwapIcon() templ.Component {
 		return templ_7745c5c3_Err
 	})
 }
+
+func TwitterIcon() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var26 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var26 == nil {
+			templ_7745c5c3_Var26 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<svg class=\"w-8 h-8 mr-1 inline\" viewBox=\"0 0 37 37\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g clip-path=\"url(#clip0_731_1274)\"><path d=\"M24.25 9.4375H27.3175L20.6175 17.115L28.5 27.5625H22.3287L17.495 21.225L11.9637 27.5625H8.895L16.0612 19.35L8.5 9.4375H14.8288L19.1975 15.2287L24.25 9.4375ZM23.175 25.7225H24.875L13.9037 11.1812H12.0812L23.175 25.7225Z\" fill=\"#FBFBFB\" fill-opacity=\"0.7\"></path></g> <defs><clipPath id=\"clip0_731_1274\"><rect width=\"20\" height=\"20\" fill=\"white\" transform=\"translate(8.5 8.5)\"></rect></clipPath></defs></svg>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return templ_7745c5c3_Err
+	})
+}

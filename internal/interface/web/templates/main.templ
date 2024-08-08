@@ -69,7 +69,10 @@ templ Layout(bodyContent templ.Component) {
       }
 
 			const redirect = (path) => {
-				window.location.href = path
+				const url = new URL(window.location.href)
+				const params = new URLSearchParams(url.search);
+				const aspurl = params.get('aspurl')
+				window.location.href = path + (aspurl ? `/?aspurl=${aspurl}` : '')
 			}
 
       const copyToClipboard = (id) => {
@@ -151,6 +154,14 @@ templ Layout(bodyContent templ.Component) {
         })
 
         updateFiatValues()
+
+				const url = new URL(window.location.href)
+			  const params = new URLSearchParams(url.search);
+			  const aspurl = params.get('aspurl')
+        if (aspurl) {
+					const hiddenInput = document.querySelector("#aspurl")
+					if (hiddenInput) hiddenInput.value = aspurl
+				}
       })
 
       document.body.addEventListener("toast", (e) => {

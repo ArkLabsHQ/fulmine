@@ -39,6 +39,7 @@ input {
   color: #fbfbfb80;
   width: 100%;
   &:focus,
+  &[type='text']:focus,
   &[type='password']:focus {
     border: none;
     box-shadow: none;
@@ -116,11 +117,6 @@ button {
 
 button:hover {
   border-color: #bc3f20;
-}
-
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
 }
 
 button:disabled {

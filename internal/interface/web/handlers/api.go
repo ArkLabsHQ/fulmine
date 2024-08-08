@@ -43,7 +43,7 @@ func NodeDisconnectApiPost(c *gin.Context) {
 	toastHandler(toast, c)
 }
 
-func ValidateMnemonicApiPost(c *gin.Context) {
+func MnemonicValidateApiPost(c *gin.Context) {
 	// TODO: validate mnemonic with bip39
 	var toast templ.Component
 	for i := 1; i <= 12; i++ {

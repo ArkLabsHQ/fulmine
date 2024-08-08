@@ -10,23 +10,23 @@ templ Word(i int, words ...string) {
 	  <div class="bg-white/10 rounded flex justify-center items-center h-8 square">
 	    <p>{strconv.Itoa(i)}</p>
 		</div>
-		if len(words) > 0 {
-	  	<p>{words[0]}</p>
-	  } else {
-	  	<input
-			  class="bg-graybg border-0 p-1"
-				id={"word_" + strconv.Itoa(i)}
-				name={"word_" + strconv.Itoa(i)}
-				oninput="fullPaste()" />
-	  }
+	  <input
+		  class="bg-graybg border-0 p-1"
+			id={"word_" + strconv.Itoa(i)}
+			name={"word_" + strconv.Itoa(i)}
+			oninput="fullPaste()"
+			if len(words) > 0 {
+			  value={words[0]}
+			}
+		/>
 	</div>
 }
 
 templ ImportWalletContent() {
-	<form hx-post="/api/mnemonic/validate" hx-trigger="change">
+	<form hx-post="/mnemonic">
 	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	    <div>
-			  @LogoWhite()
+			  <div class="hidden md:block">@LogoWhite()</div>
 	      @components.Header("Import wallet", "/welcome")
 	  		<p class="mb-10">Insert your 12-word secret seed phrase.</p>
 	  	  <div class="grid grid-cols-2 gap-6">
@@ -35,7 +35,7 @@ templ ImportWalletContent() {
           }
 	  		</div>
 	  	</div>
-			<button class="bg-orange text-white" onclick="redirect('/password')">Import wallet</button>
+			<button class="bg-orange text-white" type="submit">Import wallet</button>
 	  </div>
 	</form>
 	<script>
@@ -52,17 +52,19 @@ templ ImportWalletContent() {
 }
 
 templ NewWalletContent(mnemonic []string) {
-	<div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
-	  <div>
-		  <div class="hidden md:block">@LogoWhite()</div>
-	    @components.Header("New wallet", "/welcome")
-			<p class="mb-10">Write down the following words in a secure place.</p>
-		  <div class="grid grid-cols-2 gap-6">
-			  for i, w := range mnemonic {
-          @Word(i+1, w)
-        }
-			</div>
-		</div>
-		<button class="bg-orange text-white" onclick="redirect('/password')">Create wallet</button>
-	</div>
+	<form hx-post="/mnemonic">
+	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
+	    <div>
+	  	  <div class="hidden md:block">@LogoWhite()</div>
+	      @components.Header("New wallet", "/welcome")
+	  		<p class="mb-10">Write down the following words in a secure place.</p>
+	  	  <div class="grid grid-cols-2 gap-6">
+	  		  for i, w := range mnemonic {
+            @Word(i+1, w)
+          }
+	  		</div>
+	  	</div>
+	  	<button class="bg-orange text-white" type="submit">Create wallet</button>
+	  </div>
+	</form>
 }

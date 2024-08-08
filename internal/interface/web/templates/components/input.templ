@@ -84,6 +84,10 @@ templ InputGeneric(id, placeholder, value string) {
 	</div>
 }
 
+script smartPaste(id string) {
+	pasteFromClipboard(`#${id}`)
+}
+
 templ InputWithPaste(id, placeholder, value string) {
   <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
 	  <input
@@ -93,17 +97,8 @@ templ InputWithPaste(id, placeholder, value string) {
 			placeholder={placeholder}
 			value={value}
 		/>
-		<p class="cursor-pointer text-white/50" onclick="pasteFromClipboard()">@PasteIcon()</p>
+		<p class="cursor-pointer text-white/50" onclick={smartPaste(id)}>@PasteIcon()</p>
 	</div>
-	<script>
-	  const pasteFromClipboard = () => {
-			if (navigator.clipboard) {
-        navigator.clipboard.readText().then((addr) => {
-					document.querySelector(`#${id}`).value = addr
-			  })
-      }
-		}
-	</script>
 }
 
 templ InputFake(text string) {
