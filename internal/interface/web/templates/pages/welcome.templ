@@ -5,17 +5,16 @@ import (
 )
 
 templ Welcome() {
-  <div class="bg-radial-gradient p-3 flex flex-col justify-between h-screen">
-    <div class="flex flex-col items-center gap-6">
-      <div class="flex items-center mt-24">
+  <div class="bg-radial-gradient p-3 flex flex-col items-center justify-between h-screen">
+    <div class="flex items-center mt-12 md:mt-24">
 	      @components.LogoXL()
 			  <div>
 			    <p class="leading-5 font-bold text-2xl">ARK</p>
 				  <p class="leading-5 font-bold text-2xl">NODE</p>
 			  </div>
-		  </div>
-      <p class="font-medium text-3xl text-center p-8">Start sending and receiving Bitcoin fast and private</p>
-      <div class="flex flex-col gap-5 bg-white/10 p-4 mt-10 rounded-lg w-80 md:w-96">
+		</div>
+    <p class="font-medium text-3xl text-center max-w-80">Start sending and receiving Bitcoin fast and private</p>
+    <div class="flex flex-col gap-5 bg-white/10 p-4 mb-10 rounded-lg w-80 md:w-96">
         <div class="flex items-center gap-2">
           <p>@components.CheckIcon()</p>
           <p>Faster and less expensive</p>
@@ -28,9 +27,8 @@ templ Welcome() {
           <p>@components.CheckIcon()</p>
           <p>Faster and less expensive</p>
         </div>
-      </div>
     </div>
-    <div class="flex flex-col gap-2">
+    <div class="flex flex-col gap-2 w-full">
 	    <button class="bg-white text-black" onclick="redirect('/new')">&#65291; Create new wallet</button>
 	    <button class="bg-white/20 w-full" onclick="redirect('/import')">Import</button>
 	  </div>

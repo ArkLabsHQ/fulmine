@@ -30,7 +30,7 @@ func Welcome() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-radial-gradient p-3 flex flex-col justify-between h-screen\"><div class=\"flex flex-col items-center gap-6\"><div class=\"flex items-center mt-24\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-radial-gradient p-3 flex flex-col items-center justify-between h-screen\"><div class=\"flex items-center mt-12 md:mt-24\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -38,7 +38,7 @@ func Welcome() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div><p class=\"leading-5 font-bold text-2xl\">ARK</p><p class=\"leading-5 font-bold text-2xl\">NODE</p></div></div><p class=\"font-medium text-3xl text-center p-8\">Start sending and receiving Bitcoin fast and private</p><div class=\"flex flex-col gap-5 bg-white/10 p-4 mt-10 rounded-lg w-80 md:w-96\"><div class=\"flex items-center gap-2\"><p>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div><p class=\"leading-5 font-bold text-2xl\">ARK</p><p class=\"leading-5 font-bold text-2xl\">NODE</p></div></div><p class=\"font-medium text-3xl text-center max-w-80\">Start sending and receiving Bitcoin fast and private</p><div class=\"flex flex-col gap-5 bg-white/10 p-4 mb-10 rounded-lg w-80 md:w-96\"><div class=\"flex items-center gap-2\"><p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -62,7 +62,7 @@ func Welcome() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><p>Faster and less expensive</p></div></div></div><div class=\"flex flex-col gap-2\"><button class=\"bg-white text-black\" onclick=\"redirect(&#39;/new&#39;)\">&#65291; Create new wallet</button> <button class=\"bg-white/20 w-full\" onclick=\"redirect(&#39;/import&#39;)\">Import</button></div></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><p>Faster and less expensive</p></div></div><div class=\"flex flex-col gap-2 w-full\"><button class=\"bg-white text-black\" onclick=\"redirect(&#39;/new&#39;)\">&#65291; Create new wallet</button> <button class=\"bg-white/20 w-full\" onclick=\"redirect(&#39;/import&#39;)\">Import</button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
