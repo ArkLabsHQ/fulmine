@@ -5,21 +5,56 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
-templ Word(i int, words ...string) {
-	<div class="bg-graybg rounded p-1 flex items-center gap-2 w-full">
-	  <div class="bg-white/10 rounded flex justify-center items-center h-8 square">
-	    <p>{strconv.Itoa(i)}</p>
-		</div>
-	  <input
-		  class="bg-graybg border-0 p-1"
-			id={"word_" + strconv.Itoa(i)}
-			name={"word_" + strconv.Itoa(i)}
-			oninput="fullPaste()"
-			if len(words) > 0 {
-			  value={words[0]}
+templ ManageMnemonicContent(mnemonic []string) {
+	if len(mnemonic) > 0 {
+		@NewWalletContent(mnemonic)
+	} else {
+		@ImportWalletContent()
+	}
+	<script>
+	  const handleWordChange = () => {
+			pasteOtherWords()
+			validateMnemonic()
+		}
+
+	  const pasteOtherWords = () => {
+			const text = document.querySelector("#word_1").value
+			if (text && text.split(/\s+/).length === 12) {
+				const words = text.split(/\s+/)
+				for (let i = 0; i < 12; i++) {
+					document.querySelector(`#word_${i+1}`).value = words[i]
+				}
 			}
-		/>
-	</div>
+		}
+
+		const validateMnemonic = () => {
+			const words = []
+			for (let i = 1; i < 13; i++) {
+				words.push(document.querySelector(`#word_${i}`).value)
+			}
+			const mnemonic = words.join(" ")
+			const data = new FormData()
+			data.set('mnemonic', mnemonic)
+			fetch('/api/mnemonic/validate', {
+				method: 'POST',
+        body: data,
+			}).then((res) => {
+				if (res.ok) {
+					res.json().then(({ valid }) => {
+						const button = document.querySelector('#importButton')
+						if (!button) return
+						if (valid) {
+							button.disabled = false
+							button.innerText = 'Continue'
+						} else {
+							button.disabled = true
+							button.innerText = 'Invalid mnemonic'
+						}
+					})
+				}
+		  })
+		}
+	</script>
 }
 
 templ ImportWalletContent() {
@@ -35,20 +70,9 @@ templ ImportWalletContent() {
           }
 	  		</div>
 	  	</div>
-			<button class="bg-orange text-white" type="submit">Import wallet</button>
+			<button class="bg-orange text-white" disabled id="importButton" type="submit">Invalid mnemonic</button>
 	  </div>
 	</form>
-	<script>
-	  const fullPaste = () => {
-			const text = document.querySelector("#word_1").value
-			if (text && text.split(/\s+/).length === 12) {
-				const words = text.split(/\s+/)
-				for (let i = 0; i < 12; i++) {
-					document.querySelector(`#word_${i+1}`).value = words[i]
-				}
-			}
-		}
-	</script>
 }
 
 templ NewWalletContent(mnemonic []string) {
@@ -64,7 +88,24 @@ templ NewWalletContent(mnemonic []string) {
           }
 	  		</div>
 	  	</div>
-	  	<button class="bg-orange text-white" type="submit">Create wallet</button>
+	  	<button class="bg-orange text-white" id="importButton" type="submit">Continue</button>
 	  </div>
 	</form>
+}
+
+templ Word(i int, words ...string) {
+	<div class="bg-graybg rounded p-1 flex items-center gap-2 w-full">
+	  <div class="bg-white/10 rounded flex justify-center items-center h-8 square">
+	    <p>{strconv.Itoa(i)}</p>
+		</div>
+	  <input
+		  class="bg-graybg border-0 p-1"
+			id={"word_" + strconv.Itoa(i)}
+			name={"word_" + strconv.Itoa(i)}
+			oninput="handleWordChange()"
+			if len(words) > 0 {
+			  value={words[0]}
+			}
+		/>
+	</div>
 }

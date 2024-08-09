@@ -42,7 +42,9 @@ func Index(c *gin.Context) {
 }
 
 func ImportWallet(c *gin.Context) {
-	bodyContent := pages.ImportWalletContent()
+	var empty []string
+	empty = append(empty, "")
+	bodyContent := pages.ManageMnemonicContent(empty)
 	pageViewHandler(bodyContent, c)
 }
 
@@ -52,7 +54,7 @@ func Locked(c *gin.Context) {
 }
 
 func NewWallet(c *gin.Context) {
-	bodyContent := pages.NewWalletContent(getNewMnemonic())
+	bodyContent := pages.ManageMnemonicContent(getNewMnemonic())
 	pageViewHandler(bodyContent, c)
 }
 
@@ -109,7 +111,6 @@ func SetMnemonic(c *gin.Context) {
 		words = append(words, word)
 	}
 	mnemonic := strings.Join(words, " ")
-	fmt.Println(mnemonic)
 	bodyContent := pages.SetPasswordContent(mnemonic)
 	partialViewHandler(bodyContent, c)
 }

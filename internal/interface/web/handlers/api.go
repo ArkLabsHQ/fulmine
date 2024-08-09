@@ -3,13 +3,13 @@ package handlers
 import (
 	"errors"
 	"net/http"
-	"strconv"
 
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tyler-smith/go-bip39"
 )
 
 func toastHandler(t templ.Component, c *gin.Context) {
@@ -43,18 +43,11 @@ func NodeDisconnectApiPost(c *gin.Context) {
 	toastHandler(toast, c)
 }
 
-func MnemonicValidateApiPost(c *gin.Context) {
-	// TODO: validate mnemonic with bip39
-	var toast templ.Component
-	for i := 1; i <= 12; i++ {
-		id := "word_" + strconv.Itoa(i)
-		word := c.PostForm(id)
-		if len(word) == 0 {
-			toast = components.Toast("Invalid mnemonic", true)
-		}
+func ValidateMnemonic(c *gin.Context) {
+	mnemonic := c.PostForm("mnemonic")
+	isValid := bip39.IsMnemonicValid(mnemonic)
+	data := gin.H{
+		"valid": isValid,
 	}
-	if toast == nil {
-		toast = components.Toast("Valid mnemonic")
-	}
-	toastHandler(toast, c)
+	c.JSON(http.StatusOK, data)
 }
