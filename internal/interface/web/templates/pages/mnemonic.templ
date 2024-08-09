@@ -6,7 +6,7 @@ import (
 )
 
 templ ManageMnemonicContent(mnemonic []string) {
-	if len(mnemonic) > 0 {
+	if len(mnemonic) == 12 {
 		@NewWalletContent(mnemonic)
 	} else {
 		@ImportWalletContent()

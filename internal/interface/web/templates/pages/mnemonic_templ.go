@@ -31,7 +31,7 @@ func ManageMnemonicContent(mnemonic []string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if len(mnemonic) > 0 {
+		if len(mnemonic) == 12 {
 			templ_7745c5c3_Err = NewWalletContent(mnemonic).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
