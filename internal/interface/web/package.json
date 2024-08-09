@@ -17,7 +17,7 @@
     "watch": "parcel watch",
     "fmt": "prettier --write .",
     "dev": "parcel build --no-optimize",
-    "build": "parcel build"
+    "build": "parcel build --no-content-hash"
   },
   "dependencies": {
     "@tailwindcss/forms": "latest",

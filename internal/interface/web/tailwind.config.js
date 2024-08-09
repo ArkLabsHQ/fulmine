@@ -18,6 +18,8 @@ module.exports = {
         white: '#fbfbfb',
         graybg: '#2a2a2a',
         desktopbg: '#1b1b1e',
+        toastbg: '#1c3c0e',
+        errorbg: '#330f0f',
       },
     },
   },

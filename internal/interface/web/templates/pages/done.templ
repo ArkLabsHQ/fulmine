@@ -1,0 +1,25 @@
+package pages
+
+import (
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
+)
+
+templ DoneBodyContent() {
+  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
+	  <div class="flex flex-col items-center mt-24 md:mt-0">
+	    <div class="hidden md:block">@LogoWhite()</div>
+      <div class="flex flex-col items-center gap-8">
+	      @SuccessIcon()
+        <p class="text-3xl">You are all done!</p>
+        <p class="text-center">
+          You may start sending and receiving Bitcoin transactions faster and more private on Ark Node.
+        </p>
+        <p class="bg-white/10 flex items-center p-3 text-center justify-center w-full">
+          @components.TwitterIcon()
+          Follow us on X
+        </p>
+      </div>
+    </div>
+	 	<button class="bg-orange text-white" onclick="redirect('/')">Let's go</button>
+  </div>
+}

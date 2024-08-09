@@ -3,11 +3,14 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates"
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/pages"
 
 	"github.com/gin-gonic/gin"
@@ -28,13 +31,20 @@ func partialViewHandler(bodyContent templ.Component, c *gin.Context) {
 	}
 }
 
+func Done(c *gin.Context) {
+	bodyContent := pages.DoneBodyContent()
+	pageViewHandler(bodyContent, c)
+}
+
 func Index(c *gin.Context) {
 	bodyContent := pages.HistoryBodyContent(getBalance(), getAddress(), getTransactions())
 	pageViewHandler(bodyContent, c)
 }
 
 func ImportWallet(c *gin.Context) {
-	bodyContent := pages.ImportWalletContent()
+	var empty []string
+	empty = append(empty, "")
+	bodyContent := pages.ManageMnemonicContent(empty)
 	pageViewHandler(bodyContent, c)
 }
 
@@ -44,12 +54,7 @@ func Locked(c *gin.Context) {
 }
 
 func NewWallet(c *gin.Context) {
-	bodyContent := pages.NewWalletContent(getNewMnemonic())
-	pageViewHandler(bodyContent, c)
-}
-
-func Password(c *gin.Context) {
-	bodyContent := pages.SetPasswordContent()
+	bodyContent := pages.ManageMnemonicContent(getNewMnemonic())
 	pageViewHandler(bodyContent, c)
 }
 
@@ -85,6 +90,69 @@ func SendPreview(c *gin.Context) {
 	partialViewHandler(bodyContent, c)
 }
 
+func SetAspUrl(c *gin.Context) {
+	aspurl := c.PostForm("aspurl")
+	mnemonic := c.PostForm("mnemonic")
+	password := c.PostForm("password")
+	fmt.Println(aspurl, mnemonic, password)
+	redirect("/done", c)
+}
+
+func SetMnemonic(c *gin.Context) {
+	var words []string
+	for i := 1; i <= 12; i++ {
+		id := "word_" + strconv.Itoa(i)
+		word := c.PostForm(id)
+		if len(word) == 0 {
+			toast := components.Toast("Invalid mnemonic", true)
+			toastHandler(toast, c)
+			return
+		}
+		words = append(words, word)
+	}
+	mnemonic := strings.Join(words, " ")
+	bodyContent := pages.SetPasswordContent(mnemonic)
+	partialViewHandler(bodyContent, c)
+}
+
+func SetPassword(c *gin.Context) {
+	password := c.PostForm("password")
+	pconfirm := c.PostForm("pconfirm")
+	if password != pconfirm {
+		toast := components.Toast("Passwords doesn't match", true)
+		toastHandler(toast, c)
+		return
+	}
+	mnemonic := c.PostForm("mnemonic")
+	bodyContent := pages.AspUrlBodyContent(c.Query("aspurl"), mnemonic, password)
+	partialViewHandler(bodyContent, c)
+}
+
+func Settings(c *gin.Context) {
+	active := c.Param("active")
+	settings := getSettings()
+	nodeStatus := true
+	bodyContent := pages.SettingsBodyContent(active, settings, nodeStatus)
+	pageViewHandler(bodyContent, c)
+}
+
+func Swap(c *gin.Context) {
+	bodyContent := pages.SwapBodyContent(getBalance(), getNodeBalance())
+	pageViewHandler(bodyContent, c)
+}
+
+func SwapActive(c *gin.Context) {
+	active := c.Param("active")
+	var balance string
+	if active == "inbound" {
+		balance = getNodeBalance()
+	} else {
+		balance = getBalance()
+	}
+	bodyContent := pages.SwapPartialContent(active, balance)
+	partialViewHandler(bodyContent, c)
+}
+
 func SwapConfirm(c *gin.Context) {
 	kind := c.PostForm("kind")
 	sats := c.PostForm("sats")
@@ -97,26 +165,6 @@ func SwapPreview(c *gin.Context) {
 	sats := c.PostForm("sats")
 	bodyContent := pages.SwapPreviewContent(kind, sats)
 	partialViewHandler(bodyContent, c)
-}
-
-func SetPassword(c *gin.Context) {
-	// TODO: set wallet password
-	// then redirect to home
-	redirect("/", c)
-}
-
-func Settings(c *gin.Context) {
-	active := c.Param("active")
-	settings := getSettings()
-	nodeStatus := true
-	bodyContent := pages.SettingsBodyContent(active, settings, nodeStatus)
-	pageViewHandler(bodyContent, c)
-}
-
-func Swap(c *gin.Context) {
-	active := c.Param("active")
-	bodyContent := pages.SwapBodyContent(active, getBalance(), getNodeBalance())
-	pageViewHandler(bodyContent, c)
 }
 
 func Tx(c *gin.Context) {

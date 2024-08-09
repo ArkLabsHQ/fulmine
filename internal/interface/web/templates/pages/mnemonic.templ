@@ -5,36 +5,27 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
-templ Word(i int, words ...string) {
-	<div class="bg-graybg rounded p-1 flex items-center gap-2 w-full">
-	  <div class="bg-white/10 rounded flex justify-center items-center h-8 w-10">
-	    <p>{strconv.Itoa(i)}</p>
-		</div>
-		if len(words) > 0 {
-	  	<p>{words[0]}</p>
-	  } else {
-	  	<input class="bg-graybg border-0 p-1 w-full" id={"word_" + strconv.Itoa(i)} oninput="fullPaste()" />
-	  }
-	</div>
-}
-
-templ ImportWalletContent() {
-	<div class="p-3 flex flex-col justify-between h-screen">
-	  <div>
-	    @components.Header("Import wallet", "/welcome")
-			<p class="mb-10">Insert your 12-word secret seed phrase.</p>
-		  <div class="grid grid-cols-2 gap-6">
-			  for i := 0; i < 12; i++ {
-          @Word(i+1)
-        }
-			</div>
-		</div>
-		<div>
-		  <button class="bg-orange text-white" onclick="redirect('/password')">Import wallet</button>
-		</div>
-	</div>
+templ ManageMnemonicContent(mnemonic []string) {
+	if len(mnemonic) == 12 {
+		@NewWalletContent(mnemonic)
+	} else {
+		@ImportWalletContent()
+	}
 	<script>
-	  const fullPaste = () => {
+	  const getMnemonicFromWords = () => {
+      const words = []
+			for (let i = 1; i < 13; i++) {
+				words.push(document.querySelector(`#word_${i}`).value)
+			}
+			return words.join(" ")
+		}
+
+	  const handleWordChange = () => {
+			pasteOtherWords()
+			validateMnemonic()
+		}
+
+	  const pasteOtherWords = () => {
 			const text = document.querySelector("#word_1").value
 			if (text && text.split(/\s+/).length === 12) {
 				const words = text.split(/\s+/)
@@ -43,22 +34,97 @@ templ ImportWalletContent() {
 				}
 			}
 		}
+
+		const validateMnemonic = () => {
+			const data = new FormData()
+			data.set('mnemonic', getMnemonicFromWords())
+			fetch('/api/mnemonic/validate', {
+				method: 'POST',
+        body: data,
+			}).then((res) => {
+				if (res.ok) {
+					res.json().then(({ valid }) => {
+						const button = document.querySelector('#importButton')
+						if (!button) return
+						if (valid) {
+							button.disabled = false
+							button.innerText = 'Continue'
+						} else {
+							button.disabled = true
+							button.innerText = 'Invalid mnemonic'
+						}
+					})
+				}
+		  })
+		}
 	</script>
 }
 
+templ ImportWalletContent() {
+	<form hx-post="/mnemonic">
+	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
+	    <div>
+			  <div class="hidden md:block">@LogoWhite()</div>
+	      @components.Header("Import wallet", "/welcome")
+	  		<p class="mb-10">Insert your 12-word secret seed phrase.</p>
+	  	  <div class="grid grid-cols-2 gap-6">
+	  		  for i := 0; i < 12; i++ {
+            @Word(i+1)
+          }
+	  		</div>
+	  	</div>
+			<button class="bg-orange text-white" disabled id="importButton" type="submit">Invalid mnemonic</button>
+	  </div>
+	</form>
+}
+
 templ NewWalletContent(mnemonic []string) {
-	<div class="p-3 flex flex-col justify-between h-screen">
-	  <div>
-	    @components.Header("New wallet", "/welcome")
-			<p class="mb-10">Write down the following words in a secure place.</p>
-		  <div class="grid grid-cols-2 gap-6">
-			  for i, w := range mnemonic {
-          @Word(i+1, w)
-        }
-			</div>
+	<form hx-post="/mnemonic">
+	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
+	    <div>
+	  	  <div class="hidden md:block">@LogoWhite()</div>
+	      @components.Header("New wallet", "/welcome")
+	  		<p class="mb-10">Write down the following words in a secure place.</p>
+	  	  <div class="grid grid-cols-2 gap-6">
+	  		  for i, w := range mnemonic {
+            @Word(i+1, w)
+          }
+	  		</div>
+	  	</div>
+
+      <div class="flex flex-col md:flex-row md:justify-center gap-2 w-full">
+	      <button class="md:w-auto bg-orange text-white" id="importButton" type="submit">Continue</button>
+	      <button class="md:w-auto bg-graybg" id="copyButton">
+				  @components.CopyIcon()
+				  <span class="ml-2">Copy</span>
+				</button>
+	    </div>
+	  </div>
+	</form>
+	<script>
+	  document.querySelector('#copyButton').addEventListener('click', (event) => {
+			event.preventDefault()
+			if (!navigator.clipboard) return
+      navigator.clipboard.writeText(getMnemonicFromWords())
+			document.querySelector("#copyButton span").innerText = "Copied"
+			setTimeout(() => document.querySelector("#copyButton span").innerText = "Copy", 2000)
+		})
+	</script>
+}
+
+templ Word(i int, words ...string) {
+	<div class="bg-graybg rounded p-1 flex items-center gap-2 w-full">
+	  <div class="bg-white/10 rounded flex justify-center items-center h-8 square">
+	    <p>{strconv.Itoa(i)}</p>
 		</div>
-		<div>
-		  <button class="bg-orange text-white" onclick="redirect('/password')">Create wallet</button>
-		</div>
+	  <input
+		  class="bg-graybg border-0 p-1"
+			id={"word_" + strconv.Itoa(i)}
+			name={"word_" + strconv.Itoa(i)}
+			oninput="handleWordChange()"
+			if len(words) > 0 {
+			  value={words[0]}
+			}
+		/>
 	</div>
 }

@@ -1,0 +1,108 @@
+package components
+
+templ SendAmount(max string) {
+  @InputAmount(max)
+}
+
+templ ReceiveAmount() {
+  @InputAmount("")
+}
+
+templ InputAmount(max string) {
+  @Label("Amount")
+  <div class="bg-graybg px-4 py-3 flex items-center justify-between rounded-lg">
+    <input class="hidden" id="sats" name="sats" />
+	  <input
+	    class="bg-graybg border-0 p-0"
+	    id="amount"
+      if (len(max) > 0) {
+	      max={max}
+      }
+	    onchange="updateSats()"
+	    placeholder="5000"
+		/>
+		<div class="flex items-center gap-2">
+      if (len(max) > 0) {
+        <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
+      }
+		  <p class="py-1 w-10 text-center" id="unit">SATS</p>
+		  <p class="cursor-pointer" onclick="toggleUnit()">@ChevronDownIcon()</p>
+		</div>
+	</div>
+	<div class="flex justify-between w-full text-sm text-white/50 mt-2">
+	  <p id="usd" class="usd">$</p>
+    if (len(max) > 0) {
+      <p id="available">Available <span class="sats">{max}</span> SATS</p>
+    }
+	</div>
+}
+
+templ InputAddress() {
+  @Label("Address")
+	<div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
+	  <input
+		  class="bg-graybg border-0 p-0 mr-4"
+			id="address"
+			name="address"
+			onchange="handleAddressChange()"
+			placeholder="ark1ccc..."
+		/>
+		<p class="cursor-pointer text-white/50" onclick="pasteAddressFromClipboard()">@PasteIcon()</p>
+	</div>
+	<script>
+	  const handleAddressChange = () => {
+			const addr = document.querySelector('#address').value
+			const asAmount = addr.match(/amount:(\d+)/)
+			if (asAmount) updateAmount(asAmount[1])
+		}
+	  const updateAmount = (sats) => {
+			const unit = document.querySelector('#unit').innerText
+			document.querySelector('#sats').value = sats
+			document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
+			document.querySelector('#amount').dispatchEvent(new Event('change'))
+		} 
+	  const pasteAddressFromClipboard = () => {
+			if (navigator.clipboard) {
+        navigator.clipboard.readText().then((addr) => {
+					document.querySelector('#address').value = addr
+					handleAddressChange()
+			  })
+      }
+		}
+	</script>
+}
+
+templ InputGeneric(id, placeholder, value string) {
+  <div class="bg-graybg p-4 rounded-md">
+	  <input
+		  class="bg-graybg border-0 p-0 mr-4"
+			id={id}
+			name={id}
+			placeholder={placeholder}
+			value={value}
+		/>
+	</div>
+}
+
+script smartPaste(id string) {
+	pasteFromClipboard(`#${id}`)
+}
+
+templ InputWithPaste(id, placeholder, value string) {
+  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
+	  <input
+		  class="bg-graybg border-0 p-0 mr-4"
+			id={id}
+			name={id}
+			placeholder={placeholder}
+			value={value}
+		/>
+		<p class="cursor-pointer text-white/50" onclick={smartPaste(id)}>@PasteIcon()</p>
+	</div>
+}
+
+templ InputFake(text string) {
+  <div class="border border-1 border-white/20 bg-graybg p-4 rounded-md">
+	  <p class="truncate text-white/50">{text}</p>
+	</div>
+}

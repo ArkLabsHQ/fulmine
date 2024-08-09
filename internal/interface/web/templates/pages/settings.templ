@@ -5,10 +5,6 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
 )
 
-templ Label(text string) {
-  <p class="font-semibold mb-2 mt-4">{text}</p>
-}
-
 templ Separator(text string) {
   <p class="uppercase text-sm text-white/50 mb-4 mt-8">{text}</p>
 }
@@ -18,12 +14,12 @@ templ Status(ok bool) {
     if ok {
       <p class="flex p-2 rounded-lg bg-green/10 border border-1 border-green/50">
         <span class="text-green mr-2">&#9679;</span>
-        Online
+        Connected
       </p>
     } else {
       <p class="flex p-2 rounded-lg bg-red/10 border border-1 border-red/50">
         <span class="text-red mr-2">&#9679;</span>
-        Offline
+        Disconnected
       </p>
     }
   </div>
@@ -65,49 +61,50 @@ templ SettingsBodyContent(active string, settings types.Settings, nodeStatus boo
 templ SettingsGeneralContent(settings types.Settings, nodeStatus bool) {
   <form hx-post="/api/settings" hx-trigger="change">
     @Separator("Details")
-    @Label("Bitcoin unit")
+    @components.Label("Bitcoin unit")
     <select class="bg-graybg p-4 rounded text-white/50 w-full" name="unit" value={settings.Unit}>
       <option value="sat">Satoshi (0.00000001 BTC)</option>
       <option value="btc">Bitcoin (100.000.000 SATS)</option>
     </select>
-    @Label("Reference currency")
+    @components.Label("Reference currency")
     <select class="bg-graybg p-4 rounded text-white/50 w-full" name="currency" value={settings.Currency}>
       <option value="usd">USD ($)</option>
       <option value="eur">EURO (€)</option>
     </select>
-    @Label("ASP API root")
-    <input class="bg-graybg p-4 rounded text-white/50 focus:text-white w-full" name="apiroot" value={settings.ApiRoot}>
+    @components.Label("ASP API root")
+    @components.InputGeneric("apiroot", "", settings.ApiRoot)
     @Separator("Network status")
     @Status(nodeStatus)
-    @Label("Node")
+    @components.Label("Node")
     <div class="bg-graybg rounded p-3 text-sm">
       <p>Lightning network node 1</p>
       <hr class="my-4 text-white/20" />
       <div class="flex justify-between items-center">
         <p class="text-white/50 w-32">Full node</p>
         <input
-          class="border-0 bg-graybg p-4 rounded text-sm w-full"
+          class="bg-graybg p-4 rounded text-sm w-full unframed"
           name="fullNode"
-          value={settings.FullNode}>
+          value={settings.FullNode}
+        />
       </div>
       <div class="flex justify-between items-center">
         <p class="text-white/50 w-32">Event server</p>
         <input
-          class="border-0 bg-graybg p-4 rounded text-sm w-full"
+          class="border-0 bg-graybg p-4 rounded text-sm w-full unframed"
           name="eventServer"
           value={settings.EventServer}>
       </div>
     </div>
     @Separator("Security")
-    <button class="bg-graybg font-semibold rounded">Backup seed phrase</button>
+    <button class="bg-graybg font-semibold rounded mb-4">Backup seed phrase</button>
   </form>
 }
 
 templ SettingsASPContent(settings types.Settings) {
   <form hx-post="/api/settings" hx-trigger="change">
     @Separator("Link")
-    @Label("ASP Link")
-    <div class="border border-1 border-white/50 flex bg-graybg items-center justify-between rounded gap-4 pr-3">
+    @components.Label("ASP Link")
+    <div class="border border-1 border-white/50 flex bg-graybg items-center justify-between rounded gap-4 pr-3 focus:border-orange">
       <input
         class="border-0 bg-graybg p-4 rounded text-white/50 focus:text-white w-full"
         id="asplink"
@@ -119,12 +116,12 @@ templ SettingsASPContent(settings types.Settings) {
       </div>
     </div>
     @Separator("Host settings")
-    @Label("ASP Host")
-    <input class="bg-graybg p-4 rounded text-white/50 focus:text-white w-full" name="asphost" value={settings.ApiRoot}>
-    @Label("ASP Port")
-    <input class="bg-graybg p-4 rounded text-white/50 focus:text-white w-full" name="aspport" value={settings.ApiRoot}>
-    @Label("ASP API Root")
-    <input class="bg-graybg p-4 rounded text-white/50 focus:text-white w-full" name="apiroot" value={settings.ApiRoot}>
+    @components.Label("ASP Host")
+    @components.InputGeneric("asphost", "", settings.ApiRoot)
+    @components.Label("ASP Port")
+    @components.InputGeneric("aspport", "", settings.ApiRoot)
+    @components.Label("ASP API Root")
+    @components.InputGeneric("aspapihost", "", settings.ApiRoot)
   </form>
 }
 
@@ -134,29 +131,18 @@ templ SettingsLightningContent(settings types.Settings, nodeStatus bool) {
     @Status(nodeStatus)
     @Separator("Connect")
     <p>Enter details manually or scan to connect</p>
-    @Label("URL")
-    <div class="border border-1 border-white/50 bg-graybg rounded">
-      if nodeStatus {
-        <p class="px-3 py-4 truncate text-white/30">{settings.LnUrl}</p>
-      } else {
-        <div class="flex items-center justify-between gap-4 text-white/50 ">
-          <input
-            class="border-0 bg-graybg p-4 rounded focus:text-white w-full truncate"
-            id="lnurl"
-            name="lnurl"
-            value={settings.LnUrl}>
-          <p class="cursor-pointer" onclick="pasteFromClipboard('#lnurl')">@components.PasteIcon()</p>
-        </div>
-      }
-    </div>
-      if nodeStatus {
-        <button class="bg-red/10 text-red font-semibold rounded mt-8" hx-post="/api/node/disconnect">Disconnect</button>
-      } else {
-        <button class="bg-graybg font-semibold rounded mt-8" hx-post="/api/node/connect">Connect</button>
-        <button class="bg-graybg font-semibold rounded mt-4 flex items-center justify-center gap-3">
-          @components.ScanIcon()
-          Scan
-        </button>
-      }
+    @components.Label("URL")
+    if nodeStatus {
+      @components.InputFake(settings.LnUrl)
+      <button class="bg-red/10 text-red font-semibold rounded mt-8" hx-post="/api/node/disconnect">Disconnect</button>
+    
+    } else {
+      @components.InputWithPaste("lnurl", "", settings.LnUrl)
+      <button class="bg-graybg font-semibold rounded mt-8" hx-post="/api/node/connect">Connect</button>
+      <button class="bg-graybg font-semibold rounded mt-4 flex items-center justify-center gap-3">
+        @components.ScanIcon()
+        Scan
+      </button>
+    }
   </form>
 }

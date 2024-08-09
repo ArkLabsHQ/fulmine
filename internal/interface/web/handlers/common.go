@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tyler-smith/go-bip39"
 
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
 )
@@ -21,7 +22,15 @@ func getNodeBalance() string {
 }
 
 func getNewMnemonic() []string {
-	mnemonic := "ski this panic exit erode peasant nose swim spell sleep unique bag"
+	// 128 bits of entropy for a 12-word mnemonic
+	entropy, err := bip39.NewEntropy(128)
+	if err != nil {
+		return strings.Fields("")
+	}
+	mnemonic, err := bip39.NewMnemonic(entropy)
+	if err != nil {
+		return strings.Fields("")
+	}
 	return strings.Fields(mnemonic)
 }
 

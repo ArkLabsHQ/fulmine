@@ -72,20 +72,24 @@ func NewService() *service {
 
 	// Handle index page view.
 	svc.GET("/", handlers.Index)
+	svc.GET("/done", handlers.Done)
 	svc.GET("/import", handlers.ImportWallet)
 	svc.GET("/locked", handlers.Locked)
 	svc.GET("/new", handlers.NewWallet)
-	svc.GET("/password", handlers.Password)
 	svc.GET("/send", handlers.Send)
 	svc.GET("/settings/:active", handlers.Settings)
-	svc.GET("/swap/:active", handlers.Swap)
+	svc.GET("/swap/", handlers.Swap)
 	svc.GET("/receive", handlers.Receive)
 	svc.GET("/tx/:txid", handlers.Tx)
 	svc.GET("/welcome", handlers.Welcome)
 
+	svc.GET("/swap/:active", handlers.SwapActive)
 	svc.GET("/modal/info", handlers.InfoModal)
 
+	svc.POST("/aspurl", handlers.SetAspUrl)
+	svc.POST("/mnemonic", handlers.SetMnemonic)
 	svc.POST("/password", handlers.SetPassword)
+
 	svc.POST("/receive/preview", handlers.ReceivePreview)
 	svc.POST("/send/preview", handlers.SendPreview)
 	svc.POST("/send/confirm", handlers.SendConfirm)
@@ -96,6 +100,7 @@ func NewService() *service {
 	svc.POST("/api/settings", handlers.SettingsApiPost)
 	svc.POST("/api/node/connect", handlers.NodeConnectApiPost)
 	svc.POST("/api/node/disconnect", handlers.NodeDisconnectApiPost)
+	svc.POST("/api/mnemonic/validate", handlers.ValidateMnemonic)
 
 	return svc
 }

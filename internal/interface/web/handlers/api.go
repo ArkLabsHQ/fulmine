@@ -9,6 +9,7 @@ import (
 	"github.com/angelofallars/htmx-go"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tyler-smith/go-bip39"
 )
 
 func toastHandler(t templ.Component, c *gin.Context) {
@@ -40,4 +41,13 @@ func NodeDisconnectApiPost(c *gin.Context) {
 	// TODO: manage node connection
 	toast := components.Toast("Disconnected")
 	toastHandler(toast, c)
+}
+
+func ValidateMnemonic(c *gin.Context) {
+	mnemonic := c.PostForm("mnemonic")
+	isValid := bip39.IsMnemonicValid(mnemonic)
+	data := gin.H{
+		"valid": isValid,
+	}
+	c.JSON(http.StatusOK, data)
 }

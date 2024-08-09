@@ -27,10 +27,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-input:focus {
-  border: 1px solid #bc3f20;
-}
-
 body {
   margin: 0;
   display: flex;
@@ -38,17 +34,47 @@ body {
   min-height: 100vh;
 }
 
+input {
+  border: none;
+  color: #fbfbfb80;
+  width: 100%;
+  &:focus,
+  &[type='text']:focus,
+  &[type='password']:focus {
+    border: none;
+    box-shadow: none;
+    color: #fbfbfb;
+    outline: none;
+  }
+}
+
+select:focus {
+  border: 1px solid #bc3f20;
+  box-shadow: none;
+  outline: none;
+}
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
 }
 
+div:has(> input:not(.hidden):not(.unframed)) {
+  border: 1px solid #fbfbfb33;
+}
+
+div:has(> input:not(.hidden):not(.unframed):focus) {
+  border: 1px solid #bc3f20;
+}
+
 #app {
   color: white;
   margin: 0 auto;
-  max-width: 640px;
-  padding: 4px;
+  max-width: 720px;
   width: 100%;
+  &:has(div.fullscreen) {
+    max-width: 100%;
+  }
 }
 
 #htmx-result {
@@ -57,8 +83,8 @@ h1 {
 
 #toast {
   display: flex;
-  position: absolute;
-  top: 60px;
+  position: fixed;
+  top: 50px;
   width: 100%;
 }
 
@@ -69,6 +95,10 @@ h1 {
   will-change: filter;
   transition: filter 300ms;
   filter: drop-shadow(0 0 2em #f3c077aa);
+}
+
+.square {
+  aspect-ratio: 1 / 1;
 }
 
 button {
@@ -87,11 +117,6 @@ button {
 
 button:hover {
   border-color: #bc3f20;
-}
-
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
 }
 
 button:disabled {

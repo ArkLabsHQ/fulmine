@@ -12,7 +12,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
-func Locked() templ.Component {
+func DoneBodyContent() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -30,7 +30,7 @@ func Locked() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/unlock\"><div class=\"bg-radial-gradient h-screen fullscreen\"><div class=\"flex flex-col h-screen justify-between md:h-auto md:gap-10 w-80 m-auto p-3\"><div><div class=\"flex flex-col items-center\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3\"><div class=\"flex flex-col items-center mt-24 md:mt-0\"><div class=\"hidden md:block\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -38,15 +38,23 @@ func Locked() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"font-medium text-center text-3xl pb-8\">Enter your password</p></div><div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><div class=\"flex flex-col items-center gap-8\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.Label("Password").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = SuccessIcon().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<input class=\"text-black w-full border-0 p-4 rounded-md unframed\" name=\"password\" type=\"password\"></div></div><button class=\"bg-white text-black mt-10\" type=\"submit\">Unlock</button></div></div></form>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"text-3xl\">You are all done!</p><p class=\"text-center\">You may start sending and receiving Bitcoin transactions faster and more private on Ark Node.</p><p class=\"bg-white/10 flex items-center p-3 text-center justify-center w-full\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = components.TwitterIcon().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Follow us on X</p></div></div><button class=\"bg-orange text-white\" onclick=\"redirect(&#39;/&#39;)\">Let's go</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -32,6 +32,9 @@ templ Layout(bodyContent templ.Component) {
 			<link rel="dns-prefetch" href="//fonts.gstatic.com"/>
 			<link rel="preconnect" href="//fonts.googleapis.com" crossorigin/>
 			<link rel="preconnect" href="//fonts.gstatic.com" crossorigin/>
+			<link rel="preload" href="/static/Switzer-Variable.17d61fe9.woff2" as="font" type="font/woff2" crossorigin/>
+			<link rel="preload" href="/static/Switzer-Variable.f14a5147.woff" as="font" type="font/woff" crossorigin/>
+			<link rel="preload" href="/static/Switzer-Variable.398e4d30.ttf" as="font" type="font/ttf" crossorigin/>
 			<link rel="manifest" href="/static/manifest.webmanifest"/>
 			<link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
 			<link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon"/>
@@ -66,7 +69,10 @@ templ Layout(bodyContent templ.Component) {
       }
 
 			const redirect = (path) => {
-				window.location.href = path
+				const url = new URL(window.location.href)
+				const params = new URLSearchParams(url.search);
+				const aspurl = params.get('aspurl')
+				window.location.href = path + (aspurl ? `/?aspurl=${aspurl}` : '')
 			}
 
       const copyToClipboard = (id) => {
@@ -81,6 +87,54 @@ templ Layout(bodyContent templ.Component) {
 		  			document.querySelector(id).value = addr
 		  	  })
         }
+		  }
+
+      const updateFiatValues = () => {
+        fetch('https://btcoracle.bordalix.workers.dev/').then((res) => {
+          res.json().then((json) => {
+            document.querySelectorAll('.usd').forEach((x) => {
+              const sats = parseInt(x.getAttribute('sats'))
+              if (isNaN(sats)) return
+              const usd = (sats * json.pricefeed.usd) / 100_000_000
+              x.innerHTML = `$ ${prettyNum(usd)}`
+            })
+          })
+        })
+      }
+
+      const setMaxValue = (val = 0) => {
+		  	const sats = val || document.querySelector('#amount').getAttribute('max')
+        if (isNaN(sats)) return
+		  	const unit = document.querySelector('#unit').innerText
+				document.querySelector('#sats').value = sats
+		  	document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
+				document.querySelector('#amount').dispatchEvent(new Event('change'))
+		  }
+  
+		  const toggleUnit = () => {
+		  	const currUnit = document.querySelector('#unit').innerText
+		  	const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
+		  	// change unit
+		  	document.querySelector('#unit').innerText = nextUnit
+		  	// change availability
+		  	const maxSats = document.querySelector('#amount').getAttribute('max')
+		  	document.querySelector('#available').innerText =
+		  	  `Available ${nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats)} ${nextUnit}`
+		  	// change value inside input
+		  	const currVal = document.querySelector('#amount').value
+		  	if (currVal) {
+		  		const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
+		  		document.querySelector('#amount').value = nextVal
+		  	}
+		  }
+  
+		  const updateSats = () => {
+		  	const unit = document.querySelector('#unit').innerText
+		  	const amount = document.querySelector('#amount').value
+		  	const sats = unit === 'SATS' ? amount : toSatoshis(amount)
+        document.querySelector('#sats').value = sats
+        document.querySelector('#usd').setAttribute('sats', sats)
+		  	updateFiatValues()
 		  }
 
       document.addEventListener('htmx:load', () => {
@@ -99,16 +153,15 @@ templ Layout(bodyContent templ.Component) {
           x.innerHTML = (sats.charAt(0) === '+' ? '+' : '') + fromSatoshis(sats)
         })
 
-        fetch('https://btcoracle.bordalix.workers.dev/').then((res) => {
-          res.json().then((json) => {
-            document.querySelectorAll('.usd').forEach((x) => {
-              const sats = parseInt(x.getAttribute('sats'))
-              if (isNaN(sats)) return
-              const usd = (sats * json.pricefeed.usd) / 100_000_000
-              x.innerHTML = `$ ${prettyNum(usd)}`
-            })
-          })
-        })
+        updateFiatValues()
+
+				const url = new URL(window.location.href)
+			  const params = new URLSearchParams(url.search);
+			  const aspurl = params.get('aspurl')
+        if (aspurl) {
+					const hiddenInput = document.querySelector("#aspurl")
+					if (hiddenInput) hiddenInput.value = aspurl
+				}
       })
 
       document.body.addEventListener("toast", (e) => {
