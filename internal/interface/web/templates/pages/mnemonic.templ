@@ -12,6 +12,14 @@ templ ManageMnemonicContent(mnemonic []string) {
 		@ImportWalletContent()
 	}
 	<script>
+	  const getMnemonicFromWords = () => {
+      const words = []
+			for (let i = 1; i < 13; i++) {
+				words.push(document.querySelector(`#word_${i}`).value)
+			}
+			return words.join(" ")
+		}
+
 	  const handleWordChange = () => {
 			pasteOtherWords()
 			validateMnemonic()
@@ -28,13 +36,8 @@ templ ManageMnemonicContent(mnemonic []string) {
 		}
 
 		const validateMnemonic = () => {
-			const words = []
-			for (let i = 1; i < 13; i++) {
-				words.push(document.querySelector(`#word_${i}`).value)
-			}
-			const mnemonic = words.join(" ")
 			const data = new FormData()
-			data.set('mnemonic', mnemonic)
+			data.set('mnemonic', getMnemonicFromWords())
 			fetch('/api/mnemonic/validate', {
 				method: 'POST',
         body: data,
@@ -88,9 +91,25 @@ templ NewWalletContent(mnemonic []string) {
           }
 	  		</div>
 	  	</div>
-	  	<button class="bg-orange text-white" id="importButton" type="submit">Continue</button>
+
+      <div class="flex flex-col md:flex-row md:justify-center gap-2 w-full">
+	      <button class="md:w-auto bg-orange text-white" id="importButton" type="submit">Continue</button>
+	      <button class="md:w-auto bg-graybg" id="copyButton">
+				  @components.CopyIcon()
+				  <span class="ml-2">Copy</span>
+				</button>
+	    </div>
 	  </div>
 	</form>
+	<script>
+	  document.querySelector('#copyButton').addEventListener('click', (event) => {
+			event.preventDefault()
+			if (!navigator.clipboard) return
+      navigator.clipboard.writeText(getMnemonicFromWords())
+			document.querySelector("#copyButton span").innerText = "Copied"
+			setTimeout(() => document.querySelector("#copyButton span").innerText = "Copy", 2000)
+		})
+	</script>
 }
 
 templ Word(i int, words ...string) {

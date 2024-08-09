@@ -42,7 +42,7 @@ func ManageMnemonicContent(mnemonic []string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<script>\n\t  const handleWordChange = () => {\n\t\t\tpasteOtherWords()\n\t\t\tvalidateMnemonic()\n\t\t}\n\n\t  const pasteOtherWords = () => {\n\t\t\tconst text = document.querySelector(\"#word_1\").value\n\t\t\tif (text && text.split(/\\s+/).length === 12) {\n\t\t\t\tconst words = text.split(/\\s+/)\n\t\t\t\tfor (let i = 0; i < 12; i++) {\n\t\t\t\t\tdocument.querySelector(`#word_${i+1}`).value = words[i]\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\n\t\tconst validateMnemonic = () => {\n\t\t\tconst words = []\n\t\t\tfor (let i = 1; i < 13; i++) {\n\t\t\t\twords.push(document.querySelector(`#word_${i}`).value)\n\t\t\t}\n\t\t\tconst mnemonic = words.join(\" \")\n\t\t\tconst data = new FormData()\n\t\t\tdata.set('mnemonic', mnemonic)\n\t\t\tfetch('/api/mnemonic/validate', {\n\t\t\t\tmethod: 'POST',\n        body: data,\n\t\t\t}).then((res) => {\n\t\t\t\tif (res.ok) {\n\t\t\t\t\tres.json().then(({ valid }) => {\n\t\t\t\t\t\tconst button = document.querySelector('#importButton')\n\t\t\t\t\t\tif (!button) return\n\t\t\t\t\t\tif (valid) {\n\t\t\t\t\t\t\tbutton.disabled = false\n\t\t\t\t\t\t\tbutton.innerText = 'Continue'\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tbutton.disabled = true\n\t\t\t\t\t\t\tbutton.innerText = 'Invalid mnemonic'\n\t\t\t\t\t\t}\n\t\t\t\t\t})\n\t\t\t\t}\n\t\t  })\n\t\t}\n\t</script>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<script>\n\t  const getMnemonicFromWords = () => {\n      const words = []\n\t\t\tfor (let i = 1; i < 13; i++) {\n\t\t\t\twords.push(document.querySelector(`#word_${i}`).value)\n\t\t\t}\n\t\t\treturn words.join(\" \")\n\t\t}\n\n\t  const handleWordChange = () => {\n\t\t\tpasteOtherWords()\n\t\t\tvalidateMnemonic()\n\t\t}\n\n\t  const pasteOtherWords = () => {\n\t\t\tconst text = document.querySelector(\"#word_1\").value\n\t\t\tif (text && text.split(/\\s+/).length === 12) {\n\t\t\t\tconst words = text.split(/\\s+/)\n\t\t\t\tfor (let i = 0; i < 12; i++) {\n\t\t\t\t\tdocument.querySelector(`#word_${i+1}`).value = words[i]\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\n\t\tconst validateMnemonic = () => {\n\t\t\tconst data = new FormData()\n\t\t\tdata.set('mnemonic', getMnemonicFromWords())\n\t\t\tfetch('/api/mnemonic/validate', {\n\t\t\t\tmethod: 'POST',\n        body: data,\n\t\t\t}).then((res) => {\n\t\t\t\tif (res.ok) {\n\t\t\t\t\tres.json().then(({ valid }) => {\n\t\t\t\t\t\tconst button = document.querySelector('#importButton')\n\t\t\t\t\t\tif (!button) return\n\t\t\t\t\t\tif (valid) {\n\t\t\t\t\t\t\tbutton.disabled = false\n\t\t\t\t\t\t\tbutton.innerText = 'Continue'\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tbutton.disabled = true\n\t\t\t\t\t\t\tbutton.innerText = 'Invalid mnemonic'\n\t\t\t\t\t\t}\n\t\t\t\t\t})\n\t\t\t\t}\n\t\t  })\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -146,7 +146,15 @@ func NewWalletContent(mnemonic []string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div><button class=\"bg-orange text-white\" id=\"importButton\" type=\"submit\">Continue</button></div></form>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div><div class=\"flex flex-col md:flex-row md:justify-center gap-2 w-full\"><button class=\"md:w-auto bg-orange text-white\" id=\"importButton\" type=\"submit\">Continue</button> <button class=\"md:w-auto bg-graybg\" id=\"copyButton\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = components.CopyIcon().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<span class=\"ml-2\">Copy</span></button></div></div></form><script>\n\t  document.querySelector('#copyButton').addEventListener('click', (event) => {\n\t\t\tevent.preventDefault()\n\t\t\tif (!navigator.clipboard) return\n      navigator.clipboard.writeText(getMnemonicFromWords())\n\t\t\tdocument.querySelector(\"#copyButton span\").innerText = \"Copied\"\n\t\t\tsetTimeout(() => document.querySelector(\"#copyButton span\").innerText = \"Copy\", 2000)\n\t\t})\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -179,7 +187,7 @@ func Word(i int, words ...string) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(i))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/mnemonic.templ`, Line: 99, Col: 24}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/mnemonic.templ`, Line: 118, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -192,7 +200,7 @@ func Word(i int, words ...string) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs("word_" + strconv.Itoa(i))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/mnemonic.templ`, Line: 103, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/mnemonic.templ`, Line: 122, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -205,7 +213,7 @@ func Word(i int, words ...string) templ.Component {
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs("word_" + strconv.Itoa(i))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/mnemonic.templ`, Line: 104, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/mnemonic.templ`, Line: 123, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -223,7 +231,7 @@ func Word(i int, words ...string) templ.Component {
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(words[0])
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/mnemonic.templ`, Line: 107, Col: 20}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/mnemonic.templ`, Line: 126, Col: 20}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
