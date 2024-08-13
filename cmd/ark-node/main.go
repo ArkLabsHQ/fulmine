@@ -7,6 +7,7 @@ import (
 
 	"github.com/ArkLabsHQ/ark-node/internal/config"
 	grpcservice "github.com/ArkLabsHQ/ark-node/internal/interface/grpc"
+	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -25,6 +26,11 @@ func main() {
 	}
 
 	log.SetLevel(log.Level(cfg.LogLevel))
+
+	// Initialize the ARK SDK
+
+	log.Info("starting ark-node...")
+	log.Infof("dust: %d", arksdk.DUST)
 
 	svcConfig := grpcservice.Config{
 		Port:    cfg.Port,
