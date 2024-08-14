@@ -38,12 +38,15 @@ input {
   border: none;
   color: #fbfbfb80;
   width: 100%;
+  &.bg-white {
+    color: #010101;
+  }
   &:focus,
   &[type='text']:focus,
   &[type='password']:focus {
     border: none;
     box-shadow: none;
-    color: #fbfbfb;
+    color: currentColor;
     outline: none;
   }
 }
