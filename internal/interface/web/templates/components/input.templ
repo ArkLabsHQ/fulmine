@@ -19,7 +19,7 @@ templ InputAmount(max string) {
 	      max={max}
       }
 	    onchange="updateSats()"
-	    placeholder="5000"
+			type="number"
 		/>
 		<div class="flex items-center gap-2">
       if (len(max) > 0) {
@@ -52,7 +52,7 @@ templ InputAddress() {
 	<script>
 	  const handleAddressChange = () => {
 			const addr = document.querySelector('#address').value
-			const asAmount = addr.match(/amount:(\d+)/)
+			const asAmount = addr.match(/amount=(\d+)/)
 			if (asAmount) updateAmount(asAmount[1])
 		}
 	  const updateAmount = (sats) => {
