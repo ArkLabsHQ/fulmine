@@ -13,10 +13,18 @@ templ ReceiveBodyContent(currentBalance string) {
 	        @components.Header("Receive")
 	        @components.ReceiveAmount()
 	    	</div>
-	    	@components.ActionButtons("Confirm")
+	    	@components.ActionButtons("Confirm", true)
 	    </div>
 	  </form>
 	</div>
+	<script>
+	  const canProceed = () => {
+			const amount = document.querySelector('#amount').value
+			const button = document.querySelector('button[type="submit"]')
+			button.disabled = !amount.length > 0
+		}
+	  document.querySelector('#amount').addEventListener('change', canProceed)
+	</script>
 }
 
 templ ReceivePreview(bip21 string) {
@@ -36,7 +44,7 @@ templ ReceivePreview(bip21 string) {
 	    </div>
 		</div>
     <div class="flex flex-col md:flex-row-reverse justify-start gap-4 mt-4 mb-2">
-	    <button class="bg-graybg md:w-auto" onclick="copyToClipboard('#bip21')">
+	    <button class="bg-graybg md:w-auto" onclick="handleCopy(this)">
 			  @components.CopyIcon()
 				<span class="ml-2">Copy</span>
 			</button>
@@ -46,4 +54,11 @@ templ ReceivePreview(bip21 string) {
 			</button>
 	  </div>
 	</div>
+	<script>
+	  const handleCopy = (button) => {
+			copyToClipboard('#bip21')
+			button.querySelector('span').innerText = 'Copied'
+			setTimeout(() => button.querySelector('span').innerText = 'Copy', 2000)
+		}
+	</script>
 }

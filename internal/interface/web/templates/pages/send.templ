@@ -33,10 +33,20 @@ templ SendBodyContent(currentBalance string) {
 					@components.InputAddress()
 					@components.SendAmount(currentBalance)
 	    	</div>
-	    	@components.ActionButtons("Preview send")
+	    	@components.ActionButtons("Preview send", true)
 	    </div>
 	  </form>
 	</div>
+	<script>
+	  const canProceed = () => {
+			const address = document.querySelector('#address').value
+			const amount = document.querySelector('#amount').value
+			const button = document.querySelector('button[type="submit"]')
+			button.disabled = !(address.length > 0 && amount.length > 0)
+		}
+	  document.querySelector('#address').addEventListener('change', canProceed)
+	  document.querySelector('#amount').addEventListener('change', canProceed)
+	</script>
 }
 
 templ SendFeesComponent(sats string) {

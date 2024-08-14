@@ -122,7 +122,8 @@ button:hover {
   border-color: #bc3f20;
 }
 
-button:disabled {
+button:disabled,
+button.disabled {
   opacity: 0.5;
 }
 

@@ -53,10 +53,7 @@ templ Layout(bodyContent templ.Component) {
 		</body>
 		<script>  
       const disableButton = (button) => {
-        button.style.opacity = 0.5
-				const text = button.innerText
-				if (text === "Create wallet") button.innerText = "Creating wallet..."
-				if (text === "Unlock") button.innerText = "Unlocking..."
+				button.classList.add("disabled")
       }
 
       const prettyNum = (num, maximumFractionDigits = 2) => {
@@ -136,14 +133,14 @@ templ Layout(bodyContent templ.Component) {
 		  }
 
 
-    const togglePasswordVisibility = () => {
-      document.querySelectorAll(".eyes span").forEach((el) => {
-        el.style.display = el.style.display === 'none' ? 'block' : 'none'
-      })
-      document.querySelectorAll(".eyeopener").forEach((el) => {
-        el.type = el.type === 'text' ? 'password' : 'text'
-      })
-    }
+      const togglePasswordVisibility = () => {
+        document.querySelectorAll(".eyes span").forEach((el) => {
+          el.style.display = el.style.display === 'none' ? 'block' : 'none'
+        })
+        document.querySelectorAll(".eyeopener").forEach((el) => {
+          el.type = el.type === 'text' ? 'password' : 'text'
+        })
+      }
   
 		  const updateSats = () => {
 		  	const unit = document.querySelector('#unit').innerText
@@ -168,6 +165,10 @@ templ Layout(bodyContent templ.Component) {
         document.querySelectorAll('.btcm').forEach((x) => {
           const sats = x.textContent
           x.innerHTML = (sats.charAt(0) === '+' ? '+' : '') + fromSatoshis(sats)
+        })
+
+				document.querySelectorAll('.disabled').forEach((x) => {
+					x.classList.remove('disabled')
         })
 
         updateFiatValues()
