@@ -5,11 +5,13 @@ go 1.22.6
 require (
 	github.com/a-h/templ v0.2.747
 	github.com/angelofallars/htmx-go v0.5.0
+	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20240813173119-50c9594da9d9
 	github.com/gin-gonic/gin v1.10.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.21.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.19.0
+	github.com/tyler-smith/go-bip32 v1.0.0
 	github.com/tyler-smith/go-bip39 v1.1.0
 	golang.org/x/net v0.28.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240812133136-8ffd90a71988
@@ -20,9 +22,10 @@ require (
 require golang.org/x/sys v0.24.0 // indirect
 
 require (
+	github.com/FactomProject/basen v0.0.0-20150613233007-fe3947df716e // indirect
+	github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec // indirect
 	github.com/ark-network/ark/api-spec v0.0.0-20240812230256-910716f72d1a // indirect
 	github.com/ark-network/ark/common v0.0.0-20240812230256-910716f72d1a // indirect
-	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20240813012741-1b0252f3e495 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/btcsuite/btcd v0.24.2 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
@@ -70,7 +73,6 @@ require (
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
-	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect

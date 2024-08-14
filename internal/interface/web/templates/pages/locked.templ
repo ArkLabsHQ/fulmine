@@ -15,14 +15,21 @@ templ Locked() {
           </div>
           <div>
             @components.Label("Password")
-	          <input
-	            class="text-black w-full border-0 p-4 rounded-md unframed"
-	          	name="password"
-              type="password"
-	          />
+            <div class="flex justify-between items-center gap-4 bg-white border-0 p-2 rounded-md text-black w-full">
+              <input 
+                autocomplete="current-password"
+                class="bg-white border-0 w-full eyeopener"
+                name="password"
+                type="password"
+              />
+              <p class="eyes" onclick="togglePasswordVisibility()">
+                <span>@components.EyeOpenIcon()</span>
+                <span style="display: none">@components.EyeCloseIcon()</span>
+              </p>
+            </div>
           </div>
         </div>
-        <button class="bg-white text-black mt-10" type="submit">Unlock</button>
+        <button class="bg-white ee text-black mt-10" hx-on:click="disableButton(this)" type="submit">Unlock</button>
       </div>
     </div>
   </form>

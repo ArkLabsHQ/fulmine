@@ -51,7 +51,14 @@ templ Layout(bodyContent templ.Component) {
 			<script src="/static/decimal.js"></script>
 			<script src="/static/scripts.js"></script>
 		</body>
-		<script>
+		<script>  
+      const disableButton = (button) => {
+        button.style.opacity = 0.5
+				const text = button.innerText
+				if (text === "Create wallet") button.innerText = "Creating wallet..."
+				if (text === "Unlock") button.innerText = "Unlocking..."
+      }
+
       const prettyNum = (num, maximumFractionDigits = 2) => {
         if (!num) return '0'
         return new Intl.NumberFormat('en', {
@@ -94,7 +101,7 @@ templ Layout(bodyContent templ.Component) {
           res.json().then((json) => {
             document.querySelectorAll('.usd').forEach((x) => {
               const sats = parseInt(x.getAttribute('sats'))
-              if (isNaN(sats)) return
+							if (isNaN(sats)) return
               const usd = (sats * json.pricefeed.usd) / 100_000_000
               x.innerHTML = `$ ${prettyNum(usd)}`
             })
@@ -127,6 +134,16 @@ templ Layout(bodyContent templ.Component) {
 		  		document.querySelector('#amount').value = nextVal
 		  	}
 		  }
+
+
+    const togglePasswordVisibility = () => {
+      document.querySelectorAll(".eyes span").forEach((el) => {
+        el.style.display = el.style.display === 'none' ? 'block' : 'none'
+      })
+      document.querySelectorAll(".eyeopener").forEach((el) => {
+        el.type = el.type === 'text' ? 'password' : 'text'
+      })
+    }
   
 		  const updateSats = () => {
 		  	const unit = document.querySelector('#unit').innerText

@@ -46,7 +46,23 @@ func Locked() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<input class=\"text-black w-full border-0 p-4 rounded-md unframed\" name=\"password\" type=\"password\"></div></div><button class=\"bg-white text-black mt-10\" type=\"submit\">Unlock</button></div></div></form>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex justify-between items-center gap-4 bg-white border-0 p-2 rounded-md text-black w-full\"><input autocomplete=\"current-password\" class=\"bg-white border-0 w-full eyeopener\" name=\"password\" type=\"password\"><p class=\"eyes\" onclick=\"togglePasswordVisibility()\"><span>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = components.EyeOpenIcon().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> <span style=\"display: none\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = components.EyeCloseIcon().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span></p></div></div></div><button class=\"bg-white ee text-black mt-10\" hx-on:click=\"disableButton(this)\" type=\"submit\">Unlock</button></div></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

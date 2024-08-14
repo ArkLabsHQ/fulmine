@@ -60,6 +60,18 @@ func NewService() *service {
 	// Create a new Fiber server.
 	router := gin.Default()
 
+	arkClient, _ := handlers.LoadArkClient()
+	// Middleware to set a variable in the context
+	router.Use(func(c *gin.Context) {
+		if arkClient == nil {
+			arkClient, _ = handlers.LoadArkClient()
+		}
+		if arkClient != nil {
+			c.Set("arkClient", arkClient)
+		}
+		c.Next() // Call the next handler
+	})
+
 	// Define HTML renderer for template engine.
 	router.HTMLRender = &TemplRender{}
 	staticFS, _ := fs.Sub(static, "static")
@@ -78,7 +90,7 @@ func NewService() *service {
 	svc.GET("/new", handlers.NewWallet)
 	svc.GET("/send", handlers.Send)
 	svc.GET("/settings/:active", handlers.Settings)
-	svc.GET("/swap/", handlers.Swap)
+	svc.GET("/swap", handlers.Swap)
 	svc.GET("/receive", handlers.Receive)
 	svc.GET("/tx/:txid", handlers.Tx)
 	svc.GET("/welcome", handlers.Welcome)
@@ -86,7 +98,7 @@ func NewService() *service {
 	svc.GET("/swap/:active", handlers.SwapActive)
 	svc.GET("/modal/info", handlers.InfoModal)
 
-	svc.POST("/aspurl", handlers.SetAspUrl)
+	svc.POST("/initialize", handlers.Initialize)
 	svc.POST("/mnemonic", handlers.SetMnemonic)
 	svc.POST("/password", handlers.SetPassword)
 

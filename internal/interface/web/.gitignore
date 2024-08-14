@@ -23,6 +23,9 @@ pb_data/
 # Node modules.
 node_modules/
 
+# storage
+storage/
+
 # Vendor folders.
 vendor/
 

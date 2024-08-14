@@ -5,7 +5,7 @@ import (
 )
 
 templ AspUrlBodyContent(aspurl, mnemonic, password string) {
-  <form hx-post="/aspurl">
+  <form hx-post="/initialize">
     <input type="hidden" name="mnemonic" value={mnemonic}/>
     <input type="hidden" name="password" value={password}/>
     <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
@@ -16,7 +16,7 @@ templ AspUrlBodyContent(aspurl, mnemonic, password string) {
         <p class="mb-2">ASP URL</p>
         @components.InputWithPaste("aspurl", "", aspurl)
       </div>
-	  	<button class="bg-orange text-white" type="submit">Create wallet</button>
+	  	<button class="bg-orange text-white" onclick="disableButton(this)" type="submit">Create wallet</button>
     </div>
   </form>
 }

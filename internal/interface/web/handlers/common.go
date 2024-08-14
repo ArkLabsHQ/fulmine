@@ -1,20 +1,29 @@
 package handlers
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tyler-smith/go-bip39"
 
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func getAddress() string {
 	return "ark18746676365652bcdabdbacdabcd63546354634"
 }
 
-func getBalance() string {
-	return "1930547"
+func getSpendableBalance(c *gin.Context) string {
+	arkClient := getArkClient(c)
+	if balance, err := arkClient.Balance(c, true); err == nil {
+		return strconv.FormatUint(balance.OffchainBalance.Total, 10)
+	} else {
+		log.Infof("error getting ark balance: %s", err)
+	}
+	return "0"
 }
 
 func getNodeBalance() string {

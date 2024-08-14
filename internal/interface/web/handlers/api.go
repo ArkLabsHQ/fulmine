@@ -51,3 +51,28 @@ func ValidateMnemonic(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, data)
 }
+
+func Unlock(c *gin.Context) {
+	password := c.PostForm("password")
+	if password == "" {
+		toast := components.Toast("Password can't be empty", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	arkClient := getArkClient(c)
+	if arkClient == nil {
+		toast := components.Toast("Ark client not found", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	err := arkClient.Unlock(c, password)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	redirect("/", c)
+}

@@ -14,6 +14,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/pages"
 
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 )
 
 func pageViewHandler(bodyContent templ.Component, c *gin.Context) {
@@ -37,8 +38,46 @@ func Done(c *gin.Context) {
 }
 
 func Index(c *gin.Context) {
-	bodyContent := pages.HistoryBodyContent(getBalance(), getAddress(), getTransactions())
+	bodyContent := pages.Welcome()
+	if arkClient := getArkClient(c); arkClient != nil {
+		if arkClient.IsLocked(c) {
+			bodyContent = pages.Locked()
+		} else {
+			bodyContent = pages.HistoryBodyContent(getSpendableBalance(c), getAddress(), getTransactions())
+		}
+	}
 	pageViewHandler(bodyContent, c)
+}
+
+func Initialize(c *gin.Context) {
+	aspurl := c.PostForm("aspurl")
+	if aspurl == "" {
+		toast := components.Toast("ASP URL can't be empty")
+		toastHandler(toast, c)
+		return
+	}
+
+	mnemonic := c.PostForm("mnemonic")
+	if mnemonic == "" {
+		toast := components.Toast("Mnemonic can't be empty")
+		toastHandler(toast, c)
+		return
+	}
+
+	password := c.PostForm("password")
+	if password == "" {
+		toast := components.Toast("Password can't be empty")
+		toastHandler(toast, c)
+		return
+	}
+
+	log.Info(aspurl, mnemonic, password)
+
+	if _, err := setupFileBasedArkClient(aspurl, mnemonic, password); err == nil {
+		redirect("/done", c)
+	} else {
+		redirect("/", c)
+	}
 }
 
 func ImportWallet(c *gin.Context) {
@@ -59,20 +98,37 @@ func NewWallet(c *gin.Context) {
 }
 
 func Receive(c *gin.Context) {
-	bodyContent := pages.ReceiveBodyContent(getBalance())
+	bodyContent := pages.ReceiveBodyContent(getSpendableBalance(c))
 	pageViewHandler(bodyContent, c)
 }
 
 func ReceivePreview(c *gin.Context) {
-	addr := getAddress()
+	// get addresses
+	arkClient := getArkClient(c)
+	offchainAddr, onchainAddr, err := arkClient.Receive(c)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// generate bip21
+	bip21 := fmt.Sprintf("bitcoin:%s?ark:%s", onchainAddr, offchainAddr)
+	// add amount if passed
 	sats := c.PostForm("sats")
-	bip21 := fmt.Sprintf("ark:%s?amount:%s", addr, sats)
+	if sats != "" {
+		amount := fmt.Sprintf("&amount=%s", sats)
+		bip21 = bip21 + amount
+	}
+	// show invoice in plain and qrcode
 	info := pages.ReceivePreview(bip21)
 	partialViewHandler(info, c)
 }
 
 func Send(c *gin.Context) {
-	bodyContent := pages.SendBodyContent(getBalance())
+	arkClient := getArkClient(c)
+	if arkClient == nil || arkClient.IsLocked(c) {
+		c.Redirect(http.StatusFound, "/")
+		return
+	}
+	bodyContent := pages.SendBodyContent(getSpendableBalance(c))
 	pageViewHandler(bodyContent, c)
 }
 
@@ -88,14 +144,6 @@ func SendPreview(c *gin.Context) {
 	sats := c.PostForm("sats")
 	bodyContent := pages.SendPreviewContent(address, sats)
 	partialViewHandler(bodyContent, c)
-}
-
-func SetAspUrl(c *gin.Context) {
-	aspurl := c.PostForm("aspurl")
-	mnemonic := c.PostForm("mnemonic")
-	password := c.PostForm("password")
-	fmt.Println(aspurl, mnemonic, password)
-	redirect("/done", c)
 }
 
 func SetMnemonic(c *gin.Context) {
@@ -137,7 +185,12 @@ func Settings(c *gin.Context) {
 }
 
 func Swap(c *gin.Context) {
-	bodyContent := pages.SwapBodyContent(getBalance(), getNodeBalance())
+	arkClient := getArkClient(c)
+	if arkClient == nil || arkClient.IsLocked(c) {
+		c.Redirect(http.StatusFound, "/")
+		return
+	}
+	bodyContent := pages.SwapBodyContent(getSpendableBalance(c), getNodeBalance())
 	pageViewHandler(bodyContent, c)
 }
 
@@ -147,7 +200,7 @@ func SwapActive(c *gin.Context) {
 	if active == "inbound" {
 		balance = getNodeBalance()
 	} else {
-		balance = getBalance()
+		balance = ""
 	}
 	bodyContent := pages.SwapPartialContent(active, balance)
 	partialViewHandler(bodyContent, c)
@@ -178,12 +231,6 @@ func Tx(c *gin.Context) {
 	}
 	bodyContent := pages.TxBodyContent(tx[0], tx[1], tx[2], tx[3], tx[4], tx[5])
 	pageViewHandler(bodyContent, c)
-}
-
-func Unlock(c *gin.Context) {
-	// TODO: unlock wallet
-	// then redirect to home
-	redirect("/", c)
 }
 
 func Welcome(c *gin.Context) {
