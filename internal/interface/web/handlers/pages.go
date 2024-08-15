@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -98,26 +97,18 @@ func NewWallet(c *gin.Context) {
 }
 
 func Receive(c *gin.Context) {
-	bodyContent := pages.ReceiveBodyContent(getSpendableBalance(c))
+	bodyContent := pages.ReceiveBodyContent()
 	pageViewHandler(bodyContent, c)
 }
 
 func ReceivePreview(c *gin.Context) {
-	// get addresses
 	arkClient := getArkClient(c)
 	offchainAddr, onchainAddr, err := arkClient.Receive(c)
 	if err != nil {
 		log.Fatal(err)
 	}
-	// generate bip21
-	bip21 := fmt.Sprintf("bitcoin:%s?ark=%s", onchainAddr, offchainAddr)
-	// add amount if passed
 	sats := c.PostForm("sats")
-	if sats != "" {
-		amount := fmt.Sprintf("&amount=%s", sats)
-		bip21 = bip21 + amount
-	}
-	// show invoice in plain and qrcode
+	bip21 := genBip21(offchainAddr, onchainAddr, sats)
 	info := pages.ReceivePreview(bip21)
 	partialViewHandler(info, c)
 }

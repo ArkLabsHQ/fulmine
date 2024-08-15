@@ -4,7 +4,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
-templ ReceiveBodyContent(currentBalance string) {
+templ ReceiveBodyContent() {
 	@components.DesktopHeader()
 	<div id="receiveBody">
 	  <form hx-post="/receive/preview" hx-target="#receiveBody" hx-swap="outerHTML">
