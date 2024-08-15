@@ -7,6 +7,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
+	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
@@ -119,21 +120,16 @@ func Send(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/")
 		return
 	}
+
 	bodyContent := pages.SendBodyContent(getSpendableBalance(c))
 	pageViewHandler(bodyContent, c)
-}
-
-func SendConfirm(c *gin.Context) {
-	address := c.PostForm("address")
-	amount := c.PostForm("amount")
-	bodyContent := pages.SendSuccessContent(address, amount)
-	partialViewHandler(bodyContent, c)
 }
 
 func SendPreview(c *gin.Context) {
 	addr := ""
 	dest := c.PostForm("address")
 	sats := c.PostForm("sats")
+
 	if isBip21(dest) {
 		offchainAddress := getArkAddress(dest)
 		if len(offchainAddress) > 0 {
@@ -149,6 +145,7 @@ func SendPreview(c *gin.Context) {
 			addr = dest
 		}
 	}
+
 	if len(addr) == 0 {
 		toast := components.Toast("Invalid address", true)
 		toastHandler(toast, c)
@@ -156,6 +153,56 @@ func SendPreview(c *gin.Context) {
 		bodyContent := pages.SendPreviewContent(addr, sats)
 		partialViewHandler(bodyContent, c)
 	}
+}
+
+func SendConfirm(c *gin.Context) {
+	arkClient := getArkClient(c)
+	if arkClient == nil || arkClient.IsLocked(c) {
+		c.Redirect(http.StatusFound, "/")
+		return
+	}
+
+	address := c.PostForm("address")
+	sats := c.PostForm("sats")
+	txId := ""
+
+	value, err := strconv.ParseUint(sats, 10, 64)
+	if err != nil {
+		toast := components.Toast("Invalid amount", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	receivers := []arksdk.Receiver{
+		arksdk.NewBitcoinReceiver(address, value),
+	}
+
+	if isValidArkAddress(address) {
+		txId, err = arkClient.SendOffChain(c, true, receivers)
+		if err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+	}
+
+	if isValidBtcAddress(address) {
+		txId, err = arkClient.SendOnChain(c, receivers)
+		if err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+	}
+
+	if len(txId) == 0 {
+		toast := components.Toast("Something went wrong", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	bodyContent := pages.SendSuccessContent(address, sats, txId)
+	partialViewHandler(bodyContent, c)
 }
 
 func SetMnemonic(c *gin.Context) {

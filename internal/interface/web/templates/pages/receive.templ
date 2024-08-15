@@ -13,18 +13,10 @@ templ ReceiveBodyContent() {
 	        @components.Header("Receive")
 	        @components.ReceiveAmount()
 	    	</div>
-	    	@components.ActionButtons("Confirm", true)
+	    	@components.ActionButtons("Confirm")
 	    </div>
 	  </form>
 	</div>
-	<script>
-	  const canProceed = () => {
-			const amount = document.querySelector('#amount').value
-			const button = document.querySelector('button[type="submit"]')
-			button.disabled = !amount.length > 0
-		}
-	  document.querySelector('#amount').addEventListener('change', canProceed)
-	</script>
 }
 
 templ ReceivePreview(bip21 string) {

@@ -130,6 +130,8 @@ templ Layout(bodyContent templ.Component) {
 		  		const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
 		  		document.querySelector('#amount').value = nextVal
 		  	}
+				// change steps
+				document.querySelector('#amount').step = nextUnit === 'SATS' ? "" : "0.00000001"
 		  }
 
 
