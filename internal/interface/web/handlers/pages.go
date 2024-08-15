@@ -43,7 +43,7 @@ func Index(c *gin.Context) {
 		if arkClient.IsLocked(c) {
 			bodyContent = pages.Locked()
 		} else {
-			bodyContent = pages.HistoryBodyContent(getSpendableBalance(c), getAddress(), getTransactions())
+			bodyContent = pages.HistoryBodyContent(getSpendableBalance(c), getAddress(c), getTransactions())
 		}
 	}
 	pageViewHandler(bodyContent, c)
@@ -52,21 +52,21 @@ func Index(c *gin.Context) {
 func Initialize(c *gin.Context) {
 	aspurl := c.PostForm("aspurl")
 	if aspurl == "" {
-		toast := components.Toast("ASP URL can't be empty")
+		toast := components.Toast("ASP URL can't be empty", true)
 		toastHandler(toast, c)
 		return
 	}
 
 	mnemonic := c.PostForm("mnemonic")
 	if mnemonic == "" {
-		toast := components.Toast("Mnemonic can't be empty")
+		toast := components.Toast("Mnemonic can't be empty", true)
 		toastHandler(toast, c)
 		return
 	}
 
 	password := c.PostForm("password")
 	if password == "" {
-		toast := components.Toast("Password can't be empty")
+		toast := components.Toast("Password can't be empty", true)
 		toastHandler(toast, c)
 		return
 	}
@@ -110,7 +110,7 @@ func ReceivePreview(c *gin.Context) {
 		log.Fatal(err)
 	}
 	// generate bip21
-	bip21 := fmt.Sprintf("bitcoin:%s?ark:%s", onchainAddr, offchainAddr)
+	bip21 := fmt.Sprintf("bitcoin:%s?ark=%s", onchainAddr, offchainAddr)
 	// add amount if passed
 	sats := c.PostForm("sats")
 	if sats != "" {
@@ -140,10 +140,31 @@ func SendConfirm(c *gin.Context) {
 }
 
 func SendPreview(c *gin.Context) {
-	address := c.PostForm("address")
+	addr := ""
+	dest := c.PostForm("address")
 	sats := c.PostForm("sats")
-	bodyContent := pages.SendPreviewContent(address, sats)
-	partialViewHandler(bodyContent, c)
+	if isBip21(dest) {
+		offchainAddress := getArkAddress(dest)
+		if len(offchainAddress) > 0 {
+			addr = offchainAddress
+		} else {
+			onchainAddress := getBtcAddress(dest)
+			if len(onchainAddress) > 0 {
+				addr = onchainAddress
+			}
+		}
+	} else {
+		if isValidBtcAddress(dest) || isValidArkAddress(dest) {
+			addr = dest
+		}
+	}
+	if len(addr) == 0 {
+		toast := components.Toast("Invalid address", true)
+		toastHandler(toast, c)
+	} else {
+		bodyContent := pages.SendPreviewContent(addr, sats)
+		partialViewHandler(bodyContent, c)
+	}
 }
 
 func SetMnemonic(c *gin.Context) {

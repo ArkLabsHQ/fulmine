@@ -12,14 +12,18 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func getAddress() string {
-	return "ark18746676365652bcdabdbacdabcd63546354634"
+func getAddress(c *gin.Context) string {
+	arkClient := getArkClient(c)
+	if offchainAddr, _, err := arkClient.Receive(c); err == nil {
+		return offchainAddr
+	}
+	return ""
 }
 
 func getSpendableBalance(c *gin.Context) string {
 	arkClient := getArkClient(c)
 	if balance, err := arkClient.Balance(c, true); err == nil {
-		return strconv.FormatUint(balance.OffchainBalance.Total, 10)
+		return strconv.FormatUint(balance.OffchainBalance.Total+balance.OnchainBalance.SpendableAmount, 10)
 	} else {
 		log.Infof("error getting ark balance: %s", err)
 	}
