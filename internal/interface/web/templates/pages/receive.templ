@@ -19,38 +19,88 @@ templ ReceiveBodyContent() {
 	</div>
 }
 
-templ ReceivePreview(bip21 string) {
-	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
-	  @components.Header("Receive")
-    <div class="flex flex-col justify-center items-center gap-2 overflow-auto">
-		  <div class="h-64">
-        <img
-				  src={"https://api.qrserver.com/v1/create-qr-code/?color=fbfbfb&bgcolor=202020&size=256x256&data=" + bip21}
-					alt="qrcode for receive address"
-					title={bip21}
-				/>
-			</div>
-			<p class="text-center w-64">Scan QR code or use the address with one of the supported wallets to receive BTC.</p>
-      <div class="rounded-lg bg-white/10 p-2 flex justify-between items-center gap-4 w-72">
-	      <p class="overflow-hidden text-ellipsis whitespace-nowrap" id="bip21">{bip21}</p>
+templ ReceivePreviewContent(bip21, offchainAddr, onchainAddr, sats string) {
+	<form id="success" hx-post="/receive/success">
+	  <input class="hidden" id="submitButton" type="submit"/>
+	  <input class="hidden" name="offchainAddr" value={offchainAddr} />
+	  <input class="hidden" name="onchainAddr" value={onchainAddr} />
+	  <input class="hidden" name="sats" />
+	  <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+	    @components.Header("Receive")
+      <div class="flex flex-col justify-center items-center gap-2 overflow-auto">
+	  	  <div class="h-64">
+          <img
+	  			  src={"https://api.qrserver.com/v1/create-qr-code/?color=fbfbfb&bgcolor=202020&size=256x256&data=" + bip21}
+	  				alt="qrcode for receive address"
+	  				title={bip21}
+	  			/>
+	  		</div>
+	  		<p class="text-center w-64">Scan QR code or use the address with one of the supported wallets to receive BTC.</p>
+        <div class="rounded-lg bg-white/10 p-2 flex justify-between items-center gap-4 w-72">
+	        <p class="overflow-hidden text-ellipsis whitespace-nowrap" id="bip21">{bip21}</p>
+	      </div>
+	  	</div>
+      <div class="flex flex-col md:flex-row-reverse justify-start gap-4 mt-4 mb-2">
+	      <button class="bg-graybg md:w-auto" onclick="handleCopy(event)">
+	  		  @components.CopyIcon()
+	  			<span id="copyText" class="ml-2">Copy</span>
+	  		</button>
+	      <button class="bg-graybg md:w-auto" onclick="handleEdit(event)">
+	  		  @components.EditIcon()
+	  			<span class="ml-2">Edit</span>
+	  		</button>
 	    </div>
-		</div>
-    <div class="flex flex-col md:flex-row-reverse justify-start gap-4 mt-4 mb-2">
-	    <button class="bg-graybg md:w-auto" onclick="handleCopy(this)">
-			  @components.CopyIcon()
-				<span class="ml-2">Copy</span>
-			</button>
-	    <button class="bg-graybg md:w-auto" onclick="redirect('/receive')">
-			  @components.EditIcon()
-				<span class="ml-2">Edit</span>
-			</button>
 	  </div>
-	</div>
+	</form>
 	<script>
-	  const handleCopy = (button) => {
+	  const handleCopy = (event) => {
+			event.preventDefault()
 			copyToClipboard('#bip21')
-			button.querySelector('span').innerText = 'Copied'
-			setTimeout(() => button.querySelector('span').innerText = 'Copy', 2000)
+			document.querySelector('#copyText').innerText = 'Copied'
+			setTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2000)
 		}
+
+		const handleEdit = (event) => {
+			event.preventDefault()
+			redirect('/receive')
+		}
+		
+		const waitForPayment = async () => {
+			const getBalance = async () => {
+        const res = await fetch("/api/balance")
+		    return res.ok ? await res.json() : {}
+			}
+		  const initialBalance = await getBalance()
+			const intervalId = setInterval(() => {
+				getBalance().then((balance) => {
+			    if (balance.total > initialBalance.total) {
+						document.querySelector("input[name='sats']").value = balance.total - initialBalance.total
+			      document.querySelector("#submitButton").click()
+						clearInterval(intervalId)
+					}
+				})
+			}, 1000)
+		}
+
+		waitForPayment()
 	</script>
+}
+
+templ ReceiveSuccessContent(offchainAddr, onchainAddr, sats string) {
+	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+	  <div class="flex flex-col items-center">
+		  @components.Header("Receive")
+	    @SuccessIcon()
+			<p class="mt-8">Received successfully</p>
+			<p class="mt-8 text-3xl">
+			  <span class="sats">{sats}</span>
+				<span class="text-white/50">SATS</span>
+			</p>
+			<div class="flex mt-8 w-64 gap-2">
+			  <p class="text-white/50">to</p>
+				<p class="overflow-hidden text-ellipsis whitespace-nowrap">{offchainAddr}</p>
+				<p class="text-white/50">@components.CopyIcon()</p>
+			</div>
+		</div>
+	</div>
 }

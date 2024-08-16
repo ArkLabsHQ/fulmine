@@ -310,11 +310,11 @@ func SendPreviewContent(address, sats string) templ.Component {
 
 func openInExplorer(txid string) templ.ComponentScript {
 	return templ.ComponentScript{
-		Name: `__templ_openInExplorer_5581`,
-		Function: `function __templ_openInExplorer_5581(txid){window.open(` + "`" + `https://mempool.space/tx/${txid}` + "`" + `, '_blank') 
+		Name: `__templ_openInExplorer_cd2f`,
+		Function: `function __templ_openInExplorer_cd2f(txid){window.open(` + "`" + `http://localhost:5000/tx/${txid}` + "`" + `, '_blank') 
 }`,
-		Call:       templ.SafeScript(`__templ_openInExplorer_5581`, txid),
-		CallInline: templ.SafeScriptInline(`__templ_openInExplorer_5581`, txid),
+		Call:       templ.SafeScript(`__templ_openInExplorer_cd2f`, txid),
+		CallInline: templ.SafeScriptInline(`__templ_openInExplorer_cd2f`, txid),
 	}
 }
 

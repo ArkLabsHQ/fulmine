@@ -82,7 +82,7 @@ func InputAmount(max string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-graybg px-4 py-3 flex items-center justify-between rounded-lg\"><input class=\"hidden\" id=\"sats\" name=\"sats\"> <input class=\"bg-graybg border-0 p-0\" id=\"amount\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-graybg px-4 py-3 flex items-center justify-between rounded-lg\"><input type=\"hidden\" id=\"sats\" name=\"sats\"> <input class=\"bg-graybg border-0 p-0\" id=\"amount\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

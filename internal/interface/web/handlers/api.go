@@ -25,6 +25,19 @@ func toastHandler(t templ.Component, c *gin.Context) {
 		RenderTempl(c, c.Writer, t)
 }
 
+func BalanceApiGet(c *gin.Context) {
+	if arkClient := getArkClient(c); arkClient != nil {
+		if balance, err := arkClient.Balance(c, true); err == nil {
+			data := gin.H{
+				"offchain": balance.OffchainBalance.Total,
+				"onchain":  balance.OnchainBalance.SpendableAmount,
+				"total":    balance.OffchainBalance.Total + balance.OnchainBalance.SpendableAmount,
+			}
+			c.JSON(http.StatusOK, data)
+		}
+	}
+}
+
 func SettingsApiPost(c *gin.Context) {
 	// TODO: manage new settings posted
 	toast := components.Toast("Saved")

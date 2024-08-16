@@ -110,7 +110,15 @@ func ReceivePreview(c *gin.Context) {
 	}
 	sats := c.PostForm("sats")
 	bip21 := genBip21(offchainAddr, onchainAddr, sats)
-	info := pages.ReceivePreview(bip21)
+	info := pages.ReceivePreviewContent(bip21, offchainAddr, onchainAddr, sats)
+	partialViewHandler(info, c)
+}
+
+func ReceiveSuccess(c *gin.Context) {
+	offchainAddr := c.PostForm("offchainAddr")
+	onchainAddr := c.PostForm("onchainAddr")
+	sats := c.PostForm("sats")
+	info := pages.ReceiveSuccessContent(offchainAddr, onchainAddr, sats)
 	partialViewHandler(info, c)
 }
 

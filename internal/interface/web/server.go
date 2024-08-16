@@ -103,6 +103,7 @@ func NewService() *service {
 	svc.POST("/password", handlers.SetPassword)
 
 	svc.POST("/receive/preview", handlers.ReceivePreview)
+	svc.POST("/receive/success", handlers.ReceiveSuccess)
 	svc.POST("/send/preview", handlers.SendPreview)
 	svc.POST("/send/confirm", handlers.SendConfirm)
 	svc.POST("/swap/preview", handlers.SwapPreview)
@@ -113,6 +114,8 @@ func NewService() *service {
 	svc.POST("/api/node/connect", handlers.NodeConnectApiPost)
 	svc.POST("/api/node/disconnect", handlers.NodeDisconnectApiPost)
 	svc.POST("/api/mnemonic/validate", handlers.ValidateMnemonic)
+
+	svc.GET("/api/balance", handlers.BalanceApiGet)
 
 	return svc
 }
