@@ -353,7 +353,7 @@ func SettingsGeneralContent(settings types.Settings, nodeStatus bool) templ.Comp
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-graybg rounded p-3 text-sm\"><p>Lightning network node 1</p><hr class=\"my-4 text-white/20\"><div class=\"flex justify-between items-center\"><p class=\"text-white/50 w-32\">Full node</p><input class=\"bg-graybg p-4 rounded text-sm w-full unframed\" name=\"fullNode\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-graybg rounded p-3 text-sm\"><p>Lightning network node 1</p><hr class=\"my-4 text-white/20\"><div class=\"flex justify-between items-center\"><p class=\"text-white/50 w-32\">Full node</p><input class=\"bg-graybg p-4 rounded text-sm w-full unframed\" name=\"fullnode\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -366,7 +366,7 @@ func SettingsGeneralContent(settings types.Settings, nodeStatus bool) templ.Comp
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"></div><div class=\"flex justify-between items-center\"><p class=\"text-white/50 w-32\">Event server</p><input class=\"border-0 bg-graybg p-4 rounded text-sm w-full unframed\" name=\"eventServer\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"></div><div class=\"flex justify-between items-center\"><p class=\"text-white/50 w-32\">Event server</p><input class=\"border-0 bg-graybg p-4 rounded text-sm w-full unframed\" name=\"eventserver\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

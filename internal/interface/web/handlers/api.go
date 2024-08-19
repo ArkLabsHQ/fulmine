@@ -40,6 +40,47 @@ func BalanceApiGet(c *gin.Context) {
 
 func SettingsApiPost(c *gin.Context) {
 	// TODO: manage new settings posted
+	settings, _ := ReadSettings()
+
+	apiroot := c.PostForm("apiroot")
+	if len(apiroot) > 0 {
+		settings.ApiRoot = apiroot
+	}
+
+	currency := c.PostForm("currency")
+	if len(currency) > 0 {
+		settings.Currency = currency
+	}
+
+	eventserver := c.PostForm("eventserver")
+	if len(eventserver) > 0 {
+		settings.EventServer = eventserver
+	}
+
+	fullnode := c.PostForm("fullnode")
+	if len(fullnode) > 0 {
+		settings.FullNode = fullnode
+	}
+
+	// TODO lnconnect
+
+	lnurl := c.PostForm("lnurl")
+	if len(lnurl) > 0 {
+		settings.LnUrl = lnurl
+	}
+
+	unit := c.PostForm("unit")
+	if len(unit) > 0 {
+		settings.Unit = unit
+	}
+
+	err := WriteSettings(settings)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
 	toast := components.Toast("Saved")
 	toastHandler(toast, c)
 }
