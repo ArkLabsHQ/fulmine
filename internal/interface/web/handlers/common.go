@@ -46,6 +46,10 @@ func getNewMnemonic() []string {
 	return strings.Fields(mnemonic)
 }
 
+func getNodeStatus() bool {
+	return true // TODO
+}
+
 func getSettings() types.Settings {
 	settings, err := ReadSettings()
 	if err != nil {

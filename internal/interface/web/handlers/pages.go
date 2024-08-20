@@ -18,7 +18,7 @@ import (
 )
 
 func pageViewHandler(bodyContent templ.Component, c *gin.Context) {
-	indexTemplate := templates.Layout(bodyContent)
+	indexTemplate := templates.Layout(bodyContent, getSettings())
 	if err := htmx.NewResponse().RenderTempl(c.Request.Context(), c.Writer, indexTemplate); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
@@ -110,16 +110,16 @@ func ReceivePreview(c *gin.Context) {
 	}
 	sats := c.PostForm("sats")
 	bip21 := genBip21(offchainAddr, onchainAddr, sats)
-	info := pages.ReceivePreviewContent(bip21, offchainAddr, onchainAddr, sats)
-	partialViewHandler(info, c)
+	partial := pages.ReceivePreviewContent(bip21, offchainAddr, onchainAddr, sats)
+	partialViewHandler(partial, c)
 }
 
 func ReceiveSuccess(c *gin.Context) {
 	offchainAddr := c.PostForm("offchainAddr")
 	onchainAddr := c.PostForm("onchainAddr")
 	sats := c.PostForm("sats")
-	info := pages.ReceiveSuccessContent(offchainAddr, onchainAddr, sats)
-	partialViewHandler(info, c)
+	partial := pages.ReceiveSuccessContent(offchainAddr, onchainAddr, sats)
+	partialViewHandler(partial, c)
 }
 
 func Send(c *gin.Context) {
@@ -245,9 +245,7 @@ func SetPassword(c *gin.Context) {
 
 func Settings(c *gin.Context) {
 	active := c.Param("active")
-	settings := getSettings()
-	nodeStatus := true
-	bodyContent := pages.SettingsBodyContent(active, settings, nodeStatus)
+	bodyContent := pages.SettingsBodyContent(active, getSettings(), getNodeStatus())
 	pageViewHandler(bodyContent, c)
 }
 

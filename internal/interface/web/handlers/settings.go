@@ -10,7 +10,7 @@ import (
 
 var defaultSettings = types.Settings{
 	ApiRoot:     "https://fulmine.io/api/D9D90N192031",
-	Currency:    "USD",
+	Currency:    "usd",
 	EventServer: "http://arklabs.to/node/jupiter29",
 	FullNode:    "http://arklabs.to/node/213908123",
 	LnConnect:   false,

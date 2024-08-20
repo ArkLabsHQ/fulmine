@@ -89,33 +89,33 @@ func HeroBalance(currentBalance string) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"mb-10\"><p class=\"text-gray-300\">Balance</p><p class=\"text-4xl font-medium my-2\"><span class=\"sats\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"mb-10\"><p class=\"text-gray-300\">Balance</p><p class=\"text-4xl font-medium my-2\" id=\"balance\"><span id=\"balanceAmount\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(currentBalance)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/hero.templ`, Line: 25, Col: 74}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/hero.templ`, Line: 26, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> SATS</p><p class=\"text-gray-200 font-lg usd\" sats=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> &nbsp; <span id=\"balanceUnit\">SATS</span></p><p class=\"text-gray-200 font-lg fiat\" sats=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(currentBalance)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/hero.templ`, Line: 26, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/hero.templ`, Line: 30, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\">$ ...</p></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\">$ ...</p></div><script>\n\t  document.addEventListener('htmx:load', () => {\n\t\t\tconst sats = document.querySelector('p.fiat').getAttribute('sats')\n\t\t\tconst settings = JSON.parse(document.querySelector('#settings').textContent)\n\t\t\tif (!sats) return\n\t\t\tif (settings.unit === 'btc') {\n\t\t\t\tdocument.querySelector('#balanceAmount').innerText = prettyNum(fromSatoshis(sats), 8)\n\t\t\t\tdocument.querySelector('#balanceUnit').innerText = \"BTC\"\n\t\t\t} else {\n\t\t\t\tdocument.querySelector('#balanceAmount').innerText = prettyNum(sats)\n\t\t\t\tdocument.querySelector('#balanceUnit').innerText = \"SATS\"\n\t\t\t}\n\t\t})\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -123,7 +123,7 @@ func InputAmount(max string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div></div><div class=\"flex justify-between w-full text-sm text-white/50 mt-2\"><p id=\"usd\" class=\"usd\">$</p>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div></div><div class=\"flex justify-between w-full text-sm text-white/50 mt-2\"><p id=\"fiat\" class=\"fiat\"></p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

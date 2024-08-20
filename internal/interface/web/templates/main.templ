@@ -1,5 +1,7 @@
 package templates
 
+import "github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
+
 // in order for tailwind to detect this classes, this javascript code
 // needs to be inside a .templ file, which means this script code
 // must be here, cannot be on /assets/script.js
@@ -17,7 +19,19 @@ script PagesScript() {
   }
 }
 
-templ Layout(bodyContent templ.Component) {
+script runOnLoad() {
+	updateFiatValues()
+	//
+	document.querySelectorAll('select').forEach((x) => {
+		// hack, or else select will not have current value selected
+		if (x.getAttribute('value')) x.value = x.getAttribute('value')
+	})
+
+	const settings = JSON.parse(document.querySelector('#settings').textContent)
+	if (settings.unit !== "sat") toggleUnit()
+}
+
+templ Layout(bodyContent templ.Component, settings types.Settings) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -42,7 +56,8 @@ templ Layout(bodyContent templ.Component) {
 			<link rel="icon" href="/static/favicon.png" sizes="any"/>
 			<link href="/static/styles.css" rel="stylesheet"/>
 		</head>
-		<body onload={ PagesScript() }>
+		<body onload={ runOnLoad() }>
+		  @templ.JSONScript("settings", settings)
 			<div id="app">
         <div id="toast"></div>
 	      <div id="modal"></div>
@@ -51,20 +66,20 @@ templ Layout(bodyContent templ.Component) {
 			<script src="/static/decimal.js"></script>
 			<script src="/static/scripts.js"></script>
 		</body>
-		<script>  
-      const disableButton = (button) => {
+		<script>
+		  const disableButton = (button) => {
 				button.classList.add("disabled")
       }
 
       const prettyNum = (num, maximumFractionDigits = 2) => {
-        if (!num) return '0'
+				if (!num) return '0'
         return new Intl.NumberFormat('en', {
           style: 'decimal',
           maximumFractionDigits,
         }).format(num)
       }
 
-      const fromSatoshis = (sats) => {
+      const fromSatoshis = (sats ) => {
         return Decimal.div(sats, 100_000_000).toNumber()
       }
 
@@ -93,19 +108,6 @@ templ Layout(bodyContent templ.Component) {
         }
 		  }
 
-      const updateFiatValues = () => {
-        fetch('https://btcoracle.bordalix.workers.dev/').then((res) => {
-          res.json().then((json) => {
-            document.querySelectorAll('.usd').forEach((x) => {
-              const sats = parseInt(x.getAttribute('sats'))
-							if (isNaN(sats)) return
-              const usd = (sats * json.pricefeed.usd) / 100_000_000
-              x.innerHTML = `$ ${prettyNum(usd)}`
-            })
-          })
-        })
-      }
-
       const setMaxValue = (val = 0) => {
 		  	const sats = val || document.querySelector('#amount').getAttribute('max')
         if (isNaN(sats)) return
@@ -116,18 +118,23 @@ templ Layout(bodyContent templ.Component) {
 		  }
   
 		  const toggleUnit = () => {
-		  	const currUnit = document.querySelector('#unit').innerText
+				const unit = document.querySelector('#unit')
+				if (!unit) return
+		  	const currUnit = unit.innerText
 		  	const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
 		  	// change unit
-		  	document.querySelector('#unit').innerText = nextUnit
+		  	if (unit) unit.innerText = nextUnit
 		  	// change availability
-		  	const maxSats = document.querySelector('#amount').getAttribute('max')
-		  	document.querySelector('#available').innerText =
-		  	  `Available ${nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats)} ${nextUnit}`
-		  	// change value inside input
+				const available = document.querySelector('#available')
+				if (available) {
+					const maxSats = document.querySelector('#amount').getAttribute('max')
+				  const num = !maxSats ? 0 : (nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats))
+				  available.innerText = `Available ${num} ${nextUnit}`
+				}
+			  // change value inside input
 		  	const currVal = document.querySelector('#amount').value
-		  	if (currVal) {
-		  		const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
+				if (currVal) {
+					const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
 		  		document.querySelector('#amount').value = nextVal
 		  	}
 				// change steps
@@ -143,13 +150,28 @@ templ Layout(bodyContent templ.Component) {
           el.type = el.type === 'text' ? 'password' : 'text'
         })
       }
+
+			const updateFiatValues = () => {
+				const settings = JSON.parse(document.querySelector('#settings').textContent)
+				fetch('https://btcoracle.bordalix.workers.dev/').then((res) => {
+          res.json().then((json) => {
+            document.querySelectorAll('.fiat').forEach((x) => {
+              const sats = parseInt(x.getAttribute('sats'))
+	      			if (isNaN(sats)) return
+	      			const prefix = settings.currency === 'eur' ? '€' : '$'
+              const fiatValue = (sats * json.pricefeed[settings.currency]) / 100_000_000
+              x.innerHTML = `${prefix} ${prettyNum(fiatValue)}`
+            })
+          })
+        })
+			}
   
 		  const updateSats = () => {
-		  	const unit = document.querySelector('#unit').innerText
+				const unit = document.querySelector('#unit').innerText
 		  	const amount = document.querySelector('#amount').value
 		  	const sats = unit === 'SATS' ? amount : toSatoshis(amount)
         document.querySelector('#sats').value = sats
-        document.querySelector('#usd').setAttribute('sats', sats)
+        document.querySelector('#fiat').setAttribute('sats', sats)
 		  	updateFiatValues()
 		  }
 

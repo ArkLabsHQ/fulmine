@@ -40,7 +40,7 @@ func BalanceApiGet(c *gin.Context) {
 
 func SettingsApiPost(c *gin.Context) {
 	// TODO: manage new settings posted
-	settings, _ := ReadSettings()
+	settings := getSettings()
 
 	apiroot := c.PostForm("apiroot")
 	if len(apiroot) > 0 {
