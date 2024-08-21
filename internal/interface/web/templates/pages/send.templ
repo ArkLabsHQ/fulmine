@@ -31,6 +31,7 @@ templ SendBodyContent(currentBalance string) {
 	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
 	      <div>
 	        @components.Header("Send")
+					@components.BalanceWithMax(components.ArkBalanceIcon(), currentBalance)
 					@components.InputAddress()
 					@components.SendAmount(currentBalance)
 	    	</div>

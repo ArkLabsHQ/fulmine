@@ -31,23 +31,17 @@ templ InputAmount(max string) {
 			type="number"
 		/>
 		<div class="flex items-center gap-2">
-      if (len(max) > 0) {
-        <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
-      }
 		  <p class="py-1 w-10 text-center" id="unit">SATS</p>
 		  <p class="cursor-pointer" onclick="toggleUnit()">@ChevronDownIcon()</p>
 		</div>
 	</div>
 	<div class="flex justify-between w-full text-sm text-white/50 mt-2">
-	  <p id="fiat" class="fiatAmount"/>
-    if (len(max) > 0) {
-      <p id="available">Available <span class="cryptoAmount" sats={max}>{max} SATS</span></p>
-    }
+	  <p id="fiat" class="fiatAmount">&nbsp;</p>
 	</div>
 }
 
 templ InputAddress() {
-  @Label("Address")
+  @Label("To")
 	<div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
 	  <input
 		  class="bg-graybg border-0 p-0 mr-4"

@@ -23,15 +23,15 @@ templ HeroBalance(currentBalance string) {
 	<div class="mb-10">
 	  <p class="text-gray-300">Balance</p>
 	  <p class="text-4xl font-medium my-2 cryptoAmount" sats={currentBalance}>{currentBalance} SATS</p>
-		<p class="text-gray-200 font-lg fiatAmount" sats={currentBalance}/>
+		<p class="text-gray-200 font-lg fiatAmount" sats={currentBalance}>&nbsp;</p>
 	</div>
 }
 
 templ Actions() {
-	<div class="grid grid-cols-3 gap-4">
-	  <button class="bg-white text-black px-2" hx-on:click="redirect('/send')">@SendIcon() Send</button>
-	  <button class="bg-white text-black px-2" hx-on:click="redirect('/receive')">@ReceiveIcon() Receive</button>
-	  <button class="bg-white text-black px-2" hx-on:click="redirect('/swap')">@SwapIcon() Swap</button>
+	<div class="grid grid-cols-3 gap-4 md:flex md:flex-row">
+	  <button class="bg-white text-black px-2 md:px-4 md:w-auto" hx-on:click="redirect('/send')">@SendIcon() Send</button>
+	  <button class="bg-white text-black px-2 md:px-4 md:w-auto" hx-on:click="redirect('/receive')">@ReceiveIcon() Receive</button>
+	  <button class="bg-white text-black px-2 md:px-4 md:w-auto" hx-on:click="redirect('/swap')">@SwapIcon() Swap</button>
 	</div>
 }
 
