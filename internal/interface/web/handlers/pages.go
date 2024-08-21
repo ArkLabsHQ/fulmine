@@ -265,7 +265,7 @@ func SwapActive(c *gin.Context) {
 	if active == "inbound" {
 		balance = getNodeBalance()
 	} else {
-		balance = ""
+		balance = getSpendableBalance(c)
 	}
 	bodyContent := pages.SwapPartialContent(active, balance)
 	partialViewHandler(bodyContent, c)
