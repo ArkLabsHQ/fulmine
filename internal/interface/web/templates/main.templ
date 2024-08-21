@@ -71,6 +71,13 @@ templ Layout(bodyContent templ.Component, settings types.Settings) {
 				button.classList.add("disabled")
       }
 
+			// re enable buttons after receiving a htmx:load event
+			const enableButtons = () => {
+				document.querySelectorAll('.disabled').forEach((x) => {
+					x.classList.remove('disabled')
+        })
+			}
+
       const prettyNum = (num, maximumFractionDigits = 2) => {
 				if (!num) return '0'
         return new Intl.NumberFormat('en', {
@@ -117,6 +124,7 @@ templ Layout(bodyContent templ.Component, settings types.Settings) {
 				document.querySelector('#amount').dispatchEvent(new Event('change'))
 		  }
   
+	    // change between btc and sat
 		  const toggleUnit = () => {
 				const unit = document.querySelector('#unit')
 				if (!unit) return
@@ -141,7 +149,7 @@ templ Layout(bodyContent templ.Component, settings types.Settings) {
 				document.querySelector('#amount').step = nextUnit === 'SATS' ? "" : "0.00000001"
 		  }
 
-
+      // hide/show input password visibility
       const togglePasswordVisibility = () => {
         document.querySelectorAll(".eyes span").forEach((el) => {
           el.style.display = el.style.display === 'none' ? 'block' : 'none'
@@ -151,6 +159,8 @@ templ Layout(bodyContent templ.Component, settings types.Settings) {
         })
       }
 
+      // this function finds every crypto amount in the dom and make it use
+			// the preferred unit choosen in settings: sats or btc
 			const updateCryptoValues = () => {
 				const settings = JSON.parse(document.querySelector('#settings').textContent)
 				document.querySelectorAll('.cryptoAmount').forEach((x) => {
@@ -162,6 +172,8 @@ templ Layout(bodyContent templ.Component, settings types.Settings) {
         })
 			}
   
+			// this function finds every fiat amount in the dom and checks live
+			// rate of the preferred currency choosen in setttings: usd or euro
 			const updateFiatValues = () => {
 				const settings = JSON.parse(document.querySelector('#settings').textContent)
 				fetch('https://btcoracle.bordalix.workers.dev/').then((res) => {
@@ -177,20 +189,8 @@ templ Layout(bodyContent templ.Component, settings types.Settings) {
         })
 			}
 
-		  const updateSats = () => {
-				const unit = document.querySelector('#unit').innerText
-		  	const amount = document.querySelector('#amount').value
-		  	const sats = unit === 'SATS' ? amount : toSatoshis(amount)
-        document.querySelector('#sats').value = sats
-        document.querySelector('#fiat').setAttribute('sats', sats)
-		  	updateFiatValues()
-		  }
-
       document.addEventListener('htmx:load', () => {
-        document.querySelectorAll('.disabled').forEach((x) => {
-					x.classList.remove('disabled')
-        })
-
+        enableButtons()
         updateFiatValues()
 				updateCryptoValues()
 
@@ -204,6 +204,7 @@ templ Layout(bodyContent templ.Component, settings types.Settings) {
 				}
       })
 
+      // after receiving a toast, delete it after 2 seconds
       document.body.addEventListener("toast", (e) => {
         setTimeout(() => document.querySelector("#toast").innerHTML = "", 2000)
       })

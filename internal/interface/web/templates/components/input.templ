@@ -8,6 +8,15 @@ templ ReceiveAmount() {
   @InputAmount("")
 }
 
+script updateSats() {
+	const unit = document.querySelector('#unit').innerText
+	const amount = document.querySelector('#amount').value
+	const sats = unit === 'SATS' ? amount : toSatoshis(amount)
+  document.querySelector('#sats').value = sats
+  document.querySelector('#fiat').setAttribute('sats', sats)
+	updateFiatValues()	  
+}
+
 templ InputAmount(max string) {
   @Label("Amount")
   <div class="bg-graybg px-4 py-3 flex items-center justify-between rounded-lg">
@@ -18,7 +27,7 @@ templ InputAmount(max string) {
       if (len(max) > 0) {
 	      max={max}
       }
-	    onchange="updateSats()"
+	    onchange={updateSats()}
 			type="number"
 		/>
 		<div class="flex items-center gap-2">
