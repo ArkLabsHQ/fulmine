@@ -96,14 +96,14 @@ templ TxLine(left, right string, kind ...string) {
 
 templ TxBodyContent(txid, kind, status, date, hour, sats string) {
   @components.DesktopHeader()
-	<div class="p-3 flex flex-col justify-between rounded-md md:bg-desktopbg">
+	<div class="p-3 flex flex-col justify-between items-center rounded-md md:bg-desktopbg">
 	  @components.Header("Transaction details")
     <div class="flex flex-col items-center">
       @TxIcon(kind, status)
       <p class="mt-4 capitalize">{kind}</p>
       <p class="mt-4 text-3xl cryptoAmount" sats={sats}>{sats} SATS</p>
     </div>
-    <div class="bg-white/10 p-4 mt-10 rounded-lg">
+    <div class="bg-white/10 p-4 mt-10 w-full max-w-[360px] rounded-lg">
       @TxLine("date", date + " " + hour)
       <div class="flex justify-between mb-2">
         <p class="text-white/50">STATUS</p>

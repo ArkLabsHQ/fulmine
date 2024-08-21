@@ -165,7 +165,7 @@ templ SwapMovementComponent(kind, sats string) {
 }
 
 templ SwapFeesComponent(sats string) {
-	<div class="border border-white/20 p-4 w-full mt-8 rounded-lg">
+	<div class="border border-white/20 p-4 w-full max-w-[360px] mt-8 rounded-lg">
     @TxLine("network fee", "500", "cryptoAmount")
     <div class="flex justify-between mb-2">
       <div class="flex items-center gap-2 text-white/50">
