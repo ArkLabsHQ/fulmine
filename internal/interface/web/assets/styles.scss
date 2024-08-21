@@ -143,3 +143,12 @@ label {
     #9c3b1c 100%
   );
 }
+
+.showOnRequest,
+.htmx-request .hideOnRequest {
+  display: none;
+}
+
+.htmx-request .showOnRequest {
+  display: inline;
+}

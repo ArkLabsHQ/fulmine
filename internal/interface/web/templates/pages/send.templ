@@ -55,7 +55,7 @@ templ SendBodyContent(currentBalance string) {
 }
 
 templ SendFeesComponent(sats string) {
-	<div class="border border-white/20 p-4 w-full mt-4 rounded-lg">
+	<div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @TxLine("network fee", "500", "cryptoAmount")
     <div class="flex justify-between mb-2">
       <div class="flex items-center gap-2 text-white/50">
@@ -81,15 +81,23 @@ templ SendPreviewContent(address, sats string) {
 	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
 	      <div class="flex flex-col items-center">
 	        @components.Header("Confirm Send")
-	        @SendPreviewIcon()
-					<p class="mt-4">Send</p>
-					<p class="mt-4 text-3xl cryptoAmount" sats={sats}>{sats} SATS</p>
-					<div class="flex mt-4 w-64 gap-2">
-					  <p class="text-white/50">to</p>
-						<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
-						<p class="text-white/50">@components.CopyIcon()</p>
+					<div class="showOnRequest">
+					  <div class="flex flex-col items-center mt-10 w-full">
+				      @components.SpinnerIcon()
+					    <p class="mt-10">Sending</p>
+						</div>
+			    </div>
+					<div class="hideOnRequest flex flex-col items-center">
+	          @SendPreviewIcon()
+					  <p class="mt-4">Send</p>
+					  <p class="mt-4 text-3xl cryptoAmount" sats={sats}>{sats} SATS</p>
+					  <div class="flex mt-4 w-64 gap-2">
+					    <p class="text-white/50">to</p>
+					  	<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
+					  	<p class="text-white/50">@components.CopyIcon()</p>
+					  </div>
+					  @SendFeesComponent(sats)
 					</div>
-					@SendFeesComponent(sats)
 	    	</div>
 	    	@components.ActionButtons("Confirm")
 	    </div>
