@@ -60,7 +60,7 @@ templ SendFeesComponent(sats string) {
     <div class="flex justify-between mb-2">
       <div class="flex items-center gap-2 text-white/50">
         <p>ARK FEE</p>
-        <p hx-get="/modal/info" hx-target="#modal">@components.InfoIcon()</p>
+        <p hx-get="/modal/feeinfo" hx-target="#modal" class="cursor-pointer">@components.InfoIcon()</p>
       </div>
       <p>0.5%</p>
     </div>

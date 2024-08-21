@@ -22,7 +22,7 @@ func modalHandler(t templ.Component, c *gin.Context) {
 	htmx.NewResponse().RenderTempl(c, c.Writer, t)
 }
 
-func InfoModal(c *gin.Context) {
-	info := modals.Info()
+func FeeInfoModal(c *gin.Context) {
+	info := modals.FeeInfo()
 	modalHandler(info, c)
 }
