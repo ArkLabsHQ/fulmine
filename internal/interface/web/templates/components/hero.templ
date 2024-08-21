@@ -22,27 +22,9 @@ templ HeroHeader(arkAddress string) {
 templ HeroBalance(currentBalance string) {
 	<div class="mb-10">
 	  <p class="text-gray-300">Balance</p>
-	  <p class="text-4xl font-medium my-2" id="balance">
-		  <span id="balanceAmount">{currentBalance}</span>
-			&nbsp;
-			<span id="balanceUnit">SATS</span>
-		</p>
-		<p class="text-gray-200 font-lg fiat" sats={currentBalance}>$ ...</p>
+	  <p class="text-4xl font-medium my-2 cryptoAmount" sats={currentBalance}>{currentBalance} SATS</p>
+		<p class="text-gray-200 font-lg fiatAmount" sats={currentBalance}/>
 	</div>
-	<script>
-	  document.addEventListener('htmx:load', () => {
-			const sats = document.querySelector('p.fiat').getAttribute('sats')
-			const settings = JSON.parse(document.querySelector('#settings').textContent)
-			if (!sats) return
-			if (settings.unit === 'btc') {
-				document.querySelector('#balanceAmount').innerText = prettyNum(fromSatoshis(sats), 8)
-				document.querySelector('#balanceUnit').innerText = "BTC"
-			} else {
-				document.querySelector('#balanceAmount').innerText = prettyNum(sats)
-				document.querySelector('#balanceUnit').innerText = "SATS"
-			}
-		})
-	</script>
 }
 
 templ Actions() {

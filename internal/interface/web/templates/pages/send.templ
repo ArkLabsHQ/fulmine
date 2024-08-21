@@ -55,7 +55,7 @@ templ SendBodyContent(currentBalance string) {
 
 templ SendFeesComponent(sats string) {
 	<div class="border border-white/20 p-4 w-full mt-4 rounded-lg">
-    @TxLine("network fee", "500")
+    @TxLine("network fee", "500", "cryptoAmount")
     <div class="flex justify-between mb-2">
       <div class="flex items-center gap-2 text-white/50">
         <p>ARK FEE</p>
@@ -67,7 +67,7 @@ templ SendFeesComponent(sats string) {
     <hr class="text-white/20 mb-2" />
     <div class="flex justify-between mb-2">
       <p class="text-white/50">TOTAL</p>
-      <p><span class="sats">{sats}</span> SATS</p>
+      <p class="cryptoAmount" sats={sats}>{sats} SATS</p>
     </div>
   </div>
 }
@@ -82,10 +82,7 @@ templ SendPreviewContent(address, sats string) {
 	        @components.Header("Confirm Send")
 	        @SendPreviewIcon()
 					<p class="mt-4">Send</p>
-					<p class="mt-4 text-3xl">
-					  <span class="sats">{sats}</span>
-						<span class="text-white/50">SATS</span>
-					</p>
+					<p class="mt-4 text-3xl cryptoAmount" sats={sats}>{sats} SATS</p>
 					<div class="flex mt-4 w-64 gap-2">
 					  <p class="text-white/50">to</p>
 						<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
@@ -109,10 +106,7 @@ templ SendSuccessContent(address, amount, txid string) {
 		  @components.Header("Sent")
 	    @SuccessIcon()
 			<p class="mt-8">Sent successfully</p>
-			<p class="mt-8 text-3xl">
-			  <span class="sats">{amount}</span>
-				<span class="text-white/50">SATS</span>
-			</p>
+			<p class="mt-8 text-3xl cryptoAmount" sats={amount}>{amount} SATS</p>
 			<div class="flex mt-8 w-64 gap-2">
 			  <p class="text-white/50">to</p>
 				<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>

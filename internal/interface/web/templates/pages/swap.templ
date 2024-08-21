@@ -63,7 +63,7 @@ templ SwapBodyContent(currentBalance, nodeBalance string) {
 	            <p>@components.ArkBalanceIcon()</p>
 	        		<div>
 	        		  <p class="text-sm text-white/50">Available</p>
-	        			<p><span class="sats">{currentBalance}</span> SATS</p>
+	        			<p class="cryptoAmount" sats={currentBalance}>{currentBalance} SATS</p>
 	        		</div>
 	        	</div>
             <p
@@ -79,7 +79,7 @@ templ SwapBodyContent(currentBalance, nodeBalance string) {
 	            <p>@components.LnBalanceIcon()</p>
 	        		<div>
 	        		  <p class="text-sm text-white/50">Lightning node balance</p>
-	        			<p><span class="sats">{nodeBalance}</span> SATS</p>
+	        			<p class="cryptoAmount" sats={nodeBalance}>{nodeBalance} SATS</p>
 	        		</div>
 	        	</div>
             <p
@@ -150,7 +150,7 @@ templ SwapMovementComponent(kind, sats string) {
 			} else {
 				<p>@components.LnBalanceIcon()</p>
 			}
-			<p><span class="sats text-white">{sats}</span> SATS</p>
+      <p class="cryptoAmount" sats={sats}>{sats} SATS</p>
 		</div>
 		@ArrowDownIcon()
 		<div class="flex items-center gap-4">
@@ -159,14 +159,14 @@ templ SwapMovementComponent(kind, sats string) {
 			} else {
 				<p>@components.LnBalanceIcon()</p>
 			}
-			<p><span class="sats text-white">{sats}</span> SATS</p>
+      <p class="cryptoAmount" sats={sats}>{sats} SATS</p>
 		</div>
 	</div>
 }
 
 templ SwapFeesComponent(sats string) {
 	<div class="border border-white/20 p-4 w-full mt-8 rounded-lg">
-    @TxLine("network fee", "500")
+    @TxLine("network fee", "500", "cryptoAmount")
     <div class="flex justify-between mb-2">
       <div class="flex items-center gap-2 text-white/50">
         <p>ARK FEE</p>
@@ -179,7 +179,7 @@ templ SwapFeesComponent(sats string) {
       <hr class="text-white/20 mb-2" />
       <div class="flex justify-between">
         <p class="text-white/50">TOTAL</p>
-        <p><span class="sats">{sats}</span> SATS</p>
+        <p class="cryptoAmount" sats={sats}>{sats} SATS</p>
       </div>
 		}
   </div>
@@ -187,5 +187,6 @@ templ SwapFeesComponent(sats string) {
 
 templ SwapInputAmountComponent(kind, maxBalance string) {
 	<input class="hidden" id="swapKind" name="kind" value={kind} />
+	<input class="hidden" id="alice" value={maxBalance} />
 	@components.SendAmount(maxBalance)
 }

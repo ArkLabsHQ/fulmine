@@ -83,10 +83,14 @@ templ WaitingTxIcon() {
 	</div>
 }
 
-templ TxLine(left, right string) {
+templ TxLine(left, right string, kind ...string) {
   <div class="flex justify-between mb-2">
     <p class="text-white/50 uppercase">{left}</p>
-    <p>{right}</p>
+    if len(kind) > 0 && kind[0] == "cryptoAmount" {
+      <p class="cryptoAmount" sats={right}>{right} SATS</p>
+    } else {
+      <p>{right}</p>
+    }
   </div>
 }
 
@@ -97,10 +101,7 @@ templ TxBodyContent(txid, kind, status, date, hour, sats string) {
     <div class="flex flex-col items-center">
       @TxIcon(kind, status)
       <p class="mt-4 capitalize">{kind}</p>
-      <p class="mt-4 text-3xl">
-        <span class="sats">{sats}</span>
-        <span class="text-white/50">SATS</span>
-      </p>
+      <p class="mt-4 text-3xl cryptoAmount" sats={sats}>{sats} SATS</p>
     </div>
     <div class="bg-white/10 p-4 mt-10 rounded-lg">
       @TxLine("date", date + " " + hour)
@@ -119,7 +120,7 @@ templ TxBodyContent(txid, kind, status, date, hour, sats string) {
         }
       </div>
       @TxLine("network", "Ark")
-      @TxLine("network fee", "500")
+      @TxLine("network fee", "500", "cryptoAmount")
       <div class="flex justify-between mb-2">
         <div class="flex items-center gap-2 text-white/50">
           <p>ARK FEE</p>
@@ -130,7 +131,7 @@ templ TxBodyContent(txid, kind, status, date, hour, sats string) {
       <hr class="text-white/50 mb-2" />
       <div class="flex justify-between mb-2">
         <p class="text-white/50">TOTAL</p>
-        <p><span class="sats">{sats}</span> SATS</p>
+        <p class="cryptoAmount" sats={sats}>{sats} SATS</p>
       </div>
     </div>
 	</div>

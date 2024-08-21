@@ -151,11 +151,22 @@ templ Layout(bodyContent templ.Component, settings types.Settings) {
         })
       }
 
+			const updateCryptoValues = () => {
+				const settings = JSON.parse(document.querySelector('#settings').textContent)
+				document.querySelectorAll('.cryptoAmount').forEach((x) => {
+          const sats = parseInt(x.getAttribute('sats'))
+	      	if (isNaN(sats)) return
+	      	const suffix = settings.unit === 'sat' ? 'SATS' : 'BTC'
+          const cryptoValue = settings.unit === 'sat' ? sats : fromSatoshis(sats)
+          x.innerHTML = `${prettyNum(cryptoValue, 8)} ${suffix}`
+        })
+			}
+  
 			const updateFiatValues = () => {
 				const settings = JSON.parse(document.querySelector('#settings').textContent)
 				fetch('https://btcoracle.bordalix.workers.dev/').then((res) => {
           res.json().then((json) => {
-            document.querySelectorAll('.fiat').forEach((x) => {
+            document.querySelectorAll('.fiatAmount').forEach((x) => {
               const sats = parseInt(x.getAttribute('sats'))
 	      			if (isNaN(sats)) return
 	      			const prefix = settings.currency === 'eur' ? '€' : '$'
@@ -165,7 +176,7 @@ templ Layout(bodyContent templ.Component, settings types.Settings) {
           })
         })
 			}
-  
+
 		  const updateSats = () => {
 				const unit = document.querySelector('#unit').innerText
 		  	const amount = document.querySelector('#amount').value
@@ -176,27 +187,14 @@ templ Layout(bodyContent templ.Component, settings types.Settings) {
 		  }
 
       document.addEventListener('htmx:load', () => {
-        document.querySelectorAll('.sats').forEach((x) => {
-          if (isNaN(x.textContent)) return
-          x.innerHTML = prettyNum(x.textContent)
-        })
-
-        document.querySelectorAll('.btc').forEach((x) => {
-          if (isNaN(x.textContent)) return
-          x.innerHTML = fromSatoshis(x.textContent)
-        })
-
-        document.querySelectorAll('.btcm').forEach((x) => {
-          const sats = x.textContent
-          x.innerHTML = (sats.charAt(0) === '+' ? '+' : '') + fromSatoshis(sats)
-        })
-
-				document.querySelectorAll('.disabled').forEach((x) => {
+        document.querySelectorAll('.disabled').forEach((x) => {
 					x.classList.remove('disabled')
         })
 
         updateFiatValues()
+				updateCryptoValues()
 
+        // pass along query parameter with aspurl
 				const url = new URL(window.location.href)
 			  const params = new URLSearchParams(url.search);
 			  const aspurl = params.get('aspurl')

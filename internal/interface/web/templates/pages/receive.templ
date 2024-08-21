@@ -92,10 +92,7 @@ templ ReceiveSuccessContent(offchainAddr, onchainAddr, sats string) {
 		  @components.Header("Receive")
 	    @SuccessIcon()
 			<p class="mt-8">Received successfully</p>
-			<p class="mt-8 text-3xl">
-			  <span class="sats">{sats}</span>
-				<span class="text-white/50">SATS</span>
-			</p>
+			<p class="mt-8 text-3xl cryptoAmount" sats={sats}>{sats} SATS</p>
 			<div class="flex mt-8 w-64 gap-2">
 			  <p class="text-white/50">to</p>
 				<p class="overflow-hidden text-ellipsis whitespace-nowrap">{offchainAddr}</p>

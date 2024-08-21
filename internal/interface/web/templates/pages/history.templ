@@ -97,10 +97,10 @@ templ HistoryLine(txid, kind, status, date, hour, sats string) {
 						templ.KV("text-green", (status == "success" || status == "failure") && kind == "recv"),
 						templ.KV("text-yellow", status == "pending" || status == "waiting"),
 					}>
-	  			  <span class="btcm">{sats}</span> BTC
+	  			  <span class="cryptoAmount" sats={sats}>{sats} SATS</span>
 	  			</span>
 	  			<br />
-	  		  <span class="text-white/50 fiat" sats={sats}>$ ...</span>
+	  		  <span class="text-white/50 fiatAmount" sats={sats}></span>
 	  		</p>
 	  	</div>
 	  </div>
