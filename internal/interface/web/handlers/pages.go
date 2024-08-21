@@ -97,12 +97,12 @@ func NewWallet(c *gin.Context) {
 	pageViewHandler(bodyContent, c)
 }
 
-func Receive(c *gin.Context) {
-	bodyContent := pages.ReceiveBodyContent()
+func ReceiveEdit(c *gin.Context) {
+	bodyContent := pages.ReceiveEditContent()
 	pageViewHandler(bodyContent, c)
 }
 
-func ReceivePreview(c *gin.Context) {
+func ReceiveQrCode(c *gin.Context) {
 	arkClient := getArkClient(c)
 	offchainAddr, onchainAddr, err := arkClient.Receive(c)
 	if err != nil {
@@ -110,8 +110,8 @@ func ReceivePreview(c *gin.Context) {
 	}
 	sats := c.PostForm("sats")
 	bip21 := genBip21(offchainAddr, onchainAddr, sats)
-	partial := pages.ReceivePreviewContent(bip21, offchainAddr, onchainAddr, sats)
-	partialViewHandler(partial, c)
+	bodyContent := pages.ReceiveQrCodeContent(bip21, offchainAddr, onchainAddr, sats)
+	pageViewHandler(bodyContent, c)
 }
 
 func ReceiveSuccess(c *gin.Context) {

@@ -4,7 +4,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
-templ ReceiveBodyContent() {
+templ ReceiveEditContent() {
 	@components.DesktopHeader()
 	<div id="receiveBody">
 	  <form hx-post="/receive/preview" hx-target="#receiveBody" hx-swap="outerHTML">
@@ -19,7 +19,7 @@ templ ReceiveBodyContent() {
 	</div>
 }
 
-templ ReceivePreviewContent(bip21, offchainAddr, onchainAddr, sats string) {
+templ ReceiveQrCodeContent(bip21, offchainAddr, onchainAddr, sats string) {
 	<form id="success" hx-post="/receive/success">
 	  <input class="hidden" id="submitButton" type="submit"/>
 	  <input class="hidden" name="offchainAddr" value={offchainAddr} />
@@ -62,7 +62,7 @@ templ ReceivePreviewContent(bip21, offchainAddr, onchainAddr, sats string) {
 
 		const handleEdit = (event) => {
 			event.preventDefault()
-			redirect('/receive')
+			redirect('/receive/edit')
 		}
 		
 		const waitForPayment = async () => {
