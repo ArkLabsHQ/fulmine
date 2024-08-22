@@ -5,8 +5,8 @@ import (
 )
 
 templ ReceiveEditContent() {
-	@components.DesktopHeader()
 	<div id="receiveBody">
+	  @components.DesktopHeader()
 	  <form hx-post="/receive/preview" hx-target="#receiveBody" hx-swap="outerHTML">
 	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
 	      <div>
@@ -21,9 +21,7 @@ templ ReceiveEditContent() {
 
 templ ReceiveQrCodeContent(bip21, offchainAddr, onchainAddr, sats string) {
 	<form id="success" hx-post="/receive/success">
-	  if len(sats) == 0 {
-	    @components.DesktopHeader()
-		}
+	  @components.DesktopHeader()
 	  <input class="hidden" id="submitButton" type="submit"/>
 	  <input class="hidden" name="offchainAddr" value={offchainAddr} />
 	  <input class="hidden" name="onchainAddr" value={onchainAddr} />
