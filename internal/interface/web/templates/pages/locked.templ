@@ -27,6 +27,7 @@ templ Locked() {
                 <span style="display: none">@components.EyeCloseIcon()</span>
               </p>
             </div>
+            <p class="text-right mt-2 cursor-pointer" hx-on:click="redirect('/welcome')">Forgot password?</p>
           </div>
         </div>
         <button class="bg-white ee text-black mt-10" hx-on:click="disableButton(this)" type="submit">Unlock</button>

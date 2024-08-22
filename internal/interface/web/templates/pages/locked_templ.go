@@ -62,7 +62,7 @@ func Locked() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span></p></div></div></div><button class=\"bg-white ee text-black mt-10\" hx-on:click=\"disableButton(this)\" type=\"submit\">Unlock</button></div></div></form>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span></p></div><p class=\"text-right mt-2 cursor-pointer\" hx-on:click=\"redirect(&#39;/welcome&#39;)\">Forgot password?</p></div></div><button class=\"bg-white ee text-black mt-10\" hx-on:click=\"disableButton(this)\" type=\"submit\">Unlock</button></div></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
