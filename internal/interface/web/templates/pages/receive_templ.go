@@ -165,7 +165,7 @@ func ReceiveQrCodeContent(bip21, offchainAddr, onchainAddr, sats string) templ.C
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div></div><div class=\"flex flex-col md:flex-row-reverse justify-start gap-4 mt-10 mb-2\"><button class=\"bg-graybg md:w-auto\" onclick=\"handleCopy(event)\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div></div><div class=\"flex flex-col md:flex-row-reverse justify-start gap-4 mt-10 mb-2\"><button class=\"bg-graybg md:w-32\" onclick=\"handleCopy(event)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

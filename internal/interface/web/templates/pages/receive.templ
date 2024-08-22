@@ -42,7 +42,7 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, onchainAddr, sats string) {
 	      </div>
 	  	</div>
       <div class="flex flex-col md:flex-row-reverse justify-start gap-4 mt-10 mb-2">
-	      <button class="bg-graybg md:w-auto" onclick="handleCopy(event)">
+	      <button class="bg-graybg md:w-32" onclick="handleCopy(event)">
 	  		  @components.CopyIcon()
 	  			<span id="copyText" class="ml-2">Copy</span>
 	  		</button>
@@ -58,7 +58,7 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, onchainAddr, sats string) {
 			event.preventDefault()
 			copyToClipboard('#bip21')
 			document.querySelector('#copyText').innerText = 'Copied'
-			setTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2000)
+			setTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2100)
 		}
 
 		const handleEdit = (event) => {
