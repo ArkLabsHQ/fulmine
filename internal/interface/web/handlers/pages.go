@@ -17,6 +17,26 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func onboardSome(c *gin.Context, arkClient arksdk.ArkClient) {
+	if arkClient.IsLocked(c) {
+		log.Info("can't onboard, wallet still locked")
+	} else {
+		balance, err := arkClient.Balance(c, true)
+		if err != nil {
+			log.WithError(err).Info("error getting balance")
+		}
+		log.Info("Here")
+		log.Info(balance.OnchainBalance.SpendableAmount)
+		if balance.OnchainBalance.SpendableAmount > 100_000_000_000 { // TODO
+			txid, err := arkClient.Onboard(c, 100_000)
+			if err != nil {
+				log.WithError(err).Info("error onboarding")
+			}
+			log.Infof("TxId %s", txid)
+		}
+	}
+}
+
 func pageViewHandler(bodyContent templ.Component, c *gin.Context) {
 	indexTemplate := templates.Layout(bodyContent, getSettings())
 	if err := htmx.NewResponse().RenderTempl(c.Request.Context(), c.Writer, indexTemplate); err != nil {
@@ -43,6 +63,7 @@ func Index(c *gin.Context) {
 		if arkClient.IsLocked(c) {
 			bodyContent = pages.Locked()
 		} else {
+			onboardSome(c, arkClient)
 			bodyContent = pages.HistoryBodyContent(getSpendableBalance(c), getAddress(c), getTransactions())
 		}
 	}
