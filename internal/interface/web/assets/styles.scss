@@ -86,6 +86,7 @@ div:has(> input:not(.hidden):not(.unframed):focus) {
 
 #toast {
   display: flex;
+  max-width: 720px;
   position: fixed;
   top: 50px;
   width: 100%;
