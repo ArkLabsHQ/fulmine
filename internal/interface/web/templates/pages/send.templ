@@ -84,10 +84,10 @@ templ SendPreviewContent(address, sats string) {
 					<div class="showOnRequest">
 					  <div class="flex flex-col items-center mt-10 w-full">
 				      @components.SpinnerIcon()
-					    <p class="mt-10">Sending</p>
+					    <p class="mt-10">Sending...</p>
 						</div>
 			    </div>
-					<div class="hideOnRequest flex flex-col items-center">
+					<div class="hideOnRequest flex flex-col items-center w-full">
 	          @SendPreviewIcon()
 					  <p class="mt-4">Send</p>
 					  <p class="mt-4 text-3xl cryptoAmount" sats={sats}>{sats} SATS</p>
