@@ -24,6 +24,9 @@ var filePath = datadir + "/settings.json"
 func ReadSettings() (types.Settings, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			WriteSettings(defaultSettings)
+		}
 		return defaultSettings, err
 	}
 
