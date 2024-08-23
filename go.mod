@@ -3,7 +3,7 @@ module github.com/ArkLabsHQ/ark-node
 go 1.22.6
 
 require (
-	github.com/a-h/templ v0.2.747
+	github.com/a-h/templ v0.2.771
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20240813173119-50c9594da9d9
 	github.com/gin-gonic/gin v1.10.0

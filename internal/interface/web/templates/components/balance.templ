@@ -1,6 +1,6 @@
 package components
 
-script setMaxValue2(sats string) {
+script setMax(sats string) {
   setMaxValue(sats)
 }
 
@@ -15,7 +15,7 @@ templ BalanceWithMax(icon templ.Component, sats string) {
   	</div>
     <p
   	  class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer"
-  		onclick={setMaxValue2(sats)}
+  		onclick={setMax(sats)}
   		sats={sats}
   		kind="outbound">
   		MAX
