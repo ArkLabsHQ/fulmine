@@ -117,7 +117,7 @@ templ SwapPreviewContent(kind, sats string) {
           @components.Header("Confirm Swap")
           @SwapPreviewIcon()
           @SwapMovementComponent(kind, sats)
-          @SwapFeesComponent(sats)
+          @components.FeeTable(sats)
 	    	</div>
 	    	@components.ActionButtons("Confirm")
 	    </div>
@@ -162,27 +162,6 @@ templ SwapMovementComponent(kind, sats string) {
       <p class="cryptoAmount" sats={sats}>{sats} SATS</p>
 		</div>
 	</div>
-}
-
-templ SwapFeesComponent(sats string) {
-	<div class="border border-white/20 p-4 w-full max-w-[360px] mt-8 rounded-lg">
-    @TxLine("network fee", "500", "cryptoAmount")
-    <div class="flex justify-between mb-2">
-      <div class="flex items-center gap-2 text-white/50">
-        <p>ARK FEE</p>
-        <p hx-get="/modal/feeinfo" hx-target="#modal" class="cursor-pointer">@components.InfoIcon()</p>
-      </div>
-      <p>0.5%</p>
-    </div>
-    @TxLine("est. time", "~10 min.")
-		if len(sats) > 0 {
-      <hr class="text-white/20 mb-2" />
-      <div class="flex justify-between">
-        <p class="text-white/50">TOTAL</p>
-        <p class="cryptoAmount" sats={sats}>{sats} SATS</p>
-      </div>
-		}
-  </div>
 }
 
 templ SwapInputAmountComponent(kind, maxBalance string) {

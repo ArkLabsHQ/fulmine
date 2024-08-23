@@ -83,17 +83,6 @@ templ WaitingTxIcon() {
 	</div>
 }
 
-templ TxLine(left, right string, kind ...string) {
-  <div class="flex justify-between mb-2">
-    <p class="text-white/50 uppercase">{left}</p>
-    if len(kind) > 0 && kind[0] == "cryptoAmount" {
-      <p class="cryptoAmount" sats={right}>{right} SATS</p>
-    } else {
-      <p>{right}</p>
-    }
-  </div>
-}
-
 templ TxBodyContent(txid, kind, status, date, hour, sats string) {
   @components.DesktopHeader()
 	<div class="p-3 flex flex-col justify-between items-center rounded-md md:bg-desktopbg">
@@ -103,36 +92,6 @@ templ TxBodyContent(txid, kind, status, date, hour, sats string) {
       <p class="mt-4 capitalize">{kind}</p>
       <p class="mt-4 text-3xl cryptoAmount" sats={sats}>{sats} SATS</p>
     </div>
-    <div class="bg-white/10 p-4 mt-10 w-full max-w-[360px] rounded-lg">
-      @TxLine("date", date + " " + hour)
-      <div class="flex justify-between mb-2">
-        <p class="text-white/50">STATUS</p>
-        if status == "success" {
-          <p class="text-green">Succeeded</p>
-        } else if status == "failure" {
-          <p class="text-red">Failed</p>
-        } else if status == "pending" {
-          <p class="text-yellow">Pending for claim</p>
-        } else if status == "waiting" {
-          <p class="text-yellow">Waiting</p>
-        } else {
-          <p>Unknown</p>
-        }
-      </div>
-      @TxLine("network", "Ark")
-      @TxLine("network fee", "500", "cryptoAmount")
-      <div class="flex justify-between mb-2">
-        <div class="flex items-center gap-2 text-white/50">
-          <p>ARK FEE</p>
-          <p hx-get="/modal/feeinfo" hx-target="#modal" class="cursor-pointer">@components.InfoIcon()</p>
-        </div>
-        <p>0.5%</p>
-      </div>
-      <hr class="text-white/50 mb-2" />
-      <div class="flex justify-between mb-2">
-        <p class="text-white/50">TOTAL</p>
-        <p class="cryptoAmount" sats={sats}>{sats} SATS</p>
-      </div>
-    </div>
+    @components.TxTable(sats, date, hour, status)
 	</div>
 }

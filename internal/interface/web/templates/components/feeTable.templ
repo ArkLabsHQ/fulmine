@@ -1,0 +1,59 @@
+package components
+
+templ feeLine(left, right string, kind ...string) {
+  <div class="flex justify-between mb-2">
+    <p class="text-white/50 uppercase">{left}</p>
+    if len(kind) > 0 && kind[0] == "cryptoAmount" {
+      <p class="cryptoAmount" sats={right}>{right} SATS</p>
+    } else {
+      <p>{right}</p>
+    }
+  </div>
+}
+
+templ arkFeeLine() {
+  <div class="flex justify-between mb-2">
+    <div class="flex items-center gap-2 text-white/50">
+      <p>ARK FEE</p>
+      <p hx-get="/modal/feeinfo" hx-target="#modal" class="cursor-pointer">@InfoIcon()</p>
+    </div>
+    <p>0.5%</p>
+  </div>
+}
+
+templ statusLine(status string) {
+  <div class="flex justify-between mb-2">
+    <p class="text-white/50 uppercase">status</p>
+    if status == "success" {
+      <p class="text-green">Succeeded</p>
+    } else if status == "failure" {
+      <p class="text-red">Failed</p>
+    } else if status == "pending" {
+      <p class="text-yellow">Pending for claim</p>
+    } else if status == "waiting" {
+      <p class="text-yellow">Waiting</p>
+    } else {
+      <p>Unknown</p>
+    }
+  </div>
+}
+
+templ FeeTable(sats string, params ...string) {
+  <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
+    if len(params) > 1 {
+      @feeLine("date", params[0] + " " + params[1])
+    }
+    if len(params) > 2 {
+      @statusLine(params[2])
+    }
+    @feeLine("network fee", "500", "cryptoAmount")
+    @arkFeeLine()
+    @feeLine("est. time", "~10 min.")
+    <hr class="text-white/20 mb-2" />
+    @feeLine("total", sats, "cryptoAmount")
+  </div>
+}
+
+templ TxTable(sats, date, hour, status string) {
+  @FeeTable(sats, date, hour, status)
+}
