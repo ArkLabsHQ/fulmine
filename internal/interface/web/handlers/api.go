@@ -34,8 +34,11 @@ func BalanceApiGet(c *gin.Context) {
 				"total":    balance.OffchainBalance.Total + balance.OnchainBalance.SpendableAmount,
 			}
 			c.JSON(http.StatusOK, data)
+			return
 		}
 	}
+	// something went wrong
+	c.AbortWithStatus(http.StatusInternalServerError)
 }
 
 func SettingsApiPost(c *gin.Context) {
