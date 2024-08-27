@@ -71,11 +71,8 @@ func getTransactions() [][]string {
 }
 
 func isOnline(c *gin.Context) bool {
-	log.Info("isOnline")
 	if arkClient := getArkClient(c); arkClient != nil {
-		log.Info("isOnline balance")
 		_, err := arkClient.Balance(c, false)
-		log.Info(err)
 		return err == nil
 	}
 	return false
