@@ -36,7 +36,7 @@ templ Actions(online bool) {
 	    <button class="bg-white text-black px-2 md:px-4 md:w-auto" hx-on:click="redirect('/receive')">
 	  	  @ReceiveIcon() Receive
 	  	</button>
-	    <button class="bg-white text-black px-2 md:px-4 md:w-auto" hx-on:click="redirect('/swap') disabled">
+	    <button class="bg-white text-black px-2 md:px-4 md:w-auto" hx-on:click="redirect('/swap')" disabled>
 	  	  @SwapIcon() Swap
 	  	</button>
 	  </div>

@@ -171,7 +171,7 @@ func Actions(online bool) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Receive</button> <button class=\"bg-white text-black px-2 md:px-4 md:w-auto\" hx-on:click=\"redirect(&#39;/swap&#39;) disabled\">")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Receive</button> <button class=\"bg-white text-black px-2 md:px-4 md:w-auto\" hx-on:click=\"redirect(&#39;/swap&#39;)\" disabled>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
