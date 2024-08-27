@@ -96,7 +96,7 @@ func NewService() *service {
 	svc.GET("/done", handlers.Done)
 	svc.GET("/forgot", handlers.Forgot)
 	svc.GET("/import", handlers.ImportWallet)
-	svc.GET("/locked", handlers.Locked)
+	svc.GET("/lock", handlers.LockWallet)
 	svc.GET("/modal/feeinfo", handlers.FeeInfoModal)
 	svc.GET("/new", handlers.NewWallet)
 	svc.GET("/receive", handlers.ReceiveQrCode)
@@ -106,12 +106,14 @@ func NewService() *service {
 	svc.GET("/swap", handlers.Swap)
 	svc.GET("/swap/:active", handlers.SwapActive)
 	svc.GET("/tx/:txid", handlers.Tx)
+	svc.GET("/unlock", handlers.UnlockWallet)
 	svc.GET("/welcome", handlers.Welcome)
 
 	svc.POST("/initialize", handlers.Initialize)
 	svc.POST("/mnemonic", handlers.SetMnemonic)
 	svc.POST("/password", handlers.SetPassword)
 
+	svc.POST("/lock", handlers.Lock)
 	svc.POST("/receive/preview", handlers.ReceiveQrCode)
 	svc.POST("/receive/success", handlers.ReceiveSuccess)
 	svc.POST("/send/preview", handlers.SendPreview)

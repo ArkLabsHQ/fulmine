@@ -4,8 +4,8 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
-templ Locked() {
-  <form hx-post="/unlock">
+templ lockPage(kind string) {
+  <form hx-post={"/" + kind}>
     <div class="bg-radial-gradient h-screen fullscreen">
       <div class="flex flex-col h-screen justify-between md:h-auto md:gap-10 w-80 m-auto p-3">
         <div>
@@ -27,11 +27,23 @@ templ Locked() {
                 <span style="display: none">@components.EyeCloseIcon()</span>
               </p>
             </div>
-            <p class="text-right mt-2 cursor-pointer" hx-on:click="redirect('/forgot')">Forgot password?</p>
+            if kind == "unlock" {
+              <p class="text-right mt-2 cursor-pointer" hx-on:click="redirect('/forgot')">Forgot password?</p>
+            }
           </div>
         </div>
-        <button class="bg-white ee text-black mt-10" hx-on:click="disableButton(this)" type="submit">Unlock</button>
+        <button class="bg-white ee text-black mt-10 capitalize" hx-on:click="disableButton(this)" type="submit">
+          {kind}
+        </button>
       </div>
     </div>
   </form>
+}
+
+templ Lock() {
+  @lockPage("lock")
+}
+
+templ Unlock() {
+  @lockPage("unlock")
 }

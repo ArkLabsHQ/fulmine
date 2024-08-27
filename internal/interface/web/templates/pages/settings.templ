@@ -9,19 +9,35 @@ templ Separator(text string) {
   <p class="uppercase text-sm text-white/50 mb-4 mt-8">{text}</p>
 }
 
-templ Status(ok bool) {
-  <div class="flex">
+templ Status(ok bool, goodLabel, badLabel string) {
+  <div class="flex cursor-pointer">
     if ok {
       <p class="flex p-2 rounded-lg bg-green/10 border border-1 border-green/50">
         <span class="text-green mr-2">&#9679;</span>
-        Connected
+        {goodLabel}
       </p>
     } else {
       <p class="flex p-2 rounded-lg bg-red/10 border border-1 border-red/50">
         <span class="text-red mr-2">&#9679;</span>
-        Disconnected
+        {badLabel}
       </p>
     }
+  </div>
+}
+
+templ StatusNode(connected bool) {
+  @Status(connected, "Connected", "Disconnected")
+}
+
+templ StatusLock(locked bool) {
+  <div 
+    if locked {
+      onclick="redirect('/unlock')"
+    } else {
+      onclick="redirect('/lock')"
+    }
+  >
+    @Status(!locked, "Unlocked", "Locked")
   </div>
 }
 
@@ -39,14 +55,14 @@ templ SettingsTabs(active string) {
   </div>
 }
 
-templ SettingsBodyContent(active string, settings types.Settings, nodeStatus bool) {
+templ SettingsBodyContent(active string, settings types.Settings, nodeStatus, locked bool) {
   @components.DesktopHeader()
 	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
 	  <div>
 	    @components.Header("Settings")
       @SettingsTabs(active)
       if active == "general" {
-        @SettingsGeneralContent(settings, nodeStatus)
+        @SettingsGeneralContent(settings, nodeStatus, locked)
       }
       if active == "asp" {
         @SettingsASPContent(settings)
@@ -58,8 +74,10 @@ templ SettingsBodyContent(active string, settings types.Settings, nodeStatus boo
   </div>
 }
 
-templ SettingsGeneralContent(settings types.Settings, nodeStatus bool) {
+templ SettingsGeneralContent(settings types.Settings, nodeStatus, locked bool) {
   <form hx-post="/api/settings" hx-trigger="change">
+    @Separator("Wallet")
+    @StatusLock(locked)
     @Separator("Details")
     @components.Label("Bitcoin unit")
     <select class="bg-graybg p-4 rounded text-white/50 w-full" name="unit" value={settings.Unit}>
@@ -74,7 +92,7 @@ templ SettingsGeneralContent(settings types.Settings, nodeStatus bool) {
     @components.Label("ASP API root")
     @components.InputGeneric("apiroot", "", settings.ApiRoot)
     @Separator("Network status")
-    @Status(nodeStatus)
+    @StatusNode(nodeStatus)
     @components.Label("Node")
     <div class="bg-graybg rounded p-3 text-sm">
       <p>Lightning network node 1</p>
@@ -128,7 +146,7 @@ templ SettingsASPContent(settings types.Settings) {
 templ SettingsLightningContent(settings types.Settings, nodeStatus bool) {
   <form hx-post="/api/settings" hx-trigger="change">
     @Separator("Status")
-    @Status(nodeStatus)
+    @StatusNode(nodeStatus)
     @Separator("Connect")
     <p>Enter details manually or scan to connect</p>
     @components.Label("URL")

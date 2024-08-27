@@ -65,7 +65,7 @@ func Index(c *gin.Context) {
 	bodyContent := pages.Welcome()
 	if arkClient := getArkClient(c); arkClient != nil {
 		if arkClient.IsLocked(c) {
-			bodyContent = pages.Locked()
+			bodyContent = pages.Unlock()
 		} else {
 			onboardSome(c, arkClient) // TODO
 			bodyContent = pages.HistoryBodyContent(
@@ -119,8 +119,13 @@ func ImportWallet(c *gin.Context) {
 	pageViewHandler(bodyContent, c)
 }
 
-func Locked(c *gin.Context) {
-	bodyContent := pages.Locked()
+func LockWallet(c *gin.Context) {
+	bodyContent := pages.Lock()
+	pageViewHandler(bodyContent, c)
+}
+
+func UnlockWallet(c *gin.Context) {
+	bodyContent := pages.Unlock()
 	pageViewHandler(bodyContent, c)
 }
 
@@ -276,8 +281,10 @@ func SetPassword(c *gin.Context) {
 }
 
 func Settings(c *gin.Context) {
+	arkClient := getArkClient(c)
+	locked := arkClient != nil && arkClient.IsLocked(c)
 	active := c.Param("active")
-	bodyContent := pages.SettingsBodyContent(active, getSettings(), getNodeStatus())
+	bodyContent := pages.SettingsBodyContent(active, getSettings(), getNodeStatus(), locked)
 	pageViewHandler(bodyContent, c)
 }
 
