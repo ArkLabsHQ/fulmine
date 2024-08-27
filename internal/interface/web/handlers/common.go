@@ -30,7 +30,7 @@ func getSpendableBalance(c *gin.Context) string {
 }
 
 func getNodeBalance() string {
-	return "50640"
+	return "50640" // TODO
 }
 
 func getNewMnemonic() []string {
@@ -68,6 +68,17 @@ func getTransactions() [][]string {
 	transactions = append(transactions, []string{"ffee", "recv", "failure", "05/08/2024", "21:42", "+655255"})
 	transactions = append(transactions, []string{"445d", "swap", "success", "04/08/2024", "21:42", "+42334"})
 	return transactions
+}
+
+func isOnline(c *gin.Context) bool {
+	log.Info("isOnline")
+	if arkClient := getArkClient(c); arkClient != nil {
+		log.Info("isOnline balance")
+		_, err := arkClient.Balance(c, false)
+		log.Info(err)
+		return err == nil
+	}
+	return false
 }
 
 func redirect(path string, c *gin.Context) {

@@ -24,10 +24,9 @@ func onboardSome(c *gin.Context, arkClient arksdk.ArkClient) {
 		balance, err := arkClient.Balance(c, true)
 		if err != nil {
 			log.WithError(err).Info("error getting balance")
+			return
 		}
-		log.Info("Here")
-		log.Info(balance.OnchainBalance.SpendableAmount)
-		if balance.OnchainBalance.SpendableAmount > 100_000_000_000 { // TODO
+		if balance.OnchainBalance.SpendableAmount >= 100_000 { // TODO
 			txid, err := arkClient.Onboard(c, 100_000)
 			if err != nil {
 				log.WithError(err).Info("error onboarding")
@@ -63,8 +62,13 @@ func Index(c *gin.Context) {
 		if arkClient.IsLocked(c) {
 			bodyContent = pages.Locked()
 		} else {
-			onboardSome(c, arkClient)
-			bodyContent = pages.HistoryBodyContent(getSpendableBalance(c), getAddress(c), getTransactions())
+			onboardSome(c, arkClient) // TODO
+			bodyContent = pages.HistoryBodyContent(
+				getSpendableBalance(c),
+				getAddress(c),
+				getTransactions(),
+				isOnline(c),
+			)
 		}
 	}
 	pageViewHandler(bodyContent, c)
@@ -97,6 +101,7 @@ func Initialize(c *gin.Context) {
 	if _, err := setupFileBasedArkClient(aspurl, mnemonic, password); err == nil {
 		redirect("/done", c)
 	} else {
+		log.WithError(err).Info("error initializing")
 		redirect("/", c)
 	}
 }

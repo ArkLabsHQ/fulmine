@@ -316,7 +316,7 @@ func HistoryLine(txid, kind, status, date, hour, sats string) templ.Component {
 }
 
 // BodyContent defines HTML content.
-func HistoryBodyContent(currentBalance, arkAddress string, transactions [][]string) templ.Component {
+func HistoryBodyContent(currentBalance, arkAddress string, transactions [][]string, online bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -334,7 +334,7 @@ func HistoryBodyContent(currentBalance, arkAddress string, transactions [][]stri
 			templ_7745c5c3_Var15 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = components.Hero(arkAddress, currentBalance).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Hero(arkAddress, currentBalance, online).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

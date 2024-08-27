@@ -27,18 +27,28 @@ templ HeroBalance(currentBalance string) {
 	</div>
 }
 
-templ Actions() {
-	<div class="grid grid-cols-3 gap-4 md:flex md:flex-row">
-	  <button class="bg-white text-black px-2 md:px-4 md:w-auto" hx-on:click="redirect('/send')">@SendIcon() Send</button>
-	  <button class="bg-white text-black px-2 md:px-4 md:w-auto" hx-on:click="redirect('/receive')">@ReceiveIcon() Receive</button>
-	  <button class="bg-white text-black px-2 md:px-4 md:w-auto" hx-on:click="redirect('/swap')">@SwapIcon() Swap</button>
-	</div>
+templ Actions(online bool) {
+	if online {
+	  <div class="grid grid-cols-3 gap-4 md:flex md:flex-row">
+	    <button class="bg-white text-black px-2 md:px-4 md:w-auto" hx-on:click="redirect('/send')">
+	  	  @SendIcon() Send
+	  	</button>
+	    <button class="bg-white text-black px-2 md:px-4 md:w-auto" hx-on:click="redirect('/receive')">
+	  	  @ReceiveIcon() Receive
+	  	</button>
+	    <button class="bg-white text-black px-2 md:px-4 md:w-auto" hx-on:click="redirect('/swap') disabled">
+	  	  @SwapIcon() Swap
+	  	</button>
+	  </div>
+	} else {
+		<p>ASP is offline</p>
+	}
 }
 
-templ Hero(arkAddress, currentBalance string) {
+templ Hero(arkAddress, currentBalance string, online bool) {
   <div class="bg-radial-gradient rounded-b-lg md:rounded-t-lg p-3 mb-10">
 	  @HeroHeader(arkAddress)
 	  @HeroBalance(currentBalance)
-	  @Actions()
+	  @Actions(online)
 	</div>
 }

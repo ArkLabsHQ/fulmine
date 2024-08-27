@@ -108,8 +108,8 @@ templ HistoryLine(txid, kind, status, date, hour, sats string) {
 }
 
 // BodyContent defines HTML content.
-templ HistoryBodyContent(currentBalance, arkAddress string, transactions [][]string) {
-	@components.Hero(arkAddress, currentBalance)
+templ HistoryBodyContent(currentBalance, arkAddress string, transactions [][]string, online bool) {
+	@components.Hero(arkAddress, currentBalance, online)
 	for _, tx := range transactions {
 		@HistoryLine(tx[0], tx[1], tx[2], tx[3], tx[4], tx[5])
 	}
