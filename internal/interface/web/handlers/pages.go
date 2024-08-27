@@ -27,7 +27,7 @@ func onboardSome(c *gin.Context, arkClient arksdk.ArkClient) {
 			return
 		}
 		if balance.OnchainBalance.SpendableAmount >= 100_000 { // TODO
-			txid, err := arkClient.Onboard(c, 100_000)
+			txid, err := arkClient.Onboard(c, 50_000)
 			if err != nil {
 				log.WithError(err).Info("error onboarding")
 			}
