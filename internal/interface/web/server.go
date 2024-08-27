@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
+	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
 
@@ -60,15 +61,23 @@ func NewService() *service {
 	// Create a new Fiber server.
 	router := gin.Default()
 
-	arkClient, _ := handlers.LoadArkClient()
+	// global variable with arkClient
+	var arkClient arksdk.ArkClient
+
 	// Middleware to set a variable in the context
 	router.Use(func(c *gin.Context) {
+		// first access, arkClient will be nil
 		if arkClient == nil {
 			arkClient, _ = handlers.LoadArkClient()
+		} else {
+			// if meanwhile /storage/state.json was removed,
+			// loadArkClient will return nil and we want to
+			// reset the main variable arkClient
+			if ac, _ := handlers.LoadArkClient(); ac == nil {
+				arkClient = nil
+			}
 		}
-		if arkClient != nil {
-			c.Set("arkClient", arkClient)
-		}
+		c.Set("arkClient", arkClient)
 		c.Next() // Call the next handler
 	})
 
@@ -85,6 +94,7 @@ func NewService() *service {
 	// Handle index page view.
 	svc.GET("/", handlers.Index)
 	svc.GET("/done", handlers.Done)
+	svc.GET("/forgot", handlers.Forgot)
 	svc.GET("/import", handlers.ImportWallet)
 	svc.GET("/locked", handlers.Locked)
 	svc.GET("/modal/feeinfo", handlers.FeeInfoModal)

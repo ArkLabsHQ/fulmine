@@ -3,9 +3,9 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
 	"github.com/tyler-smith/go-bip39"
 
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
@@ -13,7 +13,7 @@ import (
 	filestore "github.com/ark-network/ark/pkg/client-sdk/store/file"
 )
 
-func OpenStore() (store.ConfigStore, error) {
+func openStore() (store.ConfigStore, error) {
 	storeSvc, err := filestore.NewConfigStore("./storage")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file store: %s", err)
@@ -22,8 +22,7 @@ func OpenStore() (store.ConfigStore, error) {
 }
 
 func LoadArkClient() (arksdk.ArkClient, error) {
-	log.Info("loading ark client")
-	if storeSvc, err := OpenStore(); err == nil {
+	if storeSvc, err := openStore(); err == nil {
 		if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 			return arkClient, nil
 		} else {
@@ -43,8 +42,20 @@ func getArkClient(c *gin.Context) arksdk.ArkClient {
 	return nil
 }
 
+func deleteOldState() error {
+	filePath := "./storage/state.json" // TODO
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return nil
+	}
+	err := os.Remove(filePath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func setupFileBasedArkClient(aspurl, mnemonic, password string) (arksdk.ArkClient, error) {
-	storeSvc, err := OpenStore()
+	storeSvc, err := openStore()
 	if err != nil {
 		return nil, err
 	}

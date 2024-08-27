@@ -56,6 +56,11 @@ func Done(c *gin.Context) {
 	pageViewHandler(bodyContent, c)
 }
 
+func Forgot(c *gin.Context) {
+	deleteOldState()
+	c.Redirect(http.StatusFound, "/welcome")
+}
+
 func Index(c *gin.Context) {
 	bodyContent := pages.Welcome()
 	if arkClient := getArkClient(c); arkClient != nil {
@@ -99,6 +104,7 @@ func Initialize(c *gin.Context) {
 	log.Info(aspurl, mnemonic, password)
 
 	if _, err := setupFileBasedArkClient(aspurl, mnemonic, password); err == nil {
+		c.Set("arkClient", nil)
 		redirect("/done", c)
 	} else {
 		log.WithError(err).Info("error initializing")
@@ -325,6 +331,7 @@ func Tx(c *gin.Context) {
 }
 
 func Welcome(c *gin.Context) {
+	c.Set("arkClient", nil)
 	bodyContent := pages.Welcome()
 	pageViewHandler(bodyContent, c)
 }
