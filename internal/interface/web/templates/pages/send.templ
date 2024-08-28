@@ -62,12 +62,10 @@ templ SendPreviewContent(address, sats string) {
 	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
 	      <div class="flex flex-col items-center">
 	        @components.Header("Confirm Send")
-					<div class="showOnRequest">
-					  <div class="flex flex-col items-center mt-10 w-full">
-				      @components.SpinnerIcon()
-					    <p class="mt-10">Sending...</p>
-						</div>
-			    </div>
+					<div class="showOnRequest flex flex-col items-center mt-10 w-full">
+				    @components.SpinnerIcon()
+					   <p class="mt-10">Sending...</p>
+					</div>
 					<div class="hideOnRequest flex flex-col items-center w-full">
 	          @SendPreviewIcon()
 					  <p class="mt-4">Send</p>

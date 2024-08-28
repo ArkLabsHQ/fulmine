@@ -329,7 +329,7 @@ func SwapConfirm(c *gin.Context) {
 	}
 	kind := c.PostForm("kind")
 	sats := c.PostForm("sats")
-	bodyContent := pages.SwapSuccessContent(kind, sats)
+	bodyContent := pages.SwapSuccessContent(kind, sats, "TODO", GetExplorerUrl(c))
 	partialViewHandler(bodyContent, c)
 }
 

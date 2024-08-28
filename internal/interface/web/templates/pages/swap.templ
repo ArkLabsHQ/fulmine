@@ -92,7 +92,7 @@ templ SwapBodyContent(currentBalance, nodeBalance string) {
 	        </div>
 					@SwapPartialContent("inbound", nodeBalance)
 	    	</div>
-	    	@components.ActionButtons("Preview swap")
+	    	@components.ActionButtons("Preview swap", true)
 	    </div>
 	  </form>
 	</div>
@@ -104,6 +104,17 @@ templ SwapBodyContent(currentBalance, nodeBalance string) {
 			document.querySelector(`#${kind}`).click()
 			setTimeout(() => setMaxValue(sats), 1000)
 		}
+		const canProceed = () => {
+			const amount = document.querySelector('#amount').value
+			const button = document.querySelector('button[type="submit"]')
+			const balance = parseInt(document.querySelector('#balance').value)
+			const sats = parseInt(document.querySelector('#sats').value)
+			button.disabled = amount.length === 0 || sats > balance
+			button.innerText = sats > balance ? 'Not enough funds' : 'Preview send'
+		}
+		document.addEventListener('htmx:load', () => {
+		  document.querySelector('#amount').addEventListener('change', canProceed)
+		})
 	</script>
 }
 
@@ -113,11 +124,17 @@ templ SwapPreviewContent(kind, sats string) {
 		  <input type="hidden" name="sats" value={sats}>
 		  <input type="hidden" name="kind" value={kind}>
 	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
-        <div class="flex flex-col items-center">
-          @components.Header("Confirm Swap")
-          @SwapPreviewIcon()
-          @SwapMovementComponent(kind, sats)
-          @components.FeeTable(sats)
+			  <div>
+				  @components.Header("Confirm Swap")
+					<div class="showOnRequest flex flex-col items-center mt-10 w-full">
+			      @components.SpinnerIcon()
+			      <p class="mt-10">Making swap...</p>
+			    </div>
+					<div class="hideOnRequest flex flex-col items-center">
+            @SwapPreviewIcon()
+            @SwapMovementComponent(kind, sats)
+            @components.FeeTable(sats)
+					</div>
 	    	</div>
 	    	@components.ActionButtons("Confirm")
 	    </div>
@@ -125,7 +142,7 @@ templ SwapPreviewContent(kind, sats string) {
 	</div>
 }
 
-templ SwapSuccessContent(kind, sats string) {
+templ SwapSuccessContent(kind, sats, txid, explorerUrl string) {
 	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">  
 	  <div class="flex flex-col items-center">
 		  @components.Header("Swap")
@@ -133,11 +150,7 @@ templ SwapSuccessContent(kind, sats string) {
 			@SwapMovementComponent(kind, sats)
 		</div>
 	  <div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
-	    <button
-			  class="bg-graybg md:w-auto"
-				onclick="window.open('https://mempool.space', '_blank')">
-				View transaction
-			</button>
+	    <button class="bg-graybg md:w-auto" onclick={openInExplorer(txid, explorerUrl)}>View transaction</button>
 		</div>
 	</div>
 }
@@ -166,6 +179,6 @@ templ SwapMovementComponent(kind, sats string) {
 
 templ SwapInputAmountComponent(kind, maxBalance string) {
 	<input class="hidden" id="swapKind" name="kind" value={kind} />
-	<input class="hidden" id="alice" value={maxBalance} />
+	<input class="hidden" id="balance" value={maxBalance} />
 	@components.SendAmount(maxBalance)
 }
