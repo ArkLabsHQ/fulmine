@@ -17,6 +17,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func redirectedBecauseWalletIsLocked(c *gin.Context) bool {
+	arkClient := getArkClient(c)
+	redirect := arkClient == nil || arkClient.IsLocked(c)
+	if redirect {
+		c.Redirect(http.StatusFound, "/")
+	}
+	return redirect
+}
+
 func onboardSome(c *gin.Context, arkClient arksdk.ArkClient) {
 	if arkClient.IsLocked(c) {
 		log.Info("can't onboard, wallet still locked")
@@ -135,11 +144,17 @@ func NewWallet(c *gin.Context) {
 }
 
 func ReceiveEdit(c *gin.Context) {
+	if redirectedBecauseWalletIsLocked(c) {
+		return
+	}
 	bodyContent := pages.ReceiveEditContent()
 	pageViewHandler(bodyContent, c)
 }
 
 func ReceiveQrCode(c *gin.Context) {
+	if redirectedBecauseWalletIsLocked(c) {
+		return
+	}
 	arkClient := getArkClient(c)
 	offchainAddr, onchainAddr, err := arkClient.Receive(c)
 	if err != nil {
@@ -160,17 +175,17 @@ func ReceiveSuccess(c *gin.Context) {
 }
 
 func Send(c *gin.Context) {
-	arkClient := getArkClient(c)
-	if arkClient == nil || arkClient.IsLocked(c) {
-		c.Redirect(http.StatusFound, "/")
+	if redirectedBecauseWalletIsLocked(c) {
 		return
 	}
-
 	bodyContent := pages.SendBodyContent(getSpendableBalance(c))
 	pageViewHandler(bodyContent, c)
 }
 
 func SendPreview(c *gin.Context) {
+	if redirectedBecauseWalletIsLocked(c) {
+		return
+	}
 	addr := ""
 	dest := c.PostForm("address")
 	sats := c.PostForm("sats")
@@ -201,11 +216,11 @@ func SendPreview(c *gin.Context) {
 }
 
 func SendConfirm(c *gin.Context) {
-	arkClient := getArkClient(c)
-	if arkClient == nil || arkClient.IsLocked(c) {
-		c.Redirect(http.StatusFound, "/")
+	if redirectedBecauseWalletIsLocked(c) {
 		return
 	}
+
+	arkClient := getArkClient(c)
 
 	address := c.PostForm("address")
 	sats := c.PostForm("sats")
@@ -289,9 +304,7 @@ func Settings(c *gin.Context) {
 }
 
 func Swap(c *gin.Context) {
-	arkClient := getArkClient(c)
-	if arkClient == nil || arkClient.IsLocked(c) {
-		c.Redirect(http.StatusFound, "/")
+	if redirectedBecauseWalletIsLocked(c) {
 		return
 	}
 	bodyContent := pages.SwapBodyContent(getSpendableBalance(c), getNodeBalance())
@@ -311,6 +324,9 @@ func SwapActive(c *gin.Context) {
 }
 
 func SwapConfirm(c *gin.Context) {
+	if redirectedBecauseWalletIsLocked(c) {
+		return
+	}
 	kind := c.PostForm("kind")
 	sats := c.PostForm("sats")
 	bodyContent := pages.SwapSuccessContent(kind, sats)
@@ -318,6 +334,9 @@ func SwapConfirm(c *gin.Context) {
 }
 
 func SwapPreview(c *gin.Context) {
+	if redirectedBecauseWalletIsLocked(c) {
+		return
+	}
 	kind := c.PostForm("kind")
 	sats := c.PostForm("sats")
 	bodyContent := pages.SwapPreviewContent(kind, sats)
