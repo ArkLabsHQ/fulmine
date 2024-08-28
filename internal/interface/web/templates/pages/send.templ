@@ -86,11 +86,11 @@ templ SendPreviewContent(address, sats string) {
 	</div>
 }
 
-script openInExplorer(txid string) {
-	window.open(`http://localhost:5000/tx/${txid}`, '_blank') 
+script openInExplorer(txid, explorerUrl string) {
+	window.open(`${explorerUrl}/tx/${txid}`, '_blank') 
 }
 
-templ SendSuccessContent(address, amount, txid string) {
+templ SendSuccessContent(address, amount, txid, explorerUrl string) {
 	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
 	  <div class="flex flex-col items-center">
 		  @components.Header("Sent")
@@ -104,7 +104,7 @@ templ SendSuccessContent(address, amount, txid string) {
 			</div>
 		</div>
 		<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
-	    <button class="bg-graybg md:w-auto" onclick={openInExplorer(txid)}>View transaction</button>
+	    <button class="bg-graybg md:w-auto" onclick={openInExplorer(txid, explorerUrl)}>View transaction</button>
 		</div>
 	</div>
 }

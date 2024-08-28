@@ -274,17 +274,17 @@ func SendPreviewContent(address, sats string) templ.Component {
 	})
 }
 
-func openInExplorer(txid string) templ.ComponentScript {
+func openInExplorer(txid, explorerUrl string) templ.ComponentScript {
 	return templ.ComponentScript{
-		Name: `__templ_openInExplorer_cd2f`,
-		Function: `function __templ_openInExplorer_cd2f(txid){window.open(` + "`" + `http://localhost:5000/tx/${txid}` + "`" + `, '_blank') 
+		Name: `__templ_openInExplorer_de4b`,
+		Function: `function __templ_openInExplorer_de4b(txid, explorerUrl){window.open(` + "`" + `${explorerUrl}/tx/${txid}` + "`" + `, '_blank') 
 }`,
-		Call:       templ.SafeScript(`__templ_openInExplorer_cd2f`, txid),
-		CallInline: templ.SafeScriptInline(`__templ_openInExplorer_cd2f`, txid),
+		Call:       templ.SafeScript(`__templ_openInExplorer_de4b`, txid, explorerUrl),
+		CallInline: templ.SafeScriptInline(`__templ_openInExplorer_de4b`, txid, explorerUrl),
 	}
 }
 
-func SendSuccessContent(address, amount, txid string) templ.Component {
+func SendSuccessContent(address, amount, txid, explorerUrl string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -365,7 +365,7 @@ func SendSuccessContent(address, amount, txid string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templ.RenderScriptItems(ctx, templ_7745c5c3_Buffer, openInExplorer(txid))
+		templ_7745c5c3_Err = templ.RenderScriptItems(ctx, templ_7745c5c3_Buffer, openInExplorer(txid, explorerUrl))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -373,7 +373,7 @@ func SendSuccessContent(address, amount, txid string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var15 templ.ComponentScript = openInExplorer(txid)
+		var templ_7745c5c3_Var15 templ.ComponentScript = openInExplorer(txid, explorerUrl)
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15.Call)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

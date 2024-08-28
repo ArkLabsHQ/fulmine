@@ -261,7 +261,7 @@ func SendConfirm(c *gin.Context) {
 		return
 	}
 
-	bodyContent := pages.SendSuccessContent(address, sats, txId)
+	bodyContent := pages.SendSuccessContent(address, sats, txId, GetExplorerUrl(c))
 	partialViewHandler(bodyContent, c)
 }
 
