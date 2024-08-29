@@ -67,6 +67,8 @@ templ Layout(bodyContent templ.Component, settings types.Settings) {
 			<script src="/static/scripts.js"></script>
 		</body>
 		<script>
+		  const toastTimeout = 2100
+
 		  const disableButton = (button) => {
 				button.classList.add("disabled")
       }
@@ -189,6 +191,11 @@ templ Layout(bodyContent templ.Component, settings types.Settings) {
         })
 			}
 
+			const notImplemented = () => {
+				document.querySelector("#toast").innerHTML = '<p class="border border-1 border border-red/20 bg-errorbg capitalize text-red px-2 py-1 rounded-md mx-auto">Not implemented</p>'
+				setTimeout(() => document.querySelector("#toast").innerHTML = "", toastTimeout)
+			}
+
       document.addEventListener('htmx:load', () => {
         enableButtons()
         updateFiatValues()
@@ -206,7 +213,7 @@ templ Layout(bodyContent templ.Component, settings types.Settings) {
 
       // after receiving a toast, delete it after 2 seconds
       document.body.addEventListener("toast", (e) => {
-        setTimeout(() => document.querySelector("#toast").innerHTML = "", 2100)
+        setTimeout(() => document.querySelector("#toast").innerHTML = "", toastTimeout)
       })
 		</script>
 	</html>
