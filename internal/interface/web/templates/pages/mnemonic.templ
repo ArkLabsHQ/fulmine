@@ -113,8 +113,8 @@ templ NewWalletContent(mnemonic []string) {
 }
 
 templ Word(i int, words ...string) {
-	<div class="bg-graybg rounded p-1 flex items-center gap-2 w-full">
-	  <div class="bg-white/10 rounded flex justify-center items-center h-8 square">
+	<div class="bg-graybg rounded-lg p-1 flex items-center gap-2 w-full">
+	  <div class="bg-white/10 rounded-lg flex justify-center items-center h-8 square">
 	    <p>{strconv.Itoa(i)}</p>
 		</div>
 	  <input

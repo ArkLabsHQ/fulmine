@@ -8,7 +8,7 @@ templ ReceiveEditContent() {
 	<div id="receiveBody">
 	  @components.DesktopHeader()
 	  <form hx-post="/receive/preview" hx-target="#receiveBody" hx-swap="outerHTML">
-	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+	    <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	      <div>
 	        @components.Header("Receive")
 	        @components.ReceiveAmount()
@@ -26,7 +26,7 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, onchainAddr, sats string) {
 	  <input class="hidden" name="offchainAddr" value={offchainAddr} />
 	  <input class="hidden" name="onchainAddr" value={onchainAddr} />
 	  <input class="hidden" name="sats" />
-	  <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	    @components.Header("Receive")
       <div class="flex flex-col justify-center items-center gap-2 overflow-auto">
 	  	  <div class="h-64">
@@ -88,7 +88,7 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, onchainAddr, sats string) {
 }
 
 templ ReceiveSuccessContent(offchainAddr, onchainAddr, sats string) {
-	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div class="flex flex-col items-center">
 		  @components.Header("Receive")
 	    @SuccessIcon()

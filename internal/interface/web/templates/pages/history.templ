@@ -75,7 +75,7 @@ templ WaitingIcon() {
 
 templ HistoryLine(txid, kind, status, date, hour, sats string) {
 	<div txid={txid} onclick="showTx(this)">
-	  <div class="flex justify-between cursor-pointer p-3 rounded hover:bg-white/10" >
+	  <div class="flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10" >
 	  	<div class="flex">
 	  	  @HistoryIcon(kind, status)
 	  	  <p class="leading-4">{date}<br /><span class="text-white/50">{hour}</span></p>

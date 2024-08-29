@@ -191,7 +191,8 @@ templ Layout(bodyContent templ.Component, settings types.Settings) {
         })
 			}
 
-			const notImplemented = () => {
+			const notImplemented = (event) => {
+				event.preventDefault()
 				document.querySelector("#toast").innerHTML = '<p class="border border-1 border border-red/20 bg-errorbg capitalize text-red px-2 py-1 rounded-md mx-auto">Not implemented</p>'
 				setTimeout(() => document.querySelector("#toast").innerHTML = "", toastTimeout)
 			}

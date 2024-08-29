@@ -57,7 +57,7 @@ templ SettingsTabs(active string) {
 
 templ SettingsBodyContent(active string, settings types.Settings, nodeStatus, locked bool) {
   @components.DesktopHeader()
-	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div>
 	    @components.Header("Settings")
       @SettingsTabs(active)
@@ -80,12 +80,20 @@ templ SettingsGeneralContent(settings types.Settings, nodeStatus, locked bool) {
     @StatusLock(locked)
     @Separator("Details")
     @components.Label("Bitcoin unit")
-    <select class="bg-graybg p-4 rounded text-white/50 w-full" name="unit" value={settings.Unit}>
+    <select
+      class="border border-1 border-white/20 bg-graybg p-4 rounded-lg text-white/50 w-full"
+      name="unit"
+      value={settings.Unit}
+    >
       <option value="sat">Satoshi (0.00000001 BTC)</option>
       <option value="btc">Bitcoin (100.000.000 SATS)</option>
     </select>
     @components.Label("Reference currency")
-    <select class="bg-graybg p-4 rounded text-white/50 w-full" name="currency" value={settings.Currency}>
+    <select
+      class="border border-1 border-white/20 bg-graybg p-4 rounded-lg text-white/50 w-full"
+      name="currency"
+      value={settings.Currency}
+    >
       <option value="usd">USD ($)</option>
       <option value="eur">EURO (€)</option>
     </select>
@@ -94,13 +102,13 @@ templ SettingsGeneralContent(settings types.Settings, nodeStatus, locked bool) {
     @Separator("Network status")
     @StatusNode(nodeStatus)
     @components.Label("Node")
-    <div class="bg-graybg rounded p-3 text-sm">
+    <div class="border border-1 border-white/20 bg-graybg rounded-lg p-3 text-sm">
       <p>Lightning network node 1</p>
       <hr class="my-4 text-white/20" />
       <div class="flex justify-between items-center">
         <p class="text-white/50 w-32">Full node</p>
         <input
-          class="bg-graybg p-4 rounded text-sm w-full unframed"
+          class="bg-graybg p-4 text-sm w-full unframed"
           name="fullnode"
           value={settings.FullNode}
         />
@@ -108,13 +116,13 @@ templ SettingsGeneralContent(settings types.Settings, nodeStatus, locked bool) {
       <div class="flex justify-between items-center">
         <p class="text-white/50 w-32">Event server</p>
         <input
-          class="border-0 bg-graybg p-4 rounded text-sm w-full unframed"
+          class="border-0 bg-graybg p-4 text-sm w-full unframed"
           name="eventserver"
           value={settings.EventServer}>
       </div>
     </div>
     @Separator("Security")
-    <button class="bg-graybg font-semibold rounded mb-4">Backup seed phrase</button>
+    <button class="bg-graybg font-semibold rounded-lg mb-4" onclick="notImplemented(event)">Backup seed phrase</button>
   </form>
 }
 
@@ -122,15 +130,15 @@ templ SettingsASPContent(settings types.Settings) {
   <form hx-post="/api/settings" hx-trigger="change">
     @Separator("Link")
     @components.Label("ASP Link")
-    <div class="border border-1 border-white/50 flex bg-graybg items-center justify-between rounded gap-4 pr-3 focus:border-orange">
+    <div class="border border-1 border-white/50 flex bg-graybg items-center justify-between rounded-lg gap-4 pr-3 focus:border-orange">
       <input
-        class="border-0 bg-graybg p-4 rounded text-white/50 focus:text-white w-full"
+        class="border-0 bg-graybg p-4 rounded-lg text-white/50 focus:text-white w-full"
         id="asplink"
         name="asplink"
         value={settings.ApiRoot}>
       <div class="flex items-center gap-4 text-white/50">
         <p class="cursor-pointer" onclick="pasteFromClipboard('#asplink')">@components.PasteIcon()</p>
-        <p class="cursor-pointer" onclick="notImplemented()">@components.ScanIcon()</p>
+        <p class="cursor-pointer" onclick="notImplemented(event)">@components.ScanIcon()</p>
       </div>
     </div>
     @Separator("Host settings")
@@ -152,12 +160,17 @@ templ SettingsLightningContent(settings types.Settings, nodeStatus bool) {
     @components.Label("URL")
     if nodeStatus {
       @components.InputFake(settings.LnUrl)
-      <button class="bg-red/10 text-red font-semibold rounded mt-8" hx-post="/api/node/disconnect">Disconnect</button>
+      <button
+        class="bg-red/10 text-red font-semibold rounded-lg mt-8"
+        hx-post="/api/node/disconnect"
+      >
+        Disconnect
+      </button>
     
     } else {
       @components.InputWithPaste("lnurl", "", settings.LnUrl)
-      <button class="bg-graybg font-semibold rounded mt-8" hx-post="/api/node/connect">Connect</button>
-      <button class="bg-graybg font-semibold rounded mt-4 flex items-center justify-center gap-3">
+      <button class="bg-graybg font-semibold rounded-lg mt-8" hx-post="/api/node/connect">Connect</button>
+      <button class="bg-graybg font-semibold rounded-lg mt-4 flex items-center justify-center gap-3">
         @components.ScanIcon()
         Scan
       </button>

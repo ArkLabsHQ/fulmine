@@ -12,6 +12,16 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
+func OpenX() templ.ComponentScript {
+	return templ.ComponentScript{
+		Name: `__templ_OpenX_6fec`,
+		Function: `function __templ_OpenX_6fec(){window.open('https://x.com/ArkLabsHQ/', '_blank');
+}`,
+		Call:       templ.SafeScript(`__templ_OpenX_6fec`),
+		CallInline: templ.SafeScriptInline(`__templ_OpenX_6fec`),
+	}
+}
+
 func DoneBodyContent() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -46,7 +56,7 @@ func DoneBodyContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"text-3xl\">You are all done!</p><p class=\"text-center\">You may start sending and receiving Bitcoin transactions faster and more private on Ark Node.</p><p class=\"bg-white/10 flex items-center p-3 text-center justify-center w-full\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"text-3xl\">You are all done!</p><p class=\"text-center\">You may start sending and receiving Bitcoin transactions faster and more private on Ark Node.</p><button class=\"bg-white/10 flex items-center p-3 text-center justify-center w-full\" onclick=\"window.open(&#39;https://x.com/ArkLabsHQ/&#39;, &#39;_blank&#39;)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -54,7 +64,7 @@ func DoneBodyContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Follow us on X</p></div></div><button class=\"bg-orange text-white\" onclick=\"redirect(&#39;/&#39;)\">Let's go</button></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Follow us on X</button></div></div><button class=\"bg-orange text-white\" onclick=\"redirect(&#39;/&#39;)\">Let's go</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

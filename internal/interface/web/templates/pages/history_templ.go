@@ -192,7 +192,7 @@ func HistoryLine(txid, kind, status, date, hour, sats string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" onclick=\"showTx(this)\"><div class=\"flex justify-between cursor-pointer p-3 rounded hover:bg-white/10\"><div class=\"flex\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\" onclick=\"showTx(this)\"><div class=\"flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10\"><div class=\"flex\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

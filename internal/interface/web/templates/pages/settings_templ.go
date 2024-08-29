@@ -328,7 +328,7 @@ func SettingsBodyContent(active string, settings types.Settings, nodeStatus, loc
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg\"><div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\"><div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -404,14 +404,14 @@ func SettingsGeneralContent(settings types.Settings, nodeStatus, locked bool) te
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<select class=\"bg-graybg p-4 rounded text-white/50 w-full\" name=\"unit\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<select class=\"border border-1 border-white/20 bg-graybg p-4 rounded-lg text-white/50 w-full\" name=\"unit\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(settings.Unit)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 83, Col: 95}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 86, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -425,14 +425,14 @@ func SettingsGeneralContent(settings types.Settings, nodeStatus, locked bool) te
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<select class=\"bg-graybg p-4 rounded text-white/50 w-full\" name=\"currency\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<select class=\"border border-1 border-white/20 bg-graybg p-4 rounded-lg text-white/50 w-full\" name=\"currency\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(settings.Currency)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 88, Col: 103}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 95, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -462,27 +462,27 @@ func SettingsGeneralContent(settings types.Settings, nodeStatus, locked bool) te
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-graybg rounded p-3 text-sm\"><p>Lightning network node 1</p><hr class=\"my-4 text-white/20\"><div class=\"flex justify-between items-center\"><p class=\"text-white/50 w-32\">Full node</p><input class=\"bg-graybg p-4 rounded text-sm w-full unframed\" name=\"fullnode\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"border border-1 border-white/20 bg-graybg rounded-lg p-3 text-sm\"><p>Lightning network node 1</p><hr class=\"my-4 text-white/20\"><div class=\"flex justify-between items-center\"><p class=\"text-white/50 w-32\">Full node</p><input class=\"bg-graybg p-4 text-sm w-full unframed\" name=\"fullnode\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(settings.FullNode)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 105, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 113, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"></div><div class=\"flex justify-between items-center\"><p class=\"text-white/50 w-32\">Event server</p><input class=\"border-0 bg-graybg p-4 rounded text-sm w-full unframed\" name=\"eventserver\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"></div><div class=\"flex justify-between items-center\"><p class=\"text-white/50 w-32\">Event server</p><input class=\"border-0 bg-graybg p-4 text-sm w-full unframed\" name=\"eventserver\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(settings.EventServer)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 113, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 121, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -496,7 +496,7 @@ func SettingsGeneralContent(settings types.Settings, nodeStatus, locked bool) te
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button class=\"bg-graybg font-semibold rounded mb-4\">Backup seed phrase</button></form>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button class=\"bg-graybg font-semibold rounded-lg mb-4\" onclick=\"notImplemented(event)\">Backup seed phrase</button></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -534,14 +534,14 @@ func SettingsASPContent(settings types.Settings) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"border border-1 border-white/50 flex bg-graybg items-center justify-between rounded gap-4 pr-3 focus:border-orange\"><input class=\"border-0 bg-graybg p-4 rounded text-white/50 focus:text-white w-full\" id=\"asplink\" name=\"asplink\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"border border-1 border-white/50 flex bg-graybg items-center justify-between rounded-lg gap-4 pr-3 focus:border-orange\"><input class=\"border-0 bg-graybg p-4 rounded-lg text-white/50 focus:text-white w-full\" id=\"asplink\" name=\"asplink\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(settings.ApiRoot)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 130, Col: 31}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 138, Col: 31}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
@@ -555,7 +555,7 @@ func SettingsASPContent(settings types.Settings) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><p class=\"cursor-pointer\" onclick=\"notImplemented()\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><p class=\"cursor-pointer\" onclick=\"notImplemented(event)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -650,7 +650,7 @@ func SettingsLightningContent(settings types.Settings, nodeStatus bool) templ.Co
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" <button class=\"bg-red/10 text-red font-semibold rounded mt-8\" hx-post=\"/api/node/disconnect\">Disconnect</button>")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" <button class=\"bg-red/10 text-red font-semibold rounded-lg mt-8\" hx-post=\"/api/node/disconnect\">Disconnect</button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -659,7 +659,7 @@ func SettingsLightningContent(settings types.Settings, nodeStatus bool) templ.Co
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" <button class=\"bg-graybg font-semibold rounded mt-8\" hx-post=\"/api/node/connect\">Connect</button> <button class=\"bg-graybg font-semibold rounded mt-4 flex items-center justify-center gap-3\">")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" <button class=\"bg-graybg font-semibold rounded-lg mt-8\" hx-post=\"/api/node/connect\">Connect</button> <button class=\"bg-graybg font-semibold rounded-lg mt-4 flex items-center justify-center gap-3\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

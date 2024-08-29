@@ -59,7 +59,7 @@ func lockPage(kind string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex justify-between items-center gap-4 bg-white border-0 p-2 rounded-md text-black w-full\"><input autocomplete=\"current-password\" class=\"bg-white border-0 w-full eyeopener\" name=\"password\" type=\"password\"><p class=\"eyes\" onclick=\"togglePasswordVisibility()\"><span>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex justify-between items-center gap-4 bg-white border-0 p-2 rounded-lg text-black w-full\"><input autocomplete=\"current-password\" class=\"bg-white border-0 w-full eyeopener\" name=\"password\" type=\"password\"><p class=\"eyes\" onclick=\"togglePasswordVisibility()\"><span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
