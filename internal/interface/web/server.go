@@ -10,9 +10,14 @@ import (
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
+	"github.com/lightninglabs/lndclient"
 
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/handlers"
 )
+
+type pietro struct {
+	svc lndclient.LightningClient
+}
 
 //go:embed static/*
 var static embed.FS
