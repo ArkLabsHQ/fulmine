@@ -89,8 +89,8 @@ templ SettingsGeneralContent(settings types.Settings, nodeStatus, locked bool) {
       <option value="usd">USD ($)</option>
       <option value="eur">EURO (€)</option>
     </select>
-    @components.Label("ASP API root")
-    @components.InputGeneric("apiroot", "", settings.ApiRoot)
+    @components.Label("ASP URL")
+    @components.InputFake(settings.AspUrl)
     @Separator("Network status")
     @StatusNode(nodeStatus)
     @components.Label("Node")

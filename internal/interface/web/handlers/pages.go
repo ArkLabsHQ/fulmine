@@ -114,6 +114,7 @@ func Initialize(c *gin.Context) {
 
 	if _, err := setupFileBasedArkClient(aspurl, mnemonic, password); err == nil {
 		c.Set("arkClient", nil)
+		SaveAspUrlToSettings(aspurl)
 		redirect("/done", c)
 	} else {
 		log.WithError(err).Info("error initializing")

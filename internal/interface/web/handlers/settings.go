@@ -10,6 +10,7 @@ import (
 
 var defaultSettings = types.Settings{
 	ApiRoot:     "https://fulmine.io/api/D9D90N192031",
+	AspUrl:      "http://localhost:7000",
 	Currency:    "usd",
 	EventServer: "http://arklabs.to/node/jupiter29",
 	FullNode:    "http://arklabs.to/node/213908123",
@@ -53,6 +54,15 @@ func WriteSettings(settings types.Settings) error {
 	}
 
 	return os.WriteFile(filePath, data, 0644)
+}
+
+func SaveAspUrlToSettings(aspurl string) error {
+	settings, err := ReadSettings()
+	if err != nil {
+		return err
+	}
+	settings.AspUrl = aspurl
+	return WriteSettings(settings)
 }
 
 func makeDirectoryIfNotExists(path string) error {
