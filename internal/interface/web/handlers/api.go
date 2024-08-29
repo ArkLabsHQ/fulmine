@@ -100,7 +100,7 @@ func NodeDisconnectApiPost(c *gin.Context) {
 	toastHandler(toast, c)
 }
 
-func ValidateMnemonic(c *gin.Context) {
+func ValidateMnemonicApiPost(c *gin.Context) {
 	mnemonic := c.PostForm("mnemonic")
 	isValid := bip39.IsMnemonicValid(mnemonic)
 	data := gin.H{
@@ -109,7 +109,7 @@ func ValidateMnemonic(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
-func Lock(c *gin.Context) {
+func LockApiPost(c *gin.Context) {
 	password := c.PostForm("password")
 	if password == "" {
 		toast := components.Toast("Password can't be empty", true)
@@ -134,7 +134,7 @@ func Lock(c *gin.Context) {
 	redirect("/", c)
 }
 
-func Unlock(c *gin.Context) {
+func UnlockApiPost(c *gin.Context) {
 	password := c.PostForm("password")
 	if password == "" {
 		toast := components.Toast("Password can't be empty", true)

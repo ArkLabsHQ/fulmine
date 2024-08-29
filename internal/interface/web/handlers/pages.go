@@ -129,12 +129,13 @@ func ImportWallet(c *gin.Context) {
 	pageViewHandler(bodyContent, c)
 }
 
-func LockWallet(c *gin.Context) {
+func Lock(c *gin.Context) {
 	bodyContent := pages.Lock()
 	pageViewHandler(bodyContent, c)
 }
 
-func UnlockWallet(c *gin.Context) {
+func Unlock(c *gin.Context) {
+	log.Infof("referer %s", c.Request.Referer())
 	bodyContent := pages.Unlock()
 	pageViewHandler(bodyContent, c)
 }
