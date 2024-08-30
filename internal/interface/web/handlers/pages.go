@@ -81,6 +81,7 @@ func Index(c *gin.Context) {
 			bodyContent = pages.Unlock()
 		} else {
 			onboardSome(c, arkClient) // TODO
+			log.Info(getTxHistory(c))
 			bodyContent = pages.HistoryBodyContent(
 				getSpendableBalance(c),
 				getAddress(c),
