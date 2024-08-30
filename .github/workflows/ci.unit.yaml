@@ -18,6 +18,7 @@ jobs:
       - name: check linting
         uses: golangci/golangci-lint-action@v3
         with:
+          args: '-timeout=300s'
           version: v1.54
       - name: check code integrity
         uses: securego/gosec@master
