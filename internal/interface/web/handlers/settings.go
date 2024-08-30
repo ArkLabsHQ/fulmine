@@ -26,7 +26,9 @@ func ReadSettings() (types.Settings, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			WriteSettings(defaultSettings)
+			if err := WriteSettings(defaultSettings); err != nil {
+				return defaultSettings, err
+			}
 		}
 		return defaultSettings, err
 	}

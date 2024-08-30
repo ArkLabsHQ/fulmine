@@ -15,9 +15,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/handlers"
 )
 
-type pietro struct {
-	svc lndclient.LightningClient
-}
+var TEMPORARY lndclient.LightningClient // TODO
 
 //go:embed static/*
 var static embed.FS

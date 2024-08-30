@@ -66,7 +66,11 @@ func Done(c *gin.Context) {
 }
 
 func Forgot(c *gin.Context) {
-	deleteOldState()
+	if err := deleteOldState(); err != nil {
+		toast := components.Toast("Unable to delete previous wallet", true)
+		toastHandler(toast, c)
+		return
+	}
 	c.Redirect(http.StatusFound, "/welcome")
 }
 
@@ -114,7 +118,11 @@ func Initialize(c *gin.Context) {
 
 	if _, err := setupFileBasedArkClient(aspurl, mnemonic, password); err == nil {
 		c.Set("arkClient", nil)
-		SaveAspUrlToSettings(aspurl)
+		if err := SaveAspUrlToSettings(aspurl); err != nil {
+			toast := components.Toast("Unable to save settings", true)
+			toastHandler(toast, c)
+			return
+		}
 		redirect("/done", c)
 	} else {
 		log.WithError(err).Info("error initializing")
