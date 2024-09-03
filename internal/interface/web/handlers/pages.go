@@ -81,7 +81,9 @@ func Index(c *gin.Context) {
 		if arkClient.IsLocked(c) {
 			bodyContent = pages.Unlock()
 		} else {
-			arkClient.ClaimAsync(c)
+			if _, err := arkClient.ClaimAsync(c); err != nil {
+				log.WithError(err).Info("error claiming")
+			}
 			onboardSome(c, arkClient) // TODO
 			bodyContent = pages.HistoryBodyContent(
 				getSpendableBalance(c),
@@ -188,7 +190,9 @@ func ReceiveSuccess(c *gin.Context) {
 	sats := c.PostForm("sats")
 	partial := pages.ReceiveSuccessContent(offchainAddr, onchainAddr, sats)
 	partialViewHandler(partial, c)
-	arkClient.ClaimAsync(c)
+	if _, err := arkClient.ClaimAsync(c); err != nil {
+		log.WithError(err).Info("error claiming")
+	}
 }
 
 func Send(c *gin.Context) {
