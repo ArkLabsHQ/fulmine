@@ -30,10 +30,10 @@ github.com/angelofallars/htmx-go v0.5.0/go.mod h1:izXk6A+Jllc3vXs1dUvxUJs/jE0wei
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/ark-network/ark/api-spec v0.0.0-20240830123235-c183f992449e h1:0U0ZWaJZk+K8zTmbwde9K3h4kgStPpmhIPx8olTuSb0=
 github.com/ark-network/ark/api-spec v0.0.0-20240830123235-c183f992449e/go.mod h1:m5H86Dx+k8cQjLXeYL1MV+h3x/XnhJCXJP/PL3KgZqY=
-github.com/ark-network/ark/common v0.0.0-20240830153047-e46f2ce392ab h1:SU5dU2JTKBvtw/Ma4n8yclymQmp6NNdeQE2gXB1Ez24=
-github.com/ark-network/ark/common v0.0.0-20240830153047-e46f2ce392ab/go.mod h1:aYAGDfoeBLofnZt9n85wusFyCkrS7hvwdo5TynBlkuY=
-github.com/ark-network/ark/pkg/client-sdk v0.0.0-20240830153047-e46f2ce392ab h1:Yg7eJvIOMjoGgXYTH9pvgJw65+7ReCPQFp/Ib9bFpf8=
-github.com/ark-network/ark/pkg/client-sdk v0.0.0-20240830153047-e46f2ce392ab/go.mod h1:M9k6swUb/soVvC+L++L2cfdAX4O/vl0FKHf9Dyl5Saw=
+github.com/ark-network/ark/common v0.0.0-20240902212412-b5e1ea4d574b h1:SxLeR7dZ2dtN2clcjETRv3bGvzCMZWeB0uAtqHNxlOw=
+github.com/ark-network/ark/common v0.0.0-20240902212412-b5e1ea4d574b/go.mod h1:aYAGDfoeBLofnZt9n85wusFyCkrS7hvwdo5TynBlkuY=
+github.com/ark-network/ark/pkg/client-sdk v0.0.0-20240902212412-b5e1ea4d574b h1:RVtBrYRm3UldzatHaih78Q9lm8bwruXqKaF8Z/nY1sM=
+github.com/ark-network/ark/pkg/client-sdk v0.0.0-20240902212412-b5e1ea4d574b/go.mod h1:M9k6swUb/soVvC+L++L2cfdAX4O/vl0FKHf9Dyl5Saw=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 h1:DklsrG3dyBCFEj5IhUbnKptjxatkF07cF2ak3yi77so=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=

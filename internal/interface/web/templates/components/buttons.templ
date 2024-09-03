@@ -11,6 +11,12 @@ templ ActionButtons(action string, disabled ...bool) {
 			type="submit">
 		  {action}
 		</button>
-	  <button class="bg-graybg md:w-auto" onclick="redirect('/')">Cancel</button>
+	  <button class="bg-graybg md:w-auto" onclick="handleCancel(event)">Cancel</button>
 	</div>
+	<script>
+	  const handleCancel = (event) => {
+			event.preventDefault()
+			redirect('/')
+		}
+	</script>
 }

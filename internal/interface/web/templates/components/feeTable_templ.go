@@ -213,14 +213,14 @@ func FeeTable(sats string, params ...string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if len(params) > 1 {
-			templ_7745c5c3_Err = feeLine("date", params[0]+" "+params[1]).Render(ctx, templ_7745c5c3_Buffer)
+		if len(params) > 0 {
+			templ_7745c5c3_Err = feeLine("date", params[0]).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		if len(params) > 2 {
-			templ_7745c5c3_Err = statusLine(params[2]).Render(ctx, templ_7745c5c3_Buffer)
+		if len(params) > 1 {
+			templ_7745c5c3_Err = statusLine(params[1]).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -253,7 +253,7 @@ func FeeTable(sats string, params ...string) templ.Component {
 	})
 }
 
-func TxTable(sats, date, hour, status string) templ.Component {
+func TxTable(sats, date, status string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -271,7 +271,7 @@ func TxTable(sats, date, hour, status string) templ.Component {
 			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = FeeTable(sats, date, hour, status).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = FeeTable(sats, date, status).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

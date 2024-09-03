@@ -9,7 +9,7 @@ replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-d
 require (
 	github.com/a-h/templ v0.2.771
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20240830153047-e46f2ce392ab
+	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20240902212412-b5e1ea4d574b
 	github.com/gin-gonic/gin v1.10.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0
@@ -35,7 +35,7 @@ require (
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
 	github.com/aead/siphash v1.0.1 // indirect
 	github.com/ark-network/ark/api-spec v0.0.0-20240830123235-c183f992449e // indirect
-	github.com/ark-network/ark/common v0.0.0-20240830153047-e46f2ce392ab // indirect
+	github.com/ark-network/ark/common v0.0.0-20240902212412-b5e1ea4d574b // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.24.2 // indirect

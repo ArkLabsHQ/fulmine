@@ -49,7 +49,7 @@ func ActionButtons(action string, disabled ...bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</button> <button class=\"bg-graybg md:w-auto\" onclick=\"redirect(&#39;/&#39;)\">Cancel</button></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</button> <button class=\"bg-graybg md:w-auto\" onclick=\"handleCancel(event)\">Cancel</button></div><script>\n\t  const handleCancel = (event) => {\n\t\t\tevent.preventDefault()\n\t\t\tredirect('/')\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

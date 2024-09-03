@@ -2,6 +2,7 @@ package pages
 
 import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
 )
 
 func TxIcon(kind, status string) templ.Component {
@@ -83,15 +84,15 @@ templ WaitingTxIcon() {
 	</div>
 }
 
-templ TxBodyContent(txid, kind, status, date, hour, sats string) {
+templ TxBodyContent(tx types.Transaction) {
   @components.DesktopHeader()
 	<div class="p-3 flex flex-col justify-between items-center rounded-md md:bg-desktopbg">
 	  @components.Header("Transaction details")
     <div class="flex flex-col items-center">
-      @TxIcon(kind, status)
-      <p class="mt-4 capitalize">{kind}</p>
-      <p class="mt-4 text-3xl cryptoAmount" sats={sats}>{sats} SATS</p>
+      @TxIcon(tx.Kind, tx.Status)
+      <p class="mt-4 capitalize">{tx.Kind}</p>
+      <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
     </div>
-    @components.TxTable(sats, date, hour, status)
+    @components.TxTable(tx.Amount, tx.Date, tx.Status)
 	</div>
 }

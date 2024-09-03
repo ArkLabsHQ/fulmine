@@ -8,9 +8,12 @@ type PoolTxs struct {
 }
 
 type Transaction struct {
-	Amount   int64  `json:"amount"`
+	Amount   string `json:"amount"`
 	Date     string `json:"date"`
-	Refresh  int64  `json:"refresh,omitempty"`
+	Day      string `json:"day"`
+	Hour     string `json:"hour"`
+	Kind     string `json:"kind"`
+	Status   string `json:"status"`
 	Txid     string `json:"txid"`
 	UnixDate int64  `json:"unixdate"`
 }

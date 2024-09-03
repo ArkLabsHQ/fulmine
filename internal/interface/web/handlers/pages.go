@@ -12,6 +12,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/pages"
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
 
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
@@ -80,12 +81,12 @@ func Index(c *gin.Context) {
 		if arkClient.IsLocked(c) {
 			bodyContent = pages.Unlock()
 		} else {
+			arkClient.ClaimAsync(c)
 			onboardSome(c, arkClient) // TODO
-			log.Info(getTxHistory(c))
 			bodyContent = pages.HistoryBodyContent(
 				getSpendableBalance(c),
 				getAddress(c),
-				getTransactions(),
+				getTxHistory(c),
 				isOnline(c),
 			)
 		}
@@ -178,11 +179,16 @@ func ReceiveQrCode(c *gin.Context) {
 }
 
 func ReceiveSuccess(c *gin.Context) {
+	if redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	arkClient := getArkClient(c)
 	offchainAddr := c.PostForm("offchainAddr")
 	onchainAddr := c.PostForm("onchainAddr")
 	sats := c.PostForm("sats")
 	partial := pages.ReceiveSuccessContent(offchainAddr, onchainAddr, sats)
 	partialViewHandler(partial, c)
+	arkClient.ClaimAsync(c)
 }
 
 func Send(c *gin.Context) {
@@ -249,7 +255,14 @@ func SendConfirm(c *gin.Context) {
 	}
 
 	if isValidArkAddress(address) {
-		txId, err = arkClient.SendOffChain(c, true, receivers)
+		txId, err = arkClient.SendAsync(c, true, receivers)
+		if err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+		// claim possible change vtxo
+		_, err = arkClient.ClaimAsync(c)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
@@ -356,14 +369,14 @@ func SwapPreview(c *gin.Context) {
 
 func Tx(c *gin.Context) {
 	txid := c.Param("txid")
-	var tx []string
-	for _, transaction := range getTransactions() {
-		if transaction[0] == txid {
+	var tx types.Transaction
+	for _, transaction := range getTxHistory(c) {
+		if transaction.Txid == txid {
 			tx = transaction
 			break
 		}
 	}
-	bodyContent := pages.TxBodyContent(tx[0], tx[1], tx[2], tx[3], tx[4], tx[5])
+	bodyContent := pages.TxBodyContent(tx)
 	pageViewHandler(bodyContent, c)
 }
 
