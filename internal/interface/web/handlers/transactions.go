@@ -79,17 +79,19 @@ func getTxHistory(c *gin.Context) (transactions []types.Transaction) {
 			continue
 		}
 		// initialize some vars
-		amount := int64(0)
-		if v.Amount < math.MaxInt64 {
-			amount = int64(v.Amount)
+		amount, err := strconv.ParseInt(strconv.FormatUint(v.Amount, 10), 10, 64) // or else gosec complaints
+		if err != nil {
+			return
 		}
-
-		dateCreated := v.ExpiresAt.Unix() - roundLifetime
 		// find other spent vtxos that spent this one
 		relatedVtxos := findVtxosBySpentBy(spentVtxos, v.Txid)
 		for _, r := range relatedVtxos {
 			if r.Amount < math.MaxInt64 {
-				amount -= int64(r.Amount)
+				rAmount, err := strconv.ParseInt(strconv.FormatUint(r.Amount, 10), 10, 64) // or else gosec complaints
+				if err != nil {
+					return
+				}
+				amount -= rAmount
 			}
 		}
 		// what kind of tx was this? send or receive?
@@ -102,6 +104,8 @@ func getTxHistory(c *gin.Context) (transactions []types.Transaction) {
 		if len(v.RoundTxid) == 0 && len(v.SpentBy) == 0 {
 			status = "pending"
 		}
+		// date created is calculated from expiration date
+		dateCreated := v.ExpiresAt.Unix() - roundLifetime
 		// add transaction
 		transactions = append(transactions, types.Transaction{
 			Amount:   strconv.FormatInt(amount, 10),
