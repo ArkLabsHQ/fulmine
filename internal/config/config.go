@@ -15,7 +15,7 @@ import (
 type Config struct {
 	Port     uint32
 	WithTLS  bool
-	LogLevel int
+	LogLevel int32
 }
 
 var (
@@ -46,7 +46,7 @@ func LoadConfig() (*Config, error) {
 	return &Config{
 		Port:     viper.GetUint32(Port),
 		WithTLS:  viper.GetBool(WithTLS),
-		LogLevel: viper.GetInt(LogLevel),
+		LogLevel: viper.GetInt32(LogLevel),
 	}, nil
 }
 

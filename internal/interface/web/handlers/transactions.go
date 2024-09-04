@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"math"
 	"sort"
 	"strconv"
 	"time"
@@ -78,12 +79,18 @@ func getTxHistory(c *gin.Context) (transactions []types.Transaction) {
 			continue
 		}
 		// initialize some vars
-		amount := int64(v.Amount)
+		amount := int64(0)
+		if v.Amount < math.MaxInt64 {
+			amount = int64(v.Amount)
+		}
+
 		dateCreated := v.ExpiresAt.Unix() - roundLifetime
 		// find other spent vtxos that spent this one
 		relatedVtxos := findVtxosBySpentBy(spentVtxos, v.Txid)
 		for _, r := range relatedVtxos {
-			amount -= int64(r.Amount)
+			if r.Amount < math.MaxInt64 {
+				amount -= int64(r.Amount)
+			}
 		}
 		// what kind of tx was this? send or receive?
 		kind := "recv"
