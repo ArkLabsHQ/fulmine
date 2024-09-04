@@ -27,25 +27,6 @@ func redirectedBecauseWalletIsLocked(c *gin.Context) bool {
 	return redirect
 }
 
-func onboardSome(c *gin.Context, arkClient arksdk.ArkClient) {
-	if arkClient.IsLocked(c) {
-		log.Info("can't onboard, wallet still locked")
-	} else {
-		balance, err := arkClient.Balance(c, true)
-		if err != nil {
-			log.WithError(err).Info("error getting balance")
-			return
-		}
-		if balance.OnchainBalance.SpendableAmount >= 100_000 { // TODO
-			txid, err := arkClient.Onboard(c, 50_000)
-			if err != nil {
-				log.WithError(err).Info("error onboarding")
-			}
-			log.Infof("TxId %s", txid)
-		}
-	}
-}
-
 func pageViewHandler(bodyContent templ.Component, c *gin.Context) {
 	indexTemplate := templates.Layout(bodyContent, getSettings())
 	if err := htmx.NewResponse().RenderTempl(c.Request.Context(), c.Writer, indexTemplate); err != nil {
@@ -81,10 +62,9 @@ func Index(c *gin.Context) {
 		if arkClient.IsLocked(c) {
 			bodyContent = pages.Unlock()
 		} else {
-			if _, err := arkClient.ClaimAsync(c); err != nil {
-				log.WithError(err).Info("error claiming")
-			}
-			onboardSome(c, arkClient) // TODO
+			// if _, err := arkClient.ClaimAsync(c); err != nil {
+			// 	log.WithError(err).Info("error claiming")
+			// }
 			bodyContent = pages.HistoryBodyContent(
 				getSpendableBalance(c),
 				getAddress(c),
@@ -181,18 +161,14 @@ func ReceiveQrCode(c *gin.Context) {
 }
 
 func ReceiveSuccess(c *gin.Context) {
-	if redirectedBecauseWalletIsLocked(c) {
-		return
-	}
-	arkClient := getArkClient(c)
 	offchainAddr := c.PostForm("offchainAddr")
 	onchainAddr := c.PostForm("onchainAddr")
 	sats := c.PostForm("sats")
 	partial := pages.ReceiveSuccessContent(offchainAddr, onchainAddr, sats)
 	partialViewHandler(partial, c)
-	if _, err := arkClient.ClaimAsync(c); err != nil {
-		log.WithError(err).Info("error claiming")
-	}
+	// if _, err := arkClient.ClaimAsync(c); err != nil {
+	// 	log.WithError(err).Info("error claiming")
+	// }
 }
 
 func Send(c *gin.Context) {
@@ -266,12 +242,12 @@ func SendConfirm(c *gin.Context) {
 			return
 		}
 		// claim possible change vtxo
-		_, err = arkClient.ClaimAsync(c)
-		if err != nil {
-			toast := components.Toast(err.Error(), true)
-			toastHandler(toast, c)
-			return
-		}
+		// _, err = arkClient.ClaimAsync(c)
+		// if err != nil {
+		// 	toast := components.Toast(err.Error(), true)
+		// 	toastHandler(toast, c)
+		// 	return
+		// }
 	}
 
 	if isValidBtcAddress(address) {

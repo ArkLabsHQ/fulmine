@@ -90,6 +90,11 @@ func getTxHistory(c *gin.Context) (transactions []types.Transaction) {
 		if amount < 0 {
 			kind = "send"
 		}
+		// check if is a pending tx
+		status := "success"
+		if len(v.RoundTxid) == 0 && len(v.SpentBy) == 0 {
+			status = "pending"
+		}
 		// add transaction
 		transactions = append(transactions, types.Transaction{
 			Amount:   strconv.FormatInt(amount, 10),
@@ -98,7 +103,7 @@ func getTxHistory(c *gin.Context) (transactions []types.Transaction) {
 			Hour:     prettyHour(dateCreated),
 			Kind:     kind,
 			Txid:     v.Txid,
-			Status:   "success",
+			Status:   status,
 			UnixDate: dateCreated,
 		})
 	}

@@ -123,6 +123,7 @@ func NewService() *service {
 	svc.POST("/swap/preview", handlers.SwapPreview)
 	svc.POST("/swap/confirm", handlers.SwapConfirm)
 
+	svc.POST("/api/claim", handlers.ClaimApiPost)
 	svc.POST("/api/lock", handlers.LockApiPost)
 	svc.POST("/api/settings", handlers.SettingsApiPost)
 	svc.POST("/api/node/connect", handlers.NodeConnectApiPost)

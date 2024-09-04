@@ -70,3 +70,7 @@ func redirect(path string, c *gin.Context) {
 	c.Header("HX-Redirect", path)
 	c.Status(303)
 }
+
+func reload(c *gin.Context) {
+	c.Header("HX-Refresh", "true")
+}

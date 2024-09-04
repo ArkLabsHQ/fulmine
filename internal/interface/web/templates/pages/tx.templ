@@ -86,13 +86,24 @@ templ WaitingTxIcon() {
 
 templ TxBodyContent(tx types.Transaction) {
   @components.DesktopHeader()
-	<div class="p-3 flex flex-col justify-between items-center rounded-md md:bg-desktopbg">
-	  @components.Header("Transaction details")
-    <div class="flex flex-col items-center">
-      @TxIcon(tx.Kind, tx.Status)
-      <p class="mt-4 capitalize">{tx.Kind}</p>
-      <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
-    </div>
-    @components.TxTable(tx.Amount, tx.Date, tx.Status)
-	</div>
+  <form hx-post="/api/claim">
+	  <div class="p-3 flex flex-col justify-between rounded-md md:bg-desktopbg">
+	    <div>
+        @components.Header("Transaction details")
+        <div class="hideOnRequest flex flex-col items-center">
+          @TxIcon(tx.Kind, tx.Status)
+          <p class="mt-4 capitalize">{tx.Kind}</p>
+          <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
+          @components.TxTable(tx.Amount, tx.Date, tx.Status)
+        </div>
+        <div class="showOnRequest flex flex-col items-center mt-10 w-full">
+	  	    @components.SpinnerIcon()
+	  	     <p class="mt-10">Claiming...</p>
+	  	  </div>
+      </div>
+      if tx.Status == "pending" {
+        @components.ActionButtons("Claim")
+      }
+	  </div>
+   </form>
 }

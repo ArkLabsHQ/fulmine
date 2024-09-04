@@ -109,6 +109,21 @@ func ValidateMnemonicApiPost(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
+func ClaimApiPost(c *gin.Context) {
+	arkClient := getArkClient(c)
+	if arkClient == nil {
+		toast := components.Toast("Ark client not found", true)
+		toastHandler(toast, c)
+		return
+	}
+	if _, err := arkClient.ClaimAsync(c); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+	reload(c)
+}
+
 func LockApiPost(c *gin.Context) {
 	password := c.PostForm("password")
 	if password == "" {
