@@ -7,12 +7,11 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
-	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
 	"github.com/lightninglabs/lndclient"
 
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/handlers"
+	"github.com/ArkLabsHQ/ark-node/internal/core/application"
 )
 
 var TEMPORARY lndclient.LightningClient // TODO
@@ -58,80 +57,61 @@ func (t *TemplRender) Instance(name string, data interface{}) render.Render {
 
 type service struct {
 	*gin.Engine
+	svc *application.Service
 }
 
-func NewService() *service {
+func NewService(appSvc *application.Service) *service {
 	// Create a new Fiber server.
 	router := gin.Default()
-
-	// global variable with arkClient
-	var arkClient arksdk.ArkClient
-
-	// Middleware to set a variable in the context
-	router.Use(func(c *gin.Context) {
-		// first access, arkClient will be nil
-		if arkClient == nil {
-			arkClient, _ = handlers.LoadArkClient()
-		} else {
-			// if meanwhile /storage/state.json was removed,
-			// loadArkClient will return nil and we want to
-			// reset the main variable arkClient
-			if ac, _ := handlers.LoadArkClient(); ac == nil {
-				arkClient = nil
-			}
-		}
-		c.Set("arkClient", arkClient)
-		c.Next() // Call the next handler
-	})
 
 	// Define HTML renderer for template engine.
 	router.HTMLRender = &TemplRender{}
 	staticFS, _ := fs.Sub(static, "static")
 
-	svc := &service{router}
+	svc := &service{router, appSvc}
 
 	// Handle static files.
 	// svc.Static("/static", "./static")
 	svc.StaticFS("/static", http.FS(staticFS))
 
 	// Handle index page view.
-	svc.GET("/", handlers.Index)
-	svc.GET("/done", handlers.Done)
-	svc.GET("/forgot", handlers.Forgot)
-	svc.GET("/import", handlers.ImportWallet)
-	svc.GET("/lock", handlers.Lock)
-	svc.GET("/modal/feeinfo", handlers.FeeInfoModal)
-	svc.GET("/new", handlers.NewWallet)
-	svc.GET("/receive", handlers.ReceiveQrCode)
-	svc.GET("/receive/edit", handlers.ReceiveEdit)
-	svc.GET("/send", handlers.Send)
-	svc.GET("/settings/:active", handlers.Settings)
-	svc.GET("/swap", handlers.Swap)
-	svc.GET("/swap/:active", handlers.SwapActive)
-	svc.GET("/tx/:txid", handlers.Tx)
-	svc.GET("/unlock", handlers.Unlock)
-	svc.GET("/welcome", handlers.Welcome)
+	svc.GET("/", svc.index)
+	svc.GET("/done", svc.done)
+	svc.GET("/forgot", svc.forgot)
+	svc.GET("/import", svc.importWallet)
+	svc.GET("/lock", svc.lock)
+	svc.GET("/modal/feeinfo", svc.feeInfoModal)
+	svc.GET("/new", svc.newWallet)
+	svc.GET("/receive", svc.receiveQrCode)
+	svc.GET("/receive/edit", svc.receiveEdit)
+	svc.GET("/send", svc.send)
+	svc.GET("/settings/:active", svc.settings)
+	svc.GET("/swap", svc.swap)
+	svc.GET("/swap/:active", svc.swapActive)
+	svc.GET("/tx/:txid", svc.getTx)
+	svc.GET("/unlock", svc.unlock)
+	svc.GET("/welcome", svc.welcome)
 
-	svc.POST("/initialize", handlers.Initialize)
-	svc.POST("/mnemonic", handlers.SetMnemonic)
-	svc.POST("/password", handlers.SetPassword)
+	svc.POST("/initialize", svc.initialize)
+	svc.POST("/mnemonic", svc.setMnemonic)
+	svc.POST("/password", svc.setPassword)
 
-	svc.POST("/receive/preview", handlers.ReceiveQrCode)
-	svc.POST("/receive/success", handlers.ReceiveSuccess)
-	svc.POST("/send/preview", handlers.SendPreview)
-	svc.POST("/send/confirm", handlers.SendConfirm)
-	svc.POST("/swap/preview", handlers.SwapPreview)
-	svc.POST("/swap/confirm", handlers.SwapConfirm)
+	svc.POST("/receive/preview", svc.receiveQrCode)
+	svc.POST("/receive/success", svc.receiveSuccess)
+	svc.POST("/send/preview", svc.sendPreview)
+	svc.POST("/send/confirm", svc.sendConfirm)
+	svc.POST("/swap/preview", svc.swapPreview)
+	svc.POST("/swap/confirm", svc.swapConfirm)
 
-	svc.POST("/api/claim", handlers.ClaimApiPost)
-	svc.POST("/api/lock", handlers.LockApiPost)
-	svc.POST("/api/settings", handlers.SettingsApiPost)
-	svc.POST("/api/node/connect", handlers.NodeConnectApiPost)
-	svc.POST("/api/node/disconnect", handlers.NodeDisconnectApiPost)
-	svc.POST("/api/mnemonic/validate", handlers.ValidateMnemonicApiPost)
-	svc.POST("/api/unlock", handlers.UnlockApiPost)
+	svc.POST("/api/claim", svc.claimApi)
+	svc.POST("/api/lock", svc.lockApi)
+	svc.POST("/api/settings", svc.updateSettingsApi)
+	svc.POST("/api/node/connect", svc.connectNodeApi)
+	svc.POST("/api/node/disconnect", svc.disconnectNodeApi)
+	svc.POST("/api/mnemonic/validate", svc.validateMnemonicApi)
+	svc.POST("/api/unlock", svc.unlockApi)
 
-	svc.GET("/api/balance", handlers.BalanceApiGet)
+	svc.GET("/api/balance", svc.getBalanceApi)
 
 	return svc
 }

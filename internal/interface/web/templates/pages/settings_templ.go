@@ -9,8 +9,8 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
+	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
 )
 
 func Separator(text string) templ.Component {
@@ -306,7 +306,7 @@ func SettingsTabs(active string) templ.Component {
 	})
 }
 
-func SettingsBodyContent(active string, settings types.Settings, nodeStatus, locked bool) templ.Component {
+func SettingsBodyContent(active string, settings domain.Settings, nodeStatus, locked bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -366,7 +366,7 @@ func SettingsBodyContent(active string, settings types.Settings, nodeStatus, loc
 	})
 }
 
-func SettingsGeneralContent(settings types.Settings, nodeStatus, locked bool) templ.Component {
+func SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -504,7 +504,7 @@ func SettingsGeneralContent(settings types.Settings, nodeStatus, locked bool) te
 	})
 }
 
-func SettingsASPContent(settings types.Settings) templ.Component {
+func SettingsASPContent(settings domain.Settings) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -603,7 +603,7 @@ func SettingsASPContent(settings types.Settings) templ.Component {
 	})
 }
 
-func SettingsLightningContent(settings types.Settings, nodeStatus bool) templ.Component {
+func SettingsLightningContent(settings domain.Settings, nodeStatus bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)

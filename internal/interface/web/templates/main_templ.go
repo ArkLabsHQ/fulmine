@@ -8,7 +8,7 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
+import "github.com/ArkLabsHQ/ark-node/internal/core/domain"
 
 // in order for tailwind to detect this classes, this javascript code
 // needs to be inside a .templ file, which means this script code
@@ -51,7 +51,7 @@ func runOnLoad() templ.ComponentScript {
 	}
 }
 
-func Layout(bodyContent templ.Component, settings types.Settings) templ.Component {
+func Layout(bodyContent templ.Component, settings domain.Settings) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)

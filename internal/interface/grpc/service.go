@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
+	"github.com/ArkLabsHQ/ark-node/internal/core/application"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/grpc/handlers"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/grpc/interceptors"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web"
@@ -24,10 +25,11 @@ import (
 
 type service struct {
 	cfg    Config
+	appSvc *application.Service
 	server *http.Server
 }
 
-func NewService(cfg Config) (*service, error) {
+func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %s", err)
 	}
@@ -98,7 +100,7 @@ func NewService(cfg Config) (*service, error) {
 	}
 	grpcGateway := http.Handler(gwmux)
 
-	feHandler := web.NewService()
+	feHandler := web.NewService(appSvc)
 
 	handler := router(grpcServer, grpcGateway)
 	mux := http.NewServeMux()
@@ -117,7 +119,7 @@ func NewService(cfg Config) (*service, error) {
 		TLSConfig: cfg.tlsConfig(),
 	}
 
-	return &service{cfg, server}, nil
+	return &service{cfg, appSvc, server}, nil
 }
 
 func (s *service) Start() error {

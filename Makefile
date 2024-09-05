@@ -39,7 +39,8 @@ lint:
 ## run: run in dev mode
 run: clean
 	@echo "Running ark-node in dev mode..."
-	@go run ./cmd/ark-node
+	@export ARK_NODE_PORT=7090; \
+	go run ./cmd/ark-node
 
 ## test: runs unit and component tests
 test:

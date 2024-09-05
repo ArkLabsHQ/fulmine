@@ -1,6 +1,6 @@
 package templates
 
-import "github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
+import "github.com/ArkLabsHQ/ark-node/internal/core/domain"
 
 // in order for tailwind to detect this classes, this javascript code
 // needs to be inside a .templ file, which means this script code
@@ -31,7 +31,7 @@ script runOnLoad() {
 	if (settings.unit !== "sat") toggleUnit()
 }
 
-templ Layout(bodyContent templ.Component, settings types.Settings) {
+templ Layout(bodyContent templ.Component, settings domain.Settings) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>

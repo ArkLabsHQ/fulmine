@@ -2,7 +2,7 @@ package pages
 
 import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
+	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
 )
 
 templ Separator(text string) {
@@ -55,7 +55,7 @@ templ SettingsTabs(active string) {
   </div>
 }
 
-templ SettingsBodyContent(active string, settings types.Settings, nodeStatus, locked bool) {
+templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, locked bool) {
   @components.DesktopHeader()
 	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div>
@@ -74,7 +74,7 @@ templ SettingsBodyContent(active string, settings types.Settings, nodeStatus, lo
   </div>
 }
 
-templ SettingsGeneralContent(settings types.Settings, nodeStatus, locked bool) {
+templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) {
   <form hx-post="/api/settings" hx-trigger="change">
     @Separator("Wallet")
     @StatusLock(locked)
@@ -126,7 +126,7 @@ templ SettingsGeneralContent(settings types.Settings, nodeStatus, locked bool) {
   </form>
 }
 
-templ SettingsASPContent(settings types.Settings) {
+templ SettingsASPContent(settings domain.Settings) {
   <form hx-post="/api/settings" hx-trigger="change">
     @Separator("Link")
     @components.Label("ASP Link")
@@ -151,7 +151,7 @@ templ SettingsASPContent(settings types.Settings) {
   </form>
 }
 
-templ SettingsLightningContent(settings types.Settings, nodeStatus bool) {
+templ SettingsLightningContent(settings domain.Settings, nodeStatus bool) {
   <form hx-post="/api/settings" hx-trigger="change">
     @Separator("Status")
     @StatusNode(nodeStatus)
