@@ -59,14 +59,14 @@ func reload(c *gin.Context) {
 
 func toastHandler(t templ.Component, c *gin.Context) {
 	if !htmx.IsHTMX(c.Request) {
-		//nolint:all
+		// nolint:all
 		c.AbortWithError(http.StatusBadRequest, errors.New("non-htmx request"))
 		return
 	}
 	htmx.NewResponse().
 		Retarget("#toast").
 		AddTrigger(htmx.Trigger("toast")).
-		//nolint:all
+		// nolint:all
 		RenderTempl(c, c.Writer, t)
 }
 
@@ -79,11 +79,11 @@ func partialViewHandler(bodyContent templ.Component, c *gin.Context) {
 
 func modalHandler(t templ.Component, c *gin.Context) {
 	if !htmx.IsHTMX(c.Request) {
-		//nolint:all
+		// nolint:all
 		c.AbortWithError(http.StatusBadRequest, fmt.Errorf("non-htmx request"))
 		return
 	}
-	//nolint:all
+	// nolint:all
 	htmx.NewResponse().RenderTempl(c, c.Writer, t)
 }
 

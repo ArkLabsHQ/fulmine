@@ -14,7 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//nolint:all
+// nolint:all
 var (
 	version = "dev"
 	commit  = "none"

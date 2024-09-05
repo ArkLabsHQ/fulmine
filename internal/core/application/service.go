@@ -46,7 +46,7 @@ func NewService(
 	}
 	arkClient, err := arksdk.NewCovenantlessClient(storeSvc)
 	if err != nil {
-		//nolint:all
+		// nolint:all
 		settingsRepo.CleanSettings(ctx)
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (s *Service) Setup(ctx context.Context, aspURL, password, mnemonic string) 
 		Password:   password,
 		Seed:       privateKey,
 	}); err != nil {
-		//nolint:all
+		// nolint:all
 		s.settingsRepo.UpdateSettings(ctx, domain.Settings{AspUrl: ""})
 		return err
 	}
@@ -96,7 +96,7 @@ func (s *Service) Reset(ctx context.Context) error {
 		return err
 	}
 	if err := s.storeRepo.CleanData(ctx); err != nil {
-		//nolint:all
+		// nolint:all
 		s.settingsRepo.AddSettings(ctx, *backup)
 		return err
 	}

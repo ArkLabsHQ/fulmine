@@ -133,6 +133,7 @@ func (s *service) receiveQrCode(c *gin.Context) {
 
 	offchainAddr, onchainAddr, err := s.svc.Receive(c)
 	if err != nil {
+		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -157,6 +158,7 @@ func (s *service) send(c *gin.Context) {
 	}
 	spendableBalance, err := s.getSpendableBalance(c)
 	if err != nil {
+		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -295,6 +297,7 @@ func (s *service) setPassword(c *gin.Context) {
 func (s *service) settings(c *gin.Context) {
 	settings, err := s.svc.GetSettings(c)
 	if err != nil {
+		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -313,6 +316,7 @@ func (s *service) swap(c *gin.Context) {
 	}
 	spendableBalance, err := s.getSpendableBalance(c)
 	if err != nil {
+		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -329,6 +333,7 @@ func (s *service) swapActive(c *gin.Context) {
 	} else {
 		spendableBalance, err := s.getSpendableBalance(c)
 		if err != nil {
+			// nolint:all
 			c.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
@@ -344,6 +349,7 @@ func (s *service) swapConfirm(c *gin.Context) {
 	}
 	data, err := s.svc.GetConfigData(c)
 	if err != nil {
+		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -369,6 +375,7 @@ func (s *service) swapPreview(c *gin.Context) {
 func (s *service) getTx(c *gin.Context) {
 	txHistory, err := s.getTxHistory(c)
 	if err != nil {
+		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -508,6 +515,7 @@ func (s *service) redirectedBecauseWalletIsLocked(c *gin.Context) bool {
 func (s *service) pageViewHandler(bodyContent templ.Component, c *gin.Context) {
 	settings, err := s.svc.GetSettings(c)
 	if err != nil {
+		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}

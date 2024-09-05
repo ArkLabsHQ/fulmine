@@ -14,6 +14,7 @@ import (
 func (s *service) getBalanceApi(c *gin.Context) {
 	balance, err := s.svc.Balance(c, true)
 	if err != nil {
+		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -24,7 +25,6 @@ func (s *service) getBalanceApi(c *gin.Context) {
 		"total":    balance.OffchainBalance.Total + balance.OnchainBalance.SpendableAmount,
 	}
 	c.JSON(http.StatusOK, data)
-	return
 }
 
 func (s *service) updateSettingsApi(c *gin.Context) {
