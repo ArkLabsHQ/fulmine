@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"math"
 	"net/http"
 	"sort"
@@ -400,8 +401,12 @@ func (s *service) getSpendableBalance(c *gin.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	onchainBalance := balance.OnchainBalance.SpendableAmount
+	for _, amount := range balance.OnchainBalance.LockedAmount {
+		onchainBalance += amount.Amount
+	}
 	return strconv.FormatUint(
-		balance.OffchainBalance.Total+balance.OnchainBalance.SpendableAmount, 10,
+		balance.OffchainBalance.Total+onchainBalance, 10,
 	), nil
 }
 
@@ -412,10 +417,17 @@ func (s *service) getNodeBalance() string {
 func (s *service) getTxHistory(
 	c *gin.Context,
 ) (transactions []types.Transaction, err error) {
+	pendingBoardingTxs, _, err := s.getBoardingTxs(c)
+	if err != nil {
+		return
+	}
+
 	spendableVtxos, spentVtxos, err := s.svc.ListVtxos(c)
 	if err != nil {
 		return
 	}
+
+	transactions = append(transactions, pendingBoardingTxs...)
 
 	log.Info("spendableVtxos")
 	for _, v := range spendableVtxos {
@@ -495,6 +507,23 @@ func (s *service) getTxHistory(
 	})
 
 	return
+}
+
+func (s *service) getBoardingTxs(ctx context.Context) ([]types.Transaction, []types.Transaction, error) {
+	data, err := s.svc.GetConfigData(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	_, onchainAddr, err := s.svc.Receive(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	txs, err := getOnchainTxs(data.Network.Name, onchainAddr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return txs, []types.Transaction{}, nil
 }
 
 func (s *service) redirectedBecauseWalletIsLocked(c *gin.Context) bool {

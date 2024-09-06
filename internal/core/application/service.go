@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
@@ -39,10 +38,12 @@ func NewService(
 	}
 
 	ctx := context.Background()
-	if err := settingsRepo.AddSettings(
-		ctx, defaultSettings,
-	); err != nil {
-		return nil, err
+	if _, err := settingsRepo.GetSettings(ctx); err != nil {
+		if err := settingsRepo.AddSettings(
+			ctx, defaultSettings,
+		); err != nil {
+			return nil, err
+		}
 	}
 	arkClient, err := arksdk.NewCovenantlessClient(storeSvc)
 	if err != nil {
@@ -59,7 +60,6 @@ func (s *Service) IsReady() bool {
 }
 
 func (s *Service) Setup(ctx context.Context, aspURL, password, mnemonic string) error {
-	fmt.Println(aspURL, password, mnemonic)
 	if err := s.settingsRepo.UpdateSettings(
 		ctx, domain.Settings{AspUrl: aspURL},
 	); err != nil {
@@ -105,7 +105,6 @@ func (s *Service) Reset(ctx context.Context) error {
 
 func (s *Service) GetSettings(ctx context.Context) (*domain.Settings, error) {
 	sett, err := s.settingsRepo.GetSettings(ctx)
-	fmt.Printf("%+v\n", sett)
 	return sett, err
 }
 

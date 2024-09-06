@@ -1,12 +1,16 @@
 package web
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
@@ -21,7 +25,7 @@ func getExplorerUrl(network string) string {
 	case "bitcoin":
 		return "https://mempool.space"
 	case "signet":
-		return "https://mutinynet.com/"
+		return "https://mutinynet.com"
 	case "liquidtestnet":
 		return "https://liquid.network/testnet"
 	case "liquidregtest":
@@ -108,4 +112,64 @@ func findVtxosBySpentBy(allVtxos []client.Vtxo, txid string) (vtxos []client.Vtx
 		}
 	}
 	return
+}
+
+func getOnchainTxs(network, addr string) ([]types.Transaction, error) {
+	url := getExplorerUrl(network)
+
+	switch network {
+	case "regtest":
+		url = "http://localhost:3000"
+	case "liquidregtest":
+		url = "http://localhost:3001"
+	default:
+		url += "/api"
+	}
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/address/%s/utxo", url, addr), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	type utxo struct {
+		Txid   string `json:"txid"`
+		Vout   int    `json:"vout"`
+		Amount int    `json:"value"`
+		Status struct {
+			Blocktime int64 `json:"blocktime"`
+		} `json:"status,omitempty"`
+	}
+
+	var utxos []utxo
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(body, &utxos); err != nil {
+		return nil, err
+	}
+
+	txs := make([]types.Transaction, 0, len(utxos))
+	for _, utxo := range utxos {
+		date := time.Now().Unix()
+		if utxo.Status.Blocktime > 0 {
+			date = utxo.Status.Blocktime
+		}
+		txs = append(txs, types.Transaction{
+			Txid:     utxo.Txid,
+			Date:     prettyUnixTimestamp(date),
+			Day:      prettyDay(date),
+			Hour:     prettyHour(date),
+			Amount:   strconv.Itoa(utxo.Amount),
+			Kind:     "recv",
+			UnixDate: date,
+			Status:   "pending",
+		})
+	}
+	return txs, nil
 }

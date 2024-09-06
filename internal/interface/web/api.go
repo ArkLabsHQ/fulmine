@@ -1,7 +1,6 @@
 package web
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
@@ -19,10 +18,14 @@ func (s *service) getBalanceApi(c *gin.Context) {
 		return
 	}
 
+	onchainBalance := balance.OnchainBalance.SpendableAmount
+	for _, amount := range balance.OnchainBalance.LockedAmount {
+		onchainBalance += amount.Amount
+	}
 	data := gin.H{
 		"offchain": balance.OffchainBalance.Total,
-		"onchain":  balance.OnchainBalance.SpendableAmount,
-		"total":    balance.OffchainBalance.Total + balance.OnchainBalance.SpendableAmount,
+		"onchain":  onchainBalance,
+		"total":    balance.OffchainBalance.Total + onchainBalance,
 	}
 	c.JSON(http.StatusOK, data)
 }
@@ -119,7 +122,7 @@ func (s *service) unlockApi(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	fmt.Println("AAAAA", password, "BBBBBBB")
+
 	if err := s.svc.Unlock(c, password); err != nil {
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
