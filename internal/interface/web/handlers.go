@@ -228,13 +228,6 @@ func (s *service) sendConfirm(c *gin.Context) {
 			toastHandler(toast, c)
 			return
 		}
-		// claim possible change vtxo
-		// _, err = arkClient.ClaimAsync(c)
-		// if err != nil {
-		// 	toast := components.Toast(err.Error(), true)
-		// 	toastHandler(toast, c)
-		// 	return
-		// }
 	}
 
 	if isValidBtcAddress(address) {
