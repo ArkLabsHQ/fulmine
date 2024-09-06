@@ -87,7 +87,7 @@ func (s *service) validateMnemonicApi(c *gin.Context) {
 }
 
 func (s *service) claimApi(c *gin.Context) {
-	if _, err := s.svc.ClaimAsync(c); err != nil {
+	if _, err := s.svc.Claim(c); err != nil {
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
 		return
