@@ -64,6 +64,6 @@ func isValidArkAddress(address string) bool {
 }
 
 func isValidBtcAddress(address string) bool {
-	var re = regexp.MustCompile(`^(bc|tb|[13])[a-zA-Z0-9]{25,45}$`)
+	var re = regexp.MustCompile(`^(bc|tb|[13])[a-zA-Z0-9]{25,62}$`)
 	return re.MatchString(address)
 }
