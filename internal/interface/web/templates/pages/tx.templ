@@ -87,7 +87,7 @@ templ WaitingTxIcon() {
 templ TxBodyContent(tx types.Transaction) {
   @components.DesktopHeader()
   <form hx-post="/api/claim">
-	  <div class="p-3 flex flex-col justify-between rounded-md md:bg-desktopbg">
+	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	    <div>
         @components.Header("Transaction details")
         <div class="hideOnRequest flex flex-col items-center">
