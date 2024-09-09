@@ -460,7 +460,7 @@ func (s *service) getTxHistory(
 		if !v.Pending {
 			continue
 		}
-		// initialize some vars
+		// get vtxo amount
 		amount, err := strconv.ParseInt(strconv.FormatUint(v.Amount, 10), 10, 64) // or else gosec complaints
 		if err != nil {
 			return nil, err
@@ -497,6 +497,37 @@ func (s *service) getTxHistory(
 			Kind:     kind,
 			Txid:     v.Txid,
 			Status:   status,
+			UnixDate: dateCreated,
+		})
+	}
+
+	// find onboarding tx
+	for _, v := range append(spendableVtxos, spentVtxos...) {
+		// ignore pending tx
+		if v.Pending {
+			continue
+		}
+		// an onbording tx has pending false and no pending true related
+		relatedVtxos := findVtxosBySpentBy(spentVtxos, v.RoundTxid)
+		if len(relatedVtxos) > 0 {
+			continue
+		}
+		// parse amount
+		amount, err := strconv.ParseInt(strconv.FormatUint(v.Amount, 10), 10, 64) // or else gosec complaints
+		if err != nil {
+			return nil, err
+		}
+		// date created is calculated from expiration date
+		dateCreated := v.ExpiresAt.Unix() - roundLifetime
+		// add transaction
+		transactions = append(transactions, types.Transaction{
+			Amount:   strconv.FormatInt(amount, 10),
+			Date:     prettyUnixTimestamp(dateCreated),
+			Day:      prettyDay(dateCreated),
+			Hour:     prettyHour(dateCreated),
+			Kind:     "recv", // onboard tx are always a receive tx
+			Txid:     v.Txid,
+			Status:   "success",
 			UnixDate: dateCreated,
 		})
 	}
