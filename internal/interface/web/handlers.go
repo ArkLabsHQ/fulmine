@@ -456,27 +456,30 @@ func (s *service) getTxHistory(
 	roundLifetime := int64(604672) // TODO
 
 	for _, v := range append(spendableVtxos, spentVtxos...) {
-		// ignore not pending tx
-		if !v.Pending {
-			continue
-		}
 		// get vtxo amount
 		amount, err := strconv.ParseInt(strconv.FormatUint(v.Amount, 10), 10, 64) // or else gosec complaints
 		if err != nil {
 			return nil, err
 		}
-		// find other spent vtxos that spent this one
-		relatedVtxos := findVtxosBySpentBy(spentVtxos, v.Txid)
-		for _, r := range relatedVtxos {
-			if r.Amount < math.MaxInt64 {
-				rAmount, err := strconv.ParseInt(strconv.FormatUint(r.Amount, 10), 10, 64) // or else gosec complaints
-				if err != nil {
-					return nil, err
+		if v.Pending {
+			// find other spent vtxos that spent this one
+			relatedVtxos := findVtxosBySpentBy(spentVtxos, v.Txid)
+			for _, r := range relatedVtxos {
+				if r.Amount < math.MaxInt64 {
+					rAmount, err := strconv.ParseInt(strconv.FormatUint(r.Amount, 10), 10, 64) // or else gosec complaints
+					if err != nil {
+						return nil, err
+					}
+					amount -= rAmount
 				}
-				amount -= rAmount
 			}
-		}
-		// what kind of tx was this? send or receive?
+		} else {
+			// an onboarding tx has pending false and no pending true related txs
+			relatedVtxos := findVtxosBySpentBy(spentVtxos, v.RoundTxid)
+			if len(relatedVtxos) > 0 { // not an onboard tx, ignore
+				continue
+			}
+		} // what kind of tx was this? send or receive?
 		kind := "recv"
 		if amount < 0 {
 			kind = "send"
@@ -501,40 +504,14 @@ func (s *service) getTxHistory(
 		})
 	}
 
-	// find onboarding tx
-	for _, v := range append(spendableVtxos, spentVtxos...) {
-		// ignore pending tx
-		if v.Pending {
-			continue
-		}
-		// an onbording tx has pending false and no pending true related
-		relatedVtxos := findVtxosBySpentBy(spentVtxos, v.RoundTxid)
-		if len(relatedVtxos) > 0 {
-			continue
-		}
-		// parse amount
-		amount, err := strconv.ParseInt(strconv.FormatUint(v.Amount, 10), 10, 64) // or else gosec complaints
-		if err != nil {
-			return nil, err
-		}
-		// date created is calculated from expiration date
-		dateCreated := v.ExpiresAt.Unix() - roundLifetime
-		// add transaction
-		transactions = append(transactions, types.Transaction{
-			Amount:   strconv.FormatInt(amount, 10),
-			Date:     prettyUnixTimestamp(dateCreated),
-			Day:      prettyDay(dateCreated),
-			Hour:     prettyHour(dateCreated),
-			Kind:     "recv", // onboard tx are always a receive tx
-			Txid:     v.Txid,
-			Status:   "success",
-			UnixDate: dateCreated,
-		})
-	}
-
 	// Sort the slice by age
 	sort.Slice(transactions, func(i, j int) bool {
-		return transactions[i].UnixDate > transactions[j].UnixDate
+		txi := transactions[i]
+		txj := transactions[j]
+		if txi.UnixDate == txj.UnixDate {
+			return txi.Kind > txj.Kind
+		}
+		return txi.UnixDate > txj.UnixDate
 	})
 
 	return
