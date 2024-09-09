@@ -28,7 +28,7 @@ script runOnLoad() {
 	})
 
 	const settings = JSON.parse(document.querySelector('#settings').textContent)
-	if (settings.unit !== "sat") toggleUnit()
+	if (settings.Unit !== "sat") toggleUnit()
 }
 
 templ Layout(bodyContent templ.Component, settings domain.Settings) {
@@ -168,8 +168,8 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				document.querySelectorAll('.cryptoAmount').forEach((x) => {
           const sats = parseInt(x.getAttribute('sats'))
 	      	if (isNaN(sats)) return
-	      	const suffix = settings.unit === 'sat' ? 'SATS' : 'BTC'
-          const cryptoValue = settings.unit === 'sat' ? sats : fromSatoshis(sats)
+	      	const suffix = settings.Unit === 'sat' ? 'SATS' : 'BTC'
+          const cryptoValue = settings.Unit === 'sat' ? sats : fromSatoshis(sats)
           x.innerHTML = `${prettyNum(cryptoValue, 8)} ${suffix}`
         })
 			}
@@ -183,8 +183,8 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
             document.querySelectorAll('.fiatAmount').forEach((x) => {
               const sats = parseInt(x.getAttribute('sats'))
 	      			if (isNaN(sats)) return
-	      			const prefix = settings.currency === 'eur' ? '€' : '$'
-              const fiatValue = (sats * json.pricefeed[settings.currency]) / 100_000_000
+	      			const prefix = settings.Currency === 'eur' ? '€' : '$'
+              const fiatValue = (sats * json.pricefeed[settings.Currency]) / 100_000_000
               x.innerHTML = `${prefix} ${prettyNum(fiatValue)}`
             })
           })
