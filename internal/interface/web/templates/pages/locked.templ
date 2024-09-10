@@ -4,8 +4,8 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
-templ Locked() {
-  <form hx-post="/unlock">
+templ lockPage(kind string) {
+  <form hx-post={"/api/" + kind}>
     <div class="bg-radial-gradient h-screen fullscreen">
       <div class="flex flex-col h-screen justify-between md:h-auto md:gap-10 w-80 m-auto p-3">
         <div>
@@ -15,15 +15,35 @@ templ Locked() {
           </div>
           <div>
             @components.Label("Password")
-	          <input
-	            class="text-black w-full border-0 p-4 rounded-md unframed"
-	          	name="password"
-              type="password"
-	          />
+            <div class="flex justify-between items-center gap-4 bg-white border-0 p-2 rounded-lg text-black w-full">
+              <input 
+                autocomplete="current-password"
+                class="bg-white border-0 w-full eyeopener"
+                name="password"
+                type="password"
+              />
+              <p class="eyes" onclick="togglePasswordVisibility()">
+                <span>@components.EyeOpenIcon()</span>
+                <span style="display: none">@components.EyeCloseIcon()</span>
+              </p>
+            </div>
+            if kind == "unlock" {
+              <p class="text-right mt-2 cursor-pointer" hx-on:click="redirect('/forgot')">Forgot password?</p>
+            }
           </div>
         </div>
-        <button class="bg-white text-black mt-10" type="submit">Unlock</button>
+        <button class="bg-white ee text-black mt-10 capitalize" hx-on:click="disableButton(this)" type="submit">
+          {kind}
+        </button>
       </div>
     </div>
   </form>
+}
+
+templ Lock() {
+  @lockPage("lock")
+}
+
+templ Unlock() {
+  @lockPage("unlock")
 }

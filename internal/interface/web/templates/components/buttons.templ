@@ -1,8 +1,22 @@
 package components
 
-templ ActionButtons(action string) {
-  <div class="flex flex-col md:flex-row-reverse justify-start gap-4 mt-4 mb-2">
-	  <button class="bg-orange md:w-auto" type="submit">{action}</button>
-	  <button class="bg-graybg md:w-auto" onclick="redirect('/')">Cancel</button>
+templ ActionButtons(action string, disabled ...bool) {
+  <div class="flex flex-col md:flex-row-reverse justify-start gap-4 mt-10 mb-2">
+	  <button
+		  class="bg-orange md:w-auto"
+			if len(disabled) > 0 {
+				disabled
+			}
+			onclick="disableButton(this)"
+			type="submit">
+		  {action}
+		</button>
+	  <button class="bg-graybg md:w-auto" onclick="handleCancel(event)">Cancel</button>
 	</div>
+	<script>
+	  const handleCancel = (event) => {
+			event.preventDefault()
+			redirect('/')
+		}
+	</script>
 }

@@ -8,38 +8,41 @@ templ ReceiveAmount() {
   @InputAmount("")
 }
 
+script updateSats() {
+	const unit = document.querySelector('#unit').innerText
+	const amount = document.querySelector('#amount').value
+	const sats = unit === 'SATS' ? amount : toSatoshis(amount)
+  document.querySelector('#sats').value = sats
+  document.querySelector('#fiat').setAttribute('sats', sats)
+	updateFiatValues()	  
+}
+
 templ InputAmount(max string) {
   @Label("Amount")
-  <div class="bg-graybg px-4 py-3 flex items-center justify-between rounded-lg">
-    <input class="hidden" id="sats" name="sats" />
+  <div class="border border-1 border-white/20 bg-graybg px-4 py-3 flex items-center justify-between rounded-lg">
+    <input type="hidden" id="sats" name="sats" />
 	  <input
 	    class="bg-graybg border-0 p-0"
 	    id="amount"
       if (len(max) > 0) {
 	      max={max}
       }
-	    onchange="updateSats()"
-	    placeholder="5000"
+	    onchange={updateSats()}
+			type="number"
 		/>
 		<div class="flex items-center gap-2">
-      if (len(max) > 0) {
-        <p class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer" onclick="setMaxValue()">MAX</p>
-      }
 		  <p class="py-1 w-10 text-center" id="unit">SATS</p>
 		  <p class="cursor-pointer" onclick="toggleUnit()">@ChevronDownIcon()</p>
 		</div>
 	</div>
 	<div class="flex justify-between w-full text-sm text-white/50 mt-2">
-	  <p id="usd" class="usd">$</p>
-    if (len(max) > 0) {
-      <p id="available">Available <span class="sats">{max}</span> SATS</p>
-    }
+	  <p id="fiat" class="fiatAmount">&nbsp;</p>
 	</div>
 }
 
 templ InputAddress() {
-  @Label("Address")
-	<div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
+  @Label("To")
+	<div class="border border-1 border-white/20 bg-graybg p-4 flex items-center justify-between rounded-lg">
 	  <input
 		  class="bg-graybg border-0 p-0 mr-4"
 			id="address"
@@ -52,7 +55,7 @@ templ InputAddress() {
 	<script>
 	  const handleAddressChange = () => {
 			const addr = document.querySelector('#address').value
-			const asAmount = addr.match(/amount:(\d+)/)
+			const asAmount = addr.match(/amount=(\d+)/)
 			if (asAmount) updateAmount(asAmount[1])
 		}
 	  const updateAmount = (sats) => {
@@ -73,7 +76,7 @@ templ InputAddress() {
 }
 
 templ InputGeneric(id, placeholder, value string) {
-  <div class="bg-graybg p-4 rounded-md">
+  <div class="border border-1 border-white/20 bg-graybg p-4 rounded-lg">
 	  <input
 		  class="bg-graybg border-0 p-0 mr-4"
 			id={id}
@@ -89,7 +92,7 @@ script smartPaste(id string) {
 }
 
 templ InputWithPaste(id, placeholder, value string) {
-  <div class="bg-graybg p-4 flex items-center justify-between rounded-lg">
+  <div class="border border-1 border-white/20 bg-graybg p-4 flex items-center justify-between rounded-lg">
 	  <input
 		  class="bg-graybg border-0 p-0 mr-4"
 			id={id}
@@ -102,7 +105,7 @@ templ InputWithPaste(id, placeholder, value string) {
 }
 
 templ InputFake(text string) {
-  <div class="border border-1 border-white/20 bg-graybg p-4 rounded-md">
+  <div class="border border-1 border-white/20 bg-graybg p-4 rounded-lg">
 	  <p class="truncate text-white/50">{text}</p>
 	</div>
 }

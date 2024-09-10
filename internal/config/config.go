@@ -13,9 +13,10 @@ import (
 )
 
 type Config struct {
+	Datadir  string
 	Port     uint32
 	WithTLS  bool
-	LogLevel int
+	LogLevel uint32
 }
 
 var (
@@ -44,9 +45,10 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &Config{
+		Datadir:  viper.GetString(Datadir),
 		Port:     viper.GetUint32(Port),
 		WithTLS:  viper.GetBool(WithTLS),
-		LogLevel: viper.GetInt(LogLevel),
+		LogLevel: viper.GetUint32(LogLevel),
 	}, nil
 }
 

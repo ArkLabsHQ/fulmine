@@ -38,12 +38,15 @@ input {
   border: none;
   color: #fbfbfb80;
   width: 100%;
+  &.bg-white {
+    color: #010101;
+  }
   &:focus,
   &[type='text']:focus,
   &[type='password']:focus {
     border: none;
     box-shadow: none;
-    color: #fbfbfb;
+    color: currentColor;
     outline: none;
   }
 }
@@ -83,6 +86,7 @@ div:has(> input:not(.hidden):not(.unframed):focus) {
 
 #toast {
   display: flex;
+  max-width: 720px;
   position: fixed;
   top: 50px;
   width: 100%;
@@ -119,7 +123,8 @@ button:hover {
   border-color: #bc3f20;
 }
 
-button:disabled {
+button:disabled,
+button.disabled {
   opacity: 0.5;
 }
 
@@ -138,4 +143,13 @@ label {
     #f28c52 0%,
     #9c3b1c 100%
   );
+}
+
+.showOnRequest,
+.htmx-request .hideOnRequest {
+  display: none;
+}
+
+.htmx-request .showOnRequest {
+  display: flex;
 }

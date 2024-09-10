@@ -26,58 +26,57 @@ templ SuccessIcon() {
 templ SendBodyContent(currentBalance string) {
 	@components.DesktopHeader()
 	<div id="sendBody">
-	  <form hx-post="/send/preview" hx-target="#sendBody" hx-swap="outerHTML">
-	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+	  <form hx-post="/send/preview" hx-target="#sendBody">
+	    <input id="balance" type="hidden" value={ currentBalance } />
+	    <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	      <div>
 	        @components.Header("Send")
+					@components.BalanceWithMax(components.ArkBalanceIcon(), currentBalance)
 					@components.InputAddress()
 					@components.SendAmount(currentBalance)
 	    	</div>
-	    	@components.ActionButtons("Preview send")
+	    	@components.ActionButtons("Preview send", true)
 	    </div>
 	  </form>
 	</div>
+	<script>
+	  const canProceed = () => {
+			const address = document.querySelector('#address').value
+			const amount = document.querySelector('#amount').value
+			const button = document.querySelector('button[type="submit"]')
+			const balance = parseInt(document.querySelector('#balance').value)
+			const sats = parseInt(document.querySelector('#sats').value)
+			button.disabled = address.length === 0 || amount.length === 0 || sats > balance
+			button.innerText = sats > balance ? 'Not enough funds' : 'Preview send'
+		}
+	  document.querySelector('#address').addEventListener('change', canProceed)
+	  document.querySelector('#amount').addEventListener('change', canProceed)
+	</script>
 }
 
-templ SendFeesComponent(sats string) {
-	<div class="border border-white/20 p-4 w-full mt-4 rounded-lg">
-    @TxLine("network fee", "500")
-    <div class="flex justify-between mb-2">
-      <div class="flex items-center gap-2 text-white/50">
-        <p>ARK FEE</p>
-        <p hx-get="/modal/info" hx-target="#modal">@components.InfoIcon()</p>
-      </div>
-      <p>0.5%</p>
-    </div>
-    @TxLine("est. time", "~10 min.")
-    <hr class="text-white/20 mb-2" />
-    <div class="flex justify-between mb-2">
-      <p class="text-white/50">TOTAL</p>
-      <p><span class="sats">{sats}</span> SATS</p>
-    </div>
-  </div>
-}
-
-templ SendPreviewContent(address, amount string) {
+templ SendPreviewContent(address, sats string) {
 	<div id="sendBody">
 	  <form hx-post="/send/confirm" hx-target="#sendBody" hx-target="outerHTML">
 		  <input type="hidden" name="address" value={address}>
-		  <input type="hidden" name="amount" value={amount}>
-	    <div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+		  <input type="hidden" name="sats" value={sats}>
+	    <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	      <div class="flex flex-col items-center">
 	        @components.Header("Confirm Send")
-	        @SendPreviewIcon()
-					<p class="mt-4">Send</p>
-					<p class="mt-4 text-3xl">
-					  <span class="sats">{amount}</span>
-						<span class="text-white/50">SATS</span>
-					</p>
-					<div class="flex mt-4 w-64 gap-2">
-					  <p class="text-white/50">to</p>
-						<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
-						<p class="text-white/50">@components.CopyIcon()</p>
+					<div class="showOnRequest flex flex-col items-center mt-10 w-full">
+				    @components.SpinnerIcon()
+					   <p class="mt-10">Sending...</p>
 					</div>
-					@SendFeesComponent(amount)
+					<div class="hideOnRequest flex flex-col items-center w-full">
+	          @SendPreviewIcon()
+					  <p class="mt-4">Send</p>
+					  <p class="mt-4 text-3xl cryptoAmount" sats={sats}>{sats} SATS</p>
+					  <div class="flex mt-4 w-64 gap-2">
+					    <p class="text-white/50">to</p>
+					  	<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
+					  	<p class="text-white/50">@components.CopyIcon()</p>
+					  </div>
+					  @components.FeeTable(sats)
+					</div>
 	    	</div>
 	    	@components.ActionButtons("Confirm")
 	    </div>
@@ -85,16 +84,17 @@ templ SendPreviewContent(address, amount string) {
 	</div>
 }
 
-templ SendSuccessContent(address, amount string) {
-	<div class="p-3 flex flex-col justify-between rounded-md h-screen md:h-auto md:bg-desktopbg">
+script openInExplorer(txid, explorerUrl string) {
+	window.open(`${explorerUrl}/tx/${txid}`, '_blank') 
+}
+
+templ SendSuccessContent(address, amount, txid, explorerUrl string) {
+	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div class="flex flex-col items-center">
 		  @components.Header("Sent")
 	    @SuccessIcon()
 			<p class="mt-8">Sent successfully</p>
-			<p class="mt-8 text-3xl">
-			  <span class="sats">{amount}</span>
-				<span class="text-white/50">SATS</span>
-			</p>
+			<p class="mt-8 text-3xl cryptoAmount" sats={amount}>{amount} SATS</p>
 			<div class="flex mt-8 w-64 gap-2">
 			  <p class="text-white/50">to</p>
 				<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
@@ -102,7 +102,7 @@ templ SendSuccessContent(address, amount string) {
 			</div>
 		</div>
 		<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
-	    <button class="bg-graybg md:w-auto" onclick="window.open('https://mempool.space', '_blank')">View transaction</button>
+	    <button class="bg-graybg md:w-auto" onclick={openInExplorer(txid, explorerUrl)}>View transaction</button>
 		</div>
 	</div>
 }

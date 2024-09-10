@@ -1,5 +1,7 @@
 package templates
 
+import "github.com/ArkLabsHQ/ark-node/internal/core/domain"
+
 // in order for tailwind to detect this classes, this javascript code
 // needs to be inside a .templ file, which means this script code
 // must be here, cannot be on /assets/script.js
@@ -17,7 +19,19 @@ script PagesScript() {
   }
 }
 
-templ Layout(bodyContent templ.Component) {
+script runOnLoad() {
+	updateFiatValues()
+	//
+	document.querySelectorAll('select').forEach((x) => {
+		// hack, or else select will not have current value selected
+		if (x.getAttribute('value')) x.value = x.getAttribute('value')
+	})
+
+	const settings = JSON.parse(document.querySelector('#settings').textContent)
+	if (settings.Unit !== "sat") toggleUnit()
+}
+
+templ Layout(bodyContent templ.Component, settings domain.Settings) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -42,7 +56,8 @@ templ Layout(bodyContent templ.Component) {
 			<link rel="icon" href="/static/favicon.png" sizes="any"/>
 			<link href="/static/styles.css" rel="stylesheet"/>
 		</head>
-		<body onload={ PagesScript() }>
+		<body onload={ runOnLoad() }>
+		  @templ.JSONScript("settings", settings)
 			<div id="app">
         <div id="toast"></div>
 	      <div id="modal"></div>
@@ -52,15 +67,28 @@ templ Layout(bodyContent templ.Component) {
 			<script src="/static/scripts.js"></script>
 		</body>
 		<script>
+		  const toastTimeout = 2100
+
+		  const disableButton = (button) => {
+				button.classList.add("disabled")
+      }
+
+			// re enable buttons after receiving a htmx:load event
+			const enableButtons = () => {
+				document.querySelectorAll('.disabled').forEach((x) => {
+					x.classList.remove('disabled')
+        })
+			}
+
       const prettyNum = (num, maximumFractionDigits = 2) => {
-        if (!num) return '0'
+				if (!num) return '0'
         return new Intl.NumberFormat('en', {
           style: 'decimal',
           maximumFractionDigits,
         }).format(num)
       }
 
-      const fromSatoshis = (sats) => {
+      const fromSatoshis = (sats ) => {
         return Decimal.div(sats, 100_000_000).toNumber()
       }
 
@@ -89,19 +117,6 @@ templ Layout(bodyContent templ.Component) {
         }
 		  }
 
-      const updateFiatValues = () => {
-        fetch('https://btcoracle.bordalix.workers.dev/').then((res) => {
-          res.json().then((json) => {
-            document.querySelectorAll('.usd').forEach((x) => {
-              const sats = parseInt(x.getAttribute('sats'))
-              if (isNaN(sats)) return
-              const usd = (sats * json.pricefeed.usd) / 100_000_000
-              x.innerHTML = `$ ${prettyNum(usd)}`
-            })
-          })
-        })
-      }
-
       const setMaxValue = (val = 0) => {
 		  	const sats = val || document.querySelector('#amount').getAttribute('max')
         if (isNaN(sats)) return
@@ -111,50 +126,83 @@ templ Layout(bodyContent templ.Component) {
 				document.querySelector('#amount').dispatchEvent(new Event('change'))
 		  }
   
+	    // change between btc and sat
 		  const toggleUnit = () => {
-		  	const currUnit = document.querySelector('#unit').innerText
+				const unit = document.querySelector('#unit')
+				if (!unit) return
+		  	const currUnit = unit.innerText
 		  	const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
 		  	// change unit
-		  	document.querySelector('#unit').innerText = nextUnit
+		  	if (unit) unit.innerText = nextUnit
 		  	// change availability
-		  	const maxSats = document.querySelector('#amount').getAttribute('max')
-		  	document.querySelector('#available').innerText =
-		  	  `Available ${nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats)} ${nextUnit}`
-		  	// change value inside input
+				const available = document.querySelector('#available')
+				if (available) {
+					const maxSats = document.querySelector('#amount').getAttribute('max')
+				  const num = !maxSats ? 0 : (nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats))
+				  available.innerText = `Available ${num} ${nextUnit}`
+				}
+			  // change value inside input
 		  	const currVal = document.querySelector('#amount').value
-		  	if (currVal) {
-		  		const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
+				if (currVal) {
+					const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
 		  		document.querySelector('#amount').value = nextVal
 		  	}
+				// change steps
+				document.querySelector('#amount').step = nextUnit === 'SATS' ? "" : "0.00000001"
 		  }
+
+      // hide/show input password visibility
+      const togglePasswordVisibility = () => {
+        document.querySelectorAll(".eyes span").forEach((el) => {
+          el.style.display = el.style.display === 'none' ? 'block' : 'none'
+        })
+        document.querySelectorAll(".eyeopener").forEach((el) => {
+          el.type = el.type === 'text' ? 'password' : 'text'
+        })
+      }
+
+      // this function finds every crypto amount in the dom and make it use
+			// the preferred unit choosen in settings: sats or btc
+			const updateCryptoValues = () => {
+				const settings = JSON.parse(document.querySelector('#settings').textContent)
+				document.querySelectorAll('.cryptoAmount').forEach((x) => {
+          const sats = parseInt(x.getAttribute('sats'))
+	      	if (isNaN(sats)) return
+	      	const suffix = settings.Unit === 'sat' ? 'SATS' : 'BTC'
+          const cryptoValue = settings.Unit === 'sat' ? sats : fromSatoshis(sats)
+          x.innerHTML = `${prettyNum(cryptoValue, 8)} ${suffix}`
+        })
+			}
   
-		  const updateSats = () => {
-		  	const unit = document.querySelector('#unit').innerText
-		  	const amount = document.querySelector('#amount').value
-		  	const sats = unit === 'SATS' ? amount : toSatoshis(amount)
-        document.querySelector('#sats').value = sats
-        document.querySelector('#usd').setAttribute('sats', sats)
-		  	updateFiatValues()
-		  }
+			// this function finds every fiat amount in the dom and checks live
+			// rate of the preferred currency choosen in setttings: usd or euro
+			const updateFiatValues = () => {
+				const settings = JSON.parse(document.querySelector('#settings').textContent)
+				fetch('https://btcoracle.bordalix.workers.dev/').then((res) => {
+          res.json().then((json) => {
+            document.querySelectorAll('.fiatAmount').forEach((x) => {
+              const sats = parseInt(x.getAttribute('sats'))
+	      			if (isNaN(sats)) return
+	      			const prefix = settings.Currency === 'eur' ? '€' : '$'
+              const fiatValue = (sats * json.pricefeed[settings.Currency]) / 100_000_000
+              x.innerHTML = `${prefix} ${prettyNum(fiatValue)}`
+            })
+          })
+        })
+			}
+
+			const notImplemented = (event) => {
+				event.preventDefault()
+				document.querySelector("#toast").innerHTML = '<p class="border border-1 border border-red/20 bg-errorbg capitalize text-red px-2 py-1 rounded-md mx-auto">Not implemented</p>'
+				setTimeout(() => document.querySelector("#toast").innerHTML = "", toastTimeout)
+			}
 
       document.addEventListener('htmx:load', () => {
-        document.querySelectorAll('.sats').forEach((x) => {
-          if (isNaN(x.textContent)) return
-          x.innerHTML = prettyNum(x.textContent)
-        })
-
-        document.querySelectorAll('.btc').forEach((x) => {
-          if (isNaN(x.textContent)) return
-          x.innerHTML = fromSatoshis(x.textContent)
-        })
-
-        document.querySelectorAll('.btcm').forEach((x) => {
-          const sats = x.textContent
-          x.innerHTML = (sats.charAt(0) === '+' ? '+' : '') + fromSatoshis(sats)
-        })
-
+        enableButtons()
         updateFiatValues()
+				updateCryptoValues()
 
+        // pass along query parameter with aspurl
 				const url = new URL(window.location.href)
 			  const params = new URLSearchParams(url.search);
 			  const aspurl = params.get('aspurl')
@@ -164,8 +212,9 @@ templ Layout(bodyContent templ.Component) {
 				}
       })
 
+      // after receiving a toast, delete it after 2 seconds
       document.body.addEventListener("toast", (e) => {
-        setTimeout(() => document.querySelector("#toast").innerHTML = "", 2000)
+        setTimeout(() => document.querySelector("#toast").innerHTML = "", toastTimeout)
       })
 		</script>
 	</html>

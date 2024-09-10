@@ -6,12 +6,15 @@ import (
 	"syscall"
 
 	"github.com/ArkLabsHQ/ark-node/internal/config"
+	"github.com/ArkLabsHQ/ark-node/internal/core/application"
+	badgerdb "github.com/ArkLabsHQ/ark-node/internal/infrastructure/db/badger"
 	grpcservice "github.com/ArkLabsHQ/ark-node/internal/interface/grpc"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
+	filestore "github.com/ark-network/ark/pkg/client-sdk/store/file"
 	log "github.com/sirupsen/logrus"
 )
 
-//nolint:all
+// nolint:all
 var (
 	version = "dev"
 	commit  = "none"
@@ -37,7 +40,20 @@ func main() {
 		WithTLS: cfg.WithTLS,
 	}
 
-	svc, err := grpcservice.NewService(svcConfig)
+	storeSvc, err := filestore.NewConfigStore(cfg.Datadir)
+	if err != nil {
+		log.WithError(err).Fatal(err)
+	}
+	settingsRepo, err := badgerdb.NewSettingsRepo(cfg.Datadir, log.New())
+	if err != nil {
+		log.WithError(err).Fatal(err)
+	}
+	appSvc, err := application.NewService(storeSvc, settingsRepo)
+	if err != nil {
+		log.WithError(err).Fatal(err)
+	}
+
+	svc, err := grpcservice.NewService(svcConfig, appSvc)
 	if err != nil {
 		log.Fatal(err)
 	}

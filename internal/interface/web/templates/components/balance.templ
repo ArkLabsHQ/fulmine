@@ -1,0 +1,24 @@
+package components
+
+script setMax(sats string) {
+  setMaxValue(sats)
+}
+
+templ BalanceWithMax(icon templ.Component, sats string) {
+  <div class="flex justify-between items-center">
+    <div class="flex items-center gap-4">
+      <p>@icon</p>
+  		<div>
+  		  <p class="text-sm text-white/50">Available</p>
+  			<p class="cryptoAmount" sats={sats}>{sats} SATS</p>
+  		</div>
+  	</div>
+    <p
+  	  class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer"
+  		onclick={setMax(sats)}
+  		sats={sats}
+  		kind="outbound">
+  		MAX
+  	</p>
+  </div>
+}

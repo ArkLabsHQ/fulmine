@@ -4,6 +4,10 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
+script OpenX() {
+  window.open('https://x.com/ArkLabsHQ/', '_blank');
+}
+
 templ DoneBodyContent() {
   <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	  <div class="flex flex-col items-center mt-24 md:mt-0">
@@ -14,10 +18,13 @@ templ DoneBodyContent() {
         <p class="text-center">
           You may start sending and receiving Bitcoin transactions faster and more private on Ark Node.
         </p>
-        <p class="bg-white/10 flex items-center p-3 text-center justify-center w-full">
+        <button
+          class="bg-white/10 flex items-center p-3 text-center justify-center w-full"
+          onclick="window.open('https://x.com/ArkLabsHQ/', '_blank')"
+        >
           @components.TwitterIcon()
           Follow us on X
-        </p>
+        </button>
       </div>
     </div>
 	 	<button class="bg-orange text-white" onclick="redirect('/')">Let's go</button>
