@@ -1,5 +1,5 @@
 # First image used to build the sources
-FROM golang:1.22 AS builder
+FROM golang:1.23.1 AS builder
 
 ARG VERSION
 ARG COMMIT
@@ -14,7 +14,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-X 'main.Version=${VERSION}' -X 'main.Commit=${COMMIT}' -X 'main.Date=${DATE}}'" -o bin/ark-node cmd/ark-node/main.go
 
 # Second image, running the arkd executable
-FROM alpine:3.12
+FROM alpine:3.20
 
 WORKDIR /app
 
