@@ -13,13 +13,13 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: '>1.17.2'
+          go-version: '>1.23.1'
       - uses: actions/checkout@v3
       - name: check linting
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v6
         with:
           args: '--timeout=300s'
-          version: v1.54
+          version: v1.61
       - name: check code integrity
         uses: securego/gosec@master
         with:
