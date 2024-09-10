@@ -1,19 +1,14 @@
 package web
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
-	"github.com/ark-network/ark/pkg/client-sdk/client"
 	"github.com/gin-gonic/gin"
 	"github.com/tyler-smith/go-bip39"
 )
@@ -103,73 +98,4 @@ func prettyDay(unixTime int64) string {
 
 func prettyHour(unixTime int64) string {
 	return time.Unix(unixTime, 0).Format("15:04")
-}
-
-func findVtxosBySpentBy(allVtxos []client.Vtxo, txid string) (vtxos []client.Vtxo) {
-	for _, v := range allVtxos {
-		if v.SpentBy == txid {
-			vtxos = append(vtxos, v)
-		}
-	}
-	return
-}
-
-func getOnchainTxs(network, addr string) ([]types.Transaction, error) {
-	url := getExplorerUrl(network)
-
-	switch network {
-	case "regtest":
-		url = "http://localhost:3000"
-	case "liquidregtest":
-		url = "http://localhost:3001"
-	default:
-		url += "/api"
-	}
-
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/address/%s/utxo", url, addr), nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	type utxo struct {
-		Txid   string `json:"txid"`
-		Vout   int    `json:"vout"`
-		Amount int    `json:"value"`
-		Status struct {
-			Blocktime int64 `json:"blocktime"`
-		} `json:"status,omitempty"`
-	}
-
-	var utxos []utxo
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(body, &utxos); err != nil {
-		return nil, err
-	}
-
-	txs := make([]types.Transaction, 0, len(utxos))
-	for _, utxo := range utxos {
-		date := time.Now().Unix()
-		if utxo.Status.Blocktime > 0 {
-			date = utxo.Status.Blocktime
-		}
-		txs = append(txs, types.Transaction{
-			Txid:     utxo.Txid,
-			Date:     prettyUnixTimestamp(date),
-			Day:      prettyDay(date),
-			Hour:     prettyHour(date),
-			Amount:   strconv.Itoa(utxo.Amount),
-			Kind:     "recv",
-			UnixDate: date,
-			Status:   "pending",
-		})
-	}
-	return txs, nil
 }

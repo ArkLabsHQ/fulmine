@@ -21,9 +21,9 @@ func HistoryIcon(kind, status string) templ.Component {
 		return WaitingIcon()
 	}
 	switch kind {
-	case "recv":
+	case "received":
 		return ReceivedIcon()
-	case "send":
+	case "sent":
 		return SentIcon()
 	case "swap":
 		return SwapIcon()
@@ -266,8 +266,8 @@ func HistoryLine(tx types.Transaction) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 = []any{
-			templ.KV("text-red", (tx.Status == "success" || tx.Status == "failure") && tx.Kind == "send"),
-			templ.KV("text-green", (tx.Status == "success" || tx.Status == "failure") && tx.Kind == "recv"),
+			templ.KV("text-red", (tx.Status == "success" || tx.Status == "failure") && tx.Kind == "sent"),
+			templ.KV("text-green", (tx.Status == "success" || tx.Status == "failure") && tx.Kind == "received"),
 			templ.KV("text-yellow", tx.Status == "pending" || tx.Status == "waiting"),
 		}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var10...)

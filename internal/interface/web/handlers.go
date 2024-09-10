@@ -1,10 +1,7 @@
 package web
 
 import (
-	"context"
-	"math"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -56,7 +53,7 @@ func (s *service) index(c *gin.Context) {
 			if err != nil {
 				log.WithError(err).Warn("failed to get tx history")
 			}
-
+			s.logVtxos(c) // TODO: remove
 			bodyContent = pages.HistoryBodyContent(
 				spendableBalance, offchainAddr, txHistory, isOnline,
 			)
@@ -414,20 +411,11 @@ func (s *service) getNodeBalance() string {
 	return "50640" // TODO
 }
 
-func (s *service) getTxHistory(
-	c *gin.Context,
-) (transactions []types.Transaction, err error) {
-	pendingBoardingTxs, _, err := s.getBoardingTxs(c)
-	if err != nil {
-		return
-	}
-
+func (s *service) logVtxos(c *gin.Context) {
 	spendableVtxos, spentVtxos, err := s.svc.ListVtxos(c)
 	if err != nil {
 		return
 	}
-
-	transactions = append(transactions, pendingBoardingTxs...)
 
 	log.Info("spendableVtxos")
 	for _, v := range spendableVtxos {
@@ -452,86 +440,48 @@ func (s *service) getTxHistory(
 		log.Infof("SpentBy %v", v.SpentBy)
 		log.Info("---------")
 	}
+}
 
-	roundLifetime := int64(604672) // TODO
-
-	for _, v := range append(spendableVtxos, spentVtxos...) {
-		// get vtxo amount
-		amount, err := strconv.ParseInt(strconv.FormatUint(v.Amount, 10), 10, 64) // or else gosec complaints
-		if err != nil {
-			return nil, err
+func (s *service) getTxHistory(
+	c *gin.Context,
+) (transactions []types.Transaction, err error) {
+	// get tx history from ASP
+	history, err := s.svc.GetTransactionHistory(c)
+	if err != nil {
+		return nil, err
+	}
+	// transform each arksdk.Transaction to types.Transaction
+	for _, tx := range history {
+		// amount
+		amount := strconv.FormatUint(tx.Amount, 10)
+		if tx.Type == arksdk.TxSent {
+			amount = "-" + amount
 		}
-		if v.Pending {
-			// find other spent vtxos that spent this one
-			relatedVtxos := findVtxosBySpentBy(spentVtxos, v.Txid)
-			for _, r := range relatedVtxos {
-				if r.Amount < math.MaxInt64 {
-					rAmount, err := strconv.ParseInt(strconv.FormatUint(r.Amount, 10), 10, 64) // or else gosec complaints
-					if err != nil {
-						return nil, err
-					}
-					amount -= rAmount
-				}
-			}
-		} else {
-			// an onboarding tx has pending false and no pending true related txs
-			relatedVtxos := findVtxosBySpentBy(spentVtxos, v.RoundTxid)
-			if len(relatedVtxos) > 0 { // not an onboard tx, ignore
-				continue
-			}
-		} // what kind of tx was this? send or receive?
-		kind := "recv"
-		if amount < 0 {
-			kind = "send"
-		}
-		// check if is a pending tx
+		// date of creation
+		dateCreated := tx.CreatedAt.Unix()
+		// status of tx
 		status := "success"
-		if len(v.RoundTxid) == 0 && len(v.SpentBy) == 0 {
+		if tx.Pending {
 			status = "pending"
 		}
-		// date created is calculated from expiration date
-		dateCreated := v.ExpiresAt.Unix() - roundLifetime
-		// add transaction
+		// get one txid
+		txid := tx.RoundTxid
+		if len(txid) == 0 {
+			txid = tx.RedeemTxid
+		}
+		// add to slice of transactions
 		transactions = append(transactions, types.Transaction{
-			Amount:   strconv.FormatInt(amount, 10),
+			Amount:   amount,
 			Date:     prettyUnixTimestamp(dateCreated),
 			Day:      prettyDay(dateCreated),
 			Hour:     prettyHour(dateCreated),
-			Kind:     kind,
-			Txid:     v.Txid,
+			Kind:     string(tx.Type),
+			Txid:     txid,
 			Status:   status,
 			UnixDate: dateCreated,
 		})
 	}
-
-	// Sort the slice by age
-	sort.Slice(transactions, func(i, j int) bool {
-		txi := transactions[i]
-		txj := transactions[j]
-		if txi.UnixDate == txj.UnixDate {
-			return txi.Kind > txj.Kind
-		}
-		return txi.UnixDate > txj.UnixDate
-	})
-
 	return
-}
-
-func (s *service) getBoardingTxs(ctx context.Context) ([]types.Transaction, []types.Transaction, error) {
-	data, err := s.svc.GetConfigData(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	_, onchainAddr, err := s.svc.Receive(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	txs, err := getOnchainTxs(data.Network.Name, onchainAddr)
-	if err != nil {
-		return nil, nil, err
-	}
-	return txs, []types.Transaction{}, nil
 }
 
 func (s *service) redirectedBecauseWalletIsLocked(c *gin.Context) bool {

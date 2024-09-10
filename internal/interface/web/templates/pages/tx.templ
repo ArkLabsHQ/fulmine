@@ -15,9 +15,9 @@ func TxIcon(kind, status string) templ.Component {
         return WaitingTxIcon()
   }
 	switch kind {
-    case "recv":
+    case "received":
         return RecvTxIcon()
-    case "send":
+    case "sent":
         return SentTxIcon()
     case "swap":
         return SwapTxIcon()
