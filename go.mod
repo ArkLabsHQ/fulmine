@@ -7,7 +7,7 @@ replace github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v
 replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-display v1.30.0-hex-display
 
 require (
-	github.com/a-h/templ v0.2.771
+	github.com/a-h/templ v0.2.778
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20240910122729-a8cf0ed204cd
 	github.com/dgraph-io/badger/v4 v4.3.0
