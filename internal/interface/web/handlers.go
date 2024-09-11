@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
@@ -464,10 +465,18 @@ func (s *service) getTxHistory(
 		if tx.Pending {
 			status = "pending"
 		}
+		emptyTime := time.Time{}
+		if tx.CreatedAt == emptyTime {
+			status = "unconfirmed"
+			dateCreated = 0
+		}
 		// get one txid
 		txid := tx.RoundTxid
 		if len(txid) == 0 {
 			txid = tx.RedeemTxid
+		}
+		if len(txid) == 0 {
+			txid = tx.BoardingTxid
 		}
 		// add to slice of transactions
 		transactions = append(transactions, types.Transaction{

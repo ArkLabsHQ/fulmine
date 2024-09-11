@@ -93,9 +93,15 @@ func prettyUnixTimestamp(unixTime int64) string {
 }
 
 func prettyDay(unixTime int64) string {
+	if unixTime == 0 {
+		return "0"
+	}
 	return time.Unix(unixTime, 0).Format("02/01/2006")
 }
 
 func prettyHour(unixTime int64) string {
+	if unixTime == 0 {
+		return "0"
+	}
 	return time.Unix(unixTime, 0).Format("15:04")
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
 	badgerdb "github.com/ArkLabsHQ/ark-node/internal/infrastructure/db/badger"
 	grpcservice "github.com/ArkLabsHQ/ark-node/internal/interface/grpc"
-	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	filestore "github.com/ark-network/ark/pkg/client-sdk/store/file"
 	log "github.com/sirupsen/logrus"
 )
@@ -33,7 +32,6 @@ func main() {
 	// Initialize the ARK SDK
 
 	log.Info("starting ark-node...")
-	log.Infof("dust: %d", arksdk.DUST)
 
 	svcConfig := grpcservice.Config{
 		Port:    cfg.Port,

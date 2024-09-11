@@ -32,7 +32,9 @@ templ statusLine(status string) {
       <p class="text-yellow">Pending for claim</p>
     } else if status == "waiting" {
       <p class="text-yellow">Waiting</p>
-    } else {
+    } else if status == "unconfirmed" {
+      <p class="text-yellow">Unconfirmed</p>
+    }else {
       <p>Unknown</p>
     }
   </div>

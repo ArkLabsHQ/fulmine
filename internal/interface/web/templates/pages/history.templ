@@ -77,26 +77,34 @@ templ WaitingIcon() {
 templ HistoryLine(tx types.Transaction) {
 	<div txid={tx.Txid} onclick="showTx(this)">
 	  <div class="flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10" >
-	  	<div class="flex">
+	  	<div class="flex w-64">
 	  	  @HistoryIcon(tx.Kind, tx.Status)
-	  	  <p class="leading-4">{tx.Day}<br /><span class="text-white/50">{tx.Hour}</span></p>
+				if tx.UnixDate != 0 {
+	  	    <p class="leading-4">{tx.Day}<br /><span class="text-white/50">{tx.Hour}</span></p>
+				}
 	  	</div>
 			if tx.Status == "pending" {
 				<div class="flex items-center">
 				  <p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
 				</div>
 			}
-			if tx.Status == "failure" {
+			if tx.Status == "failed" {
 				<div class="flex items-center">
 				  <p class="bg-red/20 px-2 py-1 rounded-md text-sm text-red">Failed</p>
 				</div>
 			}
-	  	<div>
-	  	  <p class="leading-4 text-end">
+			if tx.Status == "unconfirmed" {
+				<div class="flex items-center">
+				  <p class="bg-white/20 px-2 py-1 rounded-md text-sm text-white">Unconfirmed</p>
+				</div>
+			}
+	  	<div class="flex w-64">
+	  	  <p class="leading-4 text-end w-full">
 	  		  <span class={
-						templ.KV("text-red", (tx.Status == "success" || tx.Status == "failure") && tx.Kind == "sent"),
-						templ.KV("text-green", (tx.Status == "success" || tx.Status == "failure") && tx.Kind == "received"),
-						templ.KV("text-yellow", tx.Status == "pending" || tx.Status == "waiting"),
+						templ.KV("text-red", tx.Status != "pending" && tx.Kind == "sent"),
+						templ.KV("text-green", tx.Status != "pending" && tx.Kind == "received"),
+						templ.KV("text-yellow", tx.Status == "pending"),
+						templ.KV("text-white", tx.Status == "unconfirmed"),
 					}>
 	  			  <span class="cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</span>
 	  			</span>
