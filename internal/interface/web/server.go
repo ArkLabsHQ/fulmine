@@ -9,12 +9,9 @@ import (
 	"github.com/a-h/templ"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
-	"github.com/lightninglabs/lndclient"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
 )
-
-var TEMPORARY lndclient.LightningClient // TODO
 
 //go:embed static/*
 var static embed.FS
