@@ -37,6 +37,7 @@ type Service struct {
 	arksdk.ArkClient
 	storeRepo    store.ConfigStore
 	settingsRepo domain.SettingsRepository
+	grpcClient   client.ASPClient
 
 	isReady bool
 }
@@ -46,7 +47,17 @@ func NewService(
 	storeSvc store.ConfigStore, settingsRepo domain.SettingsRepository,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
-		return &Service{buildInfo, arkClient, storeSvc, settingsRepo, true}, nil
+		data, err := arkClient.GetConfigData(context.Background())
+		if err != nil {
+			return nil, err
+		}
+		client, err := grpcclient.NewClient(data.AspUrl)
+		if err != nil {
+			return nil, err
+		}
+		return &Service{
+			buildInfo, arkClient, storeSvc, settingsRepo, client, true,
+		}, nil
 	}
 
 	ctx := context.Background()
@@ -64,21 +75,35 @@ func NewService(
 		return nil, err
 	}
 
-	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, false}, nil
+	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, nil, false}, nil
 }
 
 func (s *Service) IsReady() bool {
 	return s.isReady
 }
 
-func (s *Service) Setup(ctx context.Context, aspURL, password, mnemonic string) error {
+func (s *Service) Setup(
+	ctx context.Context, aspURL, password, mnemonic string,
+) (err error) {
 	if err := s.settingsRepo.UpdateSettings(
 		ctx, domain.Settings{AspUrl: aspURL},
 	); err != nil {
 		return err
 	}
 
+	defer func() {
+		if err != nil {
+			// nolint:all
+			s.settingsRepo.UpdateSettings(ctx, domain.Settings{AspUrl: ""})
+		}
+	}()
+
 	privateKey, err := privateKeyFromMnemonic(mnemonic)
+	if err != nil {
+		return err
+	}
+
+	client, err := grpcclient.NewClient(aspURL)
 	if err != nil {
 		return err
 	}
@@ -90,11 +115,10 @@ func (s *Service) Setup(ctx context.Context, aspURL, password, mnemonic string) 
 		Password:   password,
 		Seed:       privateKey,
 	}); err != nil {
-		// nolint:all
-		s.settingsRepo.UpdateSettings(ctx, domain.Settings{AspUrl: ""})
 		return err
 	}
 
+	s.grpcClient = client
 	s.isReady = true
 	return nil
 }
@@ -161,15 +185,7 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 }
 
 func (s *Service) GetRound(ctx context.Context, roundId string) (*client.Round, error) {
-	data, err := s.GetConfigData(ctx)
-	if err != nil {
-		return nil, err
-	}
-	client, err := grpcclient.NewClient(data.AspUrl)
-	if err != nil {
-		return nil, err
-	}
-	return client.GetRoundByID(ctx, roundId)
+	return s.grpcClient.GetRoundByID(ctx, roundId)
 }
 
 func privateKeyFromMnemonic(mnemonic string) (string, error) {
