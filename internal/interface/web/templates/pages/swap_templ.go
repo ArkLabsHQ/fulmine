@@ -127,9 +127,9 @@ func SwapTab(kind string, icon templ.Component, active bool) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs("/swap/" + kind)
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs("/app/swap/" + kind)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 31, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/swap.templ`, Line: 31, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -267,7 +267,7 @@ func SwapBodyContent(currentBalance, nodeBalance string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"swapBody\"><form hx-post=\"/swap/preview\" hx-target=\"#swapBody\" hx-target=\"outerHTML\"><div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\"><div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"swapBody\"><form hx-post=\"/app/swap/preview\" hx-target=\"#swapBody\" hx-target=\"outerHTML\"><div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\"><div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -414,7 +414,7 @@ func SwapPreviewContent(kind, sats string) templ.Component {
 			templ_7745c5c3_Var18 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"swapBody\"><form hx-post=\"/swap/confirm\" hx-target=\"#swapBody\" hx-target=\"outerHTML\"><input type=\"hidden\" name=\"sats\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"swapBody\"><form hx-post=\"/app/swap/confirm\" hx-target=\"#swapBody\" hx-target=\"outerHTML\"><input type=\"hidden\" name=\"sats\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
