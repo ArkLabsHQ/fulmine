@@ -1,6 +1,8 @@
 package templates
 
-import "github.com/ArkLabsHQ/ark-node/internal/core/domain"
+import (
+	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
+)
 
 // in order for tailwind to detect this classes, this javascript code
 // needs to be inside a .templ file, which means this script code
@@ -100,7 +102,7 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				const url = new URL(window.location.href)
 				const params = new URLSearchParams(url.search);
 				const aspurl = params.get('aspurl')
-				window.location.href = path + (aspurl ? `/?aspurl=${aspurl}` : '')
+				window.location.href = '/app' + path + (aspurl ? `/?aspurl=${aspurl}` : '')
 			}
 
       const copyToClipboard = (id) => {

@@ -28,7 +28,7 @@ templ SwapTab(kind string, icon templ.Component, active bool) {
   <div
 	  id={kind}
 	  class={"flex", "rounded-lg", templ.KV("bg-white", active), templ.KV("text-black", active)}
-		hx-get={"/swap/" + kind}
+		hx-get={"/app/swap/" + kind}
 		hx-target="#swapPartial">
     <p class="px-3 py-2.5 flex items-center gap-2 mx-auto cursor-pointer">
 	    @icon
@@ -54,7 +54,7 @@ templ SwapPartialContent(active, balance string) {
 templ SwapBodyContent(currentBalance, nodeBalance string) {
   @components.DesktopHeader()
 	<div id="swapBody">
-    <form hx-post="/swap/preview" hx-target="#swapBody" hx-target="outerHTML">
+    <form hx-post="/app/swap/preview" hx-target="#swapBody" hx-target="outerHTML">
 	    <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 				<div>
 	        @components.Header("Swap")
@@ -120,7 +120,7 @@ templ SwapBodyContent(currentBalance, nodeBalance string) {
 
 templ SwapPreviewContent(kind, sats string) {
 	<div id="swapBody">
-	  <form hx-post="/swap/confirm" hx-target="#swapBody" hx-target="outerHTML">
+	  <form hx-post="/app/swap/confirm" hx-target="#swapBody" hx-target="outerHTML">
 		  <input type="hidden" name="sats" value={sats}>
 		  <input type="hidden" name="kind" value={kind}>
 	    <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">

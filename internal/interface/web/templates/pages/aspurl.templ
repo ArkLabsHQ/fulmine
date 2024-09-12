@@ -5,7 +5,7 @@ import (
 )
 
 templ AspUrlBodyContent(aspurl, mnemonic, password string) {
-  <form hx-post="/initialize">
+  <form hx-post="/app/initialize">
     <input type="hidden" name="mnemonic" value={mnemonic}/>
     <input type="hidden" name="password" value={password}/>
     <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">

@@ -26,7 +26,6 @@ const (
 	WalletService_ChangePassword_FullMethodName = "/ark_node.v1.WalletService/ChangePassword"
 	WalletService_RestoreWallet_FullMethodName  = "/ark_node.v1.WalletService/RestoreWallet"
 	WalletService_Status_FullMethodName         = "/ark_node.v1.WalletService/Status"
-	WalletService_GetWalletInfo_FullMethodName  = "/ark_node.v1.WalletService/GetWalletInfo"
 	WalletService_Auth_FullMethodName           = "/ark_node.v1.WalletService/Auth"
 )
 
@@ -57,8 +56,6 @@ type WalletServiceClient interface {
 	RestoreWallet(ctx context.Context, in *RestoreWalletRequest, opts ...grpc.CallOption) (WalletService_RestoreWalletClient, error)
 	// Status returns info about the status of the wallet.
 	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
-	// GetWalletInfo returns info about the HD wallet.
-	GetWalletInfo(ctx context.Context, in *GetWalletInfoRequest, opts ...grpc.CallOption) (*GetWalletInfoResponse, error)
 	// Auth verifies whether the given password is valid without unlocking the wallet
 	Auth(ctx context.Context, in *AuthRequest, opts ...grpc.CallOption) (*AuthResponse, error)
 }
@@ -164,16 +161,6 @@ func (c *walletServiceClient) Status(ctx context.Context, in *StatusRequest, opt
 	return out, nil
 }
 
-func (c *walletServiceClient) GetWalletInfo(ctx context.Context, in *GetWalletInfoRequest, opts ...grpc.CallOption) (*GetWalletInfoResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetWalletInfoResponse)
-	err := c.cc.Invoke(ctx, WalletService_GetWalletInfo_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *walletServiceClient) Auth(ctx context.Context, in *AuthRequest, opts ...grpc.CallOption) (*AuthResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AuthResponse)
@@ -211,8 +198,6 @@ type WalletServiceServer interface {
 	RestoreWallet(*RestoreWalletRequest, WalletService_RestoreWalletServer) error
 	// Status returns info about the status of the wallet.
 	Status(context.Context, *StatusRequest) (*StatusResponse, error)
-	// GetWalletInfo returns info about the HD wallet.
-	GetWalletInfo(context.Context, *GetWalletInfoRequest) (*GetWalletInfoResponse, error)
 	// Auth verifies whether the given password is valid without unlocking the wallet
 	Auth(context.Context, *AuthRequest) (*AuthResponse, error)
 }
@@ -241,9 +226,6 @@ func (UnimplementedWalletServiceServer) RestoreWallet(*RestoreWalletRequest, Wal
 }
 func (UnimplementedWalletServiceServer) Status(context.Context, *StatusRequest) (*StatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
-}
-func (UnimplementedWalletServiceServer) GetWalletInfo(context.Context, *GetWalletInfoRequest) (*GetWalletInfoResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetWalletInfo not implemented")
 }
 func (UnimplementedWalletServiceServer) Auth(context.Context, *AuthRequest) (*AuthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Auth not implemented")
@@ -389,24 +371,6 @@ func _WalletService_Status_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
-func _WalletService_GetWalletInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetWalletInfoRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WalletServiceServer).GetWalletInfo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: WalletService_GetWalletInfo_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServiceServer).GetWalletInfo(ctx, req.(*GetWalletInfoRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _WalletService_Auth_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AuthRequest)
 	if err := dec(in); err != nil {
@@ -455,10 +419,6 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Status",
 			Handler:    _WalletService_Status_Handler,
-		},
-		{
-			MethodName: "GetWalletInfo",
-			Handler:    _WalletService_GetWalletInfo_Handler,
 		},
 		{
 			MethodName: "Auth",

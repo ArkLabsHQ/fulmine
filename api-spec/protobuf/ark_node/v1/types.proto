@@ -56,6 +56,11 @@ message TransactionInfo {
   string date = 1;
   uint64 amount = 2;
   string round_txid = 3;
+  string redeem_txid = 4;
+  string boarding_txid = 5;
+  TxType type = 6; 
+  bool pending = 7;
+  bool claimed = 8;
 }
 
 message Tree {
@@ -86,4 +91,10 @@ enum RoundEventType {
 enum WebhookEventType {
   WEBHOOK_EVENT_TYPE_UNSPECIFIED = 0;
   WEBHOOK_EVENT_TYPE_ROUND = 1;
+}
+
+enum TxType {
+  TX_TYPE_UNSPECIFIED = 0;
+  TX_TYPE_SENT = 1;
+  TX_TYPE_RECEIVED = 2;
 }

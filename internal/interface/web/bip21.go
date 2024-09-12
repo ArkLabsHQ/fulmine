@@ -1,20 +1,9 @@
 package web
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 )
-
-func genBip21(offchainAddr, onchainAddr, sats string) string {
-	bip21 := fmt.Sprintf("bitcoin:%s?ark=%s", onchainAddr, offchainAddr)
-	// add amount if passed
-	if sats != "" {
-		amount := fmt.Sprintf("&amount=%s", sats)
-		bip21 += amount
-	}
-	return bip21
-}
 
 func isBip21(invoice string) bool {
 	if !startsWithBitcoinPrefix(invoice) {

@@ -5,18 +5,30 @@ import (
 	"fmt"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
+	"github.com/ArkLabsHQ/ark-node/internal/core/application"
+	"github.com/tyler-smith/go-bip39"
 )
 
-type walletHandler struct{}
+type walletHandler struct {
+	svc *application.Service
+}
 
-func NewWalletHandler() pb.WalletServiceServer {
-	return &walletHandler{}
+func NewWalletHandler(appSvc *application.Service) pb.WalletServiceServer {
+	return &walletHandler{appSvc}
 }
 
 func (h *walletHandler) GenSeed(
 	ctx context.Context, req *pb.GenSeedRequest,
 ) (*pb.GenSeedResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+	entropy, err := bip39.NewEntropy(128)
+	if err != nil {
+		return nil, err
+	}
+	mnemonic, err := bip39.NewMnemonic(entropy)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GenSeedResponse{Mnemonic: mnemonic}, nil
 }
 
 // CreateWallet creates an HD Wallet based on signing seeds,
@@ -24,21 +36,38 @@ func (h *walletHandler) GenSeed(
 func (h *walletHandler) CreateWallet(
 	ctx context.Context, req *pb.CreateWalletRequest,
 ) (*pb.CreateWalletResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+	// TODO: validate req
+	aspUrl := req.GetAspUrl()
+	password := req.GetPassword()
+	mnemonic := req.GetMnemonic()
+	if err := h.svc.Setup(ctx, aspUrl, password, mnemonic); err != nil {
+		return nil, err
+	}
+	return &pb.CreateWalletResponse{}, nil
 }
 
 // Unlock tries to unlock the HD Wallet using the given password.
 func (h *walletHandler) Unlock(
 	ctx context.Context, req *pb.UnlockRequest,
 ) (*pb.UnlockResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+	// TODO: validate req
+	password := req.GetPassword()
+	if err := h.svc.Unlock(ctx, password); err != nil {
+		return nil, err
+	}
+	return &pb.UnlockResponse{}, nil
 }
 
 // Lock locks the HD wallet.
 func (h *walletHandler) Lock(
 	ctx context.Context, req *pb.LockRequest,
 ) (*pb.LockResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+	// TODO: validate req
+	password := req.GetPassword()
+	if err := h.svc.Lock(ctx, password); err != nil {
+		return nil, err
+	}
+	return &pb.LockResponse{}, nil
 }
 
 // ChangePassword changes the password used to encrypt/decrypt the HD seeds.
@@ -59,14 +88,17 @@ func (h *walletHandler) RestoreWallet(
 func (h *walletHandler) Status(
 	ctx context.Context, req *pb.StatusRequest,
 ) (*pb.StatusResponse, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-// GetWalletInfo returns info about the HD wallet.
-func (h *walletHandler) GetWalletInfo(
-	ctx context.Context, req *pb.GetWalletInfoRequest,
-) (*pb.GetWalletInfoResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+	isInitialized := h.svc.IsReady()
+	isSynced := isInitialized
+	var isUnlocked bool
+	if isInitialized {
+		isUnlocked = !h.svc.IsLocked(ctx)
+	}
+	return &pb.StatusResponse{
+		Initialized: isInitialized,
+		Unlocked:    isUnlocked,
+		Synced:      isSynced,
+	}, nil
 }
 
 // Auth verifies whether the given password is valid without unlocking the wallet

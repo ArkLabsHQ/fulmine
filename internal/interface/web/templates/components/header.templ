@@ -5,7 +5,7 @@ templ Header(title string, backPath ...string) {
 	  if len(backPath) > 0 {
 	    <a href={templ.URL(backPath[0])}>@BackIcon()</a>
 		} else {
-	    <a href="/">@BackIcon()</a>
+	    <a href="/app">@BackIcon()</a>
 		}
 		<h1 class="text-lg text-center font-semibold">{title}</h1>
 		if title == "Receive" {
