@@ -89,8 +89,11 @@ func (h *walletHandler) Status(
 	ctx context.Context, req *pb.StatusRequest,
 ) (*pb.StatusResponse, error) {
 	isInitialized := h.svc.IsReady()
-	isUnlocked := !h.svc.IsLocked(ctx)
 	isSynced := isInitialized
+	var isUnlocked bool
+	if isInitialized {
+		isUnlocked = !h.svc.IsLocked(ctx)
+	}
 	return &pb.StatusResponse{
 		Initialized: isInitialized,
 		Unlocked:    isUnlocked,
