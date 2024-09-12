@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/base64"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,6 +17,8 @@ import (
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
+
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 func (s *service) done(c *gin.Context) {
@@ -139,7 +142,14 @@ func (s *service) receiveQrCode(c *gin.Context) {
 
 	sats := c.PostForm("sats")
 	bip21 := genBip21(offchainAddr, onchainAddr, sats)
-	bodyContent := pages.ReceiveQrCodeContent(bip21, offchainAddr, onchainAddr, sats)
+
+	png, err := qrcode.Encode(bip21, qrcode.Medium, 256)
+	if err != nil {
+		return
+	}
+	encoded := base64.StdEncoding.EncodeToString(png)
+
+	bodyContent := pages.ReceiveQrCodeContent(bip21, offchainAddr, onchainAddr, encoded, sats)
 	s.pageViewHandler(bodyContent, c)
 }
 
