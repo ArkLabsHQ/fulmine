@@ -19,15 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	Service_GetAddress_FullMethodName         = "/ark_node.v1.Service/GetAddress"
-	Service_GetBalance_FullMethodName         = "/ark_node.v1.Service/GetBalance"
-	Service_GetInfo_FullMethodName            = "/ark_node.v1.Service/GetInfo"
-	Service_GetOnboardAddress_FullMethodName  = "/ark_node.v1.Service/GetOnboardAddress"
-	Service_Send_FullMethodName               = "/ark_node.v1.Service/Send"
-	Service_SendOnchain_FullMethodName        = "/ark_node.v1.Service/SendOnchain"
-	Service_GetSendOnchainFees_FullMethodName = "/ark_node.v1.Service/GetSendOnchainFees"
-	Service_GetRoundInfo_FullMethodName       = "/ark_node.v1.Service/GetRoundInfo"
-	Service_GetTransactions_FullMethodName    = "/ark_node.v1.Service/GetTransactions"
+	Service_GetAddress_FullMethodName            = "/ark_node.v1.Service/GetAddress"
+	Service_GetBalance_FullMethodName            = "/ark_node.v1.Service/GetBalance"
+	Service_GetInfo_FullMethodName               = "/ark_node.v1.Service/GetInfo"
+	Service_GetOnboardAddress_FullMethodName     = "/ark_node.v1.Service/GetOnboardAddress"
+	Service_Send_FullMethodName                  = "/ark_node.v1.Service/Send"
+	Service_SendAsync_FullMethodName             = "/ark_node.v1.Service/SendAsync"
+	Service_SendOnchain_FullMethodName           = "/ark_node.v1.Service/SendOnchain"
+	Service_GetRoundInfo_FullMethodName          = "/ark_node.v1.Service/GetRoundInfo"
+	Service_GetTransactionHistory_FullMethodName = "/ark_node.v1.Service/GetTransactionHistory"
 )
 
 // ServiceClient is the client API for Service service.
@@ -42,16 +42,16 @@ type ServiceClient interface {
 	GetInfo(ctx context.Context, in *GetInfoRequest, opts ...grpc.CallOption) (*GetInfoResponse, error)
 	// GetOnboardAddress returns onchain address and invoice for requested amount
 	GetOnboardAddress(ctx context.Context, in *GetOnboardAddressRequest, opts ...grpc.CallOption) (*GetOnboardAddressResponse, error)
-	// Send asks to send amount to ark address
+	// Send asks to send amount to ark address by joining a round
 	Send(ctx context.Context, in *SendRequest, opts ...grpc.CallOption) (*SendResponse, error)
+	// SendAsync asks to send amount to ark address with a pending payment
+	SendAsync(ctx context.Context, in *SendAsyncRequest, opts ...grpc.CallOption) (*SendAsyncResponse, error)
 	// SendOnchain asks to send requested amount to requested onchain address
 	SendOnchain(ctx context.Context, in *SendOnchainRequest, opts ...grpc.CallOption) (*SendOnchainResponse, error)
-	// SendOnchain asks to send requested amount to requested onchain address
-	GetSendOnchainFees(ctx context.Context, in *GetSendOnchainFeesRequest, opts ...grpc.CallOption) (*GetSendOnchainFeesResponse, error)
-	// Round returns round info for optional round_id
+	// Returns round info for optional round_id (no round_id returns current round info)
 	GetRoundInfo(ctx context.Context, in *GetRoundInfoRequest, opts ...grpc.CallOption) (*GetRoundInfoResponse, error)
-	// GetTransactions returns virtual transactions history
-	GetTransactions(ctx context.Context, in *GetTransactionsRequest, opts ...grpc.CallOption) (*GetTransactionsResponse, error)
+	// GetTransactionHistory returns virtual transactions history
+	GetTransactionHistory(ctx context.Context, in *GetTransactionHistoryRequest, opts ...grpc.CallOption) (*GetTransactionHistoryResponse, error)
 }
 
 type serviceClient struct {
@@ -112,20 +112,20 @@ func (c *serviceClient) Send(ctx context.Context, in *SendRequest, opts ...grpc.
 	return out, nil
 }
 
-func (c *serviceClient) SendOnchain(ctx context.Context, in *SendOnchainRequest, opts ...grpc.CallOption) (*SendOnchainResponse, error) {
+func (c *serviceClient) SendAsync(ctx context.Context, in *SendAsyncRequest, opts ...grpc.CallOption) (*SendAsyncResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SendOnchainResponse)
-	err := c.cc.Invoke(ctx, Service_SendOnchain_FullMethodName, in, out, cOpts...)
+	out := new(SendAsyncResponse)
+	err := c.cc.Invoke(ctx, Service_SendAsync_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *serviceClient) GetSendOnchainFees(ctx context.Context, in *GetSendOnchainFeesRequest, opts ...grpc.CallOption) (*GetSendOnchainFeesResponse, error) {
+func (c *serviceClient) SendOnchain(ctx context.Context, in *SendOnchainRequest, opts ...grpc.CallOption) (*SendOnchainResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetSendOnchainFeesResponse)
-	err := c.cc.Invoke(ctx, Service_GetSendOnchainFees_FullMethodName, in, out, cOpts...)
+	out := new(SendOnchainResponse)
+	err := c.cc.Invoke(ctx, Service_SendOnchain_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -142,10 +142,10 @@ func (c *serviceClient) GetRoundInfo(ctx context.Context, in *GetRoundInfoReques
 	return out, nil
 }
 
-func (c *serviceClient) GetTransactions(ctx context.Context, in *GetTransactionsRequest, opts ...grpc.CallOption) (*GetTransactionsResponse, error) {
+func (c *serviceClient) GetTransactionHistory(ctx context.Context, in *GetTransactionHistoryRequest, opts ...grpc.CallOption) (*GetTransactionHistoryResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetTransactionsResponse)
-	err := c.cc.Invoke(ctx, Service_GetTransactions_FullMethodName, in, out, cOpts...)
+	out := new(GetTransactionHistoryResponse)
+	err := c.cc.Invoke(ctx, Service_GetTransactionHistory_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -164,16 +164,16 @@ type ServiceServer interface {
 	GetInfo(context.Context, *GetInfoRequest) (*GetInfoResponse, error)
 	// GetOnboardAddress returns onchain address and invoice for requested amount
 	GetOnboardAddress(context.Context, *GetOnboardAddressRequest) (*GetOnboardAddressResponse, error)
-	// Send asks to send amount to ark address
+	// Send asks to send amount to ark address by joining a round
 	Send(context.Context, *SendRequest) (*SendResponse, error)
+	// SendAsync asks to send amount to ark address with a pending payment
+	SendAsync(context.Context, *SendAsyncRequest) (*SendAsyncResponse, error)
 	// SendOnchain asks to send requested amount to requested onchain address
 	SendOnchain(context.Context, *SendOnchainRequest) (*SendOnchainResponse, error)
-	// SendOnchain asks to send requested amount to requested onchain address
-	GetSendOnchainFees(context.Context, *GetSendOnchainFeesRequest) (*GetSendOnchainFeesResponse, error)
-	// Round returns round info for optional round_id
+	// Returns round info for optional round_id (no round_id returns current round info)
 	GetRoundInfo(context.Context, *GetRoundInfoRequest) (*GetRoundInfoResponse, error)
-	// GetTransactions returns virtual transactions history
-	GetTransactions(context.Context, *GetTransactionsRequest) (*GetTransactionsResponse, error)
+	// GetTransactionHistory returns virtual transactions history
+	GetTransactionHistory(context.Context, *GetTransactionHistoryRequest) (*GetTransactionHistoryResponse, error)
 }
 
 // UnimplementedServiceServer should be embedded to have forward compatible implementations.
@@ -195,17 +195,17 @@ func (UnimplementedServiceServer) GetOnboardAddress(context.Context, *GetOnboard
 func (UnimplementedServiceServer) Send(context.Context, *SendRequest) (*SendResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Send not implemented")
 }
+func (UnimplementedServiceServer) SendAsync(context.Context, *SendAsyncRequest) (*SendAsyncResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendAsync not implemented")
+}
 func (UnimplementedServiceServer) SendOnchain(context.Context, *SendOnchainRequest) (*SendOnchainResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendOnchain not implemented")
-}
-func (UnimplementedServiceServer) GetSendOnchainFees(context.Context, *GetSendOnchainFeesRequest) (*GetSendOnchainFeesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetSendOnchainFees not implemented")
 }
 func (UnimplementedServiceServer) GetRoundInfo(context.Context, *GetRoundInfoRequest) (*GetRoundInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetRoundInfo not implemented")
 }
-func (UnimplementedServiceServer) GetTransactions(context.Context, *GetTransactionsRequest) (*GetTransactionsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTransactions not implemented")
+func (UnimplementedServiceServer) GetTransactionHistory(context.Context, *GetTransactionHistoryRequest) (*GetTransactionHistoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionHistory not implemented")
 }
 
 // UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -309,6 +309,24 @@ func _Service_Send_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_SendAsync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendAsyncRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).SendAsync(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_SendAsync_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).SendAsync(ctx, req.(*SendAsyncRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Service_SendOnchain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SendOnchainRequest)
 	if err := dec(in); err != nil {
@@ -323,24 +341,6 @@ func _Service_SendOnchain_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).SendOnchain(ctx, req.(*SendOnchainRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Service_GetSendOnchainFees_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetSendOnchainFeesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).GetSendOnchainFees(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_GetSendOnchainFees_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).GetSendOnchainFees(ctx, req.(*GetSendOnchainFeesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -363,20 +363,20 @@ func _Service_GetRoundInfo_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Service_GetTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetTransactionsRequest)
+func _Service_GetTransactionHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTransactionHistoryRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServiceServer).GetTransactions(ctx, in)
+		return srv.(ServiceServer).GetTransactionHistory(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Service_GetTransactions_FullMethodName,
+		FullMethod: Service_GetTransactionHistory_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).GetTransactions(ctx, req.(*GetTransactionsRequest))
+		return srv.(ServiceServer).GetTransactionHistory(ctx, req.(*GetTransactionHistoryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -409,20 +409,20 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Service_Send_Handler,
 		},
 		{
-			MethodName: "SendOnchain",
-			Handler:    _Service_SendOnchain_Handler,
+			MethodName: "SendAsync",
+			Handler:    _Service_SendAsync_Handler,
 		},
 		{
-			MethodName: "GetSendOnchainFees",
-			Handler:    _Service_GetSendOnchainFees_Handler,
+			MethodName: "SendOnchain",
+			Handler:    _Service_SendOnchain_Handler,
 		},
 		{
 			MethodName: "GetRoundInfo",
 			Handler:    _Service_GetRoundInfo_Handler,
 		},
 		{
-			MethodName: "GetTransactions",
-			Handler:    _Service_GetTransactions_Handler,
+			MethodName: "GetTransactionHistory",
+			Handler:    _Service_GetTransactionHistory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

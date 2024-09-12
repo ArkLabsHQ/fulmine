@@ -130,24 +130,32 @@ func (s *service) receiveQrCode(c *gin.Context) {
 		return
 	}
 
-	offchainAddr, onchainAddr, err := s.svc.Receive(c)
+	var sats uint64
+	var err error
+	if c.PostForm("sats") != "" {
+		sats, err = strconv.ParseUint(c.PostForm("sats"), 10, 0)
+		if err != nil {
+			// nolint:all
+			c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+	}
+	bip21, _, _, err := s.svc.GetAddress(c, sats)
 	if err != nil {
 		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
-	}
 
-	sats := c.PostForm("sats")
-	bip21 := genBip21(offchainAddr, onchainAddr, sats)
-	bodyContent := pages.ReceiveQrCodeContent(bip21, offchainAddr, onchainAddr, sats)
+	}
+	bodyContent := pages.ReceiveQrCodeContent(bip21, strconv.Itoa(int(sats)))
 	s.pageViewHandler(bodyContent, c)
 }
 
 func (s *service) receiveSuccess(c *gin.Context) {
-	offchainAddr := c.PostForm("offchainAddr")
-	onchainAddr := c.PostForm("onchainAddr")
 	sats := c.PostForm("sats")
-	partial := pages.ReceiveSuccessContent(offchainAddr, onchainAddr, sats)
+	bip21 := c.PostForm(("bip21"))
+	offchainAddr := getArkAddress(bip21)
+	partial := pages.ReceiveSuccessContent(offchainAddr, sats)
 	partialViewHandler(partial, c)
 }
 

@@ -3,9 +3,12 @@ package application
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
+	"github.com/ark-network/ark/pkg/client-sdk/client"
+	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
 	store "github.com/ark-network/ark/pkg/client-sdk/store"
 	"github.com/tyler-smith/go-bip32"
 	"github.com/tyler-smith/go-bip39"
@@ -22,7 +25,15 @@ var defaultSettings = domain.Settings{
 	Unit:        "sat",
 }
 
+type BuildInfo struct {
+	Version string
+	Commit  string
+	Date    string
+}
+
 type Service struct {
+	BuildInfo BuildInfo
+
 	arksdk.ArkClient
 	storeRepo    store.ConfigStore
 	settingsRepo domain.SettingsRepository
@@ -31,10 +42,11 @@ type Service struct {
 }
 
 func NewService(
+	buildInfo BuildInfo,
 	storeSvc store.ConfigStore, settingsRepo domain.SettingsRepository,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
-		return &Service{arkClient, storeSvc, settingsRepo, true}, nil
+		return &Service{buildInfo, arkClient, storeSvc, settingsRepo, true}, nil
 	}
 
 	ctx := context.Background()
@@ -52,7 +64,7 @@ func NewService(
 		return nil, err
 	}
 
-	return &Service{arkClient, storeSvc, settingsRepo, false}, nil
+	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, false}, nil
 }
 
 func (s *Service) IsReady() bool {
@@ -118,6 +130,46 @@ func (s *Service) UpdateSettings(
 	ctx context.Context, settings domain.Settings,
 ) error {
 	return s.settingsRepo.UpdateSettings(ctx, settings)
+}
+
+func (s *Service) GetAddress(
+	ctx context.Context, sats uint64,
+) (bip21Addr, offchainAddr, boardingAddr string, err error) {
+	offchainAddr, onchainAddr, err := s.Receive(ctx)
+	if err != nil {
+		return "", "", "", err
+	}
+	bip21Addr = fmt.Sprintf("bitcoin:%s?ark=%s", onchainAddr, offchainAddr)
+	// add amount if passed
+	if sats > 0 {
+		amount := fmt.Sprintf("&amount=%d", sats)
+		bip21Addr += amount
+	}
+	return
+}
+
+func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
+	balance, err := s.Balance(ctx, false)
+	if err != nil {
+		return 0, err
+	}
+	onchainBalance := balance.OnchainBalance.SpendableAmount
+	for _, amount := range balance.OnchainBalance.LockedAmount {
+		onchainBalance += amount.Amount
+	}
+	return balance.OffchainBalance.Total + onchainBalance, nil
+}
+
+func (s *Service) GetRound(ctx context.Context, roundId string) (*client.Round, error) {
+	data, err := s.GetConfigData(ctx)
+	if err != nil {
+		return nil, err
+	}
+	client, err := grpcclient.NewClient(data.AspUrl)
+	if err != nil {
+		return nil, err
+	}
+	return client.GetRoundByID(ctx, roundId)
 }
 
 func privateKeyFromMnemonic(mnemonic string) (string, error) {

@@ -120,7 +120,7 @@
     },
     "/v1/round/{roundId}": {
       "get": {
-        "summary": "Round returns round info for optional round_id",
+        "summary": "Returns round info for optional round_id (no round_id returns current round info)",
         "operationId": "Service_GetRoundInfo",
         "responses": {
           "200": {
@@ -151,7 +151,7 @@
     },
     "/v1/send": {
       "post": {
-        "summary": "Send asks to send amount to ark address",
+        "summary": "Send asks to send amount to ark address by joining a round",
         "operationId": "Service_Send",
         "responses": {
           "200": {
@@ -215,15 +215,15 @@
         ]
       }
     },
-    "/v1/send/onchain/fees": {
+    "/v1/sendasync": {
       "post": {
-        "summary": "SendOnchain asks to send requested amount to requested onchain address",
-        "operationId": "Service_GetSendOnchainFees",
+        "summary": "SendAsync asks to send amount to ark address with a pending payment",
+        "operationId": "Service_SendAsync",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1GetSendOnchainFeesResponse"
+              "$ref": "#/definitions/v1SendAsyncResponse"
             }
           },
           "default": {
@@ -239,7 +239,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1GetSendOnchainFeesRequest"
+              "$ref": "#/definitions/v1SendAsyncRequest"
             }
           }
         ],
@@ -250,13 +250,13 @@
     },
     "/v1/transactions": {
       "post": {
-        "summary": "GetTransactions returns virtual transactions history",
-        "operationId": "Service_GetTransactions",
+        "summary": "GetTransactionHistory returns virtual transactions history",
+        "operationId": "Service_GetTransactionHistory",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1GetTransactionsResponse"
+              "$ref": "#/definitions/v1GetTransactionHistoryResponse"
             }
           },
           "default": {
@@ -272,7 +272,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1GetTransactionsRequest"
+              "$ref": "#/definitions/v1GetTransactionHistoryRequest"
             }
           }
         ],
@@ -339,19 +339,6 @@
         },
         "date": {
           "type": "string"
-        }
-      }
-    },
-    "v1Fees": {
-      "type": "object",
-      "properties": {
-        "boltz": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "network": {
-          "type": "string",
-          "format": "uint64"
         }
       }
     },
@@ -424,30 +411,10 @@
         }
       }
     },
-    "v1GetSendOnchainFeesRequest": {
-      "type": "object",
-      "properties": {
-        "address": {
-          "type": "string"
-        },
-        "amount": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
-    "v1GetSendOnchainFeesResponse": {
-      "type": "object",
-      "properties": {
-        "fees": {
-          "$ref": "#/definitions/v1Fees"
-        }
-      }
-    },
-    "v1GetTransactionsRequest": {
+    "v1GetTransactionHistoryRequest": {
       "type": "object"
     },
-    "v1GetTransactionsResponse": {
+    "v1GetTransactionHistoryResponse": {
       "type": "object",
       "properties": {
         "transactions": {
@@ -507,6 +474,26 @@
         }
       }
     },
+    "v1SendAsyncRequest": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1SendAsyncResponse": {
+      "type": "object",
+      "properties": {
+        "redeemTx": {
+          "type": "string"
+        }
+      }
+    },
     "v1SendOnchainRequest": {
       "type": "object",
       "properties": {
@@ -522,7 +509,7 @@
     "v1SendOnchainResponse": {
       "type": "object",
       "properties": {
-        "roundId": {
+        "txid": {
           "type": "string"
         }
       }
@@ -559,6 +546,21 @@
         },
         "roundTxid": {
           "type": "string"
+        },
+        "redeemTxid": {
+          "type": "string"
+        },
+        "boardingTxid": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/v1TxType"
+        },
+        "pending": {
+          "type": "boolean"
+        },
+        "claimed": {
+          "type": "boolean"
         }
       }
     },
@@ -585,6 +587,15 @@
           }
         }
       }
+    },
+    "v1TxType": {
+      "type": "string",
+      "enum": [
+        "TX_TYPE_UNSPECIFIED",
+        "TX_TYPE_SENT",
+        "TX_TYPE_RECEIVED"
+      ],
+      "default": "TX_TYPE_UNSPECIFIED"
     }
   }
 }

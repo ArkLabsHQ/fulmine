@@ -19,12 +19,11 @@ templ ReceiveEditContent() {
 	</div>
 }
 
-templ ReceiveQrCodeContent(bip21, offchainAddr, onchainAddr, sats string) {
+templ ReceiveQrCodeContent(bip21, sats string) {
 	<form id="success" hx-post="/receive/success">
 	  @components.DesktopHeader()
 	  <input class="hidden" id="submitButton" type="submit"/>
-	  <input class="hidden" name="offchainAddr" value={offchainAddr} />
-	  <input class="hidden" name="onchainAddr" value={onchainAddr} />
+	  <input class="hidden" name="bip21" value={bip21} />
 	  <input class="hidden" name="sats" />
 	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	    @components.Header("Receive")
@@ -87,7 +86,7 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, onchainAddr, sats string) {
 	</script>
 }
 
-templ ReceiveSuccessContent(offchainAddr, onchainAddr, sats string) {
+templ ReceiveSuccessContent(offchainAddr, sats string) {
 	@components.DesktopHeader()
 	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div class="flex flex-col items-center">
