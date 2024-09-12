@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -147,7 +148,7 @@ func (s *service) receiveQrCode(c *gin.Context) {
 		return
 
 	}
-	bodyContent := pages.ReceiveQrCodeContent(bip21, strconv.Itoa(int(sats)))
+	bodyContent := pages.ReceiveQrCodeContent(bip21, fmt.Sprintf("%d", sats))
 	s.pageViewHandler(bodyContent, c)
 }
 
