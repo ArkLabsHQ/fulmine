@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package ark_node.v1;
 
-import "ark_node/v1/types.proto";
 import "google/api/annotations.proto";
 
 // WalletService is used to create, or restore an HD Wallet.
@@ -68,13 +67,6 @@ service WalletService {
     };
   };
 
-  // GetWalletInfo returns info about the HD wallet.
-  rpc GetWalletInfo(GetWalletInfoRequest) returns (GetWalletInfoResponse) {
-    option (google.api.http) = {
-      get: "/v1/wallet/info"
-    };
-  };
-
   // Auth verifies whether the given password is valid without unlocking the wallet
   rpc Auth(AuthRequest) returns (AuthResponse) {
     option (google.api.http) = {
@@ -93,10 +85,11 @@ message GenSeedResponse{
 message CreateWalletRequest{
   // The mnemonic from where deriving signing key pairs.
   string mnemonic = 1;
-
   // The password to decrypt HD wallet. After creation, the wallet is locked
   // and the same password is required to unlock it.
-  string  password = 3;
+  string  password = 2;
+  // The url of the ASP to connect to.
+  string asp_url = 3;
 }
 message CreateWalletResponse{}
 
@@ -128,11 +121,10 @@ message RestoreWalletRequest{
   // The password to decrypt HD wallet. After restoration, the wallet is locked
   // and the same password is required to unlock it.
   string password = 2;
+  // The url of the ASP to connect to.
+  string asp_url = 3;
 }
-message RestoreWalletResponse{
-  // String message returned within the process.
-  string message = 1;
-}
+message RestoreWalletResponse{}
 
 message StatusRequest{}
 message StatusResponse{
@@ -146,23 +138,6 @@ message StatusResponse{
   bool unlocked = 3;
 }
 
-message GetWalletInfoRequest{}
-message GetWalletInfoResponse{
-  enum Network {
-    NETWORK_UNSPECIFIED = 0;
-    NETWORK_MAINNET = 1;
-    NETWORK_TESTNET = 2;
-    NETWORK_REGTEST = 3;
-  }
-  // The network of the wallet
-  Network network = 1;
-
-  // List containing info about the wallet accounts.
-  repeated AccountInfo accounts = 2;
-
-  // Info about the current version of the ark wallet.
-  BuildInfo build_info = 3;
-}
 message AuthRequest {
   string password = 1;
 }

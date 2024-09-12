@@ -38,7 +38,7 @@ templ ManageMnemonicContent(mnemonic []string) {
 		const validateMnemonic = () => {
 			const data = new FormData()
 			data.set('mnemonic', getMnemonicFromWords())
-			fetch('/api/mnemonic/validate', {
+			fetch('/app/api/mnemonic/validate', {
 				method: 'POST',
         body: data,
 			}).then((res) => {
@@ -61,7 +61,7 @@ templ ManageMnemonicContent(mnemonic []string) {
 }
 
 templ ImportWalletContent() {
-	<form hx-post="/mnemonic">
+	<form hx-post="/app/mnemonic">
 	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	    <div>
 			  <div class="hidden md:block">@LogoWhite()</div>
@@ -79,7 +79,7 @@ templ ImportWalletContent() {
 }
 
 templ NewWalletContent(mnemonic []string) {
-	<form hx-post="/mnemonic">
+	<form hx-post="/app/mnemonic">
 	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	    <div>
 	  	  <div class="hidden md:block">@LogoWhite()</div>

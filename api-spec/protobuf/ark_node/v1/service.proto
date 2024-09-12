@@ -31,10 +31,17 @@ service Service {
       body: "*"
     };
   };
-  // Send asks to send amount to ark address
+  // Send asks to send amount to ark address by joining a round
   rpc Send(SendRequest) returns (SendResponse) {
     option (google.api.http) = {
       post: "/v1/send"
+      body: "*"
+    };
+  };
+  // SendAsync asks to send amount to ark address with a pending payment
+  rpc SendAsync(SendAsyncRequest) returns (SendAsyncResponse) {
+    option (google.api.http) = {
+      post: "/v1/sendasync"
       body: "*"
     };
   };
@@ -45,24 +52,16 @@ service Service {
       body: "*"
     };
   };
-  // SendOnchain asks to send requested amount to requested onchain address
-  rpc GetSendOnchainFees(GetSendOnchainFeesRequest) returns (GetSendOnchainFeesResponse) {
-    option (google.api.http) = {
-      post: "/v1/send/onchain/fees"
-      body: "*"
-    };
-  };
-  // Round returns round info for optional round_id
+  // Returns round info for optional round_id (no round_id returns current round info)
   rpc GetRoundInfo(GetRoundInfoRequest) returns (GetRoundInfoResponse) {
     option (google.api.http) = {
       get: "/v1/round/{round_id}"
     };
   };
-  // GetTransactions returns virtual transactions history
-  rpc GetTransactions(GetTransactionsRequest) returns (GetTransactionsResponse) {
+  // GetTransactionHistory returns virtual transactions history
+  rpc GetTransactionHistory(GetTransactionHistoryRequest) returns (GetTransactionHistoryResponse) {
     option (google.api.http) = {
-      post: "/v1/transactions"
-      body: "*"
+      get: "/v1/transactions"
     };
   };
 }
@@ -108,20 +107,20 @@ message SendResponse {
   string round_id = 1;
 }
 
+message SendAsyncRequest {
+  string address = 1;
+  uint64 amount = 2;
+}
+message SendAsyncResponse {
+  string redeem_tx = 1;
+}
+
 message SendOnchainRequest {
   string address = 1;
   uint64 amount = 2;
 }
 message SendOnchainResponse {
-  string round_id = 1;
-}
-
-message GetSendOnchainFeesRequest {
-  string address = 1;
-  uint64 amount = 2;
-}
-message GetSendOnchainFeesResponse {
-  Fees fees = 1;
+  string txid = 1;
 }
 
 message GetRoundInfoRequest {
@@ -131,7 +130,7 @@ message GetRoundInfoResponse {
   Round round = 1;
 }
 
-message GetTransactionsRequest {}
-message GetTransactionsResponse {
+message GetTransactionHistoryRequest {}
+message GetTransactionHistoryResponse {
   repeated TransactionInfo transactions = 1;
 }

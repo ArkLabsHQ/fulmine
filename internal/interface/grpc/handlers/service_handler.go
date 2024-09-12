@@ -3,66 +3,209 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
+	"github.com/ArkLabsHQ/ark-node/internal/core/application"
+	"github.com/ark-network/ark/common/tree"
+	arksdk "github.com/ark-network/ark/pkg/client-sdk"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-type serviceHandler struct{}
+type serviceHandler struct {
+	svc *application.Service
+}
 
-func NewServiceHandler() pb.ServiceServer {
-	return &serviceHandler{}
+func NewServiceHandler(svc *application.Service) pb.ServiceServer {
+	return &serviceHandler{svc}
 }
 
 func (h *serviceHandler) GetAddress(
 	ctx context.Context, req *pb.GetAddressRequest,
 ) (*pb.GetAddressResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+	bip21Addr, _, _, err := h.svc.GetAddress(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetAddressResponse{Address: bip21Addr}, nil
 }
 
 func (h *serviceHandler) GetBalance(
 	ctx context.Context, req *pb.GetBalanceRequest,
 ) (*pb.GetBalanceResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+	balance, err := h.svc.GetTotalBalance(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetBalanceResponse{Amount: balance}, nil
 }
 
 func (h *serviceHandler) GetInfo(
 	ctx context.Context, req *pb.GetInfoRequest,
 ) (*pb.GetInfoResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+	data, err := h.svc.GetConfigData(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetInfoResponse{
+		Network: toNetworkProto(data.Network.Name),
+		BuildInfo: &pb.BuildInfo{
+			Version: h.svc.BuildInfo.Version,
+			Commit:  h.svc.BuildInfo.Commit,
+			Date:    h.svc.BuildInfo.Date,
+		},
+	}, nil
 }
 
 func (h *serviceHandler) GetOnboardAddress(
 	ctx context.Context, req *pb.GetOnboardAddressRequest,
 ) (*pb.GetOnboardAddressResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+	_, _, addr, err := h.svc.GetAddress(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetOnboardAddressResponse{Address: addr}, nil
 }
 
 func (h *serviceHandler) Send(
 	ctx context.Context, req *pb.SendRequest,
 ) (*pb.SendResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+	// TODO: validate req
+	receivers := []arksdk.Receiver{
+		arksdk.NewBitcoinReceiver(req.GetAddress(), req.GetAmount()),
+	}
+	roundId, err := h.svc.SendOffChain(ctx, false, receivers)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.SendResponse{RoundId: roundId}, nil
+}
+
+func (h *serviceHandler) SendAsync(
+	ctx context.Context, req *pb.SendAsyncRequest,
+) (*pb.SendAsyncResponse, error) {
+	// TODO: validate req
+	receivers := []arksdk.Receiver{
+		arksdk.NewBitcoinReceiver(req.GetAddress(), req.GetAmount()),
+	}
+	redeemTx, err := h.svc.SendAsync(ctx, false, receivers)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.SendAsyncResponse{RedeemTx: redeemTx}, nil
 }
 
 func (h *serviceHandler) SendOnchain(
 	ctx context.Context, req *pb.SendOnchainRequest,
 ) (*pb.SendOnchainResponse, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (h *serviceHandler) GetSendOnchainFees(
-	ctx context.Context, req *pb.GetSendOnchainFeesRequest,
-) (*pb.GetSendOnchainFeesResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+	// TODO: validate req
+	receivers := []arksdk.Receiver{
+		arksdk.NewBitcoinReceiver(req.GetAddress(), req.GetAmount()),
+	}
+	txid, err := h.svc.SendOnChain(ctx, receivers)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.SendOnchainResponse{Txid: txid}, nil
 }
 
 func (h *serviceHandler) GetRoundInfo(
 	ctx context.Context, req *pb.GetRoundInfoRequest,
 ) (*pb.GetRoundInfoResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+	roundId, err := parseRoundId(req.GetRoundId())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	round, err := h.svc.GetRound(ctx, roundId)
+	if err != nil {
+		return nil, err
+	}
+	endedAt := int64(0)
+	if round.EndedAt != nil {
+		endedAt = round.EndedAt.Unix()
+	}
+	return &pb.GetRoundInfoResponse{
+		Round: &pb.Round{
+			Id:             round.ID,
+			Start:          round.StartedAt.Unix(),
+			End:            endedAt,
+			RoundTx:        round.Tx,
+			CongestionTree: toTreeProto(round.Tree),
+			ForfeitTxs:     round.ForfeitTxs,
+		},
+	}, nil
 }
 
-func (h *serviceHandler) GetTransactions(
-	ctx context.Context, req *pb.GetTransactionsRequest,
-) (*pb.GetTransactionsResponse, error) {
-	return nil, fmt.Errorf("not implemented")
+func (h *serviceHandler) GetTransactionHistory(
+	ctx context.Context, req *pb.GetTransactionHistoryRequest,
+) (*pb.GetTransactionHistoryResponse, error) {
+	txHistory, err := h.svc.GetTransactionHistory(ctx)
+	if err != nil {
+		return nil, err
+	}
+	txs := make([]*pb.TransactionInfo, 0, len(txHistory))
+	for _, tx := range txHistory {
+		txs = append(txs, &pb.TransactionInfo{
+			Date:         tx.CreatedAt.Format(time.RFC3339),
+			Amount:       tx.Amount,
+			RoundTxid:    tx.RoundTxid,
+			RedeemTxid:   tx.RedeemTxid,
+			BoardingTxid: tx.BoardingTxid,
+			Type:         toTxTypeProto(tx.Type),
+			Pending:      tx.Pending,
+			Claimed:      tx.Claimed,
+		})
+	}
+
+	return &pb.GetTransactionHistoryResponse{Transactions: txs}, nil
+}
+
+func parseRoundId(id string) (string, error) {
+	if len(id) <= 0 {
+		return "", fmt.Errorf("missing round id")
+	}
+	return id, nil
+}
+
+func toNetworkProto(net string) pb.GetInfoResponse_Network {
+	switch net {
+	case "regtest":
+		return pb.GetInfoResponse_NETWORK_REGTEST
+	case "testnet":
+		return pb.GetInfoResponse_NETWORK_TESTNET
+	case "mainnet":
+		return pb.GetInfoResponse_NETWORK_MAINNET
+	default:
+		return pb.GetInfoResponse_NETWORK_UNSPECIFIED
+	}
+}
+
+func toTreeProto(tree tree.CongestionTree) *pb.Tree {
+	levels := make([]*pb.TreeLevel, 0, len(tree))
+	for _, treeLevel := range tree {
+		nodes := make([]*pb.Node, 0, len(treeLevel))
+		for _, node := range treeLevel {
+			nodes = append(nodes, &pb.Node{
+				Txid:       node.Txid,
+				Tx:         node.Tx,
+				ParentTxid: node.ParentTxid,
+			})
+		}
+		levels = append(levels, &pb.TreeLevel{Nodes: nodes})
+	}
+	return &pb.Tree{Levels: levels}
+}
+
+func toTxTypeProto(txType arksdk.TxType) pb.TxType {
+	switch txType {
+	case arksdk.TxSent:
+		return pb.TxType_TX_TYPE_SENT
+	case arksdk.TxReceived:
+		return pb.TxType_TX_TYPE_RECEIVED
+	default:
+		return pb.TxType_TX_TYPE_UNSPECIFIED
+	}
 }

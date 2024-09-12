@@ -46,7 +46,13 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal(err)
 	}
-	appSvc, err := application.NewService(storeSvc, settingsRepo)
+
+	buildInfo := application.BuildInfo{
+		Version: version,
+		Commit:  commit,
+		Date:    date,
+	}
+	appSvc, err := application.NewService(buildInfo, storeSvc, settingsRepo)
 	if err != nil {
 		log.WithError(err).Fatal(err)
 	}
