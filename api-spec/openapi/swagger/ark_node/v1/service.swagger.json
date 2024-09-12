@@ -249,7 +249,7 @@
       }
     },
     "/v1/transactions": {
-      "post": {
+      "get": {
         "summary": "GetTransactionHistory returns virtual transactions history",
         "operationId": "Service_GetTransactionHistory",
         "responses": {
@@ -266,16 +266,6 @@
             }
           }
         },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1GetTransactionHistoryRequest"
-            }
-          }
-        ],
         "tags": [
           "Service"
         ]
@@ -410,9 +400,6 @@
           "$ref": "#/definitions/v1Round"
         }
       }
-    },
-    "v1GetTransactionHistoryRequest": {
-      "type": "object"
     },
     "v1GetTransactionHistoryResponse": {
       "type": "object",

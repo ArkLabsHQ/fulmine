@@ -61,8 +61,7 @@ service Service {
   // GetTransactionHistory returns virtual transactions history
   rpc GetTransactionHistory(GetTransactionHistoryRequest) returns (GetTransactionHistoryResponse) {
     option (google.api.http) = {
-      post: "/v1/transactions"
-      body: "*"
+      get: "/v1/transactions"
     };
   };
 }

@@ -159,11 +159,11 @@ func (s *Service) UpdateSettings(
 func (s *Service) GetAddress(
 	ctx context.Context, sats uint64,
 ) (bip21Addr, offchainAddr, boardingAddr string, err error) {
-	offchainAddr, onchainAddr, err := s.Receive(ctx)
+	offchainAddr, boardingAddr, err = s.Receive(ctx)
 	if err != nil {
-		return "", "", "", err
+		return
 	}
-	bip21Addr = fmt.Sprintf("bitcoin:%s?ark=%s", onchainAddr, offchainAddr)
+	bip21Addr = fmt.Sprintf("bitcoin:%s?ark=%s", boardingAddr, offchainAddr)
 	// add amount if passed
 	if sats > 0 {
 		amount := fmt.Sprintf("&amount=%d", sats)
@@ -185,6 +185,9 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 }
 
 func (s *Service) GetRound(ctx context.Context, roundId string) (*client.Round, error) {
+	if !s.isReady {
+		return nil, fmt.Errorf("service not iniitialized")
+	}
 	return s.grpcClient.GetRoundByID(ctx, roundId)
 }
 
