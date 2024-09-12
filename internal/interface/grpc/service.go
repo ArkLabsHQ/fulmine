@@ -104,8 +104,8 @@ func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 
 	handler := router(grpcServer, grpcGateway)
 	mux := http.NewServeMux()
-	mux.Handle("/api", handler)
-	mux.Handle("/", feHandler)
+	mux.Handle("/", handler)
+	mux.Handle("/app/", http.StripPrefix("/app", feHandler))
 	mux.Handle("/static/", feHandler)
 
 	httpServerHandler := http.Handler(mux)
