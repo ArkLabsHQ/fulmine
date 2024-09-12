@@ -19,7 +19,7 @@ templ ReceiveEditContent() {
 	</div>
 }
 
-templ ReceiveQrCodeContent(bip21, sats string) {
+templ ReceiveQrCodeContent(bip21, encoded, sats string) {
 	<form id="success" hx-post="/app/receive/success">
 	  @components.DesktopHeader()
 	  <input class="hidden" id="submitButton" type="submit"/>
@@ -29,11 +29,7 @@ templ ReceiveQrCodeContent(bip21, sats string) {
 	    @components.Header("Receive")
       <div class="flex flex-col justify-center items-center gap-2 overflow-auto">
 	  	  <div class="h-64">
-          <img
-	  			  src={"https://api.qrserver.com/v1/create-qr-code/?color=fbfbfb&bgcolor=202020&size=256x256&data=" + bip21}
-	  				alt="qrcode for receive address"
-	  				title={bip21}
-	  			/>
+          <img src={"data:image/png;base64," + encoded} alt="qrcode for receive address" title={bip21}>
 	  		</div>
 	  		<p class="text-center w-64">Scan QR code or use the address with one of the supported wallets to receive BTC.</p>
         <div class="rounded-lg bg-white/10 p-2 flex justify-between items-center gap-4 w-72">

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -17,6 +18,8 @@ import (
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
+
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 func (s *service) done(c *gin.Context) {
@@ -146,9 +149,15 @@ func (s *service) receiveQrCode(c *gin.Context) {
 		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
-
 	}
-	bodyContent := pages.ReceiveQrCodeContent(bip21, fmt.Sprintf("%d", sats))
+
+	png, err := qrcode.Encode(bip21, qrcode.Medium, 256)
+	if err != nil {
+		return
+	}
+	encoded := base64.StdEncoding.EncodeToString(png)
+
+	bodyContent := pages.ReceiveQrCodeContent(bip21, encoded, fmt.Sprintf("%d", sats))
 	s.pageViewHandler(bodyContent, c)
 }
 
