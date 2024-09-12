@@ -138,29 +138,6 @@
         ]
       }
     },
-    "/v1/wallet/info": {
-      "get": {
-        "summary": "GetWalletInfo returns info about the HD wallet.",
-        "operationId": "WalletService_GetWalletInfo",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1GetWalletInfoResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "tags": [
-          "WalletService"
-        ]
-      }
-    },
     "/v1/wallet/lock": {
       "post": {
         "summary": "Lock locks the HD wallet.",
@@ -322,23 +299,6 @@
         }
       }
     },
-    "v1AccountInfo": {
-      "type": "object",
-      "properties": {
-        "namespace": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "derivationPath": {
-          "type": "string"
-        },
-        "xpubs": {
-          "type": "string"
-        }
-      }
-    },
     "v1AuthRequest": {
       "type": "object",
       "properties": {
@@ -352,20 +312,6 @@
       "properties": {
         "verified": {
           "type": "boolean"
-        }
-      }
-    },
-    "v1BuildInfo": {
-      "type": "object",
-      "properties": {
-        "version": {
-          "type": "string"
-        },
-        "commit": {
-          "type": "string"
-        },
-        "date": {
-          "type": "string"
         }
       }
     },
@@ -395,6 +341,10 @@
         "password": {
           "type": "string",
           "description": "The password to decrypt HD wallet. After creation, the wallet is locked\nand the same password is required to unlock it."
+        },
+        "aspUrl": {
+          "type": "string",
+          "description": "The url of the ASP to connect to."
         }
       }
     },
@@ -409,37 +359,6 @@
           "description": "A mnemonic from where deriving signing key pairs."
         }
       }
-    },
-    "v1GetWalletInfoResponse": {
-      "type": "object",
-      "properties": {
-        "network": {
-          "$ref": "#/definitions/v1GetWalletInfoResponseNetwork",
-          "title": "The network of the wallet"
-        },
-        "accounts": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1AccountInfo"
-          },
-          "description": "List containing info about the wallet accounts."
-        },
-        "buildInfo": {
-          "$ref": "#/definitions/v1BuildInfo",
-          "description": "Info about the current version of the ark wallet."
-        }
-      }
-    },
-    "v1GetWalletInfoResponseNetwork": {
-      "type": "string",
-      "enum": [
-        "NETWORK_UNSPECIFIED",
-        "NETWORK_MAINNET",
-        "NETWORK_TESTNET",
-        "NETWORK_REGTEST"
-      ],
-      "default": "NETWORK_UNSPECIFIED"
     },
     "v1LockRequest": {
       "type": "object",
@@ -463,17 +382,15 @@
         "password": {
           "type": "string",
           "description": "The password to decrypt HD wallet. After restoration, the wallet is locked\nand the same password is required to unlock it."
+        },
+        "aspUrl": {
+          "type": "string",
+          "description": "The url of the ASP to connect to."
         }
       }
     },
     "v1RestoreWalletResponse": {
-      "type": "object",
-      "properties": {
-        "message": {
-          "type": "string",
-          "description": "String message returned within the process."
-        }
-      }
+      "type": "object"
     },
     "v1StatusResponse": {
       "type": "object",

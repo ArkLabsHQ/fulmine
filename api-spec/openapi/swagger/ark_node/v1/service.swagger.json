@@ -283,6 +283,16 @@
     }
   },
   "definitions": {
+    "GetInfoResponseNetwork": {
+      "type": "string",
+      "enum": [
+        "NETWORK_UNSPECIFIED",
+        "NETWORK_MAINNET",
+        "NETWORK_TESTNET",
+        "NETWORK_REGTEST"
+      ],
+      "default": "NETWORK_UNSPECIFIED"
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -363,7 +373,7 @@
       "type": "object",
       "properties": {
         "network": {
-          "$ref": "#/definitions/v1GetInfoResponseNetwork",
+          "$ref": "#/definitions/GetInfoResponseNetwork",
           "title": "the network of the wallet"
         },
         "account": {
@@ -375,16 +385,6 @@
           "description": "info about the current version of the ark wallet."
         }
       }
-    },
-    "v1GetInfoResponseNetwork": {
-      "type": "string",
-      "enum": [
-        "NETWORK_UNSPECIFIED",
-        "NETWORK_MAINNET",
-        "NETWORK_TESTNET",
-        "NETWORK_REGTEST"
-      ],
-      "default": "NETWORK_UNSPECIFIED"
     },
     "v1GetOnboardAddressRequest": {
       "type": "object",

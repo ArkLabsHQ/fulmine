@@ -49,7 +49,7 @@ func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 
 	grpcServer := grpc.NewServer(grpcConfig...)
 
-	walletHandler := handlers.NewWalletHandler()
+	walletHandler := handlers.NewWalletHandler(appSvc)
 	pb.RegisterWalletServiceServer(grpcServer, walletHandler)
 
 	serviceHandler := handlers.NewServiceHandler(appSvc)
