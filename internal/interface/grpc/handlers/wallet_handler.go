@@ -3,10 +3,13 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
 	"github.com/tyler-smith/go-bip39"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type walletHandler struct {
@@ -36,10 +39,18 @@ func (h *walletHandler) GenSeed(
 func (h *walletHandler) CreateWallet(
 	ctx context.Context, req *pb.CreateWalletRequest,
 ) (*pb.CreateWalletResponse, error) {
-	// TODO: validate req
-	aspUrl := req.GetAspUrl()
-	password := req.GetPassword()
-	mnemonic := req.GetMnemonic()
+	aspUrl, err := parseAspUrl(req.GetAspUrl())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	password, err := parsePassword(req.GetPassword())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	mnemonic, err := parseMnemonic(req.GetMnemonic())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	if err := h.svc.Setup(ctx, aspUrl, password, mnemonic); err != nil {
 		return nil, err
 	}
@@ -50,8 +61,10 @@ func (h *walletHandler) CreateWallet(
 func (h *walletHandler) Unlock(
 	ctx context.Context, req *pb.UnlockRequest,
 ) (*pb.UnlockResponse, error) {
-	// TODO: validate req
-	password := req.GetPassword()
+	password, err := parsePassword(req.GetPassword())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	if err := h.svc.Unlock(ctx, password); err != nil {
 		return nil, err
 	}
@@ -62,8 +75,10 @@ func (h *walletHandler) Unlock(
 func (h *walletHandler) Lock(
 	ctx context.Context, req *pb.LockRequest,
 ) (*pb.LockResponse, error) {
-	// TODO: validate req
-	password := req.GetPassword()
+	password, err := parsePassword(req.GetPassword())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	if err := h.svc.Lock(ctx, password); err != nil {
 		return nil, err
 	}
@@ -106,4 +121,29 @@ func (h *walletHandler) Auth(
 	ctx context.Context, req *pb.AuthRequest,
 ) (*pb.AuthResponse, error) {
 	return nil, fmt.Errorf("not implemented")
+}
+
+func parseAspUrl(a string) (string, error) {
+	if len(a) <= 0 {
+		return "", fmt.Errorf("missing asp url")
+	}
+	return a, nil
+}
+
+func parseMnemonic(m string) (string, error) {
+	if len(m) <= 0 {
+		return "", fmt.Errorf("missing mnemonic")
+	}
+	words := strings.Fields(m)
+	if len(words) != 12 {
+		return "", fmt.Errorf("mnemonic must have 12 words")
+	}
+	return m, nil
+}
+
+func parsePassword(p string) (string, error) {
+	if len(p) <= 0 {
+		return "", fmt.Errorf("missing password")
+	}
+	return p, nil
 }
