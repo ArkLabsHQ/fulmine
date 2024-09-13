@@ -245,6 +245,13 @@ func (s *service) sendConfirm(c *gin.Context) {
 			toastHandler(toast, c)
 			return
 		}
+		// claim change
+		_, err = s.svc.Claim(c)
+		if err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
 	}
 
 	if isValidBtcAddress(address) {
@@ -268,6 +275,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
+
 	explorerUrl := getExplorerUrl(data.Network.Name)
 
 	bodyContent := pages.SendSuccessContent(address, sats, txId, explorerUrl)
