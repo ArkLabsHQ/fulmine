@@ -7,6 +7,7 @@ import (
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
+	"github.com/ArkLabsHQ/ark-node/utils"
 	"github.com/ark-network/ark/common/tree"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"google.golang.org/grpc/codes"
@@ -187,6 +188,9 @@ func (h *serviceHandler) GetTransactionHistory(
 func parseAddress(a string) (string, error) {
 	if len(a) <= 0 {
 		return "", fmt.Errorf("missing address")
+	}
+	if !utils.IsValidArkAddress(a) && !utils.IsValidBtcAddress(a) {
+		return "", fmt.Errorf("invalid address")
 	}
 	return a, nil
 }

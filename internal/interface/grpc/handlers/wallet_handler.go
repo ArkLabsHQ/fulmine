@@ -7,6 +7,7 @@ import (
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
+	"github.com/ArkLabsHQ/ark-node/utils"
 	"github.com/tyler-smith/go-bip39"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -126,6 +127,9 @@ func (h *walletHandler) Auth(
 func parseAspUrl(a string) (string, error) {
 	if len(a) <= 0 {
 		return "", fmt.Errorf("missing asp url")
+	}
+	if !utils.IsValidURL(a) {
+		return "", fmt.Errorf("invalid asp url")
 	}
 	return a, nil
 }

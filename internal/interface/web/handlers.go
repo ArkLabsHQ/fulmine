@@ -13,6 +13,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/modals"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/pages"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
+	"github.com/ArkLabsHQ/ark-node/utils"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
@@ -72,6 +73,11 @@ func (s *service) initialize(c *gin.Context) {
 	aspurl := c.PostForm("aspurl")
 	if aspurl == "" {
 		toast := components.Toast("ASP URL can't be empty", true)
+		toastHandler(toast, c)
+		return
+	}
+	if !utils.IsValidURL(aspurl) {
+		toast := components.Toast("Invalid ASP URL", true)
 		toastHandler(toast, c)
 		return
 	}
@@ -164,7 +170,7 @@ func (s *service) receiveQrCode(c *gin.Context) {
 func (s *service) receiveSuccess(c *gin.Context) {
 	sats := c.PostForm("sats")
 	bip21 := c.PostForm(("bip21"))
-	offchainAddr := getArkAddress(bip21)
+	offchainAddr := utils.GetArkAddress(bip21)
 	partial := pages.ReceiveSuccessContent(offchainAddr, sats)
 	partialViewHandler(partial, c)
 }
@@ -193,18 +199,18 @@ func (s *service) sendPreview(c *gin.Context) {
 	dest := c.PostForm("address")
 	sats := c.PostForm("sats")
 
-	if isBip21(dest) {
-		offchainAddress := getArkAddress(dest)
+	if utils.IsBip21(dest) {
+		offchainAddress := utils.GetArkAddress(dest)
 		if len(offchainAddress) > 0 {
 			addr = offchainAddress
 		} else {
-			onchainAddress := getBtcAddress(dest)
+			onchainAddress := utils.GetBtcAddress(dest)
 			if len(onchainAddress) > 0 {
 				addr = onchainAddress
 			}
 		}
 	} else {
-		if isValidBtcAddress(dest) || isValidArkAddress(dest) {
+		if utils.IsValidBtcAddress(dest) || utils.IsValidArkAddress(dest) {
 			addr = dest
 		}
 	}
@@ -238,7 +244,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 		arksdk.NewBitcoinReceiver(address, value),
 	}
 
-	if isValidArkAddress(address) {
+	if utils.IsValidArkAddress(address) {
 		txId, err = s.svc.SendAsync(c, true, receivers)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
@@ -247,7 +253,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 		}
 	}
 
-	if isValidBtcAddress(address) {
+	if utils.IsValidBtcAddress(address) {
 		txId, err = s.svc.SendOnChain(c, receivers)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
