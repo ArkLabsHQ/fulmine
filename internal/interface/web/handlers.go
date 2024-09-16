@@ -34,7 +34,7 @@ func (s *service) forgot(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	c.Redirect(http.StatusFound, "/welcome")
+	c.Redirect(http.StatusFound, "/app/welcome")
 }
 
 func (s *service) index(c *gin.Context) {
@@ -88,10 +88,20 @@ func (s *service) initialize(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
+	if err := utils.IsValidMnemonic(mnemonic); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
 
 	password := c.PostForm("password")
 	if password == "" {
 		toast := components.Toast("Password can't be empty", true)
+		toastHandler(toast, c)
+		return
+	}
+	if err := utils.IsValidPassword(password); err != nil {
+		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
 		return
 	}

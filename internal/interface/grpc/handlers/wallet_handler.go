@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
@@ -138,9 +137,8 @@ func parseMnemonic(m string) (string, error) {
 	if len(m) <= 0 {
 		return "", fmt.Errorf("missing mnemonic")
 	}
-	words := strings.Fields(m)
-	if len(words) != 12 {
-		return "", fmt.Errorf("mnemonic must have 12 words")
+	if err := utils.IsValidMnemonic(m); err != nil {
+		return "", err
 	}
 	return m, nil
 }
@@ -148,6 +146,9 @@ func parseMnemonic(m string) (string, error) {
 func parsePassword(p string) (string, error) {
 	if len(p) <= 0 {
 		return "", fmt.Errorf("missing password")
+	}
+	if err := utils.IsValidPassword(p); err != nil {
+		return "", err
 	}
 	return p, nil
 }
