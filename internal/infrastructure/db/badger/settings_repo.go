@@ -10,17 +10,6 @@ import (
 	"github.com/timshannon/badgerhold/v4"
 )
 
-var defaultSettings = domain.Settings{
-	ApiRoot:     "https://fulmine.io/api/D9D90N192031",
-	AspUrl:      "http://localhost:7000",
-	Currency:    "usd",
-	EventServer: "http://arklabs.to/node/jupiter29",
-	FullNode:    "http://arklabs.to/node/213908123",
-	LnConnect:   false,
-	LnUrl:       "lndconnect://192.168.1.4:10009",
-	Unit:        "sat",
-}
-
 const (
 	settingsKey = "settings"
 	settingsDir = "settings"
@@ -48,10 +37,6 @@ func (s *service) AddSettings(ctx context.Context, settings domain.Settings) err
 
 func (s *service) GetSettings(ctx context.Context) (*domain.Settings, error) {
 	return s.getSettings(ctx)
-}
-
-func (s *service) GetDefaultSettings() domain.Settings {
-	return defaultSettings
 }
 
 func (s *service) CleanSettings(ctx context.Context) error {
@@ -123,7 +108,7 @@ func (s *service) getSettings(ctx context.Context) (*domain.Settings, error) {
 		err = s.store.Get(settingsKey, &settings)
 	}
 	if err != nil && err == badgerhold.ErrNotFound {
-		settings = s.GetDefaultSettings()
+		return nil, fmt.Errorf("settings not found")
 	}
 
 	return &settings, nil

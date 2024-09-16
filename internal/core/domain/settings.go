@@ -16,7 +16,6 @@ type Settings struct {
 type SettingsRepository interface {
 	AddSettings(ctx context.Context, settings Settings) error
 	GetSettings(ctx context.Context) (*Settings, error)
-	GetDefaultSettings() Settings
 	CleanSettings(ctx context.Context) error
 	UpdateSettings(ctx context.Context, settings Settings) error
 }
