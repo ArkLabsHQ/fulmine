@@ -98,7 +98,8 @@ func (s *service) initialize(c *gin.Context) {
 
 	if err := s.svc.Setup(c, aspurl, password, mnemonic); err != nil {
 		log.WithError(err).Warn("failed to initialize")
-		redirect("/", c)
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
 		return
 	}
 	redirect("/done", c)
