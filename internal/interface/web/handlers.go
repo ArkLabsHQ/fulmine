@@ -58,6 +58,10 @@ func (s *service) index(c *gin.Context) {
 			if err != nil {
 				log.WithError(err).Warn("failed to get tx history")
 			}
+			err = s.svc.ScheduleNextClaim(c)
+			if err != nil {
+				log.WithError(err).Warn("failed to schedule next claim")
+			}
 			s.logVtxos(c) // TODO: remove
 			bodyContent = pages.HistoryBodyContent(
 				spendableBalance, offchainAddr, txHistory, isOnline,
@@ -398,7 +402,9 @@ func (s *service) getTx(c *gin.Context) {
 			break
 		}
 	}
-	bodyContent := pages.TxBodyContent(tx)
+
+	nextClaim := prettyUnixTimestamp(s.svc.WhenNextClaim(c).Unix())
+	bodyContent := pages.TxBodyContent(tx, nextClaim)
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -469,6 +475,10 @@ func (s *service) getTxHistory(
 	if err != nil {
 		return nil, err
 	}
+	data, err := s.svc.GetConfigData(c)
+	if err != nil {
+		return nil, err
+	}
 	// transform each arksdk.Transaction to types.Transaction
 	for _, tx := range history {
 		// amount
@@ -478,6 +488,7 @@ func (s *service) getTxHistory(
 		}
 		// date of creation
 		dateCreated := tx.CreatedAt.Unix()
+		expiresAt := tx.CreatedAt.Unix() + data.RoundLifetime
 		// status of tx
 		status := "success"
 		if tx.Pending {
@@ -498,14 +509,15 @@ func (s *service) getTxHistory(
 		}
 		// add to slice of transactions
 		transactions = append(transactions, types.Transaction{
-			Amount:   amount,
-			Date:     prettyUnixTimestamp(dateCreated),
-			Day:      prettyDay(dateCreated),
-			Hour:     prettyHour(dateCreated),
-			Kind:     string(tx.Type),
-			Txid:     txid,
-			Status:   status,
-			UnixDate: dateCreated,
+			Amount:    amount,
+			CreatedAt: prettyUnixTimestamp(dateCreated),
+			Day:       prettyDay(dateCreated),
+			ExpiresAt: prettyUnixTimestamp(expiresAt),
+			Hour:      prettyHour(dateCreated),
+			Kind:      string(tx.Type),
+			Txid:      txid,
+			Status:    status,
+			UnixDate:  dateCreated,
 		})
 	}
 	return

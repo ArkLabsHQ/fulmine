@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
+	scheduler "github.com/ArkLabsHQ/ark-node/internal/infrastructure/scheduler/gocron"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
@@ -38,6 +40,7 @@ type Service struct {
 	storeRepo    store.ConfigStore
 	settingsRepo domain.SettingsRepository
 	grpcClient   client.ASPClient
+	schedulerSvc scheduler.SchedulerService
 
 	isReady bool
 }
@@ -46,6 +49,9 @@ func NewService(
 	buildInfo BuildInfo,
 	storeSvc store.ConfigStore, settingsRepo domain.SettingsRepository,
 ) (*Service, error) {
+	schedulerSvc := scheduler.NewScheduler()
+	schedulerSvc.Start()
+
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
 		if err != nil {
@@ -56,7 +62,7 @@ func NewService(
 			return nil, err
 		}
 		return &Service{
-			buildInfo, arkClient, storeSvc, settingsRepo, client, true,
+			buildInfo, arkClient, storeSvc, settingsRepo, client, schedulerSvc, true,
 		}, nil
 	}
 
@@ -75,7 +81,7 @@ func NewService(
 		return nil, err
 	}
 
-	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, nil, false}, nil
+	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, nil, schedulerSvc, false}, nil
 }
 
 func (s *Service) IsReady() bool {
@@ -186,9 +192,35 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 
 func (s *Service) GetRound(ctx context.Context, roundId string) (*client.Round, error) {
 	if !s.isReady {
-		return nil, fmt.Errorf("service not iniitialized")
+		return nil, fmt.Errorf("service not initialized")
 	}
 	return s.grpcClient.GetRoundByID(ctx, roundId)
+}
+
+func (s *Service) ScheduleNextClaim(ctx context.Context) error {
+	if !s.isReady {
+		return fmt.Errorf("service not initialized")
+	}
+
+	txHistory, err := s.ArkClient.GetTransactionHistory(ctx)
+	if err != nil {
+		return err
+	}
+
+	data, err := s.GetConfigData(ctx)
+	if err != nil {
+		return err
+	}
+
+	task := func() {
+		s.ArkClient.Claim(ctx)
+	}
+
+	return s.schedulerSvc.ScheduleNextClaim(txHistory, data, task)
+}
+
+func (s *Service) WhenNextClaim(ctx context.Context) time.Time {
+	return s.schedulerSvc.WhenNextClaim()
 }
 
 func privateKeyFromMnemonic(mnemonic string) (string, error) {
