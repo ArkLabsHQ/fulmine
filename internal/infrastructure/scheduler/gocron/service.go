@@ -7,7 +7,6 @@ import (
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/store"
 	"github.com/go-co-op/gocron"
-	"github.com/sirupsen/logrus"
 )
 
 type SchedulerService interface {
@@ -37,36 +36,33 @@ func (s *service) Stop() {
 }
 
 func (s *service) ScheduleNextClaim(txs []arksdk.Transaction, data *store.StoreData, task func()) error {
-	sooner := time.Now().Unix() + data.RoundLifetime
+	now := time.Now().Unix()
+	at := now + data.RoundLifetime
 
 	for _, tx := range txs {
 		if !tx.Pending {
 			continue
 		}
 		expiresAt := tx.CreatedAt.Unix() + data.RoundLifetime
-		if expiresAt < sooner {
-			sooner = expiresAt
+		if expiresAt < at {
+			at = expiresAt
 		}
 	}
 
-	// cancel previous job
-	s.scheduler.Remove(s.job)
+	bestTime := bestMarketHour(at, data)
 
-	delay := sooner - time.Now().Unix()
+	delay := bestTime - now
 	if delay < 0 {
 		return fmt.Errorf("cannot schedule task in the past")
 	}
 
-	// run it on the previous round
-	if delay > data.RoundInterval {
-		delay = delay - data.RoundInterval
-	} else {
-		delay = 0 // run immediatelly
-	}
-	logrus.Infof("setting scheduler for %d", sooner)
+	s.scheduler.Remove(s.job)
 
-	// schedule job and store it in service
 	job, err := s.scheduler.Every(int(delay)).Seconds().WaitForSchedule().LimitRunsTo(1).Do(task)
+	if err != nil {
+		return err
+	}
+
 	s.job = job
 
 	return err
@@ -74,4 +70,16 @@ func (s *service) ScheduleNextClaim(txs []arksdk.Transaction, data *store.StoreD
 
 func (s *service) WhenNextClaim() time.Time {
 	return s.job.NextRun()
+}
+
+// TODO: get market hour info from config data
+func bestMarketHour(at int64, data *store.StoreData) int64 {
+	firstMarketHour := int64(1231006505) // block 0 timestamp
+	marketHourInterval := int64(86400)   // 24 hours
+	cycles := (at - firstMarketHour) / marketHourInterval
+	best := firstMarketHour + cycles*marketHourInterval
+	if at-best <= data.RoundInterval {
+		return best - marketHourInterval
+	}
+	return best
 }
