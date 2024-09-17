@@ -509,6 +509,7 @@ func (s *service) getTxHistory(
 		}
 		// date of creation
 		dateCreated := tx.CreatedAt.Unix()
+		// TODO: use tx.ExpiresAt when it will be available
 		expiresAt := tx.CreatedAt.Unix() + data.RoundLifetime
 		// status of tx
 		status := "success"
