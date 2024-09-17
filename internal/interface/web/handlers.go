@@ -535,6 +535,11 @@ func (s *service) redirectedBecauseWalletIsLocked(c *gin.Context) bool {
 	return redirect
 }
 
+func (s *service) reversibleInfoModal(c *gin.Context) {
+	info := modals.ReversibleInfo()
+	modalHandler(info, c)
+}
+
 func (s *service) pageViewHandler(bodyContent templ.Component, c *gin.Context) {
 	settings, err := s.svc.GetSettings(c)
 	if err != nil {
