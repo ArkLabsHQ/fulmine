@@ -245,7 +245,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 			toastHandler(toast, c)
 			return
 		}
-		// claim change
+		// claim change (this will claim all pending transactions)
 		_, err = s.svc.Claim(c)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
