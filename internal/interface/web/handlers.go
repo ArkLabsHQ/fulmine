@@ -59,10 +59,6 @@ func (s *service) index(c *gin.Context) {
 			if err != nil {
 				log.WithError(err).Warn("failed to get tx history")
 			}
-			err = s.svc.ScheduleNextClaim(c)
-			if err != nil {
-				log.WithError(err).Warn("failed to schedule next claim")
-			}
 			s.logVtxos(c) // TODO: remove
 			bodyContent = pages.HistoryBodyContent(
 				spendableBalance, offchainAddr, txHistory, isOnline,

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
-	scheduler "github.com/ArkLabsHQ/ark-node/internal/infrastructure/scheduler/gocron"
+	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
@@ -41,18 +41,17 @@ type Service struct {
 	storeRepo    store.ConfigStore
 	settingsRepo domain.SettingsRepository
 	grpcClient   client.ASPClient
-	schedulerSvc scheduler.SchedulerService
+	schedulerSvc ports.SchedulerService
 
 	isReady bool
 }
 
 func NewService(
 	buildInfo BuildInfo,
-	storeSvc store.ConfigStore, settingsRepo domain.SettingsRepository,
+	storeSvc store.ConfigStore,
+	settingsRepo domain.SettingsRepository,
+	schedulerSvc ports.SchedulerService,
 ) (*Service, error) {
-	schedulerSvc := scheduler.NewScheduler()
-	schedulerSvc.Start()
-
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
 		if err != nil {
@@ -130,6 +129,33 @@ func (s *Service) Setup(
 	return nil
 }
 
+func (s *Service) LockNode(ctx context.Context, password string) error {
+	err := s.Lock(ctx, password)
+	if err != nil {
+		return err
+	}
+	s.schedulerSvc.Stop()
+	logrus.Info("scheduler stopped")
+	return nil
+}
+
+func (s *Service) UnlockNode(ctx context.Context, password string) error {
+	err := s.Unlock(ctx, password)
+	if err != nil {
+		return err
+	}
+
+	s.schedulerSvc.Start()
+	logrus.Info("scheduler started")
+
+	err = s.ScheduleNextClaims(ctx)
+	if err != nil {
+		logrus.WithError(err).Info("schedule next claim failed")
+	}
+
+	return nil
+}
+
 func (s *Service) Reset(ctx context.Context) error {
 	backup, err := s.settingsRepo.GetSettings(ctx)
 	if err != nil {
@@ -198,7 +224,7 @@ func (s *Service) GetRound(ctx context.Context, roundId string) (*client.Round, 
 	return s.grpcClient.GetRoundByID(ctx, roundId)
 }
 
-func (s *Service) ScheduleNextClaim(ctx context.Context) error {
+func (s *Service) ScheduleNextClaims(ctx context.Context) error {
 	if !s.isReady {
 		return fmt.Errorf("service not initialized")
 	}

@@ -140,7 +140,7 @@ func (s *service) unlockApi(c *gin.Context) {
 		return
 	}
 
-	if err := s.svc.Unlock(c, password); err != nil {
+	if err := s.svc.UnlockNode(c, password); err != nil {
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
 		return

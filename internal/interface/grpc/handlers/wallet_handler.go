@@ -65,7 +65,7 @@ func (h *walletHandler) Unlock(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if err := h.svc.Unlock(ctx, password); err != nil {
+	if err := h.svc.UnlockNode(ctx, password); err != nil {
 		return nil, err
 	}
 	return &pb.UnlockResponse{}, nil

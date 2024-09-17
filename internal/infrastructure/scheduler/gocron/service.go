@@ -4,24 +4,18 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/store"
 	"github.com/go-co-op/gocron"
 )
-
-type SchedulerService interface {
-	Start()
-	Stop()
-	ScheduleNextClaim(txs []arksdk.Transaction, data *store.StoreData, task func()) error
-	WhenNextClaim() time.Time
-}
 
 type service struct {
 	scheduler *gocron.Scheduler
 	job       *gocron.Job
 }
 
-func NewScheduler() SchedulerService {
+func NewScheduler() ports.SchedulerService {
 	svc := gocron.NewScheduler(time.UTC)
 	job := gocron.Job{}
 	return &service{svc, &job}
