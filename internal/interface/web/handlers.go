@@ -387,6 +387,10 @@ func (s *service) swapPreview(c *gin.Context) {
 }
 
 func (s *service) getTx(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
 	txHistory, err := s.getTxHistory(c)
 	if err != nil {
 		// nolint:all
