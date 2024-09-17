@@ -13,6 +13,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/modals"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/pages"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
+	"github.com/ArkLabsHQ/ark-node/utils"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
@@ -33,7 +34,7 @@ func (s *service) forgot(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	c.Redirect(http.StatusFound, "/welcome")
+	c.Redirect(http.StatusFound, "/app/welcome")
 }
 
 func (s *service) index(c *gin.Context) {
@@ -75,10 +76,20 @@ func (s *service) initialize(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
+	if !utils.IsValidURL(aspurl) {
+		toast := components.Toast("Invalid ASP URL", true)
+		toastHandler(toast, c)
+		return
+	}
 
 	mnemonic := c.PostForm("mnemonic")
 	if mnemonic == "" {
 		toast := components.Toast("Mnemonic can't be empty", true)
+		toastHandler(toast, c)
+		return
+	}
+	if err := utils.IsValidMnemonic(mnemonic); err != nil {
+		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
 		return
 	}
@@ -89,10 +100,16 @@ func (s *service) initialize(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
+	if err := utils.IsValidPassword(password); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
 
 	if err := s.svc.Setup(c, aspurl, password, mnemonic); err != nil {
 		log.WithError(err).Warn("failed to initialize")
-		redirect("/", c)
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
 		return
 	}
 	redirect("/done", c)
@@ -164,7 +181,7 @@ func (s *service) receiveQrCode(c *gin.Context) {
 func (s *service) receiveSuccess(c *gin.Context) {
 	sats := c.PostForm("sats")
 	bip21 := c.PostForm(("bip21"))
-	offchainAddr := getArkAddress(bip21)
+	offchainAddr := utils.GetArkAddress(bip21)
 	partial := pages.ReceiveSuccessContent(offchainAddr, sats)
 	partialViewHandler(partial, c)
 }
@@ -193,18 +210,18 @@ func (s *service) sendPreview(c *gin.Context) {
 	dest := c.PostForm("address")
 	sats := c.PostForm("sats")
 
-	if isBip21(dest) {
-		offchainAddress := getArkAddress(dest)
+	if utils.IsBip21(dest) {
+		offchainAddress := utils.GetArkAddress(dest)
 		if len(offchainAddress) > 0 {
 			addr = offchainAddress
 		} else {
-			onchainAddress := getBtcAddress(dest)
+			onchainAddress := utils.GetBtcAddress(dest)
 			if len(onchainAddress) > 0 {
 				addr = onchainAddress
 			}
 		}
 	} else {
-		if isValidBtcAddress(dest) || isValidArkAddress(dest) {
+		if utils.IsValidBtcAddress(dest) || utils.IsValidArkAddress(dest) {
 			addr = dest
 		}
 	}
@@ -238,7 +255,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 		arksdk.NewBitcoinReceiver(address, value),
 	}
 
-	if isValidArkAddress(address) {
+	if utils.IsValidArkAddress(address) {
 		txId, err = s.svc.SendAsync(c, true, receivers)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
@@ -247,7 +264,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 		}
 	}
 
-	if isValidBtcAddress(address) {
+	if utils.IsValidBtcAddress(address) {
 		txId, err = s.svc.SendOnChain(c, receivers)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)

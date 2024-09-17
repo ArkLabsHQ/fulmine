@@ -11,12 +11,45 @@ templ AspUrlBodyContent(aspurl, mnemonic, password string) {
     <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	    <div>
 		    <div class="hidden md:block">@LogoWhite()</div>
-	      @components.Header("Choose ASP", "/welcome")
+	      @components.Header("Choose ASP", "/app/welcome")
 	  		<p class="mb-10">Choose your ASP</p>
         <p class="mb-2">ASP URL</p>
         @components.InputWithPaste("aspurl", "", aspurl)
       </div>
-	  	<button class="bg-orange text-white" onclick="disableButton(this)" type="submit">Create wallet</button>
+	  	<button
+			  id="createWallet"
+				class="bg-orange text-white"
+				disabled
+				onclick="disableButton(this)"
+				type="submit"
+			>Create wallet</button>
     </div>
   </form>
+  <script>
+		const button = document.querySelector('#createWallet')
+		const input = document.querySelector('#aspurl')
+		if (input && button) {
+		  input.addEventListener('change', () => {
+		  	if (input.value.length == 0) return
+		  	const data = new FormData()
+		    data.set('url', input.value)
+		    fetch('/app/api/url/validate', {
+		    	method: 'POST',
+          body: data,
+		    }).then((res) => {
+		    	if (res.ok) {
+		    		res.json().then(({ valid }) => {
+		    			if (valid) {
+		    				button.disabled = false
+		    				button.innerText = 'Create wallet'
+		    			} else {
+		    				button.disabled = true
+		    				button.innerText = 'Invalid URL'
+		    			}
+		    		})
+		    	}
+		    })
+		  })
+		}
+  </script>
 }

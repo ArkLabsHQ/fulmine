@@ -128,6 +128,10 @@ button.disabled {
   opacity: 0.5;
 }
 
+button::first-letter {
+  text-transform: capitalize;
+}
+
 .grid-cols-4 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }

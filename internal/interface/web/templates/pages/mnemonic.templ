@@ -43,7 +43,7 @@ templ ManageMnemonicContent(mnemonic []string) {
         body: data,
 			}).then((res) => {
 				if (res.ok) {
-					res.json().then(({ valid }) => {
+					res.json().then(({ valid, error }) => {
 						const button = document.querySelector('#importButton')
 						if (!button) return
 						if (valid) {
@@ -51,7 +51,7 @@ templ ManageMnemonicContent(mnemonic []string) {
 							button.innerText = 'Continue'
 						} else {
 							button.disabled = true
-							button.innerText = 'Invalid mnemonic'
+							button.innerText = error
 						}
 					})
 				}

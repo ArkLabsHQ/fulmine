@@ -106,6 +106,7 @@ func NewService(appSvc *application.Service) *service {
 	svc.POST("/api/node/connect", svc.connectNodeApi)
 	svc.POST("/api/node/disconnect", svc.disconnectNodeApi)
 	svc.POST("/api/mnemonic/validate", svc.validateMnemonicApi)
+	svc.POST("/api/url/validate", svc.validateUrlApi)
 	svc.POST("/api/unlock", svc.unlockApi)
 
 	svc.GET("/api/balance", svc.getBalanceApi)

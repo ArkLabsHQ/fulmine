@@ -7,6 +7,7 @@ import (
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
+	"github.com/ArkLabsHQ/ark-node/utils"
 	"github.com/ark-network/ark/common/tree"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"google.golang.org/grpc/codes"
@@ -72,9 +73,16 @@ func (h *serviceHandler) GetOnboardAddress(
 func (h *serviceHandler) Send(
 	ctx context.Context, req *pb.SendRequest,
 ) (*pb.SendResponse, error) {
-	// TODO: validate req
+	address, err := parseAddress(req.GetAddress())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	amount, err := parseAmount(req.GetAmount())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(req.GetAddress(), req.GetAmount()),
+		arksdk.NewBitcoinReceiver(address, amount),
 	}
 	roundId, err := h.svc.SendOffChain(ctx, false, receivers)
 	if err != nil {
@@ -86,9 +94,16 @@ func (h *serviceHandler) Send(
 func (h *serviceHandler) SendAsync(
 	ctx context.Context, req *pb.SendAsyncRequest,
 ) (*pb.SendAsyncResponse, error) {
-	// TODO: validate req
+	address, err := parseAddress(req.GetAddress())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	amount, err := parseAmount(req.GetAmount())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(req.GetAddress(), req.GetAmount()),
+		arksdk.NewBitcoinReceiver(address, amount),
 	}
 	redeemTx, err := h.svc.SendAsync(ctx, false, receivers)
 	if err != nil {
@@ -100,9 +115,16 @@ func (h *serviceHandler) SendAsync(
 func (h *serviceHandler) SendOnchain(
 	ctx context.Context, req *pb.SendOnchainRequest,
 ) (*pb.SendOnchainResponse, error) {
-	// TODO: validate req
+	address, err := parseAddress(req.GetAddress())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	amount, err := parseAmount(req.GetAmount())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(req.GetAddress(), req.GetAmount()),
+		arksdk.NewBitcoinReceiver(address, amount),
 	}
 	txid, err := h.svc.SendOnChain(ctx, receivers)
 	if err != nil {
@@ -161,6 +183,23 @@ func (h *serviceHandler) GetTransactionHistory(
 	}
 
 	return &pb.GetTransactionHistoryResponse{Transactions: txs}, nil
+}
+
+func parseAddress(a string) (string, error) {
+	if len(a) <= 0 {
+		return "", fmt.Errorf("missing address")
+	}
+	if !utils.IsValidArkAddress(a) && !utils.IsValidBtcAddress(a) {
+		return "", fmt.Errorf("invalid address")
+	}
+	return a, nil
+}
+
+func parseAmount(a uint64) (uint64, error) {
+	if a == 0 {
+		return 0, fmt.Errorf("missing amount")
+	}
+	return a, nil
 }
 
 func parseRoundId(id string) (string, error) {
