@@ -336,7 +336,7 @@ func PendingTxTable(createdAt, expiresAt, nextClaim string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><div class=\"bg-desktopbg p-4 w-full max-w-[360px] mt-4 rounded-lg text-white\"><p class=\"mb-4\">Your settlement has been scheduled for <span class=\"font-semibold\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><div class=\"bg-desktopbg md:bg-white/10 p-4 w-full max-w-[360px] mt-4 rounded-lg text-white\"><p class=\"mb-4\">Your settlement has been scheduled for <span class=\"font-semibold\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -349,7 +349,7 @@ func PendingTxTable(createdAt, expiresAt, nextClaim string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> for 500 SATS.</p><p class=\"mb-4\">You can settle now for 25000 SATS</p><div class=\"flex justify-between text-white/50 items-center gap-4\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</span> for 500 SATS.</p><p class=\"mb-4\">You can settle now for 25000 SATS</p><div class=\"flex justify-between text-white/50 items-center gap-4\"><p hx-get=\"/app/modal/reversibleinfo\" hx-target=\"#modal\" class=\"cursor-pointer\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -357,7 +357,7 @@ func PendingTxTable(createdAt, expiresAt, nextClaim string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"text-xs\">This transaction is reversable in case settlement doesn't go through</p></div></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><p class=\"text-xs\">This transaction is reversible in case the settlement doesn't go through</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

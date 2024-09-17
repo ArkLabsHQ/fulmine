@@ -12,6 +12,7 @@ import (
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
 	store "github.com/ark-network/ark/pkg/client-sdk/store"
+	"github.com/sirupsen/logrus"
 	"github.com/tyler-smith/go-bip32"
 	"github.com/tyler-smith/go-bip39"
 )
@@ -213,7 +214,12 @@ func (s *Service) ScheduleNextClaim(ctx context.Context) error {
 	}
 
 	task := func() {
-		s.ArkClient.Claim(ctx)
+		when := time.Now().Unix()
+		logrus.Infof("running auto claim at %d", when)
+		_, err := s.ArkClient.Claim(ctx)
+		if err != nil {
+			logrus.WithError(err).Warn("failed to auto claim")
+		}
 	}
 
 	return s.schedulerSvc.ScheduleNextClaim(txHistory, data, task)
