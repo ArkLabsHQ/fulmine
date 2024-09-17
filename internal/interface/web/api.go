@@ -5,9 +5,9 @@ import (
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/ark-node/utils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/tyler-smith/go-bip39"
 )
 
 func (s *service) getBalanceApi(c *gin.Context) {
@@ -81,10 +81,27 @@ func (s *service) disconnectNodeApi(c *gin.Context) {
 }
 
 func (s *service) validateMnemonicApi(c *gin.Context) {
+	var data gin.H
 	mnemonic := c.PostForm("mnemonic")
-	isValid := bip39.IsMnemonicValid(mnemonic)
+	err := utils.IsValidMnemonic(mnemonic)
+	if err == nil {
+		data = gin.H{
+			"valid": true,
+		}
+	} else {
+		data = gin.H{
+			"valid": false,
+			"error": err.Error(),
+		}
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func (s *service) validateUrlApi(c *gin.Context) {
+	url := c.PostForm("url")
+	valid := utils.IsValidURL(url)
 	data := gin.H{
-		"valid": isValid,
+		"valid": valid,
 	}
 	c.JSON(http.StatusOK, data)
 }
