@@ -530,7 +530,7 @@ func (s *service) getTxHistory(
 func (s *service) redirectedBecauseWalletIsLocked(c *gin.Context) bool {
 	redirect := s.svc.IsLocked(c)
 	if redirect {
-		c.Redirect(http.StatusFound, "/")
+		c.Redirect(http.StatusFound, "/app")
 	}
 	return redirect
 }
