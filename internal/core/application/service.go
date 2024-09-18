@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
+	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
 	store "github.com/ark-network/ark/pkg/client-sdk/store"
+	"github.com/sirupsen/logrus"
 	"github.com/tyler-smith/go-bip32"
 	"github.com/tyler-smith/go-bip39"
 )
@@ -38,13 +41,16 @@ type Service struct {
 	storeRepo    store.ConfigStore
 	settingsRepo domain.SettingsRepository
 	grpcClient   client.ASPClient
+	schedulerSvc ports.SchedulerService
 
 	isReady bool
 }
 
 func NewService(
 	buildInfo BuildInfo,
-	storeSvc store.ConfigStore, settingsRepo domain.SettingsRepository,
+	storeSvc store.ConfigStore,
+	settingsRepo domain.SettingsRepository,
+	schedulerSvc ports.SchedulerService,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
@@ -56,7 +62,7 @@ func NewService(
 			return nil, err
 		}
 		return &Service{
-			buildInfo, arkClient, storeSvc, settingsRepo, client, true,
+			buildInfo, arkClient, storeSvc, settingsRepo, client, schedulerSvc, true,
 		}, nil
 	}
 
@@ -75,7 +81,7 @@ func NewService(
 		return nil, err
 	}
 
-	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, nil, false}, nil
+	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, nil, schedulerSvc, false}, nil
 }
 
 func (s *Service) IsReady() bool {
@@ -120,6 +126,33 @@ func (s *Service) Setup(
 
 	s.grpcClient = client
 	s.isReady = true
+	return nil
+}
+
+func (s *Service) LockNode(ctx context.Context, password string) error {
+	err := s.Lock(ctx, password)
+	if err != nil {
+		return err
+	}
+	s.schedulerSvc.Stop()
+	logrus.Info("scheduler stopped")
+	return nil
+}
+
+func (s *Service) UnlockNode(ctx context.Context, password string) error {
+	err := s.Unlock(ctx, password)
+	if err != nil {
+		return err
+	}
+
+	s.schedulerSvc.Start()
+	logrus.Info("scheduler started")
+
+	err = s.ScheduleClaims(ctx)
+	if err != nil {
+		logrus.WithError(err).Info("schedule next claim failed")
+	}
+
 	return nil
 }
 
@@ -186,9 +219,50 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 
 func (s *Service) GetRound(ctx context.Context, roundId string) (*client.Round, error) {
 	if !s.isReady {
-		return nil, fmt.Errorf("service not iniitialized")
+		return nil, fmt.Errorf("service not initialized")
 	}
 	return s.grpcClient.GetRoundByID(ctx, roundId)
+}
+
+func (s *Service) ClaimPending(ctx context.Context) (string, error) {
+	roundTxid, err := s.ArkClient.Claim(ctx)
+	if err == nil {
+		err := s.ScheduleClaims(ctx)
+		if err != nil {
+			logrus.WithError(err).Warn("error scheduling next claims")
+		}
+	}
+	return roundTxid, err
+}
+
+func (s *Service) ScheduleClaims(ctx context.Context) error {
+	if !s.isReady {
+		return fmt.Errorf("service not initialized")
+	}
+
+	txHistory, err := s.ArkClient.GetTransactionHistory(ctx)
+	if err != nil {
+		return err
+	}
+
+	data, err := s.GetConfigData(ctx)
+	if err != nil {
+		return err
+	}
+
+	task := func() {
+		logrus.Infof("running auto claim at %s", time.Now())
+		_, err := s.ClaimPending(ctx)
+		if err != nil {
+			logrus.WithError(err).Warn("failed to auto claim")
+		}
+	}
+
+	return s.schedulerSvc.ScheduleNextClaim(txHistory, data, task)
+}
+
+func (s *Service) WhenNextClaim(ctx context.Context) time.Time {
+	return s.schedulerSvc.WhenNextClaim()
 }
 
 func privateKeyFromMnemonic(mnemonic string) (string, error) {

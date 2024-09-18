@@ -59,3 +59,19 @@ templ FeeTable(sats string, params ...string) {
 templ TxTable(sats, date, status string) {
   @FeeTable(sats, date, status)
 }
+
+templ PendingTxTable(createdAt, expiresAt, nextClaim string) {
+  <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
+    @statusLine("pending")
+    @feeLine("Received", createdAt)
+    @feeLine("Expiring", expiresAt)
+  </div>
+  <div class="bg-desktopbg md:bg-white/10 p-4 w-full max-w-[360px] mt-4 rounded-lg text-white">
+    <p class="mb-4">Your settlement has been scheduled for <span class="font-semibold">{nextClaim}</span> for 500 SATS.</p>
+    <p class="mb-4">You can settle now for 25.000 SATS</p>
+    <div class="flex justify-between text-white/50 items-center gap-4">
+      <p hx-get="/app/modal/reversibleinfo" hx-target="#modal" class="cursor-pointer">@InfoIcon()</p>
+      <p class="text-xs">This transaction is reversible in case the settlement doesn't go through</p>
+    </div>
+  </div>
+}

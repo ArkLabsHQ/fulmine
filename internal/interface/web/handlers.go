@@ -400,6 +400,10 @@ func (s *service) swapPreview(c *gin.Context) {
 }
 
 func (s *service) getTx(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
 	txHistory, err := s.getTxHistory(c)
 	if err != nil {
 		// nolint:all
@@ -415,7 +419,9 @@ func (s *service) getTx(c *gin.Context) {
 			break
 		}
 	}
-	bodyContent := pages.TxBodyContent(tx)
+
+	nextClaim := prettyUnixTimestamp(s.svc.WhenNextClaim(c).Unix())
+	bodyContent := pages.TxBodyContent(tx, nextClaim)
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -486,6 +492,10 @@ func (s *service) getTxHistory(
 	if err != nil {
 		return nil, err
 	}
+	data, err := s.svc.GetConfigData(c)
+	if err != nil {
+		return nil, err
+	}
 	// transform each arksdk.Transaction to types.Transaction
 	for _, tx := range history {
 		// amount
@@ -495,6 +505,8 @@ func (s *service) getTxHistory(
 		}
 		// date of creation
 		dateCreated := tx.CreatedAt.Unix()
+		// TODO: use tx.ExpiresAt when it will be available
+		expiresAt := tx.CreatedAt.Unix() + data.RoundLifetime
 		// status of tx
 		status := "success"
 		if tx.Pending {
@@ -515,14 +527,15 @@ func (s *service) getTxHistory(
 		}
 		// add to slice of transactions
 		transactions = append(transactions, types.Transaction{
-			Amount:   amount,
-			Date:     prettyUnixTimestamp(dateCreated),
-			Day:      prettyDay(dateCreated),
-			Hour:     prettyHour(dateCreated),
-			Kind:     string(tx.Type),
-			Txid:     txid,
-			Status:   status,
-			UnixDate: dateCreated,
+			Amount:    amount,
+			CreatedAt: prettyUnixTimestamp(dateCreated),
+			Day:       prettyDay(dateCreated),
+			ExpiresAt: prettyUnixTimestamp(expiresAt),
+			Hour:      prettyHour(dateCreated),
+			Kind:      string(tx.Type),
+			Txid:      txid,
+			Status:    status,
+			UnixDate:  dateCreated,
 		})
 	}
 	return
@@ -531,9 +544,14 @@ func (s *service) getTxHistory(
 func (s *service) redirectedBecauseWalletIsLocked(c *gin.Context) bool {
 	redirect := s.svc.IsLocked(c)
 	if redirect {
-		c.Redirect(http.StatusFound, "/")
+		c.Redirect(http.StatusFound, "/app")
 	}
 	return redirect
+}
+
+func (s *service) reversibleInfoModal(c *gin.Context) {
+	info := modals.ReversibleInfo()
+	modalHandler(info, c)
 }
 
 func (s *service) pageViewHandler(bodyContent templ.Component, c *gin.Context) {

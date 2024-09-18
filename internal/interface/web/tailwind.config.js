@@ -17,7 +17,7 @@ module.exports = {
         yellowbg: '#d09c17',
         white: '#fbfbfb',
         graybg: '#2a2a2a',
-        desktopbg: '#1b1b1e',
+        desktopbg: '#1b1c1e',
         toastbg: '#1c3c0e',
         errorbg: '#330f0f',
       },

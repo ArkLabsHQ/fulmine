@@ -8,6 +8,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/config"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
 	badgerdb "github.com/ArkLabsHQ/ark-node/internal/infrastructure/db/badger"
+	scheduler "github.com/ArkLabsHQ/ark-node/internal/infrastructure/scheduler/gocron"
 	grpcservice "github.com/ArkLabsHQ/ark-node/internal/interface/grpc"
 	filestore "github.com/ark-network/ark/pkg/client-sdk/store/file"
 	log "github.com/sirupsen/logrus"
@@ -42,6 +43,7 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal(err)
 	}
+
 	settingsRepo, err := badgerdb.NewSettingsRepo(cfg.Datadir, log.New())
 	if err != nil {
 		log.WithError(err).Fatal(err)
@@ -52,7 +54,10 @@ func main() {
 		Commit:  commit,
 		Date:    date,
 	}
-	appSvc, err := application.NewService(buildInfo, storeSvc, settingsRepo)
+
+	schedulerSvc := scheduler.NewScheduler()
+
+	appSvc, err := application.NewService(buildInfo, storeSvc, settingsRepo, schedulerSvc)
 	if err != nil {
 		log.WithError(err).Fatal(err)
 	}

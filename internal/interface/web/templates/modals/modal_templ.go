@@ -29,7 +29,7 @@ func Modal(content templ.Component) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"modalContainer\" onclick=\"closeModal()\" class=\"fixed inset-0 flex justify-center items-center bg-black/60\"><div onclick=\"event.stopPropagation()\" class=\"bg-graybg rounded-xl shadow p-6 transition-all max-w-64 md:max-w-96 \">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"modalContainer\" onclick=\"closeModal()\" class=\"fixed inset-0 flex justify-center items-center bg-black/60\"><div onclick=\"event.stopPropagation()\" class=\"bg-graybg rounded-xl shadow p-6 transition-all max-w-64 sm:max-w-96 \">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
