@@ -10,6 +10,6 @@ import (
 type SchedulerService interface {
 	Start()
 	Stop()
-	ScheduleNextClaim(txs []arksdk.Transaction, data *store.StoreData, task func()) error
+	ScheduleNextClaim(txs []arksdk.Transaction, data *store.StoreData, claimFunc func()) error
 	WhenNextClaim() time.Time
 }

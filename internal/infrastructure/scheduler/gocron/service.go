@@ -29,7 +29,9 @@ func (s *service) Stop() {
 	s.scheduler.Stop()
 }
 
-func (s *service) ScheduleNextClaim(txs []arksdk.Transaction, data *store.StoreData, task func()) error {
+// Sets a ClaimPending() to run in the best market hour
+// Besides claiming, ClaimPending() also calls this function
+func (s *service) ScheduleNextClaim(txs []arksdk.Transaction, data *store.StoreData, claimFunc func()) error {
 	now := time.Now().Unix()
 	at := now + data.RoundLifetime
 
@@ -52,7 +54,7 @@ func (s *service) ScheduleNextClaim(txs []arksdk.Transaction, data *store.StoreD
 
 	s.scheduler.Remove(s.job)
 
-	job, err := s.scheduler.Every(int(delay)).Seconds().WaitForSchedule().LimitRunsTo(1).Do(task)
+	job, err := s.scheduler.Every(int(delay)).Seconds().WaitForSchedule().LimitRunsTo(1).Do(claimFunc)
 	if err != nil {
 		return err
 	}

@@ -148,23 +148,12 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	s.schedulerSvc.Start()
 	logrus.Info("scheduler started")
 
-	err = s.ScheduleNextClaims(ctx)
+	err = s.ScheduleClaims(ctx)
 	if err != nil {
 		logrus.WithError(err).Info("schedule next claim failed")
 	}
 
 	return nil
-}
-
-func (s *Service) ClaimPending(ctx context.Context) (string, error) {
-	roundTxid, err := s.ArkClient.Claim(ctx)
-	if err == nil {
-		err := s.ScheduleClaims(ctx)
-		if err != nil {
-			logrus.WithError(err).Warn("error scheduling next claims")
-		}
-	}
-	return roundTxid, err
 }
 
 func (s *Service) Reset(ctx context.Context) error {
@@ -235,7 +224,18 @@ func (s *Service) GetRound(ctx context.Context, roundId string) (*client.Round, 
 	return s.grpcClient.GetRoundByID(ctx, roundId)
 }
 
-func (s *Service) ScheduleNextClaims(ctx context.Context) error {
+func (s *Service) ClaimPending(ctx context.Context) (string, error) {
+	roundTxid, err := s.ArkClient.Claim(ctx)
+	if err == nil {
+		err := s.ScheduleClaims(ctx)
+		if err != nil {
+			logrus.WithError(err).Warn("error scheduling next claims")
+		}
+	}
+	return roundTxid, err
+}
+
+func (s *Service) ScheduleClaims(ctx context.Context) error {
 	if !s.isReady {
 		return fmt.Errorf("service not initialized")
 	}
@@ -251,9 +251,8 @@ func (s *Service) ScheduleNextClaims(ctx context.Context) error {
 	}
 
 	task := func() {
-		when := time.Now().Unix()
-		logrus.Infof("running auto claim at %d", when)
-		_, err := s.ArkClient.Claim(ctx)
+		logrus.Infof("running auto claim at %s", time.Now())
+		_, err := s.ClaimPending(ctx)
 		if err != nil {
 			logrus.WithError(err).Warn("failed to auto claim")
 		}
