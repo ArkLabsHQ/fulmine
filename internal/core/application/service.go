@@ -156,6 +156,17 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	return nil
 }
 
+func (s *Service) ClaimPending(ctx context.Context) (string, error) {
+	roundTxid, err := s.ArkClient.Claim(ctx)
+	if err == nil {
+		err := s.ScheduleClaims(ctx)
+		if err != nil {
+			logrus.WithError(err).Warn("error scheduling next claims")
+		}
+	}
+	return roundTxid, err
+}
+
 func (s *Service) Reset(ctx context.Context) error {
 	backup, err := s.settingsRepo.GetSettings(ctx)
 	if err != nil {
