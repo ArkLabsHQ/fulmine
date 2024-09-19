@@ -171,14 +171,14 @@ func (h *serviceHandler) GetTransactionHistory(
 	txs := make([]*pb.TransactionInfo, 0, len(txHistory))
 	for _, tx := range txHistory {
 		txs = append(txs, &pb.TransactionInfo{
-			Date:         tx.CreatedAt.Format(time.RFC3339),
-			Amount:       tx.Amount,
-			RoundTxid:    tx.RoundTxid,
-			RedeemTxid:   tx.RedeemTxid,
-			BoardingTxid: tx.BoardingTxid,
-			Type:         toTxTypeProto(tx.Type),
-			Pending:      tx.Pending,
-			Claimed:      tx.Claimed,
+			Date:          tx.CreatedAt.Format(time.RFC3339),
+			Amount:        tx.Amount,
+			RoundTxid:     tx.RoundTxid,
+			RedeemTxid:    tx.RedeemTxid,
+			BoardingTxid:  tx.BoardingTxid,
+			Type:          toTxTypeProto(tx.Type),
+			Pending:       tx.IsPending,
+			PendingChange: tx.IsPendingChange,
 		})
 	}
 

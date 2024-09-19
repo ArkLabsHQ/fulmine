@@ -546,7 +546,7 @@
         "pending": {
           "type": "boolean"
         },
-        "claimed": {
+        "pendingChange": {
           "type": "boolean"
         }
       }

@@ -36,7 +36,7 @@ func (s *service) ScheduleNextClaim(txs []arksdk.Transaction, data *store.StoreD
 	at := now + data.RoundLifetime
 
 	for _, tx := range txs {
-		if !tx.Pending {
+		if !tx.IsPending {
 			continue
 		}
 		expiresAt := tx.CreatedAt.Unix() + data.RoundLifetime

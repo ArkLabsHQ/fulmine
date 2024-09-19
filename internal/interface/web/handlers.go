@@ -256,7 +256,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsValidArkAddress(address) {
-		txId, err = s.svc.SendAsync(c, true, receivers)
+		txId, err = s.svc.SendAsync(c, false, receivers)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
@@ -436,7 +436,7 @@ func (s *service) feeInfoModal(c *gin.Context) {
 }
 
 func (s *service) getSpendableBalance(c *gin.Context) (string, error) {
-	balance, err := s.svc.Balance(c, true)
+	balance, err := s.svc.Balance(c, false)
 	if err != nil {
 		return "", err
 	}
@@ -509,7 +509,7 @@ func (s *service) getTxHistory(
 		expiresAt := tx.CreatedAt.Unix() + data.RoundLifetime
 		// status of tx
 		status := "success"
-		if tx.Pending {
+		if tx.IsPending && !tx.IsPendingChange {
 			status = "pending"
 		}
 		emptyTime := time.Time{}

@@ -60,7 +60,7 @@ message TransactionInfo {
   string boarding_txid = 5;
   TxType type = 6; 
   bool pending = 7;
-  bool claimed = 8;
+  bool pending_change = 8;
 }
 
 message Tree {

@@ -12,7 +12,7 @@ import (
 )
 
 func (s *service) getBalanceApi(c *gin.Context) {
-	balance, err := s.svc.Balance(c, true)
+	balance, err := s.svc.Balance(c, false)
 	if err != nil {
 		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
