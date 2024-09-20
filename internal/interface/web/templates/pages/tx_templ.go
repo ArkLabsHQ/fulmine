@@ -298,9 +298,31 @@ func TxBodyContent(tx types.Transaction, nextClaim string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = components.TxTable(tx.Amount, tx.CreatedAt, tx.Status).Render(ctx, templ_7745c5c3_Buffer)
+			if tx.Kind == "received" {
+				templ_7745c5c3_Err = components.ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
+			}
+			if tx.Kind == "sent" {
+				templ_7745c5c3_Err = components.SentTxTable(tx.Amount, tx.CreatedAt, tx.Status).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(" ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if tx.Kind == "swap" {
+				templ_7745c5c3_Err = components.SwappedTxTable(tx.Amount, tx.CreatedAt, tx.Status).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><div class=\"showOnRequest flex flex-col items-center mt-10 w-full\">")

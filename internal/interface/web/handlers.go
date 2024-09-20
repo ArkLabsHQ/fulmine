@@ -208,7 +208,16 @@ func (s *service) sendPreview(c *gin.Context) {
 
 	addr := ""
 	dest := c.PostForm("address")
-	sats := c.PostForm("sats")
+
+	sats, err := strconv.Atoi(c.PostForm("sats"))
+	if err != nil {
+		toast := components.Toast("Invalid amount", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	feeAmount := 206 // TODO
+	total := sats + feeAmount
 
 	if utils.IsBip21(dest) {
 		offchainAddress := utils.GetArkAddress(dest)
@@ -229,10 +238,11 @@ func (s *service) sendPreview(c *gin.Context) {
 	if len(addr) == 0 {
 		toast := components.Toast("Invalid address", true)
 		toastHandler(toast, c)
-	} else {
-		bodyContent := pages.SendPreviewContent(addr, sats)
-		partialViewHandler(bodyContent, c)
+		return
 	}
+
+	bodyContent := pages.SendPreviewContent(addr, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total))
+	partialViewHandler(bodyContent, c)
 }
 
 func (s *service) sendConfirm(c *gin.Context) {
@@ -394,8 +404,18 @@ func (s *service) swapPreview(c *gin.Context) {
 	}
 
 	kind := c.PostForm("kind")
-	sats := c.PostForm("sats")
-	bodyContent := pages.SwapPreviewContent(kind, sats)
+
+	sats, err := strconv.Atoi(c.PostForm("sats"))
+	if err != nil {
+		toast := components.Toast("Invalid amount", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	feeAmount := 206 // TODO
+	total := sats + feeAmount
+
+	bodyContent := pages.SwapPreviewContent(kind, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total))
 	partialViewHandler(bodyContent, c)
 }
 

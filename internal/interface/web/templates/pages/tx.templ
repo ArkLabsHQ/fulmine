@@ -97,7 +97,15 @@ templ TxBodyContent(tx types.Transaction, nextClaim string) {
           if tx.Status == "pending" {
             @components.PendingTxTable(tx.CreatedAt, tx.ExpiresAt, nextClaim)
           } else {
-            @components.TxTable(tx.Amount, tx.CreatedAt, tx.Status)
+            if tx.Kind == "received" {
+              @components.ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status)
+            }
+            if tx.Kind == "sent" {
+              @components.SentTxTable(tx.Amount, tx.CreatedAt, tx.Status)
+            }
+            if tx.Kind == "swap" {
+              @components.SwappedTxTable(tx.Amount, tx.CreatedAt, tx.Status)
+            }
           }
         </div>
         <div class="showOnRequest flex flex-col items-center mt-10 w-full">
