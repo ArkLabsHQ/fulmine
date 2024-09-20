@@ -20,3 +20,13 @@ templ ActionButtons(action string, disabled ...bool) {
 		}
 	</script>
 }
+
+script openInExplorer(txid, explorerUrl string) {
+	window.open(`${explorerUrl}/tx/${txid}`, '_blank') 
+}
+
+templ ViewTxButton(txid, explorerUrl string) {
+	<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
+	  <button class="bg-graybg md:w-auto" onclick={openInExplorer(txid, explorerUrl)}>View transaction</button>
+	</div>
+}

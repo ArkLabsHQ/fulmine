@@ -149,9 +149,7 @@ templ SwapSuccessContent(kind, sats, txid, explorerUrl string) {
 	    @SuccessIcon()
 			@SwapMovementComponent(kind, sats)
 		</div>
-	  <div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
-	    <button class="bg-graybg md:w-auto" onclick={openInExplorer(txid, explorerUrl)}>View transaction</button>
-		</div>
+		@components.ViewTxButton(txid, explorerUrl)
 	</div>
 }
 
