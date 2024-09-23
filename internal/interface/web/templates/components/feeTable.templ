@@ -1,6 +1,6 @@
 package components
 
-templ feeLine(left, right string, kind ...string) {
+templ tableLine(left, right string, kind ...string) {
   <div class="flex justify-between mb-2">
     <p class="text-white/50 uppercase">{left}</p>
     if len(kind) > 0 && kind[0] == "cryptoAmount" {
@@ -34,37 +34,17 @@ templ statusLine(status string) {
       <p class="text-yellow">Waiting</p>
     } else if status == "unconfirmed" {
       <p class="text-yellow">Unconfirmed</p>
-    }else {
+    } else {
       <p>Unknown</p>
     }
   </div>
 }
 
-templ FeeTable(sats string, params ...string) {
-  <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
-    if len(params) > 0 {
-      @feeLine("date", params[0])
-    }
-    if len(params) > 1 {
-      @statusLine(params[1])
-    }
-    @feeLine("network fee", "500", "cryptoAmount")
-    @arkFeeLine()
-    @feeLine("est. time", "~10 min.")
-    <hr class="text-white/20 mb-2" />
-    @feeLine("total", sats, "cryptoAmount")
-  </div>
-}
-
-templ TxTable(sats, date, status string) {
-  @FeeTable(sats, date, status)
-}
-
 templ PendingTxTable(createdAt, expiresAt, nextClaim string) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @statusLine("pending")
-    @feeLine("Received", createdAt)
-    @feeLine("Expiring", expiresAt)
+    @tableLine("Received", createdAt)
+    @tableLine("Expiring", expiresAt)
   </div>
   <div class="bg-desktopbg md:bg-white/10 p-4 w-full max-w-[360px] mt-4 rounded-lg text-white">
     <p class="mb-4">Your settlement has been scheduled for <span class="font-semibold">{nextClaim}</span> for 500 SATS.</p>
@@ -73,5 +53,52 @@ templ PendingTxTable(createdAt, expiresAt, nextClaim string) {
       <p hx-get="/app/modal/reversibleinfo" hx-target="#modal" class="cursor-pointer">@InfoIcon()</p>
       <p class="text-xs">This transaction is reversible in case the settlement doesn't go through</p>
     </div>
+  </div>
+}
+
+templ ReceivedTxTable(sats, date, status string) {
+  <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
+    @tableLine("date", date)
+    @statusLine(status)
+    <hr class="text-white/20 mb-2" />
+    @tableLine("total", sats, "cryptoAmount")
+  </div>
+}
+
+templ SendTxTable(sats, feeAmount, total string) {
+  <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
+    @tableLine("network fee", feeAmount, "cryptoAmount")
+    @arkFeeLine()
+    @tableLine("est. time", "seconds")
+    <hr class="text-white/20 mb-2" />
+    @tableLine("total", total, "cryptoAmount")
+  </div>
+}
+
+templ SentTxTable(sats, date, status string) {
+  <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
+    @tableLine("date", date)
+    @statusLine(status)
+    <hr class="text-white/20 mb-2" />
+    @tableLine("total", sats, "cryptoAmount")
+  </div>
+}
+
+templ SwapTxTable(sats, feeAmount, total string) {
+  <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
+    @tableLine("network fee", feeAmount, "cryptoAmount")
+    @arkFeeLine()
+    @tableLine("est. time", "seconds")
+    <hr class="text-white/20 mb-2" />
+    @tableLine("total", total, "cryptoAmount")
+  </div>
+}
+
+templ SwappedTxTable(sats, date, status string) {
+  <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
+    @tableLine("date", date)
+    @statusLine(status)
+    <hr class="text-white/20 mb-2" />
+    @tableLine("total", sats, "cryptoAmount")
   </div>
 }

@@ -54,7 +54,7 @@ templ SendBodyContent(currentBalance string) {
 	</script>
 }
 
-templ SendPreviewContent(address, sats string) {
+templ SendPreviewContent(address, sats, feeAmount, total string) {
 	<div id="sendBody">
 	  <form hx-post="/app/send/confirm" hx-target="#sendBody" hx-target="outerHTML">
 		  <input type="hidden" name="address" value={address}>
@@ -75,7 +75,7 @@ templ SendPreviewContent(address, sats string) {
 					  	<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
 					  	<p class="text-white/50">@components.CopyIcon()</p>
 					  </div>
-					  @components.FeeTable(sats)
+					  @components.SendTxTable(sats, feeAmount, total)
 					</div>
 	    	</div>
 	    	@components.ActionButtons("Confirm")

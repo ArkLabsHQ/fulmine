@@ -118,7 +118,7 @@ templ SwapBodyContent(currentBalance, nodeBalance string) {
 	</script>
 }
 
-templ SwapPreviewContent(kind, sats string) {
+templ SwapPreviewContent(kind, sats, feeAmount, total string) {
 	<div id="swapBody">
 	  <form hx-post="/app/swap/confirm" hx-target="#swapBody" hx-target="outerHTML">
 		  <input type="hidden" name="sats" value={sats}>
@@ -133,7 +133,7 @@ templ SwapPreviewContent(kind, sats string) {
 					<div class="hideOnRequest flex flex-col items-center">
             @SwapPreviewIcon()
             @SwapMovementComponent(kind, sats)
-            @components.FeeTable(sats)
+            @components.SwapTxTable(sats, feeAmount, total)
 					</div>
 	    	</div>
 	    	@components.ActionButtons("Confirm")
