@@ -440,8 +440,17 @@ func (s *service) getTx(c *gin.Context) {
 		}
 	}
 
+	data, err := s.svc.GetConfigData(c)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
 	nextClaim := prettyUnixTimestamp(s.svc.WhenNextClaim(c).Unix())
-	bodyContent := pages.TxBodyContent(tx, nextClaim)
+	explorerUrl := getExplorerUrl(data.Network.Name)
+
+	bodyContent := pages.TxBodyContent(tx, nextClaim, explorerUrl)
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -537,27 +546,33 @@ func (s *service) getTxHistory(
 			status = "unconfirmed"
 			dateCreated = 0
 		}
-		// get one txid
+		// get one txid to identify tx
 		txid := tx.RoundTxid
+		explorable := true
 		if len(txid) == 0 {
 			txid = tx.RedeemTxid
+			explorable = false
 		}
 		if len(txid) == 0 {
 			txid = tx.BoardingTxid
+			explorable = true
 		}
 		// add to slice of transactions
 		transactions = append(transactions, types.Transaction{
-			Amount:    amount,
-			CreatedAt: prettyUnixTimestamp(dateCreated),
-			Day:       prettyDay(dateCreated),
-			ExpiresAt: prettyUnixTimestamp(expiresAt),
-			Hour:      prettyHour(dateCreated),
-			Kind:      string(tx.Type),
-			Txid:      txid,
-			Status:    status,
-			UnixDate:  dateCreated,
+			Amount:     amount,
+			CreatedAt:  prettyUnixTimestamp(dateCreated),
+			Day:        prettyDay(dateCreated),
+			ExpiresAt:  prettyUnixTimestamp(expiresAt),
+			Explorable: explorable,
+			Hour:       prettyHour(dateCreated),
+			Kind:       string(tx.Type),
+			Txid:       txid,
+			Status:     status,
+			UnixDate:   dateCreated,
 		})
 	}
+	log.Infof("history %+v", history)
+	log.Infof("transactions %+v", transactions)
 	return
 }
 

@@ -84,7 +84,7 @@ templ WaitingTxIcon() {
 	</div>
 }
 
-templ TxBodyContent(tx types.Transaction, nextClaim string) {
+templ TxBodyContent(tx types.Transaction, nextClaim, explorerUrl string) {
   @components.DesktopHeader()
   <form hx-post="/app/api/claim">
 	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
@@ -115,6 +115,8 @@ templ TxBodyContent(tx types.Transaction, nextClaim string) {
       </div>
       if tx.Status == "pending" {
         @components.ActionButtons("Claim")
+      } else if tx.Explorable && len(tx.Txid) > 0 {
+        @components.ViewTxButton(tx.Txid, explorerUrl)
       }
 	  </div>
    </form>

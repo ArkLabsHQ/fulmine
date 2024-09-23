@@ -84,10 +84,6 @@ templ SendPreviewContent(address, sats, feeAmount, total string) {
 	</div>
 }
 
-script openInExplorer(txid, explorerUrl string) {
-	window.open(`${explorerUrl}/tx/${txid}`, '_blank') 
-}
-
 templ SendSuccessContent(address, amount, txid, explorerUrl string) {
 	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div class="flex flex-col items-center">
@@ -101,8 +97,6 @@ templ SendSuccessContent(address, amount, txid, explorerUrl string) {
 				<p class="text-white/50">@components.CopyIcon()</p>
 			</div>
 		</div>
-		<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
-	    <button class="bg-graybg md:w-auto" onclick={openInExplorer(txid, explorerUrl)}>View transaction</button>
-		</div>
+		@components.ViewTxButton(txid, explorerUrl)
 	</div>
 }
