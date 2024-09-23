@@ -1,9 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"runtime"
 	"syscall"
+	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/config"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
@@ -12,6 +16,7 @@ import (
 	grpcservice "github.com/ArkLabsHQ/ark-node/internal/interface/grpc"
 	filestore "github.com/ark-network/ark/pkg/client-sdk/store/file"
 	log "github.com/sirupsen/logrus"
+	"github.com/skratchdot/open-golang/open"
 )
 
 // nolint:all
@@ -21,7 +26,6 @@ var (
 	date    = "unknown"
 )
 
-// TODO: Edit this file to something more meaningful for your application.
 func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -29,8 +33,6 @@ func main() {
 	}
 
 	log.SetLevel(log.Level(cfg.LogLevel))
-
-	// Initialize the ARK SDK
 
 	log.Info("starting ark-node...")
 
@@ -69,15 +71,47 @@ func main() {
 
 	log.RegisterExitHandler(svc.Stop)
 
-	log.Info("starting service...")
-	if err := svc.Start(); err != nil {
-		log.Fatal(err)
-	}
+	// Start the gRPC service
+	go func() {
+		log.Info("starting service...")
+		if err := svc.Start(); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
+	// Wait a bit for the server to start
+	time.Sleep(2 * time.Second)
+
+	// Open the browser
+	url := fmt.Sprintf("http://localhost:%d", cfg.Port)
+	log.Infof("Opening browser at %s", url)
+	go openBrowser(url)
+
+	// Wait for shutdown signal
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 	<-sigChan
 
 	log.Info("shutting down service...")
+	svc.Stop()
 	log.Exit(0)
+}
+
+func openBrowser(url string) {
+	var err error
+
+	switch runtime.GOOS {
+	case "linux":
+		err = exec.Command("xdg-open", url).Start()
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	default:
+		err = open.Run(url)
+	}
+
+	if err != nil {
+		log.WithError(err).Error("Error opening browser")
+	}
 }

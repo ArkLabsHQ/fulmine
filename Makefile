@@ -1,4 +1,4 @@
-.PHONY: build build-templates clean cov help intergrationtest lint run test vet proto proto-lint
+.PHONY: build build-templates clean cov help intergrationtest lint run test vet proto proto-lint all build clean test deps icon bundle run
 
 ## build: build for all platforms
 build:
@@ -69,3 +69,38 @@ proto: proto-lint
 proto-lint:
 	@echo "Linting protos..."
 	@buf lint
+
+# Variables
+BINARY_NAME := ark-node
+APP_NAME := ArkNode
+VERSION := 1.0.0
+BUILD_DIR := build
+SCRIPTS_DIR := scripts
+ICON_SOURCE := icon.png
+ICON_NAME := icon
+ICON_OUTPUT := $(BUILD_DIR)/$(ICON_NAME).icns
+
+icon: $(ICON_OUTPUT)
+
+$(ICON_OUTPUT): $(ICON_SOURCE)
+	@echo "Creating macOS icon..."
+	@mkdir -p $(BUILD_DIR)
+	@chmod +x $(SCRIPTS_DIR)/icons.sh
+	@$(SCRIPTS_DIR)/icons.sh $(ICON_SOURCE) $(BUILD_DIR)
+	@echo "Checking for icon file: $(ICON_OUTPUT)"
+	@ls -l $(BUILD_DIR)
+	@if [ ! -f $(ICON_OUTPUT) ]; then \
+		echo "Error: Icon file not created at $(ICON_OUTPUT)"; \
+		exit 1; \
+	fi
+
+bundle: build icon
+	@echo "Bundling the application..."
+	@chmod +x $(SCRIPTS_DIR)/bundle.sh
+	@$(SCRIPTS_DIR)/bundle.sh "$(APP_NAME)" "$(BINARY_NAME)" "$(ICON_OUTPUT)" "$(VERSION)" "$(BUILD_DIR)"
+	@echo "Application bundled: $(BUILD_DIR)/$(APP_NAME).app"
+
+## run-mac: build, bundle, and run the macOS application
+run-mac: bundle
+	@echo "Running $(APP_NAME) for macOS..."
+	@open "$(BUILD_DIR)/$(APP_NAME).app"
