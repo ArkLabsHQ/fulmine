@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"runtime"
 	"syscall"
-	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/config"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
@@ -72,18 +71,12 @@ func main() {
 	log.RegisterExitHandler(svc.Stop)
 
 	// Start the gRPC service
-	go func() {
-		log.Info("starting service...")
-		if err := svc.Start(); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	// Wait a bit for the server to start
-	time.Sleep(2 * time.Second)
+	log.Info("starting service...")
+	if err := svc.Start(); err != nil {
+		log.Fatal(err)
+	}
 
 	isDesktop := isDesktopEnvironment()
-
 	if isDesktop {
 		// Start system tray
 		systray.Run(onReady, onExit)
