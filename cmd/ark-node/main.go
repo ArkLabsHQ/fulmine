@@ -15,8 +15,8 @@ import (
 	scheduler "github.com/ArkLabsHQ/ark-node/internal/infrastructure/scheduler/gocron"
 	grpcservice "github.com/ArkLabsHQ/ark-node/internal/interface/grpc"
 	filestore "github.com/ark-network/ark/pkg/client-sdk/store/file"
+	"github.com/getlantern/systray"
 	log "github.com/sirupsen/logrus"
-	"github.com/skratchdot/open-golang/open"
 )
 
 // nolint:all
@@ -82,10 +82,12 @@ func main() {
 	// Wait a bit for the server to start
 	time.Sleep(2 * time.Second)
 
-	// Open the browser
-	url := fmt.Sprintf("http://localhost:%d", cfg.Port)
-	log.Infof("Opening browser at %s", url)
-	go openBrowser(url)
+	isDesktop := isDesktopEnvironment()
+
+	if isDesktop {
+		// Start system tray
+		systray.Run(onReady, onExit)
+	}
 
 	// Wait for shutdown signal
 	sigChan := make(chan os.Signal, 1)
@@ -94,7 +96,55 @@ func main() {
 
 	log.Info("shutting down service...")
 	svc.Stop()
-	log.Exit(0)
+	if isDesktop {
+		systray.Quit()
+	}
+	log.Info("service stopped")
+}
+
+func isDesktopEnvironment() bool {
+	// Check if running in a Docker container
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return false
+	}
+
+	// Check for desktop-specific environment variables
+	desktopEnvs := []string{"XDG_CURRENT_DESKTOP", "GNOME_DESKTOP_SESSION_ID", "DESKTOP_SESSION", "WINDIR"}
+	for _, env := range desktopEnvs {
+		if os.Getenv(env) != "" {
+			return true
+		}
+	}
+
+	// Default to true for macOS
+	return runtime.GOOS == "darwin"
+}
+
+func onReady() {
+	systray.SetTitle("Ark Node")
+	systray.SetTooltip("Ark Node is your gateway to the Ark protocol")
+
+	mOpen := systray.AddMenuItem("Dashboard", "Open the web app in browser")
+	mQuit := systray.AddMenuItem("Quit", "Quit the app")
+
+	go func() {
+		for {
+			select {
+			case <-mOpen.ClickedCh:
+				openBrowser(fmt.Sprintf("http://localhost:%d/app", 7000))
+			case <-mQuit.ClickedCh:
+				systray.Quit()
+				return
+			}
+		}
+	}()
+
+	// Open the browser automatically when the app starts in a desktop environment
+	openBrowser(fmt.Sprintf("http://localhost:%d/app", 7000))
+}
+
+func onExit() {
+	// Cleanup code here
 }
 
 func openBrowser(url string) {
@@ -108,10 +158,10 @@ func openBrowser(url string) {
 	case "darwin":
 		err = exec.Command("open", url).Start()
 	default:
-		err = open.Run(url)
+		err = fmt.Errorf("unsupported platform")
 	}
 
 	if err != nil {
-		log.WithError(err).Error("Error opening browser")
+		log.Println("Error opening browser:", err)
 	}
 }
