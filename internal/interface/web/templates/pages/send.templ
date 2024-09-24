@@ -97,6 +97,8 @@ templ SendSuccessContent(address, amount, txid, explorerUrl string) {
 				<p class="text-white/50">@components.CopyIcon()</p>
 			</div>
 		</div>
-		@components.ViewTxButton(txid, explorerUrl)
+		if len(txid) == 32 {
+		  @components.ViewTxButton(txid, explorerUrl)
+		}
 	</div>
 }
