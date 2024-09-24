@@ -456,7 +456,9 @@ func (s *service) getTx(c *gin.Context) {
 
 func (s *service) welcome(c *gin.Context) {
 	if _, err := s.svc.GetSettings(c); err != nil {
-		s.svc.AddDefaultSettings(c)
+		if err := s.svc.AddDefaultSettings(c); err != nil {
+			return
+		}
 	}
 	bodyContent := pages.Welcome()
 	s.pageViewHandler(bodyContent, c)
