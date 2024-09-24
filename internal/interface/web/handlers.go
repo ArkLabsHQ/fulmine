@@ -450,7 +450,12 @@ func (s *service) getTx(c *gin.Context) {
 	nextClaim := prettyUnixTimestamp(s.svc.WhenNextClaim(c).Unix())
 	explorerUrl := getExplorerUrl(data.Network.Name)
 
-	bodyContent := pages.TxBodyContent(tx, nextClaim, explorerUrl)
+	var bodyContent templ.Component
+	if tx.Status == "pending" {
+		bodyContent = pages.TxPendingContent(tx, nextClaim)
+	} else {
+		bodyContent = pages.TxBodyContent(tx, explorerUrl)
+	}
 	s.pageViewHandler(bodyContent, c)
 }
 
