@@ -17,17 +17,6 @@ import (
 	"github.com/tyler-smith/go-bip39"
 )
 
-var defaultSettings = domain.Settings{
-	ApiRoot:     "https://fulmine.io/api/D9D90N192031",
-	AspUrl:      "http://localhost:7000",
-	Currency:    "usd",
-	EventServer: "http://arklabs.to/node/jupiter29",
-	FullNode:    "http://arklabs.to/node/213908123",
-	LnConnect:   false,
-	LnUrl:       "lndconnect://192.168.1.4:10009",
-	Unit:        "sat",
-}
-
 type BuildInfo struct {
 	Version string
 	Commit  string
@@ -68,9 +57,7 @@ func NewService(
 
 	ctx := context.Background()
 	if _, err := settingsRepo.GetSettings(ctx); err != nil {
-		if err := settingsRepo.AddSettings(
-			ctx, defaultSettings,
-		); err != nil {
+		if err := settingsRepo.AddDefaultSettings(ctx); err != nil {
 			return nil, err
 		}
 	}
@@ -170,6 +157,10 @@ func (s *Service) Reset(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (s *Service) AddDefaultSettings(ctx context.Context) error {
+	return s.settingsRepo.AddDefaultSettings(ctx)
 }
 
 func (s *Service) GetSettings(ctx context.Context) (*domain.Settings, error) {
