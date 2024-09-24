@@ -516,9 +516,7 @@ func (s *service) logVtxos(c *gin.Context) {
 	}
 }
 
-func (s *service) getTxHistory(
-	c *gin.Context,
-) (transactions []types.Transaction, err error) {
+func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction, err error) {
 	// get tx history from ASP
 	history, err := s.svc.GetTransactionHistory(c)
 	if err != nil {
@@ -604,4 +602,15 @@ func (s *service) pageViewHandler(bodyContent templ.Component, c *gin.Context) {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
+}
+
+func (s *service) seedInfoModal(c *gin.Context) {
+	seed, err := s.svc.ArkClient.Dump(c)
+	if err != nil {
+		toast := components.Toast("Unable to get seed", true)
+		toastHandler(toast, c)
+		return
+	}
+	info := modals.SeedInfo(seed)
+	modalHandler(info, c)
 }

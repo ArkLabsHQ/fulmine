@@ -122,7 +122,9 @@ templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) 
       </div>
     </div>
     @Separator("Security")
-    <button class="bg-graybg font-semibold rounded-lg mb-4" onclick="notImplemented(event)">Backup seed phrase</button>
+    <button class="bg-graybg font-semibold rounded-lg mb-4" hx-get="/app/modal/seedinfo" hx-target="#modal">
+      Backup seed phrase
+    </button>
   </form>
 }
 

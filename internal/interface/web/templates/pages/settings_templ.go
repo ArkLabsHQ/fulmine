@@ -516,7 +516,7 @@ func SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button class=\"bg-graybg font-semibold rounded-lg mb-4\" onclick=\"notImplemented(event)\">Backup seed phrase</button></form>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button class=\"bg-graybg font-semibold rounded-lg mb-4\" hx-get=\"/app/modal/seedinfo\" hx-target=\"#modal\">Backup seed phrase</button></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -564,7 +564,7 @@ func SettingsASPContent(settings domain.Settings) templ.Component {
 		var templ_7745c5c3_Var21 string
 		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(settings.ApiRoot)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 138, Col: 31}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 140, Col: 31}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {

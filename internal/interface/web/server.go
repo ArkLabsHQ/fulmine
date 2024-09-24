@@ -79,6 +79,7 @@ func NewService(appSvc *application.Service) *service {
 	svc.GET("/lock", svc.lock)
 	svc.GET("/modal/feeinfo", svc.feeInfoModal)
 	svc.GET("/modal/reversibleinfo", svc.reversibleInfoModal)
+	svc.GET("/modal/seedinfo", svc.seedInfoModal)
 	svc.GET("/new", svc.newWallet)
 	svc.GET("/receive", svc.receiveQrCode)
 	svc.GET("/receive/edit", svc.receiveEdit)
