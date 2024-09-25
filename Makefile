@@ -5,12 +5,16 @@ build:
 	@echo "Building ark-node binary..."
 	@bash ./scripts/build
 
+## build-desktop: build for desktop with system tray
+build-desktop:
+	@echo "Building ark-node binary for desktop..."
+	@bash ./scripts/build-desktop
+
 ## build-templates: build html templates for embedded frontend
 build-templates:
 	@echo "Building templates..."
 	@go run github.com/a-h/templ/cmd/templ@latest generate
 		
-
 ## clean: cleans the binary
 clean:
 	@echo "Cleaning..."
@@ -40,14 +44,14 @@ lint:
 run: clean
 	@echo "Running ark-node in dev mode..."
 	@export ARK_NODE_PORT=7000; \
-	go run ./cmd/ark-node
+	go run ./cmd/ark-node/headless
 
 ## run: run in dev mode
 run-bob: clean
 	@echo "Running ark-node in dev mode..."
 	@export ARK_NODE_PORT=7001; \
 	export ARK_NODE_DATADIR="./tmp"; \
-	go run ./cmd/ark-node
+	go run ./cmd/ark-node/headless
 
 ## test: runs unit and component tests
 test:
@@ -58,7 +62,6 @@ test:
 vet:
 	@echo "Running code analysis..."
 	@go vet ./...
-	
 	
 ## proto: compile proto stubs
 proto: proto-lint
@@ -71,7 +74,7 @@ proto-lint:
 	@buf lint
 
 # Variables
-BINARY_NAME := ark-node
+BINARY_NAME := ark-node-desktop
 APP_NAME := ArkNode
 VERSION := 1.0.0
 BUILD_DIR := build
@@ -85,8 +88,8 @@ icon: $(ICON_OUTPUT)
 $(ICON_OUTPUT): $(ICON_SOURCE)
 	@echo "Creating macOS icon..."
 	@mkdir -p $(BUILD_DIR)
-	@chmod +x $(SCRIPTS_DIR)/icons.sh
-	@$(SCRIPTS_DIR)/icons.sh $(ICON_SOURCE) $(BUILD_DIR)
+	@chmod +x $(SCRIPTS_DIR)/icons
+	@$(SCRIPTS_DIR)/icons $(ICON_SOURCE) $(BUILD_DIR)
 	@echo "Checking for icon file: $(ICON_OUTPUT)"
 	@ls -l $(BUILD_DIR)
 	@if [ ! -f $(ICON_OUTPUT) ]; then \
@@ -94,10 +97,10 @@ $(ICON_OUTPUT): $(ICON_SOURCE)
 		exit 1; \
 	fi
 
-bundle: build icon
+bundle: build-desktop icon
 	@echo "Bundling the application..."
-	@chmod +x $(SCRIPTS_DIR)/bundle.sh
-	@$(SCRIPTS_DIR)/bundle.sh "$(APP_NAME)" "$(BINARY_NAME)" "$(ICON_OUTPUT)" "$(VERSION)" "$(BUILD_DIR)"
+	@chmod +x $(SCRIPTS_DIR)/bundle
+	@$(SCRIPTS_DIR)/bundle "$(APP_NAME)" "$(BINARY_NAME)" "$(ICON_OUTPUT)" "$(VERSION)" "$(BUILD_DIR)"
 	@echo "Application bundled: $(BUILD_DIR)/$(APP_NAME).app"
 
 ## run-mac: build, bundle, and run the macOS application

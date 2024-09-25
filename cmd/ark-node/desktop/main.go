@@ -14,8 +14,9 @@ import (
 	scheduler "github.com/ArkLabsHQ/ark-node/internal/infrastructure/scheduler/gocron"
 	grpcservice "github.com/ArkLabsHQ/ark-node/internal/interface/grpc"
 	filestore "github.com/ark-network/ark/pkg/client-sdk/store/file"
-	"github.com/getlantern/systray"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/getlantern/systray"
 )
 
 // nolint:all
@@ -76,11 +77,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	isDesktop := isDesktopEnvironment()
-	if isDesktop {
-		// Start system tray
-		systray.Run(onReady, onExit)
-	}
+	// Attach System Tray
+	systray.Run(onReady, onExit)
 
 	// Wait for shutdown signal
 	sigChan := make(chan os.Signal, 1)
@@ -89,28 +87,7 @@ func main() {
 
 	log.Info("shutting down service...")
 	svc.Stop()
-	if isDesktop {
-		systray.Quit()
-	}
 	log.Info("service stopped")
-}
-
-func isDesktopEnvironment() bool {
-	// Check if running in a Docker container
-	if _, err := os.Stat("/.dockerenv"); err == nil {
-		return false
-	}
-
-	// Check for desktop-specific environment variables
-	desktopEnvs := []string{"XDG_CURRENT_DESKTOP", "GNOME_DESKTOP_SESSION_ID", "DESKTOP_SESSION", "WINDIR"}
-	for _, env := range desktopEnvs {
-		if os.Getenv(env) != "" {
-			return true
-		}
-	}
-
-	// Default to true for macOS
-	return runtime.GOOS == "darwin"
 }
 
 func onReady() {

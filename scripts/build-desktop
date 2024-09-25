@@ -12,5 +12,5 @@ ARCH=$(eval "go env GOARCH")
 
 pushd $PARENT_PATH
 mkdir -p build
-go build -ldflags="-s -w" -o build/ark-node-$OS-$ARCH cmd/ark-node/headless/main.go
+go build -ldflags="-s -w" -o build/ark-node-desktop-$OS-$ARCH cmd/ark-node/desktop/main.go
 popd
