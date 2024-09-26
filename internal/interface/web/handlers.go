@@ -42,7 +42,7 @@ func (s *service) backupSecret(c *gin.Context) {
 		return
 	}
 	bodyContent := pages.BackupSecretBodyContent(secret)
-	s.pageViewHandler(bodyContent, c)
+	partialViewHandler(bodyContent, c)
 }
 
 func (s *service) backupAck(c *gin.Context) {
@@ -50,7 +50,7 @@ func (s *service) backupAck(c *gin.Context) {
 		return
 	}
 	bodyContent := pages.BackupAckBodyContent()
-	s.pageViewHandler(bodyContent, c)
+	partialViewHandler(bodyContent, c)
 }
 
 func (s *service) done(c *gin.Context) {
