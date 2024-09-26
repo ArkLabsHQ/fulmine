@@ -112,13 +112,13 @@ func (s *service) initialize(c *gin.Context) {
 		return
 	}
 
-	mnemonic := c.PostForm("mnemonic")
-	if mnemonic == "" {
-		toast := components.Toast("Mnemonic can't be empty", true)
+	privateKey := c.PostForm("privateKey")
+	if privateKey == "" {
+		toast := components.Toast("Private key can't be empty", true)
 		toastHandler(toast, c)
 		return
 	}
-	if err := utils.IsValidMnemonic(mnemonic); err != nil {
+	if err := utils.IsValidPrivateKey(privateKey); err != nil {
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
 		return
@@ -136,7 +136,7 @@ func (s *service) initialize(c *gin.Context) {
 		return
 	}
 
-	if err := s.svc.Setup(c, aspurl, password, mnemonic); err != nil {
+	if err := s.svc.Setup(c, aspurl, password, privateKey); err != nil {
 		log.WithError(err).Warn("failed to initialize")
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
@@ -145,10 +145,15 @@ func (s *service) initialize(c *gin.Context) {
 	redirect("/done", c)
 }
 
-func (s *service) importWallet(c *gin.Context) {
+func (s *service) importWalletMnemonic(c *gin.Context) {
 	var empty []string
 	empty = append(empty, "")
 	bodyContent := pages.ManageMnemonicContent(empty)
+	s.pageViewHandler(bodyContent, c)
+}
+
+func (s *service) importWalletPrivateKey(c *gin.Context) {
+	bodyContent := pages.ManagePrivateKeyContent("")
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -163,8 +168,13 @@ func (s *service) unlock(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
-func (s *service) newWallet(c *gin.Context) {
+func (s *service) newWalletMnemonic(c *gin.Context) {
 	bodyContent := pages.ManageMnemonicContent(getNewMnemonic())
+	s.pageViewHandler(bodyContent, c)
+}
+
+func (s *service) newWalletPrivateKey(c *gin.Context) {
+	bodyContent := pages.ManagePrivateKeyContent(getNewPrivateKey())
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -356,8 +366,14 @@ func (s *service) setPassword(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	mnemonic := c.PostForm("mnemonic")
-	bodyContent := pages.AspUrlBodyContent(c.Query("aspurl"), mnemonic, password)
+	privateKey := c.PostForm("privateKey")
+	bodyContent := pages.AspUrlBodyContent(c.Query("aspurl"), privateKey, password)
+	partialViewHandler(bodyContent, c)
+}
+
+func (s *service) setPrivateKey(c *gin.Context) {
+	privateKey := c.PostForm("privateKey")
+	bodyContent := pages.SetPasswordContent(privateKey)
 	partialViewHandler(bodyContent, c)
 }
 

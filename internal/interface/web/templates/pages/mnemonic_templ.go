@@ -35,12 +35,12 @@ func ManageMnemonicContent(mnemonic []string) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if len(mnemonic) == 12 {
-			templ_7745c5c3_Err = NewWalletContent(mnemonic).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = newWalletMnemonicContent(mnemonic).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = ImportWalletContent().Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = importWalletMnemonicContent().Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -53,7 +53,7 @@ func ManageMnemonicContent(mnemonic []string) templ.Component {
 	})
 }
 
-func ImportWalletContent() templ.Component {
+func importWalletMnemonicContent() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -86,7 +86,7 @@ func ImportWalletContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.Header("Import wallet", "/welcome").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Header("Import wallet", "/app/welcome").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -95,7 +95,7 @@ func ImportWalletContent() templ.Component {
 			return templ_7745c5c3_Err
 		}
 		for i := 0; i < 12; i++ {
-			templ_7745c5c3_Err = Word(i+1).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = mnemonicWord(i+1).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -108,7 +108,7 @@ func ImportWalletContent() templ.Component {
 	})
 }
 
-func NewWalletContent(mnemonic []string) templ.Component {
+func newWalletMnemonicContent(mnemonic []string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -141,7 +141,7 @@ func NewWalletContent(mnemonic []string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.Header("New wallet", "/welcome").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Header("New wallet", "/app/welcome").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -150,7 +150,7 @@ func NewWalletContent(mnemonic []string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		for i, w := range mnemonic {
-			templ_7745c5c3_Err = Word(i+1, w).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = mnemonicWord(i+1, w).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -171,7 +171,7 @@ func NewWalletContent(mnemonic []string) templ.Component {
 	})
 }
 
-func Word(i int, words ...string) templ.Component {
+func mnemonicWord(i int, words ...string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {

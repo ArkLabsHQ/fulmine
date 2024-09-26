@@ -7,9 +7,9 @@ import (
 
 templ ManageMnemonicContent(mnemonic []string) {
 	if len(mnemonic) == 12 {
-		@NewWalletContent(mnemonic)
+		@newWalletMnemonicContent(mnemonic)
 	} else {
-		@ImportWalletContent()
+		@importWalletMnemonicContent()
 	}
 	<script>
 	  const getMnemonicFromWords = () => {
@@ -60,16 +60,16 @@ templ ManageMnemonicContent(mnemonic []string) {
 	</script>
 }
 
-templ ImportWalletContent() {
+templ importWalletMnemonicContent() {
 	<form hx-post="/app/mnemonic">
 	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	    <div>
 			  <div class="hidden md:block">@LogoWhite()</div>
-	      @components.Header("Import wallet", "/welcome")
+	      @components.Header("Import wallet", "/app/welcome")
 	  		<p class="mb-10">Insert your 12-word secret seed phrase.</p>
 	  	  <div class="grid grid-cols-2 gap-6">
 	  		  for i := 0; i < 12; i++ {
-            @Word(i+1)
+            @mnemonicWord(i+1)
           }
 	  		</div>
 	  	</div>
@@ -78,16 +78,16 @@ templ ImportWalletContent() {
 	</form>
 }
 
-templ NewWalletContent(mnemonic []string) {
+templ newWalletMnemonicContent(mnemonic []string) {
 	<form hx-post="/app/mnemonic">
 	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	    <div>
 	  	  <div class="hidden md:block">@LogoWhite()</div>
-	      @components.Header("New wallet", "/welcome")
+	      @components.Header("New wallet", "/app/welcome")
 	  		<p class="mb-10">Write down the following words in a secure place.</p>
 	  	  <div class="grid grid-cols-2 gap-6">
 	  		  for i, w := range mnemonic {
-            @Word(i+1, w)
+            @mnemonicWord(i+1, w)
           }
 	  		</div>
 	  	</div>
@@ -112,7 +112,7 @@ templ NewWalletContent(mnemonic []string) {
 	</script>
 }
 
-templ Word(i int, words ...string) {
+templ mnemonicWord(i int, words ...string) {
 	<div class="bg-graybg rounded-lg p-1 flex items-center gap-2 w-full">
 	  <div class="bg-white/10 rounded-lg flex justify-center items-center h-8 square">
 	    <p>{strconv.Itoa(i)}</p>
