@@ -73,6 +73,9 @@ func NewService(appSvc *application.Service) *service {
 
 	// Handle index page view.
 	svc.GET("/", svc.index)
+	svc.GET("/backup", svc.backupInitial)
+	svc.GET("/backup/secret", svc.backupSecret)
+	svc.GET("/backup/ack", svc.backupAck)
 	svc.GET("/done", svc.done)
 	svc.GET("/forgot", svc.forgot)
 	svc.GET("/import", svc.importWallet)

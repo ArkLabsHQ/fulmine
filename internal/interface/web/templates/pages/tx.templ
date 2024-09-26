@@ -84,40 +84,48 @@ templ WaitingTxIcon() {
 	</div>
 }
 
-templ TxBodyContent(tx types.Transaction, nextClaim, explorerUrl string) {
+templ TxBodyContent(tx types.Transaction, explorerUrl string) {
+  @components.DesktopHeader()
+	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+	  <div>
+      @components.Header("Transaction details")
+      <div class="flex flex-col items-center">
+        @TxIcon(tx.Kind, tx.Status)
+        <p class="mt-4 capitalize">{tx.Kind}</p>
+        <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
+        if tx.Kind == "received" {
+          @components.ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status)
+        }
+        if tx.Kind == "sent" {
+          @components.SentTxTable(tx.Amount, tx.CreatedAt, tx.Status)
+        }
+        if tx.Kind == "swap" {
+          @components.SwappedTxTable(tx.Amount, tx.CreatedAt, tx.Status)
+        }
+      </div>
+    </div>
+    @components.ViewTxButton(tx.Txid, explorerUrl)
+	</div>
+}
+
+templ TxPendingContent(tx types.Transaction, nextClaim string) {
   @components.DesktopHeader()
   <form hx-post="/app/api/claim">
 	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	    <div>
-        @components.Header("Transaction details")
+        @components.Header("Settle Transaction")
         <div class="hideOnRequest flex flex-col items-center">
-          @TxIcon(tx.Kind, tx.Status)
+          @TxIcon(tx.Kind, "")
           <p class="mt-4 capitalize">{tx.Kind}</p>
           <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
-          if tx.Status == "pending" {
-            @components.PendingTxTable(tx.CreatedAt, tx.ExpiresAt, nextClaim)
-          } else {
-            if tx.Kind == "received" {
-              @components.ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status)
-            }
-            if tx.Kind == "sent" {
-              @components.SentTxTable(tx.Amount, tx.CreatedAt, tx.Status)
-            }
-            if tx.Kind == "swap" {
-              @components.SwappedTxTable(tx.Amount, tx.CreatedAt, tx.Status)
-            }
-          }
+          @components.PendingTxTable(tx.CreatedAt, tx.ExpiresAt, nextClaim)
         </div>
         <div class="showOnRequest flex flex-col items-center mt-10 w-full">
 	  	    @components.SpinnerIcon()
 	  	     <p class="mt-10">Claiming...</p>
 	  	  </div>
       </div>
-      if tx.Status == "pending" {
-        @components.ActionButtons("Claim")
-      } else if tx.Explorable && len(tx.Txid) > 0 {
-        @components.ViewTxButton(tx.Txid, explorerUrl)
-      }
+      @components.ClaimButtons()
 	  </div>
-   </form>
+  </form>
 }
