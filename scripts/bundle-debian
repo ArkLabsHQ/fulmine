@@ -1,0 +1,77 @@
+#!/bin/bash
+
+# Check if all required arguments are provided
+if [ "$#" -lt 5 ] || [ "$#" -gt 7 ]; then
+    echo "Usage: $0 <APP_NAME> <BINARY_NAME> <ICON_PATH> <VERSION> <OUTPUT_DIR> [OS] [ARCH]"
+    exit 1
+fi
+
+APP_NAME="$1"
+BINARY_NAME="$2"
+ICON_PATH="$3"
+VERSION="$4"
+OUTPUT_DIR="$5"
+
+# Use provided OS and ARCH if given, otherwise determine from environment
+OS="${6:-$(go env GOOS)}"
+ARCH="${7:-$(go env GOARCH)}"
+
+# Set the full binary name
+FULL_BINARY_NAME="${BINARY_NAME}-${OS}-${ARCH}"
+
+# Create the Debian package structure
+DEB_DIR="${OUTPUT_DIR}/${APP_NAME}_${VERSION}_${ARCH}"
+mkdir -p "${DEB_DIR}/DEBIAN"
+mkdir -p "${DEB_DIR}/usr/local/bin"
+mkdir -p "${DEB_DIR}/usr/share/applications"
+mkdir -p "${DEB_DIR}/usr/share/icons/hicolor/256x256/apps"
+
+# Create the control file
+cat > "${DEB_DIR}/DEBIAN/control" << EOF
+Package: ${APP_NAME}
+Version: ${VERSION}
+Section: base
+Priority: optional
+Architecture: ${ARCH}
+Depends: libc6 (>= 2.7)
+Maintainer: Ark Labs Developres <hello@arklabs.to>
+Description: ${APP_NAME} is your gateway to the Ark protocol
+EOF
+
+# Copy the binary
+if [ -f "${OUTPUT_DIR}/${FULL_BINARY_NAME}" ]; then
+    cp "${OUTPUT_DIR}/${FULL_BINARY_NAME}" "${DEB_DIR}/usr/local/bin/${BINARY_NAME}"
+    chmod +x "${DEB_DIR}/usr/local/bin/${BINARY_NAME}"
+else
+    echo "Error: Binary file not found at ${OUTPUT_DIR}/${FULL_BINARY_NAME}"
+    exit 1
+fi
+
+# Copy the icon
+if [ -f "$ICON_PATH" ]; then
+    cp "$ICON_PATH" "${DEB_DIR}/usr/share/icons/hicolor/256x256/apps/${APP_NAME}.png"
+else
+    echo "Warning: Icon file not found at $ICON_PATH"
+fi
+
+# Create the desktop entry
+cat > "${DEB_DIR}/usr/share/applications/${APP_NAME}.desktop" << EOF
+[Desktop Entry]
+Name=${APP_NAME}
+Comment=${APP_NAME} is your gateway to the Ark protocol
+Exec=/usr/local/bin/${BINARY_NAME}
+Icon=${APP_NAME}
+Terminal=false
+Type=Application
+Categories=Utility;
+EOF
+
+# Build the Debian package
+if command -v dpkg-deb &> /dev/null; then
+    dpkg-deb --build "${DEB_DIR}"
+    echo "Debian package created: ${DEB_DIR}.deb"
+else
+    echo "Error: dpkg-deb command not found. Are you on a Debian-based system?"
+    echo "Package structure created at: ${DEB_DIR}"
+    echo "You may need to build the package on a Debian-based system."
+fi

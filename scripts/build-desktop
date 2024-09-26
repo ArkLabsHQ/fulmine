@@ -7,8 +7,9 @@ PARENT_PATH=$(dirname $(
 	pwd -P
 ))
 
-OS=$(eval "go env GOOS")
-ARCH=$(eval "go env GOARCH")
+# Use provided OS and ARCH if given, otherwise determine from environment
+OS="${1:-$(go env GOOS)}"
+ARCH="${2:-$(go env GOARCH)}"
 
 pushd $PARENT_PATH
 mkdir -p build

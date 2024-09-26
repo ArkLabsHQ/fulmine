@@ -35,6 +35,14 @@ func main() {
 
 	log.SetLevel(log.Level(cfg.LogLevel))
 
+	logFile := fmt.Sprintf("%s/ark-node.log", cfg.Datadir)
+	file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		log.SetOutput(file)
+	} else {
+		log.Info("Failed to log to file, using default stderr")
+	}
+
 	log.Info("starting ark-node...")
 
 	svcConfig := grpcservice.Config{

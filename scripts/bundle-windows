@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# Check if all required arguments are provided
+if [ "$#" -ne 5 ]; then
+    echo "Usage: $0 <APP_NAME> <BINARY_NAME> <ICON_PATH> <VERSION> <OUTPUT_DIR>"
+    exit 1
+fi
+
+APP_NAME="$1"
+BINARY_NAME="$2"
+ICON_PATH="$3"
+VERSION="$4"
+OUTPUT_DIR="$5"
+
+# Set the full binary name
+FULL_BINARY_NAME="${BINARY_NAME}-windows-amd64"
+
+# Create a temporary directory for the package contents
+TEMP_DIR="${OUTPUT_DIR}/${APP_NAME}-${VERSION}-windows"
+mkdir -p "${TEMP_DIR}"
+
+# Copy the binary
+if [ -f "${OUTPUT_DIR}/${FULL_BINARY_NAME}" ]; then
+    cp "${OUTPUT_DIR}/${FULL_BINARY_NAME}" "${TEMP_DIR}/${BINARY_NAME}.exe"
+else
+    echo "Error: Binary file not found at ${OUTPUT_DIR}/${FULL_BINARY_NAME}"
+    exit 1
+fi
+
+# Copy the icon
+if [ -f "$ICON_PATH" ]; then
+    cp "$ICON_PATH" "${TEMP_DIR}/${APP_NAME}.ico"
+else
+    echo "Warning: Icon file not found at $ICON_PATH"
+fi
+
+# Create a simple README
+cat > "${TEMP_DIR}/README.txt" << EOF
+${APP_NAME} ${VERSION}
+
+To run the application:
+1. Extract this archive
+2. Double-click on ${BINARY_NAME}.exe
+
+For desktop integration, create a shortcut to ${BINARY_NAME}.exe and place it on your desktop or Start menu.
+EOF
+
+# Create the ZIP file
+ZIP_NAME="${APP_NAME}-${VERSION}-windows-amd64.zip"
+(cd "${OUTPUT_DIR}" && zip -r "${ZIP_NAME}" "${APP_NAME}-${VERSION}-windows")
+
+echo "ZIP package created: ${OUTPUT_DIR}/${ZIP_NAME}"
+
+# Clean up
+rm -rf "${TEMP_DIR}"

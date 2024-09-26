@@ -10,6 +10,16 @@ build-desktop:
 	@echo "Building ark-node binary for desktop..."
 	@bash ./scripts/build-desktop
 
+## build-mac-intel: build for desktop with system tray
+build-mac-intel:
+	@echo "Building ark-node binary for Mac Intel..."
+	@bash ./scripts/build-desktop darwin amd64
+
+## build-windows: build for Windows with system tray
+build-windows:
+	@echo "Building ark-node binary for Windows..."
+	@bash ./scripts/build-desktop windows amd64
+
 ## build-templates: build html templates for embedded frontend
 build-templates:
 	@echo "Building templates..."
@@ -97,13 +107,28 @@ $(ICON_OUTPUT): $(ICON_SOURCE)
 		exit 1; \
 	fi
 
-bundle: build-desktop icon
+bundle-mac: build-desktop icon
 	@echo "Bundling the application..."
-	@chmod +x $(SCRIPTS_DIR)/bundle
-	@$(SCRIPTS_DIR)/bundle "$(APP_NAME)" "$(BINARY_NAME)" "$(ICON_OUTPUT)" "$(VERSION)" "$(BUILD_DIR)"
+	@chmod +x $(SCRIPTS_DIR)/bundle-mac
+	@$(SCRIPTS_DIR)/bundle-mac "$(APP_NAME)" "$(BINARY_NAME)" "$(ICON_OUTPUT)" "$(VERSION)" "$(BUILD_DIR)"
 	@echo "Application bundled: $(BUILD_DIR)/$(APP_NAME).app"
 
-## run-mac: build, bundle, and run the macOS application
-run-mac: bundle
-	@echo "Running $(APP_NAME) for macOS..."
-	@open "$(BUILD_DIR)/$(APP_NAME).app"
+bundle-mac-intel: build-mac-intel icon
+	@echo "Bundling the application..."
+	@chmod +x $(SCRIPTS_DIR)/bundle-mac
+	@$(SCRIPTS_DIR)/bundle-mac "$(APP_NAME)" "$(BINARY_NAME)" "$(ICON_OUTPUT)" "$(VERSION)" "$(BUILD_DIR)" darwin amd64
+	@echo "Application bundled: $(BUILD_DIR)/$(APP_NAME).app"
+
+## bundle-debian: build, bundle, and create Debian package
+bundle-debian: build-desktop icon
+	@echo "Bundling the application for Debian..."
+	@chmod +x $(SCRIPTS_DIR)/bundle-debian
+	@$(SCRIPTS_DIR)/bundle-debian "$(APP_NAME)" "$(BINARY_NAME)" "$(ICON_OUTPUT)" "$(VERSION)" "$(BUILD_DIR)"
+	@echo "Debian package created: $(BUILD_DIR)/$(APP_NAME)_$(VERSION)_$(ARCH).deb"
+
+## bundle-windows: build and bundle for Windows
+bundle-windows: build-windows
+	@echo "Bundling the application for Windows..."
+	@chmod +x $(SCRIPTS_DIR)/bundle-windows
+	@$(SCRIPTS_DIR)/bundle-windows "$(APP_NAME)" "$(BINARY_NAME)" "$(ICON_SOURCE)" "$(VERSION)" "$(BUILD_DIR)"
+	@echo "Windows package created: $(BUILD_DIR)/$(APP_NAME)-$(VERSION)-windows-amd64.zip"
