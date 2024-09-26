@@ -23,6 +23,36 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 )
 
+func (s *service) backupInitial(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	bodyContent := pages.BackupInitialBodyContent()
+	s.pageViewHandler(bodyContent, c)
+}
+
+func (s *service) backupSecret(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	secret, err := s.svc.Dump(c)
+	if err != nil {
+		toast := components.Toast("Unable to get secret", true)
+		toastHandler(toast, c)
+		return
+	}
+	bodyContent := pages.BackupSecretBodyContent(secret)
+	s.pageViewHandler(bodyContent, c)
+}
+
+func (s *service) backupAck(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	bodyContent := pages.BackupAckBodyContent()
+	s.pageViewHandler(bodyContent, c)
+}
+
 func (s *service) done(c *gin.Context) {
 	bodyContent := pages.DoneBodyContent()
 	s.pageViewHandler(bodyContent, c)
