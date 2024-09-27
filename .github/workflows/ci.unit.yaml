@@ -18,7 +18,8 @@ jobs:
       - name: check linting
         uses: golangci/golangci-lint-action@v6
         with:
-          args: '--timeout=300s --exclude-path=cmd/ark-node/desktop/.*'
+          args: '--timeout=300s --exclude-dirs=cmd/ark-node/desktop'
+          skip-default-args: true
           version: v1.61
       - name: check code integrity
         uses: securego/gosec@master
