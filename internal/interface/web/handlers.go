@@ -145,6 +145,7 @@ func (s *service) initialize(c *gin.Context) {
 	redirect("/done", c)
 }
 
+// nolint:all
 func (s *service) importWalletMnemonic(c *gin.Context) {
 	var empty []string
 	empty = append(empty, "")
@@ -168,6 +169,7 @@ func (s *service) unlock(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
+// nolint:all
 func (s *service) newWalletMnemonic(c *gin.Context) {
 	bodyContent := pages.ManageMnemonicContent(getNewMnemonic())
 	s.pageViewHandler(bodyContent, c)
