@@ -9,8 +9,8 @@ replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-d
 require (
 	github.com/a-h/templ v0.2.778
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/ark-network/ark/common v0.0.0-20240926172141-f36a747c591b
-	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20240926172141-f36a747c591b
+	github.com/ark-network/ark/common v0.0.0-20240927140937-ab6ae36eb50b
+	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20240927145453-917ecd7d25da
 	github.com/dgraph-io/badger/v4 v4.3.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
@@ -45,7 +45,7 @@ require (
 	github.com/FactomProject/basen v0.0.0-20150613233007-fe3947df716e // indirect
 	github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec // indirect
 	github.com/aead/siphash v1.0.1 // indirect
-	github.com/ark-network/ark/api-spec v0.0.0-20240926172141-f36a747c591b // indirect
+	github.com/ark-network/ark/api-spec v0.0.0-20240927140937-ab6ae36eb50b // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/btcsuite/btcd v0.24.2 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
