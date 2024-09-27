@@ -452,7 +452,7 @@ func SwapPreviewContent(kind, sats, feeAmount, total string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.SpinnerIcon().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.SpinnerIconOrange().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -225,8 +225,8 @@ templ TwitterIcon() {
   </svg>
 }
 
-templ SpinnerIcon() {
-  <svg width="70" height="70" viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" stroke="#fc8d4e">
+templ spinnerIcon(stroke string) {
+  <svg width="70" height="70" viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" stroke={stroke}>
     <g fill="none" fill-rule="evenodd">
       <g transform="translate(1 1)" stroke-width="2">
         <circle stroke-opacity=".5" cx="18" cy="18" r="18"/>
@@ -242,4 +242,12 @@ templ SpinnerIcon() {
       </g>
     </g>
   </svg>
+}
+
+templ SpinnerIconOrange() {
+  @spinnerIcon("#fc8d4e")
+}
+
+templ SpinnerIconGreen() {
+  @spinnerIcon("#6bd23b")
 }
