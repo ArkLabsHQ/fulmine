@@ -116,8 +116,10 @@ $(ICON_OUTPUT): $(ICON_SOURCE)
 bundle-mac: build-mac-arm64 build-mac-amd64 icon
 	@echo "Bundling the application for Mac..."
 	@chmod +x $(SCRIPTS_DIR)/bundle-mac
+	@rm -rf "$(BUILD_DIR)/$(APP_NAME)-arm64.app"
 	@$(SCRIPTS_DIR)/bundle-mac "$(APP_NAME)" "$(BINARY_NAME)" "$(ICON_OUTPUT)" "$(VERSION)" "$(BUILD_DIR)" darwin arm64
 	@mv "$(BUILD_DIR)/$(APP_NAME).app" "$(BUILD_DIR)/$(APP_NAME)-arm64.app"
+	@rm -rf "$(BUILD_DIR)/$(APP_NAME)-amd64.app"
 	@$(SCRIPTS_DIR)/bundle-mac "$(APP_NAME)" "$(BINARY_NAME)" "$(ICON_OUTPUT)" "$(VERSION)" "$(BUILD_DIR)" darwin amd64
 	@mv "$(BUILD_DIR)/$(APP_NAME).app" "$(BUILD_DIR)/$(APP_NAME)-amd64.app"
 	@echo "Application bundled for both architectures: $(BUILD_DIR)/$(APP_NAME)-arm64.app and $(BUILD_DIR)/$(APP_NAME)-amd64.app"
