@@ -1,11 +1,7 @@
 #!/bin/bash
-
 set -e
 
-PARENT_PATH=$(dirname $(
-	cd $(dirname $0)
-	pwd -P
-))
+PARENT_PATH=$(dirname $(cd $(dirname "$0") && pwd -P))
 
 # Use provided OS and ARCH if given, otherwise determine from environment
 OS="${1:-$(go env GOOS)}"
@@ -13,5 +9,13 @@ ARCH="${2:-$(go env GOARCH)}"
 
 pushd $PARENT_PATH
 mkdir -p build
-go build -ldflags="-s -w" -o build/ark-node-desktop-$OS-$ARCH cmd/ark-node/desktop/main.go
+
+# Set minimum macOS version if building for macOS
+if [ "$OS" = "darwin" ]; then
+    export MACOSX_DEPLOYMENT_TARGET=10.13  # Target macOS High Sierra or later
+fi
+
+# Add -trimpath to remove local file system paths from the binary
+go build -trimpath -ldflags="-s -w" -o build/ark-node-desktop-$OS-$ARCH cmd/ark-node/desktop/main.go
+
 popd
