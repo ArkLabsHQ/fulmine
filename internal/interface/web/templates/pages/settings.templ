@@ -75,7 +75,7 @@ templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, l
 }
 
 templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) {
-  <form hx-post="/ops/settings" hx-trigger="change">
+  <form hx-post="/partials/settings" hx-trigger="change">
     @Separator("Wallet")
     @StatusLock(locked)
     @Separator("Details")
@@ -113,7 +113,7 @@ templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) 
 }
 
 templ SettingsASPContent(settings domain.Settings) {
-  <form hx-post="/ops/settings" hx-trigger="change">
+  <form hx-post="/partials/settings" hx-trigger="change">
     @Separator("Link")
     @components.Label("ASP Link")
     <div class="border border-1 border-white/50 flex bg-graybg items-center justify-between rounded-lg gap-4 pr-3 focus:border-orange">
@@ -138,7 +138,7 @@ templ SettingsASPContent(settings domain.Settings) {
 }
 
 templ SettingsLightningContent(settings domain.Settings, nodeStatus bool) {
-  <form hx-post="/ops/settings" hx-trigger="change">
+  <form hx-post="/partials/settings" hx-trigger="change">
     @Separator("Status")
     @StatusNode(nodeStatus)
     @Separator("Connect")
@@ -148,14 +148,14 @@ templ SettingsLightningContent(settings domain.Settings, nodeStatus bool) {
       @components.InputFake(settings.LnUrl)
       <button
         class="bg-red/10 text-red font-semibold rounded-lg mt-8"
-        hx-post="/ops/node/disconnect"
+        hx-post="/partials/node/disconnect"
       >
         Disconnect
       </button>
     
     } else {
       @components.InputWithPaste("lnurl", "", settings.LnUrl)
-      <button class="bg-graybg font-semibold rounded-lg mt-8" hx-post="/ops/node/connect">Connect</button>
+      <button class="bg-graybg font-semibold rounded-lg mt-8" hx-post="/partials/node/connect">Connect</button>
       <button class="bg-graybg font-semibold rounded-lg mt-4 flex items-center justify-center gap-3">
         @components.ScanIcon()
         Scan

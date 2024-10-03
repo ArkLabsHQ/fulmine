@@ -106,17 +106,17 @@ func NewService(appSvc *application.Service) *service {
 	svc.POST("/swap/preview", svc.swapPreview)
 	svc.POST("/swap/confirm", svc.swapConfirm)
 
-	svc.POST("/ops/claim", svc.claimApi)
-	svc.POST("/ops/lock", svc.lockApi)
-	svc.POST("/ops/settings", svc.updateSettingsApi)
-	svc.POST("/ops/node/connect", svc.connectNodeApi)
-	svc.POST("/ops/node/disconnect", svc.disconnectNodeApi)
-	svc.POST("/ops/mnemonic/validate", svc.validateMnemonicApi)
-	svc.POST("/ops/privatekey/validate", svc.validatePrivateKeyApi)
-	svc.POST("/ops/url/validate", svc.validateUrlApi)
-	svc.POST("/ops/unlock", svc.unlockApi)
+	svc.POST("/partials/claim", svc.claimApi)
+	svc.POST("/partials/lock", svc.lockApi)
+	svc.POST("/partials/settings", svc.updateSettingsApi)
+	svc.POST("/partials/node/connect", svc.connectNodeApi)
+	svc.POST("/partials/node/disconnect", svc.disconnectNodeApi)
+	svc.POST("/partials/mnemonic/validate", svc.validateMnemonicApi)
+	svc.POST("/partials/privatekey/validate", svc.validatePrivateKeyApi)
+	svc.POST("/partials/url/validate", svc.validateUrlApi)
+	svc.POST("/partials/unlock", svc.unlockApi)
 
-	svc.GET("/ops/balance", svc.getBalanceApi)
+	svc.GET("/partials/balance", svc.getBalanceApi)
 
 	return svc
 }

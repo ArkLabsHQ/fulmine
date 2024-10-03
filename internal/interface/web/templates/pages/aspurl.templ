@@ -33,7 +33,7 @@ templ AspUrlBodyContent(aspurl, privateKey, password string) {
 		  	if (input.value.length == 0) return
 		  	const data = new FormData()
 		    data.set('url', input.value)
-		    fetch('/ops/url/validate', {
+		    fetch('/partials/url/validate', {
 		    	method: 'POST',
           body: data,
 		    }).then((res) => {
