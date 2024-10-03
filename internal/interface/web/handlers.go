@@ -64,7 +64,7 @@ func (s *service) forgot(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	c.Redirect(http.StatusFound, "/app/welcome")
+	c.Redirect(http.StatusFound, "/welcome")
 }
 
 func (s *service) index(c *gin.Context) {
@@ -635,7 +635,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 func (s *service) redirectedBecauseWalletIsLocked(c *gin.Context) bool {
 	redirect := s.svc.IsLocked(c)
 	if redirect {
-		c.Redirect(http.StatusFound, "/app")
+		c.Redirect(http.StatusFound, "/")
 	}
 	return redirect
 }

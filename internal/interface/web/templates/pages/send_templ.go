@@ -95,7 +95,7 @@ func SendBodyContent(currentBalance string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"sendBody\"><form hx-post=\"/app/send/preview\" hx-target=\"#sendBody\"><input id=\"balance\" type=\"hidden\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"sendBody\"><form hx-post=\"/send/preview\" hx-target=\"#sendBody\"><input id=\"balance\" type=\"hidden\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -165,7 +165,7 @@ func SendPreviewContent(address, sats, feeAmount, total string) templ.Component 
 			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"sendBody\"><form hx-post=\"/app/send/confirm\" hx-target=\"#sendBody\" hx-target=\"outerHTML\"><input type=\"hidden\" name=\"address\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div id=\"sendBody\"><form hx-post=\"/send/confirm\" hx-target=\"#sendBody\" hx-target=\"outerHTML\"><input type=\"hidden\" name=\"address\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

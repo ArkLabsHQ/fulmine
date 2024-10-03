@@ -39,7 +39,7 @@ lint:
 ## run: run in dev mode
 run: clean
 	@echo "Running ark-node in dev mode..."
-	go run ./cmd/ark-node
+	@go run ./cmd/ark-node
 
 ## run: run in dev mode
 run-bob: clean

@@ -106,17 +106,17 @@ func NewService(appSvc *application.Service) *service {
 	svc.POST("/swap/preview", svc.swapPreview)
 	svc.POST("/swap/confirm", svc.swapConfirm)
 
-	svc.POST("/api/claim", svc.claimApi)
-	svc.POST("/api/lock", svc.lockApi)
-	svc.POST("/api/settings", svc.updateSettingsApi)
-	svc.POST("/api/node/connect", svc.connectNodeApi)
-	svc.POST("/api/node/disconnect", svc.disconnectNodeApi)
-	svc.POST("/api/mnemonic/validate", svc.validateMnemonicApi)
-	svc.POST("/api/privatekey/validate", svc.validatePrivateKeyApi)
-	svc.POST("/api/url/validate", svc.validateUrlApi)
-	svc.POST("/api/unlock", svc.unlockApi)
+	svc.POST("/ops/claim", svc.claimApi)
+	svc.POST("/ops/lock", svc.lockApi)
+	svc.POST("/ops/settings", svc.updateSettingsApi)
+	svc.POST("/ops/node/connect", svc.connectNodeApi)
+	svc.POST("/ops/node/disconnect", svc.disconnectNodeApi)
+	svc.POST("/ops/mnemonic/validate", svc.validateMnemonicApi)
+	svc.POST("/ops/privatekey/validate", svc.validatePrivateKeyApi)
+	svc.POST("/ops/url/validate", svc.validateUrlApi)
+	svc.POST("/ops/unlock", svc.unlockApi)
 
-	svc.GET("/api/balance", svc.getBalanceApi)
+	svc.GET("/ops/balance", svc.getBalanceApi)
 
 	return svc
 }
