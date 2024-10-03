@@ -22,10 +22,16 @@ github.com/angelofallars/htmx-go v0.5.0 h1:L7M48cCH7nX8cV5wRYn04pN6AE4qNdh86iTbu
 github.com/angelofallars/htmx-go v0.5.0/go.mod h1:izXk6A+Jllc3vXs1dUvxUJs/jE0weiEC07ZPlCVi4cc=
 github.com/ark-network/ark/api-spec v0.0.0-20240920100312-9e3d667b5174 h1:C1d8LfSiMpWY4SLzTT1jpP7S5Eii0uZmtre1eNFaZvQ=
 github.com/ark-network/ark/api-spec v0.0.0-20240920100312-9e3d667b5174/go.mod h1:TRbR7D04k6Tx//Eo/DUay+hFTT42NPCo8RmjcyrQ1DY=
+github.com/ark-network/ark/api-spec v0.0.0-20241001170025-26bcbc8163e0 h1:oUnZjCC/oQt1VYlZ55Yb5ZYXz4TqBy4o/IPUBR26ICI=
+github.com/ark-network/ark/api-spec v0.0.0-20241001170025-26bcbc8163e0/go.mod h1:TRbR7D04k6Tx//Eo/DUay+hFTT42NPCo8RmjcyrQ1DY=
 github.com/ark-network/ark/common v0.0.0-20240920100312-9e3d667b5174 h1:6QAIzBJ5NGdYkOixHJWc3V0+pJx9tEHVU1LxCj2FqUs=
 github.com/ark-network/ark/common v0.0.0-20240920100312-9e3d667b5174/go.mod h1:zA5/UUj+G/WXDmihyzIVWViTo9rqKf/lb/Mw5MjzusM=
+github.com/ark-network/ark/common v0.0.0-20241001170025-26bcbc8163e0 h1:nMLmB5gWbawffKwPmMPacRwUi6XLh/dorVutw4Hh8q8=
+github.com/ark-network/ark/common v0.0.0-20241001170025-26bcbc8163e0/go.mod h1:zA5/UUj+G/WXDmihyzIVWViTo9rqKf/lb/Mw5MjzusM=
 github.com/ark-network/ark/pkg/client-sdk v0.0.0-20240920100312-9e3d667b5174 h1:M+c0IKjQ+k6ipXWYZXfFCcl6HR1mo3it3sR5DY6pCNY=
 github.com/ark-network/ark/pkg/client-sdk v0.0.0-20240920100312-9e3d667b5174/go.mod h1:kHQKie0dcm2qIc779Pe4bq1ePlRxDecLpDIRLa/nUe4=
+github.com/ark-network/ark/pkg/client-sdk v0.0.0-20241001170025-26bcbc8163e0 h1:Tczl4KcB7qbXwP/rbvCDoiPz+OgJqfnJ2y4VcsX/+h0=
+github.com/ark-network/ark/pkg/client-sdk v0.0.0-20241001170025-26bcbc8163e0/go.mod h1:kHQKie0dcm2qIc779Pe4bq1ePlRxDecLpDIRLa/nUe4=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 h1:DklsrG3dyBCFEj5IhUbnKptjxatkF07cF2ak3yi77so=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=
@@ -549,6 +555,8 @@ go.etcd.io/etcd/server/v3 v3.5.15 h1:x35jrWnZgsRwMsFsUJIUdT1bvzIz1B+29HjMfRYVN/E
 go.etcd.io/etcd/server/v3 v3.5.15/go.mod h1:l9jX9oa/iuArjqz0RNX/TDbc70dLXxRZo/nmPucrpFo=
 go.mongodb.org/mongo-driver v1.17.0 h1:Hp4q2MCjvY19ViwimTs00wHi7G4yzxh4/2+nTx8r40k=
 go.mongodb.org/mongo-driver v1.17.0/go.mod h1:wwWm/+BuOddhcq3n68LKRmgk2wXzmF6s0SFOa0GINL4=
+go.mongodb.org/mongo-driver v1.17.1 h1:Wic5cJIwJgSpBhe3lx3+/RybR5PiYRMpVFgO7cOHyIM=
+go.mongodb.org/mongo-driver v1.17.1/go.mod h1:wwWm/+BuOddhcq3n68LKRmgk2wXzmF6s0SFOa0GINL4=
 go.opencensus.io v0.22.5/go.mod h1:5pWMHQbX5EPX2/62yrJeAkowc+lfs/XD7Uxpq3pI6kk=
 go.opencensus.io v0.24.0 h1:y73uSU6J157QMP2kn2r30vwW1A2W2WFwSCGnAVxeaD0=
 go.opencensus.io v0.24.0/go.mod h1:vNK8G9p7aAivkbmorf4v+7Hgx+Zs0yY+0fOtgBfjQKo=
@@ -705,8 +713,12 @@ google.golang.org/genproto v0.0.0-20240812133136-8ffd90a71988 h1:CT2Thj5AuPV9phr
 google.golang.org/genproto v0.0.0-20240812133136-8ffd90a71988/go.mod h1:7uvplUBj4RjHAxIZ//98LzOvrQ04JBkaixRmCMI29hc=
 google.golang.org/genproto/googleapis/api v0.0.0-20240903143218-8af14fe29dc1 h1:hjSy6tcFQZ171igDaN5QHOw2n6vx40juYbC/x67CEhc=
 google.golang.org/genproto/googleapis/api v0.0.0-20240903143218-8af14fe29dc1/go.mod h1:qpvKtACPCQhAdu3PyQgV4l3LMXZEtft7y8QcarRsp9I=
+google.golang.org/genproto/googleapis/api v0.0.0-20240930140551-af27646dc61f h1:jTm13A2itBi3La6yTGqn8bVSrc3ZZ1r8ENHlIXBfnRA=
+google.golang.org/genproto/googleapis/api v0.0.0-20240930140551-af27646dc61f/go.mod h1:CLGoBuH1VHxAUXVPP8FfPwPEVJB6lz3URE5mY2SuayE=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 h1:pPJltXNxVzT4pK9yD8vR9X75DaWYYmLGMsEvBfFQZzQ=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1/go.mod h1:UqMtugtsSgubUsoxbuAoiCXvqvErP7Gf0so0mK9tHxU=
+google.golang.org/genproto/googleapis/rpc v0.0.0-20240930140551-af27646dc61f h1:cUMEy+8oS78BWIH9OWazBkzbr090Od9tWBNtZHkOhf0=
+google.golang.org/genproto/googleapis/rpc v0.0.0-20240930140551-af27646dc61f/go.mod h1:UqMtugtsSgubUsoxbuAoiCXvqvErP7Gf0so0mK9tHxU=
 google.golang.org/grpc v1.19.0/go.mod h1:mqu4LbDTu4XGKhr4mRzUsmM4RtVoemTSY81AxZiDr8c=
 google.golang.org/grpc v1.20.1/go.mod h1:10oTOabMzJvdu6/UiuZezV6QK5dSlG84ov/aaiqXj38=
 google.golang.org/grpc v1.23.0/go.mod h1:Y5yQAOtifL1yxbo5wqy6BxZv8vAUGQwXBOALyacEbxg=
@@ -716,6 +728,8 @@ google.golang.org/grpc v1.29.1/go.mod h1:itym6AZVZYACWQqET3MqgPpjcuV5QH3BxFS3Iji
 google.golang.org/grpc v1.33.2/go.mod h1:JMHMWHQWaTccqQQlmk3MJZS+GWXOdAesneDmEnv2fbc=
 google.golang.org/grpc v1.67.0 h1:IdH9y6PF5MPSdAntIcpjQ+tXO41pcQsfZV2RxtQgVcw=
 google.golang.org/grpc v1.67.0/go.mod h1:1gLDyUQU7CTLJI90u3nXZ9ekeghjeM7pTDZlqFNg2AA=
+google.golang.org/grpc v1.67.1 h1:zWnc1Vrcno+lHZCOofnIMvycFcc0QRGIzm9dhnDX68E=
+google.golang.org/grpc v1.67.1/go.mod h1:1gLDyUQU7CTLJI90u3nXZ9ekeghjeM7pTDZlqFNg2AA=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
