@@ -100,8 +100,16 @@ templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) 
     @components.Label("ASP URL")
     @components.InputFake(settings.AspUrl)
     @Separator("Security")
-    <button class="bg-graybg font-semibold rounded-lg mb-4" onclick="notImplemented(event)">Backup seed phrase</button>
+    <button class="bg-graybg font-semibold rounded-lg mb-4" onclick="handleBackup(event)">
+      Backup private key
+    </button>
   </form>
+  <script>
+    const handleBackup = (event) => {
+      event.preventDefault()
+      redirect('/backup')
+    }
+  </script>
 }
 
 templ SettingsASPContent(settings domain.Settings) {

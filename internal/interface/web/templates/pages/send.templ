@@ -63,7 +63,7 @@ templ SendPreviewContent(address, sats, feeAmount, total string) {
 	      <div class="flex flex-col items-center">
 	        @components.Header("Confirm Send")
 					<div class="showOnRequest flex flex-col items-center mt-10 w-full">
-				    @components.SpinnerIcon()
+				    @components.SpinnerIconOrange()
 					   <p class="mt-10">Sending...</p>
 					</div>
 					<div class="hideOnRequest flex flex-col items-center w-full">
@@ -97,6 +97,8 @@ templ SendSuccessContent(address, amount, txid, explorerUrl string) {
 				<p class="text-white/50">@components.CopyIcon()</p>
 			</div>
 		</div>
-		@components.ViewTxButton(txid, explorerUrl)
+		if len(txid) == 32 {
+		  @components.ViewTxButton(txid, explorerUrl)
+		}
 	</div>
 }

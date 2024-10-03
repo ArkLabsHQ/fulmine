@@ -120,12 +120,12 @@ templ TxPendingContent(tx types.Transaction, nextClaim string) {
           <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
           @components.PendingTxTable(tx.CreatedAt, tx.ExpiresAt, nextClaim)
         </div>
-        <div class="showOnRequest flex flex-col items-center mt-10 w-full">
-	  	    @components.SpinnerIcon()
-	  	     <p class="mt-10">Claiming...</p>
-	  	  </div>
       </div>
-      @components.ClaimButtons()
+      <div class="showOnRequest flex flex-col items-center mt-10 w-full">
+	  	  @components.SpinnerIconGreen()
+	  	   <p class="mt-10">Settling...</p>
+	  	</div>
+      @components.SettleButtons()
 	  </div>
   </form>
 }

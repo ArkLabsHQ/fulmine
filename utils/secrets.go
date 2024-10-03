@@ -1,10 +1,13 @@
 package utils
 
 import (
+	"encoding/hex"
 	"fmt"
 	"regexp"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+	"github.com/tyler-smith/go-bip32"
 	"github.com/tyler-smith/go-bip39"
 )
 
@@ -32,4 +35,39 @@ func IsValidPassword(password string) error {
 		return fmt.Errorf("password must have a special character")
 	}
 	return nil
+}
+
+func IsValidPrivateKey(privateKey string) error {
+	logrus.Infof("private key %d %s", len(privateKey), privateKey)
+	if len(privateKey) != 64 {
+		return fmt.Errorf("invalid private key")
+	}
+	return nil
+}
+
+func PrivateKeyFromMnemonic(mnemonic string) (string, error) {
+	seed := bip39.NewSeed(mnemonic, "")
+	key, err := bip32.NewMasterKey(seed)
+	if err != nil {
+		return "", err
+	}
+
+	// TODO: validate this path
+	derivationPath := []uint32{
+		bip32.FirstHardenedChild + 44,
+		bip32.FirstHardenedChild + 1237,
+		bip32.FirstHardenedChild + 0,
+		0,
+		0,
+	}
+
+	next := key
+	for _, idx := range derivationPath {
+		var err error
+		if next, err = next.NewChildKey(idx); err != nil {
+			return "", err
+		}
+	}
+
+	return hex.EncodeToString(next.Key), nil
 }

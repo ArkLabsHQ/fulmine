@@ -73,13 +73,17 @@ func NewService(appSvc *application.Service) *service {
 
 	// Handle index page view.
 	svc.GET("/", svc.index)
+	svc.GET("/backup", svc.backupInitial)
+	svc.GET("/backup/secret", svc.backupSecret)
+	svc.GET("/backup/ack", svc.backupAck)
 	svc.GET("/done", svc.done)
 	svc.GET("/forgot", svc.forgot)
-	svc.GET("/import", svc.importWallet)
+	svc.GET("/import", svc.importWalletPrivateKey)
 	svc.GET("/lock", svc.lock)
 	svc.GET("/modal/feeinfo", svc.feeInfoModal)
 	svc.GET("/modal/reversibleinfo", svc.reversibleInfoModal)
-	svc.GET("/new", svc.newWallet)
+	svc.GET("/modal/seedinfo", svc.seedInfoModal)
+	svc.GET("/new", svc.newWalletPrivateKey)
 	svc.GET("/receive", svc.receiveQrCode)
 	svc.GET("/receive/edit", svc.receiveEdit)
 	svc.GET("/send", svc.send)
@@ -93,6 +97,7 @@ func NewService(appSvc *application.Service) *service {
 	svc.POST("/initialize", svc.initialize)
 	svc.POST("/mnemonic", svc.setMnemonic)
 	svc.POST("/password", svc.setPassword)
+	svc.POST("/privatekey", svc.setPrivateKey)
 
 	svc.POST("/receive/preview", svc.receiveQrCode)
 	svc.POST("/receive/success", svc.receiveSuccess)
@@ -107,6 +112,7 @@ func NewService(appSvc *application.Service) *service {
 	svc.POST("/api/node/connect", svc.connectNodeApi)
 	svc.POST("/api/node/disconnect", svc.disconnectNodeApi)
 	svc.POST("/api/mnemonic/validate", svc.validateMnemonicApi)
+	svc.POST("/api/privatekey/validate", svc.validatePrivateKeyApi)
 	svc.POST("/api/url/validate", svc.validateUrlApi)
 	svc.POST("/api/unlock", svc.unlockApi)
 

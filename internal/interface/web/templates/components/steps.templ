@@ -1,0 +1,18 @@
+package components
+
+import (
+  "strconv"
+)
+
+templ Steps(current, max int) {
+  <p class="mb-2 text-white/80">Step {strconv.Itoa(current)}/{strconv.Itoa(max)}</p>
+  <div class="flex justify-start items-center gap-4 mb-4">
+    for i := 1; i <= max; i++ {
+      if i <= current {
+        <p class="h-1 w-14 rounded-lg bg-orange"></p>
+      } else {
+        <p class="h-1 w-14 rounded-lg bg-white/50"></p>
+      }
+    }
+  </div>
+}
