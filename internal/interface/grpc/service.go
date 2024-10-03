@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
@@ -128,6 +127,7 @@ func (s *service) Start() error {
 	if err != nil {
 		return err
 	}
+	// nolint:all
 	go s.grpcServer.Serve(listener)
 	log.Infof("started GRPC server at %s", s.cfg.grpcAddress())
 
@@ -149,36 +149,4 @@ func (s *service) Stop() {
 	// nolint:all
 	s.httpServer.Shutdown(context.Background())
 	log.Info("stopped http server")
-}
-
-func router(
-	grpcServer *grpc.Server, grpcGateway http.Handler,
-) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if isOptionRequest(r) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Headers", "*")
-			w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-			return
-		}
-
-		if isHttpRequest(r) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Headers", "*")
-			w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-
-			grpcGateway.ServeHTTP(w, r)
-			return
-		}
-		grpcServer.ServeHTTP(w, r)
-	})
-}
-
-func isOptionRequest(req *http.Request) bool {
-	return req.Method == http.MethodOptions
-}
-
-func isHttpRequest(req *http.Request) bool {
-	return req.Method == http.MethodGet ||
-		strings.Contains(req.Header.Get("Content-Type"), "application/json")
 }
