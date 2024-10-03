@@ -594,7 +594,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		expiresAt := tx.CreatedAt.Unix() + data.RoundLifetime
 		// status of tx
 		status := "success"
-		if tx.IsPending && !tx.IsPendingChange {
+		if tx.IsPending {
 			status = "pending"
 		}
 		emptyTime := time.Time{}
