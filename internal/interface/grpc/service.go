@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 
@@ -24,9 +25,10 @@ import (
 )
 
 type service struct {
-	cfg    Config
-	appSvc *application.Service
-	server *http.Server
+	cfg        Config
+	appSvc     *application.Service
+	httpServer *http.Server
+	grpcServer *grpc.Server
 }
 
 func NewService(cfg Config, appSvc *application.Service) (*service, error) {
@@ -98,14 +100,13 @@ func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 	); err != nil {
 		return nil, err
 	}
-	grpcGateway := http.Handler(gwmux)
 
 	feHandler := web.NewService(appSvc)
 
-	handler := router(grpcServer, grpcGateway)
+	// handler := router(grpcServer, grpcGateway)
 	mux := http.NewServeMux()
-	mux.Handle("/", handler)
-	mux.Handle("/app/", http.StripPrefix("/app", feHandler))
+	mux.Handle("/", feHandler)
+	mux.Handle("/api/", http.StripPrefix("/api", gwmux))
 	mux.Handle("/static/", feHandler)
 
 	httpServerHandler := http.Handler(mux)
@@ -113,32 +114,41 @@ func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 		httpServerHandler = h2c.NewHandler(httpServerHandler, &http2.Server{})
 	}
 
-	server := &http.Server{
-		Addr:      cfg.address(),
+	httpServer := &http.Server{
+		Addr:      cfg.httpAddress(),
 		Handler:   httpServerHandler,
 		TLSConfig: cfg.tlsConfig(),
 	}
 
-	return &service{cfg, appSvc, server}, nil
+	return &service{cfg, appSvc, httpServer, grpcServer}, nil
 }
 
 func (s *service) Start() error {
+	listener, err := net.Listen("tcp", s.cfg.grpcAddress())
+	if err != nil {
+		return err
+	}
+	go s.grpcServer.Serve(listener)
+	log.Infof("started GRPC server at %s", s.cfg.grpcAddress())
+
 	if s.cfg.insecure() {
 		// nolint:all
-		go s.server.ListenAndServe()
+		go s.httpServer.ListenAndServe()
 	} else {
 		// nolint:all
-		go s.server.ListenAndServeTLS("", "")
+		go s.httpServer.ListenAndServeTLS("", "")
 	}
-	log.Infof("started listening at %s", s.cfg.address())
+	log.Infof("started HTTP server at %s", s.cfg.httpAddress())
 
 	return nil
 }
 
 func (s *service) Stop() {
-	// nolint:all
-	s.server.Shutdown(context.Background())
+	s.grpcServer.GracefulStop()
 	log.Info("stopped grpc server")
+	// nolint:all
+	s.httpServer.Shutdown(context.Background())
+	log.Info("stopped http server")
 }
 
 func router(
