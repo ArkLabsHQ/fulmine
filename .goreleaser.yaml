@@ -43,8 +43,6 @@ dmg:
     ids:
       - ark-node-desktop
     extra_files:
-      - icon.png
-      - LICENSE
       - ArkNode.app
     replace: true
     mod_timestamp: "{{ .CommitTimestamp }}"
