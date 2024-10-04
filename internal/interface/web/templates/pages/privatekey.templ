@@ -28,7 +28,7 @@ templ ManagePrivateKeyContent(privateKey string) {
 		const validatePrivateKey = () => {
       const data = new FormData()
 			data.set('privateKey', getPrivateKey())
-			fetch('/partials/privatekey/validate', {
+			fetch('/helpers/privatekey/validate', {
 				method: 'POST',
         body: data,
 			}).then((res) => {

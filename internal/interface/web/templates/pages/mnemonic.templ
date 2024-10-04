@@ -38,7 +38,7 @@ templ ManageMnemonicContent(mnemonic []string) {
 		const validateMnemonic = () => {
 			const data = new FormData()
 			data.set('mnemonic', getMnemonicFromWords())
-			fetch('/partials/mnemonic/validate', {
+			fetch('/helpers/mnemonic/validate', {
 				method: 'POST',
         body: data,
 			}).then((res) => {

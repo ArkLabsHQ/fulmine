@@ -63,7 +63,7 @@ templ ReceiveQrCodeContent(bip21, encoded, sats string) {
 		
 		const waitForPayment = async () => {
 			const getBalance = async () => {
-        const res = await fetch("/partials/balance")
+        const res = await fetch("/helpers/balance")
 		    return res.ok ? await res.json() : {}
 			}
 		  const initialBalance = await getBalance()
