@@ -137,3 +137,7 @@ bundle-debian: build-desktop icon
 	@chmod +x $(SCRIPTS_DIR)/bundle-debian
 	@$(SCRIPTS_DIR)/bundle-debian "$(APP_NAME)" "$(BINARY_NAME)" "$(ICON_OUTPUT)" "$(VERSION)" "$(BUILD_DIR)"
 	@echo "Debian package created: $(BUILD_DIR)/$(APP_NAME)_$(VERSION)_$(ARCH).deb"
+
+bundle-mac-goreleaser:
+	@echo "Bundling the application for Mac (GoReleaser)..."
+	@./scripts/bundle-mac-goreleaser

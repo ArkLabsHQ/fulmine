@@ -1,99 +1,54 @@
+# This is an example .goreleaser.yml file with some sensible defaults.
+# Make sure to check the documentation at https://goreleaser.com
+
+# The lines below are called `modelines`. See `:help modeline`
+# Feel free to remove those if you don't want/need to use them.
+# yaml-language-server: $schema=https://goreleaser.com/static/schema-pro.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+version: 2
+
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod tidy
+    # Install templ
+    - go install github.com/a-h/templ/cmd/templ@latest
+    # Build templates
+    - make build-templates
+    # Make bundle-mac-goreleaser executable
+    - chmod +x ./scripts/bundle-mac-goreleaser
+
 builds:
-  - id: "ark-node"
-    main: ./cmd/ark-node
-    ldflags:
-      - -s -X 'main.version={{.Version}}' -X 'main.commit={{.Commit}}' -X 'main.date={{.Date}}'
+  - id: "ark-node-desktop"
+    main: ./cmd/ark-node/desktop
+    binary: ark-node-desktop
+    env:
+      - CGO_ENABLED=1
     goos:
-      - linux
       - darwin
     goarch:
-      - amd64
       - arm64
-    binary: ark-node
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+    hooks:
+      post:
+        - make icon
+        - make bundle-mac-goreleaser
 
-## flag the semver v**.**.**-<tag>.* as pre-release on Github
-release:
-  prerelease: auto
-
-checksum:
-  name_template: "checksums.txt"
-
-snapshot:
-  name_template: "{{ .Tag }}-next"
-
-changelog:
-  use: github-native
-
-archives:
-  - id: ark-node
-    format: binary
-    builds:
-      - ark-node
-    name_template: "ark-node-v{{ .Version }}-{{ .Os }}-{{ .Arch }}"
-
-dockers:
-  ###########################
-  # tag latest & prerelease #
-  ###########################
-
-  #amd64
-  - image_templates:
-      - "ghcr.io/ArkLabsHQ/ark-node:{{ .Tag }}-amd64"
-        # push always either release or prerelease with a docker tag with the semver only
-    skip_push: "false"
-    use: buildx
+dmg:
+  - name: "ark-node-macos-arm64"
     ids:
-      - ark-node
-    dockerfile: goreleaser.Dockerfile
-    # GOOS of the built binaries/packages that should be used.
-    goos: linux
-    # GOARCH of the built binaries/packages that should be used.
-    goarch: amd64
-    # Template of the docker build flags.
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title=ark-node"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--build-arg=VERSION={{.Version}}"
-      - "--build-arg=COMMIT={{.Commit}}"
-      - "--build-arg=DATE={{.Date}}"
-  - image_templates:
-      - "ghcr.io/ArkLabsHQ/ark-node:{{ .Tag }}-arm64v8"
-        # push always either release or prerelease with a docker tag with the semver only
-    skip_push: "false"
-    use: buildx
-    ids:
-      - ark-node
-    dockerfile: goreleaser.Dockerfile
-    # GOOS of the built binaries/packages that should be used.
-    goos: linux
-    # GOARCH of the built binaries/packages that should be used.
-    goarch: arm64
-    # Template of the docker build flags.
-    build_flag_templates:
-      - "--platform=linux/arm64/v8"
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title=ark-node"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--build-arg=VERSION={{.Version}}"
-      - "--build-arg=COMMIT={{.Commit}}"
-      - "--build-arg=DATE={{.Date}}"
+      - ark-node-desktop
+    extra_files:
+      - icon.png
+      - LICENSE
+      - ArkNode.app
+    replace: true
+    mod_timestamp: "{{ .CommitTimestamp }}"
 
-docker_manifests:
-  - name_template: ghcr.io/ArkLabsHQ/ark-node:{{ .Tag }}
-    image_templates:
-      - ghcr.io/ArkLabsHQ/ark-node:{{ .Tag }}-amd64
-      - ghcr.io/ArkLabsHQ/ark-node:{{ .Tag }}-arm64v8
-    skip_push: "false"
-
-  - name_template: ghcr.io/ArkLabsHQ/ark-node:latest
-    image_templates:
-      - ghcr.io/ArkLabsHQ/ark-node:{{ .Tag }}-amd64
-      - ghcr.io/ArkLabsHQ/ark-node:{{ .Tag }}-arm64v8
-    skip_push: auto
-  
+after:
+  hooks:
+    - rm -rf ArkNode.app

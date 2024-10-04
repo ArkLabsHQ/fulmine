@@ -1,0 +1,60 @@
+#!/bin/bash
+set -e
+
+APP_NAME="ArkNode"
+BINARY_NAME="ark-node-desktop"
+ICON_PATH="build/icon.icns"
+VERSION="${VERSION:-1.0.0}"
+OUTPUT_DIR="dist"
+OS="darwin"
+ARCH="arm64"
+
+FULL_BINARY_NAME="${BINARY_NAME}_${OS}_${ARCH}/${BINARY_NAME}"
+APP_BUNDLE="${APP_NAME}.app"
+
+echo "Creating app bundle for ${ARCH}..."
+
+# Create the application bundle structure
+mkdir -p "${APP_BUNDLE}/Contents/MacOS"
+mkdir -p "${APP_BUNDLE}/Contents/Resources"
+
+# Copy the binary and make it executable
+cp "${OUTPUT_DIR}/${FULL_BINARY_NAME}" "${APP_BUNDLE}/Contents/MacOS/${BINARY_NAME}"
+chmod +x "${APP_BUNDLE}/Contents/MacOS/${BINARY_NAME}"
+
+# Copy the icon
+cp "$ICON_PATH" "${APP_BUNDLE}/Contents/Resources/icon.icns"
+
+# Create Info.plist
+cat > "${APP_BUNDLE}/Contents/Info.plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>${APP_NAME}</string>
+    <key>CFBundleExecutable</key>
+    <string>${BINARY_NAME}</string>
+    <key>CFBundleIconFile</key>
+    <string>icon</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.example.${APP_NAME}</string>
+    <key>CFBundleVersion</key>
+    <string>${VERSION}</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.13</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+</dict>
+</plist>
+EOF
+
+echo "Application bundle created: ${APP_BUNDLE}"
