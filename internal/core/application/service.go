@@ -191,8 +191,9 @@ func (s *Service) GetAddress(
 	bip21Addr = fmt.Sprintf("bitcoin:%s?ark=%s", boardingAddr, offchainAddr)
 	// add amount if passed
 	if sats > 0 {
-		amount := fmt.Sprintf("&amount=%d", sats)
-		bip21Addr += amount
+		btc := float64(sats) / 100000000.0
+		amount := fmt.Sprintf("%.8f", btc)
+		bip21Addr += fmt.Sprintf("&amount=%s", amount)
 	}
 	return
 }
