@@ -141,3 +141,11 @@ bundle-debian: build-desktop icon
 bundle-mac-goreleaser:
 	@echo "Bundling the application for Mac (GoReleaser)..."
 	@./scripts/bundle-mac-goreleaser
+
+sign-mac:
+	@if [ "$(GOOS)" = "darwin" ]; then \
+		echo "Signing the application for Mac..."; \
+		quill sign-and-notarize ./dist/ark-node-desktop_darwin_arm64/ark-node-desktop; \
+	else \
+		echo "Skipping Mac signing for non-Darwin OS"; \
+	fi

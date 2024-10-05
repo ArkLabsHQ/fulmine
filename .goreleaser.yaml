@@ -16,8 +16,6 @@ before:
     - go install github.com/a-h/templ/cmd/templ@latest
     # Build templates
     - make build-templates
-    # Make bundle-mac-goreleaser executable
-    - chmod +x ./scripts/bundle-mac-goreleaser
 
 builds:
   - id: "ark-node-desktop"
@@ -35,18 +33,14 @@ builds:
       - -s -w
     hooks:
       post:
-        - make icon
-        - make bundle-mac-goreleaser
+        - cmd: make sign-mac
+          env:
+            - GOOS={{ .Os }}
+          dir: .
 
 dmg:
   - name: "ark-node-macos-arm64"
     ids:
       - ark-node-desktop
-    extra_files:
-      - ArkNode.app
     replace: true
     mod_timestamp: "{{ .CommitTimestamp }}"
-
-after:
-  hooks:
-    - rm -rf ArkNode.app

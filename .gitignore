@@ -24,3 +24,6 @@ DS_Store
   
 *.tar
 dist/
+
+*.p12
+*.p8
