@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 set -e
@@ -13,6 +12,5 @@ ARCH=$(eval "go env GOARCH")
 
 pushd $PARENT_PATH
 mkdir -p build
-GO111MODULE=on go build -ldflags="-s -w" -o build/ark-node-$OS-$ARCH cmd/ark-node/main.go
-popd	
-  
+go build -ldflags="-s -w" -o build/ark-node-$OS-$ARCH cmd/ark-node/headless/main.go
+popd

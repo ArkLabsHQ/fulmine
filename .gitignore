@@ -11,6 +11,7 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+
 /build/
 /dist/
 /storage/
@@ -21,3 +22,8 @@ DS_Store
 **/.DS_Store
 **/._.DS_Store
   
+*.tar
+dist/
+
+*.p12
+*.p8
