@@ -138,9 +138,9 @@ bundle-debian: build-desktop icon
 	@$(SCRIPTS_DIR)/bundle-debian "$(APP_NAME)" "$(BINARY_NAME)" "$(ICON_OUTPUT)" "$(VERSION)" "$(BUILD_DIR)"
 	@echo "Debian package created: $(BUILD_DIR)/$(APP_NAME)_$(VERSION)_$(ARCH).deb"
 
-bundle-mac-goreleaser:
-	@echo "Bundling the application for Mac (GoReleaser)..."
-	@./scripts/bundle-mac-goreleaser
+bundle-mac-app:
+	@echo "Bundling the application for Mac..."
+	@./scripts/bundle-mac-app
 
 sign-mac:
 	@if [ "$(GOOS)" = "darwin" ]; then \
