@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ArkLabsHQ/ark-node/utils"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	"github.com/gin-gonic/gin"
@@ -41,6 +42,16 @@ func getNewMnemonic() []string {
 		return strings.Fields("")
 	}
 	return strings.Fields(mnemonic)
+}
+
+func getNewPrivateKey() string {
+	words := getNewMnemonic()
+	mnemonic := strings.Join(words, " ")
+	privateKey, err := utils.PrivateKeyFromMnemonic(mnemonic)
+	if err != nil {
+		return ""
+	}
+	return privateKey
 }
 
 func (s *service) getNodeStatus() bool {

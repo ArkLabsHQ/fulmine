@@ -98,6 +98,23 @@ func (s *service) validateMnemonicApi(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
+func (s *service) validatePrivateKeyApi(c *gin.Context) {
+	var data gin.H
+	privateKey := c.PostForm("privateKey")
+	err := utils.IsValidPrivateKey(privateKey)
+	if err == nil {
+		data = gin.H{
+			"valid": true,
+		}
+	} else {
+		data = gin.H{
+			"valid": false,
+			"error": err.Error(),
+		}
+	}
+	c.JSON(http.StatusOK, data)
+}
+
 func (s *service) validateUrlApi(c *gin.Context) {
 	url := c.PostForm("url")
 	valid := utils.IsValidURL(url)

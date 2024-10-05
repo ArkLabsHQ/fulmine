@@ -15,6 +15,17 @@ const (
 	settingsDir = "settings"
 )
 
+var defaultSettings = domain.Settings{
+	ApiRoot:     "https://fulmine.io/api/D9D90N192031",
+	AspUrl:      "http://localhost:7000",
+	Currency:    "usd",
+	EventServer: "http://arklabs.to/node/jupiter29",
+	FullNode:    "http://arklabs.to/node/213908123",
+	LnConnect:   false,
+	LnUrl:       "lndconnect://192.168.1.4:10009",
+	Unit:        "sat",
+}
+
 type service struct {
 	store *badgerhold.Store
 }
@@ -29,6 +40,10 @@ func NewSettingsRepo(baseDir string, logger badger.Logger) (domain.SettingsRepos
 		return nil, fmt.Errorf("failed to open round events store: %s", err)
 	}
 	return &service{store}, nil
+}
+
+func (s *service) AddDefaultSettings(ctx context.Context) error {
+	return s.addSettings(ctx, defaultSettings)
 }
 
 func (s *service) AddSettings(ctx context.Context, settings domain.Settings) error {

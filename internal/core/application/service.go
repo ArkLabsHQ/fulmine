@@ -2,31 +2,18 @@ package application
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
+	"github.com/ArkLabsHQ/ark-node/utils"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
 	store "github.com/ark-network/ark/pkg/client-sdk/store"
 	"github.com/sirupsen/logrus"
-	"github.com/tyler-smith/go-bip32"
-	"github.com/tyler-smith/go-bip39"
 )
-
-var defaultSettings = domain.Settings{
-	ApiRoot:     "https://fulmine.io/api/D9D90N192031",
-	AspUrl:      "http://localhost:7000",
-	Currency:    "usd",
-	EventServer: "http://arklabs.to/node/jupiter29",
-	FullNode:    "http://arklabs.to/node/213908123",
-	LnConnect:   false,
-	LnUrl:       "lndconnect://192.168.1.4:10009",
-	Unit:        "sat",
-}
 
 type BuildInfo struct {
 	Version string
@@ -68,9 +55,7 @@ func NewService(
 
 	ctx := context.Background()
 	if _, err := settingsRepo.GetSettings(ctx); err != nil {
-		if err := settingsRepo.AddSettings(
-			ctx, defaultSettings,
-		); err != nil {
+		if err := settingsRepo.AddDefaultSettings(ctx); err != nil {
 			return nil, err
 		}
 	}
@@ -88,8 +73,16 @@ func (s *Service) IsReady() bool {
 	return s.isReady
 }
 
+func (s *Service) SetupFromMnemonic(ctx context.Context, aspURL, password, mnemonic string) error {
+	privateKey, err := utils.PrivateKeyFromMnemonic(mnemonic)
+	if err != nil {
+		return err
+	}
+	return s.Setup(ctx, aspURL, password, privateKey)
+}
+
 func (s *Service) Setup(
-	ctx context.Context, aspURL, password, mnemonic string,
+	ctx context.Context, aspURL, password, privateKey string,
 ) (err error) {
 	if err := s.settingsRepo.UpdateSettings(
 		ctx, domain.Settings{AspUrl: aspURL},
@@ -103,11 +96,6 @@ func (s *Service) Setup(
 			s.settingsRepo.UpdateSettings(ctx, domain.Settings{AspUrl: ""})
 		}
 	}()
-
-	privateKey, err := privateKeyFromMnemonic(mnemonic)
-	if err != nil {
-		return err
-	}
 
 	client, err := grpcclient.NewClient(aspURL)
 	if err != nil {
@@ -170,6 +158,10 @@ func (s *Service) Reset(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (s *Service) AddDefaultSettings(ctx context.Context) error {
+	return s.settingsRepo.AddDefaultSettings(ctx)
 }
 
 func (s *Service) GetSettings(ctx context.Context) (*domain.Settings, error) {
@@ -263,31 +255,4 @@ func (s *Service) ScheduleClaims(ctx context.Context) error {
 
 func (s *Service) WhenNextClaim(ctx context.Context) time.Time {
 	return s.schedulerSvc.WhenNextClaim()
-}
-
-func privateKeyFromMnemonic(mnemonic string) (string, error) {
-	seed := bip39.NewSeed(mnemonic, "")
-	key, err := bip32.NewMasterKey(seed)
-	if err != nil {
-		return "", err
-	}
-
-	// TODO: validate this path
-	derivationPath := []uint32{
-		bip32.FirstHardenedChild + 44,
-		bip32.FirstHardenedChild + 1237,
-		bip32.FirstHardenedChild + 0,
-		0,
-		0,
-	}
-
-	next := key
-	for _, idx := range derivationPath {
-		var err error
-		if next, err = next.NewChildKey(idx); err != nil {
-			return "", err
-		}
-	}
-
-	return hex.EncodeToString(next.Key), nil
 }

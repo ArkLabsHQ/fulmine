@@ -1,0 +1,108 @@
+package pages
+
+import (
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
+)
+
+templ ManagePrivateKeyContent(privateKey string) {
+	if len(privateKey) > 0 {
+		@newWalletPrivateKeyContent(privateKey)
+	} else {
+		@importWalletPrivateKeyContent()
+	}
+	<script>
+	  const handlePrivateKeyPaste = () => {
+			if (navigator.clipboard) {
+        navigator.clipboard.readText().then((privateKey) => {
+		  		document.querySelector('#privateKey').value = privateKey
+					validatePrivateKey()
+		    })
+      }
+		}
+
+    const getPrivateKey = () => {
+      const privateKey = document.querySelector("input[name='privateKey']").value
+      return privateKey ?? ""
+    }
+
+		const validatePrivateKey = () => {
+      const data = new FormData()
+			data.set('privateKey', getPrivateKey())
+			fetch('/app/api/privatekey/validate', {
+				method: 'POST',
+        body: data,
+			}).then((res) => {
+				if (res.ok) {
+					res.json().then(({ valid, error }) => {
+						const button = document.querySelector('#importButton')
+						if (!button) return
+						if (valid) {
+							button.disabled = false
+							button.innerText = 'Continue'
+						} else {
+							button.disabled = true
+							button.innerText = error
+						}
+					})
+				}
+		  })
+		}
+	</script>
+}
+
+templ importWalletPrivateKeyContent() {
+	<form hx-post="/app/privatekey">
+	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
+	    <div>
+			  <div class="hidden md:block">@LogoWhite()</div>
+	      @components.Header("Import wallet", "/app/welcome")
+	  		<p class="mb-6">Import an existing wallet with your private key.</p>
+        <p class="font-semibold mb-2">Enter private key</p>
+				<div class="border border-1 border-white/20 bg-graybg p-4 flex items-center justify-between rounded-lg">
+	        <input
+	      	  class="bg-graybg border-0 p-0 mr-4"
+	      		id="privateKey"
+	      		name="privateKey"
+	      		placeholder="abcdef0123456789..."
+						onchange="validatePrivateKey()"
+	      	/>
+	      	<p class="cursor-pointer text-white/50" onclick="handlePrivateKeyPaste()">
+					  @components.PasteIcon()
+					</p>
+	      </div>
+	  	</div>
+			<button class="bg-orange text-white" disabled id="importButton" type="submit">Invalid private key</button>
+	  </div>
+	</form>
+}
+
+templ newWalletPrivateKeyContent(privateKey string) {
+	<form hx-post="/app/privatekey">
+	  <input type="hidden" name="privateKey" value={privateKey} />
+	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
+	    <div>
+	  	  <div class="hidden md:block">@LogoWhite()</div>
+	      @components.Header("New wallet", "/app/welcome")
+	  		<p class="mb-10">Write down the following private key in a secure place.</p>
+	  	  <p class="bg-white/20 rounded-lg p-3 break-words text-lg">{privateKey}</p>
+	  	</div>
+
+      <div class="flex flex-col md:flex-row md:justify-center gap-2 w-full">
+	      <button class="md:w-auto bg-orange text-white" id="importButton" type="submit">Continue</button>
+	      <button class="md:w-32 bg-graybg" onclick="handleCopy(event)">
+				  @components.CopyIcon()
+				  <span id="copyText" class="ml-2">Copy</span>
+				</button>
+	    </div>
+	  </div>
+	</form>
+	<script>
+	  const handleCopy = (event) => {
+			event.preventDefault()
+			if (!navigator.clipboard) return
+      navigator.clipboard.writeText(getPrivateKey())
+			document.querySelector('#copyText').innerText = 'Copied'
+			setTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2100)
+		}
+	</script>
+}
