@@ -106,14 +106,14 @@ func BackupSecretBodyContent(secret string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col gap-4\"><p class=\"text-lg font-semibold\">Private key</p><p>Write down your private key and save it on a safe place that is not accessible online.</p><p class=\"border border-1 border-white/20 p-3 text-xl break-words\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col gap-4\"><p class=\"text-lg font-semibold\">Private key</p><p>Write down your private key and save it on a safe place that is not accessible online.</p><p class=\"border border-1 border-white/20 p-3 break-words text-center\" id=\"secret\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(secret)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/backup.templ`, Line: 37, Col: 84}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/backup.templ`, Line: 37, Col: 100}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -127,15 +127,15 @@ func BackupSecretBodyContent(secret string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><p>Do not share your secret phrase or someone may gain access to your wallet and the funds.</p></div></div></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><p>Do not share your secret phrase or someone may gain access to your wallet.</p></div></div></div><div class=\"flex flex-col md:flex-row-reverse justify-start gap-4 mt-10 mb-2\"><button class=\"bg-orange md:w-auto\" type=\"submit\">Continue</button> <button class=\"bg-graybg md:w-32\" onclick=\"handleCopy(event)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.OrangeButton("Continue").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.CopyIcon().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></form>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<span id=\"copyText\" class=\"ml-2\">Copy</span></button></div></div></form><script>\n    const handleCopy = (event) => {\n\t\t\tevent.preventDefault()\n\t\t\tcopyToClipboard('#secret')\n\t\t\tdocument.querySelector('#copyText').innerText = 'Copied'\n\t\t\tsetTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2100)\n\t\t}\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
