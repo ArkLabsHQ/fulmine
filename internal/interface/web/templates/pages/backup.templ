@@ -6,7 +6,7 @@ import (
 
 templ BackupInitialBodyContent() {
   @components.DesktopHeader()
-  <form hx-get="/app/backup/secret">
+  <form hx-get="/backup/secret">
 	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	    <div>
 	      @components.Header("Backup wallet")
@@ -26,7 +26,7 @@ templ BackupInitialBodyContent() {
 }
 
 templ BackupSecretBodyContent(secret string) {
-  <form hx-get="/app/backup/ack">
+  <form hx-get="/backup/ack">
 	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	    <div>
 	      @components.Header("Backup wallet")

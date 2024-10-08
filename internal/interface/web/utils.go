@@ -59,7 +59,7 @@ func (s *service) getNodeStatus() bool {
 }
 
 func redirect(path string, c *gin.Context) {
-	c.Header("HX-Redirect", "/app/"+path)
+	c.Header("HX-Redirect", path)
 	c.Status(303)
 }
 

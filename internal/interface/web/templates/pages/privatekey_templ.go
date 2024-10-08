@@ -44,7 +44,7 @@ func ManagePrivateKeyContent(privateKey string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<script>\n\t  const handlePrivateKeyPaste = () => {\n\t\t\tif (navigator.clipboard) {\n        navigator.clipboard.readText().then((privateKey) => {\n\t\t  \t\tdocument.querySelector('#privateKey').value = privateKey\n\t\t\t\t\tvalidatePrivateKey()\n\t\t    })\n      }\n\t\t}\n\n    const getPrivateKey = () => {\n      const privateKey = document.querySelector(\"input[name='privateKey']\").value\n      return privateKey ?? \"\"\n    }\n\n\t\tconst validatePrivateKey = () => {\n      const data = new FormData()\n\t\t\tdata.set('privateKey', getPrivateKey())\n\t\t\tfetch('/app/api/privatekey/validate', {\n\t\t\t\tmethod: 'POST',\n        body: data,\n\t\t\t}).then((res) => {\n\t\t\t\tif (res.ok) {\n\t\t\t\t\tres.json().then(({ valid, error }) => {\n\t\t\t\t\t\tconst button = document.querySelector('#importButton')\n\t\t\t\t\t\tif (!button) return\n\t\t\t\t\t\tif (valid) {\n\t\t\t\t\t\t\tbutton.disabled = false\n\t\t\t\t\t\t\tbutton.innerText = 'Continue'\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tbutton.disabled = true\n\t\t\t\t\t\t\tbutton.innerText = error\n\t\t\t\t\t\t}\n\t\t\t\t\t})\n\t\t\t\t}\n\t\t  })\n\t\t}\n\t</script>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<script>\n\t  const handlePrivateKeyPaste = () => {\n\t\t\tif (navigator.clipboard) {\n        navigator.clipboard.readText().then((privateKey) => {\n\t\t  \t\tdocument.querySelector('#privateKey').value = privateKey\n\t\t\t\t\tvalidatePrivateKey()\n\t\t    })\n      }\n\t\t}\n\n    const getPrivateKey = () => {\n      const privateKey = document.querySelector(\"input[name='privateKey']\").value\n      return privateKey ?? \"\"\n    }\n\n\t\tconst validatePrivateKey = () => {\n      const data = new FormData()\n\t\t\tdata.set('privateKey', getPrivateKey())\n\t\t\tfetch('/helpers/privatekey/validate', {\n\t\t\t\tmethod: 'POST',\n        body: data,\n\t\t\t}).then((res) => {\n\t\t\t\tif (res.ok) {\n\t\t\t\t\tres.json().then(({ valid, error }) => {\n\t\t\t\t\t\tconst button = document.querySelector('#importButton')\n\t\t\t\t\t\tif (!button) return\n\t\t\t\t\t\tif (valid) {\n\t\t\t\t\t\t\tbutton.disabled = false\n\t\t\t\t\t\t\tbutton.innerText = 'Continue'\n\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\tbutton.disabled = true\n\t\t\t\t\t\t\tbutton.innerText = error\n\t\t\t\t\t\t}\n\t\t\t\t\t})\n\t\t\t\t}\n\t\t  })\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -73,7 +73,7 @@ func importWalletPrivateKeyContent() templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/app/privatekey\"><div class=\"flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3\"><div><div class=\"hidden md:block\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/privatekey\"><div class=\"flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3\"><div><div class=\"hidden md:block\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -85,7 +85,7 @@ func importWalletPrivateKeyContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.Header("Import wallet", "/app/welcome").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Header("Import wallet", "/welcome").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -126,7 +126,7 @@ func newWalletPrivateKeyContent(privateKey string) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/app/privatekey\"><input type=\"hidden\" name=\"privateKey\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/privatekey\"><input type=\"hidden\" name=\"privateKey\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -151,7 +151,7 @@ func newWalletPrivateKeyContent(privateKey string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.Header("New wallet", "/app/welcome").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Header("New wallet", "/welcome").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
