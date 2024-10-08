@@ -21,7 +21,6 @@ var (
 	date    = "unknown"
 )
 
-// TODO: Edit this file to something more meaningful for your application.
 func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {

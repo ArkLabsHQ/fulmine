@@ -28,6 +28,9 @@ const (
 	Service_SendOnchain_FullMethodName           = "/ark_node.v1.Service/SendOnchain"
 	Service_GetRoundInfo_FullMethodName          = "/ark_node.v1.Service/GetRoundInfo"
 	Service_GetTransactionHistory_FullMethodName = "/ark_node.v1.Service/GetTransactionHistory"
+	Service_BotlzFundVHTLC_FullMethodName        = "/ark_node.v1.Service/BotlzFundVHTLC"
+	Service_BoltzClaimVHTLC_FullMethodName       = "/ark_node.v1.Service/BoltzClaimVHTLC"
+	Service_ListVHTLC_FullMethodName             = "/ark_node.v1.Service/ListVHTLC"
 )
 
 // ServiceClient is the client API for Service service.
@@ -52,6 +55,11 @@ type ServiceClient interface {
 	GetRoundInfo(ctx context.Context, in *GetRoundInfoRequest, opts ...grpc.CallOption) (*GetRoundInfoResponse, error)
 	// GetTransactionHistory returns virtual transactions history
 	GetTransactionHistory(ctx context.Context, in *GetTransactionHistoryRequest, opts ...grpc.CallOption) (*GetTransactionHistoryResponse, error)
+	BotlzFundVHTLC(ctx context.Context, in *BotlzFundVHTLCRequest, opts ...grpc.CallOption) (*BotlzFundVHTLCResponse, error)
+	// BoltzClaimVHTLC = self send vHTLC -> VTXO
+	BoltzClaimVHTLC(ctx context.Context, in *BoltzClaimVHTLCRequest, opts ...grpc.CallOption) (*BoltzClaimVHTLCResponse, error)
+	// ListVHTLC = list all vhtlc OR filter by preimage_hash
+	ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opts ...grpc.CallOption) (*ListVHTLCResponse, error)
 }
 
 type serviceClient struct {
@@ -152,6 +160,36 @@ func (c *serviceClient) GetTransactionHistory(ctx context.Context, in *GetTransa
 	return out, nil
 }
 
+func (c *serviceClient) BotlzFundVHTLC(ctx context.Context, in *BotlzFundVHTLCRequest, opts ...grpc.CallOption) (*BotlzFundVHTLCResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BotlzFundVHTLCResponse)
+	err := c.cc.Invoke(ctx, Service_BotlzFundVHTLC_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) BoltzClaimVHTLC(ctx context.Context, in *BoltzClaimVHTLCRequest, opts ...grpc.CallOption) (*BoltzClaimVHTLCResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BoltzClaimVHTLCResponse)
+	err := c.cc.Invoke(ctx, Service_BoltzClaimVHTLC_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opts ...grpc.CallOption) (*ListVHTLCResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListVHTLCResponse)
+	err := c.cc.Invoke(ctx, Service_ListVHTLC_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServiceServer is the server API for Service service.
 // All implementations should embed UnimplementedServiceServer
 // for forward compatibility
@@ -174,6 +212,11 @@ type ServiceServer interface {
 	GetRoundInfo(context.Context, *GetRoundInfoRequest) (*GetRoundInfoResponse, error)
 	// GetTransactionHistory returns virtual transactions history
 	GetTransactionHistory(context.Context, *GetTransactionHistoryRequest) (*GetTransactionHistoryResponse, error)
+	BotlzFundVHTLC(context.Context, *BotlzFundVHTLCRequest) (*BotlzFundVHTLCResponse, error)
+	// BoltzClaimVHTLC = self send vHTLC -> VTXO
+	BoltzClaimVHTLC(context.Context, *BoltzClaimVHTLCRequest) (*BoltzClaimVHTLCResponse, error)
+	// ListVHTLC = list all vhtlc OR filter by preimage_hash
+	ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error)
 }
 
 // UnimplementedServiceServer should be embedded to have forward compatible implementations.
@@ -206,6 +249,15 @@ func (UnimplementedServiceServer) GetRoundInfo(context.Context, *GetRoundInfoReq
 }
 func (UnimplementedServiceServer) GetTransactionHistory(context.Context, *GetTransactionHistoryRequest) (*GetTransactionHistoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionHistory not implemented")
+}
+func (UnimplementedServiceServer) BotlzFundVHTLC(context.Context, *BotlzFundVHTLCRequest) (*BotlzFundVHTLCResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BotlzFundVHTLC not implemented")
+}
+func (UnimplementedServiceServer) BoltzClaimVHTLC(context.Context, *BoltzClaimVHTLCRequest) (*BoltzClaimVHTLCResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BoltzClaimVHTLC not implemented")
+}
+func (UnimplementedServiceServer) ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListVHTLC not implemented")
 }
 
 // UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -381,6 +433,60 @@ func _Service_GetTransactionHistory_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_BotlzFundVHTLC_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BotlzFundVHTLCRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).BotlzFundVHTLC(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_BotlzFundVHTLC_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).BotlzFundVHTLC(ctx, req.(*BotlzFundVHTLCRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_BoltzClaimVHTLC_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BoltzClaimVHTLCRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).BoltzClaimVHTLC(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_BoltzClaimVHTLC_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).BoltzClaimVHTLC(ctx, req.(*BoltzClaimVHTLCRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_ListVHTLC_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListVHTLCRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).ListVHTLC(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_ListVHTLC_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).ListVHTLC(ctx, req.(*ListVHTLCRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Service_ServiceDesc is the grpc.ServiceDesc for Service service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -423,6 +529,18 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTransactionHistory",
 			Handler:    _Service_GetTransactionHistory_Handler,
+		},
+		{
+			MethodName: "BotlzFundVHTLC",
+			Handler:    _Service_BotlzFundVHTLC_Handler,
+		},
+		{
+			MethodName: "BoltzClaimVHTLC",
+			Handler:    _Service_BoltzClaimVHTLC_Handler,
+		},
+		{
+			MethodName: "ListVHTLC",
+			Handler:    _Service_ListVHTLC_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -62,6 +62,71 @@
         ]
       }
     },
+    "/v1/boltz/claim": {
+      "post": {
+        "summary": "BoltzClaimVHTLC = self send vHTLC -\u003e VTXO",
+        "operationId": "Service_BoltzClaimVHTLC",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BoltzClaimVHTLCResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BoltzClaimVHTLCRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v1/boltz/fund": {
+      "post": {
+        "operationId": "Service_BotlzFundVHTLC",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BotlzFundVHTLCResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BotlzFundVHTLCRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/info": {
       "get": {
         "summary": "GetInfo returns info about the ark account",
@@ -270,6 +335,37 @@
           "Service"
         ]
       }
+    },
+    "/v1/vhtlc": {
+      "get": {
+        "summary": "ListVHTLC = list all vhtlc OR filter by preimage_hash",
+        "operationId": "Service_ListVHTLC",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListVHTLCResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "preimageHashFilter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
     }
   },
   "definitions": {
@@ -324,6 +420,45 @@
           "type": "string"
         },
         "xpubs": {
+          "type": "string"
+        }
+      }
+    },
+    "v1BoltzClaimVHTLCRequest": {
+      "type": "object",
+      "properties": {
+        "preimage": {
+          "type": "string"
+        }
+      }
+    },
+    "v1BoltzClaimVHTLCResponse": {
+      "type": "object",
+      "properties": {
+        "redeemTx": {
+          "type": "string"
+        }
+      }
+    },
+    "v1BotlzFundVHTLCRequest": {
+      "type": "object",
+      "properties": {
+        "preimageHash": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1BotlzFundVHTLCResponse": {
+      "type": "object",
+      "properties": {
+        "redeemTx": {
           "type": "string"
         }
       }
@@ -413,6 +548,30 @@
         }
       }
     },
+    "v1Input": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        },
+        "vout": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "v1ListVHTLCResponse": {
+      "type": "object",
+      "properties": {
+        "vhtlcs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Vtxo"
+          }
+        }
+      }
+    },
     "v1Node": {
       "type": "object",
       "properties": {
@@ -424,6 +583,18 @@
         },
         "parentTxid": {
           "type": "string"
+        }
+      }
+    },
+    "v1Output": {
+      "type": "object",
+      "properties": {
+        "descriptor": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64"
         }
       }
     },
@@ -583,6 +754,33 @@
         "TX_TYPE_RECEIVED"
       ],
       "default": "TX_TYPE_UNSPECIFIED"
+    },
+    "v1Vtxo": {
+      "type": "object",
+      "properties": {
+        "outpoint": {
+          "$ref": "#/definitions/v1Input"
+        },
+        "receiver": {
+          "$ref": "#/definitions/v1Output"
+        },
+        "spent": {
+          "type": "boolean"
+        },
+        "roundTxid": {
+          "type": "string"
+        },
+        "spentBy": {
+          "type": "string"
+        },
+        "expireAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "swept": {
+          "type": "boolean"
+        }
+      }
     }
   }
 }

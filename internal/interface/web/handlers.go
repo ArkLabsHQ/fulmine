@@ -304,11 +304,11 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(address, value),
+		arksdk.NewBitcoinReceiver(address, value, ""),
 	}
 
 	if utils.IsValidArkAddress(address) {
-		txId, err = s.svc.SendAsync(c, false, receivers)
+		txId, err = s.svc.SendAsync(c, false, receivers, arksdk.Options{})
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)

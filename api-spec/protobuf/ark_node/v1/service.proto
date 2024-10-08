@@ -64,6 +64,25 @@ service Service {
       get: "/v1/transactions"
     };
   };
+  rpc BotlzFundVHTLC(BotlzFundVHTLCRequest) returns (BotlzFundVHTLCResponse) {
+    option (google.api.http) = {
+      post: "/v1/boltz/fund"
+      body: "*"
+    };
+  };
+  // BoltzClaimVHTLC = self send vHTLC -> VTXO
+  rpc BoltzClaimVHTLC(BoltzClaimVHTLCRequest) returns (BoltzClaimVHTLCResponse) {
+    option (google.api.http) = {
+      post: "/v1/boltz/claim"
+      body: "*"
+    };
+  };
+  // ListVHTLC = list all vhtlc OR filter by preimage_hash
+  rpc ListVHTLC(ListVHTLCRequest) returns (ListVHTLCResponse) {
+    option (google.api.http) = {
+      get: "/v1/vhtlc"
+    };
+  };
 }
 
 message GetAddressRequest {}
@@ -133,4 +152,30 @@ message GetRoundInfoResponse {
 message GetTransactionHistoryRequest {}
 message GetTransactionHistoryResponse {
   repeated TransactionInfo transactions = 1;
+}
+
+message BotlzFundVHTLCRequest {
+  string preimage_hash = 1;
+  string address = 2;
+  uint64 amount = 3;
+}
+
+message BotlzFundVHTLCResponse {
+  string redeem_tx = 1;
+}
+
+message BoltzClaimVHTLCRequest {
+  string preimage = 1;
+}
+
+message BoltzClaimVHTLCResponse {
+  string redeem_tx = 1;
+}
+
+message ListVHTLCRequest {
+  optional string preimage_hash_filter = 1;
+}
+
+message ListVHTLCResponse {
+  repeated Vtxo vhtlcs = 1;
 }

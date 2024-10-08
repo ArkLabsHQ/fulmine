@@ -1,0 +1,79 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "boltz_mock/v1/service.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "Service"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {},
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1ReverseSubmarineSwapResponse": {
+      "type": "object",
+      "properties": {
+        "invoice": {
+          "type": "string"
+        },
+        "lockupAddress": {
+          "type": "string"
+        },
+        "refundPublicKey": {
+          "type": "string"
+        }
+      }
+    },
+    "v1SubmarineSwapResponse": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "title": "include claim pubkey"
+        },
+        "expectedAmount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "acceptZeroConf": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

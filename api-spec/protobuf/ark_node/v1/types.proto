@@ -38,7 +38,7 @@ message Node {
 }
 
 message Output {
-  string address = 1;
+  string descriptor = 1;
   uint64 amount = 2;
 }
 

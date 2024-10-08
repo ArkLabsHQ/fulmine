@@ -2,14 +2,19 @@ package handlers
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
 	"github.com/ArkLabsHQ/ark-node/utils"
+	"github.com/ark-network/ark/common/bitcointree"
 	"github.com/ark-network/ark/common/tree"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
+	"github.com/ark-network/ark/pkg/client-sdk/client"
+	"github.com/btcsuite/btcd/btcutil"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -20,6 +25,137 @@ type serviceHandler struct {
 
 func NewServiceHandler(svc *application.Service) pb.ServiceServer {
 	return &serviceHandler{svc}
+}
+
+func (h *serviceHandler) BoltzClaimVHTLC(ctx context.Context, req *pb.BoltzClaimVHTLCRequest) (*pb.BoltzClaimVHTLCResponse, error) {
+	preimage := req.GetPreimage()
+	if len(preimage) <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "missing preimage")
+	}
+
+	preimageBytes, err := hex.DecodeString(preimage)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid preimage")
+	}
+
+	preimageHash := hex.EncodeToString(btcutil.Hash160(preimageBytes))
+
+	vtxos, _, err := h.svc.ListVtxos(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var vhtlc *client.Vtxo
+	for _, vtxo := range vtxos {
+		vtxoScript, err := bitcointree.ParseVtxoScript(vtxo.Descriptor)
+		if err != nil {
+			continue
+		}
+
+		if htlcVtxo, ok := vtxoScript.(*bitcointree.HTLCVtxoScript); ok {
+			if htlcVtxo.PreimageHash == preimageHash {
+				vhtlc = &vtxo
+				break
+			}
+		}
+	}
+
+	if vhtlc == nil {
+		return nil, status.Error(codes.NotFound, "vhtlc not found")
+	}
+
+	_, myAddress, _, err := h.svc.GetAddress(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	receivers := []arksdk.Receiver{
+		arksdk.NewBitcoinReceiver(myAddress, vhtlc.Amount, preimage),
+	}
+
+	vhtlcOutpoint := client.Outpoint{Txid: vhtlc.Txid, VOut: vhtlc.VOut}
+
+	redeemTx, err := h.svc.SendAsync(ctx, false, receivers, arksdk.Options{
+		FilterOutpoints: []client.Outpoint{vhtlcOutpoint},
+		HtlcPreimages:   map[client.Outpoint]string{vhtlcOutpoint: preimage},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.BoltzClaimVHTLCResponse{RedeemTx: redeemTx}, nil
+}
+
+func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest) (*pb.ListVHTLCResponse, error) {
+	preimageHashFilter := req.GetPreimageHashFilter()
+
+	vtxos, _, err := h.svc.ListVtxos(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	vhtlcs := make([]*pb.Vtxo, 0, len(vtxos))
+	for _, vtxo := range vtxos {
+		vtxoScript, err := bitcointree.ParseVtxoScript(vtxo.Descriptor)
+		if err != nil {
+			continue
+		}
+
+		if htlcVtxo, ok := vtxoScript.(*bitcointree.HTLCVtxoScript); ok {
+			if len(preimageHashFilter) > 0 && htlcVtxo.PreimageHash != preimageHashFilter {
+				continue
+			}
+
+			vhtlcs = append(vhtlcs, &pb.Vtxo{
+				Outpoint: &pb.Input{
+					Txid: vtxo.Txid,
+					Vout: vtxo.VOut,
+				},
+				Receiver: &pb.Output{
+					Descriptor_: vtxo.Descriptor,
+					Amount:      vtxo.Amount,
+				},
+				Spent:     len(vtxo.SpentBy) > 0,
+				RoundTxid: vtxo.RoundTxid,
+				SpentBy:   vtxo.SpentBy,
+				ExpireAt:  vtxo.ExpiresAt.Unix(),
+			})
+		}
+	}
+
+	return &pb.ListVHTLCResponse{Vhtlcs: vhtlcs}, nil
+}
+
+func (h *serviceHandler) BotlzFundVHTLC(ctx context.Context, req *pb.BotlzFundVHTLCRequest) (*pb.BotlzFundVHTLCResponse, error) {
+	preimageHash := req.GetPreimageHash()
+	amount := req.GetAmount()
+	address := req.GetAddress()
+
+	if len(preimageHash) <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "missing preimage hash")
+	}
+
+	if len(preimageHash) != 40 {
+		return nil, status.Error(codes.InvalidArgument, "invalid preimage hash")
+	}
+
+	if amount <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "missing amount")
+	}
+
+	if len(address) <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "missing address")
+	}
+
+	logrus.Infof("Funding vHTLC with preimage hash %s, amount %d, address %s", preimageHash, amount, address)
+	redeemTx, err := h.svc.ArkClient.SendAsync(ctx, false, []arksdk.Receiver{
+		arksdk.NewBitcoinReceiver(address, amount, preimageHash),
+	}, arksdk.Options{})
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.BotlzFundVHTLCResponse{RedeemTx: redeemTx}, nil
 }
 
 func (h *serviceHandler) GetAddress(
@@ -82,9 +218,9 @@ func (h *serviceHandler) Send(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(address, amount),
+		arksdk.NewBitcoinReceiver(address, amount, ""),
 	}
-	roundId, err := h.svc.SendOffChain(ctx, false, receivers)
+	roundId, err := h.svc.SendOffChain(ctx, false, receivers, arksdk.Options{})
 	if err != nil {
 		return nil, err
 	}
@@ -103,9 +239,9 @@ func (h *serviceHandler) SendAsync(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(address, amount),
+		arksdk.NewBitcoinReceiver(address, amount, ""),
 	}
-	redeemTx, err := h.svc.SendAsync(ctx, false, receivers)
+	redeemTx, err := h.svc.SendAsync(ctx, false, receivers, arksdk.Options{})
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +260,7 @@ func (h *serviceHandler) SendOnchain(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(address, amount),
+		arksdk.NewBitcoinReceiver(address, amount, ""),
 	}
 	txid, err := h.svc.SendOnChain(ctx, receivers)
 	if err != nil {
