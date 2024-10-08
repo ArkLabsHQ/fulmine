@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
@@ -101,6 +102,18 @@ func (s *service) validateMnemonicApi(c *gin.Context) {
 func (s *service) validatePrivateKeyApi(c *gin.Context) {
 	var data gin.H
 	privateKey := c.PostForm("privateKey")
+	if strings.HasPrefix(privateKey, "nsec") {
+		seed, err := nsecToSeed(privateKey)
+		if err != nil {
+			data = gin.H{
+				"valid": false,
+				"error": err.Error(),
+			}
+			c.JSON(http.StatusOK, data)
+			return
+		}
+		privateKey = seed
+	}
 	err := utils.IsValidPrivateKey(privateKey)
 	if err == nil {
 		data = gin.H{

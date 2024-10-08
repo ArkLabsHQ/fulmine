@@ -35,13 +35,19 @@ func (s *service) backupSecret(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
 	}
-	secret, err := s.svc.Dump(c)
+	seed, err := s.svc.Dump(c)
 	if err != nil {
-		toast := components.Toast("Unable to get secret", true)
+		toast := components.Toast("Unable to get seed", true)
 		toastHandler(toast, c)
 		return
 	}
-	bodyContent := pages.BackupSecretBodyContent(secret)
+	nsec, err := seedToNsec(seed)
+	if err != nil {
+		toast := components.Toast("Unable to convert to nsec", true)
+		toastHandler(toast, c)
+		return
+	}
+	bodyContent := pages.BackupSecretBodyContent(nsec)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -176,7 +182,13 @@ func (s *service) newWalletMnemonic(c *gin.Context) {
 }
 
 func (s *service) newWalletPrivateKey(c *gin.Context) {
-	bodyContent := pages.ManagePrivateKeyContent(getNewPrivateKey())
+	nsec, err := seedToNsec(getNewPrivateKey())
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	bodyContent := pages.ManagePrivateKeyContent(nsec)
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -375,6 +387,15 @@ func (s *service) setPassword(c *gin.Context) {
 
 func (s *service) setPrivateKey(c *gin.Context) {
 	privateKey := c.PostForm("privateKey")
+	if strings.HasPrefix(privateKey, "nsec") {
+		seed, err := nsecToSeed(privateKey)
+		if err != nil {
+			toast := components.Toast("Invalid nsec", true)
+			toastHandler(toast, c)
+			return
+		}
+		privateKey = seed
+	}
 	bodyContent := pages.SetPasswordContent(privateKey)
 	partialViewHandler(bodyContent, c)
 }
