@@ -69,8 +69,15 @@ func (h *serviceHandler) BoltzClaimVHTLC(ctx context.Context, req *pb.BoltzClaim
 		return nil, err
 	}
 
+	preimageBytes, err = hex.DecodeString(preimage)
+	if err != nil {
+		return nil, err
+	}
+
+	preimageHash = hex.EncodeToString(btcutil.Hash160(preimageBytes))
+
 	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(myAddress, vhtlc.Amount, preimage),
+		arksdk.NewBitcoinReceiver(myAddress, vhtlc.Amount, preimageHash),
 	}
 
 	vhtlcOutpoint := client.Outpoint{Txid: vhtlc.Txid, VOut: vhtlc.VOut}
@@ -102,6 +109,7 @@ func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest
 		}
 
 		if htlcVtxo, ok := vtxoScript.(*bitcointree.HTLCVtxoScript); ok {
+
 			if len(preimageHashFilter) > 0 && htlcVtxo.PreimageHash != preimageHashFilter {
 				continue
 			}

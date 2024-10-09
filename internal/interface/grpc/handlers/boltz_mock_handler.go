@@ -3,11 +3,11 @@ package handlers
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"time"
 
 	arknodepb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/boltz_mock/v1"
+	"github.com/ArkLabsHQ/ark-node/utils"
 	"github.com/ark-network/ark/common"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/sirupsen/logrus"
@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	fakeInvoice  = "lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6"
-	fakePreimage = "0001020304050607080910111213141516171819202122232425262728293031"
+	fakeInvoice = "lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6"
 )
 
 type boltzMockHandler struct {
@@ -38,12 +37,9 @@ func NewBoltzMockHandler(arknodeURL string) pb.ServiceServer {
 // ln --> ark
 func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.ReverseSubmarineSwapRequest) (*pb.ReverseSubmarineSwapResponse, error) {
 	// create invoice from req (preimageHash, boltz address, invoice amount)
-	//// MOCK ONLY /////
-	invoice := fakeInvoice
-	//// MOCK ONLY /////
 
 	go func() {
-		time.Sleep(30 * time.Second) // wait for the invoice to be paid
+		ctx := context.Background()
 
 		logrus.Debugf("invoice paid, funding vHTLC")
 		// claim the LN funds
@@ -65,14 +61,16 @@ func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.Rev
 		return nil, err
 	}
 
-	_, boltzPubkey, _, err := common.DecodeAddress(addrResponse.Address)
+	_, boltzPubkey, _, err := common.DecodeAddress(utils.GetArkAddress(addrResponse.Address))
 	if err != nil {
 		return nil, err
 	}
 
+	addr := utils.GetArkAddress(addrResponse.Address)
+
 	return &pb.ReverseSubmarineSwapResponse{
-		Invoice:         invoice,
-		LockupAddress:   req.Address,
+		Invoice:         fakeInvoice,
+		LockupAddress:   addr,
 		RefundPublicKey: hex.EncodeToString(boltzPubkey.SerializeCompressed()),
 	}, nil
 }
@@ -80,16 +78,14 @@ func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.Rev
 // ark --> ln
 func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineSwapRequest) (*pb.SubmarineSwapResponse, error) {
 	///// MOCK ONLY /////
-	// verify that the preimageHash in the request is the expected one in order to simulate the user revealing the preimage
-	preimage, err := hex.DecodeString(fakePreimage)
+	// we "reveal" by sending it instead of the preimage hash
+	preimage := req.PreimageHash
+	preimageBytes, err := hex.DecodeString(preimage)
 	if err != nil {
 		return nil, err
 	}
-
-	if hex.EncodeToString(btcutil.Hash160(preimage)) != req.PreimageHash {
-		return nil, fmt.Errorf("not the expected preimage")
-	}
-	///// MOCK ONLY /////
+	preimageHash := hex.EncodeToString(btcutil.Hash160(preimageBytes))
+	////
 
 	go func() {
 		ctx := context.Background()
@@ -101,7 +97,7 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 
 		for range ticker.C {
 			// check if vHTLC has been funded by the user
-			resp, err := b.arknode.ListVHTLC(ctx, &arknodepb.ListVHTLCRequest{PreimageHashFilter: &req.PreimageHash})
+			resp, err := b.arknode.ListVHTLC(ctx, &arknodepb.ListVHTLCRequest{PreimageHashFilter: &preimageHash})
 			if err != nil {
 				logrus.Errorf("failed to list vHTLCs: %v", err)
 				continue
@@ -121,7 +117,7 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 
 		// once user reveals the preimage, claim the vHTLC
 		_, err := b.arknode.BoltzClaimVHTLC(ctx, &arknodepb.BoltzClaimVHTLCRequest{
-			Preimage: hex.EncodeToString(preimage),
+			Preimage: preimage,
 		})
 		if err != nil {
 			logrus.Errorf("failed to claim vHTLC: %v", err)

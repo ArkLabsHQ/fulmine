@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -15,10 +17,6 @@ import (
 	ark_node_pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	boltz_mockv1 "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/boltz_mock/v1"
 	"github.com/ArkLabsHQ/ark-node/utils"
-)
-
-const (
-	preimage = "0001020304050607080910111213141516171819202122232425262728293031"
 )
 
 func main() {
@@ -40,6 +38,11 @@ func main() {
 				Required: true,
 				Usage:    "amount to swap",
 			},
+				&cli.StringFlag{
+					Name:    "preimage",
+					Aliases: []string{"p"},
+					Usage:   "secret preimage",
+				},
 			),
 		},
 		{
@@ -53,6 +56,11 @@ func main() {
 				Required: true,
 				Usage:    "amount to swap",
 			},
+				&cli.StringFlag{
+					Name:    "preimage",
+					Aliases: []string{"p"},
+					Usage:   "secret preimage",
+				},
 			),
 		},
 	}
@@ -67,6 +75,17 @@ func swap(c *cli.Context) error {
 	amount := c.Uint64("amount")
 	nodeURL := c.String("node-url")
 	boltzURL := c.String("boltz-url")
+	preimage := c.String("preimage")
+
+	if len(preimage) == 0 {
+		// generate 32 bytes preimage
+		preimageBytes := make([]byte, 32)
+		if _, err := rand.Read(preimageBytes); err != nil {
+			return err
+		}
+
+		preimage = hex.EncodeToString(preimageBytes)
+	}
 
 	nodeClient, err := arkNodeClient(nodeURL)
 	if err != nil {
@@ -85,11 +104,13 @@ func swap(c *cli.Context) error {
 
 	preimageHash := hex.EncodeToString(btcutil.Hash160(preimageBytes))
 
+	fmt.Printf("preimage hash = %s", preimageHash)
+
 	response, err := boltzClient.SubmarineSwap(c.Context, &boltz_mockv1.SubmarineSwapRequest{
 		From:            "ARK",
 		To:              "LN",
 		Invoice:         "todoinvoice", // receiving invoice
-		PreimageHash:    preimageHash,
+		PreimageHash:    preimage,      // only boltz-mock: we reveal the preimage to allow the server to claim without LN
 		RefundPublicKey: "todopubkey",
 		InvoiceAmount:   amount,
 	})
@@ -129,7 +150,7 @@ func swap(c *cli.Context) error {
 		}
 	}
 
-	logrus.Info("vHTLC claimed")
+	fmt.Println("vHTLC claimed")
 
 	return nil
 }
@@ -138,6 +159,17 @@ func reverseSwap(c *cli.Context) error {
 	amount := c.Uint64("amount")
 	nodeURL := c.String("node-url")
 	boltzURL := c.String("boltz-url")
+	preimage := c.String("preimage")
+
+	if len(preimage) == 0 {
+		// generate 32 bytes preimage
+		preimageBytes := make([]byte, 32)
+		if _, err := rand.Read(preimageBytes); err != nil {
+			return err
+		}
+
+		preimage = hex.EncodeToString(preimageBytes)
+	}
 
 	nodeClient, err := arkNodeClient(nodeURL)
 	if err != nil {
@@ -165,6 +197,8 @@ func reverseSwap(c *cli.Context) error {
 	addr := addrResponse.GetAddress()
 	addr = utils.GetArkAddress(addr)
 
+	fmt.Printf("preimage hash = %s", preimageHash)
+
 	response, err := boltzClient.ReverseSubmarineSwap(c.Context, &boltz_mockv1.ReverseSubmarineSwapRequest{
 		From:          "LN",
 		To:            "ARK",
@@ -180,16 +214,16 @@ func reverseSwap(c *cli.Context) error {
 	invoice := response.GetInvoice()
 
 	// pay the invoice
-	logrus.Info(invoice)
-
+	fmt.Printf("invoice: %s", invoice)
 	// search for vHTLC
 
 	var vhtlc *ark_node_pb.Vtxo
 
 	for vhtlc == nil {
+		ctx := context.Background()
 		time.Sleep(3 * time.Second)
 
-		listResponse, err := nodeClient.ListVHTLC(c.Context, &ark_node_pb.ListVHTLCRequest{
+		listResponse, err := nodeClient.ListVHTLC(ctx, &ark_node_pb.ListVHTLCRequest{
 			PreimageHashFilter: &preimageHash,
 		})
 		if err != nil {
@@ -203,16 +237,14 @@ func reverseSwap(c *cli.Context) error {
 		vhtlc = listResponse.Vhtlcs[0]
 	}
 
-	logrus.Debugf("vhtlc txid: %s", vhtlc.Outpoint.Txid)
-
-	claimResponse, err := nodeClient.BoltzClaimVHTLC(c.Context, &ark_node_pb.BoltzClaimVHTLCRequest{
+	_, err = nodeClient.BoltzClaimVHTLC(c.Context, &ark_node_pb.BoltzClaimVHTLCRequest{
 		Preimage: preimage,
 	})
 	if err != nil {
 		return err
 	}
 
-	logrus.Debugf("vhtlc claimed by redeem tx:  %s", claimResponse.RedeemTx)
+	fmt.Println("vHTLC claimed !")
 	return nil
 }
 
@@ -255,6 +287,7 @@ func loader(done chan bool) {
 	for {
 		select {
 		case <-done:
+			fmt.Printf("\rDone!          \n")
 			return
 		default:
 			for _, r := range chars {

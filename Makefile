@@ -78,3 +78,5 @@ serve-boltz-mock:
 boltz-swap:
 	@go run ./cmd/boltz-swap-client
 
+build-swap-cli:
+	@go build -o build/boltz-swap-client ./cmd/boltz-swap-client
