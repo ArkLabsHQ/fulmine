@@ -55,10 +55,11 @@ templ InputAddress() {
 	<script>
 	  const handleAddressChange = () => {
 			const addr = document.querySelector('#address').value
-			const asAmount = addr.match(/amount=(\d+)/)
+			const asAmount = addr.match(/amount=([\.\d]+)/)
 			if (asAmount) updateAmount(asAmount[1])
 		}
-	  const updateAmount = (sats) => {
+    const updateAmount = (btc) => {
+      const sats = toSatoshis(btc)
 			const unit = document.querySelector('#unit').innerText
 			document.querySelector('#sats').value = sats
 			document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
