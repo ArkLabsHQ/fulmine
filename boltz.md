@@ -1,10 +1,9 @@
 # Boltz x Ark
 
-## Architecture
+Boltz runs an Ark node to manage the ark funds. The Boltz API uses the Ark node to fund, claim and list VHTLCs.
 
 ![alt text](image.png)
 
-Boltz runs an Ark node to manage the ark funds. The Boltz API use the Ark node to fund, claim and list VHTLCs.
 
 #### Setup boltz mock
 
