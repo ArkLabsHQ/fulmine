@@ -5,7 +5,7 @@ import (
 )
 
 templ lockPage(kind string) {
-  <form hx-post={"/app/api/" + kind}>
+  <form hx-post={"/helpers/" + kind}>
     <div class="bg-radial-gradient h-screen fullscreen">
       <div class="flex flex-col h-screen justify-between md:h-auto md:gap-10 w-80 m-auto p-3">
         <div>

@@ -14,19 +14,22 @@ import (
 
 type Config struct {
 	Datadir  string
-	Port     uint32
+	GRPCPort uint32
+	HTTPPort uint32
 	WithTLS  bool
 	LogLevel uint32
 }
 
 var (
 	Datadir  = "DATADIR"
-	Port     = "PORT"
+	GRPCPort = "GRPC_PORT"
+	HTTPPort = "HTTP_PORT"
 	WithTLS  = "NO_TLS"
 	LogLevel = "LOG_LEVEL"
 
 	defaultDatadir  = appDatadir("ark-node", false)
-	defaultPort     = 7000
+	defaultGRPCPort = 7000
+	defaultHTTPPort = 7001
 	defaultWithTLS  = false
 	defaultLogLevel = 4
 )
@@ -36,7 +39,8 @@ func LoadConfig() (*Config, error) {
 	viper.AutomaticEnv()
 
 	viper.SetDefault(Datadir, defaultDatadir)
-	viper.SetDefault(Port, defaultPort)
+	viper.SetDefault(GRPCPort, defaultGRPCPort)
+	viper.SetDefault(HTTPPort, defaultHTTPPort)
 	viper.SetDefault(WithTLS, defaultWithTLS)
 	viper.SetDefault(LogLevel, defaultLogLevel)
 
@@ -46,7 +50,8 @@ func LoadConfig() (*Config, error) {
 
 	return &Config{
 		Datadir:  viper.GetString(Datadir),
-		Port:     viper.GetUint32(Port),
+		GRPCPort: viper.GetUint32(GRPCPort),
+		HTTPPort: viper.GetUint32(HTTPPort),
 		WithTLS:  viper.GetBool(WithTLS),
 		LogLevel: viper.GetUint32(LogLevel),
 	}, nil

@@ -35,8 +35,9 @@ func main() {
 	log.Info("starting ark-node...")
 
 	svcConfig := grpcservice.Config{
-		Port:    cfg.Port,
-		WithTLS: cfg.WithTLS,
+		GRPCPort: cfg.GRPCPort,
+		HTTPPort: cfg.HTTPPort,
+		WithTLS:  cfg.WithTLS,
 	}
 
 	storeSvc, err := filestore.NewConfigStore(cfg.Datadir)

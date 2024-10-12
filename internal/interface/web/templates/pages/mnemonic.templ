@@ -38,7 +38,7 @@ templ ManageMnemonicContent(mnemonic []string) {
 		const validateMnemonic = () => {
 			const data = new FormData()
 			data.set('mnemonic', getMnemonicFromWords())
-			fetch('/app/api/mnemonic/validate', {
+			fetch('/helpers/mnemonic/validate', {
 				method: 'POST',
         body: data,
 			}).then((res) => {
@@ -61,11 +61,11 @@ templ ManageMnemonicContent(mnemonic []string) {
 }
 
 templ importWalletMnemonicContent() {
-	<form hx-post="/app/mnemonic">
+	<form hx-post="/mnemonic">
 	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	    <div>
 			  <div class="hidden md:block">@LogoWhite()</div>
-	      @components.Header("Import wallet", "/app/welcome")
+	      @components.Header("Import wallet", "/welcome")
 	  		<p class="mb-10">Insert your 12-word secret seed phrase.</p>
 	  	  <div class="grid grid-cols-2 gap-6">
 	  		  for i := 0; i < 12; i++ {
@@ -79,11 +79,11 @@ templ importWalletMnemonicContent() {
 }
 
 templ newWalletMnemonicContent(mnemonic []string) {
-	<form hx-post="/app/mnemonic">
+	<form hx-post="/mnemonic">
 	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	    <div>
 	  	  <div class="hidden md:block">@LogoWhite()</div>
-	      @components.Header("New wallet", "/app/welcome")
+	      @components.Header("New wallet", "/welcome")
 	  		<p class="mb-10">Write down the following words in a secure place.</p>
 	  	  <div class="grid grid-cols-2 gap-6">
 	  		  for i, w := range mnemonic {

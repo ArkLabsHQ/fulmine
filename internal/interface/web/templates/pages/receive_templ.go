@@ -41,7 +41,7 @@ func ReceiveEditContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/app/receive/preview\" hx-target=\"#receiveBody\" hx-swap=\"outerHTML\"><div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\"><div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/receive/preview\" hx-target=\"#receiveBody\" hx-swap=\"outerHTML\"><div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\"><div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -90,7 +90,7 @@ func ReceiveQrCodeContent(bip21, encoded, sats string) templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form id=\"success\" hx-post=\"/app/receive/success\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form id=\"success\" hx-post=\"/receive/success\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -174,7 +174,7 @@ func ReceiveQrCodeContent(bip21, encoded, sats string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<span class=\"ml-2\">Edit</span></button></div></div></form><script>\n\t  const handleCopy = (event) => {\n\t\t\tevent.preventDefault()\n\t\t\tcopyToClipboard('#bip21')\n\t\t\tdocument.querySelector('#copyText').innerText = 'Copied'\n\t\t\tsetTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2100)\n\t\t}\n\n\t\tconst handleEdit = (event) => {\n\t\t\tevent.preventDefault()\n\t\t\tredirect('/receive/edit')\n\t\t}\n\t\t\n\t\tconst waitForPayment = async () => {\n\t\t\tconst getBalance = async () => {\n        const res = await fetch(\"/app/api/balance\")\n\t\t    return res.ok ? await res.json() : {}\n\t\t\t}\n\t\t  const initialBalance = await getBalance()\n\t\t\tconst intervalId = setInterval(() => {\n\t\t\t\tgetBalance().then((balance) => {\n\t\t\t    if (balance.total > initialBalance.total) {\n\t\t\t\t\t\tdocument.querySelector(\"input[name='sats']\").value = balance.total - initialBalance.total\n\t\t\t      document.querySelector(\"#submitButton\").click()\n\t\t\t\t\t\tclearInterval(intervalId)\n\t\t\t\t\t}\n\t\t\t\t})\n\t\t\t}, 1000)\n\t\t}\n\n\t\twaitForPayment()\n\t</script>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<span class=\"ml-2\">Edit</span></button></div></div></form><script>\n\t  const handleCopy = (event) => {\n\t\t\tevent.preventDefault()\n\t\t\tcopyToClipboard('#bip21')\n\t\t\tdocument.querySelector('#copyText').innerText = 'Copied'\n\t\t\tsetTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2100)\n\t\t}\n\n\t\tconst handleEdit = (event) => {\n\t\t\tevent.preventDefault()\n\t\t\tredirect('/receive/edit')\n\t\t}\n\t\t\n\t\tconst waitForPayment = async () => {\n\t\t\tconst getBalance = async () => {\n        const res = await fetch(\"/helpers/balance\")\n\t\t    return res.ok ? await res.json() : {}\n\t\t\t}\n\t\t  const initialBalance = await getBalance()\n\t\t\tconst intervalId = setInterval(() => {\n\t\t\t\tgetBalance().then((balance) => {\n\t\t\t    if (balance.total > initialBalance.total) {\n\t\t\t\t\t\tdocument.querySelector(\"input[name='sats']\").value = balance.total - initialBalance.total\n\t\t\t      document.querySelector(\"#submitButton\").click()\n\t\t\t\t\t\tclearInterval(intervalId)\n\t\t\t\t\t}\n\t\t\t\t})\n\t\t\t}, 1000)\n\t\t}\n\n\t\twaitForPayment()\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

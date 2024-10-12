@@ -28,7 +28,7 @@ templ ManagePrivateKeyContent(privateKey string) {
 		const validatePrivateKey = () => {
       const data = new FormData()
 			data.set('privateKey', getPrivateKey())
-			fetch('/app/api/privatekey/validate', {
+			fetch('/helpers/privatekey/validate', {
 				method: 'POST',
         body: data,
 			}).then((res) => {
@@ -51,11 +51,11 @@ templ ManagePrivateKeyContent(privateKey string) {
 }
 
 templ importWalletPrivateKeyContent() {
-	<form hx-post="/app/privatekey">
+	<form hx-post="/privatekey">
 	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	    <div>
 			  <div class="hidden md:block">@LogoWhite()</div>
-	      @components.Header("Import wallet", "/app/welcome")
+	      @components.Header("Import wallet", "/welcome")
 	  		<p class="mb-6">Import an existing wallet with your private key.</p>
         <p class="font-semibold mb-2">Enter private key</p>
 				<div class="border border-1 border-white/20 bg-graybg p-4 flex items-center justify-between rounded-lg">
@@ -77,12 +77,12 @@ templ importWalletPrivateKeyContent() {
 }
 
 templ newWalletPrivateKeyContent(privateKey string) {
-	<form hx-post="/app/privatekey">
+	<form hx-post="/privatekey">
 	  <input type="hidden" name="privateKey" value={privateKey} />
 	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	    <div>
 	  	  <div class="hidden md:block">@LogoWhite()</div>
-	      @components.Header("New wallet", "/app/welcome")
+	      @components.Header("New wallet", "/welcome")
 	  		<p class="mb-10">Write down the following private key in a secure place.</p>
 	  	  <p class="bg-white/20 rounded-lg p-3 break-words text-lg">{privateKey}</p>
 	  	</div>
