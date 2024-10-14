@@ -22,6 +22,7 @@ message SubmarineSwapResponse {
   string address = 1; // include claim pubkey
   uint64 expected_amount = 2;
   bool accept_zero_conf = 3;
+  string descriptor = 4;
 }
 
 message ReverseSubmarineSwapRequest {
@@ -30,6 +31,7 @@ message ReverseSubmarineSwapRequest {
   uint64 invoice_amount = 3;
   uint64 onchain_amount = 4;
   string address = 5;
+  string descriptor = 6;
 }
 
 message ReverseSubmarineSwapResponse {
