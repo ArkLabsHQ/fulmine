@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/hex"
 	"time"
 
@@ -36,25 +37,26 @@ func NewBoltzMockHandler(arknodeURL string) pb.ServiceServer {
 
 // ln --> ark
 func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.ReverseSubmarineSwapRequest) (*pb.ReverseSubmarineSwapResponse, error) {
-	// create invoice from req (preimageHash, boltz address, invoice amount)
+	// MOCK ONLY //
+	preimage := make([]byte, 32)
+	if _, err := rand.Read(preimage); err != nil {
+		return nil, err
+	}
 
-	go func() {
-		ctx := context.Background()
+	preimageHash := hex.EncodeToString(btcutil.Hash160(preimage))
 
-		logrus.Debugf("invoice paid, funding vHTLC")
-		// claim the LN funds
+	// For the mock, we'll use the fakeInvoice constant
+	invoice := fakeInvoice
 
-		fundVHTLCresponse, err := b.arknode.BotlzFundVHTLC(ctx, &arknodepb.BotlzFundVHTLCRequest{
-			PreimageHash: req.PreimageHash,
-			Address:      req.Address,
-			Amount:       req.OnchainAmount,
-		})
-		if err != nil {
-			logrus.Errorf("failed to fund vHTLC: %v", err)
-			return
-		}
-		logrus.Debugf("new vHTLC funded: %s", fundVHTLCresponse.RedeemTx)
-	}()
+	_, err := b.arknode.BotlzFundVHTLC(ctx, &arknodepb.BotlzFundVHTLCRequest{
+		PreimageHash: preimageHash,
+		Address:      req.Address,
+		Amount:       req.OnchainAmount,
+	})
+	if err != nil {
+		logrus.Errorf("failed to fund vHTLC: %v", err)
+		return nil, err
+	}
 
 	addrResponse, err := b.arknode.GetAddress(ctx, &arknodepb.GetAddressRequest{})
 	if err != nil {
@@ -69,9 +71,10 @@ func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.Rev
 	addr := utils.GetArkAddress(addrResponse.Address)
 
 	return &pb.ReverseSubmarineSwapResponse{
-		Invoice:         fakeInvoice,
+		Invoice:         invoice,
 		LockupAddress:   addr,
 		RefundPublicKey: hex.EncodeToString(boltzPubkey.SerializeCompressed()),
+		PreimageHash:    hex.EncodeToString(preimage), // MOCK ONLY
 	}, nil
 }
 

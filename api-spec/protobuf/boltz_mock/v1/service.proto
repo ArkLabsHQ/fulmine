@@ -27,14 +27,14 @@ message SubmarineSwapResponse {
 message ReverseSubmarineSwapRequest {
   string from = 1;
   string to = 2;
-  string preimage_hash = 3;
-  uint64 invoice_amount = 4;
-  uint64 onchain_amount = 5;
-  string address = 6;
+  uint64 invoice_amount = 3;
+  uint64 onchain_amount = 4;
+  string address = 5;
 }
 
 message ReverseSubmarineSwapResponse {
   string invoice = 1;
   string lockup_address = 2;
   string refund_public_key = 3;
+  string preimage_hash = 4;
 }

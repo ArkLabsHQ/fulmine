@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -159,17 +158,6 @@ func reverseSwap(c *cli.Context) error {
 	amount := c.Uint64("amount")
 	nodeURL := c.String("node-url")
 	boltzURL := c.String("boltz-url")
-	preimage := c.String("preimage")
-
-	if len(preimage) == 0 {
-		// generate 32 bytes preimage
-		preimageBytes := make([]byte, 32)
-		if _, err := rand.Read(preimageBytes); err != nil {
-			return err
-		}
-
-		preimage = hex.EncodeToString(preimageBytes)
-	}
 
 	nodeClient, err := arkNodeClient(nodeURL)
 	if err != nil {
@@ -181,13 +169,6 @@ func reverseSwap(c *cli.Context) error {
 		return err
 	}
 
-	preimageBytes, err := hex.DecodeString(preimage)
-	if err != nil {
-		return err
-	}
-
-	preimageHash := hex.EncodeToString(btcutil.Hash160(preimageBytes))
-
 	addrResponse, err := nodeClient.GetAddress(c.Context, &ark_node_pb.GetAddressRequest{})
 	if err != nil {
 		return err
@@ -197,12 +178,9 @@ func reverseSwap(c *cli.Context) error {
 	addr := addrResponse.GetAddress()
 	addr = utils.GetArkAddress(addr)
 
-	fmt.Printf("preimage hash = %s", preimageHash)
-
 	response, err := boltzClient.ReverseSubmarineSwap(c.Context, &boltz_mockv1.ReverseSubmarineSwapRequest{
 		From:          "LN",
 		To:            "ARK",
-		PreimageHash:  preimageHash,
 		InvoiceAmount: amount,
 		OnchainAmount: amount,
 		Address:       addr,
@@ -212,6 +190,13 @@ func reverseSwap(c *cli.Context) error {
 	}
 
 	invoice := response.GetInvoice()
+	preimage := response.GetPreimageHash() // for mock only, boltz provides the preimage
+	preimageBytes, err := hex.DecodeString(preimage)
+	if err != nil {
+		return err
+	}
+
+	preimageHash := hex.EncodeToString(btcutil.Hash160(preimageBytes))
 
 	// pay the invoice
 	fmt.Printf("invoice: %s", invoice)
@@ -220,10 +205,9 @@ func reverseSwap(c *cli.Context) error {
 	var vhtlc *ark_node_pb.Vtxo
 
 	for vhtlc == nil {
-		ctx := context.Background()
 		time.Sleep(3 * time.Second)
 
-		listResponse, err := nodeClient.ListVHTLC(ctx, &ark_node_pb.ListVHTLCRequest{
+		listResponse, err := nodeClient.ListVHTLC(c.Context, &ark_node_pb.ListVHTLCRequest{
 			PreimageHashFilter: &preimageHash,
 		})
 		if err != nil {
