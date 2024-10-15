@@ -11,7 +11,7 @@ import (
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
-	store "github.com/ark-network/ark/pkg/client-sdk/store"
+	arkDomain "github.com/ark-network/ark/pkg/client-sdk/store/domain"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,7 +25,7 @@ type Service struct {
 	BuildInfo BuildInfo
 
 	arksdk.ArkClient
-	storeRepo    store.ConfigStore
+	storeRepo    arkDomain.SdkRepository
 	settingsRepo domain.SettingsRepository
 	grpcClient   client.ASPClient
 	schedulerSvc ports.SchedulerService
@@ -35,7 +35,7 @@ type Service struct {
 
 func NewService(
 	buildInfo BuildInfo,
-	storeSvc store.ConfigStore,
+	storeSvc arkDomain.SdkRepository,
 	settingsRepo domain.SettingsRepository,
 	schedulerSvc ports.SchedulerService,
 ) (*Service, error) {
@@ -103,11 +103,12 @@ func (s *Service) Setup(
 	}
 
 	if err := s.Init(ctx, arksdk.InitArgs{
-		WalletType: arksdk.SingleKeyWallet,
-		ClientType: arksdk.GrpcClient,
-		AspUrl:     aspURL,
-		Password:   password,
-		Seed:       privateKey,
+		WalletType:              arksdk.SingleKeyWallet,
+		ClientType:              arksdk.GrpcClient,
+		AspUrl:                  aspURL,
+		Password:                password,
+		Seed:                    privateKey,
+		ListenTransactionStream: true,
 	}); err != nil {
 		return err
 	}
@@ -152,7 +153,7 @@ func (s *Service) Reset(ctx context.Context) error {
 	if err := s.settingsRepo.CleanSettings(ctx); err != nil {
 		return err
 	}
-	if err := s.storeRepo.CleanData(ctx); err != nil {
+	if err := s.storeRepo.ConfigRepository().CleanData(ctx); err != nil {
 		// nolint:all
 		s.settingsRepo.AddSettings(ctx, *backup)
 		return err

@@ -5,8 +5,7 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
-	arksdk "github.com/ark-network/ark/pkg/client-sdk"
-	"github.com/ark-network/ark/pkg/client-sdk/store"
+	"github.com/ark-network/ark/pkg/client-sdk/store/domain"
 	"github.com/go-co-op/gocron"
 )
 
@@ -31,7 +30,7 @@ func (s *service) Stop() {
 
 // Sets a ClaimPending() to run in the best market hour
 // Besides claiming, ClaimPending() also calls this function
-func (s *service) ScheduleNextClaim(txs []arksdk.Transaction, data *store.StoreData, claimFunc func()) error {
+func (s *service) ScheduleNextClaim(txs []domain.Transaction, data *domain.ConfigData, claimFunc func()) error {
 	now := time.Now().Unix()
 	at := now + data.RoundLifetime
 
@@ -69,7 +68,7 @@ func (s *service) WhenNextClaim() time.Time {
 }
 
 // TODO: get market hour info from config data
-func bestMarketHour(at int64, data *store.StoreData) int64 {
+func bestMarketHour(at int64, data *domain.ConfigData) int64 {
 	firstMarketHour := int64(1231006505) // block 0 timestamp
 	marketHourInterval := int64(86400)   // 24 hours
 	cycles := (at - firstMarketHour) / marketHourInterval

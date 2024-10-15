@@ -10,7 +10,7 @@ import (
 	badgerdb "github.com/ArkLabsHQ/ark-node/internal/infrastructure/db/badger"
 	scheduler "github.com/ArkLabsHQ/ark-node/internal/infrastructure/scheduler/gocron"
 	grpcservice "github.com/ArkLabsHQ/ark-node/internal/interface/grpc"
-	filestore "github.com/ark-network/ark/pkg/client-sdk/store/file"
+	filedb "github.com/ark-network/ark/pkg/client-sdk/store"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -40,7 +40,12 @@ func main() {
 		WithTLS:  cfg.WithTLS,
 	}
 
-	storeSvc, err := filestore.NewConfigStore(cfg.Datadir)
+	storeSvc, err := filedb.NewService(filedb.Config{
+		ConfigStoreType:  "file",
+		AppDataStoreType: "badger",
+		BaseDir:          cfg.Datadir,
+		BadgerLogger:     log.New(),
+	})
 	if err != nil {
 		log.WithError(err).Fatal(err)
 	}
