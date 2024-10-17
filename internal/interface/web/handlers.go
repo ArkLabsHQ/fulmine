@@ -262,6 +262,7 @@ func (s *service) sendPreview(c *gin.Context) {
 
 	feeAmount := 206 // TODO
 	total := sats + feeAmount
+	timeToSend := "Instant"
 
 	if utils.IsBip21(dest) {
 		offchainAddress := utils.GetArkAddress(dest)
@@ -271,10 +272,15 @@ func (s *service) sendPreview(c *gin.Context) {
 			onchainAddress := utils.GetBtcAddress(dest)
 			if len(onchainAddress) > 0 {
 				addr = onchainAddress
+				timeToSend = "Seconds"
 			}
 		}
 	} else {
-		if utils.IsValidBtcAddress(dest) || utils.IsValidArkAddress(dest) {
+		if utils.IsValidBtcAddress(dest) {
+			addr = dest
+			timeToSend = "Seconds"
+		}
+		if utils.IsValidArkAddress(dest) {
 			addr = dest
 		}
 	}
@@ -285,7 +291,7 @@ func (s *service) sendPreview(c *gin.Context) {
 		return
 	}
 
-	bodyContent := pages.SendPreviewContent(addr, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total))
+	bodyContent := pages.SendPreviewContent(addr, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total), timeToSend)
 	partialViewHandler(bodyContent, c)
 }
 

@@ -324,7 +324,7 @@ func ReceivedTxTable(sats, date, status string) templ.Component {
 	})
 }
 
-func SendTxTable(sats, feeAmount, total string) templ.Component {
+func SendTxTable(sats, feeAmount, total, timeToSend string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -357,7 +357,7 @@ func SendTxTable(sats, feeAmount, total string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = tableLine("est. time", "seconds").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = tableLine("est. time", timeToSend).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

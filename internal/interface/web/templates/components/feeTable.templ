@@ -69,11 +69,11 @@ templ ReceivedTxTable(sats, date, status string) {
   </div>
 }
 
-templ SendTxTable(sats, feeAmount, total string) {
+templ SendTxTable(sats, feeAmount, total, timeToSend string) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @tableLine("network fee", feeAmount, "cryptoAmount")
     @arkFeeLine()
-    @tableLine("est. time", "seconds")
+    @tableLine("est. time", timeToSend)
     <hr class="text-white/20 mb-2" />
     @tableLine("total", total, "cryptoAmount")
   </div>
