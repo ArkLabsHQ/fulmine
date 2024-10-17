@@ -10,7 +10,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/utils"
 	"github.com/ark-network/ark/common/tree"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
-	"github.com/ark-network/ark/pkg/client-sdk/store/domain"
+	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -238,11 +238,11 @@ func toTreeProto(tree tree.CongestionTree) *pb.Tree {
 	return &pb.Tree{Levels: levels}
 }
 
-func toTxTypeProto(txType domain.TxType) pb.TxType {
+func toTxTypeProto(txType storetypes.TxType) pb.TxType {
 	switch txType {
-	case domain.TxSent:
+	case storetypes.TxSent:
 		return pb.TxType_TX_TYPE_SENT
-	case domain.TxReceived:
+	case storetypes.TxReceived:
 		return pb.TxType_TX_TYPE_RECEIVED
 	default:
 		return pb.TxType_TX_TYPE_UNSPECIFIED

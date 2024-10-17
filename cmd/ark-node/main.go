@@ -40,11 +40,10 @@ func main() {
 		WithTLS:  cfg.WithTLS,
 	}
 
-	storeSvc, err := filedb.NewService(filedb.Config{
+	storeSvc, err := filedb.NewStore(filedb.Config{
 		ConfigStoreType:  "file",
-		AppDataStoreType: "badger",
+		AppDataStoreType: filedb.KVStore,
 		BaseDir:          cfg.Datadir,
-		BadgerLogger:     log.New(),
 	})
 	if err != nil {
 		log.WithError(err).Fatal(err)

@@ -10,7 +10,7 @@ require (
 	github.com/a-h/templ v0.2.778
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/ark-network/ark/common v0.0.0-20241015084251-9fd01cffadf2
-	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20241015154951-4b17b7107530
+	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20241015171510-bf5e19e63dc2
 	github.com/dgraph-io/badger/v4 v4.3.1
 	github.com/gin-gonic/gin v1.10.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0

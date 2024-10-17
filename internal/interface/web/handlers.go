@@ -17,7 +17,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
-	arkDomain "github.com/ark-network/ark/pkg/client-sdk/store/domain"
+	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 
@@ -318,7 +318,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsValidBtcAddress(address) {
-		txId, err = s.svc.SendOnChain(c, receivers)
+		txId, err = s.svc.CollaborativeRedeem(c, address, value, false)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
@@ -586,7 +586,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 	for _, tx := range history {
 		// amount
 		amount := strconv.FormatUint(tx.Amount, 10)
-		if tx.Type == arkDomain.TxSent {
+		if tx.Type == storetypes.TxSent {
 			amount = "-" + amount
 		}
 		// date of creation
