@@ -3,12 +3,12 @@ package ports
 import (
 	"time"
 
-	storetypes "github.com/ark-network/ark/pkg/client-sdk/store/types"
+	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 )
 
 type SchedulerService interface {
 	Start()
 	Stop()
-	ScheduleNextClaim(txs []storetypes.Transaction, data *storetypes.ConfigData, claimFunc func()) error
+	ScheduleNextClaim(txs []sdktypes.Transaction, data *sdktypes.Config, claimFunc func()) error
 	WhenNextClaim() time.Time
 }

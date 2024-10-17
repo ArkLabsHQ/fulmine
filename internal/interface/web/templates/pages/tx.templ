@@ -6,7 +6,7 @@ import (
 )
 
 func TxIcon(kind, status string) templ.Component {
-	switch status {
+	switch strings.ToLower(status) {
     case "failure":
         return FailureTxIcon()
     case "pending":
@@ -14,7 +14,7 @@ func TxIcon(kind, status string) templ.Component {
     case "waiting":
         return WaitingTxIcon()
   }
-	switch kind {
+	switch strings.ToLower(kind) {
     case "received":
         return RecvTxIcon()
     case "sent":
@@ -93,13 +93,13 @@ templ TxBodyContent(tx types.Transaction, explorerUrl string) {
         @TxIcon(tx.Kind, tx.Status)
         <p class="mt-4 capitalize">{tx.Kind}</p>
         <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
-        if tx.Kind == "received" {
+        if strings.ToLower(tx.Kind) == "received" {
           @components.ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status)
         }
-        if tx.Kind == "sent" {
+        if strings.ToLower(tx.Kind) == "sent" {
           @components.SentTxTable(tx.Amount, tx.CreatedAt, tx.Status)
         }
-        if tx.Kind == "swap" {
+        if strings.ToLower(tx.Kind) == "swap" {
           @components.SwappedTxTable(tx.Amount, tx.CreatedAt, tx.Status)
         }
       </div>
