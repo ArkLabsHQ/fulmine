@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -582,7 +583,17 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 	if err != nil {
 		return nil, err
 	}
-	// transform each arksdk.Transaction to types.Transaction
+	// sort history by time but with pending first
+	sort.Slice(history, func(i, j int) bool {
+		if history[i].IsPending && !history[j].IsPending {
+			return true
+		}
+		if !history[i].IsPending && history[j].IsPending {
+			return false
+		}
+		return history[i].CreatedAt.Unix() > history[j].CreatedAt.Unix()
+	})
+	// transform each sdktypes.Transaction to types.Transaction
 	for _, tx := range history {
 		// amount
 		amount := strconv.FormatUint(tx.Amount, 10)
