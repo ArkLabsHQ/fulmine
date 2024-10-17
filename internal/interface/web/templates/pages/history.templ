@@ -1,18 +1,20 @@
 package pages
 
 import (
+	"strings"
+
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
 )
 
 func HistoryIcon(kind, status string) templ.Component {
-	if status == "pending" {
+	if strings.ToLower(status) == "pending" {
 		return PendingIcon()
 	}
-	if status == "waiting" {
+	if strings.ToLower(status) == "waiting" {
 		return WaitingIcon()
 	}
-	switch kind {
+	switch strings.ToLower(kind) {
     case "received":
         return ReceivedIcon()
     case "sent":
@@ -101,8 +103,8 @@ templ HistoryLine(tx types.Transaction) {
 	  	<div class="flex w-64">
 	  	  <p class="leading-4 text-end w-full">
 	  		  <span class={
-						templ.KV("text-red", strings.ToLower(tx.Status) != "pending" && tx.Kind == "sent"),
-						templ.KV("text-green", strings.ToLower(tx.Status) != "pending" && tx.Kind == "received"),
+						templ.KV("text-red", strings.ToLower(tx.Status) != "pending" && strings.ToLower(tx.Kind) == "sent"),
+						templ.KV("text-green", strings.ToLower(tx.Status) != "pending" && strings.ToLower(tx.Kind) == "received"),
 						templ.KV("text-yellow", strings.ToLower(tx.Status) == "pending"),
 						templ.KV("text-white", strings.ToLower(tx.Status) == "unconfirmed"),
 					}>

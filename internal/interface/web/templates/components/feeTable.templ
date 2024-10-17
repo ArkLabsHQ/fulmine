@@ -1,5 +1,9 @@
 package components
 
+import (
+  "strings"
+)
+
 templ tableLine(left, right string, kind ...string) {
   <div class="flex justify-between mb-2">
     <p class="text-white/50 uppercase">{left}</p>
@@ -24,15 +28,15 @@ templ arkFeeLine() {
 templ statusLine(status string) {
   <div class="flex justify-between mb-2">
     <p class="text-white/50 uppercase">status</p>
-    if status == "success" {
+    if strings.ToLower(status) == "success" {
       <p class="text-green">Succeeded</p>
-    } else if status == "failure" {
+    } else if strings.ToLower(status) == "failure" {
       <p class="text-red">Failed</p>
-    } else if status == "pending" {
+    } else if strings.ToLower(status) == "pending" {
       <p class="text-yellow">Pending for claim</p>
-    } else if status == "waiting" {
+    } else if strings.ToLower(status) == "waiting" {
       <p class="text-yellow">Waiting</p>
-    } else if status == "unconfirmed" {
+    } else if  strings.ToLower(status) == "unconfirmed" {
       <p class="text-yellow">Unconfirmed</p>
     } else {
       <p>Unknown</p>
