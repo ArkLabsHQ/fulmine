@@ -31,6 +31,14 @@ func (s *service) backupInitial(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
+func (s *service) backupAck(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	bodyContent := pages.BackupAckBodyContent()
+	partialViewHandler(bodyContent, c)
+}
+
 func (s *service) backupSecret(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
@@ -47,15 +55,29 @@ func (s *service) backupSecret(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	bodyContent := pages.BackupSecretBodyContent(nsec)
+	bodyContent := pages.BackupSecretBodyContent(seed, nsec)
 	partialViewHandler(bodyContent, c)
 }
 
-func (s *service) backupAck(c *gin.Context) {
-	if s.redirectedBecauseWalletIsLocked(c) {
+func (s *service) backupTabActive(c *gin.Context) {
+	active := c.Param("active")
+	seed, err := s.svc.Dump(c)
+	if err != nil {
+		toast := components.Toast("Unable to get seed", true)
+		toastHandler(toast, c)
 		return
 	}
-	bodyContent := pages.BackupAckBodyContent()
+	secret := seed
+	if active == "nsec" {
+		nsec, err := seedToNsec(seed)
+		if err != nil {
+			toast := components.Toast("Unable to convert to nsec", true)
+			toastHandler(toast, c)
+			return
+		}
+		secret = nsec
+	}
+	bodyContent := pages.BackupPartialContent(active, secret)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -151,14 +173,6 @@ func (s *service) initialize(c *gin.Context) {
 	redirect("/done", c)
 }
 
-// nolint:all
-func (s *service) importWalletMnemonic(c *gin.Context) {
-	var empty []string
-	empty = append(empty, "")
-	bodyContent := pages.ManageMnemonicContent(empty)
-	s.pageViewHandler(bodyContent, c)
-}
-
 func (s *service) importWalletPrivateKey(c *gin.Context) {
 	bodyContent := pages.ManagePrivateKeyContent("")
 	s.pageViewHandler(bodyContent, c)
@@ -172,12 +186,6 @@ func (s *service) lock(c *gin.Context) {
 func (s *service) unlock(c *gin.Context) {
 	log.Infof("referer %s", c.Request.Referer())
 	bodyContent := pages.Unlock()
-	s.pageViewHandler(bodyContent, c)
-}
-
-// nolint:all
-func (s *service) newWalletMnemonic(c *gin.Context) {
-	bodyContent := pages.ManageMnemonicContent(getNewMnemonic())
 	s.pageViewHandler(bodyContent, c)
 }
 

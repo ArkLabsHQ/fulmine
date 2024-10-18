@@ -33,7 +33,7 @@ func SeedInfoBody(seed string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col gap-4\"><p class=\"text-center text-lg font-semibold\">Your private key</p><p class=\"break-words\" id=\"seed\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col gap-4\"><p class=\"text-center text-lg font-semibold\">Your Private Key</p><p class=\"break-words\" id=\"seed\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

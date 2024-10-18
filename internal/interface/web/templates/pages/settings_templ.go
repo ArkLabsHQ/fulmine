@@ -474,7 +474,7 @@ func SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button class=\"bg-graybg font-semibold rounded-lg mb-4\" onclick=\"handleBackup(event)\">Backup private key</button></form><script>\n    const handleBackup = (event) => {\n      event.preventDefault()\n      redirect('/backup')\n    }\n  </script>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<button class=\"bg-graybg font-semibold rounded-lg mb-4\" onclick=\"handleBackup(event)\">Backup Private Key</button></form><script>\n    const handleBackup = (event) => {\n      event.preventDefault()\n      redirect('/backup')\n    }\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
