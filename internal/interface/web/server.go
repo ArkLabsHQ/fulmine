@@ -117,6 +117,8 @@ func NewService(appSvc *application.Service) *service {
 	svc.POST("/helpers/unlock", svc.unlockApi)
 
 	svc.GET("/helpers/balance", svc.getBalanceApi)
+	svc.GET("/helpers/stream", svc.stream)
+	svc.GET("/helpers/txlist", svc.txList)
 
 	return svc
 }

@@ -143,8 +143,7 @@ templ HistoryEmpty() {
 	</div>
 }
 
-templ HistoryBodyContent(currentBalance, arkAddress string, transactions []types.Transaction, online bool) {
-	@components.Hero(arkAddress, currentBalance, online)
+templ HistoryList(transactions []types.Transaction) {
 	if len(transactions) == 0 {
     @HistoryEmpty()
 	} else {
@@ -158,4 +157,13 @@ templ HistoryBodyContent(currentBalance, arkAddress string, transactions []types
 	  	}
 	  </script>
 	}
+}
+
+templ HistoryBodyContent(currentBalance, arkAddress string, transactions []types.Transaction, online bool) {
+	@components.Hero(arkAddress, currentBalance, online)
+  <div hx-ext="sse" sse-connect="/helpers/stream">
+		<div hx-get="/helpers/txlist" hx-trigger="sse:reloadTxList">
+	    @HistoryList(transactions)
+		</div>
+	</div>
 }

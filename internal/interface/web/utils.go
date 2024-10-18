@@ -1,16 +1,17 @@
 package web
 
 import (
-	"errors"
-	"fmt"
 	"net/http"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
 	"github.com/ArkLabsHQ/ark-node/utils"
-	"github.com/a-h/templ"
-	"github.com/angelofallars/htmx-go"
+	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 	"github.com/tyler-smith/go-bip39"
 )
 
@@ -54,65 +55,103 @@ func getNewPrivateKey() string {
 	return privateKey
 }
 
+func (s *service) getNodeBalance() string {
+	return "50640" // TODO
+}
+
 func (s *service) getNodeStatus() bool {
 	return true // TODO
 }
 
-func redirect(path string, c *gin.Context) {
-	c.Header("HX-Redirect", path)
-	c.Status(303)
-}
-
-func reload(c *gin.Context) {
-	c.Header("HX-Refresh", "true")
-}
-
-func toastHandler(t templ.Component, c *gin.Context) {
-	if !htmx.IsHTMX(c.Request) {
-		// nolint:all
-		c.AbortWithError(http.StatusBadRequest, errors.New("non-htmx request"))
-		return
+func (s *service) getSpendableBalance(c *gin.Context) (string, error) {
+	balance, err := s.svc.Balance(c, false)
+	if err != nil {
+		return "", err
 	}
-	htmx.NewResponse().
-		Retarget("#toast").
-		AddTrigger(htmx.Trigger("toast")).
-		// nolint:all
-		RenderTempl(c, c.Writer, t)
-}
-
-func partialViewHandler(bodyContent templ.Component, c *gin.Context) {
-	if err := htmx.NewResponse().RenderTempl(c.Request.Context(), c.Writer, bodyContent); err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
+	onchainBalance := balance.OnchainBalance.SpendableAmount
+	for _, amount := range balance.OnchainBalance.LockedAmount {
+		onchainBalance += amount.Amount
 	}
+	return strconv.FormatUint(
+		balance.OffchainBalance.Total+onchainBalance, 10,
+	), nil
 }
 
-func modalHandler(t templ.Component, c *gin.Context) {
-	if !htmx.IsHTMX(c.Request) {
-		// nolint:all
-		c.AbortWithError(http.StatusBadRequest, fmt.Errorf("non-htmx request"))
-		return
+func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction, err error) {
+	// get tx history from ASP
+	history, err := s.svc.GetTransactionHistory(c)
+	if err != nil {
+		return nil, err
 	}
-	// nolint:all
-	htmx.NewResponse().RenderTempl(c, c.Writer, t)
-}
-
-// Function to format Unix timestamp to a pretty date string
-func prettyUnixTimestamp(unixTime int64) string {
-	// return time.Unix(unixTime, 0).Format(time.RFC3339) // Adjust format as needed
-	return time.Unix(unixTime, 0).Format("02/01/2006 15:04")
-}
-
-func prettyDay(unixTime int64) string {
-	if unixTime == 0 {
-		return "0"
+	data, err := s.svc.GetConfigData(c)
+	if err != nil {
+		return nil, err
 	}
-	return time.Unix(unixTime, 0).Format("02/01/2006")
+	// sort history by time but with pending first
+	sort.Slice(history, func(i, j int) bool {
+		if history[i].IsPending && !history[j].IsPending {
+			return true
+		}
+		if !history[i].IsPending && history[j].IsPending {
+			return false
+		}
+		return history[i].CreatedAt.Unix() > history[j].CreatedAt.Unix()
+	})
+	// transform each sdktypes.Transaction to types.Transaction
+	for _, tx := range history {
+		// amount
+		amount := strconv.FormatUint(tx.Amount, 10)
+		if tx.Type == sdktypes.TxSent {
+			amount = "-" + amount
+		}
+		// date of creation
+		dateCreated := tx.CreatedAt.Unix()
+		// TODO: use tx.ExpiresAt when it will be available
+		expiresAt := tx.CreatedAt.Unix() + data.RoundLifetime
+		// status of tx
+		status := "success"
+		if tx.IsPending {
+			status = "pending"
+		}
+		emptyTime := time.Time{}
+		if tx.CreatedAt == emptyTime {
+			status = "unconfirmed"
+			dateCreated = 0
+		}
+		// get one txid to identify tx
+		txid := tx.RoundTxid
+		explorable := true
+		if len(txid) == 0 {
+			txid = tx.RedeemTxid
+			explorable = false
+		}
+		if len(txid) == 0 {
+			txid = tx.BoardingTxid
+			explorable = true
+		}
+		// add to slice of transactions
+		transactions = append(transactions, types.Transaction{
+			Amount:     amount,
+			CreatedAt:  prettyUnixTimestamp(dateCreated),
+			Day:        prettyDay(dateCreated),
+			ExpiresAt:  prettyUnixTimestamp(expiresAt),
+			Explorable: explorable,
+			Hour:       prettyHour(dateCreated),
+			Kind:       string(tx.Type),
+			Txid:       txid,
+			Status:     status,
+			UnixDate:   dateCreated,
+		})
+	}
+	log.Infof("history %+v", history)
+	log.Infof("transactions %+v", transactions)
+	return
 }
 
-func prettyHour(unixTime int64) string {
-	if unixTime == 0 {
-		return "0"
+func (s *service) redirectedBecauseWalletIsLocked(c *gin.Context) bool {
+	redirect := s.svc.IsLocked(c)
+	if redirect {
+		c.Redirect(http.StatusFound, "/")
 	}
-	return time.Unix(unixTime, 0).Format("15:04")
+	return redirect
 }

@@ -67,8 +67,15 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 			</div>
 			<script src="/static/decimal.js"></script>
 			<script src="/static/scripts.js"></script>
+			<script src="https://unpkg.com/htmx.org@2.0.3"></script>
+			<script src="https://unpkg.com/htmx-ext-sse@2.2.2/sse.js"></script>
 		</body>
 		<script>
+		document.body.addEventListener('htmx:noSSESourceError', function(event) {
+  console.error('Error connecting to SSE source:', event);
+  // Display an error message to the user or perform other error handling
+});
+
 		  const toastTimeout = 2100
 
 		  const disableButton = (button) => {
