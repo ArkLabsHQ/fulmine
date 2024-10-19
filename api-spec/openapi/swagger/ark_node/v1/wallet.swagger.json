@@ -334,7 +334,7 @@
     "v1CreateWalletRequest": {
       "type": "object",
       "properties": {
-        "mnemonic": {
+        "privateKey": {
           "type": "string",
           "description": "The mnemonic from where deriving signing key pairs."
         },

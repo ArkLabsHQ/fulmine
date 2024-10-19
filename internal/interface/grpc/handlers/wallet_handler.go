@@ -47,11 +47,11 @@ func (h *walletHandler) CreateWallet(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	mnemonic, err := parseMnemonic(req.GetMnemonic())
+	privateKey, err := parsePrivateKey(req.GetPrivateKey())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if err := h.svc.Setup(ctx, aspUrl, password, mnemonic); err != nil {
+	if err := h.svc.Setup(ctx, aspUrl, password, privateKey); err != nil {
 		return nil, err
 	}
 	return &pb.CreateWalletResponse{}, nil
@@ -133,16 +133,6 @@ func parseAspUrl(a string) (string, error) {
 	return a, nil
 }
 
-func parseMnemonic(m string) (string, error) {
-	if len(m) <= 0 {
-		return "", fmt.Errorf("missing mnemonic")
-	}
-	if err := utils.IsValidMnemonic(m); err != nil {
-		return "", err
-	}
-	return m, nil
-}
-
 func parsePassword(p string) (string, error) {
 	if len(p) <= 0 {
 		return "", fmt.Errorf("missing password")
@@ -151,4 +141,14 @@ func parsePassword(p string) (string, error) {
 		return "", err
 	}
 	return p, nil
+}
+
+func parsePrivateKey(sk string) (string, error) {
+	if len(sk) <= 0 {
+		return "", fmt.Errorf("missing private key")
+	}
+	if err := utils.IsValidPrivateKey(sk); err != nil {
+		return "", err
+	}
+	return sk, nil
 }
