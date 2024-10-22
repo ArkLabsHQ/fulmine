@@ -10,7 +10,7 @@ import (
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
-	store "github.com/ark-network/ark/pkg/client-sdk/store"
+	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,7 +24,7 @@ type Service struct {
 	BuildInfo BuildInfo
 
 	arksdk.ArkClient
-	storeRepo    store.ConfigStore
+	storeRepo    sdktypes.Store
 	settingsRepo domain.SettingsRepository
 	grpcClient   client.ASPClient
 	schedulerSvc ports.SchedulerService
@@ -34,7 +34,7 @@ type Service struct {
 
 func NewService(
 	buildInfo BuildInfo,
-	storeSvc store.ConfigStore,
+	storeSvc sdktypes.Store,
 	settingsRepo domain.SettingsRepository,
 	schedulerSvc ports.SchedulerService,
 ) (*Service, error) {
