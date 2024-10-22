@@ -143,7 +143,7 @@ func (s *Service) Reset(ctx context.Context) error {
 	if err := s.settingsRepo.CleanSettings(ctx); err != nil {
 		return err
 	}
-	if err := s.storeRepo.CleanData(ctx); err != nil {
+	if err := s.storeRepo.ConfigStore().CleanData(ctx); err != nil {
 		// nolint:all
 		s.settingsRepo.AddSettings(ctx, *backup)
 		return err
