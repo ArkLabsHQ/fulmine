@@ -31,7 +31,7 @@ func (s *service) Stop() {
 
 // Sets a ClaimPending() to run in the best market hour
 // Besides claiming, ClaimPending() also calls this function
-func (s *service) ScheduleNextClaim(txs []sdktypes.Transaction, data *store.StoreData, claimFunc func()) error {
+func (s *service) ScheduleNextClaim(txs []sdktypes.Transaction, data *sdktypes.Config, claimFunc func()) error {
 	now := time.Now().Unix()
 	at := now + data.RoundLifetime
 
