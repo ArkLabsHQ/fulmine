@@ -651,13 +651,14 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			ExpiresAt:  prettyUnixTimestamp(expiresAt),
 			Explorable: explorable,
 			Hour:       prettyHour(dateCreated),
-			Kind:       string(tx.Type),
+			Kind:       strings.ToLower(string(tx.Type)),
 			Txid:       txid,
 			Status:     status,
 			UnixDate:   dateCreated,
 		})
 	}
-	log.Infof("history %+v", history)
+
+	log.Infof("history %v", history)
 	log.Infof("transactions %+v", transactions)
 	return
 }
