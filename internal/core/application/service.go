@@ -7,7 +7,6 @@ import (
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
-	"github.com/ArkLabsHQ/ark-node/utils"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
@@ -71,14 +70,6 @@ func NewService(
 
 func (s *Service) IsReady() bool {
 	return s.isReady
-}
-
-func (s *Service) SetupFromMnemonic(ctx context.Context, aspURL, password, mnemonic string) error {
-	privateKey, err := utils.PrivateKeyFromMnemonic(mnemonic)
-	if err != nil {
-		return err
-	}
-	return s.Setup(ctx, aspURL, password, privateKey)
 }
 
 func (s *Service) Setup(

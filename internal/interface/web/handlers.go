@@ -49,7 +49,7 @@ func (s *service) backupSecret(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	nsec, err := seedToNsec(seed)
+	nsec, err := utils.SeedToNsec(seed)
 	if err != nil {
 		toast := components.Toast("Unable to convert to nsec", true)
 		toastHandler(toast, c)
@@ -69,7 +69,7 @@ func (s *service) backupTabActive(c *gin.Context) {
 	}
 	secret := seed
 	if active == "nsec" {
-		nsec, err := seedToNsec(seed)
+		nsec, err := utils.SeedToNsec(seed)
 		if err != nil {
 			toast := components.Toast("Unable to convert to nsec", true)
 			toastHandler(toast, c)
@@ -190,7 +190,7 @@ func (s *service) unlock(c *gin.Context) {
 }
 
 func (s *service) newWalletPrivateKey(c *gin.Context) {
-	nsec, err := seedToNsec(getNewPrivateKey())
+	nsec, err := utils.SeedToNsec(utils.GetNewPrivateKey())
 	if err != nil {
 		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -396,7 +396,7 @@ func (s *service) setPassword(c *gin.Context) {
 func (s *service) setPrivateKey(c *gin.Context) {
 	privateKey := c.PostForm("privateKey")
 	if strings.HasPrefix(privateKey, "nsec") {
-		seed, err := nsecToSeed(privateKey)
+		seed, err := utils.NsecToSeed(privateKey)
 		if err != nil {
 			toast := components.Toast("Invalid nsec", true)
 			toastHandler(toast, c)

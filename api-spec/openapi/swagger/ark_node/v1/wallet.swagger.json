@@ -354,9 +354,13 @@
     "v1GenSeedResponse": {
       "type": "object",
       "properties": {
-        "mnemonic": {
+        "hex": {
           "type": "string",
-          "description": "A mnemonic from where deriving signing key pairs."
+          "description": "A hex secret key from where deriving signing key pairs."
+        },
+        "nsec": {
+          "type": "string",
+          "description": "The same secret key but in nsec (nip19) format."
         }
       }
     },

@@ -78,8 +78,10 @@ service WalletService {
 
 message GenSeedRequest{}
 message GenSeedResponse{
-  // A mnemonic from where deriving signing key pairs.
-  string mnemonic = 1;
+  // A hex secret key from where deriving signing key pairs.
+  string hex = 1;
+  // The same secret key but in nsec (nip19) format.
+  string nsec = 2;
 }
 
 message CreateWalletRequest{

@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/sirupsen/logrus"
 	"github.com/tyler-smith/go-bip32"
 	"github.com/tyler-smith/go-bip39"
@@ -45,7 +46,7 @@ func IsValidPrivateKey(privateKey string) error {
 	return nil
 }
 
-func PrivateKeyFromMnemonic(mnemonic string) (string, error) {
+func privateKeyFromMnemonic(mnemonic string) (string, error) {
 	seed := bip39.NewSeed(mnemonic, "")
 	key, err := bip32.NewMasterKey(seed)
 	if err != nil {
@@ -70,4 +71,46 @@ func PrivateKeyFromMnemonic(mnemonic string) (string, error) {
 	}
 
 	return hex.EncodeToString(next.Key), nil
+}
+
+func getNewMnemonic() []string {
+	// 128 bits of entropy for a 12-word mnemonic
+	entropy, err := bip39.NewEntropy(128)
+	if err != nil {
+		return strings.Fields("")
+	}
+	mnemonic, err := bip39.NewMnemonic(entropy)
+	if err != nil {
+		return strings.Fields("")
+	}
+	return strings.Fields(mnemonic)
+}
+
+func GetNewPrivateKey() string {
+	words := getNewMnemonic()
+	mnemonic := strings.Join(words, " ")
+	privateKey, err := privateKeyFromMnemonic(mnemonic)
+	if err != nil {
+		return ""
+	}
+	return privateKey
+}
+
+func SeedToNsec(seed string) (string, error) {
+	nsec, err := nip19.EncodePrivateKey(seed)
+	if err != nil {
+		return "", err
+	}
+	return nsec, nil
+}
+
+func NsecToSeed(nsec string) (string, error) {
+	prefix, seed, err := nip19.Decode(nsec)
+	if err != nil {
+		return "", err
+	}
+	if prefix != "nsec" {
+		return "", fmt.Errorf("invalid prefix")
+	}
+	return fmt.Sprint(seed), nil
 }

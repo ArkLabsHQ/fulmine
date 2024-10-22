@@ -3,11 +3,12 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
 	"github.com/ArkLabsHQ/ark-node/utils"
-	"github.com/tyler-smith/go-bip39"
+	"github.com/nbd-wtf/go-nostr/nip19"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -23,15 +24,12 @@ func NewWalletHandler(appSvc *application.Service) pb.WalletServiceServer {
 func (h *walletHandler) GenSeed(
 	ctx context.Context, req *pb.GenSeedRequest,
 ) (*pb.GenSeedResponse, error) {
-	entropy, err := bip39.NewEntropy(128)
+	hex := utils.GetNewPrivateKey()
+	nsec, err := utils.SeedToNsec(hex)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	mnemonic, err := bip39.NewMnemonic(entropy)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.GenSeedResponse{Mnemonic: mnemonic}, nil
+	return &pb.GenSeedResponse{Hex: hex, Nsec: nsec}, nil
 }
 
 // CreateWallet creates an HD Wallet based on signing seeds,
@@ -124,7 +122,7 @@ func (h *walletHandler) Auth(
 }
 
 func parseAspUrl(a string) (string, error) {
-	if len(a) <= 0 {
+	if len(a) == 0 {
 		return "", fmt.Errorf("missing asp url")
 	}
 	if !utils.IsValidURL(a) {
@@ -134,7 +132,7 @@ func parseAspUrl(a string) (string, error) {
 }
 
 func parsePassword(p string) (string, error) {
-	if len(p) <= 0 {
+	if len(p) == 0 {
 		return "", fmt.Errorf("missing password")
 	}
 	if err := utils.IsValidPassword(p); err != nil {
@@ -144,8 +142,15 @@ func parsePassword(p string) (string, error) {
 }
 
 func parsePrivateKey(sk string) (string, error) {
-	if len(sk) <= 0 {
+	if len(sk) == 0 {
 		return "", fmt.Errorf("missing private key")
+	}
+	if strings.HasPrefix(sk, "nsec") {
+		_, seed, err := nip19.Decode(sk)
+		if err != nil {
+			return "", err
+		}
+		sk = fmt.Sprint(seed)
 	}
 	if err := utils.IsValidPrivateKey(sk); err != nil {
 		return "", err
