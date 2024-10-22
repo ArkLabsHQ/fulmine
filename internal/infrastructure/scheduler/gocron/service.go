@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
-	"github.com/ark-network/ark/pkg/client-sdk/store"
 	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/go-co-op/gocron"
 )
@@ -69,7 +68,7 @@ func (s *service) WhenNextClaim() time.Time {
 }
 
 // TODO: get market hour info from config data
-func bestMarketHour(at int64, data *store.StoreData) int64 {
+func bestMarketHour(at int64, data *sdktypes.Config) int64 {
 	firstMarketHour := int64(1231006505) // block 0 timestamp
 	marketHourInterval := int64(86400)   // 24 hours
 	cycles := (at - firstMarketHour) / marketHourInterval
