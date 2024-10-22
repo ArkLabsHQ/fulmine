@@ -11,6 +11,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	"github.com/gin-gonic/gin"
+	"github.com/nbd-wtf/go-nostr/nip19"
 	"github.com/tyler-smith/go-bip39"
 )
 
@@ -115,4 +116,23 @@ func prettyHour(unixTime int64) string {
 		return "0"
 	}
 	return time.Unix(unixTime, 0).Format("15:04")
+}
+
+func seedToNsec(seed string) (string, error) {
+	nsec, err := nip19.EncodePrivateKey(seed)
+	if err != nil {
+		return "", err
+	}
+	return nsec, nil
+}
+
+func nsecToSeed(nsec string) (string, error) {
+	prefix, seed, err := nip19.Decode(nsec)
+	if err != nil {
+		return "", err
+	}
+	if prefix != "nsec" {
+		return "", fmt.Errorf("invalid prefix")
+	}
+	return fmt.Sprint(seed), nil
 }
