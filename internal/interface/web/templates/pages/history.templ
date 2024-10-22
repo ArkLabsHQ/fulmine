@@ -161,9 +161,9 @@ templ HistoryList(transactions []types.Transaction) {
 
 templ HistoryBodyContent(currentBalance, arkAddress string, transactions []types.Transaction, online bool) {
 	@components.Hero(arkAddress, currentBalance, online)
-  <div hx-ext="sse" sse-connect="/helpers/stream">
-		<div hx-get="/helpers/txlist" hx-trigger="sse:reloadTxList">
-	    @HistoryList(transactions)
+  <div sse-connect="/helpers/stream">
+	  <div hx-get="/helpers/txlist" hx-trigger="sse:reloadTxList">
+		  @HistoryList(transactions)
 		</div>
 	</div>
 }

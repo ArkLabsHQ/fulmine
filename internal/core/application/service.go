@@ -108,7 +108,7 @@ func (s *Service) Setup(
 		AspUrl:                  aspURL,
 		Password:                password,
 		Seed:                    privateKey,
-		ListenTransactionStream: false,
+		ListenTransactionStream: true,
 	}); err != nil {
 		return err
 	}

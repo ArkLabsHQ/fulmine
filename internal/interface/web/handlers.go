@@ -479,22 +479,23 @@ func (s *service) stream(c *gin.Context) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 
-	// Create a channel to send events
-	eventCh := make(chan string)
-
-	// Send events to the client
+	txsChan := s.svc.GetTransactionEventChannel()
 	go func() {
-		for {
-			event := fmt.Sprintf("data: Hello, client! %v\n\n", time.Now())
-			eventCh <- event
-			time.Sleep(5 * time.Second)
+		for txEvent := range txsChan {
+			msg := fmt.Sprintf("[EVENT]: tx event: %s, %d", txEvent.Event, txEvent.Tx.Amount)
+			if txEvent.Tx.IsBoarding() {
+				msg += fmt.Sprintf(", boarding tx: %s", txEvent.Tx.BoardingTxid)
+			}
+			log.Infoln(msg)
+			c.SSEvent("reloadTxList", true)
+			time.Sleep(2 * time.Second)
+			c.Writer.Flush()
 		}
 	}()
 
-	// Write the events to the response
-	for event := range eventCh {
-		fmt.Fprintf(c.Writer, "%s", event)
-		c.Writer.Flush()
+	for {
+		time.Sleep(10 * time.Second)
+		// c.Writer.Flush()
 	}
 }
 
