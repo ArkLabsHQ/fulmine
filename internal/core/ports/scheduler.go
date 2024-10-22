@@ -9,6 +9,6 @@ import (
 type SchedulerService interface {
 	Start()
 	Stop()
-	ScheduleNextClaim(txs []sdktypes.Transaction, data *sdktypes.StoreData, claimFunc func()) error
+	ScheduleNextClaim(txs []sdktypes.Transaction, data *sdktypes.Config, claimFunc func()) error
 	WhenNextClaim() time.Time
 }
