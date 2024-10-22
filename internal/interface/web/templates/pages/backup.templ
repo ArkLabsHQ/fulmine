@@ -4,6 +4,32 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
+templ BackupTab(kind string, active bool) {
+  <div
+	  id={kind}
+	  class={"flex", "rounded-lg", templ.KV("bg-white", active), templ.KV("text-black", active)}
+		hx-get={"/backup/tab/" + kind}
+		hx-target="#backupPartial">
+    <p class="px-3 py-2.5 flex items-center gap-2 mx-auto cursor-pointer">
+	    {kind}
+	  </p>
+	</div>
+}
+
+templ BackupTabs(active string) {
+  <div class="grid grid-cols-2 gap-2 my-4 text-sm text-white/80 font-semibold">
+    @BackupTab("nsec", active == "nsec")
+    @BackupTab("hex", active == "hex")
+  </div>
+}
+
+templ BackupPartialContent(active, secret string) {
+	<div id="backupPartial">
+	  @BackupTabs(active)
+    <p class="border border-1 border-white/20 p-3 break-words" id="secret">{secret}</p>
+	</div>
+}
+
 templ BackupInitialBodyContent() {
   @components.DesktopHeader()
   <form hx-get="/backup/secret">
@@ -13,7 +39,7 @@ templ BackupInitialBodyContent() {
         @components.Steps(1, 3)
         <div class="flex flex-col gap-4">
           <p class="text-lg font-semibold">Backup info</p>
-          <p>In case of losing or forgeting your password, you will need your private key to log back in and continue   using the Ark node wallet.</p>
+          <p>In case of losing or forgeting your password, you will need your Private Key to log back in and continue   using the Ark node wallet.</p>
           <div class="bg-white/10 rounded-lg flex justify-start items-center gap-4 p-3">
             <p>@components.InfoLargeIcon()</p>
             <p>Backup is highly recomended to prevent loss of funds.</p>
@@ -25,7 +51,7 @@ templ BackupInitialBodyContent() {
   </form>
 }
 
-templ BackupSecretBodyContent(secret string) {
+templ BackupSecretBodyContent(hex, nsec string) {
   <form hx-get="/backup/ack">
 	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	    <div>
@@ -33,17 +59,33 @@ templ BackupSecretBodyContent(secret string) {
         @components.Steps(2, 3)
         <div class="flex flex-col gap-4">
           <p class="text-lg font-semibold">Private key</p>
-          <p>Write down your private key and save it on a safe place that is not accessible online.</p>
-          <p class="border border-1 border-white/20 p-3 text-xl break-words">{secret}</p>
+          <p>Write down your Private Key and save it on a safe place that is not accessible online.</p>
+          @BackupPartialContent("nsec", nsec)
           <div class="bg-white/10 rounded-lg flex justify-start items-center gap-4 p-3">
             <p>@components.DangerIcon()</p>
-            <p>Do not share your secret phrase or someone may gain access to your wallet and the funds.</p>
+            <p>Do not share your Private Key or someone may gain access to your wallet.</p>
           </div>
         </div>
       </div>
-      @components.OrangeButton("Continue")
+      <div class="flex flex-col md:flex-row-reverse justify-start gap-4 mt-10 mb-2">
+        <button class="bg-orange md:w-auto" type="submit">
+	  		  Continue
+	  		</button>
+        <button class="bg-graybg md:w-32" onclick="handleCopy(event)">
+	  		  @components.CopyIcon()
+	  			<span id="copyText" class="ml-2">Copy</span>
+	  		</button>
+	    </div>
     </div>
   </form>
+  <script>
+    const handleCopy = (event) => {
+			event.preventDefault()
+			copyToClipboard('#secret')
+			document.querySelector('#copyText').innerText = 'Copied'
+			setTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2100)
+		}
+  </script>
 }
 
 templ BackupAckBodyContent() {
