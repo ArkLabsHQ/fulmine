@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
-	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/store"
+	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/go-co-op/gocron"
 )
 
@@ -31,7 +31,7 @@ func (s *service) Stop() {
 
 // Sets a ClaimPending() to run in the best market hour
 // Besides claiming, ClaimPending() also calls this function
-func (s *service) ScheduleNextClaim(txs []arksdk.Transaction, data *store.StoreData, claimFunc func()) error {
+func (s *service) ScheduleNextClaim(txs []sdktypes.Transaction, data *store.StoreData, claimFunc func()) error {
 	now := time.Now().Unix()
 	at := now + data.RoundLifetime
 

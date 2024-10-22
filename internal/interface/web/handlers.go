@@ -17,6 +17,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
+	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 
@@ -610,11 +611,11 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 	if err != nil {
 		return nil, err
 	}
-	// transform each arksdk.Transaction to types.Transaction
+	// transform each sdktypes.Transaction to types.Transaction
 	for _, tx := range history {
 		// amount
 		amount := strconv.FormatUint(tx.Amount, 10)
-		if tx.Type == arksdk.TxSent {
+		if tx.Type == sdktypes.TxSent {
 			amount = "-" + amount
 		}
 		// date of creation
