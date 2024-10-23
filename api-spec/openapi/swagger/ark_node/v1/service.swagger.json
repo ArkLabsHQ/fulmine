@@ -543,10 +543,7 @@
         "type": {
           "$ref": "#/definitions/v1TxType"
         },
-        "pending": {
-          "type": "boolean"
-        },
-        "pendingChange": {
+        "settled": {
           "type": "boolean"
         }
       }

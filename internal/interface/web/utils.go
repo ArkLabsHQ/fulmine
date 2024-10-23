@@ -89,10 +89,10 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 	}
 	// sort history by time but with pending first
 	sort.Slice(history, func(i, j int) bool {
-		if history[i].IsPending && !history[j].IsPending {
+		if !history[i].Settled && history[j].Settled {
 			return true
 		}
-		if !history[i].IsPending && history[j].IsPending {
+		if history[i].Settled && history[j].Settled {
 			return false
 		}
 		return history[i].CreatedAt.Unix() > history[j].CreatedAt.Unix()
@@ -110,7 +110,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		expiresAt := tx.CreatedAt.Unix() + data.RoundLifetime
 		// status of tx
 		status := "success"
-		if tx.IsPending {
+		if !tx.Settled {
 			status = "pending"
 		}
 		emptyTime := time.Time{}
@@ -143,7 +143,17 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			UnixDate:   dateCreated,
 		})
 	}
-	log.Infof("history %+v", history)
+	log.Info("history", len(history))
+	for _, r := range history {
+		log.Infof("BoardingTxid: %s\n", r.BoardingTxid)
+		log.Infof("RoundTxid: %s\n", r.RoundTxid)
+		log.Infof("RedeemTxid: %s\n", r.RedeemTxid)
+		log.Infof("Amount: %d\n", r.Amount)
+		log.Infof("Type: %s\n", r.Type)
+		log.Infof("CreatedAt: %s\n", r.CreatedAt)
+		log.Infof("Settled: %t\n", r.Settled)
+		log.Info("-------------------")
+	}
 	log.Infof("transactions %+v", transactions)
 	return
 }

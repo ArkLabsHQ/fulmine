@@ -35,7 +35,7 @@ func (s *service) ScheduleNextClaim(txs []sdktypes.Transaction, data *sdktypes.C
 	at := now + data.RoundLifetime
 
 	for _, tx := range txs {
-		if !tx.IsPending {
+		if tx.Settled {
 			continue
 		}
 		expiresAt := tx.CreatedAt.Unix() + data.RoundLifetime

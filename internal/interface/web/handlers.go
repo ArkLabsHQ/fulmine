@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/modals"
@@ -209,7 +208,7 @@ func (s *service) logVtxos(c *gin.Context) {
 		log.Info("---------")
 		log.Infof("Amount %d", v.Amount)
 		log.Infof("ExpiresAt %v", v.ExpiresAt)
-		log.Infof("Pending %v", v.Pending)
+		// log.Infof("Pending %v", v.Pending)
 		log.Infof("RoundTxid %v", v.RoundTxid)
 		log.Infof("Txid %v", v.Txid)
 		log.Infof("SpentBy %v", v.SpentBy)
@@ -221,7 +220,7 @@ func (s *service) logVtxos(c *gin.Context) {
 		log.Info("---------")
 		log.Infof("Amount %d", v.Amount)
 		log.Infof("ExpiresAt %v", v.ExpiresAt)
-		log.Infof("Pending %v", v.Pending)
+		// log.Infof("Pending %v", v.Pending)
 		log.Infof("RoundTxid %v", v.RoundTxid)
 		log.Infof("Txid %v", v.Txid)
 		log.Infof("SpentBy %v", v.SpentBy)
@@ -480,22 +479,19 @@ func (s *service) stream(c *gin.Context) {
 	c.Writer.Header().Set("Connection", "keep-alive")
 
 	txsChan := s.svc.GetTransactionEventChannel()
-	go func() {
-		for txEvent := range txsChan {
+	for {
+		select {
+		case txEvent := <-txsChan:
 			msg := fmt.Sprintf("[EVENT]: tx event: %s, %d", txEvent.Event, txEvent.Tx.Amount)
 			if txEvent.Tx.IsBoarding() {
 				msg += fmt.Sprintf(", boarding tx: %s", txEvent.Tx.BoardingTxid)
 			}
 			log.Infoln(msg)
 			c.SSEvent("reloadTxList", true)
-			time.Sleep(2 * time.Second)
 			c.Writer.Flush()
+		case <-c.Done():
+			return
 		}
-	}()
-
-	for {
-		time.Sleep(10 * time.Second)
-		// c.Writer.Flush()
 	}
 }
 

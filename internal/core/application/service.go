@@ -219,7 +219,7 @@ func (s *Service) GetRound(ctx context.Context, roundId string) (*client.Round, 
 }
 
 func (s *Service) ClaimPending(ctx context.Context) (string, error) {
-	roundTxid, err := s.ArkClient.Claim(ctx)
+	roundTxid, err := s.ArkClient.Settle(ctx)
 	if err == nil {
 		err := s.ScheduleClaims(ctx)
 		if err != nil {

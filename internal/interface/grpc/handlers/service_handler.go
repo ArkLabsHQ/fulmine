@@ -178,7 +178,7 @@ func (h *serviceHandler) GetTransactionHistory(
 			RedeemTxid:   tx.RedeemTxid,
 			BoardingTxid: tx.BoardingTxid,
 			Type:         toTxTypeProto(tx.Type),
-			Pending:      tx.IsPending,
+			Settled:      tx.Settled,
 		})
 	}
 

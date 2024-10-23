@@ -59,8 +59,7 @@ message TransactionInfo {
   string redeem_txid = 4;
   string boarding_txid = 5;
   TxType type = 6; 
-  bool pending = 7;
-  bool pending_change = 8;
+  bool settled = 7;
 }
 
 message Tree {
