@@ -278,15 +278,38 @@ func (s *service) receiveQrCode(c *gin.Context) {
 	}
 	encoded := base64.StdEncoding.EncodeToString(png)
 
-	bodyContent := pages.ReceiveQrCodeContent(bip21, encoded, fmt.Sprintf("%d", sats))
+	balance, err := s.getSpendableBalance(c)
+	if err != nil {
+		log.WithError(err).Warn("failed to get spendable balance")
+	}
+
+	bodyContent := pages.ReceiveQrCodeContent(bip21, encoded, balance)
 	s.pageViewHandler(bodyContent, c)
 }
 
 func (s *service) receiveSuccess(c *gin.Context) {
-	sats := c.PostForm("sats")
 	bip21 := c.PostForm(("bip21"))
+	previousBalance := c.PostForm(("balance"))
+
+	balance, err := s.getSpendableBalance(c)
+	if err != nil {
+		log.WithError(err).Warn("failed to get spendable balance")
+	}
+
+	previous, err := strconv.Atoi(previousBalance)
+	if err != nil {
+		log.WithError(err).Warn("failed converting previous balance to number")
+	}
+
+	current, err := strconv.Atoi(balance)
+	if err != nil {
+		log.WithError(err).Warn("failed converting current balance to number")
+	}
+
+	delta := current - previous
 	offchainAddr := utils.GetArkAddress(bip21)
-	partial := pages.ReceiveSuccessContent(offchainAddr, sats)
+	partial := pages.ReceiveSuccessContent(offchainAddr, strconv.Itoa(delta))
+
 	partialViewHandler(partial, c)
 }
 
