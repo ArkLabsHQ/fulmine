@@ -50,6 +50,15 @@ func (s *service) backupAck(c *gin.Context) {
 	partialViewHandler(bodyContent, c)
 }
 
+func (s *service) balance(c *gin.Context) {
+	spendableBalance, err := s.getSpendableBalance(c)
+	if err != nil {
+		log.WithError(err).Warn("failed to get spendable balance")
+	}
+	bodyContent := components.HeroBalance(spendableBalance)
+	partialViewHandler(bodyContent, c)
+}
+
 func (s *service) done(c *gin.Context) {
 	bodyContent := pages.DoneBodyContent()
 	s.pageViewHandler(bodyContent, c)
@@ -478,7 +487,10 @@ func (s *service) stream(c *gin.Context) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 
-	txsChan := s.svc.GetTxNotifications()
+	txsChan, cancel := s.svc.GetTxNotifications()
+	defer func() {
+		cancel()
+	}()
 	for {
 		select {
 		case event := <-txsChan:

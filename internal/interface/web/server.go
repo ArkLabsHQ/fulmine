@@ -78,6 +78,7 @@ func NewService(appSvc *application.Service) *service {
 	svc.GET("/backup", svc.backupInitial)
 	svc.GET("/backup/secret", svc.backupSecret)
 	svc.GET("/backup/ack", svc.backupAck)
+	svc.GET("/balance", svc.balance)
 	svc.GET("/done", svc.done)
 	svc.GET("/forgot", svc.forgot)
 	svc.GET("/import", svc.importWalletPrivateKey)

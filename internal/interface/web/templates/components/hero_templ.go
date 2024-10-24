@@ -95,7 +95,7 @@ func HeroBalance(currentBalance string) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"mb-10\"><p class=\"text-gray-300\">Balance</p><p class=\"text-4xl font-medium my-2 cryptoAmount\" sats=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"mb-10\" hx-get=\"/balance\" hx-trigger=\"sse:reloadTxList\"><p class=\"text-gray-300\">Balance</p><p class=\"text-4xl font-medium my-2 cryptoAmount\" sats=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

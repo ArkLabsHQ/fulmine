@@ -20,7 +20,7 @@ templ HeroHeader(arkAddress string) {
 }
 
 templ HeroBalance(currentBalance string) {
-	<div class="mb-10">
+	<div class="mb-10" hx-get="/balance" hx-trigger="sse:reloadTxList">
 	  <p class="text-gray-300">Balance</p>
 	  <p class="text-4xl font-medium my-2 cryptoAmount" sats={currentBalance}>{currentBalance} SATS</p>
 		<p class="text-gray-200 font-lg fiatAmount" sats={currentBalance}>&nbsp;</p>

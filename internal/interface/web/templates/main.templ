@@ -65,7 +65,9 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 			<div id="app">
         <div id="toast"></div>
 	      <div id="modal"></div>
-				@bodyContent
+				<div sse-connect="/helpers/stream">
+				  @bodyContent
+				</div>
 			</div>
 			<script src="/static/decimal.js"></script>
 			<script src="/static/scripts.js"></script>
