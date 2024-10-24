@@ -168,7 +168,7 @@ func newWalletPrivateKeyContent(privateKey string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div><div class=\"flex flex-col md:flex-row md:justify-center gap-2 w-full\"><button class=\"md:w-auto bg-orange text-white\" id=\"importButton\" type=\"submit\">Continue</button> <button class=\"md:w-32 bg-graybg\" onclick=\"handleCopy(event)\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div><div class=\"flex flex-col md:flex-row md:justify-center gap-2 w-full\"><button class=\"md:w-32 bg-graybg\" onclick=\"handleCopy(event)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -176,7 +176,7 @@ func newWalletPrivateKeyContent(privateKey string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<span id=\"copyText\" class=\"ml-2\">Copy</span></button></div></div></form><script>\n\t  const handleCopy = (event) => {\n\t\t\tevent.preventDefault()\n\t\t\tif (!navigator.clipboard) return\n      navigator.clipboard.writeText(getPrivateKey())\n\t\t\tdocument.querySelector('#copyText').innerText = 'Copied'\n\t\t\tsetTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2100)\n\t\t}\n\t</script>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<span id=\"copyText\" class=\"ml-2\">Copy</span></button> <button class=\"md:w-auto bg-orange text-white\" id=\"importButton\" type=\"submit\">Continue</button></div></div></form><script>\n\t  const handleCopy = (event) => {\n\t\t\tevent.preventDefault()\n\t\t\tif (!navigator.clipboard) return\n      navigator.clipboard.writeText(getPrivateKey())\n\t\t\tdocument.querySelector('#copyText').innerText = 'Copied'\n\t\t\tsetTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2100)\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
