@@ -8,9 +8,9 @@ templ AspUrlBodyContent(aspurl, privateKey, password string) {
   <form hx-post="/initialize">
     <input type="hidden" name="privateKey" value={privateKey}/>
     <input type="hidden" name="password" value={password}/>
-    <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
+    <div class="flex flex-col justify-between h-screen sm:max-w-96 mx-auto p-3">
 	    <div>
-		    <div class="hidden md:block">@LogoWhite()</div>
+		    <div class="hidden sm:block">@LogoWhite()</div>
 	      @components.Header("Choose ASP", "/welcome")
 	  		<p class="mb-10">Choose your ASP</p>
         <p class="mb-2">ASP URL</p>

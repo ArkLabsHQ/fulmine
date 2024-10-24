@@ -109,7 +109,7 @@ func SetPasswordContent(privateKey string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"><div class=\"flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3\"><div><div class=\"hidden md:block\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"><div class=\"flex flex-col justify-between h-screen sm:max-w-96 mx-auto p-3\"><div><div class=\"hidden sm:block\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

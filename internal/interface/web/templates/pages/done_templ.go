@@ -43,7 +43,7 @@ func DoneBodyContent() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3\"><div class=\"flex flex-col items-center mt-24 md:mt-0\"><div class=\"hidden md:block\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"flex flex-col justify-between h-screen sm:max-w-96 mx-auto p-3\"><div class=\"flex flex-col items-center mt-24 sm:mt-0\"><div class=\"hidden sm:block\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

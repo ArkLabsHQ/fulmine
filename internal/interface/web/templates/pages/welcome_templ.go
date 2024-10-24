@@ -70,7 +70,7 @@ func Welcome() templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-radial-gradient h-screen fullscreen\"><div class=\"flex flex-col h-screen justify-between md:h-auto md:gap-10 w-96 max-w-full m-auto p-3\"><div><div class=\"flex flex-col items-center\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-radial-gradient h-screen fullscreen\"><div class=\"flex flex-col h-screen justify-between sm:h-auto sm:gap-10 w-96 max-w-full m-auto p-3\"><div><div class=\"flex flex-col items-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -102,7 +102,7 @@ func Welcome() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><p>Faster and less expensive</p></div></div></div><div class=\"flex flex-col md:flex-row md:justify-center gap-2 w-full\"><button class=\"md:w-auto bg-white text-black\" onclick=\"redirect(&#39;/new&#39;)\">&#65291; Create new wallet</button> <button class=\"md:w-auto bg-white/20\" onclick=\"redirect(&#39;/import&#39;)\">Import</button></div></div></div>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p><p>Faster and less expensive</p></div></div></div><div class=\"flex flex-col sm:flex-row sm:justify-center gap-2 w-full\"><button class=\"sm:w-auto bg-white text-black\" onclick=\"redirect(&#39;/new&#39;)\">&#65291; Create new wallet</button> <button class=\"sm:w-auto bg-white/20\" onclick=\"redirect(&#39;/import&#39;)\">Import</button></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

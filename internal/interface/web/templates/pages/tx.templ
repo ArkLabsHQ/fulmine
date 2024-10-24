@@ -88,7 +88,7 @@ templ WaitingTxIcon() {
 
 templ TxBodyContent(tx types.Transaction, explorerUrl string) {
   @components.DesktopHeader()
-	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+	<div class="p-3 flex flex-col justify-between rounded-lg h-screen sm:h-auto sm:bg-desktopbg">
 	  <div>
       @components.Header("Transaction details")
       <div class="flex flex-col items-center">
@@ -113,7 +113,7 @@ templ TxBodyContent(tx types.Transaction, explorerUrl string) {
 templ TxPendingContent(tx types.Transaction, nextClaim string) {
   @components.DesktopHeader()
   <form hx-post="/helpers/claim">
-	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen sm:h-auto sm:bg-desktopbg">
 	    <div>
         @components.Header("Settle Transaction")
         <div class="hideOnRequest flex flex-col items-center">

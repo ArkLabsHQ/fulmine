@@ -8,7 +8,7 @@ script openInExplorer(txid, explorerUrl string) {
 
 templ greenButton(label string) {
 	<button
-	  class="bg-green md:w-auto"
+	  class="bg-green w-full sm:w-auto"
 		onclick="disableButton(this)"
 		type="submit">
 	  {label}
@@ -17,7 +17,7 @@ templ greenButton(label string) {
 
 templ orangeButton(label string, disabled []bool) {
 	<button
-	  class="bg-orange md:w-auto"
+	  class="bg-orange w-full sm:w-auto"
 		if len(disabled) > 0 {
 			disabled
 		}
@@ -28,7 +28,7 @@ templ orangeButton(label string, disabled []bool) {
 }
 
 templ cancelButton(label string) {
-	<button class="bg-graybg md:w-auto" onclick="handleCancel(event)">{label}</button>
+	<button class="bg-graybg w-full sm:w-auto" onclick="handleCancel(event)">{label}</button>
 	<script>
 	  const handleCancel = (event) => {
 			event.preventDefault()
@@ -37,9 +37,37 @@ templ cancelButton(label string) {
 	</script>
 }
 
+templ copyQrCodeButton() {
+	<button class="bg-graybg w-full sm:w-32" onclick="handleCopy(event)">
+	  @CopyIcon()
+		<span id="copyText" class="ml-2">Copy</span>
+	</button>
+	<script>
+	  const handleCopy = (event) => {
+			event.preventDefault()
+			copyToClipboard('#bip21')
+			document.querySelector('#copyText').innerText = 'Copied'
+			setTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2100)
+		}
+	</script>
+}
+
+templ editAmountButton() {
+	<button class="bg-graybg w-full sm:w-auto" onclick="handleEdit(event)">
+	  @EditIcon()
+		<span class="ml-2">Edit</span>
+	</button>
+	<script>
+	  const handleEdit = (event) => {
+			event.preventDefault()
+			redirect('/receive/edit')
+		}
+	</script>
+}
+
 templ redirectButton(label string, disabled []bool) {
 	<button
-	  class="bg-orange md:w-auto"
+	  class="bg-orange w-full sm:w-auto"
 	  if len(disabled) > 0 {
 		  disabled
 	  }
@@ -56,19 +84,19 @@ templ redirectButton(label string, disabled []bool) {
 }
 
 templ viewTxButton(txid, explorerUrl string) {
-	<button class="bg-graybg md:w-auto" onclick={openInExplorer(txid, explorerUrl)}>View transaction</button>
+	<button class="bg-graybg w-full sm:w-auto" onclick={openInExplorer(txid, explorerUrl)}>View transaction</button>
 }
 
 // containers
 
 templ oneButtonContainer(button templ.Component) {
-	<div class="md:flex flex-row-reverse justify-start gap-4 mt-16">
+	<div class="sm:flex flex-row-reverse justify-start gap-4 mt-16 w-80 sm:w-auto mx-auto sm:mx-0">
 	  @button
 	</div>
 }
 
 templ twoButtonsContainer(button1, button2 templ.Component) {
-  <div class="flex flex-col md:flex-row-reverse justify-start gap-4 mt-10 mb-2">
+  <div class="flex flex-col sm:flex-row-reverse justify-start gap-4 mt-10 mb-2 w-80 sm:w-auto mx-auto sm:mx-0">
 	  @button1
 		@button2
 	</div>
@@ -87,6 +115,13 @@ templ SettleButtons() {
   @twoButtonsContainer(
 	  greenButton("Settle now"),
 		cancelButton("Skip transaction"),
+	)
+}
+
+templ QrCodeButtons() {
+  @twoButtonsContainer(
+	  copyQrCodeButton(),
+		editAmountButton(),
 	)
 }
 

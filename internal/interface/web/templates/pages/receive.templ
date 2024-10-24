@@ -8,7 +8,7 @@ templ ReceiveEditContent() {
 	<div id="receiveBody">
 	  @components.DesktopHeader()
 	  <form hx-post="/receive/preview" hx-target="#receiveBody" hx-swap="outerHTML">
-	    <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+	    <div class="p-3 flex flex-col justify-between rounded-lg h-screen sm:h-auto sm:bg-desktopbg">
 	      <div>
 	        @components.Header("Receive")
 	        @components.ReceiveAmount()
@@ -25,7 +25,7 @@ templ ReceiveQrCodeContent(bip21, encoded, balance string) {
 	  <input class="hidden" id="submitButton" type="submit"/>
 	  <input class="hidden" name="balance" value={balance} />
 	  <input class="hidden" name="bip21" value={bip21} />
-	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen sm:h-auto sm:bg-desktopbg">
 	    @components.Header("Receive")
       <div class="flex flex-col justify-center items-center gap-2 overflow-auto">
 	  	  <div class="h-64">
@@ -36,36 +36,14 @@ templ ReceiveQrCodeContent(bip21, encoded, balance string) {
 	        <p class="overflow-hidden text-ellipsis whitespace-nowrap" id="bip21">{bip21}</p>
 	      </div>
 	  	</div>
-      <div class="flex flex-col md:flex-row-reverse justify-start gap-4 mt-10 mb-2">
-	      <button class="bg-graybg md:w-32" onclick="handleCopy(event)">
-	  		  @components.CopyIcon()
-	  			<span id="copyText" class="ml-2">Copy</span>
-	  		</button>
-	      <button class="bg-graybg md:w-auto" onclick="handleEdit(event)">
-	  		  @components.EditIcon()
-	  			<span class="ml-2">Edit</span>
-	  		</button>
-	    </div>
+      @components.QrCodeButtons()
 	  </div>
 	</form>
-	<script>
-	  const handleCopy = (event) => {
-			event.preventDefault()
-			copyToClipboard('#bip21')
-			document.querySelector('#copyText').innerText = 'Copied'
-			setTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2100)
-		}
-
-		const handleEdit = (event) => {
-			event.preventDefault()
-			redirect('/receive/edit')
-		}
-	</script>
 }
 
 templ ReceiveSuccessContent(offchainAddr, sats string) {
 	@components.DesktopHeader()
-	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+	<div class="p-3 flex flex-col justify-between rounded-lg h-screen sm:h-auto sm:bg-desktopbg">
 	  <div class="flex flex-col items-center">
 		  @components.Header("Receive")
 	    @SuccessIcon()

@@ -57,7 +57,7 @@ templ SettingsTabs(active string) {
 
 templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, locked bool) {
   @components.DesktopHeader()
-	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+	<div class="p-3 flex flex-col justify-between rounded-lg h-screen sm:h-auto sm:bg-desktopbg">
 	  <div>
 	    @components.Header("Settings")
       @SettingsTabs(active)

@@ -7,7 +7,7 @@ import (
 templ BackupInitialBodyContent() {
   @components.DesktopHeader()
   <form hx-get="/backup/secret">
-	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen sm:h-auto sm:bg-desktopbg">
 	    <div>
 	      @components.Header("Backup wallet")
         @components.Steps(1, 3)
@@ -27,7 +27,7 @@ templ BackupInitialBodyContent() {
 
 templ BackupSecretBodyContent(secret string) {
   <form hx-get="/backup/ack">
-	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen sm:h-auto sm:bg-desktopbg">
 	    <div>
 	      @components.Header("Backup wallet")
         @components.Steps(2, 3)
@@ -47,7 +47,7 @@ templ BackupSecretBodyContent(secret string) {
 }
 
 templ BackupAckBodyContent() {
-  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+  <div class="p-3 flex flex-col justify-between rounded-lg h-screen sm:h-auto sm:bg-desktopbg">
     <div>
 	    @components.Header("Backup wallet")
       @components.Steps(3, 3)

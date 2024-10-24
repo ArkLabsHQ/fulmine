@@ -74,7 +74,7 @@ func importWalletMnemonicContent() templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/mnemonic\"><div class=\"flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3\"><div><div class=\"hidden md:block\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/mnemonic\"><div class=\"flex flex-col justify-between h-screen sm:max-w-96 mx-auto p-3\"><div><div class=\"hidden sm:block\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -129,7 +129,7 @@ func newWalletMnemonicContent(mnemonic []string) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/mnemonic\"><div class=\"flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3\"><div><div class=\"hidden md:block\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<form hx-post=\"/mnemonic\"><div class=\"flex flex-col justify-between h-screen sm:max-w-96 mx-auto p-3\"><div><div class=\"hidden sm:block\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -155,7 +155,7 @@ func newWalletMnemonicContent(mnemonic []string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div><div class=\"flex flex-col md:flex-row md:justify-center gap-2 w-full\"><button class=\"md:w-auto bg-orange text-white\" id=\"importButton\" type=\"submit\">Continue</button> <button class=\"md:w-32 bg-graybg\" onclick=\"handleCopy(event)\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div></div><div class=\"flex flex-col sm:flex-row sm:justify-center gap-2 w-full\"><button class=\"sm:w-auto bg-orange text-white\" id=\"importButton\" type=\"submit\">Continue</button> <button class=\"sm:w-32 bg-graybg\" onclick=\"handleCopy(event)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

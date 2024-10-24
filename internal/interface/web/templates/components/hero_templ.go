@@ -37,7 +37,7 @@ func HeroHeader(arkAddress string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div><p class=\"leading-4 font-bold\">ARK</p><p class=\"leading-4 font-bold\">NODE</p></div></div><div class=\"flex gap-4 text-white/60\"><div class=\"rounded-lg bg-white/10 py-1 px-2 flex items-center gap-4\"><p class=\"overflow-hidden text-ellipsis w-16 md:w-32\" id=\"arkAddress\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div><p class=\"leading-4 font-bold\">ARK</p><p class=\"leading-4 font-bold\">NODE</p></div></div><div class=\"flex gap-4 text-white/60\"><div class=\"rounded-lg bg-white/10 py-1 px-2 flex items-center gap-4\"><p class=\"overflow-hidden text-ellipsis w-16 sm:w-32\" id=\"arkAddress\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -164,7 +164,7 @@ func Actions(online bool) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if online {
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"grid grid-cols-3 gap-4 md:flex md:flex-row\"><button class=\"bg-white text-black px-2 md:px-4 md:w-auto\" hx-on:click=\"redirect(&#39;/send&#39;)\">")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"grid grid-cols-3 gap-4 sm:flex sm:flex-row\"><button class=\"bg-white text-black px-2 sm:px-4 sm:w-auto\" hx-on:click=\"redirect(&#39;/send&#39;)\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -172,7 +172,7 @@ func Actions(online bool) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Send</button> <button class=\"bg-white text-black px-2 md:px-4 md:w-auto\" hx-on:click=\"redirect(&#39;/receive&#39;)\">")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Send</button> <button class=\"bg-white text-black px-2 sm:px-4 sm:w-auto\" hx-on:click=\"redirect(&#39;/receive&#39;)\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -180,7 +180,7 @@ func Actions(online bool) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Receive</button> <button class=\"bg-white text-black px-2 md:px-4 md:w-auto\" hx-on:click=\"redirect(&#39;/swap&#39;)\" disabled>")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("Receive</button> <button class=\"bg-white text-black px-2 sm:px-4 sm:w-auto\" hx-on:click=\"redirect(&#39;/swap&#39;)\" disabled>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -223,7 +223,7 @@ func Hero(arkAddress, currentBalance string, online bool) templ.Component {
 			templ_7745c5c3_Var8 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-radial-gradient rounded-b-lg md:rounded-t-lg p-3 mb-10\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"bg-radial-gradient rounded-b-lg sm:rounded-t-lg p-3 mb-10\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
