@@ -12,6 +12,7 @@ import (
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
 	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -30,6 +31,7 @@ type Service struct {
 	grpcClient   client.ASPClient
 	schedulerSvc ports.SchedulerService
 
+	listenersHandler *listenerHandler[sdktypes.TransactionEvent]
 	txNotificationCh chan sdktypes.TransactionEvent
 	quitCh           chan struct{}
 
@@ -44,6 +46,7 @@ func NewService(
 ) (*Service, error) {
 	txNotificationCh := make(chan sdktypes.TransactionEvent)
 	quitCh := make(chan struct{})
+	listenersHandler := newListenerHandler[sdktypes.TransactionEvent]()
 
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
@@ -57,7 +60,7 @@ func NewService(
 
 		svc := &Service{
 			buildInfo, arkClient, storeSvc, settingsRepo, client, schedulerSvc,
-			txNotificationCh, quitCh, true,
+			listenersHandler, txNotificationCh, quitCh, true,
 		}
 		go svc.listenToTxNotifications()
 
@@ -79,7 +82,7 @@ func NewService(
 
 	return &Service{
 		buildInfo, arkClient, storeSvc, settingsRepo, nil, schedulerSvc,
-		txNotificationCh, quitCh, false,
+		listenersHandler, txNotificationCh, quitCh, false,
 	}, nil
 }
 
@@ -87,8 +90,22 @@ func (s *Service) IsReady() bool {
 	return s.isReady
 }
 
-func (s *Service) GetTxNotifications() <-chan sdktypes.TransactionEvent {
-	return s.txNotificationCh
+func (s *Service) GetTxNotifications() (<-chan sdktypes.TransactionEvent, func()) {
+	listener := &listener[sdktypes.TransactionEvent]{
+		id: uuid.NewString(),
+		ch: make(chan sdktypes.TransactionEvent),
+	}
+
+	s.listenersHandler.push(listener)
+	cancel := func() {
+		fmt.Println("CLOSE")
+		close(listener.ch)
+		fmt.Println("REMOVE")
+		s.listenersHandler.remove(listener.id)
+		fmt.Println("DONE")
+	}
+
+	return listener.ch, cancel
 }
 
 func (s *Service) SetupFromMnemonic(ctx context.Context, aspURL, password, mnemonic string) error {
@@ -280,6 +297,9 @@ func (s *Service) WhenNextClaim(ctx context.Context) time.Time {
 }
 
 func (s *Service) Close() {
+	if !s.isReady {
+		return
+	}
 	s.quitCh <- struct{}{}
 	close(s.quitCh)
 	s.Stop()
@@ -290,7 +310,11 @@ func (s *Service) listenToTxNotifications() {
 	for {
 		select {
 		case event := <-eventsCh:
-			s.txNotificationCh <- event
+			for _, l := range s.listenersHandler.listeners {
+				go func(l *listener[sdktypes.TransactionEvent]) {
+					l.ch <- event
+				}(l)
+			}
 		case <-s.quitCh:
 			return
 		}

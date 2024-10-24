@@ -126,5 +126,7 @@ func NewService(appSvc *application.Service) *service {
 }
 
 func (s *service) Stop() {
-	s.quitCh <- struct{}{}
+	if s.svc.IsReady() {
+		s.quitCh <- struct{}{}
+	}
 }

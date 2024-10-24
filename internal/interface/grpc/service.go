@@ -152,4 +152,5 @@ func (s *service) Stop() {
 	log.Info("stopped http server")
 
 	s.appSvc.Close()
+	log.Info("stopped app svc")
 }
