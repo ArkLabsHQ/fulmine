@@ -45,7 +45,7 @@ run: clean
 run-bob: clean
 	@echo "Running ark-node in dev mode..."
 	@export ARK_NODE_GRPC_PORT=7002; \
-	@export ARK_NODE_HTTP_PORT=7003; \
+	export ARK_NODE_HTTP_PORT=7003; \
 	export ARK_NODE_DATADIR="./tmp"; \
 	go run ./cmd/ark-node
 
