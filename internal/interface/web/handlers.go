@@ -28,20 +28,6 @@ func (s *service) backupInitial(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
-func (s *service) backupSecret(c *gin.Context) {
-	if s.redirectedBecauseWalletIsLocked(c) {
-		return
-	}
-	secret, err := s.svc.Dump(c)
-	if err != nil {
-		toast := components.Toast("Unable to get secret", true)
-		toastHandler(toast, c)
-		return
-	}
-	bodyContent := pages.BackupSecretBodyContent(secret)
-	partialViewHandler(bodyContent, c)
-}
-
 func (s *service) backupAck(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
@@ -56,6 +42,48 @@ func (s *service) balance(c *gin.Context) {
 		log.WithError(err).Warn("failed to get spendable balance")
 	}
 	bodyContent := components.HeroBalance(spendableBalance)
+	partialViewHandler(bodyContent, c)
+}
+
+func (s *service) backupSecret(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	seed, err := s.svc.Dump(c)
+	if err != nil {
+		toast := components.Toast("Unable to get seed", true)
+		toastHandler(toast, c)
+		return
+	}
+	nsec, err := seedToNsec(seed)
+	if err != nil {
+		toast := components.Toast("Unable to convert to nsec", true)
+		toastHandler(toast, c)
+		return
+	}
+	bodyContent := pages.BackupSecretBodyContent(seed, nsec)
+	partialViewHandler(bodyContent, c)
+}
+
+func (s *service) backupTabActive(c *gin.Context) {
+	active := c.Param("active")
+	seed, err := s.svc.Dump(c)
+	if err != nil {
+		toast := components.Toast("Unable to get seed", true)
+		toastHandler(toast, c)
+		return
+	}
+	secret := seed
+	if active == "nsec" {
+		nsec, err := seedToNsec(seed)
+		if err != nil {
+			toast := components.Toast("Unable to convert to nsec", true)
+			toastHandler(toast, c)
+			return
+		}
+		secret = nsec
+	}
+	bodyContent := pages.BackupPartialContent(active, secret)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -238,7 +266,13 @@ func (s *service) logVtxos(c *gin.Context) {
 }
 
 func (s *service) newWalletPrivateKey(c *gin.Context) {
-	bodyContent := pages.ManagePrivateKeyContent(getNewPrivateKey())
+	nsec, err := seedToNsec(getNewPrivateKey())
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	bodyContent := pages.ManagePrivateKeyContent(nsec)
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -482,6 +516,15 @@ func (s *service) setPassword(c *gin.Context) {
 
 func (s *service) setPrivateKey(c *gin.Context) {
 	privateKey := c.PostForm("privateKey")
+	if strings.HasPrefix(privateKey, "nsec") {
+		seed, err := nsecToSeed(privateKey)
+		if err != nil {
+			toast := components.Toast("Invalid nsec", true)
+			toastHandler(toast, c)
+			return
+		}
+		privateKey = seed
+	}
 	bodyContent := pages.SetPasswordContent(privateKey)
 	partialViewHandler(bodyContent, c)
 }

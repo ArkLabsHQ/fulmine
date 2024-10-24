@@ -89,7 +89,7 @@ func importWalletPrivateKeyContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"mb-6\">Import an existing wallet with your private key.</p><p class=\"font-semibold mb-2\">Enter private key</p><div class=\"border border-1 border-white/20 bg-graybg p-4 flex items-center justify-between rounded-lg\"><input class=\"bg-graybg border-0 p-0 mr-4\" id=\"privateKey\" name=\"privateKey\" placeholder=\"abcdef0123456789...\" onchange=\"validatePrivateKey()\"><p class=\"cursor-pointer text-white/50\" onclick=\"handlePrivateKeyPaste()\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"mb-6\">Import an existing wallet with your Private Key.</p><p class=\"font-semibold mb-2\">Enter Private Key</p><div class=\"border border-1 border-white/20 bg-graybg p-4 flex items-center justify-between rounded-lg\"><input class=\"bg-graybg border-0 p-0 mr-4\" id=\"privateKey\" name=\"privateKey\" placeholder=\"abcdef0123456789...\" onchange=\"validatePrivateKey()\"><p class=\"cursor-pointer text-white/50\" onclick=\"handlePrivateKeyPaste()\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -97,7 +97,7 @@ func importWalletPrivateKeyContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div></div><button class=\"bg-orange text-white\" disabled id=\"importButton\" type=\"submit\">Invalid private key</button></div></form>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</p></div></div><button class=\"bg-orange text-white\" disabled id=\"importButton\" type=\"submit\">Invalid Private Key</button></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -155,7 +155,7 @@ func newWalletPrivateKeyContent(privateKey string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"mb-10\">Write down the following private key in a secure place.</p><p class=\"bg-white/20 rounded-lg p-3 break-words text-lg\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"mb-10\">Write down the following Private Key in a secure place.</p><p class=\"bg-white/20 rounded-lg p-3 break-words text-lg\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

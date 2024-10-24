@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/utils"
 	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/gin-gonic/gin"
+	"github.com/nbd-wtf/go-nostr/nip19"
 	log "github.com/sirupsen/logrus"
 	"github.com/tyler-smith/go-bip39"
 )
@@ -164,4 +166,23 @@ func (s *service) redirectedBecauseWalletIsLocked(c *gin.Context) bool {
 		c.Redirect(http.StatusFound, "/")
 	}
 	return redirect
+}
+
+func seedToNsec(seed string) (string, error) {
+	nsec, err := nip19.EncodePrivateKey(seed)
+	if err != nil {
+		return "", err
+	}
+	return nsec, nil
+}
+
+func nsecToSeed(nsec string) (string, error) {
+	prefix, seed, err := nip19.Decode(nsec)
+	if err != nil {
+		return "", err
+	}
+	if prefix != "nsec" {
+		return "", fmt.Errorf("invalid prefix")
+	}
+	return fmt.Sprint(seed), nil
 }
