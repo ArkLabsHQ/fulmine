@@ -559,18 +559,19 @@ func (s *service) stream(c *gin.Context) {
 	}()
 	for {
 		select {
-		case event := <-txsChan:
+		case <-txsChan:
 			go func() {
-				msg := fmt.Sprintf("[EVENT]: tx event: %s, %d", event.Event, event.Tx.Amount)
-				if event.Tx.IsBoarding() {
-					msg += fmt.Sprintf(", boarding tx: %s", event.Tx.BoardingTxid)
-				}
-				log.Infoln(msg)
+				// msg := fmt.Sprintf("[EVENT]: tx event: %s, %d", event.Event, event.Tx.Amount)
+				// if event.Tx.IsBoarding() {
+				// 	msg += fmt.Sprintf(", boarding tx: %s", event.Tx.BoardingTxid)
+				// }
+				// log.Infoln(msg)
 				c.SSEvent("reloadTxList", true)
 				c.Writer.Flush()
-				fmt.Println("DONE!!!!")
 			}()
 		case <-c.Done():
+			return
+		case <-c.Writer.CloseNotify():
 			return
 		case <-s.quitCh:
 			return
@@ -651,7 +652,6 @@ func (s *service) swapPreview(c *gin.Context) {
 }
 
 func (s *service) txList(c *gin.Context) {
-	fmt.Println("TX LIST")
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
 	}
