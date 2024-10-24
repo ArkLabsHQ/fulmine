@@ -54,7 +54,8 @@ func (t *TemplRender) Instance(name string, data interface{}) render.Render {
 
 type service struct {
 	*gin.Engine
-	svc *application.Service
+	svc    *application.Service
+	quitCh chan struct{}
 }
 
 func NewService(appSvc *application.Service) *service {
@@ -64,8 +65,9 @@ func NewService(appSvc *application.Service) *service {
 	// Define HTML renderer for template engine.
 	router.HTMLRender = &TemplRender{}
 	staticFS, _ := fs.Sub(static, "static")
+	quitCh := make(chan struct{})
 
-	svc := &service{router, appSvc}
+	svc := &service{router, appSvc, quitCh}
 
 	// Handle static files.
 	// svc.Static("/static", "./static")
@@ -121,4 +123,8 @@ func NewService(appSvc *application.Service) *service {
 	svc.GET("/helpers/txlist", svc.txList)
 
 	return svc
+}
+
+func (s *service) Stop() {
+	s.quitCh <- struct{}{}
 }

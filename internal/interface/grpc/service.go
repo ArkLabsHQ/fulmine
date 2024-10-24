@@ -118,6 +118,7 @@ func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 		Handler:   httpServerHandler,
 		TLSConfig: cfg.tlsConfig(),
 	}
+	httpServer.RegisterOnShutdown(feHandler.Stop)
 
 	return &service{cfg, appSvc, httpServer, grpcServer}, nil
 }
@@ -149,4 +150,6 @@ func (s *service) Stop() {
 	// nolint:all
 	s.httpServer.Shutdown(context.Background())
 	log.Info("stopped http server")
+
+	s.appSvc.Close()
 }

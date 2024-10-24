@@ -478,18 +478,23 @@ func (s *service) stream(c *gin.Context) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 
-	txsChan := s.svc.GetTransactionEventChannel()
+	txsChan := s.svc.GetTxNotifications()
 	for {
 		select {
-		case txEvent := <-txsChan:
-			msg := fmt.Sprintf("[EVENT]: tx event: %s, %d", txEvent.Event, txEvent.Tx.Amount)
-			if txEvent.Tx.IsBoarding() {
-				msg += fmt.Sprintf(", boarding tx: %s", txEvent.Tx.BoardingTxid)
-			}
-			log.Infoln(msg)
-			c.SSEvent("reloadTxList", true)
-			c.Writer.Flush()
+		case event := <-txsChan:
+			go func() {
+				msg := fmt.Sprintf("[EVENT]: tx event: %s, %d", event.Event, event.Tx.Amount)
+				if event.Tx.IsBoarding() {
+					msg += fmt.Sprintf(", boarding tx: %s", event.Tx.BoardingTxid)
+				}
+				log.Infoln(msg)
+				c.SSEvent("reloadTxList", true)
+				c.Writer.Flush()
+				fmt.Println("DONE!!!!")
+			}()
 		case <-c.Done():
+			return
+		case <-s.quitCh:
 			return
 		}
 	}
@@ -568,6 +573,7 @@ func (s *service) swapPreview(c *gin.Context) {
 }
 
 func (s *service) txList(c *gin.Context) {
+	fmt.Println("TX LIST")
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
 	}

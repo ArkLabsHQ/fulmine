@@ -30,6 +30,9 @@ type Service struct {
 	grpcClient   client.ASPClient
 	schedulerSvc ports.SchedulerService
 
+	txNotificationCh chan sdktypes.TransactionEvent
+	quitCh           chan struct{}
+
 	isReady bool
 }
 
@@ -39,6 +42,9 @@ func NewService(
 	settingsRepo domain.SettingsRepository,
 	schedulerSvc ports.SchedulerService,
 ) (*Service, error) {
+	txNotificationCh := make(chan sdktypes.TransactionEvent)
+	quitCh := make(chan struct{})
+
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
 		if err != nil {
@@ -48,9 +54,14 @@ func NewService(
 		if err != nil {
 			return nil, err
 		}
-		return &Service{
-			buildInfo, arkClient, storeSvc, settingsRepo, client, schedulerSvc, true,
-		}, nil
+
+		svc := &Service{
+			buildInfo, arkClient, storeSvc, settingsRepo, client, schedulerSvc,
+			txNotificationCh, quitCh, true,
+		}
+		go svc.listenToTxNotifications()
+
+		return svc, nil
 	}
 
 	ctx := context.Background()
@@ -66,11 +77,18 @@ func NewService(
 		return nil, err
 	}
 
-	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, nil, schedulerSvc, false}, nil
+	return &Service{
+		buildInfo, arkClient, storeSvc, settingsRepo, nil, schedulerSvc,
+		txNotificationCh, quitCh, false,
+	}, nil
 }
 
 func (s *Service) IsReady() bool {
 	return s.isReady
+}
+
+func (s *Service) GetTxNotifications() <-chan sdktypes.TransactionEvent {
+	return s.txNotificationCh
 }
 
 func (s *Service) SetupFromMnemonic(ctx context.Context, aspURL, password, mnemonic string) error {
@@ -115,6 +133,7 @@ func (s *Service) Setup(
 
 	s.grpcClient = client
 	s.isReady = true
+	go s.listenToTxNotifications()
 	return nil
 }
 
@@ -158,6 +177,7 @@ func (s *Service) Reset(ctx context.Context) error {
 		s.settingsRepo.AddSettings(ctx, *backup)
 		return err
 	}
+	s.quitCh <- struct{}{}
 	return nil
 }
 
@@ -257,4 +277,22 @@ func (s *Service) ScheduleClaims(ctx context.Context) error {
 
 func (s *Service) WhenNextClaim(ctx context.Context) time.Time {
 	return s.schedulerSvc.WhenNextClaim()
+}
+
+func (s *Service) Close() {
+	s.quitCh <- struct{}{}
+	close(s.quitCh)
+	s.Stop()
+}
+
+func (s *Service) listenToTxNotifications() {
+	eventsCh := s.GetTransactionEventChannel()
+	for {
+		select {
+		case event := <-eventsCh:
+			s.txNotificationCh <- event
+		case <-s.quitCh:
+			return
+		}
+	}
 }
