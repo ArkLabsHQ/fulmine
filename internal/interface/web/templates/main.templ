@@ -185,10 +185,14 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 			// rate of the preferred currency choosen in setttings: usd or euro
 			const updateFiatValues = () => {
 				const settings = JSON.parse(document.querySelector('#settings').textContent)
-				fetch('https://btcoracle.bordalix.workers.dev/').then((res) => {
+				fetch('https://blockchain.info').then((res) => {
           res.json().then((json) => {
+						const pricefeed = {
+							eur: json.EUR?.last,
+              usd: json.USD?.last,
+						}
             document.querySelectorAll('.fiatAmount').forEach((x) => {
-              const sats = parseInt(x.getAttribute('sats'))
+							const sats = parseInt(x.getAttribute('sats'))
 	      			if (isNaN(sats)) return
 	      			const prefix = settings.Currency === 'eur' ? '€' : '$'
               const fiatValue = (sats * json.pricefeed[settings.Currency]) / 100_000_000
