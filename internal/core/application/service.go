@@ -29,6 +29,7 @@ type Service struct {
 	settingsRepo domain.SettingsRepository
 	grpcClient   client.ASPClient
 	schedulerSvc ports.SchedulerService
+	LndSvc       ports.LndService
 
 	isReady bool
 }
@@ -38,6 +39,7 @@ func NewService(
 	storeSvc store.ConfigStore,
 	settingsRepo domain.SettingsRepository,
 	schedulerSvc ports.SchedulerService,
+	lndSvc ports.LndService,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
@@ -49,7 +51,7 @@ func NewService(
 			return nil, err
 		}
 		return &Service{
-			buildInfo, arkClient, storeSvc, settingsRepo, client, schedulerSvc, true,
+			buildInfo, arkClient, storeSvc, settingsRepo, client, schedulerSvc, lndSvc, true,
 		}, nil
 	}
 
@@ -66,7 +68,7 @@ func NewService(
 		return nil, err
 	}
 
-	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, nil, schedulerSvc, false}, nil
+	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, nil, schedulerSvc, lndSvc, false}, nil
 }
 
 func (s *Service) IsReady() bool {
@@ -81,9 +83,7 @@ func (s *Service) SetupFromMnemonic(ctx context.Context, aspURL, password, mnemo
 	return s.Setup(ctx, aspURL, password, privateKey)
 }
 
-func (s *Service) Setup(
-	ctx context.Context, aspURL, password, privateKey string,
-) (err error) {
+func (s *Service) Setup(ctx context.Context, aspURL, password, privateKey string) (err error) {
 	if err := s.settingsRepo.UpdateSettings(
 		ctx, domain.Settings{AspUrl: aspURL},
 	); err != nil {
@@ -169,21 +169,15 @@ func (s *Service) GetSettings(ctx context.Context) (*domain.Settings, error) {
 	return sett, err
 }
 
-func (s *Service) NewSettings(
-	ctx context.Context, settings domain.Settings,
-) error {
+func (s *Service) NewSettings(ctx context.Context, settings domain.Settings) error {
 	return s.settingsRepo.AddSettings(ctx, settings)
 }
 
-func (s *Service) UpdateSettings(
-	ctx context.Context, settings domain.Settings,
-) error {
+func (s *Service) UpdateSettings(ctx context.Context, settings domain.Settings) error {
 	return s.settingsRepo.UpdateSettings(ctx, settings)
 }
 
-func (s *Service) GetAddress(
-	ctx context.Context, sats uint64,
-) (bip21Addr, offchainAddr, boardingAddr string, err error) {
+func (s *Service) GetAddress(ctx context.Context, sats uint64) (bip21Addr, offchainAddr, boardingAddr string, err error) {
 	offchainAddr, boardingAddr, err = s.Receive(ctx)
 	if err != nil {
 		return

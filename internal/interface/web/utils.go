@@ -55,10 +55,6 @@ func getNewPrivateKey() string {
 	return privateKey
 }
 
-func (s *service) getNodeStatus() bool {
-	return true // TODO
-}
-
 func redirect(path string, c *gin.Context) {
 	c.Header("HX-Redirect", path)
 	c.Status(303)

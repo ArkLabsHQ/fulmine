@@ -21,7 +21,6 @@ var (
 		Currency:    "cur",
 		EventServer: "eventserver",
 		FullNode:    "fullnode",
-		LnConnect:   false,
 		LnUrl:       "lndconnect",
 		Unit:        "unit",
 	}
