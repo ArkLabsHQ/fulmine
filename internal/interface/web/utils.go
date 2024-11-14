@@ -28,8 +28,27 @@ func getExplorerUrl(network string) string {
 	}
 }
 
-func (s *service) getNodeStatus() bool {
-	return true // TODO
+func getNewMnemonic() []string {
+	// 128 bits of entropy for a 12-word mnemonic
+	entropy, err := bip39.NewEntropy(128)
+	if err != nil {
+		return strings.Fields("")
+	}
+	mnemonic, err := bip39.NewMnemonic(entropy)
+	if err != nil {
+		return strings.Fields("")
+	}
+	return strings.Fields(mnemonic)
+}
+
+func getNewPrivateKey() string {
+	words := getNewMnemonic()
+	mnemonic := strings.Join(words, " ")
+	privateKey, err := utils.PrivateKeyFromMnemonic(mnemonic)
+	if err != nil {
+		return ""
+	}
+	return privateKey
 }
 
 func redirect(path string, c *gin.Context) {

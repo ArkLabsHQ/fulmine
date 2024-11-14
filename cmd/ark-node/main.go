@@ -8,6 +8,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/config"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
 	badgerdb "github.com/ArkLabsHQ/ark-node/internal/infrastructure/db/badger"
+	lnd "github.com/ArkLabsHQ/ark-node/internal/infrastructure/lnd"
 	scheduler "github.com/ArkLabsHQ/ark-node/internal/infrastructure/scheduler/gocron"
 	grpcservice "github.com/ArkLabsHQ/ark-node/internal/interface/grpc"
 	"github.com/ark-network/ark/pkg/client-sdk/store"
@@ -62,8 +63,9 @@ func main() {
 	}
 
 	schedulerSvc := scheduler.NewScheduler()
+	lnSvc := lnd.NewService()
 
-	appSvc, err := application.NewService(buildInfo, storeSvc, settingsRepo, schedulerSvc)
+	appSvc, err := application.NewService(buildInfo, storeSvc, settingsRepo, schedulerSvc, lnSvc)
 	if err != nil {
 		log.WithError(err).Fatal(err)
 	}
