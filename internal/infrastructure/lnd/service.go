@@ -13,7 +13,7 @@ type service struct {
 	macaroon string
 }
 
-func NewService() ports.LndService {
+func NewService() ports.LnService {
 	return &service{nil, ""}
 }
 

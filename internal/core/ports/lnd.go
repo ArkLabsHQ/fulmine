@@ -2,7 +2,7 @@ package ports
 
 import "github.com/lightningnetwork/lnd/lnrpc"
 
-type LndService interface {
+type LnService interface {
 	Connect(lndconnectUrl string) error
 	Disconnect()
 	GetInfo() (*lnrpc.GetInfoResponse, error)

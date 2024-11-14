@@ -29,7 +29,7 @@ type Service struct {
 	settingsRepo domain.SettingsRepository
 	grpcClient   client.ASPClient
 	schedulerSvc ports.SchedulerService
-	LndSvc       ports.LndService
+	LndSvc       ports.LnService
 
 	isReady bool
 }
@@ -39,7 +39,7 @@ func NewService(
 	storeSvc store.ConfigStore,
 	settingsRepo domain.SettingsRepository,
 	schedulerSvc ports.SchedulerService,
-	lndSvc ports.LndService,
+	lndSvc ports.LnService,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
