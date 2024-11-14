@@ -6,15 +6,17 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 )
 
 type service struct {
 	client   lnrpc.LightningClient
+	conn     *grpc.ClientConn
 	macaroon string
 }
 
 func NewService() ports.LnService {
-	return &service{nil, ""}
+	return &service{nil, nil, ""}
 }
 
 func (s *service) Connect(lndconnectUrl string) error {
@@ -22,33 +24,35 @@ func (s *service) Connect(lndconnectUrl string) error {
 		return fmt.Errorf("empty lnurl")
 	}
 
-	client, macaroon, err := getClient(lndconnectUrl)
+	client, conn, macaroon, err := getClient(lndconnectUrl)
 	if err != nil {
 		return fmt.Errorf("unable to get client: %v", err)
 	}
 
-	s.client = client
-	s.macaroon = macaroon
-
-	version, pubkey, err := s.GetInfo()
+	info, err := client.GetInfo(getCtx(macaroon), &lnrpc.GetInfoRequest{})
 	if err != nil {
 		return fmt.Errorf("unable to get info: %v", err)
 	}
 
-	if len(version) == 0 {
+	if len(info.GetVersion()) == 0 {
 		return fmt.Errorf("something went wrong, version is empty")
 	}
 
-	if len(pubkey) == 0 {
+	if len(info.GetIdentityPubkey()) == 0 {
 		return fmt.Errorf("something went wrong, pubkey is empty")
 	}
 
-	logrus.Infof("connected to LND version %s with pubkey %s", version, pubkey)
+	s.client = client
+	s.conn = conn
+	s.macaroon = macaroon
+
+	logrus.Infof("connected to LND version %s with pubkey %s", info.GetVersion(), info.GetIdentityPubkey())
 
 	return nil
 }
 
 func (s *service) Disconnect() {
+	s.conn.Close()
 	s.client = nil
 }
 

@@ -44,7 +44,7 @@ func decodeLNDConnectUrl(lndconnectUrl string) (cp *x509.CertPool, macaroon stri
 	return
 }
 
-func getClient(lndconnectUrl string) (client lnrpc.LightningClient, macaroon string, err error) {
+func getClient(lndconnectUrl string) (client lnrpc.LightningClient, conn *grpc.ClientConn, macaroon string, err error) {
 	// decode url
 	cert, macaroon, host, err := decodeLNDConnectUrl(lndconnectUrl)
 	if err != nil {
@@ -52,12 +52,12 @@ func getClient(lndconnectUrl string) (client lnrpc.LightningClient, macaroon str
 	}
 	// check credentials (only cert, not macaroon)
 	creds := credentials.NewClientTLSFromCert(cert, "")
-	conn, err := grpc.NewClient(host, grpc.WithTransportCredentials(creds))
+	conn, err = grpc.NewClient(host, grpc.WithTransportCredentials(creds))
 	if err != nil {
 		return
 	}
 
-	return lnrpc.NewLightningClient(conn), macaroon, nil
+	return lnrpc.NewLightningClient(conn), conn, macaroon, nil
 }
 
 func getCtx(macaroon string) context.Context {
