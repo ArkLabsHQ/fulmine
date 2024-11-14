@@ -85,7 +85,8 @@ message GenSeedResponse{
 }
 
 message CreateWalletRequest{
-  // The mnemonic from where deriving signing key pairs.
+  // The private key from where signing key pairs are derived.
+  // In 64 chars hexadecimal format.
   string private_key = 1;
   // The password to decrypt HD wallet. After creation, the wallet is locked
   // and the same password is required to unlock it.
