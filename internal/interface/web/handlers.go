@@ -415,11 +415,10 @@ func (s *service) settings(c *gin.Context) {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	isLocked := s.svc.IsLocked(c)
 
 	active := c.Param("active")
 	bodyContent := pages.SettingsBodyContent(
-		active, *settings, s.getNodeStatus(), isLocked,
+		active, *settings, s.svc.IsConnectedLN(), s.svc.IsLocked(c),
 	)
 	s.pageViewHandler(bodyContent, c)
 }

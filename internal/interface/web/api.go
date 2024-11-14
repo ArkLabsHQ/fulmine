@@ -70,16 +70,20 @@ func (s *service) updateSettingsApi(c *gin.Context) {
 	toastHandler(toast, c)
 }
 
-func (s *service) connectNodeApi(c *gin.Context) {
-	// TODO: manage node connection
-	toast := components.Toast("Connected")
-	toastHandler(toast, c)
+func (s *service) connectLNDApi(c *gin.Context) {
+	url := c.PostForm("lnurl")
+	err := s.svc.ConnectLN(url)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+	reload(c)
 }
 
-func (s *service) disconnectNodeApi(c *gin.Context) {
-	// TODO: manage node connection
-	toast := components.Toast("Disconnected")
-	toastHandler(toast, c)
+func (s *service) disconnectLNDApi(c *gin.Context) {
+	s.svc.DisconnectLN()
+	reload(c)
 }
 
 func (s *service) validateMnemonicApi(c *gin.Context) {
