@@ -53,6 +53,11 @@ func (s *service) Disconnect() {
 }
 
 func (s *service) GetInfo() (version string, pubkey string, err error) {
+	if !s.IsConnected() {
+		err = fmt.Errorf("lnd service not connected")
+		return
+	}
+
 	info, err := s.client.GetInfo(getCtx(s.macaroon), &lnrpc.GetInfoRequest{})
 	if err != nil {
 		return
@@ -62,6 +67,11 @@ func (s *service) GetInfo() (version string, pubkey string, err error) {
 }
 
 func (s *service) GetInvoice(value int, memo string) (invoice string, err error) {
+	if !s.IsConnected() {
+		err = fmt.Errorf("lnd service not connected")
+		return
+	}
+
 	invoiceRequest := &lnrpc.Invoice{
 		Value: int64(value), // amount in satoshis
 		Memo:  memo,         // optional memo
