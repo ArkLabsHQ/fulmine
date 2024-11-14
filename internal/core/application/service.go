@@ -29,7 +29,7 @@ type Service struct {
 	settingsRepo domain.SettingsRepository
 	grpcClient   client.ASPClient
 	schedulerSvc ports.SchedulerService
-	LndSvc       ports.LnService
+	lndSvc       ports.LnService
 
 	isReady bool
 }
@@ -250,4 +250,16 @@ func (s *Service) ScheduleClaims(ctx context.Context) error {
 
 func (s *Service) WhenNextClaim(ctx context.Context) time.Time {
 	return s.schedulerSvc.WhenNextClaim()
+}
+
+func (s *Service) ConnectLN(lndconnectUrl string) error {
+	return s.lndSvc.Connect(lndconnectUrl)
+}
+
+func (s *Service) DisconnectLN() {
+	s.lndSvc.Disconnect()
+}
+
+func (s *Service) IsConnectedLN() bool {
+	return s.lndSvc.IsConnected()
 }
