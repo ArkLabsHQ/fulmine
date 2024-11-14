@@ -58,9 +58,9 @@ func main() {
 	}
 
 	schedulerSvc := scheduler.NewScheduler()
-	lndSvc := lnd.NewService()
+	lnSvc := lnd.NewService()
 
-	appSvc, err := application.NewService(buildInfo, storeSvc, settingsRepo, schedulerSvc, lndSvc)
+	appSvc, err := application.NewService(buildInfo, storeSvc, settingsRepo, schedulerSvc, lnSvc)
 	if err != nil {
 		log.WithError(err).Fatal(err)
 	}

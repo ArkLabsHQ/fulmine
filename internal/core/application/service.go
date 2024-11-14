@@ -29,7 +29,7 @@ type Service struct {
 	settingsRepo domain.SettingsRepository
 	grpcClient   client.ASPClient
 	schedulerSvc ports.SchedulerService
-	lndSvc       ports.LnService
+	lnSvc        ports.LnService
 
 	isReady bool
 }
@@ -39,7 +39,7 @@ func NewService(
 	storeSvc store.ConfigStore,
 	settingsRepo domain.SettingsRepository,
 	schedulerSvc ports.SchedulerService,
-	lndSvc ports.LnService,
+	lnSvc ports.LnService,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
@@ -51,7 +51,7 @@ func NewService(
 			return nil, err
 		}
 		return &Service{
-			buildInfo, arkClient, storeSvc, settingsRepo, client, schedulerSvc, lndSvc, true,
+			buildInfo, arkClient, storeSvc, settingsRepo, client, schedulerSvc, lnSvc, true,
 		}, nil
 	}
 
@@ -68,7 +68,7 @@ func NewService(
 		return nil, err
 	}
 
-	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, nil, schedulerSvc, lndSvc, false}, nil
+	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, nil, schedulerSvc, lnSvc, false}, nil
 }
 
 func (s *Service) IsReady() bool {
@@ -253,13 +253,13 @@ func (s *Service) WhenNextClaim(ctx context.Context) time.Time {
 }
 
 func (s *Service) ConnectLN(lndconnectUrl string) error {
-	return s.lndSvc.Connect(lndconnectUrl)
+	return s.lnSvc.Connect(lndconnectUrl)
 }
 
 func (s *Service) DisconnectLN() {
-	s.lndSvc.Disconnect()
+	s.lnSvc.Disconnect()
 }
 
 func (s *Service) IsConnectedLN() bool {
-	return s.lndSvc.IsConnected()
+	return s.lnSvc.IsConnected()
 }
