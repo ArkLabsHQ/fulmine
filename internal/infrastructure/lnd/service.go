@@ -30,23 +30,20 @@ func (s *service) Connect(lndconnectUrl string) error {
 	s.client = client
 	s.macaroon = macaroon
 
-	info, err := s.GetInfo()
+	version, pubkey, err := s.GetInfo()
 	if err != nil {
 		return fmt.Errorf("unable to get info: %v", err)
 	}
 
-	if len(info.Version) == 0 {
+	if len(version) == 0 {
 		return fmt.Errorf("something went wrong, version is empty")
 	}
 
-	logrus.Infof("connected to LND version %s", info.Version)
-
-	invoice, err := s.GetInvoice(21, "")
-	if err != nil {
-		return fmt.Errorf("unable to get invoice: %v", err)
+	if len(pubkey) == 0 {
+		return fmt.Errorf("something went wrong, pubkey is empty")
 	}
 
-	logrus.Info(invoice.PaymentRequest)
+	logrus.Infof("connected to LND version %s with pubkey %s", version, pubkey)
 
 	return nil
 }
@@ -55,16 +52,27 @@ func (s *service) Disconnect() {
 	s.client = nil
 }
 
-func (s *service) GetInfo() (*lnrpc.GetInfoResponse, error) {
-	return s.client.GetInfo(getCtx(s.macaroon), &lnrpc.GetInfoRequest{})
+func (s *service) GetInfo() (version string, pubkey string, err error) {
+	info, err := s.client.GetInfo(getCtx(s.macaroon), &lnrpc.GetInfoRequest{})
+	if err != nil {
+		return
+	}
+
+	return info.Version, info.IdentityPubkey, nil
 }
 
-func (s *service) GetInvoice(value int, memo string) (*lnrpc.AddInvoiceResponse, error) {
+func (s *service) GetInvoice(value int, memo string) (invoice string, err error) {
 	invoiceRequest := &lnrpc.Invoice{
 		Value: int64(value), // amount in satoshis
 		Memo:  memo,         // optional memo
 	}
-	return s.client.AddInvoice(getCtx(s.macaroon), invoiceRequest)
+
+	info, err := s.client.AddInvoice(getCtx(s.macaroon), invoiceRequest)
+	if err != nil {
+		return
+	}
+
+	return info.PaymentRequest, nil
 }
 
 func (s *service) IsConnected() bool {
