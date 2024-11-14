@@ -141,6 +141,19 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		logrus.WithError(err).Info("schedule next claim failed")
 	}
 
+	go func() {
+		settings, err := s.settingsRepo.GetSettings(ctx)
+		if err != nil {
+			logrus.WithError(err).Warn("failed to get settings")
+			return
+		}
+		if len(settings.LnUrl) > 0 {
+			if err := s.lnSvc.Connect(settings.LnUrl); err != nil {
+				logrus.WithError(err).Warn("failed to connect")
+			}
+		}
+	}()
+
 	return nil
 }
 
