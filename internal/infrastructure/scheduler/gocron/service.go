@@ -5,8 +5,7 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
-	arksdk "github.com/ark-network/ark/pkg/client-sdk"
-	"github.com/ark-network/ark/pkg/client-sdk/store"
+	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/go-co-op/gocron"
 )
 
@@ -31,21 +30,21 @@ func (s *service) Stop() {
 
 // Sets a ClaimPending() to run in the best market hour
 // Besides claiming, ClaimPending() also calls this function
-func (s *service) ScheduleNextClaim(txs []arksdk.Transaction, data *store.StoreData, claimFunc func()) error {
+func (s *service) ScheduleNextClaim(txs []types.Transaction, cfg *types.Config, claimFunc func()) error {
 	now := time.Now().Unix()
-	at := now + data.RoundLifetime
+	at := now + cfg.RoundLifetime
 
 	for _, tx := range txs {
-		if !tx.IsPending {
+		if tx.Settled {
 			continue
 		}
-		expiresAt := tx.CreatedAt.Unix() + data.RoundLifetime
+		expiresAt := tx.CreatedAt.Unix() + cfg.RoundLifetime
 		if expiresAt < at {
 			at = expiresAt
 		}
 	}
 
-	bestTime := bestMarketHour(at, data)
+	bestTime := bestMarketHour(at, cfg.RoundInterval)
 
 	delay := bestTime - now
 	if delay < 0 {
@@ -69,12 +68,12 @@ func (s *service) WhenNextClaim() time.Time {
 }
 
 // TODO: get market hour info from config data
-func bestMarketHour(at int64, data *store.StoreData) int64 {
+func bestMarketHour(at int64, roundInterval int64) int64 {
 	firstMarketHour := int64(1231006505) // block 0 timestamp
 	marketHourInterval := int64(86400)   // 24 hours
 	cycles := (at - firstMarketHour) / marketHourInterval
 	best := firstMarketHour + cycles*marketHourInterval
-	if at-best <= data.RoundInterval {
+	if at-best <= roundInterval {
 		return best - marketHourInterval
 	}
 	return best
