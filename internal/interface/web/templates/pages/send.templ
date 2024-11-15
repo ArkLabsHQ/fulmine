@@ -26,7 +26,7 @@ templ SuccessIcon() {
 templ SendBodyContent(currentBalance string) {
 	@components.DesktopHeader()
 	<div id="sendBody">
-	  <form hx-post="/app/send/preview" hx-target="#sendBody">
+	  <form hx-post="/send/preview" hx-target="#sendBody">
 	    <input id="balance" type="hidden" value={ currentBalance } />
 	    <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	      <div>
@@ -56,7 +56,7 @@ templ SendBodyContent(currentBalance string) {
 
 templ SendPreviewContent(address, sats, feeAmount, total string) {
 	<div id="sendBody">
-	  <form hx-post="/app/send/confirm" hx-target="#sendBody" hx-target="outerHTML">
+	  <form hx-post="/send/confirm" hx-target="#sendBody" hx-target="outerHTML">
 		  <input type="hidden" name="address" value={address}>
 		  <input type="hidden" name="sats" value={sats}>
 	    <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">

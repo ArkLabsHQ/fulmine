@@ -7,7 +7,7 @@ import (
 templ ReceiveEditContent() {
 	<div id="receiveBody">
 	  @components.DesktopHeader()
-	  <form hx-post="/app/receive/preview" hx-target="#receiveBody" hx-swap="outerHTML">
+	  <form hx-post="/receive/preview" hx-target="#receiveBody" hx-swap="outerHTML">
 	    <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	      <div>
 	        @components.Header("Receive")
@@ -20,7 +20,7 @@ templ ReceiveEditContent() {
 }
 
 templ ReceiveQrCodeContent(bip21, encoded, sats string) {
-	<form id="success" hx-post="/app/receive/success">
+	<form id="success" hx-post="/receive/success">
 	  @components.DesktopHeader()
 	  <input class="hidden" id="submitButton" type="submit"/>
 	  <input class="hidden" name="bip21" value={bip21} />
@@ -63,7 +63,7 @@ templ ReceiveQrCodeContent(bip21, encoded, sats string) {
 		
 		const waitForPayment = async () => {
 			const getBalance = async () => {
-        const res = await fetch("/app/api/balance")
+        const res = await fetch("/helpers/balance")
 		    return res.ok ? await res.json() : {}
 			}
 		  const initialBalance = await getBalance()

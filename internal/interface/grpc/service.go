@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
-	"strings"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
@@ -24,9 +24,10 @@ import (
 )
 
 type service struct {
-	cfg    Config
-	appSvc *application.Service
-	server *http.Server
+	cfg        Config
+	appSvc     *application.Service
+	httpServer *http.Server
+	grpcServer *grpc.Server
 }
 
 func NewService(cfg Config, appSvc *application.Service) (*service, error) {
@@ -98,14 +99,13 @@ func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 	); err != nil {
 		return nil, err
 	}
-	grpcGateway := http.Handler(gwmux)
 
 	feHandler := web.NewService(appSvc)
 
-	handler := router(grpcServer, grpcGateway)
+	// handler := router(grpcServer, grpcGateway)
 	mux := http.NewServeMux()
-	mux.Handle("/", handler)
-	mux.Handle("/app/", http.StripPrefix("/app", feHandler))
+	mux.Handle("/", feHandler)
+	mux.Handle("/api/", http.StripPrefix("/api", gwmux))
 	mux.Handle("/static/", feHandler)
 
 	httpServerHandler := http.Handler(mux)
@@ -113,62 +113,40 @@ func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 		httpServerHandler = h2c.NewHandler(httpServerHandler, &http2.Server{})
 	}
 
-	server := &http.Server{
-		Addr:      cfg.address(),
+	httpServer := &http.Server{
+		Addr:      cfg.httpAddress(),
 		Handler:   httpServerHandler,
 		TLSConfig: cfg.tlsConfig(),
 	}
 
-	return &service{cfg, appSvc, server}, nil
+	return &service{cfg, appSvc, httpServer, grpcServer}, nil
 }
 
 func (s *service) Start() error {
+	listener, err := net.Listen("tcp", s.cfg.grpcAddress())
+	if err != nil {
+		return err
+	}
+	// nolint:all
+	go s.grpcServer.Serve(listener)
+	log.Infof("started GRPC server at %s", s.cfg.grpcAddress())
+
 	if s.cfg.insecure() {
 		// nolint:all
-		go s.server.ListenAndServe()
+		go s.httpServer.ListenAndServe()
 	} else {
 		// nolint:all
-		go s.server.ListenAndServeTLS("", "")
+		go s.httpServer.ListenAndServeTLS("", "")
 	}
-	log.Infof("started listening at %s", s.cfg.address())
+	log.Infof("started HTTP server at %s", s.cfg.httpAddress())
 
 	return nil
 }
 
 func (s *service) Stop() {
-	// nolint:all
-	s.server.Shutdown(context.Background())
+	s.grpcServer.GracefulStop()
 	log.Info("stopped grpc server")
-}
-
-func router(
-	grpcServer *grpc.Server, grpcGateway http.Handler,
-) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if isOptionRequest(r) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Headers", "*")
-			w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-			return
-		}
-
-		if isHttpRequest(r) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Headers", "*")
-			w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-
-			grpcGateway.ServeHTTP(w, r)
-			return
-		}
-		grpcServer.ServeHTTP(w, r)
-	})
-}
-
-func isOptionRequest(req *http.Request) bool {
-	return req.Method == http.MethodOptions
-}
-
-func isHttpRequest(req *http.Request) bool {
-	return req.Method == http.MethodGet ||
-		strings.Contains(req.Header.Get("Content-Type"), "application/json")
+	// nolint:all
+	s.httpServer.Shutdown(context.Background())
+	log.Info("stopped http server")
 }

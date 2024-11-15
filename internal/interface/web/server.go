@@ -76,6 +76,7 @@ func NewService(appSvc *application.Service) *service {
 	svc.GET("/backup", svc.backupInitial)
 	svc.GET("/backup/secret", svc.backupSecret)
 	svc.GET("/backup/ack", svc.backupAck)
+	svc.GET("/backup/tab/:active", svc.backupTabActive)
 	svc.GET("/done", svc.done)
 	svc.GET("/forgot", svc.forgot)
 	svc.GET("/import", svc.importWalletPrivateKey)
@@ -106,17 +107,17 @@ func NewService(appSvc *application.Service) *service {
 	svc.POST("/swap/preview", svc.swapPreview)
 	svc.POST("/swap/confirm", svc.swapConfirm)
 
-	svc.POST("/api/claim", svc.claimApi)
-	svc.POST("/api/lock", svc.lockApi)
-	svc.POST("/api/settings", svc.updateSettingsApi)
-	svc.POST("/api/node/connect", svc.connectNodeApi)
-	svc.POST("/api/node/disconnect", svc.disconnectNodeApi)
-	svc.POST("/api/mnemonic/validate", svc.validateMnemonicApi)
-	svc.POST("/api/privatekey/validate", svc.validatePrivateKeyApi)
-	svc.POST("/api/url/validate", svc.validateUrlApi)
-	svc.POST("/api/unlock", svc.unlockApi)
+	svc.POST("/helpers/claim", svc.claimApi)
+	svc.POST("/helpers/lock", svc.lockApi)
+	svc.POST("/helpers/settings", svc.updateSettingsApi)
+	svc.POST("/helpers/node/connect", svc.connectLNDApi)
+	svc.POST("/helpers/node/disconnect", svc.disconnectLNDApi)
+	svc.POST("/helpers/mnemonic/validate", svc.validateMnemonicApi)
+	svc.POST("/helpers/privatekey/validate", svc.validatePrivateKeyApi)
+	svc.POST("/helpers/url/validate", svc.validateUrlApi)
+	svc.POST("/helpers/unlock", svc.unlockApi)
 
-	svc.GET("/api/balance", svc.getBalanceApi)
+	svc.GET("/helpers/balance", svc.getBalanceApi)
 
 	return svc
 }

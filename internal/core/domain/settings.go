@@ -8,7 +8,6 @@ type Settings struct {
 	Currency    string
 	EventServer string
 	FullNode    string
-	LnConnect   bool
 	LnUrl       string
 	Unit        string
 }

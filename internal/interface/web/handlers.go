@@ -31,25 +31,53 @@ func (s *service) backupInitial(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
-func (s *service) backupSecret(c *gin.Context) {
-	if s.redirectedBecauseWalletIsLocked(c) {
-		return
-	}
-	secret, err := s.svc.Dump(c)
-	if err != nil {
-		toast := components.Toast("Unable to get secret", true)
-		toastHandler(toast, c)
-		return
-	}
-	bodyContent := pages.BackupSecretBodyContent(secret)
-	partialViewHandler(bodyContent, c)
-}
-
 func (s *service) backupAck(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
 	}
 	bodyContent := pages.BackupAckBodyContent()
+	partialViewHandler(bodyContent, c)
+}
+
+func (s *service) backupSecret(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	seed, err := s.svc.Dump(c)
+	if err != nil {
+		toast := components.Toast("Unable to get seed", true)
+		toastHandler(toast, c)
+		return
+	}
+	nsec, err := seedToNsec(seed)
+	if err != nil {
+		toast := components.Toast("Unable to convert to nsec", true)
+		toastHandler(toast, c)
+		return
+	}
+	bodyContent := pages.BackupSecretBodyContent(seed, nsec)
+	partialViewHandler(bodyContent, c)
+}
+
+func (s *service) backupTabActive(c *gin.Context) {
+	active := c.Param("active")
+	seed, err := s.svc.Dump(c)
+	if err != nil {
+		toast := components.Toast("Unable to get seed", true)
+		toastHandler(toast, c)
+		return
+	}
+	secret := seed
+	if active == "nsec" {
+		nsec, err := seedToNsec(seed)
+		if err != nil {
+			toast := components.Toast("Unable to convert to nsec", true)
+			toastHandler(toast, c)
+			return
+		}
+		secret = nsec
+	}
+	bodyContent := pages.BackupPartialContent(active, secret)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -64,7 +92,7 @@ func (s *service) forgot(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	c.Redirect(http.StatusFound, "/app/welcome")
+	c.Redirect(http.StatusFound, "/welcome")
 }
 
 func (s *service) index(c *gin.Context) {
@@ -145,14 +173,6 @@ func (s *service) initialize(c *gin.Context) {
 	redirect("/done", c)
 }
 
-// nolint:all
-func (s *service) importWalletMnemonic(c *gin.Context) {
-	var empty []string
-	empty = append(empty, "")
-	bodyContent := pages.ManageMnemonicContent(empty)
-	s.pageViewHandler(bodyContent, c)
-}
-
 func (s *service) importWalletPrivateKey(c *gin.Context) {
 	bodyContent := pages.ManagePrivateKeyContent("")
 	s.pageViewHandler(bodyContent, c)
@@ -169,14 +189,14 @@ func (s *service) unlock(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
-// nolint:all
-func (s *service) newWalletMnemonic(c *gin.Context) {
-	bodyContent := pages.ManageMnemonicContent(getNewMnemonic())
-	s.pageViewHandler(bodyContent, c)
-}
-
 func (s *service) newWalletPrivateKey(c *gin.Context) {
-	bodyContent := pages.ManagePrivateKeyContent(getNewPrivateKey())
+	nsec, err := seedToNsec(getNewPrivateKey())
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	bodyContent := pages.ManagePrivateKeyContent(nsec)
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -375,6 +395,15 @@ func (s *service) setPassword(c *gin.Context) {
 
 func (s *service) setPrivateKey(c *gin.Context) {
 	privateKey := c.PostForm("privateKey")
+	if strings.HasPrefix(privateKey, "nsec") {
+		seed, err := nsecToSeed(privateKey)
+		if err != nil {
+			toast := components.Toast("Invalid nsec", true)
+			toastHandler(toast, c)
+			return
+		}
+		privateKey = seed
+	}
 	bodyContent := pages.SetPasswordContent(privateKey)
 	partialViewHandler(bodyContent, c)
 }
@@ -386,11 +415,10 @@ func (s *service) settings(c *gin.Context) {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	isLocked := s.svc.IsLocked(c)
 
 	active := c.Param("active")
 	bodyContent := pages.SettingsBodyContent(
-		active, *settings, s.getNodeStatus(), isLocked,
+		active, *settings, s.svc.IsConnectedLN(), s.svc.IsLocked(c),
 	)
 	s.pageViewHandler(bodyContent, c)
 }
@@ -635,7 +663,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 func (s *service) redirectedBecauseWalletIsLocked(c *gin.Context) bool {
 	redirect := s.svc.IsLocked(c)
 	if redirect {
-		c.Redirect(http.StatusFound, "/app")
+		c.Redirect(http.StatusFound, "/")
 	}
 	return redirect
 }
