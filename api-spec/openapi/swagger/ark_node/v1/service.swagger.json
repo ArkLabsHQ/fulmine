@@ -62,71 +62,6 @@
         ]
       }
     },
-    "/v1/boltz/claim": {
-      "post": {
-        "summary": "BoltzClaimVHTLC = self send vHTLC -\u003e VTXO",
-        "operationId": "Service_BoltzClaimVHTLC",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1BoltzClaimVHTLCResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1BoltzClaimVHTLCRequest"
-            }
-          }
-        ],
-        "tags": [
-          "Service"
-        ]
-      }
-    },
-    "/v1/boltz/fund": {
-      "post": {
-        "operationId": "Service_BotlzFundVHTLC",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1BotlzFundVHTLCResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1BotlzFundVHTLCRequest"
-            }
-          }
-        ],
-        "tags": [
-          "Service"
-        ]
-      }
-    },
     "/v1/info": {
       "get": {
         "summary": "GetInfo returns info about the ark account",
@@ -366,6 +301,72 @@
           "Service"
         ]
       }
+    },
+    "/v1/vhtlc/address": {
+      "post": {
+        "summary": "GetBoltzVHTLCAddress, compute a VHTLC address",
+        "operationId": "Service_GetBoltzVHTLCAddress",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBoltzVHTLCAddressResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1GetBoltzVHTLCAddressRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v1/vhtlc/claim": {
+      "post": {
+        "summary": "BoltzClaimVHTLC = self send vHTLC -\u003e VTXO",
+        "operationId": "Service_BoltzClaimVHTLC",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BoltzClaimVHTLCResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BoltzClaimVHTLCRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
     }
   },
   "definitions": {
@@ -440,29 +441,6 @@
         }
       }
     },
-    "v1BotlzFundVHTLCRequest": {
-      "type": "object",
-      "properties": {
-        "preimageHash": {
-          "type": "string"
-        },
-        "address": {
-          "type": "string"
-        },
-        "amount": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
-    "v1BotlzFundVHTLCResponse": {
-      "type": "object",
-      "properties": {
-        "redeemTx": {
-          "type": "string"
-        }
-      }
-    },
     "v1BuildInfo": {
       "type": "object",
       "properties": {
@@ -491,6 +469,25 @@
         "amount": {
           "type": "string",
           "format": "uint64"
+        }
+      }
+    },
+    "v1GetBoltzVHTLCAddressRequest": {
+      "type": "object",
+      "properties": {
+        "preimageHash": {
+          "type": "string"
+        },
+        "pubkey": {
+          "type": "string"
+        }
+      }
+    },
+    "v1GetBoltzVHTLCAddressResponse": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
         }
       }
     },

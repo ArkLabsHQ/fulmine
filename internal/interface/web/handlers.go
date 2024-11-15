@@ -304,7 +304,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(address, value, ""),
+		arksdk.NewBitcoinReceiver(address, value),
 	}
 
 	if utils.IsValidArkAddress(address) {
