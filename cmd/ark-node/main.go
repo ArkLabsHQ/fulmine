@@ -12,7 +12,7 @@ import (
 	scheduler "github.com/ArkLabsHQ/ark-node/internal/infrastructure/scheduler/gocron"
 	grpcservice "github.com/ArkLabsHQ/ark-node/internal/interface/grpc"
 	"github.com/ark-network/ark/pkg/client-sdk/store"
-	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
+	"github.com/ark-network/ark/pkg/client-sdk/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -23,7 +23,11 @@ var (
 	date    = "unknown"
 )
 
-// TODO: Edit this file to something more meaningful for your application.
+const (
+	configStoreType  = types.FileStore
+	appDataStoreType = types.KVStore
+)
+
 func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -43,9 +47,9 @@ func main() {
 	}
 
 	storeSvc, err := store.NewStore(store.Config{
-		ConfigStoreType:  sdktypes.FileStore,
-		AppDataStoreType: sdktypes.KVStore,
 		BaseDir:          cfg.Datadir,
+		ConfigStoreType:  configStoreType,
+		AppDataStoreType: appDataStoreType,
 	})
 	if err != nil {
 		log.WithError(err).Fatal(err)

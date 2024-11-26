@@ -17,7 +17,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
-	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
+	types "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 
@@ -580,7 +580,7 @@ func (s *service) logVtxos(c *gin.Context) {
 		log.Info("---------")
 		log.Infof("Amount %d", v.Amount)
 		log.Infof("ExpiresAt %v", v.ExpiresAt)
-		log.Infof("Pending %v", v.Pending)
+		log.Infof("IsOOR %v", v.IsOOR)
 		log.Infof("RoundTxid %v", v.RoundTxid)
 		log.Infof("Txid %v", v.Txid)
 		log.Infof("SpentBy %v", v.SpentBy)
@@ -592,7 +592,7 @@ func (s *service) logVtxos(c *gin.Context) {
 		log.Info("---------")
 		log.Infof("Amount %d", v.Amount)
 		log.Infof("ExpiresAt %v", v.ExpiresAt)
-		log.Infof("Pending %v", v.Pending)
+		log.Infof("IsOOR %v", v.IsOOR)
 		log.Infof("RoundTxid %v", v.RoundTxid)
 		log.Infof("Txid %v", v.Txid)
 		log.Infof("SpentBy %v", v.SpentBy)
@@ -614,7 +614,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 	for _, tx := range history {
 		// amount
 		amount := strconv.FormatUint(tx.Amount, 10)
-		if tx.Type == sdktypes.TxSent {
+		if tx.Type == types.TxSent {
 			amount = "-" + amount
 		}
 		// date of creation
@@ -622,9 +622,9 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		// TODO: use tx.ExpiresAt when it will be available
 		expiresAt := tx.CreatedAt.Unix() + data.RoundLifetime
 		// status of tx
-		status := "success"
-		if tx.IsPending {
-			status = "pending"
+		status := "pending"
+		if tx.Settled {
+			status = "success"
 		}
 		emptyTime := time.Time{}
 		if tx.CreatedAt == emptyTime {

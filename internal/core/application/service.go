@@ -10,7 +10,7 @@ import (
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
-	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
+	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,7 +24,7 @@ type Service struct {
 	BuildInfo BuildInfo
 
 	arksdk.ArkClient
-	storeRepo    sdktypes.Store
+	storeRepo    types.Store
 	settingsRepo domain.SettingsRepository
 	grpcClient   client.ASPClient
 	schedulerSvc ports.SchedulerService
@@ -35,7 +35,7 @@ type Service struct {
 
 func NewService(
 	buildInfo BuildInfo,
-	storeSvc sdktypes.Store,
+	storeSvc types.Store,
 	settingsRepo domain.SettingsRepository,
 	schedulerSvc ports.SchedulerService,
 	lnSvc ports.LnService,
@@ -224,7 +224,7 @@ func (s *Service) GetRound(ctx context.Context, roundId string) (*client.Round, 
 }
 
 func (s *Service) ClaimPending(ctx context.Context) (string, error) {
-	roundTxid, err := s.ArkClient.Claim(ctx)
+	roundTxid, err := s.ArkClient.Settle(ctx)
 	if err == nil {
 		err := s.ScheduleClaims(ctx)
 		if err != nil {
