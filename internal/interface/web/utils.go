@@ -4,11 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	"github.com/gin-gonic/gin"
+	"github.com/tyler-smith/go-bip39"
+
+	"github.com/ArkLabsHQ/ark-node/utils"
 )
 
 func getExplorerUrl(network string) string {
