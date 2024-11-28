@@ -27,7 +27,7 @@ type Service struct {
 	arksdk.ArkClient
 	storeRepo    types.Store
 	settingsRepo domain.SettingsRepository
-	grpcClient   client.ASPClient
+	grpcClient   client.TransportClient
 	schedulerSvc ports.SchedulerService
 	lnSvc        ports.LnService
 
@@ -46,7 +46,7 @@ func NewService(
 		if err != nil {
 			return nil, err
 		}
-		client, err := grpcclient.NewClient(data.AspUrl)
+		client, err := grpcclient.NewClient(data.ServerUrl)
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +105,7 @@ func (s *Service) Setup(ctx context.Context, aspURL, password, privateKey string
 	if err := s.Init(ctx, arksdk.InitArgs{
 		WalletType: arksdk.SingleKeyWallet,
 		ClientType: arksdk.GrpcClient,
-		AspUrl:     aspURL,
+		ServerUrl:  aspURL,
 		Password:   password,
 		Seed:       privateKey,
 	}); err != nil {

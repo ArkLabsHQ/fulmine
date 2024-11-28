@@ -336,7 +336,7 @@
       "properties": {
         "privateKey": {
           "type": "string",
-          "description": "The mnemonic from where deriving signing key pairs."
+          "description": "The private key from where signing key pairs are derived.\nIn 64 chars hexadecimal format."
         },
         "password": {
           "type": "string",

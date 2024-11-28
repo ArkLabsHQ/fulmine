@@ -24,7 +24,6 @@ const (
 	Service_GetInfo_FullMethodName               = "/ark_node.v1.Service/GetInfo"
 	Service_GetOnboardAddress_FullMethodName     = "/ark_node.v1.Service/GetOnboardAddress"
 	Service_Send_FullMethodName                  = "/ark_node.v1.Service/Send"
-	Service_SendAsync_FullMethodName             = "/ark_node.v1.Service/SendAsync"
 	Service_SendOnchain_FullMethodName           = "/ark_node.v1.Service/SendOnchain"
 	Service_GetRoundInfo_FullMethodName          = "/ark_node.v1.Service/GetRoundInfo"
 	Service_GetTransactionHistory_FullMethodName = "/ark_node.v1.Service/GetTransactionHistory"
@@ -44,8 +43,6 @@ type ServiceClient interface {
 	GetOnboardAddress(ctx context.Context, in *GetOnboardAddressRequest, opts ...grpc.CallOption) (*GetOnboardAddressResponse, error)
 	// Send asks to send amount to ark address by joining a round
 	Send(ctx context.Context, in *SendRequest, opts ...grpc.CallOption) (*SendResponse, error)
-	// SendAsync asks to send amount to ark address with a pending payment
-	SendAsync(ctx context.Context, in *SendAsyncRequest, opts ...grpc.CallOption) (*SendAsyncResponse, error)
 	// SendOnchain asks to send requested amount to requested onchain address
 	SendOnchain(ctx context.Context, in *SendOnchainRequest, opts ...grpc.CallOption) (*SendOnchainResponse, error)
 	// Returns round info for optional round_id (no round_id returns current round info)
@@ -112,16 +109,6 @@ func (c *serviceClient) Send(ctx context.Context, in *SendRequest, opts ...grpc.
 	return out, nil
 }
 
-func (c *serviceClient) SendAsync(ctx context.Context, in *SendAsyncRequest, opts ...grpc.CallOption) (*SendAsyncResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SendAsyncResponse)
-	err := c.cc.Invoke(ctx, Service_SendAsync_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *serviceClient) SendOnchain(ctx context.Context, in *SendOnchainRequest, opts ...grpc.CallOption) (*SendOnchainResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SendOnchainResponse)
@@ -166,8 +153,6 @@ type ServiceServer interface {
 	GetOnboardAddress(context.Context, *GetOnboardAddressRequest) (*GetOnboardAddressResponse, error)
 	// Send asks to send amount to ark address by joining a round
 	Send(context.Context, *SendRequest) (*SendResponse, error)
-	// SendAsync asks to send amount to ark address with a pending payment
-	SendAsync(context.Context, *SendAsyncRequest) (*SendAsyncResponse, error)
 	// SendOnchain asks to send requested amount to requested onchain address
 	SendOnchain(context.Context, *SendOnchainRequest) (*SendOnchainResponse, error)
 	// Returns round info for optional round_id (no round_id returns current round info)
@@ -194,9 +179,6 @@ func (UnimplementedServiceServer) GetOnboardAddress(context.Context, *GetOnboard
 }
 func (UnimplementedServiceServer) Send(context.Context, *SendRequest) (*SendResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Send not implemented")
-}
-func (UnimplementedServiceServer) SendAsync(context.Context, *SendAsyncRequest) (*SendAsyncResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendAsync not implemented")
 }
 func (UnimplementedServiceServer) SendOnchain(context.Context, *SendOnchainRequest) (*SendOnchainResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendOnchain not implemented")
@@ -309,24 +291,6 @@ func _Service_Send_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Service_SendAsync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SendAsyncRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).SendAsync(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_SendAsync_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).SendAsync(ctx, req.(*SendAsyncRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Service_SendOnchain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SendOnchainRequest)
 	if err := dec(in); err != nil {
@@ -407,10 +371,6 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Send",
 			Handler:    _Service_Send_Handler,
-		},
-		{
-			MethodName: "SendAsync",
-			Handler:    _Service_SendAsync_Handler,
 		},
 		{
 			MethodName: "SendOnchain",

@@ -92,27 +92,6 @@ func (h *serviceHandler) Send(
 	return &pb.SendResponse{RoundId: roundId}, nil
 }
 
-func (h *serviceHandler) SendAsync(
-	ctx context.Context, req *pb.SendAsyncRequest,
-) (*pb.SendAsyncResponse, error) {
-	address, err := parseAddress(req.GetAddress())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	amount, err := parseAmount(req.GetAmount())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(address, amount),
-	}
-	redeemTx, err := h.svc.SendAsync(ctx, false, receivers)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.SendAsyncResponse{RedeemTx: redeemTx}, nil
-}
-
 func (h *serviceHandler) SendOnchain(
 	ctx context.Context, req *pb.SendOnchainRequest,
 ) (*pb.SendOnchainResponse, error) {
@@ -222,7 +201,7 @@ func toNetworkProto(net string) pb.GetInfoResponse_Network {
 	}
 }
 
-func toTreeProto(tree tree.CongestionTree) *pb.Tree {
+func toTreeProto(tree tree.VtxoTree) *pb.Tree {
 	levels := make([]*pb.TreeLevel, 0, len(tree))
 	for _, treeLevel := range tree {
 		nodes := make([]*pb.Node, 0, len(treeLevel))

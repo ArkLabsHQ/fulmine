@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/nbd-wtf/go-nostr/nip19"
-	"github.com/sirupsen/logrus"
 	"github.com/tyler-smith/go-bip32"
 	"github.com/tyler-smith/go-bip39"
 )
@@ -39,14 +38,13 @@ func IsValidPassword(password string) error {
 }
 
 func IsValidPrivateKey(privateKey string) error {
-	logrus.Infof("private key %d %s", len(privateKey), privateKey)
 	if len(privateKey) != 64 {
 		return fmt.Errorf("invalid private key")
 	}
 	return nil
 }
 
-func privateKeyFromMnemonic(mnemonic string) (string, error) {
+func PrivateKeyFromMnemonic(mnemonic string) (string, error) {
 	seed := bip39.NewSeed(mnemonic, "")
 	key, err := bip32.NewMasterKey(seed)
 	if err != nil {
@@ -89,7 +87,7 @@ func getNewMnemonic() []string {
 func GetNewPrivateKey() string {
 	words := getNewMnemonic()
 	mnemonic := strings.Join(words, " ")
-	privateKey, err := privateKeyFromMnemonic(mnemonic)
+	privateKey, err := PrivateKeyFromMnemonic(mnemonic)
 	if err != nil {
 		return ""
 	}

@@ -121,7 +121,8 @@ type CreateWalletRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The mnemonic from where deriving signing key pairs.
+	// The private key from where signing key pairs are derived.
+	// In 64 chars hexadecimal format.
 	PrivateKey string `protobuf:"bytes,1,opt,name=private_key,json=privateKey,proto3" json:"private_key,omitempty"`
 	// The password to decrypt HD wallet. After creation, the wallet is locked
 	// and the same password is required to unlock it.

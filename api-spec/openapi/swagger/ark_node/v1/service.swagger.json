@@ -215,39 +215,6 @@
         ]
       }
     },
-    "/v1/sendasync": {
-      "post": {
-        "summary": "SendAsync asks to send amount to ark address with a pending payment",
-        "operationId": "Service_SendAsync",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1SendAsyncResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1SendAsyncRequest"
-            }
-          }
-        ],
-        "tags": [
-          "Service"
-        ]
-      }
-    },
     "/v1/transactions": {
       "get": {
         "summary": "GetTransactionHistory returns virtual transactions history",
@@ -458,26 +425,6 @@
           "items": {
             "type": "string"
           }
-        }
-      }
-    },
-    "v1SendAsyncRequest": {
-      "type": "object",
-      "properties": {
-        "address": {
-          "type": "string"
-        },
-        "amount": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
-    "v1SendAsyncResponse": {
-      "type": "object",
-      "properties": {
-        "redeemTx": {
-          "type": "string"
         }
       }
     },

@@ -329,7 +329,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsValidArkAddress(address) {
-		txId, err = s.svc.SendAsync(c, false, receivers)
+		txId, err = s.svc.SendOffChain(c, false, receivers)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
@@ -580,7 +580,7 @@ func (s *service) logVtxos(c *gin.Context) {
 		log.Info("---------")
 		log.Infof("Amount %d", v.Amount)
 		log.Infof("ExpiresAt %v", v.ExpiresAt)
-		log.Infof("IsOOR %v", v.IsOOR)
+		log.Infof("IsPending %v", v.IsPending)
 		log.Infof("RoundTxid %v", v.RoundTxid)
 		log.Infof("Txid %v", v.Txid)
 		log.Infof("SpentBy %v", v.SpentBy)
@@ -592,7 +592,7 @@ func (s *service) logVtxos(c *gin.Context) {
 		log.Info("---------")
 		log.Infof("Amount %d", v.Amount)
 		log.Infof("ExpiresAt %v", v.ExpiresAt)
-		log.Infof("IsOOR %v", v.IsOOR)
+		log.Infof("IsPending %v", v.IsPending)
 		log.Infof("RoundTxid %v", v.RoundTxid)
 		log.Infof("Txid %v", v.Txid)
 		log.Infof("SpentBy %v", v.SpentBy)

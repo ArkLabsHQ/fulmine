@@ -4,15 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	"github.com/gin-gonic/gin"
-	"github.com/tyler-smith/go-bip39"
-
-	"github.com/ArkLabsHQ/ark-node/utils"
 )
 
 func getExplorerUrl(network string) string {
@@ -30,29 +26,6 @@ func getExplorerUrl(network string) string {
 	default:
 		return "http://localhost:5000"
 	}
-}
-
-func getNewMnemonic() []string {
-	// 128 bits of entropy for a 12-word mnemonic
-	entropy, err := bip39.NewEntropy(128)
-	if err != nil {
-		return strings.Fields("")
-	}
-	mnemonic, err := bip39.NewMnemonic(entropy)
-	if err != nil {
-		return strings.Fields("")
-	}
-	return strings.Fields(mnemonic)
-}
-
-func getNewPrivateKey() string {
-	words := getNewMnemonic()
-	mnemonic := strings.Join(words, " ")
-	privateKey, err := utils.PrivateKeyFromMnemonic(mnemonic)
-	if err != nil {
-		return ""
-	}
-	return privateKey
 }
 
 func redirect(path string, c *gin.Context) {
