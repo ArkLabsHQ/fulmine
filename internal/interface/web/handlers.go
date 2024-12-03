@@ -620,7 +620,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		// date of creation
 		dateCreated := tx.CreatedAt.Unix()
 		// TODO: use tx.ExpiresAt when it will be available
-		expiresAt := tx.CreatedAt.Unix() + data.RoundLifetime
+		expiresAt := tx.CreatedAt.Unix() + int64(data.RoundLifetime.Value)
 		// status of tx
 		status := "pending"
 		if tx.Settled {
