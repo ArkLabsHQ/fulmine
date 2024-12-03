@@ -71,9 +71,9 @@ func (h *serviceHandler) GetOnboardAddress(
 	return &pb.GetOnboardAddressResponse{Address: addr}, nil
 }
 
-func (h *serviceHandler) Send(
-	ctx context.Context, req *pb.SendRequest,
-) (*pb.SendResponse, error) {
+func (h *serviceHandler) SendOffChain(
+	ctx context.Context, req *pb.SendOffChainRequest,
+) (*pb.SendOffChainResponse, error) {
 	address, err := parseAddress(req.GetAddress())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -89,12 +89,12 @@ func (h *serviceHandler) Send(
 	if err != nil {
 		return nil, err
 	}
-	return &pb.SendResponse{RoundId: roundId}, nil
+	return &pb.SendOffChainResponse{RoundId: roundId}, nil
 }
 
-func (h *serviceHandler) SendOnchain(
-	ctx context.Context, req *pb.SendOnchainRequest,
-) (*pb.SendOnchainResponse, error) {
+func (h *serviceHandler) SendOnChain(
+	ctx context.Context, req *pb.SendOnChainRequest,
+) (*pb.SendOnChainResponse, error) {
 	address, err := parseAddress(req.GetAddress())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -110,7 +110,7 @@ func (h *serviceHandler) SendOnchain(
 	if err != nil {
 		return nil, err
 	}
-	return &pb.SendOnchainResponse{Txid: txid}, nil
+	return &pb.SendOnChainResponse{Txid: txid}, nil
 }
 
 func (h *serviceHandler) GetRoundInfo(
