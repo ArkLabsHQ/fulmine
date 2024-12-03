@@ -4,7 +4,7 @@ import "context"
 
 type Settings struct {
 	ApiRoot     string
-	AspUrl      string
+	ServerUrl   string
 	Currency    string
 	EventServer string
 	FullNode    string

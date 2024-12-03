@@ -4,9 +4,15 @@ ark-node is a node implementation for the Ark Network, providing a secure and ef
 
 ## Table of Contents
 
-- [Getting Started](#getting-started)
-- [Using the Binary](#using-the-binary)
-- [API Overview](#api-overview)
+- [ark-node](#ark-node)
+  - [Table of Contents](#table-of-contents)
+  - [Getting Started](#getting-started)
+  - [Using the Binary](#using-the-binary)
+  - [API Overview](#api-overview)
+  - [API Documentation](#api-documentation)
+    - [Wallet Service](#wallet-service)
+    - [Service API](#service-api)
+    - [Notification Service](#notification-service)
 
 ## Getting Started
 
@@ -44,7 +50,7 @@ Here's a high-level overview of the main API endpoints, including examples using
    ```sh
    curl -X POST http://localhost:7000/v1/wallet/create \
         -H "Content-Type: application/json" \
-        -d '{"mnemonic": "your mnemonic", "password": "your_password", "asp_url": "https://asp.example.com"}'
+        -d '{"mnemonic": "your mnemonic", "password": "your_password", "server_url": "https://server.example.com"}'
    ```
 
 3. Unlock Wallet
@@ -72,7 +78,7 @@ Here's a high-level overview of the main API endpoints, including examples using
    ```
 
 6. Get Wallet Status
-  
+
    ```sh
    curl -X GET http://localhost:7000/v1/wallet/status
    ```

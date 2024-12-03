@@ -129,14 +129,14 @@ func (s *service) index(c *gin.Context) {
 }
 
 func (s *service) initialize(c *gin.Context) {
-	aspurl := c.PostForm("aspurl")
-	if aspurl == "" {
-		toast := components.Toast("ASP URL can't be empty", true)
+	serverurl := c.PostForm("serverurl")
+	if serverurl == "" {
+		toast := components.Toast("Server URL can't be empty", true)
 		toastHandler(toast, c)
 		return
 	}
-	if !utils.IsValidURL(aspurl) {
-		toast := components.Toast("Invalid ASP URL", true)
+	if !utils.IsValidURL(serverurl) {
+		toast := components.Toast("Invalid Server URL", true)
 		toastHandler(toast, c)
 		return
 	}
@@ -165,7 +165,7 @@ func (s *service) initialize(c *gin.Context) {
 		return
 	}
 
-	if err := s.svc.Setup(c, aspurl, password, privateKey); err != nil {
+	if err := s.svc.Setup(c, serverurl, password, privateKey); err != nil {
 		log.WithError(err).Warn("failed to initialize")
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
@@ -390,7 +390,7 @@ func (s *service) setPassword(c *gin.Context) {
 		return
 	}
 	privateKey := c.PostForm("privateKey")
-	bodyContent := pages.AspUrlBodyContent(c.Query("aspurl"), privateKey, password)
+	bodyContent := pages.ServerUrlBodyContent(c.Query("serverurl"), privateKey, password)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -601,7 +601,7 @@ func (s *service) logVtxos(c *gin.Context) {
 }
 
 func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction, err error) {
-	// get tx history from ASP
+	// get tx history from Server
 	history, err := s.svc.GetTransactionHistory(c)
 	if err != nil {
 		return nil, err

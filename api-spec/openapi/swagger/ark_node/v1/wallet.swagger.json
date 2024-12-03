@@ -342,9 +342,9 @@
           "type": "string",
           "description": "The password to decrypt HD wallet. After creation, the wallet is locked\nand the same password is required to unlock it."
         },
-        "aspUrl": {
+        "serverUrl": {
           "type": "string",
-          "description": "The url of the ASP to connect to."
+          "description": "The url of the Server to connect to."
         }
       }
     },
@@ -387,9 +387,9 @@
           "type": "string",
           "description": "The password to decrypt HD wallet. After restoration, the wallet is locked\nand the same password is required to unlock it."
         },
-        "aspUrl": {
+        "serverUrl": {
           "type": "string",
-          "description": "The url of the ASP to connect to."
+          "description": "The url of the Server to connect to."
         }
       }
     },

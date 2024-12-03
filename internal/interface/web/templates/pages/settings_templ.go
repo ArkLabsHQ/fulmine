@@ -308,7 +308,7 @@ func SettingsTabs(active string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = SettingsTab("ASP", "/settings/asp", active == "asp").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = SettingsTab("Server", "/settings/server", active == "server").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -367,8 +367,8 @@ func SettingsBodyContent(active string, settings domain.Settings, nodeStatus, lo
 				return templ_7745c5c3_Err
 			}
 		}
-		if active == "asp" {
-			templ_7745c5c3_Err = SettingsASPContent(settings).Render(ctx, templ_7745c5c3_Buffer)
+		if active == "server" {
+			templ_7745c5c3_Err = SettingsServerContent(settings).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -466,11 +466,11 @@ func SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.Label("ASP URL").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Label("Server URL").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.InputFake(settings.AspUrl).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.InputFake(settings.ServerUrl).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -486,7 +486,7 @@ func SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) t
 	})
 }
 
-func SettingsASPContent(settings domain.Settings) templ.Component {
+func SettingsServerContent(settings domain.Settings) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -515,11 +515,11 @@ func SettingsASPContent(settings domain.Settings) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.Label("ASP Link").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Label("Server Link").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"border border-1 border-white/50 flex bg-graybg items-center justify-between rounded-lg gap-4 pr-3 focus:border-orange\"><input class=\"border-0 bg-graybg p-4 rounded-lg text-white/50 focus:text-white w-full\" id=\"asplink\" name=\"asplink\" value=\"")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<div class=\"border border-1 border-white/50 flex bg-graybg items-center justify-between rounded-lg gap-4 pr-3 focus:border-orange\"><input class=\"border-0 bg-graybg p-4 rounded-lg text-white/50 focus:text-white w-full\" id=\"serverlink\" name=\"serverlink\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -532,7 +532,7 @@ func SettingsASPContent(settings domain.Settings) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"><div class=\"flex items-center gap-4 text-white/50\"><p class=\"cursor-pointer\" onclick=\"pasteFromClipboard(&#39;#asplink&#39;)\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("\"><div class=\"flex items-center gap-4 text-white/50\"><p class=\"cursor-pointer\" onclick=\"pasteFromClipboard(&#39;#serverlink&#39;)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -556,27 +556,27 @@ func SettingsASPContent(settings domain.Settings) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.Label("ASP Host").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Label("Server Host").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.InputGeneric("asphost", "", settings.ApiRoot).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.InputGeneric("serverhost", "", settings.ApiRoot).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.Label("ASP Port").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Label("Server Port").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.InputGeneric("aspport", "", settings.ApiRoot).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.InputGeneric("serverport", "", settings.ApiRoot).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.Label("ASP API Root").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Label("Server API Root").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.InputGeneric("aspapihost", "", settings.ApiRoot).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.InputGeneric("serverapihost", "", settings.ApiRoot).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -91,8 +91,8 @@ message CreateWalletRequest{
   // The password to decrypt HD wallet. After creation, the wallet is locked
   // and the same password is required to unlock it.
   string password = 2;
-  // The url of the ASP to connect to.
-  string asp_url = 3;
+  // The url of the Server to connect to.
+  string server_url = 3;
 }
 message CreateWalletResponse{}
 
@@ -124,8 +124,8 @@ message RestoreWalletRequest{
   // The password to decrypt HD wallet. After restoration, the wallet is locked
   // and the same password is required to unlock it.
   string password = 2;
-  // The url of the ASP to connect to.
-  string asp_url = 3;
+  // The url of the Server to connect to.
+  string server_url = 3;
 }
 message RestoreWalletResponse{}
 

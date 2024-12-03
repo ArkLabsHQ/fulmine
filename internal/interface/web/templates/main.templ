@@ -101,8 +101,8 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 			const redirect = (path) => {
 				const url = new URL(window.location.href)
 				const params = new URLSearchParams(url.search);
-				const aspurl = params.get('aspurl')
-				window.location.href = path + (aspurl ? `/?aspurl=${aspurl}` : '')
+				const serverurl = params.get('serverurl')
+				window.location.href = path + (serverurl ? `/?serverurl=${serverurl}` : '')
 			}
 
       const copyToClipboard = (id) => {
@@ -204,13 +204,13 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
         updateFiatValues()
 				updateCryptoValues()
 
-        // pass along query parameter with aspurl
+        // pass along query parameter with serverurl
 				const url = new URL(window.location.href)
 			  const params = new URLSearchParams(url.search);
-			  const aspurl = params.get('aspurl')
-        if (aspurl) {
-					const hiddenInput = document.querySelector("#aspurl")
-					if (hiddenInput) hiddenInput.value = aspurl
+			  const serverurl = params.get('serverurl')
+        if (serverurl) {
+					const hiddenInput = document.querySelector("#serverurl")
+					if (hiddenInput) hiddenInput.value = serverurl
 				}
       })
 

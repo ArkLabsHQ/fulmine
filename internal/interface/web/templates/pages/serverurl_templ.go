@@ -12,7 +12,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
-func AspUrlBodyContent(aspurl, privateKey, password string) templ.Component {
+func ServerUrlBodyContent(serverurl, privateKey, password string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -40,7 +40,7 @@ func AspUrlBodyContent(aspurl, privateKey, password string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(privateKey)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/aspurl.templ`, Line: 9, Col: 60}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/serverurl.templ`, Line: 9, Col: 60}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -53,7 +53,7 @@ func AspUrlBodyContent(aspurl, privateKey, password string) templ.Component {
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(password)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/aspurl.templ`, Line: 10, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/serverurl.templ`, Line: 10, Col: 56}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -71,19 +71,19 @@ func AspUrlBodyContent(aspurl, privateKey, password string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.Header("Choose ASP", "/welcome").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Header("Choose Server", "/welcome").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"mb-10\">Choose your ASP</p><p class=\"mb-2\">ASP URL</p>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p class=\"mb-10\">Choose your Server</p><p class=\"mb-2\">Server URL</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.InputWithPaste("aspurl", "", aspurl).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.InputWithPaste("serverurl", "", serverurl).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><button id=\"createWallet\" class=\"bg-orange text-white\" disabled onclick=\"disableButton(this)\" type=\"submit\">Create wallet</button></div></form><script>\n\t\tconst button = document.querySelector('#createWallet')\n\t\tconst input = document.querySelector('#aspurl')\n\t\tif (input && button) {\n\t\t  input.addEventListener('change', () => {\n\t\t  \tif (input.value.length == 0) return\n\t\t  \tconst data = new FormData()\n\t\t    data.set('url', input.value)\n\t\t    fetch('/helpers/url/validate', {\n\t\t    \tmethod: 'POST',\n          body: data,\n\t\t    }).then((res) => {\n\t\t    \tif (res.ok) {\n\t\t    \t\tres.json().then(({ valid }) => {\n\t\t    \t\t\tif (valid) {\n\t\t    \t\t\t\tbutton.disabled = false\n\t\t    \t\t\t\tbutton.innerText = 'Create wallet'\n\t\t    \t\t\t} else {\n\t\t    \t\t\t\tbutton.disabled = true\n\t\t    \t\t\t\tbutton.innerText = 'Invalid URL'\n\t\t    \t\t\t}\n\t\t    \t\t})\n\t\t    \t}\n\t\t    })\n\t\t  })\n\t\t}\n  </script>")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("</div><button id=\"createWallet\" class=\"bg-orange text-white\" disabled onclick=\"disableButton(this)\" type=\"submit\">Create wallet</button></div></form><script>\n\t\tconst button = document.querySelector('#createWallet')\n\t\tconst input = document.querySelector('#serverurl')\n\t\tif (input && button) {\n\t\t  input.addEventListener('change', () => {\n\t\t  \tif (input.value.length == 0) return\n\t\t  \tconst data = new FormData()\n\t\t    data.set('url', input.value)\n\t\t    fetch('/helpers/url/validate', {\n\t\t    \tmethod: 'POST',\n          body: data,\n\t\t    }).then((res) => {\n\t\t    \tif (res.ok) {\n\t\t    \t\tres.json().then(({ valid }) => {\n\t\t    \t\t\tif (valid) {\n\t\t    \t\t\t\tbutton.disabled = false\n\t\t    \t\t\t\tbutton.innerText = 'Create wallet'\n\t\t    \t\t\t} else {\n\t\t    \t\t\t\tbutton.disabled = true\n\t\t    \t\t\t\tbutton.innerText = 'Invalid URL'\n\t\t    \t\t\t}\n\t\t    \t\t})\n\t\t    \t}\n\t\t    })\n\t\t  })\n\t\t}\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

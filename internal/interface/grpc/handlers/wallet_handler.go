@@ -37,7 +37,7 @@ func (h *walletHandler) GenSeed(
 func (h *walletHandler) CreateWallet(
 	ctx context.Context, req *pb.CreateWalletRequest,
 ) (*pb.CreateWalletResponse, error) {
-	aspUrl, err := parseAspUrl(req.GetAspUrl())
+	serverUrl, err := parseServerUrl(req.GetServerUrl())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -49,7 +49,7 @@ func (h *walletHandler) CreateWallet(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if err := h.svc.Setup(ctx, aspUrl, password, privateKey); err != nil {
+	if err := h.svc.Setup(ctx, serverUrl, password, privateKey); err != nil {
 		return nil, err
 	}
 	return &pb.CreateWalletResponse{}, nil
@@ -121,12 +121,12 @@ func (h *walletHandler) Auth(
 	return nil, fmt.Errorf("not implemented")
 }
 
-func parseAspUrl(a string) (string, error) {
+func parseServerUrl(a string) (string, error) {
 	if len(a) == 0 {
-		return "", fmt.Errorf("missing asp url")
+		return "", fmt.Errorf("missing server url")
 	}
 	if !utils.IsValidURL(a) {
-		return "", fmt.Errorf("invalid asp url")
+		return "", fmt.Errorf("invalid server url")
 	}
 	return a, nil
 }
