@@ -149,15 +149,15 @@
         ]
       }
     },
-    "/v1/send": {
+    "/v1/send/offchain": {
       "post": {
         "summary": "Send asks to send amount to ark address by joining a round",
-        "operationId": "Service_Send",
+        "operationId": "Service_SendOffChain",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1SendResponse"
+              "$ref": "#/definitions/v1SendOffChainResponse"
             }
           },
           "default": {
@@ -173,7 +173,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1SendRequest"
+              "$ref": "#/definitions/v1SendOffChainRequest"
             }
           }
         ],
@@ -184,13 +184,13 @@
     },
     "/v1/send/onchain": {
       "post": {
-        "summary": "SendOnchain asks to send requested amount to requested onchain address",
-        "operationId": "Service_SendOnchain",
+        "summary": "SendOnChain asks to send requested amount to requested onchain address",
+        "operationId": "Service_SendOnChain",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1SendOnchainResponse"
+              "$ref": "#/definitions/v1SendOnChainResponse"
             }
           },
           "default": {
@@ -206,40 +206,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1SendOnchainRequest"
-            }
-          }
-        ],
-        "tags": [
-          "Service"
-        ]
-      }
-    },
-    "/v1/sendasync": {
-      "post": {
-        "summary": "SendAsync asks to send amount to ark address with a pending payment",
-        "operationId": "Service_SendAsync",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1SendAsyncResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1SendAsyncRequest"
+              "$ref": "#/definitions/v1SendOnChainRequest"
             }
           }
         ],
@@ -461,7 +428,7 @@
         }
       }
     },
-    "v1SendAsyncRequest": {
+    "v1SendOffChainRequest": {
       "type": "object",
       "properties": {
         "address": {
@@ -473,50 +440,30 @@
         }
       }
     },
-    "v1SendAsyncResponse": {
-      "type": "object",
-      "properties": {
-        "redeemTx": {
-          "type": "string"
-        }
-      }
-    },
-    "v1SendOnchainRequest": {
-      "type": "object",
-      "properties": {
-        "address": {
-          "type": "string"
-        },
-        "amount": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
-    "v1SendOnchainResponse": {
-      "type": "object",
-      "properties": {
-        "txid": {
-          "type": "string"
-        }
-      }
-    },
-    "v1SendRequest": {
-      "type": "object",
-      "properties": {
-        "address": {
-          "type": "string"
-        },
-        "amount": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
-    "v1SendResponse": {
+    "v1SendOffChainResponse": {
       "type": "object",
       "properties": {
         "roundId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1SendOnChainRequest": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1SendOnChainResponse": {
+      "type": "object",
+      "properties": {
+        "txid": {
           "type": "string"
         }
       }

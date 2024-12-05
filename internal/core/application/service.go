@@ -27,7 +27,7 @@ type Service struct {
 	arksdk.ArkClient
 	storeRepo    types.Store
 	settingsRepo domain.SettingsRepository
-	grpcClient   client.ASPClient
+	grpcClient   client.TransportClient
 	schedulerSvc ports.SchedulerService
 	lnSvc        ports.LnService
 
@@ -46,7 +46,7 @@ func NewService(
 		if err != nil {
 			return nil, err
 		}
-		client, err := grpcclient.NewClient(data.AspUrl)
+		client, err := grpcclient.NewClient(data.ServerUrl)
 		if err != nil {
 			return nil, err
 		}
@@ -75,17 +75,17 @@ func (s *Service) IsReady() bool {
 	return s.isReady
 }
 
-func (s *Service) SetupFromMnemonic(ctx context.Context, aspURL, password, mnemonic string) error {
+func (s *Service) SetupFromMnemonic(ctx context.Context, serverUrl, password, mnemonic string) error {
 	privateKey, err := utils.PrivateKeyFromMnemonic(mnemonic)
 	if err != nil {
 		return err
 	}
-	return s.Setup(ctx, aspURL, password, privateKey)
+	return s.Setup(ctx, serverUrl, password, privateKey)
 }
 
-func (s *Service) Setup(ctx context.Context, aspURL, password, privateKey string) (err error) {
+func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey string) (err error) {
 	if err := s.settingsRepo.UpdateSettings(
-		ctx, domain.Settings{AspUrl: aspURL},
+		ctx, domain.Settings{ServerUrl: serverUrl},
 	); err != nil {
 		return err
 	}
@@ -93,11 +93,11 @@ func (s *Service) Setup(ctx context.Context, aspURL, password, privateKey string
 	defer func() {
 		if err != nil {
 			// nolint:all
-			s.settingsRepo.UpdateSettings(ctx, domain.Settings{AspUrl: ""})
+			s.settingsRepo.UpdateSettings(ctx, domain.Settings{ServerUrl: ""})
 		}
 	}()
 
-	client, err := grpcclient.NewClient(aspURL)
+	client, err := grpcclient.NewClient(serverUrl)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (s *Service) Setup(ctx context.Context, aspURL, password, privateKey string
 	if err := s.Init(ctx, arksdk.InitArgs{
 		WalletType: arksdk.SingleKeyWallet,
 		ClientType: arksdk.GrpcClient,
-		AspUrl:     aspURL,
+		ServerUrl:  serverUrl,
 		Password:   password,
 		Seed:       privateKey,
 	}); err != nil {

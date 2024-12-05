@@ -334,17 +334,17 @@
     "v1CreateWalletRequest": {
       "type": "object",
       "properties": {
-        "mnemonic": {
+        "privateKey": {
           "type": "string",
-          "description": "The mnemonic from where deriving signing key pairs."
+          "description": "The private key from where signing key pairs are derived.\nIn 64 chars hexadecimal format."
         },
         "password": {
           "type": "string",
           "description": "The password to decrypt HD wallet. After creation, the wallet is locked\nand the same password is required to unlock it."
         },
-        "aspUrl": {
+        "serverUrl": {
           "type": "string",
-          "description": "The url of the ASP to connect to."
+          "description": "The url of the Server to connect to."
         }
       }
     },
@@ -354,9 +354,13 @@
     "v1GenSeedResponse": {
       "type": "object",
       "properties": {
-        "mnemonic": {
+        "hex": {
           "type": "string",
-          "description": "A mnemonic from where deriving signing key pairs."
+          "description": "A hex secret key from where deriving signing key pairs."
+        },
+        "nsec": {
+          "type": "string",
+          "description": "The same secret key but in nsec (nip19) format."
         }
       }
     },
@@ -383,9 +387,9 @@
           "type": "string",
           "description": "The password to decrypt HD wallet. After restoration, the wallet is locked\nand the same password is required to unlock it."
         },
-        "aspUrl": {
+        "serverUrl": {
           "type": "string",
-          "description": "The url of the ASP to connect to."
+          "description": "The url of the Server to connect to."
         }
       }
     },

@@ -17,7 +17,7 @@ const (
 
 var defaultSettings = domain.Settings{
 	ApiRoot:     "https://fulmine.io/api/D9D90N192031",
-	AspUrl:      "http://localhost:7000",
+	ServerUrl:   "http://localhost:7000",
 	Currency:    "usd",
 	EventServer: "http://arklabs.to/node/jupiter29",
 	FullNode:    "http://arklabs.to/node/213908123",
@@ -67,8 +67,8 @@ func (s *service) UpdateSettings(
 	if len(newSettings.ApiRoot) > 0 {
 		settings.ApiRoot = newSettings.ApiRoot
 	}
-	if len(newSettings.AspUrl) > 0 {
-		settings.AspUrl = newSettings.AspUrl
+	if len(newSettings.ServerUrl) > 0 {
+		settings.ServerUrl = newSettings.ServerUrl
 	}
 	if len(newSettings.Currency) > 0 {
 		settings.Currency = newSettings.Currency

@@ -17,7 +17,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
-	arksdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
+	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 
@@ -50,7 +50,7 @@ func (s *service) backupSecret(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	nsec, err := seedToNsec(seed)
+	nsec, err := utils.SeedToNsec(seed)
 	if err != nil {
 		toast := components.Toast("Unable to convert to nsec", true)
 		toastHandler(toast, c)
@@ -70,7 +70,7 @@ func (s *service) backupTabActive(c *gin.Context) {
 	}
 	secret := seed
 	if active == "nsec" {
-		nsec, err := seedToNsec(seed)
+		nsec, err := utils.SeedToNsec(seed)
 		if err != nil {
 			toast := components.Toast("Unable to convert to nsec", true)
 			toastHandler(toast, c)
@@ -129,14 +129,14 @@ func (s *service) index(c *gin.Context) {
 }
 
 func (s *service) initialize(c *gin.Context) {
-	aspurl := c.PostForm("aspurl")
-	if aspurl == "" {
-		toast := components.Toast("ASP URL can't be empty", true)
+	serverurl := c.PostForm("serverurl")
+	if serverurl == "" {
+		toast := components.Toast("Server URL can't be empty", true)
 		toastHandler(toast, c)
 		return
 	}
-	if !utils.IsValidURL(aspurl) {
-		toast := components.Toast("Invalid ASP URL", true)
+	if !utils.IsValidURL(serverurl) {
+		toast := components.Toast("Invalid Server URL", true)
 		toastHandler(toast, c)
 		return
 	}
@@ -165,7 +165,7 @@ func (s *service) initialize(c *gin.Context) {
 		return
 	}
 
-	if err := s.svc.Setup(c, aspurl, password, privateKey); err != nil {
+	if err := s.svc.Setup(c, serverurl, password, privateKey); err != nil {
 		log.WithError(err).Warn("failed to initialize")
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
@@ -191,7 +191,7 @@ func (s *service) unlock(c *gin.Context) {
 }
 
 func (s *service) newWalletPrivateKey(c *gin.Context) {
-	nsec, err := seedToNsec(getNewPrivateKey())
+	nsec, err := utils.SeedToNsec(utils.GetNewPrivateKey())
 	if err != nil {
 		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -329,7 +329,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsValidArkAddress(address) {
-		txId, err = s.svc.SendAsync(c, false, receivers)
+		txId, err = s.svc.SendOffChain(c, false, receivers)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
@@ -390,14 +390,14 @@ func (s *service) setPassword(c *gin.Context) {
 		return
 	}
 	privateKey := c.PostForm("privateKey")
-	bodyContent := pages.AspUrlBodyContent(c.Query("aspurl"), privateKey, password)
+	bodyContent := pages.ServerUrlBodyContent(c.Query("serverurl"), privateKey, password)
 	partialViewHandler(bodyContent, c)
 }
 
 func (s *service) setPrivateKey(c *gin.Context) {
 	privateKey := c.PostForm("privateKey")
 	if strings.HasPrefix(privateKey, "nsec") {
-		seed, err := nsecToSeed(privateKey)
+		seed, err := utils.NsecToSeed(privateKey)
 		if err != nil {
 			toast := components.Toast("Invalid nsec", true)
 			toastHandler(toast, c)
@@ -580,7 +580,7 @@ func (s *service) logVtxos(c *gin.Context) {
 		log.Info("---------")
 		log.Infof("Amount %d", v.Amount)
 		log.Infof("ExpiresAt %v", v.ExpiresAt)
-		log.Infof("IsOOR %v", v.IsOOR)
+		log.Infof("IsPending %v", v.IsPending)
 		log.Infof("RoundTxid %v", v.RoundTxid)
 		log.Infof("Txid %v", v.Txid)
 		log.Infof("SpentBy %v", v.SpentBy)
@@ -592,7 +592,7 @@ func (s *service) logVtxos(c *gin.Context) {
 		log.Info("---------")
 		log.Infof("Amount %d", v.Amount)
 		log.Infof("ExpiresAt %v", v.ExpiresAt)
-		log.Infof("IsOOR %v", v.IsOOR)
+		log.Infof("IsPending %v", v.IsPending)
 		log.Infof("RoundTxid %v", v.RoundTxid)
 		log.Infof("Txid %v", v.Txid)
 		log.Infof("SpentBy %v", v.SpentBy)
@@ -601,7 +601,7 @@ func (s *service) logVtxos(c *gin.Context) {
 }
 
 func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction, err error) {
-	// get tx history from ASP
+	// get tx history from Server
 	history, err := s.svc.GetTransactionHistory(c)
 	if err != nil {
 		return nil, err
@@ -610,17 +610,17 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 	if err != nil {
 		return nil, err
 	}
-	// transform each arksdk.Transaction to types.Transaction
+	// transform each sdktypes.Transaction to types.Transaction
 	for _, tx := range history {
 		// amount
 		amount := strconv.FormatUint(tx.Amount, 10)
-		if tx.Type == arksdktypes.TxSent {
+		if tx.Type == sdktypes.TxSent {
 			amount = "-" + amount
 		}
 		// date of creation
 		dateCreated := tx.CreatedAt.Unix()
 		// TODO: use tx.ExpiresAt when it will be available
-		expiresAt := tx.CreatedAt.Unix() + data.RoundLifetime
+		expiresAt := tx.CreatedAt.Unix() + int64(data.RoundLifetime.Value)
 		// status of tx
 		status := "pending"
 		if tx.Settled {
@@ -650,13 +650,14 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			ExpiresAt:  prettyUnixTimestamp(expiresAt),
 			Explorable: explorable,
 			Hour:       prettyHour(dateCreated),
-			Kind:       string(tx.Type),
+			Kind:       strings.ToLower(string(tx.Type)),
 			Txid:       txid,
 			Status:     status,
 			UnixDate:   dateCreated,
 		})
 	}
-	log.Infof("history %+v", history)
+
+	log.Infof("history %v", history)
 	log.Infof("transactions %+v", transactions)
 	return
 }

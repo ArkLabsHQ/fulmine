@@ -78,18 +78,21 @@ service WalletService {
 
 message GenSeedRequest{}
 message GenSeedResponse{
-  // A mnemonic from where deriving signing key pairs.
-  string mnemonic = 1;
+  // A hex secret key from where deriving signing key pairs.
+  string hex = 1;
+  // The same secret key but in nsec (nip19) format.
+  string nsec = 2;
 }
 
 message CreateWalletRequest{
-  // The mnemonic from where deriving signing key pairs.
-  string mnemonic = 1;
+  // The private key from where signing key pairs are derived.
+  // In 64 chars hexadecimal format.
+  string private_key = 1;
   // The password to decrypt HD wallet. After creation, the wallet is locked
   // and the same password is required to unlock it.
-  string  password = 2;
-  // The url of the ASP to connect to.
-  string asp_url = 3;
+  string password = 2;
+  // The url of the Server to connect to.
+  string server_url = 3;
 }
 message CreateWalletResponse{}
 
@@ -121,8 +124,8 @@ message RestoreWalletRequest{
   // The password to decrypt HD wallet. After restoration, the wallet is locked
   // and the same password is required to unlock it.
   string password = 2;
-  // The url of the ASP to connect to.
-  string asp_url = 3;
+  // The url of the Server to connect to.
+  string server_url = 3;
 }
 message RestoreWalletResponse{}
 

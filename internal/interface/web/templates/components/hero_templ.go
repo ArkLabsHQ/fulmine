@@ -193,7 +193,7 @@ func Actions(online bool) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p>ASP is offline</p>")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString("<p>Server is offline</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

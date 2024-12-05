@@ -32,21 +32,14 @@ service Service {
     };
   };
   // Send asks to send amount to ark address by joining a round
-  rpc Send(SendRequest) returns (SendResponse) {
+  rpc SendOffChain(SendOffChainRequest) returns (SendOffChainResponse) {
     option (google.api.http) = {
-      post: "/v1/send"
+      post: "/v1/send/offchain"
       body: "*"
     };
   };
-  // SendAsync asks to send amount to ark address with a pending payment
-  rpc SendAsync(SendAsyncRequest) returns (SendAsyncResponse) {
-    option (google.api.http) = {
-      post: "/v1/sendasync"
-      body: "*"
-    };
-  };
-  // SendOnchain asks to send requested amount to requested onchain address
-  rpc SendOnchain(SendOnchainRequest) returns (SendOnchainResponse) {
+  // SendOnChain asks to send requested amount to requested onchain address
+  rpc SendOnChain(SendOnChainRequest) returns (SendOnChainResponse) {
     option (google.api.http) = {
       post: "/v1/send/onchain"
       body: "*"
@@ -99,27 +92,19 @@ message GetOnboardAddressResponse {
   string address = 1;
 }
 
-message SendRequest {
+message SendOffChainRequest {
   string address = 1;
   uint64 amount = 2;
 }
-message SendResponse {
+message SendOffChainResponse {
   string round_id = 1;
 }
 
-message SendAsyncRequest {
+message SendOnChainRequest {
   string address = 1;
   uint64 amount = 2;
 }
-message SendAsyncResponse {
-  string redeem_tx = 1;
-}
-
-message SendOnchainRequest {
-  string address = 1;
-  uint64 amount = 2;
-}
-message SendOnchainResponse {
+message SendOnChainResponse {
   string txid = 1;
 }
 
