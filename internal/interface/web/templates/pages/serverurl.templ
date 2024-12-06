@@ -4,17 +4,17 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
-templ AspUrlBodyContent(aspurl, privateKey, password string) {
+templ ServerUrlBodyContent(serverurl, privateKey, password string) {
   <form hx-post="/initialize">
     <input type="hidden" name="privateKey" value={privateKey}/>
     <input type="hidden" name="password" value={password}/>
     <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	    <div>
 		    <div class="hidden md:block">@LogoWhite()</div>
-	      @components.Header("Choose ASP", "/welcome")
-	  		<p class="mb-10">Choose your ASP</p>
-        <p class="mb-2">ASP URL</p>
-        @components.InputWithPaste("aspurl", "", aspurl)
+	      @components.Header("Choose Server", "/welcome")
+	  		<p class="mb-10">Choose your Server</p>
+        <p class="mb-2">Server URL</p>
+        @components.InputWithPaste("serverurl", "", serverurl)
       </div>
 	  	<button
 			  id="createWallet"
@@ -27,7 +27,7 @@ templ AspUrlBodyContent(aspurl, privateKey, password string) {
   </form>
   <script>
 		const button = document.querySelector('#createWallet')
-		const input = document.querySelector('#aspurl')
+		const input = document.querySelector('#serverurl')
 		if (input && button) {
 		  input.addEventListener('change', () => {
 		  	if (input.value.length == 0) return

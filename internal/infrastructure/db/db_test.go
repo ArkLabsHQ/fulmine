@@ -17,7 +17,7 @@ var (
 	}
 	testSettings = domain.Settings{
 		ApiRoot:     "apiroot",
-		AspUrl:      "aspurl",
+		ServerUrl:   "serverurl",
 		Currency:    "cur",
 		EventServer: "eventserver",
 		FullNode:    "fullnode",
@@ -83,10 +83,10 @@ func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 		require.Equal(t, expectedSettings, *settings)
 
 		newSettings = domain.Settings{
-			AspUrl:   "updated aspurl",
-			Currency: "updated cur",
+			ServerUrl: "updated serverurl",
+			Currency:  "updated cur",
 		}
-		expectedSettings.AspUrl = newSettings.AspUrl
+		expectedSettings.ServerUrl = newSettings.ServerUrl
 		expectedSettings.Currency = newSettings.Currency
 
 		err = repo.UpdateSettings(ctx, newSettings)

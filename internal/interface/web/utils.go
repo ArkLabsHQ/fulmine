@@ -4,15 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
-	"github.com/ArkLabsHQ/ark-node/utils"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	"github.com/gin-gonic/gin"
-	"github.com/nbd-wtf/go-nostr/nip19"
-	"github.com/tyler-smith/go-bip39"
 )
 
 func getExplorerUrl(network string) string {
@@ -30,29 +26,6 @@ func getExplorerUrl(network string) string {
 	default:
 		return "http://localhost:5000"
 	}
-}
-
-func getNewMnemonic() []string {
-	// 128 bits of entropy for a 12-word mnemonic
-	entropy, err := bip39.NewEntropy(128)
-	if err != nil {
-		return strings.Fields("")
-	}
-	mnemonic, err := bip39.NewMnemonic(entropy)
-	if err != nil {
-		return strings.Fields("")
-	}
-	return strings.Fields(mnemonic)
-}
-
-func getNewPrivateKey() string {
-	words := getNewMnemonic()
-	mnemonic := strings.Join(words, " ")
-	privateKey, err := utils.PrivateKeyFromMnemonic(mnemonic)
-	if err != nil {
-		return ""
-	}
-	return privateKey
 }
 
 func redirect(path string, c *gin.Context) {
@@ -112,23 +85,4 @@ func prettyHour(unixTime int64) string {
 		return "0"
 	}
 	return time.Unix(unixTime, 0).Format("15:04")
-}
-
-func seedToNsec(seed string) (string, error) {
-	nsec, err := nip19.EncodePrivateKey(seed)
-	if err != nil {
-		return "", err
-	}
-	return nsec, nil
-}
-
-func nsecToSeed(nsec string) (string, error) {
-	prefix, seed, err := nip19.Decode(nsec)
-	if err != nil {
-		return "", err
-	}
-	if prefix != "nsec" {
-		return "", fmt.Errorf("invalid prefix")
-	}
-	return fmt.Sprint(seed), nil
 }

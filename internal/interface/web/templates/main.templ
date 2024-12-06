@@ -1,25 +1,8 @@
 package templates
 
 import (
-	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
+"github.com/ArkLabsHQ/ark-node/internal/core/domain"
 )
-
-// in order for tailwind to detect this classes, this javascript code
-// needs to be inside a .templ file, which means this script code
-// must be here, cannot be on /assets/script.js
-script PagesScript() {
-	// from 4321 to 0.00004321 with '0' in gray
-  const prettyBtc = (btc) => {
-    if (!/\d/.test(btc)) return data // not a number
-    const prefix = /^[\D]/.test(btc) ? btc[0] : ''
-    const number = /^[\D]/.test(btc) ? btc.slice(1) : btc
-	  const length = String(number).length
-    if (length > 8) return number
-    let padding = '0.'
-    for (let i = length; i < 8; i++) padding += '0'
-	  return `${prefix}<span class="text-gray-400">${padding}</span>${number}`
-  }
-}
 
 script runOnLoad() {
 	updateFiatValues()
@@ -28,7 +11,7 @@ script runOnLoad() {
 		// hack, or else select will not have current value selected
 		if (x.getAttribute('value')) x.value = x.getAttribute('value')
 	})
-
+  // check for bitcoin unit (btc or sat)
 	const settings = JSON.parse(document.querySelector('#settings').textContent)
 	if (settings.Unit !== "sat") toggleUnit()
 }
@@ -36,188 +19,193 @@ script runOnLoad() {
 templ Layout(bodyContent templ.Component, settings domain.Settings) {
 	<!DOCTYPE html>
 	<html lang="en">
-		<head>
-			<title>Ark node</title>
-			<meta charset="UTF-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-			<meta http-equiv="X-UA-Compatible" content="ie=edge"/>
-			<meta name="keywords" content="Ark"/>
-			<meta name="description" content="Ark node frontend"/>
-			<meta name="theme-color" content="#FEFEF5"/>
-			<link rel="dns-prefetch" href="//fonts.googleapis.com"/>
-			<link rel="dns-prefetch" href="//fonts.gstatic.com"/>
-			<link rel="preconnect" href="//fonts.googleapis.com" crossorigin/>
-			<link rel="preconnect" href="//fonts.gstatic.com" crossorigin/>
-			<link rel="preload" href="/static/Switzer-Variable.17d61fe9.woff2" as="font" type="font/woff2" crossorigin/>
-			<link rel="preload" href="/static/Switzer-Variable.f14a5147.woff" as="font" type="font/woff" crossorigin/>
-			<link rel="preload" href="/static/Switzer-Variable.398e4d30.ttf" as="font" type="font/ttf" crossorigin/>
-			<link rel="manifest" href="/static/manifest.webmanifest"/>
-			<link rel="apple-touch-icon" href="/static/apple-touch-icon.png"/>
-			<link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon"/>
-			<link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
-			<link rel="icon" href="/static/favicon.png" sizes="any"/>
-			<link href="/static/styles.css" rel="stylesheet"/>
-		</head>
-		<body onload={ runOnLoad() }>
-		  @templ.JSONScript("settings", settings)
-			<div id="app">
-        <div id="toast"></div>
-	      <div id="modal"></div>
-				@bodyContent
-			</div>
-			<script src="/static/decimal.js"></script>
-			<script src="/static/scripts.js"></script>
-		</body>
-		<script>
-		  const toastTimeout = 2100
 
-		  const disableButton = (button) => {
-				button.classList.add("disabled")
-      }
+	<head>
+		<title>Ark node</title>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta http-equiv="X-UA-Compatible" content="ie=edge" />
+		<meta name="keywords" content="Ark" />
+		<meta name="description" content="Ark node frontend" />
+		<meta name="theme-color" content="#FEFEF5" />
+		<link rel="dns-prefetch" href="//fonts.googleapis.com" />
+		<link rel="dns-prefetch" href="//fonts.gstatic.com" />
+		<link rel="preconnect" href="//fonts.googleapis.com" crossorigin />
+		<link rel="preconnect" href="//fonts.gstatic.com" crossorigin />
+		<link rel="preload" href="/static/Switzer-Variable.17d61fe9.woff2" as="font" type="font/woff2" crossorigin />
+		<link rel="preload" href="/static/Switzer-Variable.f14a5147.woff" as="font" type="font/woff" crossorigin />
+		<link rel="preload" href="/static/Switzer-Variable.398e4d30.ttf" as="font" type="font/ttf" crossorigin />
+		<link rel="manifest" href="/static/manifest.webmanifest" />
+		<link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
+		<link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon" />
+		<link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+		<link rel="icon" href="/static/favicon.png" sizes="any" />
+		<link href="/static/styles.css" rel="stylesheet" />
+	</head>
 
-			// re enable buttons after receiving a htmx:load event
-			const enableButtons = () => {
-				document.querySelectorAll('.disabled').forEach((x) => {
-					x.classList.remove('disabled')
-        })
+	<body onload={ runOnLoad() }>
+		@templ.JSONScript("settings", settings)
+		<div id="app">
+			<div id="toast"></div>
+			<div id="modal"></div>
+			@bodyContent
+		</div>
+		<script src="/static/decimal.js"></script>
+		<script src="/static/scripts.js"></script>
+	</body>
+	<script>
+		const toastTimeout = 2100
+
+		const disableButton = (button) => {
+			button.classList.add("disabled")
+		}
+
+		// re enable buttons after receiving a htmx:load event
+		const enableButtons = () => {
+			document.querySelectorAll('.disabled').forEach((x) => {
+				x.classList.remove('disabled')
+			})
+		}
+
+		const prettyNum = (num, maximumFractionDigits = 2) => {
+			if (!num) return '0'
+			return new Intl.NumberFormat('en', {
+				style: 'decimal',
+				maximumFractionDigits,
+			}).format(num)
+		}
+
+		const fromSatoshis = (sats) => {
+			return Decimal.div(sats, 100_000_000).toNumber()
+		}
+
+		const toSatoshis = (btc) => {
+			return Decimal.mul(btc, 100_000_000).toNumber()
+		}
+
+		const redirect = (path) => {
+			const url = new URL(window.location.href)
+			const params = new URLSearchParams(url.search);
+			const serverurl = params.get('serverurl')
+			window.location.href = path + (serverurl ? `/?serverurl=${serverurl}` : '')
+		}
+
+		const copyToClipboard = (id) => {
+			if (!navigator.clipboard) return
+			const addr = document.querySelector(id).innerText
+			navigator.clipboard.writeText(addr)
+		}
+
+		const pasteFromClipboard = (id) => {
+			if (navigator.clipboard) {
+				navigator.clipboard.readText().then((addr) => {
+					document.querySelector(id).value = addr
+				})
 			}
+		}
 
-      const prettyNum = (num, maximumFractionDigits = 2) => {
-				if (!num) return '0'
-        return new Intl.NumberFormat('en', {
-          style: 'decimal',
-          maximumFractionDigits,
-        }).format(num)
-      }
+		const setMaxValue = (val = 0) => {
+			const sats = val || document.querySelector('#amount').getAttribute('max')
+			if (isNaN(sats)) return
+			const unit = document.querySelector('#unit').innerText
+			document.querySelector('#sats').value = sats
+			document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
+			document.querySelector('#amount').dispatchEvent(new Event('change'))
+		}
 
-      const fromSatoshis = (sats ) => {
-        return Decimal.div(sats, 100_000_000).toNumber()
-      }
-
-			const toSatoshis = (btc) => {
-        return Decimal.mul(btc, 100_000_000).toNumber()
-      }
-
-			const redirect = (path) => {
-				const url = new URL(window.location.href)
-				const params = new URLSearchParams(url.search);
-				const aspurl = params.get('aspurl')
-				window.location.href = path + (aspurl ? `/?aspurl=${aspurl}` : '')
+		// change between btc and sat
+		const toggleUnit = () => {
+			const unit = document.querySelector('#unit')
+			if (!unit) return
+			const currUnit = unit.innerText
+			const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
+			// change unit
+			if (unit) unit.innerText = nextUnit
+			// change availability
+			const available = document.querySelector('#available')
+			if (available) {
+				const maxSats = document.querySelector('#amount').getAttribute('max')
+				const num = !maxSats ? 0 : (nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats))
+				available.innerText = `Available ${num} ${nextUnit}`
 			}
-
-      const copyToClipboard = (id) => {
-		  	if (!navigator.clipboard) return
-		  	const addr = document.querySelector(id).innerText
-        navigator.clipboard.writeText(addr)
-		  }
-
-      const pasteFromClipboard = (id) => {
-		  	if (navigator.clipboard) {
-          navigator.clipboard.readText().then((addr) => {
-		  			document.querySelector(id).value = addr
-		  	  })
-        }
-		  }
-
-      const setMaxValue = (val = 0) => {
-		  	const sats = val || document.querySelector('#amount').getAttribute('max')
-        if (isNaN(sats)) return
-		  	const unit = document.querySelector('#unit').innerText
-				document.querySelector('#sats').value = sats
-		  	document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
-				document.querySelector('#amount').dispatchEvent(new Event('change'))
-		  }
-  
-	    // change between btc and sat
-		  const toggleUnit = () => {
-				const unit = document.querySelector('#unit')
-				if (!unit) return
-		  	const currUnit = unit.innerText
-		  	const nextUnit = currUnit === 'SATS' ? 'BTC' : 'SATS'
-		  	// change unit
-		  	if (unit) unit.innerText = nextUnit
-		  	// change availability
-				const available = document.querySelector('#available')
-				if (available) {
-					const maxSats = document.querySelector('#amount').getAttribute('max')
-				  const num = !maxSats ? 0 : (nextUnit === 'SATS' ? prettyNum(maxSats) : fromSatoshis(maxSats))
-				  available.innerText = `Available ${num} ${nextUnit}`
-				}
-			  // change value inside input
-		  	const currVal = document.querySelector('#amount').value
-				if (currVal) {
-					const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
-		  		document.querySelector('#amount').value = nextVal
-		  	}
-				// change steps
-				document.querySelector('#amount').step = nextUnit === 'SATS' ? "" : "0.00000001"
-		  }
-
-      // hide/show input password visibility
-      const togglePasswordVisibility = () => {
-        document.querySelectorAll(".eyes span").forEach((el) => {
-          el.style.display = el.style.display === 'none' ? 'block' : 'none'
-        })
-        document.querySelectorAll(".eyeopener").forEach((el) => {
-          el.type = el.type === 'text' ? 'password' : 'text'
-        })
-      }
-
-      // this function finds every crypto amount in the dom and make it use
-			// the preferred unit choosen in settings: sats or btc
-			const updateCryptoValues = () => {
-				const settings = JSON.parse(document.querySelector('#settings').textContent)
-				document.querySelectorAll('.cryptoAmount').forEach((x) => {
-          const sats = parseInt(x.getAttribute('sats'))
-	      	if (isNaN(sats)) return
-	      	const suffix = settings.Unit === 'sat' ? 'SATS' : 'BTC'
-          const cryptoValue = settings.Unit === 'sat' ? sats : fromSatoshis(sats)
-          x.innerHTML = `${prettyNum(cryptoValue, 8)} ${suffix}`
-        })
+			// change value inside input
+			const currVal = document.querySelector('#amount').value
+			if (currVal) {
+				const nextVal = nextUnit === 'SATS' ? toSatoshis(currVal) : fromSatoshis(currVal)
+				document.querySelector('#amount').value = nextVal
 			}
-  
-			// this function finds every fiat amount in the dom and checks live
-			// rate of the preferred currency choosen in setttings: usd or euro
-			const updateFiatValues = () => {
-				const settings = JSON.parse(document.querySelector('#settings').textContent)
-				fetch('https://blockchain.info/ticker').then((res) => {
-          res.json().then((json) => {
-            document.querySelectorAll('.fiatAmount').forEach((x) => {
-              const sats = parseInt(x.getAttribute('sats'))
-	      			if (isNaN(sats)) return
-	      			const prefix = settings.Currency === 'eur' ? '€' : '$'
-              const fiatValue = (sats * json[settings.Currency]?.last) / 100_000_000
-              x.innerHTML = `${prefix} ${prettyNum(fiatValue)}`
-            })
-          })
-        })
+			// change steps
+			document.querySelector('#amount').step = nextUnit === 'SATS' ? "" : "0.00000001"
+		}
+
+		// hide/show input password visibility
+		const togglePasswordVisibility = () => {
+			document.querySelectorAll(".eyes span").forEach((el) => {
+				el.style.display = el.style.display === 'none' ? 'block' : 'none'
+			})
+			document.querySelectorAll(".eyeopener").forEach((el) => {
+				el.type = el.type === 'text' ? 'password' : 'text'
+			})
+		}
+
+		// this function finds every crypto amount in the dom and make it use
+		// the preferred unit choosen in settings: sats or btc
+		const updateCryptoValues = () => {
+			const settings = JSON.parse(document.querySelector('#settings').textContent)
+			document.querySelectorAll('.cryptoAmount').forEach((x) => {
+				const sats = parseInt(x.getAttribute('sats'))
+				if (isNaN(sats)) return
+				const suffix = settings.Unit === 'sat' ? 'SATS' : 'BTC'
+				const cryptoValue = settings.Unit === 'sat' ? sats : fromSatoshis(sats)
+				x.innerHTML = `${prettyNum(cryptoValue, 8)} ${suffix}`
+			})
+		}
+
+		// this function finds every fiat amount in the dom and checks live
+		// rate of the preferred currency choosen in setttings: usd or euro
+		const updateFiatValues = () => {
+			const settings = JSON.parse(document.querySelector('#settings').textContent)
+			fetch('https://blockchain.info/ticker').then((res) => {
+				res.json().then((json) => {
+					console.log('settings.Currency', settings.Currency)
+					console.log('ticker', json)
+					document.querySelectorAll('.fiatAmount').forEach((x) => {
+						const sats = parseInt(x.getAttribute('sats'))
+						if (isNaN(sats)) return
+						const prefix = settings.Currency === 'eur' ? '€' : '$'
+						const fiatValue = (sats * json[settings.Currency.toUpperCase()]?.last) / 100_000_000
+						x.innerHTML = `${prefix} ${prettyNum(fiatValue)}`
+					})
+				})
+			})
+		}
+
+		const notImplemented = (event) => {
+			event.preventDefault()
+			document.querySelector("#toast").innerHTML = '<p class="border border-1 border border-red/20 bg-errorbg capitalize text-red px-2 py-1 rounded-md mx-auto">Not implemented</p>'
+			setTimeout(() => document.querySelector("#toast").innerHTML = "", toastTimeout)
+		}
+
+		document.addEventListener('htmx:load', () => {
+			console.log('heyhey')
+			enableButtons()
+			updateFiatValues()
+			updateCryptoValues()
+
+			// pass along query parameter with serverurl
+			const url = new URL(window.location.href)
+			const params = new URLSearchParams(url.search);
+			const serverurl = params.get('serverurl')
+			if (serverurl) {
+				const hiddenInput = document.querySelector("#serverurl")
+				if (hiddenInput) hiddenInput.value = serverurl
 			}
+		})
 
-			const notImplemented = (event) => {
-				event.preventDefault()
-				document.querySelector("#toast").innerHTML = '<p class="border border-1 border border-red/20 bg-errorbg capitalize text-red px-2 py-1 rounded-md mx-auto">Not implemented</p>'
-				setTimeout(() => document.querySelector("#toast").innerHTML = "", toastTimeout)
-			}
-
-      document.addEventListener('htmx:load', () => {
-        enableButtons()
-        updateFiatValues()
-				updateCryptoValues()
-
-        // pass along query parameter with aspurl
-				const url = new URL(window.location.href)
-			  const params = new URLSearchParams(url.search);
-			  const aspurl = params.get('aspurl')
-        if (aspurl) {
-					const hiddenInput = document.querySelector("#aspurl")
-					if (hiddenInput) hiddenInput.value = aspurl
-				}
-      })
-
-      // after receiving a toast, delete it after 2 seconds
-      document.body.addEventListener("toast", (e) => {
-        setTimeout(() => document.querySelector("#toast").innerHTML = "", toastTimeout)
-      })
-		</script>
+		// after receiving a toast, delete it after 2 seconds
+		document.body.addEventListener("toast", (e) => {
+			setTimeout(() => document.querySelector("#toast").innerHTML = "", toastTimeout)
+		})
+	</script>
 	</html>
 }

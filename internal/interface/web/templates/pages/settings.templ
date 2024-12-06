@@ -50,7 +50,7 @@ templ SettingsTab(text, path string, active bool) {
 templ SettingsTabs(active string) {
   <div class="flex gap-2 mb-8 text-sm text-white/80 font-semibold">
     @SettingsTab("General", "/settings/general", active == "general")
-    @SettingsTab("ASP", "/settings/asp", active == "asp")
+    @SettingsTab("Server", "/settings/server", active == "server")
     @SettingsTab("Lightning", "/settings/lightning", active == "lightning")
   </div>
 }
@@ -64,8 +64,8 @@ templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, l
       if active == "general" {
         @SettingsGeneralContent(settings, nodeStatus, locked)
       }
-      if active == "asp" {
-        @SettingsASPContent(settings)
+      if active == "server" {
+        @SettingsServerContent(settings)
       }
       if active == "lightning" {
         @SettingsLightningContent(settings, nodeStatus)
@@ -97,8 +97,8 @@ templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) 
       <option value="usd">USD ($)</option>
       <option value="eur">EURO (€)</option>
     </select>
-    @components.Label("ASP URL")
-    @components.InputFake(settings.AspUrl)
+    @components.Label("Server URL")
+    @components.InputFake(settings.ServerUrl)
     @Separator("Security")
     <button class="bg-graybg font-semibold rounded-lg mb-4" onclick="handleBackup(event)">
       Backup Private Key
@@ -112,28 +112,28 @@ templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) 
   </script>
 }
 
-templ SettingsASPContent(settings domain.Settings) {
+templ SettingsServerContent(settings domain.Settings) {
   <form hx-post="/helpers/settings" hx-trigger="change">
     @Separator("Link")
-    @components.Label("ASP Link")
+    @components.Label("Server Link")
     <div class="border border-1 border-white/50 flex bg-graybg items-center justify-between rounded-lg gap-4 pr-3 focus:border-orange">
       <input
         class="border-0 bg-graybg p-4 rounded-lg text-white/50 focus:text-white w-full"
-        id="asplink"
-        name="asplink"
+        id="serverlink"
+        name="serverlink"
         value={settings.ApiRoot}>
       <div class="flex items-center gap-4 text-white/50">
-        <p class="cursor-pointer" onclick="pasteFromClipboard('#asplink')">@components.PasteIcon()</p>
+        <p class="cursor-pointer" onclick="pasteFromClipboard('#serverlink')">@components.PasteIcon()</p>
         <p class="cursor-pointer" onclick="notImplemented(event)">@components.ScanIcon()</p>
       </div>
     </div>
     @Separator("Host settings")
-    @components.Label("ASP Host")
-    @components.InputGeneric("asphost", "", settings.ApiRoot)
-    @components.Label("ASP Port")
-    @components.InputGeneric("aspport", "", settings.ApiRoot)
-    @components.Label("ASP API Root")
-    @components.InputGeneric("aspapihost", "", settings.ApiRoot)
+    @components.Label("Server Host")
+    @components.InputGeneric("serverhost", "", settings.ApiRoot)
+    @components.Label("Server Port")
+    @components.InputGeneric("serverport", "", settings.ApiRoot)
+    @components.Label("Server API Root")
+    @components.InputGeneric("serverapihost", "", settings.ApiRoot)
   </form>
 }
 

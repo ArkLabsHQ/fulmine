@@ -102,7 +102,6 @@ func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 
 	feHandler := web.NewService(appSvc)
 
-	// handler := router(grpcServer, grpcGateway)
 	mux := http.NewServeMux()
 	mux.Handle("/", feHandler)
 	mux.Handle("/api/", http.StripPrefix("/api", gwmux))

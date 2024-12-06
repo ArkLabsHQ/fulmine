@@ -107,7 +107,7 @@ func (s *service) validatePrivateKeyApi(c *gin.Context) {
 	var data gin.H
 	privateKey := c.PostForm("privateKey")
 	if strings.HasPrefix(privateKey, "nsec") {
-		seed, err := nsecToSeed(privateKey)
+		seed, err := utils.NsecToSeed(privateKey)
 		if err != nil {
 			data = gin.H{
 				"valid": false,

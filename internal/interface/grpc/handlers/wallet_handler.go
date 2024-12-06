@@ -3,11 +3,12 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
 	"github.com/ArkLabsHQ/ark-node/utils"
-	"github.com/tyler-smith/go-bip39"
+	"github.com/nbd-wtf/go-nostr/nip19"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -23,15 +24,12 @@ func NewWalletHandler(appSvc *application.Service) pb.WalletServiceServer {
 func (h *walletHandler) GenSeed(
 	ctx context.Context, req *pb.GenSeedRequest,
 ) (*pb.GenSeedResponse, error) {
-	entropy, err := bip39.NewEntropy(128)
+	hex := utils.GetNewPrivateKey()
+	nsec, err := utils.SeedToNsec(hex)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	mnemonic, err := bip39.NewMnemonic(entropy)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.GenSeedResponse{Mnemonic: mnemonic}, nil
+	return &pb.GenSeedResponse{Hex: hex, Nsec: nsec}, nil
 }
 
 // CreateWallet creates an HD Wallet based on signing seeds,
@@ -39,7 +37,7 @@ func (h *walletHandler) GenSeed(
 func (h *walletHandler) CreateWallet(
 	ctx context.Context, req *pb.CreateWalletRequest,
 ) (*pb.CreateWalletResponse, error) {
-	aspUrl, err := parseAspUrl(req.GetAspUrl())
+	serverUrl, err := parseServerUrl(req.GetServerUrl())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -47,11 +45,11 @@ func (h *walletHandler) CreateWallet(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	mnemonic, err := parseMnemonic(req.GetMnemonic())
+	privateKey, err := parsePrivateKey(req.GetPrivateKey())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if err := h.svc.Setup(ctx, aspUrl, password, mnemonic); err != nil {
+	if err := h.svc.Setup(ctx, serverUrl, password, privateKey); err != nil {
 		return nil, err
 	}
 	return &pb.CreateWalletResponse{}, nil
@@ -123,32 +121,39 @@ func (h *walletHandler) Auth(
 	return nil, fmt.Errorf("not implemented")
 }
 
-func parseAspUrl(a string) (string, error) {
-	if len(a) <= 0 {
-		return "", fmt.Errorf("missing asp url")
+func parseServerUrl(a string) (string, error) {
+	if len(a) == 0 {
+		return "", fmt.Errorf("missing server url")
 	}
 	if !utils.IsValidURL(a) {
-		return "", fmt.Errorf("invalid asp url")
+		return "", fmt.Errorf("invalid server url")
 	}
 	return a, nil
 }
 
-func parseMnemonic(m string) (string, error) {
-	if len(m) <= 0 {
-		return "", fmt.Errorf("missing mnemonic")
-	}
-	if err := utils.IsValidMnemonic(m); err != nil {
-		return "", err
-	}
-	return m, nil
-}
-
 func parsePassword(p string) (string, error) {
-	if len(p) <= 0 {
+	if len(p) == 0 {
 		return "", fmt.Errorf("missing password")
 	}
 	if err := utils.IsValidPassword(p); err != nil {
 		return "", err
 	}
 	return p, nil
+}
+
+func parsePrivateKey(sk string) (string, error) {
+	if len(sk) == 0 {
+		return "", fmt.Errorf("missing private key")
+	}
+	if strings.HasPrefix(sk, "nsec") {
+		_, seed, err := nip19.Decode(sk)
+		if err != nil {
+			return "", err
+		}
+		sk = fmt.Sprint(seed)
+	}
+	if err := utils.IsValidPrivateKey(sk); err != nil {
+		return "", err
+	}
+	return sk, nil
 }
