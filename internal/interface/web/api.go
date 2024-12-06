@@ -86,6 +86,24 @@ func (s *service) disconnectLNDApi(c *gin.Context) {
 	reload(c)
 }
 
+func (s *service) validateNoteApi(c *gin.Context) {
+	var data gin.H
+	note := c.PostForm("note")
+	sats := utils.SatsFromNote(note)
+	if sats > 0 {
+		data = gin.H{
+			"sats":  sats,
+			"valid": true,
+		}
+	} else {
+		data = gin.H{
+			"valid": false,
+			"error": "invalid note",
+		}
+	}
+	c.JSON(http.StatusOK, data)
+}
+
 func (s *service) validateMnemonicApi(c *gin.Context) {
 	var data gin.H
 	mnemonic := c.PostForm("mnemonic")
