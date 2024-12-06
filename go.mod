@@ -2,14 +2,17 @@ module github.com/ArkLabsHQ/ark-node
 
 go 1.23.1
 
+replace github.com/ArkLabsHQ/ark-node/pkg/vhtlc => ./pkg/vhtlc
+
 replace github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.3
 
 replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-display v1.30.0-hex-display
 
 require (
+	github.com/ArkLabsHQ/ark-node/pkg/vhtlc v0.0.0-00010101000000-000000000000
 	github.com/a-h/templ v0.2.778
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/ark-network/ark/common v0.0.0-20241128135106-02542c36345d
+	github.com/ark-network/ark/common v0.0.0-20241205095758-f1272b5d813e
 	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20241128135106-02542c36345d
 	github.com/dgraph-io/badger/v4 v4.3.0
 	github.com/gin-gonic/gin v1.10.0
@@ -257,9 +260,9 @@ require (
 	github.com/vulpemventures/go-elements v0.5.5 // indirect
 	go.mongodb.org/mongo-driver v1.17.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.opentelemetry.io/otel v1.31.0 // indirect
-	go.opentelemetry.io/otel/metric v1.31.0 // indirect
-	go.opentelemetry.io/otel/trace v1.31.0 // indirect
+	go.opentelemetry.io/otel v1.32.0 // indirect
+	go.opentelemetry.io/otel/metric v1.32.0 // indirect
+	go.opentelemetry.io/otel/trace v1.32.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.8.0 // indirect
 	golang.org/x/crypto v0.28.0 // indirect

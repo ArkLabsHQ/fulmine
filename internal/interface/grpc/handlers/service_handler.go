@@ -15,6 +15,8 @@ import (
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/ArkLabsHQ/ark-node/pkg/vhtlc"
 )
 
 type serviceHandler struct {
@@ -43,7 +45,7 @@ func (h *serviceHandler) BoltzClaimVHTLC(ctx context.Context, req *pb.BoltzClaim
 		return nil, err
 	}
 
-	var vhtlc *client.Vtxo
+	var vhtlc *types.Vtxo
 	for _, vtxo := range vtxos {
 		vtxoScript, err := bitcointree.ParseVtxoScript(vtxo.Descriptor)
 		if err != nil {
@@ -132,10 +134,9 @@ func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest
 	return &pb.ListVHTLCResponse{Vhtlcs: vhtlcs}, nil
 }
 
-func (h *serviceHandler) BotlzFundVHTLC(ctx context.Context, req *pb.BotlzFundVHTLCRequest) (*pb.BotlzFundVHTLCResponse, error) {
+func (h *serviceHandler) GetBoltzVHTLCAddress(ctx context.Context, req *pb.GetBoltzVHTLCAddressRequest) (*pb.GetBoltzVHTLCAddressResponse, error) {
 	preimageHash := req.GetPreimageHash()
-	amount := req.GetAmount()
-	address := req.GetAddress()
+	amount := req.GetPubkey()
 
 	if len(preimageHash) <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "missing preimage hash")
@@ -145,20 +146,14 @@ func (h *serviceHandler) BotlzFundVHTLC(ctx context.Context, req *pb.BotlzFundVH
 		return nil, status.Error(codes.InvalidArgument, "invalid preimage hash")
 	}
 
-	if amount <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "missing amount")
-	}
-
-	if len(address) <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "missing address")
-	}
-
-	logrus.Infof("Funding vHTLC with preimage hash %s, amount %d, address %s", preimageHash, amount, address)
-	redeemTx, err := h.svc.ArkClient.SendAsync(ctx, false, []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(address, amount, preimageHash),
-	}, arksdk.Options{})
+	preimageHashBytes, err := hex.DecodeString(preimageHash)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, "invalid preimage hash")
+	}
+
+	vhtlcOpts := vhtlc.Opts{
+		PreimageHash: preimageHashBytes,
+		Amount:       amount,
 	}
 
 	return &pb.BotlzFundVHTLCResponse{RedeemTx: redeemTx}, nil
