@@ -190,19 +190,19 @@ func (s *Service) UpdateSettings(ctx context.Context, settings domain.Settings) 
 	return s.settingsRepo.UpdateSettings(ctx, settings)
 }
 
-func (s *Service) GetAddress(ctx context.Context, sats uint64) (bip21Addr, offchainAddr, boardingAddr string, err error) {
-	offchainAddr, boardingAddr, err = s.Receive(ctx)
+func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, string, error) {
+	offchainAddr, boardingAddr, err := s.Receive(ctx)
 	if err != nil {
-		return
+		return "", "", "", err
 	}
-	bip21Addr = fmt.Sprintf("bitcoin:%s?ark=%s", boardingAddr, offchainAddr)
+	bip21Addr := fmt.Sprintf("bitcoin:%s?ark=%s", boardingAddr, offchainAddr)
 	// add amount if passed
 	if sats > 0 {
 		btc := float64(sats) / 100000000.0
 		amount := fmt.Sprintf("%.8f", btc)
 		bip21Addr += fmt.Sprintf("&amount=%s", amount)
 	}
-	return
+	return bip21Addr, offchainAddr, boardingAddr, nil
 }
 
 func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
