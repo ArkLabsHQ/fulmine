@@ -107,8 +107,8 @@ func (o Opts) Claim() (*tree.ConditionMultisigClosure, error) {
 // }
 // }
 
-// NewVHTLC creates a VHTLC VtxoScript from the given options.
-func NewVHTLC(opts Opts) (*tree.TapscriptsVtxoScript, error) {
+// NewVtxoScript creates a VHTLC VtxoScript from the given options.
+func NewVtxoScript(opts Opts) (*tree.TapscriptsVtxoScript, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, err
 	}

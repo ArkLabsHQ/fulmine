@@ -2,16 +2,20 @@ package application
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
+	"github.com/ArkLabsHQ/ark-node/pkg/vhtlc"
 	"github.com/ArkLabsHQ/ark-node/utils"
+	"github.com/ark-network/ark/common"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/sirupsen/logrus"
 )
 
@@ -30,6 +34,8 @@ type Service struct {
 	grpcClient   client.TransportClient
 	schedulerSvc ports.SchedulerService
 	lnSvc        ports.LnService
+
+	publicKey *secp256k1.PublicKey
 
 	isReady bool
 }
@@ -51,7 +57,7 @@ func NewService(
 			return nil, err
 		}
 		return &Service{
-			buildInfo, arkClient, storeSvc, settingsRepo, client, schedulerSvc, lnSvc, true,
+			buildInfo, arkClient, storeSvc, settingsRepo, client, schedulerSvc, lnSvc, nil, true,
 		}, nil
 	}
 
@@ -68,7 +74,7 @@ func NewService(
 		return nil, err
 	}
 
-	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, nil, schedulerSvc, lnSvc, false}, nil
+	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, nil, schedulerSvc, lnSvc, nil, false}, nil
 }
 
 func (s *Service) IsReady() bool {
@@ -101,6 +107,14 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	if err != nil {
 		return err
 	}
+
+	privKeyBytes, err := hex.DecodeString(privateKey)
+	if err != nil {
+		return err
+	}
+
+	prvKey := secp256k1.PrivKeyFromBytes(privKeyBytes)
+	s.publicKey = prvKey.PubKey()
 
 	if err := s.Init(ctx, arksdk.InitArgs{
 		WalletType: arksdk.SingleKeyWallet,
@@ -275,4 +289,62 @@ func (s *Service) DisconnectLN() {
 
 func (s *Service) IsConnectedLN() bool {
 	return s.lnSvc.IsConnected()
+}
+
+func (s *Service) GetVHTLCAddress(ctx context.Context, receiverPubKey *secp256k1.PublicKey, preimageHash []byte) (string, error) {
+	offchainAddr, _, err := s.Receive(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	decodedAddr, err := common.DecodeAddress(offchainAddr)
+	if err != nil {
+		return "", err
+	}
+
+	// TODO: make this configurable ?
+	now := time.Now()
+	nowPlus2days := now.Add(2 * 24 * time.Hour)
+	oneDayDuration := 24 * time.Hour
+
+	opts := vhtlc.Opts{
+		Receiver:     receiverPubKey,
+		Sender:       s.publicKey,
+		Server:       decodedAddr.Server,
+		PreimageHash: preimageHash,
+		ReceiverRefundLocktime: common.Locktime{
+			Type:  common.LocktimeTypeSecond,
+			Value: uint32(nowPlus2days.Unix()),
+		},
+		SenderReclaimLocktime: common.Locktime{
+			Type:  common.LocktimeTypeSecond,
+			Value: uint32(nowPlus2days.Unix()),
+		},
+		SenderReclaimDelay: common.Locktime{
+			Type:  common.LocktimeTypeSecond,
+			Value: uint32(oneDayDuration.Seconds()),
+		},
+		ClaimDelay: common.Locktime{
+			Type:  common.LocktimeTypeSecond,
+			Value: uint32(oneDayDuration.Seconds()),
+		},
+	}
+
+	vtxoScript, err := vhtlc.NewVtxoScript(opts)
+	if err != nil {
+		return "", err
+	}
+
+	tapKey, _, err := vtxoScript.TapTree()
+	if err != nil {
+		return "", err
+	}
+
+	addr := &common.Address{
+		HRP:        decodedAddr.HRP,
+		Server:     decodedAddr.Server,
+		VtxoTapKey: tapKey,
+	}
+
+	return addr.Encode()
 }
