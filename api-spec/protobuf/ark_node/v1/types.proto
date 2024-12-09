@@ -38,7 +38,7 @@ message Node {
 }
 
 message Output {
-  string descriptor = 1;
+  string pubkey = 1;
   uint64 amount = 2;
 }
 
@@ -73,11 +73,9 @@ message TreeLevel {
 message Vtxo {
   Input outpoint = 1;
   Output receiver = 2;
-  bool spent = 3;
-  string round_txid = 4;
-  string spent_by = 5;
-  int64 expire_at = 6;
-  bool swept = 7;
+  string round_txid = 3;
+  string spent_by = 4;
+  int64 expire_at = 5;
 }
 
 enum RoundEventType {

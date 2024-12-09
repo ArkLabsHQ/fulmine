@@ -65,9 +65,8 @@
     "v1SubmarineSwapResponse": {
       "type": "object",
       "properties": {
-        "address": {
-          "type": "string",
-          "title": "include claim pubkey"
+        "claimPubkey": {
+          "type": "string"
         },
         "expectedAmount": {
           "type": "string",
@@ -76,8 +75,11 @@
         "acceptZeroConf": {
           "type": "boolean"
         },
-        "descriptor": {
-          "type": "string"
+        "tapscripts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     }

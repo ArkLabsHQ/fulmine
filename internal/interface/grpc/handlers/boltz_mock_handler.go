@@ -1,3 +1,4 @@
+// TODO remove this file, it's just a mock for testing boltz server
 package handlers
 
 import (
@@ -8,8 +9,6 @@ import (
 
 	arknodepb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/boltz_mock/v1"
-	"github.com/ArkLabsHQ/ark-node/utils"
-	"github.com/ark-network/ark/common"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -48,13 +47,23 @@ func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.Rev
 	// For the mock, we'll use the fakeInvoice constant
 	invoice := fakeInvoice
 
-	_, err := b.arknode.BotlzFundVHTLC(ctx, &arknodepb.BotlzFundVHTLCRequest{
+	response, err := b.arknode.GetVHTLCAddress(ctx, &arknodepb.GetVHTLCAddressRequest{
 		PreimageHash: preimageHash,
-		Address:      req.Address,
-		Amount:       req.OnchainAmount,
+		Pubkey:       req.Pubkey,
 	})
 	if err != nil {
 		logrus.Errorf("failed to fund vHTLC: %v", err)
+		return nil, err
+	}
+
+	vhtlcAddress := response.Address
+
+	_, err = b.arknode.SendOffChain(ctx, &arknodepb.SendOffChainRequest{
+		Address: vhtlcAddress,
+		Amount:  req.InvoiceAmount,
+	})
+	if err != nil {
+		logrus.Errorf("failed to send to vHTLC address: %v", err)
 		return nil, err
 	}
 
@@ -63,18 +72,10 @@ func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.Rev
 		return nil, err
 	}
 
-	_, boltzPubkey, _, err := common.DecodeAddress(utils.GetArkAddress(addrResponse.Address))
-	if err != nil {
-		return nil, err
-	}
-
-	addr := utils.GetArkAddress(addrResponse.Address)
-
 	return &pb.ReverseSubmarineSwapResponse{
-		Invoice:         invoice,
-		LockupAddress:   addr,
-		RefundPublicKey: hex.EncodeToString(boltzPubkey.SerializeCompressed()),
-		PreimageHash:    hex.EncodeToString(preimage), // MOCK ONLY
+		Invoice:       invoice,
+		LockupAddress: addrResponse.Address,
+		PreimageHash:  hex.EncodeToString(preimage), // MOCK ONLY
 	}, nil
 }
 
@@ -119,7 +120,7 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 		time.Sleep(5 * time.Second) // simulate the payment
 
 		// once user reveals the preimage, claim the vHTLC
-		_, err := b.arknode.BoltzClaimVHTLC(ctx, &arknodepb.BoltzClaimVHTLCRequest{
+		_, err := b.arknode.ClaimVHTLC(ctx, &arknodepb.ClaimVHTLCRequest{
 			Preimage: preimage,
 		})
 		if err != nil {
@@ -130,14 +131,10 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 		logrus.Debugf("vHTLC claimed successfully (amount = %d)", vhtlc.Receiver.Amount)
 	}()
 
-	addrResponse, err := b.arknode.GetAddress(ctx, &arknodepb.GetAddressRequest{})
-	if err != nil {
-		return nil, err
-	}
-
 	return &pb.SubmarineSwapResponse{
-		Address:        addrResponse.Address,
+		ClaimPubkey:    "todopubkey", // TODO add a way to return a rawpubkey from arknode's wallet
 		ExpectedAmount: req.GetInvoiceAmount(),
 		AcceptZeroConf: true,
+		Tapscripts:     []string{"TODO"}, // TODO add vhtlc tapscripts
 	}, nil
 }

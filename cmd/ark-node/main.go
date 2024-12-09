@@ -60,6 +60,11 @@ func main() {
 		log.WithError(err).Fatal(err)
 	}
 
+	vhtlcRepo, err := badgerdb.NewVHTLCRepo(cfg.Datadir, log.New())
+	if err != nil {
+		log.WithError(err).Fatal(err)
+	}
+
 	buildInfo := application.BuildInfo{
 		Version: version,
 		Commit:  commit,
@@ -69,7 +74,14 @@ func main() {
 	schedulerSvc := scheduler.NewScheduler()
 	lnSvc := lnd.NewService()
 
-	appSvc, err := application.NewService(buildInfo, storeSvc, settingsRepo, schedulerSvc, lnSvc)
+	appSvc, err := application.NewService(
+		buildInfo,
+		storeSvc,
+		settingsRepo,
+		vhtlcRepo,
+		schedulerSvc,
+		lnSvc,
+	)
 	if err != nil {
 		log.WithError(err).Fatal(err)
 	}

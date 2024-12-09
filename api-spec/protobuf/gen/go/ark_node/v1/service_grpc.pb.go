@@ -27,8 +27,8 @@ const (
 	Service_SendOnChain_FullMethodName           = "/ark_node.v1.Service/SendOnChain"
 	Service_GetRoundInfo_FullMethodName          = "/ark_node.v1.Service/GetRoundInfo"
 	Service_GetTransactionHistory_FullMethodName = "/ark_node.v1.Service/GetTransactionHistory"
-	Service_GetBoltzVHTLCAddress_FullMethodName  = "/ark_node.v1.Service/GetBoltzVHTLCAddress"
-	Service_BoltzClaimVHTLC_FullMethodName       = "/ark_node.v1.Service/BoltzClaimVHTLC"
+	Service_GetVHTLCAddress_FullMethodName       = "/ark_node.v1.Service/GetVHTLCAddress"
+	Service_ClaimVHTLC_FullMethodName            = "/ark_node.v1.Service/ClaimVHTLC"
 	Service_ListVHTLC_FullMethodName             = "/ark_node.v1.Service/ListVHTLC"
 )
 
@@ -52,10 +52,10 @@ type ServiceClient interface {
 	GetRoundInfo(ctx context.Context, in *GetRoundInfoRequest, opts ...grpc.CallOption) (*GetRoundInfoResponse, error)
 	// GetTransactionHistory returns virtual transactions history
 	GetTransactionHistory(ctx context.Context, in *GetTransactionHistoryRequest, opts ...grpc.CallOption) (*GetTransactionHistoryResponse, error)
-	// GetBoltzVHTLCAddress, compute a VHTLC address
-	GetBoltzVHTLCAddress(ctx context.Context, in *GetBoltzVHTLCAddressRequest, opts ...grpc.CallOption) (*GetBoltzVHTLCAddressResponse, error)
-	// BoltzClaimVHTLC = self send vHTLC -> VTXO
-	BoltzClaimVHTLC(ctx context.Context, in *BoltzClaimVHTLCRequest, opts ...grpc.CallOption) (*BoltzClaimVHTLCResponse, error)
+	// GetVHTLCAddress computes a VHTLC address
+	GetVHTLCAddress(ctx context.Context, in *GetVHTLCAddressRequest, opts ...grpc.CallOption) (*GetVHTLCAddressResponse, error)
+	// ClaimVHTLC = self send vHTLC -> VTXO
+	ClaimVHTLC(ctx context.Context, in *ClaimVHTLCRequest, opts ...grpc.CallOption) (*ClaimVHTLCResponse, error)
 	// ListVHTLC = list all vhtlc OR filter by preimage_hash
 	ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opts ...grpc.CallOption) (*ListVHTLCResponse, error)
 }
@@ -148,20 +148,20 @@ func (c *serviceClient) GetTransactionHistory(ctx context.Context, in *GetTransa
 	return out, nil
 }
 
-func (c *serviceClient) GetBoltzVHTLCAddress(ctx context.Context, in *GetBoltzVHTLCAddressRequest, opts ...grpc.CallOption) (*GetBoltzVHTLCAddressResponse, error) {
+func (c *serviceClient) GetVHTLCAddress(ctx context.Context, in *GetVHTLCAddressRequest, opts ...grpc.CallOption) (*GetVHTLCAddressResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetBoltzVHTLCAddressResponse)
-	err := c.cc.Invoke(ctx, Service_GetBoltzVHTLCAddress_FullMethodName, in, out, cOpts...)
+	out := new(GetVHTLCAddressResponse)
+	err := c.cc.Invoke(ctx, Service_GetVHTLCAddress_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *serviceClient) BoltzClaimVHTLC(ctx context.Context, in *BoltzClaimVHTLCRequest, opts ...grpc.CallOption) (*BoltzClaimVHTLCResponse, error) {
+func (c *serviceClient) ClaimVHTLC(ctx context.Context, in *ClaimVHTLCRequest, opts ...grpc.CallOption) (*ClaimVHTLCResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(BoltzClaimVHTLCResponse)
-	err := c.cc.Invoke(ctx, Service_BoltzClaimVHTLC_FullMethodName, in, out, cOpts...)
+	out := new(ClaimVHTLCResponse)
+	err := c.cc.Invoke(ctx, Service_ClaimVHTLC_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -198,10 +198,10 @@ type ServiceServer interface {
 	GetRoundInfo(context.Context, *GetRoundInfoRequest) (*GetRoundInfoResponse, error)
 	// GetTransactionHistory returns virtual transactions history
 	GetTransactionHistory(context.Context, *GetTransactionHistoryRequest) (*GetTransactionHistoryResponse, error)
-	// GetBoltzVHTLCAddress, compute a VHTLC address
-	GetBoltzVHTLCAddress(context.Context, *GetBoltzVHTLCAddressRequest) (*GetBoltzVHTLCAddressResponse, error)
-	// BoltzClaimVHTLC = self send vHTLC -> VTXO
-	BoltzClaimVHTLC(context.Context, *BoltzClaimVHTLCRequest) (*BoltzClaimVHTLCResponse, error)
+	// GetVHTLCAddress computes a VHTLC address
+	GetVHTLCAddress(context.Context, *GetVHTLCAddressRequest) (*GetVHTLCAddressResponse, error)
+	// ClaimVHTLC = self send vHTLC -> VTXO
+	ClaimVHTLC(context.Context, *ClaimVHTLCRequest) (*ClaimVHTLCResponse, error)
 	// ListVHTLC = list all vhtlc OR filter by preimage_hash
 	ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error)
 }
@@ -234,11 +234,11 @@ func (UnimplementedServiceServer) GetRoundInfo(context.Context, *GetRoundInfoReq
 func (UnimplementedServiceServer) GetTransactionHistory(context.Context, *GetTransactionHistoryRequest) (*GetTransactionHistoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionHistory not implemented")
 }
-func (UnimplementedServiceServer) GetBoltzVHTLCAddress(context.Context, *GetBoltzVHTLCAddressRequest) (*GetBoltzVHTLCAddressResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetBoltzVHTLCAddress not implemented")
+func (UnimplementedServiceServer) GetVHTLCAddress(context.Context, *GetVHTLCAddressRequest) (*GetVHTLCAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetVHTLCAddress not implemented")
 }
-func (UnimplementedServiceServer) BoltzClaimVHTLC(context.Context, *BoltzClaimVHTLCRequest) (*BoltzClaimVHTLCResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method BoltzClaimVHTLC not implemented")
+func (UnimplementedServiceServer) ClaimVHTLC(context.Context, *ClaimVHTLCRequest) (*ClaimVHTLCResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClaimVHTLC not implemented")
 }
 func (UnimplementedServiceServer) ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListVHTLC not implemented")
@@ -399,38 +399,38 @@ func _Service_GetTransactionHistory_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Service_GetBoltzVHTLCAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetBoltzVHTLCAddressRequest)
+func _Service_GetVHTLCAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVHTLCAddressRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServiceServer).GetBoltzVHTLCAddress(ctx, in)
+		return srv.(ServiceServer).GetVHTLCAddress(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Service_GetBoltzVHTLCAddress_FullMethodName,
+		FullMethod: Service_GetVHTLCAddress_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).GetBoltzVHTLCAddress(ctx, req.(*GetBoltzVHTLCAddressRequest))
+		return srv.(ServiceServer).GetVHTLCAddress(ctx, req.(*GetVHTLCAddressRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Service_BoltzClaimVHTLC_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BoltzClaimVHTLCRequest)
+func _Service_ClaimVHTLC_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClaimVHTLCRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServiceServer).BoltzClaimVHTLC(ctx, in)
+		return srv.(ServiceServer).ClaimVHTLC(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Service_BoltzClaimVHTLC_FullMethodName,
+		FullMethod: Service_ClaimVHTLC_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).BoltzClaimVHTLC(ctx, req.(*BoltzClaimVHTLCRequest))
+		return srv.(ServiceServer).ClaimVHTLC(ctx, req.(*ClaimVHTLCRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -493,12 +493,12 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Service_GetTransactionHistory_Handler,
 		},
 		{
-			MethodName: "GetBoltzVHTLCAddress",
-			Handler:    _Service_GetBoltzVHTLCAddress_Handler,
+			MethodName: "GetVHTLCAddress",
+			Handler:    _Service_GetVHTLCAddress_Handler,
 		},
 		{
-			MethodName: "BoltzClaimVHTLC",
-			Handler:    _Service_BoltzClaimVHTLC_Handler,
+			MethodName: "ClaimVHTLC",
+			Handler:    _Service_ClaimVHTLC_Handler,
 		},
 		{
 			MethodName: "ListVHTLC",

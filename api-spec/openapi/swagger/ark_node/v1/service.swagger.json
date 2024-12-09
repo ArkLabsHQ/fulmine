@@ -271,13 +271,13 @@
     },
     "/v1/vhtlc/address": {
       "post": {
-        "summary": "GetBoltzVHTLCAddress, compute a VHTLC address",
-        "operationId": "Service_GetBoltzVHTLCAddress",
+        "summary": "GetVHTLCAddress computes a VHTLC address",
+        "operationId": "Service_GetVHTLCAddress",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1GetBoltzVHTLCAddressResponse"
+              "$ref": "#/definitions/v1GetVHTLCAddressResponse"
             }
           },
           "default": {
@@ -293,7 +293,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1GetBoltzVHTLCAddressRequest"
+              "$ref": "#/definitions/v1GetVHTLCAddressRequest"
             }
           }
         ],
@@ -304,13 +304,13 @@
     },
     "/v1/vhtlc/claim": {
       "post": {
-        "summary": "BoltzClaimVHTLC = self send vHTLC -\u003e VTXO",
-        "operationId": "Service_BoltzClaimVHTLC",
+        "summary": "ClaimVHTLC = self send vHTLC -\u003e VTXO",
+        "operationId": "Service_ClaimVHTLC",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1BoltzClaimVHTLCResponse"
+              "$ref": "#/definitions/v1ClaimVHTLCResponse"
             }
           },
           "default": {
@@ -326,7 +326,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1BoltzClaimVHTLCRequest"
+              "$ref": "#/definitions/v1ClaimVHTLCRequest"
             }
           }
         ],
@@ -392,22 +392,6 @@
         }
       }
     },
-    "v1BoltzClaimVHTLCRequest": {
-      "type": "object",
-      "properties": {
-        "preimage": {
-          "type": "string"
-        }
-      }
-    },
-    "v1BoltzClaimVHTLCResponse": {
-      "type": "object",
-      "properties": {
-        "redeemTx": {
-          "type": "string"
-        }
-      }
-    },
     "v1BuildInfo": {
       "type": "object",
       "properties": {
@@ -418,6 +402,22 @@
           "type": "string"
         },
         "date": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ClaimVHTLCRequest": {
+      "type": "object",
+      "properties": {
+        "preimage": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ClaimVHTLCResponse": {
+      "type": "object",
+      "properties": {
+        "redeemTx": {
           "type": "string"
         }
       }
@@ -436,25 +436,6 @@
         "amount": {
           "type": "string",
           "format": "uint64"
-        }
-      }
-    },
-    "v1GetBoltzVHTLCAddressRequest": {
-      "type": "object",
-      "properties": {
-        "preimageHash": {
-          "type": "string"
-        },
-        "pubkey": {
-          "type": "string"
-        }
-      }
-    },
-    "v1GetBoltzVHTLCAddressResponse": {
-      "type": "object",
-      "properties": {
-        "address": {
-          "type": "string"
         }
       }
     },
@@ -512,6 +493,25 @@
         }
       }
     },
+    "v1GetVHTLCAddressRequest": {
+      "type": "object",
+      "properties": {
+        "preimageHash": {
+          "type": "string"
+        },
+        "pubkey": {
+          "type": "string"
+        }
+      }
+    },
+    "v1GetVHTLCAddressResponse": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        }
+      }
+    },
     "v1Input": {
       "type": "object",
       "properties": {
@@ -553,7 +553,7 @@
     "v1Output": {
       "type": "object",
       "properties": {
-        "descriptor": {
+        "pubkey": {
           "type": "string"
         },
         "amount": {
@@ -705,9 +705,6 @@
         "receiver": {
           "$ref": "#/definitions/v1Output"
         },
-        "spent": {
-          "type": "boolean"
-        },
         "roundTxid": {
           "type": "string"
         },
@@ -717,9 +714,6 @@
         "expireAt": {
           "type": "string",
           "format": "int64"
-        },
-        "swept": {
-          "type": "boolean"
         }
       }
     }

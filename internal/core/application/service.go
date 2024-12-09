@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
@@ -11,11 +12,21 @@ import (
 	"github.com/ArkLabsHQ/ark-node/pkg/vhtlc"
 	"github.com/ArkLabsHQ/ark-node/utils"
 	"github.com/ark-network/ark/common"
+	"github.com/ark-network/ark/common/bitcointree"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
+	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/btcutil/psbt"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/txscript"
+	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/lightningnetwork/lnd/input"
+	"github.com/lightningnetwork/lnd/lntypes"
+	"github.com/lightningnetwork/lnd/lnwallet/chainfee"
 	"github.com/sirupsen/logrus"
 )
 
@@ -31,6 +42,7 @@ type Service struct {
 	arksdk.ArkClient
 	storeRepo    types.Store
 	settingsRepo domain.SettingsRepository
+	vhtlcRepo    domain.VHTLCRepository
 	grpcClient   client.TransportClient
 	schedulerSvc ports.SchedulerService
 	lnSvc        ports.LnService
@@ -44,6 +56,7 @@ func NewService(
 	buildInfo BuildInfo,
 	storeSvc types.Store,
 	settingsRepo domain.SettingsRepository,
+	vhtlcRepo domain.VHTLCRepository,
 	schedulerSvc ports.SchedulerService,
 	lnSvc ports.LnService,
 ) (*Service, error) {
@@ -57,7 +70,7 @@ func NewService(
 			return nil, err
 		}
 		return &Service{
-			buildInfo, arkClient, storeSvc, settingsRepo, client, schedulerSvc, lnSvc, nil, true,
+			buildInfo, arkClient, storeSvc, settingsRepo, vhtlcRepo, client, schedulerSvc, lnSvc, nil, true,
 		}, nil
 	}
 
@@ -74,7 +87,7 @@ func NewService(
 		return nil, err
 	}
 
-	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, nil, schedulerSvc, lnSvc, nil, false}, nil
+	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, vhtlcRepo, nil, schedulerSvc, lnSvc, nil, false}, nil
 }
 
 func (s *Service) IsReady() bool {
@@ -346,5 +359,208 @@ func (s *Service) GetVHTLCAddress(ctx context.Context, receiverPubKey *secp256k1
 		VtxoTapKey: tapKey,
 	}
 
+	// store the vhtlc options for future use
+	err = s.vhtlcRepo.Add(ctx, opts)
+	if err != nil {
+		return "", err
+	}
+
 	return addr.Encode()
+}
+
+func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]client.Vtxo, []vhtlc.Opts, error) {
+	// Get VHTLC options based on filter
+	var vhtlcOpts []vhtlc.Opts
+	if preimageHashFilter != "" {
+		opt, err := s.vhtlcRepo.Get(ctx, preimageHashFilter)
+		if err != nil {
+			return nil, nil, err
+		}
+		vhtlcOpts = []vhtlc.Opts{*opt}
+	} else {
+		var err error
+		vhtlcOpts, err = s.vhtlcRepo.GetAll(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	offchainAddr, _, err := s.Receive(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	decodedAddr, err := common.DecodeAddress(offchainAddr)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var allVtxos []client.Vtxo
+	for _, opt := range vhtlcOpts {
+		vtxoScript, err := vhtlc.NewVtxoScript(opt)
+		if err != nil {
+			return nil, nil, err
+		}
+		tapKey, _, err := vtxoScript.TapTree()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		addr := &common.Address{
+			HRP:        decodedAddr.HRP,
+			Server:     decodedAddr.Server,
+			VtxoTapKey: tapKey,
+		}
+
+		addrStr, err := addr.Encode()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// Get vtxos for this address
+		vtxos, _, err := s.grpcClient.ListVtxos(ctx, addrStr)
+		if err != nil {
+			return nil, nil, err
+		}
+		allVtxos = append(allVtxos, vtxos...)
+	}
+
+	return allVtxos, vhtlcOpts, nil
+}
+
+func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, error) {
+	preimageHash := hex.EncodeToString(btcutil.Hash160(preimage))
+
+	vtxos, vhtlcOpts, err := s.ListVHTLC(ctx, preimageHash)
+	if err != nil {
+		return "", err
+	}
+
+	if len(vtxos) == 0 {
+		return "", fmt.Errorf("no vhtlc found")
+	}
+
+	vtxo := vtxos[0]
+	opts := vhtlcOpts[0]
+
+	vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
+	if err != nil {
+		return "", err
+	}
+
+	vtxoOutpoint := &wire.OutPoint{
+		Hash:  *vtxoTxHash,
+		Index: vtxo.VOut,
+	}
+
+	vtxoScript, err := vhtlc.NewVtxoScript(opts)
+	if err != nil {
+		return "", err
+	}
+
+	claimClosure, err := opts.Claim()
+	if err != nil {
+		return "", err
+	}
+
+	claimScript, err := claimClosure.Script()
+	if err != nil {
+		return "", err
+	}
+
+	_, tapTree, err := vtxoScript.TapTree()
+	if err != nil {
+		return "", err
+	}
+
+	claimLeafProof, err := tapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(claimScript).TapHash(),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	ctrlBlock, err := txscript.ParseControlBlock(claimLeafProof.ControlBlock)
+	if err != nil {
+		return "", err
+	}
+
+	// self send output
+	_, myAddr, _, err := s.GetAddress(ctx, 0)
+	if err != nil {
+		return "", err
+	}
+
+	decodedAddr, err := common.DecodeAddress(myAddr)
+	if err != nil {
+		return "", err
+	}
+
+	pkScript, err := common.P2TRScript(decodedAddr.VtxoTapKey)
+	if err != nil {
+		return "", err
+	}
+
+	weightEstimator := &input.TxWeightEstimator{}
+	weightEstimator.AddTapscriptInput(
+		lntypes.VByte(claimClosure.WitnessSize(len(preimage))).ToWU(),
+		&waddrmgr.Tapscript{
+			ControlBlock:   ctrlBlock,
+			RevealedScript: claimScript,
+		},
+	)
+	weightEstimator.AddP2TROutput()
+
+	size := weightEstimator.VSize()
+	// TODO better fee rate
+	fees := chainfee.AbsoluteFeePerKwFloor.FeeForVByte(lntypes.VByte(size)).ToUnit(btcutil.AmountSatoshi)
+
+	if int64(vtxo.Amount) < int64(fees) {
+		return "", fmt.Errorf("fees are greater than vhtlc amount %d < %d", vtxo.Amount, fees)
+	}
+
+	redeemTx, err := bitcointree.BuildRedeemTx(
+		[]common.VtxoInput{
+			{
+				Outpoint:    vtxoOutpoint,
+				Amount:      int64(vtxo.Amount),
+				WitnessSize: claimClosure.WitnessSize(len(preimage)),
+				Tapscript: &waddrmgr.Tapscript{
+					ControlBlock:   ctrlBlock,
+					RevealedScript: claimScript,
+				},
+			},
+		},
+		[]*wire.TxOut{
+			{
+				Value:    int64(vtxo.Amount) - int64(fees),
+				PkScript: pkScript,
+			},
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	redeemPtx, err := psbt.NewFromRawBytes(strings.NewReader(redeemTx), true)
+	if err != nil {
+		return "", err
+	}
+
+	if err := bitcointree.AddConditionWitness(0, redeemPtx, wire.TxWitness{preimage}); err != nil {
+		return "", err
+	}
+
+	// TODO: expose wallet's signer in ark sdk
+	// TODO: sign redeemTx
+	redeemTx, err = redeemPtx.B64Encode()
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := s.grpcClient.SubmitRedeemTx(ctx, redeemTx); err != nil {
+		return "", err
+	}
+
+	return redeemTx, nil
 }

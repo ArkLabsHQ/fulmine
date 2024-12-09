@@ -15,7 +15,6 @@ import (
 
 	ark_node_pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	boltz_mockv1 "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/boltz_mock/v1"
-	"github.com/ArkLabsHQ/ark-node/utils"
 )
 
 func main() {
@@ -117,15 +116,23 @@ func swap(c *cli.Context) error {
 		return err
 	}
 
-	addr := response.GetAddress()
-	addr = utils.GetArkAddress(addr)
-
-	_, err = nodeClient.BotlzFundVHTLC(c.Context, &ark_node_pb.BotlzFundVHTLCRequest{
+	vhtlcAddrResp, err := nodeClient.GetVHTLCAddress(c.Context, &ark_node_pb.GetVHTLCAddressRequest{
 		PreimageHash: preimageHash,
-		Address:      addr,
-		Amount:       response.ExpectedAmount,
+		Pubkey:       response.ClaimPubkey,
 	})
 	if err != nil {
+		logrus.Errorf("failed to fund vHTLC: %v", err)
+		return err
+	}
+
+	vhtlcAddress := vhtlcAddrResp.Address
+
+	_, err = nodeClient.SendOffChain(c.Context, &ark_node_pb.SendOffChainRequest{
+		Address: vhtlcAddress,
+		Amount:  amount,
+	})
+	if err != nil {
+		logrus.Errorf("failed to send to vHTLC address: %v", err)
 		return err
 	}
 
@@ -169,21 +176,12 @@ func reverseSwap(c *cli.Context) error {
 		return err
 	}
 
-	addrResponse, err := nodeClient.GetAddress(c.Context, &ark_node_pb.GetAddressRequest{})
-	if err != nil {
-		return err
-	}
-
-	// address receiving vHTLC
-	addr := addrResponse.GetAddress()
-	addr = utils.GetArkAddress(addr)
-
 	response, err := boltzClient.ReverseSubmarineSwap(c.Context, &boltz_mockv1.ReverseSubmarineSwapRequest{
 		From:          "LN",
 		To:            "ARK",
 		InvoiceAmount: amount,
 		OnchainAmount: amount,
-		Address:       addr,
+		Pubkey:        "todopubkey", // TODO add a way to return a rawpubkey from arknode's wallet
 	})
 	if err != nil {
 		return err
@@ -221,7 +219,7 @@ func reverseSwap(c *cli.Context) error {
 		vhtlc = listResponse.Vhtlcs[0]
 	}
 
-	_, err = nodeClient.BoltzClaimVHTLC(c.Context, &ark_node_pb.BoltzClaimVHTLCRequest{
+	_, err = nodeClient.ClaimVHTLC(c.Context, &ark_node_pb.ClaimVHTLCRequest{
 		Preimage: preimage,
 	})
 	if err != nil {

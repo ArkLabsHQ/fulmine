@@ -57,15 +57,15 @@ service Service {
       get: "/v1/transactions"
     };
   };
-  // GetBoltzVHTLCAddress, compute a VHTLC address
-  rpc GetBoltzVHTLCAddress(GetBoltzVHTLCAddressRequest) returns (GetBoltzVHTLCAddressResponse) {
+  // GetVHTLCAddress computes a VHTLC address
+  rpc GetVHTLCAddress(GetVHTLCAddressRequest) returns (GetVHTLCAddressResponse) {
     option (google.api.http) = {
       post: "/v1/vhtlc/address"
       body: "*"
     };
   };
-  // BoltzClaimVHTLC = self send vHTLC -> VTXO
-  rpc BoltzClaimVHTLC(BoltzClaimVHTLCRequest) returns (BoltzClaimVHTLCResponse) {
+  // ClaimVHTLC = self send vHTLC -> VTXO
+  rpc ClaimVHTLC(ClaimVHTLCRequest) returns (ClaimVHTLCResponse) {
     option (google.api.http) = {
       post: "/v1/vhtlc/claim"
       body: "*"
@@ -140,20 +140,20 @@ message GetTransactionHistoryResponse {
   repeated TransactionInfo transactions = 1;
 }
 
-message GetBoltzVHTLCAddressRequest {
+message GetVHTLCAddressRequest {
   string preimage_hash = 1;
   string pubkey = 2;
 }
 
-message GetBoltzVHTLCAddressResponse {
+message GetVHTLCAddressResponse {
   string address = 1;
 }
 
-message BoltzClaimVHTLCRequest {
+message ClaimVHTLCRequest {
   string preimage = 1;
 }
 
-message BoltzClaimVHTLCResponse {
+message ClaimVHTLCResponse {
   string redeem_tx = 1;
 }
 
