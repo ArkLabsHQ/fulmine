@@ -85,6 +85,39 @@
         ]
       }
     },
+    "/v1/note/redeem": {
+      "post": {
+        "summary": "Redeems an ark note by joining a round",
+        "operationId": "Service_RedeemNote",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RedeemNoteResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RedeemNoteRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/onboard": {
       "post": {
         "summary": "GetOnboardAddress returns onchain address and invoice for requested amount",
@@ -390,6 +423,22 @@
           "type": "string"
         },
         "parentTxid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1RedeemNoteRequest": {
+      "type": "object",
+      "properties": {
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "v1RedeemNoteResponse": {
+      "type": "object",
+      "properties": {
+        "txid": {
           "type": "string"
         }
       }
