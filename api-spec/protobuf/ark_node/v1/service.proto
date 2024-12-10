@@ -31,6 +31,18 @@ service Service {
       body: "*"
     };
   };
+  // Returns round info for optional round_id (no round_id returns current round info)
+  rpc GetRoundInfo(GetRoundInfoRequest) returns (GetRoundInfoResponse) {
+    option (google.api.http) = {
+      get: "/v1/round/{round_id}"
+    };
+  };
+  // GetTransactionHistory returns virtual transactions history
+  rpc GetTransactionHistory(GetTransactionHistoryRequest) returns (GetTransactionHistoryResponse) {
+    option (google.api.http) = {
+      get: "/v1/transactions"
+    };
+  };
   // Send asks to send amount to ark address by joining a round
   rpc SendOffChain(SendOffChainRequest) returns (SendOffChainResponse) {
     option (google.api.http) = {
@@ -43,18 +55,6 @@ service Service {
     option (google.api.http) = {
       post: "/v1/send/onchain"
       body: "*"
-    };
-  };
-  // Returns round info for optional round_id (no round_id returns current round info)
-  rpc GetRoundInfo(GetRoundInfoRequest) returns (GetRoundInfoResponse) {
-    option (google.api.http) = {
-      get: "/v1/round/{round_id}"
-    };
-  };
-  // GetTransactionHistory returns virtual transactions history
-  rpc GetTransactionHistory(GetTransactionHistoryRequest) returns (GetTransactionHistoryResponse) {
-    option (google.api.http) = {
-      get: "/v1/transactions"
     };
   };
 }
