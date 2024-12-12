@@ -252,8 +252,8 @@ var urlFlags = []cli.Flag{
 	&cli.StringFlag{
 		Name:    "node-url",
 		Aliases: []string{"n"},
-		Value:   "localhost:7001",
-		Usage:   "ark node server URL (e.g. localhost:7001)",
+		Value:   "localhost:7002",
+		Usage:   "ark node server URL (e.g. localhost:7002)",
 	},
 	&cli.StringFlag{
 		Name:    "boltz-url",
