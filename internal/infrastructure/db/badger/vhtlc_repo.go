@@ -21,7 +21,7 @@ type badgerRepo struct {
 func NewVHTLCRepo(baseDir string, logger badger.Logger) (domain.VHTLCRepository, error) {
 	var dir string
 	if len(baseDir) > 0 {
-		dir = filepath.Join(baseDir, settingsDir)
+		dir = filepath.Join(baseDir, "vhtlc")
 	}
 	store, err := createDB(dir, logger)
 	if err != nil {
