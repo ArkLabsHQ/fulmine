@@ -2,6 +2,8 @@ module github.com/ArkLabsHQ/ark-node
 
 go 1.23.1
 
+replace github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.3
+
 replace github.com/ArkLabsHQ/ark-node/pkg/vhtlc => ./pkg/vhtlc
 
 replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-display v1.30.0-hex-display
