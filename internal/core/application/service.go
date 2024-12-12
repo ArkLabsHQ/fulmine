@@ -293,7 +293,11 @@ func (s *Service) WhenNextClaim(ctx context.Context) time.Time {
 }
 
 func (s *Service) ConnectLN(lndconnectUrl string) error {
-	return s.lnSvc.Connect(lndconnectUrl)
+	err := s.lnSvc.Connect(lndconnectUrl)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *Service) DisconnectLN() {
@@ -516,7 +520,7 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 	fees := chainfee.AbsoluteFeePerKwFloor.FeeForVByte(lntypes.VByte(size)).ToUnit(btcutil.AmountSatoshi)
 
 	if int64(vtxo.Amount) < int64(fees) {
-		return "", fmt.Errorf("fees are greater than vhtlc amount %d < %d", vtxo.Amount, fees)
+		return "", fmt.Errorf("fees are greater than vhtlc amount %d < %f", vtxo.Amount, fees)
 	}
 
 	redeemTx, err := bitcointree.BuildRedeemTx(
