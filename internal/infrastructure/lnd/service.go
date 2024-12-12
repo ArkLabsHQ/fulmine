@@ -70,10 +70,10 @@ func (s *service) GetInfo() (version string, pubkey string, err error) {
 	return info.Version, info.IdentityPubkey, nil
 }
 
-func (s *service) GetInvoice(value int, memo string) (invoice string, err error) {
+func (s *service) GetInvoice(value int, memo string) (string, string, error) {
 	if !s.IsConnected() {
-		err = fmt.Errorf("lnd service not connected")
-		return
+		err := fmt.Errorf("lnd service not connected")
+		return "", "", err
 	}
 
 	invoiceRequest := &lnrpc.Invoice{
@@ -83,10 +83,15 @@ func (s *service) GetInvoice(value int, memo string) (invoice string, err error)
 
 	info, err := s.client.AddInvoice(getCtx(s.macaroon), invoiceRequest)
 	if err != nil {
-		return
+		return "", "", err
 	}
 
-	return info.PaymentRequest, nil
+	invoice, err := s.client.DecodePayReq(getCtx(s.macaroon), &lnrpc.PayReqString{PayReq: info.PaymentRequest})
+	if err != nil {
+		return "", "", err
+	}
+
+	return info.PaymentRequest, invoice.PaymentHash, nil
 }
 
 func (s *service) IsConnected() bool {
