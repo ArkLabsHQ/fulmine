@@ -167,8 +167,6 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 			const settings = JSON.parse(document.querySelector('#settings').textContent)
 			fetch('https://blockchain.info/ticker').then((res) => {
 				res.json().then((json) => {
-					console.log('settings.Currency', settings.Currency)
-					console.log('ticker', json)
 					document.querySelectorAll('.fiatAmount').forEach((x) => {
 						const sats = parseInt(x.getAttribute('sats'))
 						if (isNaN(sats)) return
@@ -187,7 +185,6 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 		}
 
 		document.addEventListener('htmx:load', () => {
-			console.log('heyhey')
 			enableButtons()
 			updateFiatValues()
 			updateCryptoValues()
