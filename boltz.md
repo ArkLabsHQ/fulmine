@@ -34,7 +34,7 @@ make serve-boltz-mock
 build the swap CLI
 
 ```bash
-make build-swap-client
+make build-swap-cli
 ```
 
 run the swap CLI
