@@ -17,10 +17,10 @@ type Opts struct {
 	Sender                 *secp256k1.PublicKey
 	Receiver               *secp256k1.PublicKey
 	Server                 *secp256k1.PublicKey
-	ReceiverRefundLocktime common.Locktime // absolute locktime
-	SenderReclaimLocktime  common.Locktime // absolute locktime
-	SenderReclaimDelay     common.Locktime // relative locktime
-	ClaimDelay             common.Locktime // relative locktime
+	ReceiverRefundLocktime common.AbsoluteLocktime // absolute locktime
+	SenderReclaimLocktime  common.AbsoluteLocktime // absolute locktime
+	SenderReclaimDelay     common.RelativeLocktime // relative locktime
+	ClaimDelay             common.RelativeLocktime // relative locktime
 	PreimageHash           []byte
 }
 

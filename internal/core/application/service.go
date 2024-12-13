@@ -336,23 +336,17 @@ func (s *Service) GetVHTLCAddress(ctx context.Context, receiverPubKey *secp256k1
 	}
 
 	opts := vhtlc.Opts{
-		Receiver:     receiverPubKey,
-		Sender:       s.publicKey,
-		Server:       decodedAddr.Server,
-		PreimageHash: preimageHash,
-		ReceiverRefundLocktime: common.Locktime{
-			Type:  common.LocktimeTypeSecond,
-			Value: locktime,
-		},
-		SenderReclaimLocktime: common.Locktime{
-			Type:  common.LocktimeTypeSecond,
-			Value: locktime,
-		},
-		SenderReclaimDelay: common.Locktime{
+		Receiver:               receiverPubKey,
+		Sender:                 s.publicKey,
+		Server:                 decodedAddr.Server,
+		PreimageHash:           preimageHash,
+		ReceiverRefundLocktime: common.AbsoluteLocktime(locktime),
+		SenderReclaimLocktime:  common.AbsoluteLocktime(locktime),
+		SenderReclaimDelay: common.RelativeLocktime{
 			Type:  common.LocktimeTypeSecond,
 			Value: delay,
 		},
-		ClaimDelay: common.Locktime{
+		ClaimDelay: common.RelativeLocktime{
 			Type:  common.LocktimeTypeSecond,
 			Value: delay,
 		},

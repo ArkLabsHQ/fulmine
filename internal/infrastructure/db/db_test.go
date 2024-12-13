@@ -47,23 +47,17 @@ var (
 		receiverKey, _ := secp256k1.GeneratePrivateKey()
 
 		return vhtlc.Opts{
-			PreimageHash: randBytes,
-			Sender:       senderKey.PubKey(),
-			Receiver:     receiverKey.PubKey(),
-			Server:       serverKey.PubKey(),
-			ReceiverRefundLocktime: common.Locktime{
-				Type:  common.LocktimeTypeBlock,
-				Value: 100,
-			},
-			SenderReclaimLocktime: common.Locktime{
-				Type:  common.LocktimeTypeBlock,
-				Value: 200,
-			},
-			SenderReclaimDelay: common.Locktime{
+			PreimageHash:           randBytes,
+			Sender:                 senderKey.PubKey(),
+			Receiver:               receiverKey.PubKey(),
+			Server:                 serverKey.PubKey(),
+			ReceiverRefundLocktime: common.AbsoluteLocktime(100 * 600),
+			SenderReclaimLocktime:  common.AbsoluteLocktime(200 * 600),
+			SenderReclaimDelay: common.RelativeLocktime{
 				Type:  common.LocktimeTypeBlock,
 				Value: 300,
 			},
-			ClaimDelay: common.Locktime{
+			ClaimDelay: common.RelativeLocktime{
 				Type:  common.LocktimeTypeBlock,
 				Value: 400,
 			},

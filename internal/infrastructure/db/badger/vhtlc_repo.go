@@ -94,10 +94,10 @@ type data struct {
 	Sender                 string
 	Receiver               string
 	Server                 string
-	ReceiverRefundLocktime common.Locktime // absolute locktime
-	SenderReclaimLocktime  common.Locktime // absolute locktime
-	SenderReclaimDelay     common.Locktime // relative locktime
-	ClaimDelay             common.Locktime // relative locktime
+	ReceiverRefundLocktime common.AbsoluteLocktime // absolute locktime
+	SenderReclaimLocktime  common.AbsoluteLocktime // absolute locktime
+	SenderReclaimDelay     common.RelativeLocktime // relative locktime
+	ClaimDelay             common.RelativeLocktime // relative locktime
 }
 
 func (d *data) toOpts() (*vhtlc.Opts, error) {
