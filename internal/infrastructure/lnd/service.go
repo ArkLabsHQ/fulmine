@@ -97,3 +97,30 @@ func (s *service) GetInvoice(value int, memo string) (string, string, error) {
 func (s *service) IsConnected() bool {
 	return s.client != nil
 }
+
+func (s *service) PayInvoice(invoice string) error {
+	if !s.IsConnected() {
+		return fmt.Errorf("lnd service not connected")
+	}
+
+	// validate invoice
+	_, err := s.client.DecodePayReq(getCtx(s.macaroon), &lnrpc.PayReqString{PayReq: invoice})
+	if err != nil {
+		return err
+	}
+
+	sendRequest := &lnrpc.SendRequest{
+		PaymentRequest: invoice, // barebones 'lnb...'
+	}
+
+	response, err := s.client.SendPaymentSync(getCtx(s.macaroon), sendRequest)
+	if err != nil {
+		return err
+	}
+
+	if response.PaymentError != "" {
+		return fmt.Errorf(response.PaymentError)
+	}
+
+	return nil
+}
