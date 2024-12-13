@@ -14,6 +14,7 @@ require (
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/ark-network/ark/common v0.0.0-20241205095758-f1272b5d813e
 	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20241128135106-02542c36345d
+	github.com/ccoveille/go-safecast v1.2.0
 	github.com/dgraph-io/badger/v4 v4.3.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0

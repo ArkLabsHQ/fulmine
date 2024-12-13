@@ -23,6 +23,7 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcwallet/waddrmgr"
+	"github.com/ccoveille/go-safecast"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/lightningnetwork/lnd/input"
 	"github.com/lightningnetwork/lnd/lntypes"
@@ -324,6 +325,16 @@ func (s *Service) GetVHTLCAddress(ctx context.Context, receiverPubKey *secp256k1
 	nowPlus2days := now.Add(2 * 24 * time.Hour)
 	oneDayDuration := 24 * time.Hour
 
+	delay, err := safecast.ToUint32(oneDayDuration.Seconds())
+	if err != nil {
+		return "", err
+	}
+
+	locktime, err := safecast.ToUint32(nowPlus2days.Unix())
+	if err != nil {
+		return "", err
+	}
+
 	opts := vhtlc.Opts{
 		Receiver:     receiverPubKey,
 		Sender:       s.publicKey,
@@ -331,19 +342,19 @@ func (s *Service) GetVHTLCAddress(ctx context.Context, receiverPubKey *secp256k1
 		PreimageHash: preimageHash,
 		ReceiverRefundLocktime: common.Locktime{
 			Type:  common.LocktimeTypeSecond,
-			Value: uint32(nowPlus2days.Unix()),
+			Value: locktime,
 		},
 		SenderReclaimLocktime: common.Locktime{
 			Type:  common.LocktimeTypeSecond,
-			Value: uint32(nowPlus2days.Unix()),
+			Value: locktime,
 		},
 		SenderReclaimDelay: common.Locktime{
 			Type:  common.LocktimeTypeSecond,
-			Value: uint32(oneDayDuration.Seconds()),
+			Value: delay,
 		},
 		ClaimDelay: common.Locktime{
 			Type:  common.LocktimeTypeSecond,
-			Value: uint32(oneDayDuration.Seconds()),
+			Value: delay,
 		},
 	}
 
@@ -516,18 +527,27 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 	weightEstimator.AddP2TROutput()
 
 	size := weightEstimator.VSize()
-	// TODO better fee rate
-	fees := chainfee.AbsoluteFeePerKwFloor.FeeForVByte(lntypes.VByte(size)).ToUnit(btcutil.AmountSatoshi)
 
-	if int64(vtxo.Amount) < int64(fees) {
-		return "", fmt.Errorf("fees are greater than vhtlc amount %d < %f", vtxo.Amount, fees)
+	// TODO better fee rate
+	fees, err := safecast.ToInt64(chainfee.AbsoluteFeePerKwFloor.FeeForVByte(lntypes.VByte(size)).ToUnit(btcutil.AmountSatoshi))
+	if err != nil {
+		return "", err
+	}
+
+	amount, err := safecast.ToInt64(vtxo.Amount)
+	if err != nil {
+		return "", err
+	}
+
+	if amount < fees {
+		return "", fmt.Errorf("fees are greater than vhtlc amount %d < %d", vtxo.Amount, fees)
 	}
 
 	redeemTx, err := bitcointree.BuildRedeemTx(
 		[]common.VtxoInput{
 			{
 				Outpoint:    vtxoOutpoint,
-				Amount:      int64(vtxo.Amount),
+				Amount:      amount,
 				WitnessSize: claimClosure.WitnessSize(len(preimage)),
 				Tapscript: &waddrmgr.Tapscript{
 					ControlBlock:   ctrlBlock,
@@ -537,7 +557,7 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		},
 		[]*wire.TxOut{
 			{
-				Value:    int64(vtxo.Amount) - int64(fees),
+				Value:    amount - fees,
 				PkScript: pkScript,
 			},
 		},
