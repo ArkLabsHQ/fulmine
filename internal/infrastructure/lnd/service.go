@@ -119,7 +119,7 @@ func (s *service) PayInvoice(invoice string) error {
 	}
 
 	if response.PaymentError != "" {
-		return fmt.Errorf(response.PaymentError)
+		return fmt.Errorf("%s", response.PaymentError)
 	}
 
 	return nil
