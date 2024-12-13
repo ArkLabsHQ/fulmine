@@ -516,9 +516,14 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		return "", err
 	}
 
+	witnessSize, err := safecast.ToUint64(claimClosure.WitnessSize(len(preimage)))
+	if err != nil {
+		return "", err
+	}
+
 	weightEstimator := &input.TxWeightEstimator{}
 	weightEstimator.AddTapscriptInput(
-		lntypes.VByte(claimClosure.WitnessSize(len(preimage))).ToWU(),
+		lntypes.VByte(witnessSize).ToWU(),
 		&waddrmgr.Tapscript{
 			ControlBlock:   ctrlBlock,
 			RevealedScript: claimScript,
@@ -526,10 +531,14 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 	)
 	weightEstimator.AddP2TROutput()
 
-	size := weightEstimator.VSize()
+	size, err := safecast.ToUint64(weightEstimator.VSize())
+	if err != nil {
+		return "", err
+	}
 
 	// TODO better fee rate
-	fees, err := safecast.ToInt64(chainfee.AbsoluteFeePerKwFloor.FeeForVByte(lntypes.VByte(size)).ToUnit(btcutil.AmountSatoshi))
+	sats := chainfee.AbsoluteFeePerKwFloor.FeeForVByte(lntypes.VByte(size)).ToUnit(btcutil.AmountSatoshi)
+	fees, err := safecast.ToInt64(sats)
 	if err != nil {
 		return "", err
 	}
