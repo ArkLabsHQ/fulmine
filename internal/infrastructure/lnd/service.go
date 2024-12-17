@@ -1,12 +1,18 @@
 package lnd
 
 import (
+	"context"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+)
+
+var (
+	ErrServiceNotConnected = fmt.Errorf("lnd service not connected")
 )
 
 type service struct {
@@ -19,7 +25,7 @@ func NewService() ports.LnService {
 	return &service{nil, nil, ""}
 }
 
-func (s *service) Connect(lndconnectUrl string) error {
+func (s *service) Connect(ctx context.Context, lndconnectUrl string) error {
 	if len(lndconnectUrl) == 0 {
 		return fmt.Errorf("empty lnurl")
 	}
@@ -29,7 +35,8 @@ func (s *service) Connect(lndconnectUrl string) error {
 		return fmt.Errorf("unable to get client: %v", err)
 	}
 
-	info, err := client.GetInfo(getCtx(macaroon), &lnrpc.GetInfoRequest{})
+	ctx = getCtx(ctx, macaroon)
+	info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
 		return fmt.Errorf("unable to get info: %v", err)
 	}
@@ -54,15 +61,17 @@ func (s *service) Connect(lndconnectUrl string) error {
 func (s *service) Disconnect() {
 	s.conn.Close()
 	s.client = nil
+	s.conn = nil
 }
 
-func (s *service) GetInfo() (version string, pubkey string, err error) {
+func (s *service) GetInfo(ctx context.Context) (version, pubkey string, err error) {
 	if !s.IsConnected() {
-		err = fmt.Errorf("lnd service not connected")
+		err = ErrServiceNotConnected
 		return
 	}
 
-	info, err := s.client.GetInfo(getCtx(s.macaroon), &lnrpc.GetInfoRequest{})
+	ctx = getCtx(ctx, s.macaroon)
+	info, err := s.client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
 		return
 	}
@@ -70,23 +79,25 @@ func (s *service) GetInfo() (version string, pubkey string, err error) {
 	return info.Version, info.IdentityPubkey, nil
 }
 
-func (s *service) GetInvoice(value int, memo string) (string, string, error) {
+func (s *service) GetInvoice(
+	ctx context.Context, value uint64, memo string,
+) (string, string, error) {
 	if !s.IsConnected() {
-		err := fmt.Errorf("lnd service not connected")
-		return "", "", err
+		return "", "", ErrServiceNotConnected
 	}
 
+	ctx = getCtx(ctx, s.macaroon)
 	invoiceRequest := &lnrpc.Invoice{
 		Value: int64(value), // amount in satoshis
 		Memo:  memo,         // optional memo
 	}
-
-	info, err := s.client.AddInvoice(getCtx(s.macaroon), invoiceRequest)
+	info, err := s.client.AddInvoice(ctx, invoiceRequest)
 	if err != nil {
 		return "", "", err
 	}
 
-	invoice, err := s.client.DecodePayReq(getCtx(s.macaroon), &lnrpc.PayReqString{PayReq: info.PaymentRequest})
+	decodeRequest := &lnrpc.PayReqString{PayReq: info.PaymentRequest}
+	invoice, err := s.client.DecodePayReq(ctx, decodeRequest)
 	if err != nil {
 		return "", "", err
 	}
@@ -98,29 +109,29 @@ func (s *service) IsConnected() bool {
 	return s.client != nil
 }
 
-func (s *service) PayInvoice(invoice string) error {
+func (s *service) PayInvoice(
+	ctx context.Context, invoice string,
+) (string, error) {
 	if !s.IsConnected() {
-		return fmt.Errorf("lnd service not connected")
+		return "", ErrServiceNotConnected
 	}
 
 	// validate invoice
-	_, err := s.client.DecodePayReq(getCtx(s.macaroon), &lnrpc.PayReqString{PayReq: invoice})
+	ctx = getCtx(ctx, s.macaroon)
+	decodeRequest := &lnrpc.PayReqString{PayReq: invoice}
+	if _, err := s.client.DecodePayReq(ctx, decodeRequest); err != nil {
+		return "", err
+	}
+
+	sendRequest := &lnrpc.SendRequest{PaymentRequest: invoice}
+	response, err := s.client.SendPaymentSync(ctx, sendRequest)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	sendRequest := &lnrpc.SendRequest{
-		PaymentRequest: invoice, // barebones 'lnb...'
+	if err := response.GetPaymentError(); err != "" {
+		return "", fmt.Errorf(err)
 	}
 
-	response, err := s.client.SendPaymentSync(getCtx(s.macaroon), sendRequest)
-	if err != nil {
-		return err
-	}
-
-	if response.PaymentError != "" {
-		return fmt.Errorf("%s", response.PaymentError)
-	}
-
-	return nil
+	return hex.EncodeToString(response.GetPaymentPreimage()), nil
 }

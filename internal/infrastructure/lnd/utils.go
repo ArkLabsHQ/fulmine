@@ -60,8 +60,8 @@ func getClient(lndconnectUrl string) (client lnrpc.LightningClient, conn *grpc.C
 	return lnrpc.NewLightningClient(conn), conn, macaroon, nil
 }
 
-func getCtx(macaroon string) context.Context {
-	return metadata.AppendToOutgoingContext(context.Background(), "macaroon", macaroon)
+func getCtx(ctx context.Context, macaroon string) context.Context {
+	return metadata.AppendToOutgoingContext(ctx, "macaroon", macaroon)
 }
 
 // padBase64 adds '=' characters to the end of the input
