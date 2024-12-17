@@ -72,7 +72,7 @@ func (s *service) updateSettingsApi(c *gin.Context) {
 
 func (s *service) connectLNDApi(c *gin.Context) {
 	url := c.PostForm("lnurl")
-	err := s.svc.ConnectLN(url)
+	err := s.svc.ConnectLN(c.Request.Context(), url)
 	if err != nil {
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
