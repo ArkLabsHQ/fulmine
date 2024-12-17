@@ -85,6 +85,70 @@
         ]
       }
     },
+    "/v1/invoice": {
+      "post": {
+        "operationId": "Service_CreateInvoice",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CreateInvoiceResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateInvoiceRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v1/invoice/pay": {
+      "post": {
+        "operationId": "Service_PayInvoice",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PayInvoiceResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1PayInvoiceRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/onboard": {
       "post": {
         "summary": "GetOnboardAddress returns onchain address and invoice for requested amount",
@@ -267,17 +331,15 @@
         "tags": [
           "Service"
         ]
-      }
-    },
-    "/v1/vhtlc/address": {
+      },
       "post": {
-        "summary": "GetVHTLCAddress computes a VHTLC address",
-        "operationId": "Service_GetVHTLCAddress",
+        "summary": "CreateVHTLCAddress computes a VHTLC address",
+        "operationId": "Service_CreateVHTLC",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1GetVHTLCAddressResponse"
+              "$ref": "#/definitions/v1CreateVHTLCResponse"
             }
           },
           "default": {
@@ -293,7 +355,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1GetVHTLCAddressRequest"
+              "$ref": "#/definitions/v1CreateVHTLCRequest"
             }
           }
         ],
@@ -417,8 +479,56 @@
     "v1ClaimVHTLCResponse": {
       "type": "object",
       "properties": {
-        "redeemTx": {
+        "redeemTxid": {
           "type": "string"
+        }
+      }
+    },
+    "v1CreateInvoiceRequest": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "memo": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateInvoiceResponse": {
+      "type": "object",
+      "properties": {
+        "invoice": {
+          "type": "string"
+        },
+        "preimageHash": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateVHTLCRequest": {
+      "type": "object",
+      "properties": {
+        "preimageHash": {
+          "type": "string"
+        },
+        "pubkey": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateVHTLCResponse": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "tapscripts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -493,25 +603,6 @@
         }
       }
     },
-    "v1GetVHTLCAddressRequest": {
-      "type": "object",
-      "properties": {
-        "preimageHash": {
-          "type": "string"
-        },
-        "pubkey": {
-          "type": "string"
-        }
-      }
-    },
-    "v1GetVHTLCAddressResponse": {
-      "type": "object",
-      "properties": {
-        "address": {
-          "type": "string"
-        }
-      }
-    },
     "v1Input": {
       "type": "object",
       "properties": {
@@ -559,6 +650,22 @@
         "amount": {
           "type": "string",
           "format": "uint64"
+        }
+      }
+    },
+    "v1PayInvoiceRequest": {
+      "type": "object",
+      "properties": {
+        "invoice": {
+          "type": "string"
+        }
+      }
+    },
+    "v1PayInvoiceResponse": {
+      "type": "object",
+      "properties": {
+        "preimage": {
+          "type": "string"
         }
       }
     },

@@ -27,9 +27,11 @@ const (
 	Service_SendOnChain_FullMethodName           = "/ark_node.v1.Service/SendOnChain"
 	Service_GetRoundInfo_FullMethodName          = "/ark_node.v1.Service/GetRoundInfo"
 	Service_GetTransactionHistory_FullMethodName = "/ark_node.v1.Service/GetTransactionHistory"
-	Service_GetVHTLCAddress_FullMethodName       = "/ark_node.v1.Service/GetVHTLCAddress"
+	Service_CreateVHTLC_FullMethodName           = "/ark_node.v1.Service/CreateVHTLC"
 	Service_ClaimVHTLC_FullMethodName            = "/ark_node.v1.Service/ClaimVHTLC"
 	Service_ListVHTLC_FullMethodName             = "/ark_node.v1.Service/ListVHTLC"
+	Service_CreateInvoice_FullMethodName         = "/ark_node.v1.Service/CreateInvoice"
+	Service_PayInvoice_FullMethodName            = "/ark_node.v1.Service/PayInvoice"
 )
 
 // ServiceClient is the client API for Service service.
@@ -52,12 +54,14 @@ type ServiceClient interface {
 	GetRoundInfo(ctx context.Context, in *GetRoundInfoRequest, opts ...grpc.CallOption) (*GetRoundInfoResponse, error)
 	// GetTransactionHistory returns virtual transactions history
 	GetTransactionHistory(ctx context.Context, in *GetTransactionHistoryRequest, opts ...grpc.CallOption) (*GetTransactionHistoryResponse, error)
-	// GetVHTLCAddress computes a VHTLC address
-	GetVHTLCAddress(ctx context.Context, in *GetVHTLCAddressRequest, opts ...grpc.CallOption) (*GetVHTLCAddressResponse, error)
+	// CreateVHTLCAddress computes a VHTLC address
+	CreateVHTLC(ctx context.Context, in *CreateVHTLCRequest, opts ...grpc.CallOption) (*CreateVHTLCResponse, error)
 	// ClaimVHTLC = self send vHTLC -> VTXO
 	ClaimVHTLC(ctx context.Context, in *ClaimVHTLCRequest, opts ...grpc.CallOption) (*ClaimVHTLCResponse, error)
 	// ListVHTLC = list all vhtlc OR filter by preimage_hash
 	ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opts ...grpc.CallOption) (*ListVHTLCResponse, error)
+	CreateInvoice(ctx context.Context, in *CreateInvoiceRequest, opts ...grpc.CallOption) (*CreateInvoiceResponse, error)
+	PayInvoice(ctx context.Context, in *PayInvoiceRequest, opts ...grpc.CallOption) (*PayInvoiceResponse, error)
 }
 
 type serviceClient struct {
@@ -148,10 +152,10 @@ func (c *serviceClient) GetTransactionHistory(ctx context.Context, in *GetTransa
 	return out, nil
 }
 
-func (c *serviceClient) GetVHTLCAddress(ctx context.Context, in *GetVHTLCAddressRequest, opts ...grpc.CallOption) (*GetVHTLCAddressResponse, error) {
+func (c *serviceClient) CreateVHTLC(ctx context.Context, in *CreateVHTLCRequest, opts ...grpc.CallOption) (*CreateVHTLCResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetVHTLCAddressResponse)
-	err := c.cc.Invoke(ctx, Service_GetVHTLCAddress_FullMethodName, in, out, cOpts...)
+	out := new(CreateVHTLCResponse)
+	err := c.cc.Invoke(ctx, Service_CreateVHTLC_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +182,26 @@ func (c *serviceClient) ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opt
 	return out, nil
 }
 
+func (c *serviceClient) CreateInvoice(ctx context.Context, in *CreateInvoiceRequest, opts ...grpc.CallOption) (*CreateInvoiceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateInvoiceResponse)
+	err := c.cc.Invoke(ctx, Service_CreateInvoice_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) PayInvoice(ctx context.Context, in *PayInvoiceRequest, opts ...grpc.CallOption) (*PayInvoiceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PayInvoiceResponse)
+	err := c.cc.Invoke(ctx, Service_PayInvoice_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServiceServer is the server API for Service service.
 // All implementations should embed UnimplementedServiceServer
 // for forward compatibility
@@ -198,12 +222,14 @@ type ServiceServer interface {
 	GetRoundInfo(context.Context, *GetRoundInfoRequest) (*GetRoundInfoResponse, error)
 	// GetTransactionHistory returns virtual transactions history
 	GetTransactionHistory(context.Context, *GetTransactionHistoryRequest) (*GetTransactionHistoryResponse, error)
-	// GetVHTLCAddress computes a VHTLC address
-	GetVHTLCAddress(context.Context, *GetVHTLCAddressRequest) (*GetVHTLCAddressResponse, error)
+	// CreateVHTLCAddress computes a VHTLC address
+	CreateVHTLC(context.Context, *CreateVHTLCRequest) (*CreateVHTLCResponse, error)
 	// ClaimVHTLC = self send vHTLC -> VTXO
 	ClaimVHTLC(context.Context, *ClaimVHTLCRequest) (*ClaimVHTLCResponse, error)
 	// ListVHTLC = list all vhtlc OR filter by preimage_hash
 	ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error)
+	CreateInvoice(context.Context, *CreateInvoiceRequest) (*CreateInvoiceResponse, error)
+	PayInvoice(context.Context, *PayInvoiceRequest) (*PayInvoiceResponse, error)
 }
 
 // UnimplementedServiceServer should be embedded to have forward compatible implementations.
@@ -234,14 +260,20 @@ func (UnimplementedServiceServer) GetRoundInfo(context.Context, *GetRoundInfoReq
 func (UnimplementedServiceServer) GetTransactionHistory(context.Context, *GetTransactionHistoryRequest) (*GetTransactionHistoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionHistory not implemented")
 }
-func (UnimplementedServiceServer) GetVHTLCAddress(context.Context, *GetVHTLCAddressRequest) (*GetVHTLCAddressResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetVHTLCAddress not implemented")
+func (UnimplementedServiceServer) CreateVHTLC(context.Context, *CreateVHTLCRequest) (*CreateVHTLCResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateVHTLC not implemented")
 }
 func (UnimplementedServiceServer) ClaimVHTLC(context.Context, *ClaimVHTLCRequest) (*ClaimVHTLCResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ClaimVHTLC not implemented")
 }
 func (UnimplementedServiceServer) ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListVHTLC not implemented")
+}
+func (UnimplementedServiceServer) CreateInvoice(context.Context, *CreateInvoiceRequest) (*CreateInvoiceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateInvoice not implemented")
+}
+func (UnimplementedServiceServer) PayInvoice(context.Context, *PayInvoiceRequest) (*PayInvoiceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PayInvoice not implemented")
 }
 
 // UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -399,20 +431,20 @@ func _Service_GetTransactionHistory_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Service_GetVHTLCAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetVHTLCAddressRequest)
+func _Service_CreateVHTLC_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateVHTLCRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServiceServer).GetVHTLCAddress(ctx, in)
+		return srv.(ServiceServer).CreateVHTLC(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Service_GetVHTLCAddress_FullMethodName,
+		FullMethod: Service_CreateVHTLC_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).GetVHTLCAddress(ctx, req.(*GetVHTLCAddressRequest))
+		return srv.(ServiceServer).CreateVHTLC(ctx, req.(*CreateVHTLCRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -449,6 +481,42 @@ func _Service_ListVHTLC_Handler(srv interface{}, ctx context.Context, dec func(i
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).ListVHTLC(ctx, req.(*ListVHTLCRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_CreateInvoice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateInvoiceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).CreateInvoice(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_CreateInvoice_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).CreateInvoice(ctx, req.(*CreateInvoiceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_PayInvoice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PayInvoiceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).PayInvoice(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_PayInvoice_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).PayInvoice(ctx, req.(*PayInvoiceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -493,8 +561,8 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Service_GetTransactionHistory_Handler,
 		},
 		{
-			MethodName: "GetVHTLCAddress",
-			Handler:    _Service_GetVHTLCAddress_Handler,
+			MethodName: "CreateVHTLC",
+			Handler:    _Service_CreateVHTLC_Handler,
 		},
 		{
 			MethodName: "ClaimVHTLC",
@@ -503,6 +571,14 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListVHTLC",
 			Handler:    _Service_ListVHTLC_Handler,
+		},
+		{
+			MethodName: "CreateInvoice",
+			Handler:    _Service_CreateInvoice_Handler,
+		},
+		{
+			MethodName: "PayInvoice",
+			Handler:    _Service_PayInvoice_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

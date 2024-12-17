@@ -57,10 +57,10 @@ service Service {
       get: "/v1/transactions"
     };
   };
-  // GetVHTLCAddress computes a VHTLC address
-  rpc GetVHTLCAddress(GetVHTLCAddressRequest) returns (GetVHTLCAddressResponse) {
+  // CreateVHTLCAddress computes a VHTLC address
+  rpc CreateVHTLC(CreateVHTLCRequest) returns (CreateVHTLCResponse) {
     option (google.api.http) = {
-      post: "/v1/vhtlc/address"
+      post: "/v1/vhtlc"
       body: "*"
     };
   };
@@ -77,6 +77,18 @@ service Service {
       get: "/v1/vhtlc"
     };
   };
+  rpc CreateInvoice(CreateInvoiceRequest) returns (CreateInvoiceResponse) {
+    option (google.api.http) = {
+      post: "/v1/invoice"
+      body: "*"
+    };
+  }
+  rpc PayInvoice(PayInvoiceRequest) returns (PayInvoiceResponse) {
+    option (google.api.http) = {
+      post: "/v1/invoice/pay"
+      body: "*"
+    };
+  }
 }
 
 message GetAddressRequest {}
@@ -140,27 +152,41 @@ message GetTransactionHistoryResponse {
   repeated TransactionInfo transactions = 1;
 }
 
-message GetVHTLCAddressRequest {
+message CreateVHTLCRequest {
   string preimage_hash = 1;
   string pubkey = 2;
 }
-
-message GetVHTLCAddressResponse {
+message CreateVHTLCResponse {
   string address = 1;
+  repeated string tapscripts = 2;
 }
 
 message ClaimVHTLCRequest {
   string preimage = 1;
 }
-
 message ClaimVHTLCResponse {
-  string redeem_tx = 1;
+  string redeem_txid = 1;
 }
 
 message ListVHTLCRequest {
   optional string preimage_hash_filter = 1;
 }
-
 message ListVHTLCResponse {
   repeated Vtxo vhtlcs = 1;
+}
+
+message CreateInvoiceRequest {
+  uint64 amount = 1;
+  string memo = 2;
+}
+message CreateInvoiceResponse {
+  string invoice = 1;
+  string preimage_hash = 2;
+}
+
+message PayInvoiceRequest {
+  string invoice = 1;
+}
+message PayInvoiceResponse {
+  string preimage = 1;
 }
