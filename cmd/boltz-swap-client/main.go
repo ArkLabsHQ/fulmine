@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -35,13 +34,7 @@ func main() {
 				Aliases:  []string{"a"},
 				Required: true,
 				Usage:    "amount to swap",
-			},
-				&cli.StringFlag{
-					Name:    "preimage",
-					Aliases: []string{"p"},
-					Usage:   "secret preimage",
-				},
-			),
+			}),
 		},
 		{
 			Name:    "reverse-swap", // ln -> ark
@@ -73,17 +66,6 @@ func swap(c *cli.Context) error {
 	amount := c.Uint64("amount")
 	nodeURL := c.String("node-url")
 	boltzURL := c.String("boltz-url")
-	preimage := c.String("preimage")
-
-	if len(preimage) == 0 {
-		// generate 32 bytes preimage
-		preimageBytes := make([]byte, 32)
-		if _, err := rand.Read(preimageBytes); err != nil {
-			return err
-		}
-
-		preimage = hex.EncodeToString(preimageBytes)
-	}
 
 	nodeClient, err := arkNodeClient(nodeURL)
 	if err != nil {
@@ -95,20 +77,20 @@ func swap(c *cli.Context) error {
 		return err
 	}
 
-	preimageBytes, err := hex.DecodeString(preimage)
+	invoiceResp, err := nodeClient.CreateInvoice(c.Context, &ark_node_pb.CreateInvoiceRequest{
+		Amount: amount,
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get invoice: %w", err)
 	}
-
-	preimageHash := hex.EncodeToString(btcutil.Hash160(preimageBytes))
-
-	fmt.Printf("preimage hash = %s", preimageHash)
+	invoice := invoiceResp.GetInvoice()
+	preimageHash := invoiceResp.GetPreimageHash()
 
 	response, err := boltzClient.SubmarineSwap(c.Context, &boltz_mockv1.SubmarineSwapRequest{
 		From:            "ARK",
 		To:              "LN",
-		Invoice:         "todoinvoice", // receiving invoice
-		PreimageHash:    preimage,      // only boltz-mock: we reveal the preimage to allow the server to claim without LN
+		Invoice:         invoice,
+		PreimageHash:    preimageHash,
 		RefundPublicKey: "todopubkey",
 		InvoiceAmount:   amount,
 	})
@@ -116,22 +98,10 @@ func swap(c *cli.Context) error {
 		return err
 	}
 
-	vhtlcAddrResp, err := nodeClient.GetVHTLCAddress(c.Context, &ark_node_pb.GetVHTLCAddressRequest{
-		PreimageHash: preimageHash,
-		Pubkey:       response.ClaimPubkey,
-	})
-	if err != nil {
-		logrus.Errorf("failed to fund vHTLC: %v", err)
-		return err
-	}
-
-	vhtlcAddress := vhtlcAddrResp.Address
-
-	_, err = nodeClient.SendOffChain(c.Context, &ark_node_pb.SendOffChainRequest{
-		Address: vhtlcAddress,
+	if _, err = nodeClient.SendOffChain(c.Context, &ark_node_pb.SendOffChainRequest{
+		Address: response.GetAddress(),
 		Amount:  amount,
-	})
-	if err != nil {
+	}); err != nil {
 		logrus.Errorf("failed to send to vHTLC address: %v", err)
 		return err
 	}
