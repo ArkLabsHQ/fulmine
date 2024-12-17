@@ -176,7 +176,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			return
 		}
 		if len(settings.LnUrl) > 0 {
-			if err := s.lnSvc.Connect(settings.LnUrl); err != nil {
+			if err := s.lnSvc.Connect(ctx, settings.LnUrl); err != nil {
 				logrus.WithError(err).Warn("failed to connect")
 			}
 		}
@@ -293,12 +293,8 @@ func (s *Service) WhenNextClaim(ctx context.Context) time.Time {
 	return s.schedulerSvc.WhenNextClaim()
 }
 
-func (s *Service) ConnectLN(lndconnectUrl string) error {
-	err := s.lnSvc.Connect(lndconnectUrl)
-	if err != nil {
-		return err
-	}
-	return nil
+func (s *Service) ConnectLN(ctx context.Context, lndconnectUrl string) error {
+	return s.lnSvc.Connect(ctx, lndconnectUrl)
 }
 
 func (s *Service) DisconnectLN() {
@@ -309,57 +305,51 @@ func (s *Service) IsConnectedLN() bool {
 	return s.lnSvc.IsConnected()
 }
 
-func (s *Service) GetVHTLCAddress(ctx context.Context, receiverPubKey *secp256k1.PublicKey, preimageHash []byte) (string, error) {
+func (s *Service) GetVHTLC(
+	ctx context.Context, receiverPubKey *secp256k1.PublicKey, preimageHash []byte,
+) (string, []string, error) {
 	offchainAddr, _, err := s.Receive(ctx)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	decodedAddr, err := common.DecodeAddress(offchainAddr)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	// TODO: make this configurable ?
-	now := time.Now()
-	nowPlus2days := now.Add(2 * 24 * time.Hour)
-	oneDayDuration := 24 * time.Hour
-
-	delay, err := safecast.ToUint32(oneDayDuration.Seconds())
-	if err != nil {
-		return "", err
+	refundLocktime := common.AbsoluteLocktime(80 * 600) // 80 blocks
+	unilateralClaimDelay := common.RelativeLocktime{
+		Type:  common.LocktimeTypeSecond,
+		Value: 60 * 12, // 12 hours
 	}
-
-	locktime, err := safecast.ToUint32(nowPlus2days.Unix())
-	if err != nil {
-		return "", err
+	unilateralRefundDelay := common.RelativeLocktime{
+		Type:  common.LocktimeTypeSecond,
+		Value: 60 * 24, // 24 hours
+	}
+	unilateralRefundWithoutReceiverDelay := common.RelativeLocktime{
+		Type:  common.LocktimeTypeBlock,
+		Value: 224, // 224 blocks
 	}
 
 	opts := vhtlc.Opts{
-		Receiver:               receiverPubKey,
-		Sender:                 s.publicKey,
-		Server:                 decodedAddr.Server,
-		PreimageHash:           preimageHash,
-		ReceiverRefundLocktime: common.AbsoluteLocktime(locktime),
-		SenderReclaimLocktime:  common.AbsoluteLocktime(locktime),
-		SenderReclaimDelay: common.RelativeLocktime{
-			Type:  common.LocktimeTypeSecond,
-			Value: delay,
-		},
-		ClaimDelay: common.RelativeLocktime{
-			Type:  common.LocktimeTypeSecond,
-			Value: delay,
-		},
+		Sender:                               s.publicKey,
+		Receiver:                             receiverPubKey,
+		Server:                               decodedAddr.Server,
+		PreimageHash:                         preimageHash,
+		RefundLocktime:                       refundLocktime,
+		UnilateralClaimDelay:                 unilateralClaimDelay,
+		UnilateralRefundDelay:                unilateralRefundDelay,
+		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
 	}
-
-	vtxoScript, err := vhtlc.NewVtxoScript(opts)
+	vtxoScript, err := vhtlc.NewVHTLCScript(opts)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	tapKey, _, err := vtxoScript.TapTree()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	addr := &common.Address{
@@ -367,14 +357,23 @@ func (s *Service) GetVHTLCAddress(ctx context.Context, receiverPubKey *secp256k1
 		Server:     decodedAddr.Server,
 		VtxoTapKey: tapKey,
 	}
-
-	// store the vhtlc options for future use
-	err = s.vhtlcRepo.Add(ctx, opts)
+	encodedAddr, err := addr.Encode()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	return addr.Encode()
+	// store the vhtlc options for future use
+	if err := s.vhtlcRepo.Add(ctx, opts); err != nil {
+		return "", nil, err
+	}
+
+	tapscripts := make([]string, 0, len(vtxoScript.Closures))
+	for _, closure := range vtxoScript.Closures {
+		script, _ := closure.Script()
+		tapscripts = append(tapscripts, hex.EncodeToString(script))
+	}
+
+	return encodedAddr, tapscripts, nil
 }
 
 func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]client.Vtxo, []vhtlc.Opts, error) {
@@ -406,7 +405,7 @@ func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]c
 
 	var allVtxos []client.Vtxo
 	for _, opt := range vhtlcOpts {
-		vtxoScript, err := vhtlc.NewVtxoScript(opt)
+		vtxoScript, err := vhtlc.NewVHTLCScript(opt)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -462,16 +461,13 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		Index: vtxo.VOut,
 	}
 
-	vtxoScript, err := vhtlc.NewVtxoScript(opts)
+	vtxoScript, err := vhtlc.NewVHTLCScript(opts)
 	if err != nil {
 		return "", err
 	}
 
-	claimClosure, err := opts.Claim()
-	if err != nil {
-		return "", err
-	}
-
+	claimClosure := vtxoScript.ClaimClosure
+	claimWitnessSize := claimClosure.WitnessSize(len(preimage))
 	claimScript, err := claimClosure.Script()
 	if err != nil {
 		return "", err
@@ -510,7 +506,7 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		return "", err
 	}
 
-	witnessSize, err := safecast.ToUint64(claimClosure.WitnessSize(len(preimage)))
+	witnessSize, err := safecast.ToUint64(claimWitnessSize)
 	if err != nil {
 		return "", err
 	}
@@ -551,7 +547,7 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 			{
 				Outpoint:    vtxoOutpoint,
 				Amount:      amount,
-				WitnessSize: claimClosure.WitnessSize(len(preimage)),
+				WitnessSize: claimWitnessSize,
 				Tapscript: &waddrmgr.Tapscript{
 					ControlBlock:   ctrlBlock,
 					RevealedScript: claimScript,
@@ -578,6 +574,8 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		return "", err
 	}
 
+	txid := redeemPtx.UnsignedTx.TxHash().String()
+
 	// TODO: expose wallet's signer in ark sdk
 	// TODO: sign redeemTx
 	redeemTx, err = redeemPtx.B64Encode()
@@ -589,5 +587,15 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		return "", err
 	}
 
-	return redeemTx, nil
+	return txid, nil
+}
+
+func (s *Service) GetInvoice(
+	ctx context.Context, amount uint64, memo string,
+) (string, string, error) {
+	return s.lnSvc.GetInvoice(ctx, amount, memo)
+}
+
+func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error) {
+	return s.lnSvc.PayInvoice(ctx, invoice)
 }

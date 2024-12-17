@@ -71,14 +71,14 @@ func (r *badgerRepo) Get(ctx context.Context, preimageHash string) (*vhtlc.Opts,
 // Add stores a new VHTLC option in the database
 func (r *badgerRepo) Add(ctx context.Context, opts vhtlc.Opts) error {
 	data := data{
-		PreimageHash:           hex.EncodeToString(opts.PreimageHash),
-		Sender:                 hex.EncodeToString(opts.Sender.SerializeCompressed()),
-		Receiver:               hex.EncodeToString(opts.Receiver.SerializeCompressed()),
-		Server:                 hex.EncodeToString(opts.Server.SerializeCompressed()),
-		ReceiverRefundLocktime: opts.ReceiverRefundLocktime,
-		SenderReclaimLocktime:  opts.SenderReclaimLocktime,
-		SenderReclaimDelay:     opts.SenderReclaimDelay,
-		ClaimDelay:             opts.ClaimDelay,
+		PreimageHash:                         hex.EncodeToString(opts.PreimageHash),
+		Sender:                               hex.EncodeToString(opts.Sender.SerializeCompressed()),
+		Receiver:                             hex.EncodeToString(opts.Receiver.SerializeCompressed()),
+		Server:                               hex.EncodeToString(opts.Server.SerializeCompressed()),
+		RefundLocktime:                       opts.RefundLocktime,
+		UnilateralClaimDelay:                 opts.UnilateralClaimDelay,
+		UnilateralRefundDelay:                opts.UnilateralRefundDelay,
+		UnilateralRefundWithoutReceiverDelay: opts.UnilateralRefundWithoutReceiverDelay,
 	}
 
 	return r.store.Insert(data.PreimageHash, data)
@@ -90,14 +90,14 @@ func (r *badgerRepo) Delete(ctx context.Context, preimageHash string) error {
 }
 
 type data struct {
-	PreimageHash           string
-	Sender                 string
-	Receiver               string
-	Server                 string
-	ReceiverRefundLocktime common.AbsoluteLocktime // absolute locktime
-	SenderReclaimLocktime  common.AbsoluteLocktime // absolute locktime
-	SenderReclaimDelay     common.RelativeLocktime // relative locktime
-	ClaimDelay             common.RelativeLocktime // relative locktime
+	PreimageHash                         string
+	Sender                               string
+	Receiver                             string
+	Server                               string
+	RefundLocktime                       common.AbsoluteLocktime
+	UnilateralClaimDelay                 common.RelativeLocktime
+	UnilateralRefundDelay                common.RelativeLocktime
+	UnilateralRefundWithoutReceiverDelay common.RelativeLocktime
 }
 
 func (d *data) toOpts() (*vhtlc.Opts, error) {
@@ -133,13 +133,13 @@ func (d *data) toOpts() (*vhtlc.Opts, error) {
 	}
 
 	return &vhtlc.Opts{
-		Sender:                 sender,
-		Receiver:               receiver,
-		Server:                 server,
-		ReceiverRefundLocktime: d.ReceiverRefundLocktime,
-		SenderReclaimLocktime:  d.SenderReclaimLocktime,
-		SenderReclaimDelay:     d.SenderReclaimDelay,
-		ClaimDelay:             d.ClaimDelay,
-		PreimageHash:           preimageHashBytes,
+		Sender:                               sender,
+		Receiver:                             receiver,
+		Server:                               server,
+		RefundLocktime:                       d.RefundLocktime,
+		UnilateralClaimDelay:                 d.UnilateralClaimDelay,
+		UnilateralRefundDelay:                d.UnilateralRefundDelay,
+		UnilateralRefundWithoutReceiverDelay: d.UnilateralRefundWithoutReceiverDelay,
+		PreimageHash:                         preimageHashBytes,
 	}, nil
 }
