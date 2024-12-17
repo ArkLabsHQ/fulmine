@@ -65,7 +65,13 @@
     "v1SubmarineSwapResponse": {
       "type": "object",
       "properties": {
-        "claimPubkey": {
+        "address": {
+          "type": "string"
+        },
+        "swapTree": {
+          "$ref": "#/definitions/v1TaprootTree"
+        },
+        "claimPublicKey": {
           "type": "string"
         },
         "expectedAmount": {
@@ -74,12 +80,41 @@
         },
         "acceptZeroConf": {
           "type": "boolean"
+        }
+      }
+    },
+    "v1TaprootLeaf": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int32"
         },
-        "tapscripts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+        "output": {
+          "type": "string"
+        }
+      }
+    },
+    "v1TaprootTree": {
+      "type": "object",
+      "properties": {
+        "claimLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "refundLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "refundWithoutBoltzLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "unilateralClaimLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "unilateralRefundLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "unilateralRefundWithoutBoltzLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
         }
       }
     }
