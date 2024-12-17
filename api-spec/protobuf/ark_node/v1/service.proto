@@ -31,6 +31,25 @@ service Service {
       body: "*"
     };
   };
+  // Returns round info for optional round_id (no round_id returns current round info)
+  rpc GetRoundInfo(GetRoundInfoRequest) returns (GetRoundInfoResponse) {
+    option (google.api.http) = {
+      get: "/v1/round/{round_id}"
+    };
+  };
+  // GetTransactionHistory returns virtual transactions history
+  rpc GetTransactionHistory(GetTransactionHistoryRequest) returns (GetTransactionHistoryResponse) {
+    option (google.api.http) = {
+      get: "/v1/transactions"
+    };
+  };
+  // Redeems an ark note by joining a round
+  rpc RedeemNote(RedeemNoteRequest) returns (RedeemNoteResponse) {
+    option (google.api.http) = {
+      post: "/v1/note/redeem"
+      body: "*"
+    };
+  };
   // Send asks to send amount to ark address by joining a round
   rpc SendOffChain(SendOffChainRequest) returns (SendOffChainResponse) {
     option (google.api.http) = {
@@ -43,18 +62,6 @@ service Service {
     option (google.api.http) = {
       post: "/v1/send/onchain"
       body: "*"
-    };
-  };
-  // Returns round info for optional round_id (no round_id returns current round info)
-  rpc GetRoundInfo(GetRoundInfoRequest) returns (GetRoundInfoResponse) {
-    option (google.api.http) = {
-      get: "/v1/round/{round_id}"
-    };
-  };
-  // GetTransactionHistory returns virtual transactions history
-  rpc GetTransactionHistory(GetTransactionHistoryRequest) returns (GetTransactionHistoryResponse) {
-    option (google.api.http) = {
-      get: "/v1/transactions"
     };
   };
 }
@@ -92,6 +99,25 @@ message GetOnboardAddressResponse {
   string address = 1;
 }
 
+message GetRoundInfoRequest {
+  string round_id = 1;
+}
+message GetRoundInfoResponse {
+  Round round = 1;
+}
+
+message GetTransactionHistoryRequest {}
+message GetTransactionHistoryResponse {
+  repeated TransactionInfo transactions = 1;
+}
+
+message RedeemNoteRequest {
+  string note = 1;
+}
+message RedeemNoteResponse {
+  string txid = 1;
+}
+
 message SendOffChainRequest {
   string address = 1;
   uint64 amount = 2;
@@ -106,16 +132,4 @@ message SendOnChainRequest {
 }
 message SendOnChainResponse {
   string txid = 1;
-}
-
-message GetRoundInfoRequest {
-  string round_id = 1;
-}
-message GetRoundInfoResponse {
-  Round round = 1;
-}
-
-message GetTransactionHistoryRequest {}
-message GetTransactionHistoryResponse {
-  repeated TransactionInfo transactions = 1;
 }

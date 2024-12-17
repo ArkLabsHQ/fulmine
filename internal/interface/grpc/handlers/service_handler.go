@@ -71,48 +71,6 @@ func (h *serviceHandler) GetOnboardAddress(
 	return &pb.GetOnboardAddressResponse{Address: addr}, nil
 }
 
-func (h *serviceHandler) SendOffChain(
-	ctx context.Context, req *pb.SendOffChainRequest,
-) (*pb.SendOffChainResponse, error) {
-	address, err := parseAddress(req.GetAddress())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	amount, err := parseAmount(req.GetAmount())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(address, amount),
-	}
-	roundId, err := h.svc.SendOffChain(ctx, false, receivers)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.SendOffChainResponse{RoundId: roundId}, nil
-}
-
-func (h *serviceHandler) SendOnChain(
-	ctx context.Context, req *pb.SendOnChainRequest,
-) (*pb.SendOnChainResponse, error) {
-	address, err := parseAddress(req.GetAddress())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	amount, err := parseAmount(req.GetAmount())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(address, amount),
-	}
-	txid, err := h.svc.SendOnChain(ctx, receivers)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.SendOnChainResponse{Txid: txid}, nil
-}
-
 func (h *serviceHandler) GetRoundInfo(
 	ctx context.Context, req *pb.GetRoundInfoRequest,
 ) (*pb.GetRoundInfoResponse, error) {
@@ -164,6 +122,62 @@ func (h *serviceHandler) GetTransactionHistory(
 	return &pb.GetTransactionHistoryResponse{Transactions: txs}, nil
 }
 
+func (h *serviceHandler) RedeemNote(
+	ctx context.Context, req *pb.RedeemNoteRequest,
+) (*pb.RedeemNoteResponse, error) {
+	note, err := parseNote(req.GetNote())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	txid, err := h.svc.RedeemNotes(ctx, []string{note})
+	if err != nil {
+		return nil, err
+	}
+	return &pb.RedeemNoteResponse{Txid: txid}, nil
+}
+
+func (h *serviceHandler) SendOffChain(
+	ctx context.Context, req *pb.SendOffChainRequest,
+) (*pb.SendOffChainResponse, error) {
+	address, err := parseAddress(req.GetAddress())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	amount, err := parseAmount(req.GetAmount())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	receivers := []arksdk.Receiver{
+		arksdk.NewBitcoinReceiver(address, amount),
+	}
+	roundId, err := h.svc.SendOffChain(ctx, false, receivers)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.SendOffChainResponse{RoundId: roundId}, nil
+}
+
+func (h *serviceHandler) SendOnChain(
+	ctx context.Context, req *pb.SendOnChainRequest,
+) (*pb.SendOnChainResponse, error) {
+	address, err := parseAddress(req.GetAddress())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	amount, err := parseAmount(req.GetAmount())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	receivers := []arksdk.Receiver{
+		arksdk.NewBitcoinReceiver(address, amount),
+	}
+	txid, err := h.svc.SendOnChain(ctx, receivers)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.SendOnChainResponse{Txid: txid}, nil
+}
+
 func parseAddress(a string) (string, error) {
 	if len(a) <= 0 {
 		return "", fmt.Errorf("missing address")
@@ -179,6 +193,16 @@ func parseAmount(a uint64) (uint64, error) {
 		return 0, fmt.Errorf("missing amount")
 	}
 	return a, nil
+}
+
+func parseNote(n string) (string, error) {
+	if len(n) == 0 {
+		return "", fmt.Errorf("missing note")
+	}
+	if !utils.IsValidArkNote(n) {
+		return "", fmt.Errorf("invalid note")
+	}
+	return n, nil
 }
 
 func parseRoundId(id string) (string, error) {

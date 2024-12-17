@@ -9,6 +9,7 @@ import (
 
 var (
 	arkAddress   = "tark1qd90wnfly2zd5749lse0mgyttytzaumy35wx8rnvug3sz30wkl805qat5mgdend24ay6pnq0hcm2wgtfkk0xdn2lt25dc90wyxlcx8hnpst8lpeh"
+	arkNote      = "arknoteQrSSs5CFsLsMxsfNnhgudjqWeicxuSGSzBEntv7dyZ9CLS9zazjEyeyshmcwMRcKehCxJRouEwurnzPRbVbc3JHsfTZ3LT4mrBJDsVJj"
 	btcAddress   = "tb1pf422yvfxrh9ne0cunv0xalp3cv0pcys0fvpttv09lsh9dvt09zzqzcmphm"
 	bip21Invoice = "bitcoin:" + btcAddress + "?ark=" + arkAddress
 	mnemonic     = "reward liar quote property federal print outdoor attitude satoshi favorite special layer"
@@ -17,6 +18,7 @@ var (
 func TestUtils(t *testing.T) {
 	testAddresses(t)
 	testBip21(t)
+	testNotes(t)
 	testSecrets(t)
 	testUrls(t)
 }
@@ -52,6 +54,19 @@ func testBip21(t *testing.T) {
 		require.Equal(t, false, res)
 
 		res = utils.IsBip21(bip21Invoice)
+		require.Equal(t, true, res)
+	})
+}
+
+func testNotes(t *testing.T) {
+	t.Run("notes", func(t *testing.T) {
+		res := utils.IsValidArkNote("")
+		require.Equal(t, false, res)
+
+		res = utils.IsValidArkNote("arknote")
+		require.Equal(t, false, res)
+
+		res = utils.IsValidArkNote(arkNote)
 		require.Equal(t, true, res)
 	})
 }
