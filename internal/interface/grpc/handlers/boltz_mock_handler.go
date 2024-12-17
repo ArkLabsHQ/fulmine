@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"time"
 
 	arknodepb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
@@ -12,7 +13,9 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -47,7 +50,7 @@ func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.Rev
 	// For the mock, we'll use the fakeInvoice constant
 	invoice := fakeInvoice
 
-	response, err := b.arknode.GetVHTLCAddress(ctx, &arknodepb.GetVHTLCAddressRequest{
+	response, err := b.arknode.CreateVHTLC(ctx, &arknodepb.CreateVHTLCRequest{
 		PreimageHash: preimageHash,
 		Pubkey:       req.Pubkey,
 	})
@@ -81,16 +84,23 @@ func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.Rev
 
 // ark --> ln
 func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineSwapRequest) (*pb.SubmarineSwapResponse, error) {
-	///// MOCK ONLY /////
-	// we "reveal" by sending it instead of the preimage hash
-	preimage := req.PreimageHash
-	preimageBytes, err := hex.DecodeString(preimage)
+	preimageHash, err := parsePreimageHash(req.GetPreimageHash())
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	preimageHash := hex.EncodeToString(btcutil.Hash160(preimageBytes))
-	////
+	refundPubkey, err := parsePubkey(req.GetRefundPublicKey())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
+	resp, err := b.arknode.CreateVHTLC(ctx, &arknodepb.CreateVHTLCRequest{
+		PreimageHash: preimageHash,
+		Pubkey:       refundPubkey,
+	})
+
+	vhtlcAddress := resp.GetAddress()
+	swapTree := closures(resp.GetTapscripts()).toProto()
+	logrus.Infof("created VHTLC: %s", vhtlcAddress)
 	go func() {
 		ctx := context.Background()
 
@@ -99,42 +109,72 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 
 		var vhtlc *arknodepb.Vtxo
 
+		logrus.Info("waiting for vHTLC to be funded...")
 		for range ticker.C {
 			// check if vHTLC has been funded by the user
-			resp, err := b.arknode.ListVHTLC(ctx, &arknodepb.ListVHTLCRequest{PreimageHashFilter: &preimageHash})
+			resp, err := b.arknode.ListVHTLC(ctx, &arknodepb.ListVHTLCRequest{
+				PreimageHashFilter: &preimageHash,
+			})
 			if err != nil {
-				logrus.Errorf("failed to list vHTLCs: %v", err)
 				continue
 			}
 
-			if len(resp.Vhtlcs) == 0 {
+			if len(resp.GetVhtlcs()) == 0 {
 				continue
 			}
 
-			vhtlc = resp.Vhtlcs[0]
+			vhtlc = resp.GetVhtlcs()[0]
 			break
 		}
 
-		logrus.Debugf("vHTLC found: %s", vhtlc.Outpoint.Txid)
-		// pay the invoice
-		time.Sleep(5 * time.Second) // simulate the payment
+		logrus.Infof("vHTLC funded %s", vhtlc.Outpoint.Txid)
+		logrus.Info("paying invoice...")
+
+		resp, err := b.arknode.PayInvoice(ctx, &arknodepb.PayInvoiceRequest{
+			Invoice: req.GetInvoice(),
+		})
+		if err != nil {
+			logrus.Errorf("failed to pay invoice: %v", err)
+			return
+		}
 
 		// once user reveals the preimage, claim the vHTLC
-		_, err := b.arknode.ClaimVHTLC(ctx, &arknodepb.ClaimVHTLCRequest{
-			Preimage: preimage,
+		claimResp, err := b.arknode.ClaimVHTLC(ctx, &arknodepb.ClaimVHTLCRequest{
+			Preimage: resp.GetPreimage(),
 		})
 		if err != nil {
 			logrus.Errorf("failed to claim vHTLC: %v", err)
 			return
 		}
 
-		logrus.Debugf("vHTLC claimed successfully (amount = %d)", vhtlc.Receiver.Amount)
+		logrus.Debugf("vHTLC claimed successfully %s", claimResp.GetRedeemTxid())
 	}()
 
 	return &pb.SubmarineSwapResponse{
-		ClaimPubkey:    "todopubkey", // TODO add a way to return a rawpubkey from arknode's wallet
+		Address:        vhtlcAddress,
+		ClaimPublicKey: "todopubkey", // TODO add a way to return a rawpubkey from arknode's wallet
 		ExpectedAmount: req.GetInvoiceAmount(),
 		AcceptZeroConf: true,
-		Tapscripts:     []string{"TODO"}, // TODO add vhtlc tapscripts
+		SwapTree:       swapTree,
 	}, nil
 }
+
+func parsePreimageHash(preimageHash string) (string, error) {
+	if len(preimageHash) != 64 {
+		return "", fmt.Errorf("invalid preimage hash")
+	}
+
+	return preimageHash, nil
+}
+
+func parsePubkey(pubkey string) (string, error) {
+	if len(pubkey) != 66 {
+		return "", fmt.Errorf("invalid pubkey")
+	}
+
+	return pubkey, nil
+}
+
+type closures []string
+
+func (c closures) toProto() *pb.TaprootTree

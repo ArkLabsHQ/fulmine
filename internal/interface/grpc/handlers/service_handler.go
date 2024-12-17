@@ -36,12 +36,12 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 		return nil, status.Error(codes.InvalidArgument, "invalid preimage")
 	}
 
-	redeemTx, err := h.svc.ClaimVHTLC(ctx, preimageBytes)
+	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.ClaimVHTLCResponse{RedeemTx: redeemTx}, nil
+	return &pb.ClaimVHTLCResponse{RedeemTxid: redeemTxid}, nil
 }
 
 func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest) (*pb.ListVHTLCResponse, error) {
@@ -70,7 +70,7 @@ func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest
 	return &pb.ListVHTLCResponse{Vhtlcs: vhtlcs}, nil
 }
 
-func (h *serviceHandler) GetVHTLCAddress(ctx context.Context, req *pb.GetVHTLCAddressRequest) (*pb.GetVHTLCAddressResponse, error) {
+func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCRequest) (*pb.CreateVHTLCResponse, error) {
 	pubkeyBytes, err := hex.DecodeString(req.GetPubkey())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid pubkey")
@@ -86,11 +86,14 @@ func (h *serviceHandler) GetVHTLCAddress(ctx context.Context, req *pb.GetVHTLCAd
 		return nil, status.Error(codes.InvalidArgument, "invalid preimage hash")
 	}
 
-	addr, err := h.svc.GetVHTLCAddress(ctx, pubkey, preimageHashBytes)
+	addr, tapscripts, err := h.svc.GetVHTLC(ctx, pubkey, preimageHashBytes)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.GetVHTLCAddressResponse{Address: addr}, nil
+	return &pb.CreateVHTLCResponse{
+		Address:    addr,
+		Tapscripts: tapscripts,
+	}, nil
 }
 
 func (h *serviceHandler) GetAddress(
@@ -234,6 +237,42 @@ func (h *serviceHandler) GetTransactionHistory(
 	return &pb.GetTransactionHistoryResponse{Transactions: txs}, nil
 }
 
+func (h *serviceHandler) CreateInvoice(
+	ctx context.Context, req *pb.CreateInvoiceRequest,
+) (*pb.CreateInvoiceResponse, error) {
+	amount, err := parseAmount(req.GetAmount())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	memo := req.GetMemo()
+
+	invoice, preimageHash, err := h.svc.GetInvoice(ctx, amount, memo)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.CreateInvoiceResponse{
+		Invoice:      invoice,
+		PreimageHash: preimageHash,
+	}, nil
+}
+
+func (h *serviceHandler) PayInvoice(
+	ctx context.Context, req *pb.PayInvoiceRequest,
+) (*pb.PayInvoiceResponse, error) {
+	invoice, err := parseInvoice(req.GetInvoice())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	preimage, err := h.svc.PayInvoice(ctx, invoice)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.PayInvoiceResponse{Preimage: preimage}, nil
+}
+
 func parseAddress(a string) (string, error) {
 	if len(a) <= 0 {
 		return "", fmt.Errorf("missing address")
@@ -256,6 +295,13 @@ func parseRoundId(id string) (string, error) {
 		return "", fmt.Errorf("missing round id")
 	}
 	return id, nil
+}
+
+func parseInvoice(invoice string) (string, error) {
+	if len(invoice) <= 0 {
+		return "", fmt.Errorf("missing invoice")
+	}
+	return invoice, nil
 }
 
 func toNetworkProto(net string) pb.GetInfoResponse_Network {
