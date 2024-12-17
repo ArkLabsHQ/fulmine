@@ -14,17 +14,17 @@ const (
 )
 
 type Opts struct {
-	Sender                 *secp256k1.PublicKey
-	Receiver               *secp256k1.PublicKey
-	Server                 *secp256k1.PublicKey
-	ReceiverRefundLocktime common.AbsoluteLocktime // absolute locktime
-	SenderReclaimLocktime  common.AbsoluteLocktime // absolute locktime
-	SenderReclaimDelay     common.RelativeLocktime // relative locktime
-	ClaimDelay             common.RelativeLocktime // relative locktime
-	PreimageHash           []byte
+	Sender                               *secp256k1.PublicKey
+	Receiver                             *secp256k1.PublicKey
+	Server                               *secp256k1.PublicKey
+	PreimageHash                         []byte
+	RefundLocktime                       common.AbsoluteLocktime
+	UnilateralClaimDelay                 common.RelativeLocktime
+	UnilateralRefundDelay                common.RelativeLocktime
+	UnilateralRefundWithoutReceiverDelay common.RelativeLocktime
 }
 
-func (o Opts) Validate() error {
+func (o Opts) validate() error {
 	if o.Sender == nil || o.Receiver == nil || o.Server == nil {
 		return errors.New("sender, receiver, and server are required")
 	}
@@ -36,101 +36,117 @@ func (o Opts) Validate() error {
 	return nil
 }
 
-// Refund = (Sender + Receiver + Server)
-// offchain path
-func (o Opts) Refund() *tree.MultisigClosure {
+func (o Opts) claimClosure(preimageCondition []byte) *tree.ConditionMultisigClosure {
+	return &tree.ConditionMultisigClosure{
+		Condition: preimageCondition,
+		MultisigClosure: tree.MultisigClosure{
+			PubKeys: []*secp256k1.PublicKey{o.Receiver, o.Server},
+		},
+	}
+}
+
+// refundClosure = (Sender + Receiver + Server)
+func (o Opts) refundClosure() *tree.MultisigClosure {
 	return &tree.MultisigClosure{
 		PubKeys: []*secp256k1.PublicKey{o.Sender, o.Receiver, o.Server},
 	}
 }
 
-// RefundWithoutSender = (Receiver + Server) at ReceiverRefundLocktime
-// offchain path
-func (o Opts) RefundWithoutSender() *tree.CLTVMultisigClosure {
-	return &tree.CLTVMultisigClosure{
-		MultisigClosure: tree.MultisigClosure{
-			PubKeys: []*secp256k1.PublicKey{o.Receiver, o.Server},
-		},
-		Locktime: o.ReceiverRefundLocktime,
-	}
-}
-
-// CollaborativeReclaim = (Sender + Server) at SenderReclaimLocktime
-// offchain path
-func (o Opts) CollaborativeReclaim() *tree.CLTVMultisigClosure {
+// RefundWithoutReceiver = (Sender + Server) at RefundDelay
+func (o Opts) refundWithoutReceiverClosure() *tree.CLTVMultisigClosure {
 	return &tree.CLTVMultisigClosure{
 		MultisigClosure: tree.MultisigClosure{
 			PubKeys: []*secp256k1.PublicKey{o.Sender, o.Server},
 		},
-		Locktime: o.SenderReclaimLocktime,
+		Locktime: o.RefundLocktime,
 	}
 }
 
-// UnilateralReclaim = (Sender) after SenderReclaimAloneDelay
-// onchain path
-func (o Opts) UnilateralReclaim() *tree.CSVSigClosure {
-	return &tree.CSVSigClosure{
+// unilateralClaimClosure = (Receiver + Preimage) at UnilateralClaimDelay
+func (o Opts) unilateralClaimClosure(preimageCondition []byte) *tree.ConditionCSVMultisigClosure {
+	// TODO: update deps and add condition
+	return &tree.ConditionCSVMultisigClosure{
+		CSVMultisigClosure: tree.CSVMultisigClosure{
+			MultisigClosure: tree.MultisigClosure{
+				PubKeys: []*secp256k1.PublicKey{o.Receiver},
+			},
+			Locktime: o.UnilateralClaimDelay,
+		},
+		Condition: preimageCondition,
+	}
+}
+
+// unilateralRefundClosure = (Sender + Receiver) at UnilateralRefundDelay
+func (o Opts) unilateralRefundClosure() *tree.CSVMultisigClosure {
+	return &tree.CSVMultisigClosure{
+		MultisigClosure: tree.MultisigClosure{
+			PubKeys: []*secp256k1.PublicKey{o.Sender, o.Receiver},
+		},
+		Locktime: o.UnilateralRefundDelay,
+	}
+}
+
+// unilateralRefundWithoutReceiverClosure = (Sender) at UnilateralRefundWithoutReceiverDelay
+func (o Opts) unilateralRefundWithoutReceiverClosure() *tree.CSVMultisigClosure {
+	return &tree.CSVMultisigClosure{
 		MultisigClosure: tree.MultisigClosure{
 			PubKeys: []*secp256k1.PublicKey{o.Sender},
 		},
-		Locktime: o.SenderReclaimDelay,
+		Locktime: o.UnilateralRefundWithoutReceiverDelay,
 	}
 }
 
-// Claim = (receiver + server + preimage)
-func (o Opts) Claim() (*tree.ConditionMultisigClosure, error) {
-	preimageConditionScript, err := makePreimageConditionScript(o.PreimageHash)
+type VHTLCScript struct {
+	tree.TapscriptsVtxoScript
+
+	ClaimClosure                           *tree.ConditionMultisigClosure
+	RefundClosure                          *tree.MultisigClosure
+	RefundWithoutReceiverClosure           *tree.CLTVMultisigClosure
+	UnilateralClaimClosure                 *tree.ConditionCSVMultisigClosure
+	UnilateralRefundClosure                *tree.CSVMultisigClosure
+	UnilateralRefundWithoutReceiverClosure *tree.CSVMultisigClosure
+
+	preimageConditionScript []byte
+}
+
+// NewVHTLCScript creates a VHTLC VtxoScript from the given options.
+func NewVHTLCScript(opts Opts) (*VHTLCScript, error) {
+	if err := opts.validate(); err != nil {
+		return nil, err
+	}
+
+	preimageCondition, err := makePreimageConditionScript(opts.PreimageHash)
 	if err != nil {
 		return nil, err
 	}
 
-	return &tree.ConditionMultisigClosure{
-		Condition: preimageConditionScript,
-		MultisigClosure: tree.MultisigClosure{
-			PubKeys: []*secp256k1.PublicKey{o.Receiver, o.Server},
+	claimClosure := opts.claimClosure(preimageCondition)
+	refundClosure := opts.refundClosure()
+	refundWithoutReceiverClosure := opts.refundWithoutReceiverClosure()
+	unilateralClaimClosure := opts.unilateralClaimClosure(preimageCondition)
+	unilateralRefundClosure := opts.unilateralRefundClosure()
+	unilateralRefundWithoutReceiverClosure := opts.unilateralRefundWithoutReceiverClosure()
+
+	return &VHTLCScript{
+		TapscriptsVtxoScript: tree.TapscriptsVtxoScript{
+			Closures: []tree.Closure{
+				// Collaborative paths
+				claimClosure,
+				refundClosure,
+				refundWithoutReceiverClosure,
+				// Exit paths
+				unilateralClaimClosure,
+				unilateralRefundClosure,
+				unilateralRefundWithoutReceiverClosure,
+			},
 		},
-	}, nil
-}
-
-// TODO: implement ConditionCSVClosure (ark)
-// UnilateralClaim = (receiver + preimage) after ClaimDelay
-// onchain path
-// func (o Opts) UnilateralClaim() (*tree.CSVConditionClosure, error) {
-// claimAloneClosure := &tree.ConditionCSVClosure{
-// 	Condition: preimageConditionScript,
-// 	CSVSigClosure: tree.CSVSigClosure{
-// 		MultisigClosure: tree.MultisigClosure{
-// 			PubKeys: []*secp256k1.PublicKey{opts.Receiver},
-// 		},
-// 		Locktime: opts.ReceiverExitDelay,
-// 	},
-// }
-// }
-
-// NewVtxoScript creates a VHTLC VtxoScript from the given options.
-func NewVtxoScript(opts Opts) (*tree.TapscriptsVtxoScript, error) {
-	if err := opts.Validate(); err != nil {
-		return nil, err
-	}
-
-	refundClosure := opts.Refund()
-	reclaimWithASPClosure := opts.CollaborativeReclaim()
-	reclaimAloneClosure := opts.UnilateralReclaim()
-	refundWithASPClosure := opts.RefundWithoutSender()
-	claimClosure, err := opts.Claim()
-	if err != nil {
-		return nil, err
-	}
-
-	return &tree.TapscriptsVtxoScript{
-		Closures: []tree.Closure{
-			claimClosure,
-			// claimAloneClosure,
-			reclaimWithASPClosure,
-			reclaimAloneClosure,
-			refundClosure,
-			refundWithASPClosure,
-		},
+		ClaimClosure:                           claimClosure,
+		RefundClosure:                          refundClosure,
+		RefundWithoutReceiverClosure:           refundWithoutReceiverClosure,
+		UnilateralClaimClosure:                 unilateralClaimClosure,
+		UnilateralRefundClosure:                unilateralRefundClosure,
+		UnilateralRefundWithoutReceiverClosure: unilateralRefundWithoutReceiverClosure,
+		preimageConditionScript:                preimageCondition,
 	}, nil
 }
 

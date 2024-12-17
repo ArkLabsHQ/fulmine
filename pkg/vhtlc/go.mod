@@ -3,7 +3,7 @@ module github.com/ArkLabsHQ/ark-node/pkg/vhtlc
 go 1.23.1
 
 require (
-	github.com/ark-network/ark/common v0.0.0-20241212121413-201588f9d36a
+	github.com/ark-network/ark/common v0.0.0-20241217135720-7e4cb82944d5
 	github.com/btcsuite/btcd v0.24.2
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
 )
