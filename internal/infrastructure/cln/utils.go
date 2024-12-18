@@ -6,31 +6,18 @@ import (
 	"strings"
 )
 
-func runCommand(name string, arg ...string) (string, error) {
-	var stdout, stderr strings.Builder
+const (
+	dockerCmd       = "docker"
+	containerName   = "cln"
+	lightningCliCmd = "lightning-cli"
+	network         = "--network=regtest"
+)
 
-	cmd := newCommand(name, arg...)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
+func runCommand(args ...string) (string, error) {
+	cmd := exec.Command(dockerCmd, append([]string{"exec", "-i", containerName, lightningCliCmd, network}, args...)...)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		errMsg := strings.TrimSpace(stderr.String())
-		if len(errMsg) > 0 {
-			return "", fmt.Errorf("%s", errMsg)
-		}
-
-		outMsg := strings.TrimSpace(stdout.String())
-		if len(outMsg) > 0 {
-			return "", fmt.Errorf("%s", outMsg)
-		}
-
-		return "", err
+		return "", fmt.Errorf("error running command: %v, output: %s", err, string(output))
 	}
-
-	return strings.TrimSpace(stdout.String()), nil
-}
-
-func newCommand(name string, arg ...string) *exec.Cmd {
-	return exec.Command(name, arg...)
+	return strings.TrimSpace(string(output)), nil
 }

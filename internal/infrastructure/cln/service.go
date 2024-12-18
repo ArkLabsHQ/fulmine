@@ -10,8 +10,6 @@ import (
 )
 
 const (
-	nigiriCmd           = "nigiri"
-	clnCmd              = "cln"
 	clnGetInfoCmd       = "getinfo"
 	clnCreateInvoiceCmd = "invoice"
 	clnPayInvoiceCmd    = "pay"
@@ -35,7 +33,7 @@ func (s service) IsConnected() bool {
 }
 
 func (s service) GetInfo(ctx context.Context) (version string, pubkey string, err error) {
-	resp, err := runCommand(nigiriCmd, clnCmd, clnGetInfoCmd)
+	resp, err := runCommand(clnGetInfoCmd)
 	if err != nil {
 		return "", "", err
 	}
@@ -52,8 +50,6 @@ func (s service) GetInvoice(ctx context.Context, value uint64, note string) (inv
 	label := uuid.New()
 	amountMsats := value * 1000
 	resp, err := runCommand(
-		nigiriCmd,
-		clnCmd,
 		clnCreateInvoiceCmd,
 		"-k",
 		fmt.Sprintf("%v=%v", "amount_msat", strconv.Itoa(int(amountMsats))),
@@ -73,7 +69,7 @@ func (s service) GetInvoice(ctx context.Context, value uint64, note string) (inv
 }
 
 func (s service) PayInvoice(ctx context.Context, invoice string) (preimage string, err error) {
-	resp, err := runCommand(nigiriCmd, clnCmd, clnPayInvoiceCmd, invoice)
+	resp, err := runCommand(clnPayInvoiceCmd, invoice)
 	if err != nil {
 		return "", err
 	}
