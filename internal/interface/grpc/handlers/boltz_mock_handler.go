@@ -97,9 +97,12 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 		PreimageHash: preimageHash,
 		Pubkey:       refundPubkey,
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	vhtlcAddress := resp.GetAddress()
-	swapTree := closures(resp.GetTapscripts()).toProto()
+	swapTree := swapTree{resp.GetSwapTree()}.toProto()
 	logrus.Infof("created VHTLC: %s", vhtlcAddress)
 	go func() {
 		ctx := context.Background()
@@ -175,6 +178,41 @@ func parsePubkey(pubkey string) (string, error) {
 	return pubkey, nil
 }
 
-type closures []string
+type swapTree struct {
+	*arknodepb.TaprootTree
+}
 
-func (c closures) toProto() *pb.TaprootTree
+func (t swapTree) toProto() *pb.TaprootTree {
+	claimLeaf := t.GetClaimLeaf()
+	refundLeaf := t.GetRefundLeaf()
+	refundWithoutBoltzLeaf := t.GetRefundWithoutBoltzLeaf()
+	unilateralClaimLeaf := t.GetUnilateralClaimLeaf()
+	unilateralRefundLeaf := t.GetUnilateralRefundLeaf()
+	unilateralRefundWithoutBoltzLeaf := t.GetUnilateralRefundWithoutBoltzLeaf()
+	return &pb.TaprootTree{
+		ClaimLeaf: &pb.TaprootLeaf{
+			Version: claimLeaf.GetVersion(),
+			Output:  claimLeaf.GetOutput(),
+		},
+		RefundLeaf: &pb.TaprootLeaf{
+			Version: refundLeaf.GetVersion(),
+			Output:  refundLeaf.GetOutput(),
+		},
+		RefundWithoutBoltzLeaf: &pb.TaprootLeaf{
+			Version: refundWithoutBoltzLeaf.GetVersion(),
+			Output:  refundWithoutBoltzLeaf.GetOutput(),
+		},
+		UnilateralClaimLeaf: &pb.TaprootLeaf{
+			Version: unilateralClaimLeaf.GetVersion(),
+			Output:  unilateralClaimLeaf.GetOutput(),
+		},
+		UnilateralRefundLeaf: &pb.TaprootLeaf{
+			Version: unilateralRefundLeaf.GetVersion(),
+			Output:  unilateralRefundLeaf.GetOutput(),
+		},
+		UnilateralRefundWithoutBoltzLeaf: &pb.TaprootLeaf{
+			Version: unilateralRefundWithoutBoltzLeaf.GetVersion(),
+			Output:  unilateralRefundWithoutBoltzLeaf.GetOutput(),
+		},
+	}
+}

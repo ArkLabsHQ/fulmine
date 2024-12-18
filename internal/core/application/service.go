@@ -307,7 +307,7 @@ func (s *Service) IsConnectedLN() bool {
 
 func (s *Service) GetVHTLC(
 	ctx context.Context, receiverPubKey *secp256k1.PublicKey, preimageHash []byte,
-) (string, []string, error) {
+) (string, *vhtlc.VHTLCScript, error) {
 	offchainAddr, _, err := s.Receive(ctx)
 	if err != nil {
 		return "", nil, err
@@ -367,13 +367,7 @@ func (s *Service) GetVHTLC(
 		return "", nil, err
 	}
 
-	tapscripts := make([]string, 0, len(vtxoScript.Closures))
-	for _, closure := range vtxoScript.Closures {
-		script, _ := closure.Script()
-		tapscripts = append(tapscripts, hex.EncodeToString(script))
-	}
-
-	return encodedAddr, tapscripts, nil
+	return encodedAddr, vtxoScript, nil
 }
 
 func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]client.Vtxo, []vhtlc.Opts, error) {

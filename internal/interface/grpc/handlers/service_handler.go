@@ -8,6 +8,7 @@ import (
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
+	"github.com/ArkLabsHQ/ark-node/pkg/vhtlc"
 	"github.com/ArkLabsHQ/ark-node/utils"
 	"github.com/ark-network/ark/common/tree"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
@@ -86,13 +87,13 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		return nil, status.Error(codes.InvalidArgument, "invalid preimage hash")
 	}
 
-	addr, tapscripts, err := h.svc.GetVHTLC(ctx, pubkey, preimageHashBytes)
+	addr, swapTree, err := h.svc.GetVHTLC(ctx, pubkey, preimageHashBytes)
 	if err != nil {
 		return nil, err
 	}
 	return &pb.CreateVHTLCResponse{
-		Address:    addr,
-		Tapscripts: tapscripts,
+		Address:  addr,
+		SwapTree: toSwapTreeProto(swapTree),
 	}, nil
 }
 
@@ -341,5 +342,40 @@ func toTxTypeProto(txType types.TxType) pb.TxType {
 		return pb.TxType_TX_TYPE_RECEIVED
 	default:
 		return pb.TxType_TX_TYPE_UNSPECIFIED
+	}
+}
+
+func toSwapTreeProto(tree *vhtlc.VHTLCScript) *pb.TaprootTree {
+	claimScript, _ := tree.ClaimClosure.Script()
+	refundScript, _ := tree.RefundClosure.Script()
+	refundWithoutBoltzScript, _ := tree.RefundWithoutReceiverClosure.Script()
+	unilateralClaimScript, _ := tree.UnilateralClaimClosure.Script()
+	unilateralRefundScript, _ := tree.UnilateralRefundClosure.Script()
+	unilateralRefundWithoutBoltzScript, _ := tree.UnilateralRefundWithoutReceiverClosure.Script()
+	return &pb.TaprootTree{
+		ClaimLeaf: &pb.TaprootLeaf{
+			Version: 0,
+			Output:  hex.EncodeToString(claimScript),
+		},
+		RefundLeaf: &pb.TaprootLeaf{
+			Version: 0,
+			Output:  hex.EncodeToString(refundScript),
+		},
+		RefundWithoutBoltzLeaf: &pb.TaprootLeaf{
+			Version: 0,
+			Output:  hex.EncodeToString(refundWithoutBoltzScript),
+		},
+		UnilateralClaimLeaf: &pb.TaprootLeaf{
+			Version: 0,
+			Output:  hex.EncodeToString(unilateralClaimScript),
+		},
+		UnilateralRefundLeaf: &pb.TaprootLeaf{
+			Version: 0,
+			Output:  hex.EncodeToString(unilateralRefundScript),
+		},
+		UnilateralRefundWithoutBoltzLeaf: &pb.TaprootLeaf{
+			Version: 0,
+			Output:  hex.EncodeToString(unilateralRefundWithoutBoltzScript),
+		},
 	}
 }

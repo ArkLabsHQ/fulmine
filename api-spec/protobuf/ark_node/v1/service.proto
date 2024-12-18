@@ -158,7 +158,7 @@ message CreateVHTLCRequest {
 }
 message CreateVHTLCResponse {
   string address = 1;
-  repeated string tapscripts = 2;
+  TaprootTree swap_tree = 2;
 }
 
 message ClaimVHTLCRequest {
@@ -189,4 +189,18 @@ message PayInvoiceRequest {
 }
 message PayInvoiceResponse {
   string preimage = 1;
+}
+
+message TaprootTree {
+  TaprootLeaf claim_leaf = 1;
+  TaprootLeaf refund_leaf = 2;
+  TaprootLeaf refund_without_boltz_leaf = 3;
+  TaprootLeaf unilateral_claim_leaf = 4;
+  TaprootLeaf unilateral_refund_leaf = 5;
+  TaprootLeaf unilateral_refund_without_boltz_leaf = 6;
+}
+
+message TaprootLeaf {
+  int32 version = 1;
+  string output = 2;
 }

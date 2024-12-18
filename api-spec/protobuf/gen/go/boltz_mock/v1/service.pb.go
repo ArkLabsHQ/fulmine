@@ -29,8 +29,8 @@ type SubmarineSwapRequest struct {
 	To              string `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
 	Invoice         string `protobuf:"bytes,3,opt,name=invoice,proto3" json:"invoice,omitempty"`
 	PreimageHash    string `protobuf:"bytes,4,opt,name=preimage_hash,json=preimageHash,proto3" json:"preimage_hash,omitempty"`
-	RefundPublicKey string `protobuf:"bytes,5,opt,name=refund_public_key,json=refundPublicKey,proto3" json:"refund_public_key,omitempty"`
-	InvoiceAmount   uint64 `protobuf:"varint,6,opt,name=invoice_amount,json=invoiceAmount,proto3" json:"invoice_amount,omitempty"`
+	RefundPublicKey string `protobuf:"bytes,5,opt,name=refund_public_key,json=refundPublicKey,proto3" json:"refund_public_key,omitempty"` // not needed ?
+	InvoiceAmount   uint64 `protobuf:"varint,6,opt,name=invoice_amount,json=invoiceAmount,proto3" json:"invoice_amount,omitempty"`        // not needed ?
 }
 
 func (x *SubmarineSwapRequest) Reset() {

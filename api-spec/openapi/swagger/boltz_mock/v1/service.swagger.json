@@ -17,6 +17,41 @@
   ],
   "paths": {},
   "definitions": {
+    "boltz_mockv1TaprootLeaf": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "output": {
+          "type": "string"
+        }
+      }
+    },
+    "boltz_mockv1TaprootTree": {
+      "type": "object",
+      "properties": {
+        "claimLeaf": {
+          "$ref": "#/definitions/boltz_mockv1TaprootLeaf"
+        },
+        "refundLeaf": {
+          "$ref": "#/definitions/boltz_mockv1TaprootLeaf"
+        },
+        "refundWithoutBoltzLeaf": {
+          "$ref": "#/definitions/boltz_mockv1TaprootLeaf"
+        },
+        "unilateralClaimLeaf": {
+          "$ref": "#/definitions/boltz_mockv1TaprootLeaf"
+        },
+        "unilateralRefundLeaf": {
+          "$ref": "#/definitions/boltz_mockv1TaprootLeaf"
+        },
+        "unilateralRefundWithoutBoltzLeaf": {
+          "$ref": "#/definitions/boltz_mockv1TaprootLeaf"
+        }
+      }
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -69,7 +104,7 @@
           "type": "string"
         },
         "swapTree": {
-          "$ref": "#/definitions/v1TaprootTree"
+          "$ref": "#/definitions/boltz_mockv1TaprootTree"
         },
         "claimPublicKey": {
           "type": "string"
@@ -80,41 +115,6 @@
         },
         "acceptZeroConf": {
           "type": "boolean"
-        }
-      }
-    },
-    "v1TaprootLeaf": {
-      "type": "object",
-      "properties": {
-        "version": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "output": {
-          "type": "string"
-        }
-      }
-    },
-    "v1TaprootTree": {
-      "type": "object",
-      "properties": {
-        "claimLeaf": {
-          "$ref": "#/definitions/v1TaprootLeaf"
-        },
-        "refundLeaf": {
-          "$ref": "#/definitions/v1TaprootLeaf"
-        },
-        "refundWithoutBoltzLeaf": {
-          "$ref": "#/definitions/v1TaprootLeaf"
-        },
-        "unilateralClaimLeaf": {
-          "$ref": "#/definitions/v1TaprootLeaf"
-        },
-        "unilateralRefundLeaf": {
-          "$ref": "#/definitions/v1TaprootLeaf"
-        },
-        "unilateralRefundWithoutBoltzLeaf": {
-          "$ref": "#/definitions/v1TaprootLeaf"
         }
       }
     }
