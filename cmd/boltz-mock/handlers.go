@@ -1,5 +1,4 @@
-// TODO remove this file, it's just a mock for testing boltz server
-package handlers
+package main
 
 import (
 	"context"
@@ -26,7 +25,7 @@ type boltzMockHandler struct {
 	arknode arknodepb.ServiceClient
 }
 
-func NewBoltzMockHandler(arknodeURL string) pb.ServiceServer {
+func newBoltzMockHandler(arknodeURL string) pb.ServiceServer {
 	conn, err := grpc.NewClient(arknodeURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		logrus.Fatalf("failed to connect to ark-node: %v", err)
@@ -51,8 +50,8 @@ func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.Rev
 	invoice := fakeInvoice
 
 	response, err := b.arknode.CreateVHTLC(ctx, &arknodepb.CreateVHTLCRequest{
-		PreimageHash: preimageHash,
-		Pubkey:       req.Pubkey,
+		PreimageHash:   preimageHash,
+		ReceiverPubkey: req.GetPubkey(),
 	})
 	if err != nil {
 		logrus.Errorf("failed to fund vHTLC: %v", err)
@@ -76,9 +75,10 @@ func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.Rev
 	}
 
 	return &pb.ReverseSubmarineSwapResponse{
-		Invoice:       invoice,
-		LockupAddress: addrResponse.Address,
-		PreimageHash:  hex.EncodeToString(preimage), // MOCK ONLY
+		Invoice:         invoice,
+		LockupAddress:   addrResponse.Address,
+		RefundPublicKey: response.GetRefundPubkey(),
+		PreimageHash:    hex.EncodeToString(preimage), // MOCK ONLY
 	}, nil
 }
 
@@ -95,7 +95,7 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 
 	resp, err := b.arknode.CreateVHTLC(ctx, &arknodepb.CreateVHTLCRequest{
 		PreimageHash: preimageHash,
-		Pubkey:       refundPubkey,
+		SenderPubkey: refundPubkey,
 	})
 	if err != nil {
 		return nil, err

@@ -8,7 +8,6 @@ import (
 	"syscall"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/boltz_mock/v1"
-	"github.com/ArkLabsHQ/ark-node/internal/interface/grpc/handlers"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -21,7 +20,7 @@ const (
 
 func main() {
 	logrus.SetLevel(logrus.Level(logrus.DebugLevel))
-	handler := handlers.NewBoltzMockHandler(URL)
+	handler := newBoltzMockHandler(URL)
 	creds := insecure.NewCredentials()
 
 	grpcServer := grpc.NewServer(grpc.Creds(creds))
