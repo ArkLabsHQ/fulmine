@@ -94,6 +94,7 @@ service Service {
 message GetAddressRequest {}
 message GetAddressResponse {
   string address = 1;
+  string pubkey = 2;
 }
 
 message GetBalanceRequest {}
@@ -154,11 +155,15 @@ message GetTransactionHistoryResponse {
 
 message CreateVHTLCRequest {
   string preimage_hash = 1;
-  string pubkey = 2;
+  string sender_pubkey = 2; 
+  string receiver_pubkey = 3; 
 }
 message CreateVHTLCResponse {
   string address = 1;
-  TaprootTree swap_tree = 2;
+  string claim_pubkey = 2;
+  string refund_pubkey = 3;
+  string server_pubkey = 4;
+  TaprootTree swap_tree = 5;
 }
 
 message ClaimVHTLCRequest {

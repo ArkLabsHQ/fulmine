@@ -548,7 +548,10 @@
         "preimageHash": {
           "type": "string"
         },
-        "pubkey": {
+        "senderPubkey": {
+          "type": "string"
+        },
+        "receiverPubkey": {
           "type": "string"
         }
       }
@@ -557,6 +560,15 @@
       "type": "object",
       "properties": {
         "address": {
+          "type": "string"
+        },
+        "claimPubkey": {
+          "type": "string"
+        },
+        "refundPubkey": {
+          "type": "string"
+        },
+        "serverPubkey": {
           "type": "string"
         },
         "swapTree": {
@@ -568,6 +580,9 @@
       "type": "object",
       "properties": {
         "address": {
+          "type": "string"
+        },
+        "pubkey": {
           "type": "string"
         }
       }

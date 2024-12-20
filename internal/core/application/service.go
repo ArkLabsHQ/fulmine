@@ -104,6 +104,12 @@ func (s *Service) SetupFromMnemonic(ctx context.Context, serverUrl, password, mn
 }
 
 func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey string) (err error) {
+	privKeyBytes, err := hex.DecodeString(privateKey)
+	if err != nil {
+		return err
+	}
+	prvKey := secp256k1.PrivKeyFromBytes(privKeyBytes)
+
 	if err := s.settingsRepo.UpdateSettings(
 		ctx, domain.Settings{ServerUrl: serverUrl},
 	); err != nil {
@@ -122,14 +128,6 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		return err
 	}
 
-	privKeyBytes, err := hex.DecodeString(privateKey)
-	if err != nil {
-		return err
-	}
-
-	prvKey := secp256k1.PrivKeyFromBytes(privKeyBytes)
-	s.publicKey = prvKey.PubKey()
-
 	if err := s.Init(ctx, arksdk.InitArgs{
 		WalletType: arksdk.SingleKeyWallet,
 		ClientType: arksdk.GrpcClient,
@@ -139,7 +137,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	}); err != nil {
 		return err
 	}
-
+	s.publicKey = prvKey.PubKey()
 	s.grpcClient = client
 	s.isReady = true
 	return nil
@@ -218,19 +216,22 @@ func (s *Service) UpdateSettings(ctx context.Context, settings domain.Settings) 
 	return s.settingsRepo.UpdateSettings(ctx, settings)
 }
 
-func (s *Service) GetAddress(ctx context.Context, sats uint64) (bip21Addr, offchainAddr, boardingAddr string, err error) {
-	offchainAddr, boardingAddr, err = s.Receive(ctx)
+func (s *Service) GetAddress(
+	ctx context.Context, sats uint64,
+) (string, string, string, string, error) {
+	offchainAddr, boardingAddr, err := s.Receive(ctx)
 	if err != nil {
-		return
+		return "", "", "", "", err
 	}
-	bip21Addr = fmt.Sprintf("bitcoin:%s?ark=%s", boardingAddr, offchainAddr)
+	bip21Addr := fmt.Sprintf("bitcoin:%s?ark=%s", boardingAddr, offchainAddr)
 	// add amount if passed
 	if sats > 0 {
 		btc := float64(sats) / 100000000.0
 		amount := fmt.Sprintf("%.8f", btc)
 		bip21Addr += fmt.Sprintf("&amount=%s", amount)
 	}
-	return
+	pubkey := hex.EncodeToString(s.publicKey.SerializeCompressed()[1:])
+	return bip21Addr, offchainAddr, boardingAddr, pubkey, nil
 }
 
 func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
@@ -306,8 +307,20 @@ func (s *Service) IsConnectedLN() bool {
 }
 
 func (s *Service) GetVHTLC(
-	ctx context.Context, receiverPubKey *secp256k1.PublicKey, preimageHash []byte,
+	ctx context.Context, receiverPubkey, senderPubkey *secp256k1.PublicKey, preimageHash []byte,
 ) (string, *vhtlc.VHTLCScript, error) {
+	receiverPubkeySet := receiverPubkey != nil
+	senderPubkeySet := senderPubkey != nil
+	if receiverPubkeySet == senderPubkeySet {
+		return "", nil, fmt.Errorf("only one of receiver and sender pubkey must be set")
+	}
+	if !receiverPubkeySet {
+		receiverPubkey = s.publicKey
+	}
+	if !senderPubkeySet {
+		senderPubkey = s.publicKey
+	}
+
 	offchainAddr, _, err := s.Receive(ctx)
 	if err != nil {
 		return "", nil, err
@@ -318,6 +331,7 @@ func (s *Service) GetVHTLC(
 		return "", nil, err
 	}
 
+	// TODO: make these delays configurable
 	refundLocktime := common.AbsoluteLocktime(80 * 600) // 80 blocks
 	unilateralClaimDelay := common.RelativeLocktime{
 		Type:  common.LocktimeTypeSecond,
@@ -333,8 +347,8 @@ func (s *Service) GetVHTLC(
 	}
 
 	opts := vhtlc.Opts{
-		Sender:                               s.publicKey,
-		Receiver:                             receiverPubKey,
+		Sender:                               senderPubkey,
+		Receiver:                             receiverPubkey,
 		Server:                               decodedAddr.Server,
 		PreimageHash:                         preimageHash,
 		RefundLocktime:                       refundLocktime,
@@ -485,7 +499,7 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 	}
 
 	// self send output
-	_, myAddr, _, err := s.GetAddress(ctx, 0)
+	_, myAddr, _, _, err := s.GetAddress(ctx, 0)
 	if err != nil {
 		return "", err
 	}

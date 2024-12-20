@@ -99,6 +99,9 @@ func (o Opts) unilateralRefundWithoutReceiverClosure() *tree.CSVMultisigClosure 
 type VHTLCScript struct {
 	tree.TapscriptsVtxoScript
 
+	Sender                                 *secp256k1.PublicKey
+	Receiver                               *secp256k1.PublicKey
+	Server                                 *secp256k1.PublicKey
 	ClaimClosure                           *tree.ConditionMultisigClosure
 	RefundClosure                          *tree.MultisigClosure
 	RefundWithoutReceiverClosure           *tree.CLTVMultisigClosure
@@ -140,6 +143,9 @@ func NewVHTLCScript(opts Opts) (*VHTLCScript, error) {
 				unilateralRefundWithoutReceiverClosure,
 			},
 		},
+		Sender:                                 opts.Sender,
+		Receiver:                               opts.Receiver,
+		Server:                                 opts.Server,
 		ClaimClosure:                           claimClosure,
 		RefundClosure:                          refundClosure,
 		RefundWithoutReceiverClosure:           refundWithoutReceiverClosure,

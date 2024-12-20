@@ -72,14 +72,19 @@ func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest
 }
 
 func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCRequest) (*pb.CreateVHTLCResponse, error) {
-	pubkeyBytes, err := hex.DecodeString(req.GetPubkey())
+	receiverPubkey, err := parsePubkey(req.GetReceiverPubkey())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid pubkey")
+	}
+	senderPubkey, err := parsePubkey(req.GetSenderPubkey())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid pubkey")
 	}
 
-	pubkey, err := secp256k1.ParsePubKey(pubkeyBytes)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid pubkey")
+	receiverPubkeySet := receiverPubkey != nil
+	senderPubkeySet := senderPubkey != nil
+	if receiverPubkeySet == senderPubkeySet {
+		return nil, status.Error(codes.InvalidArgument, "only one of receiver or sender public keys must be set")
 	}
 
 	preimageHashBytes, err := hex.DecodeString(req.GetPreimageHash())
@@ -87,24 +92,30 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		return nil, status.Error(codes.InvalidArgument, "invalid preimage hash")
 	}
 
-	addr, swapTree, err := h.svc.GetVHTLC(ctx, pubkey, preimageHashBytes)
+	addr, swapTree, err := h.svc.GetVHTLC(ctx, receiverPubkey, senderPubkey, preimageHashBytes)
 	if err != nil {
 		return nil, err
 	}
 	return &pb.CreateVHTLCResponse{
-		Address:  addr,
-		SwapTree: toSwapTreeProto(swapTree),
+		Address:      addr,
+		ClaimPubkey:  hex.EncodeToString(swapTree.Receiver.SerializeCompressed()[1:]),
+		RefundPubkey: hex.EncodeToString(swapTree.Sender.SerializeCompressed()[1:]),
+		ServerPubkey: hex.EncodeToString(swapTree.Server.SerializeCompressed()[1:]),
+		SwapTree:     toSwapTreeProto(swapTree),
 	}, nil
 }
 
 func (h *serviceHandler) GetAddress(
 	ctx context.Context, req *pb.GetAddressRequest,
 ) (*pb.GetAddressResponse, error) {
-	bip21Addr, _, _, err := h.svc.GetAddress(ctx, 0)
+	bip21Addr, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.GetAddressResponse{Address: bip21Addr}, nil
+	return &pb.GetAddressResponse{
+		Address: bip21Addr,
+		Pubkey:  pubkey,
+	}, nil
 }
 
 func (h *serviceHandler) GetBalance(
@@ -138,7 +149,7 @@ func (h *serviceHandler) GetInfo(
 func (h *serviceHandler) GetOnboardAddress(
 	ctx context.Context, req *pb.GetOnboardAddressRequest,
 ) (*pb.GetOnboardAddressResponse, error) {
-	_, _, addr, err := h.svc.GetAddress(ctx, 0)
+	_, _, addr, _, err := h.svc.GetAddress(ctx, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -303,6 +314,24 @@ func parseInvoice(invoice string) (string, error) {
 		return "", fmt.Errorf("missing invoice")
 	}
 	return invoice, nil
+}
+
+func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
+	if len(pubkey) <= 0 {
+		return nil, nil
+	}
+
+	buf, err := hex.DecodeString(pubkey)
+	if err != nil {
+		return nil, fmt.Errorf("pubkey must be encoded in hex format")
+	}
+
+	pk, err := secp256k1.ParsePubKey(buf)
+	if err != nil {
+		return nil, fmt.Errorf("invalid pubkey: %s", err)
+	}
+
+	return pk, nil
 }
 
 func toNetworkProto(net string) pb.GetInfoResponse_Network {

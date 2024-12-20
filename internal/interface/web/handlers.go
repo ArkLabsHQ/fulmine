@@ -224,7 +224,7 @@ func (s *service) receiveQrCode(c *gin.Context) {
 			return
 		}
 	}
-	bip21, _, _, err := s.svc.GetAddress(c, sats)
+	bip21, _, _, _, err := s.svc.GetAddress(c, sats)
 	if err != nil {
 		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
