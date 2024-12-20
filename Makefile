@@ -65,6 +65,11 @@ proto: proto-lint
 	@echo "Compiling stubs..."
 	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf generate
 
+## proto-cln: compile cln proto stubs
+proto-cln:
+	@echo "Compiling cln stubs..."
+	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf generate
+
 ## proto-lint: lint protos
 proto-lint:
 	@echo "Linting protos..."
