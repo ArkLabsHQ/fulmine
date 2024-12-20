@@ -1,12 +1,10 @@
 package main
 
 import (
-	"encoding/hex"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/btcsuite/btcd/btcutil"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
@@ -77,6 +75,11 @@ func swap(c *cli.Context) error {
 		return err
 	}
 
+	addrResp, err := nodeClient.GetAddress(c.Context, &ark_node_pb.GetAddressRequest{})
+	if err != nil {
+		return err
+	}
+
 	invoiceResp, err := nodeClient.CreateInvoice(c.Context, &ark_node_pb.CreateInvoiceRequest{
 		Amount: amount,
 	})
@@ -91,7 +94,7 @@ func swap(c *cli.Context) error {
 		To:              "LN",
 		Invoice:         invoice,
 		PreimageHash:    preimageHash,
-		RefundPublicKey: "todopubkey",
+		RefundPublicKey: addrResp.GetPubkey(),
 		InvoiceAmount:   amount,
 	})
 	if err != nil {
@@ -146,57 +149,61 @@ func reverseSwap(c *cli.Context) error {
 		return err
 	}
 
+	addrResp, err := nodeClient.GetAddress(c.Context, &ark_node_pb.GetAddressRequest{})
+	if err != nil {
+		return err
+	}
+
 	response, err := boltzClient.ReverseSubmarineSwap(c.Context, &boltz_mockv1.ReverseSubmarineSwapRequest{
 		From:          "LN",
 		To:            "ARK",
 		InvoiceAmount: amount,
 		OnchainAmount: amount,
-		Pubkey:        "todopubkey", // TODO add a way to return a rawpubkey from arknode's wallet
+		Pubkey:        addrResp.GetPubkey(),
 	})
 	if err != nil {
 		return err
 	}
 
 	invoice := response.GetInvoice()
-	preimage := response.GetPreimageHash() // for mock only, boltz provides the preimage
-	preimageBytes, err := hex.DecodeString(preimage)
+	preimageHash := response.GetPreimageHash()
+
+	logrus.Infof("paying invoice...")
+	invoiceResp, err := nodeClient.PayInvoice(c.Context, &ark_node_pb.PayInvoiceRequest{
+		Invoice: invoice,
+	})
 	if err != nil {
 		return err
 	}
 
-	preimageHash := hex.EncodeToString(btcutil.Hash160(preimageBytes))
+	logrus.Infof("invoice paid %s", invoice)
+	logrus.Info("waiting for vHTLC to be funded...")
 
-	// pay the invoice
-	fmt.Printf("invoice: %s", invoice)
-	// search for vHTLC
-
-	var vhtlc *ark_node_pb.Vtxo
-
-	for vhtlc == nil {
-		time.Sleep(3 * time.Second)
-
+	ticker := time.NewTicker(3 * time.Second)
+	for range ticker.C {
 		listResponse, err := nodeClient.ListVHTLC(c.Context, &ark_node_pb.ListVHTLCRequest{
 			PreimageHashFilter: &preimageHash,
 		})
 		if err != nil {
 			return err
 		}
-
-		if len(listResponse.Vhtlcs) == 0 {
+		if len(listResponse.GetVhtlcs()) == 0 {
 			continue
 		}
 
-		vhtlc = listResponse.Vhtlcs[0]
+		break
 	}
+	ticker.Stop()
 
-	_, err = nodeClient.ClaimVHTLC(c.Context, &ark_node_pb.ClaimVHTLCRequest{
-		Preimage: preimage,
+	logrus.Infof("vHTLC funded, claiming...")
+	claimResponse, err := nodeClient.ClaimVHTLC(c.Context, &ark_node_pb.ClaimVHTLCRequest{
+		Preimage: invoiceResp.GetPreimage(),
 	})
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("vHTLC claimed !")
+	logrus.Infof("vHTLC claimed %s", claimResponse.GetRedeemTxid())
 	return nil
 }
 
