@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -96,13 +97,14 @@ func (s *service) GetInvoice(
 		return "", "", err
 	}
 
-	decodeRequest := &lnrpc.PayReqString{PayReq: info.PaymentRequest}
-	invoice, err := s.client.DecodePayReq(ctx, decodeRequest)
+	lookupRequest := &lnrpc.PaymentHash{RHash: info.GetRHash()}
+	invoice, err := s.client.LookupInvoice(ctx, lookupRequest)
 	if err != nil {
 		return "", "", err
 	}
 
-	return info.PaymentRequest, invoice.PaymentHash, nil
+	preimageHash := hex.EncodeToString(btcutil.Hash160(invoice.GetRPreimage()))
+	return info.PaymentRequest, preimageHash, nil
 }
 
 func (s *service) IsConnected() bool {

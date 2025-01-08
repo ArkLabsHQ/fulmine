@@ -6,12 +6,13 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/cln"
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"os"
-	"time"
 )
 
 const serverName = "cln"
@@ -103,19 +104,18 @@ func (s *service) GetInvoice(ctx context.Context, value uint64, note string) (in
 		return "", "", err
 	}
 
-	return resp.Bolt11, hex.EncodeToString(resp.PaymentHash), nil
+	return resp.Bolt11, hex.EncodeToString(resp.GetPaymentHash()), nil
 }
 
 func (s *service) PayInvoice(ctx context.Context, invoice string) (preimage string, err error) {
 	res, err := s.client.Pay(ctx, &cln.PayRequest{
 		Bolt11: invoice,
 	})
-
 	if err != nil {
 		return "", err
 	}
 
-	return hex.EncodeToString(res.PaymentPreimage), nil
+	return hex.EncodeToString(res.GetPaymentPreimage()), nil
 }
 
 func (s *service) Disconnect() {

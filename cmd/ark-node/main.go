@@ -3,10 +3,12 @@ package main
 import (
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/ArkLabsHQ/ark-node/internal/config"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
+	cln_grpc "github.com/ArkLabsHQ/ark-node/internal/infrastructure/cln-grpc"
 	badgerdb "github.com/ArkLabsHQ/ark-node/internal/infrastructure/db/badger"
 	lnd "github.com/ArkLabsHQ/ark-node/internal/infrastructure/lnd"
 	scheduler "github.com/ArkLabsHQ/ark-node/internal/infrastructure/scheduler/gocron"
@@ -73,6 +75,15 @@ func main() {
 
 	schedulerSvc := scheduler.NewScheduler()
 	lnSvc := lnd.NewService()
+	if cfg.CLNDatadir != "" {
+		rootCert := filepath.Join(cfg.CLNDatadir, "ca.pem")
+		privateKey := filepath.Join(cfg.CLNDatadir, "client-key.pem")
+		certChain := filepath.Join(cfg.CLNDatadir, "client.pem")
+		lnSvc, err = cln_grpc.NewService(rootCert, privateKey, certChain)
+		if err != nil {
+			log.WithError(err).Fatal("failed to init cln client")
+		}
+	}
 
 	appSvc, err := application.NewService(
 		buildInfo,

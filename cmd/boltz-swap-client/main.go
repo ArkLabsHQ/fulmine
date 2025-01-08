@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -55,7 +55,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		logrus.Fatal(err)
+		log.Fatal(err)
 	}
 
 }
@@ -75,11 +75,13 @@ func swap(c *cli.Context) error {
 		return err
 	}
 
+	log.Info("retrieving wallet pubkey...")
 	addrResp, err := nodeClient.GetAddress(c.Context, &ark_node_pb.GetAddressRequest{})
 	if err != nil {
 		return err
 	}
 
+	log.Info("creating invoice...")
 	invoiceResp, err := nodeClient.CreateInvoice(c.Context, &ark_node_pb.CreateInvoiceRequest{
 		Amount: amount,
 	})
@@ -89,6 +91,8 @@ func swap(c *cli.Context) error {
 	invoice := invoiceResp.GetInvoice()
 	preimageHash := invoiceResp.GetPreimageHash()
 
+	log.Info("calling Boltz submarine swap API...")
+	log.Infof("params:\nrefund pubkey: %s\ninvoice and preimage hash: %s %s\namount %d", addrResp.GetPubkey(), invoice, preimageHash, amount)
 	response, err := boltzClient.SubmarineSwap(c.Context, &boltz_mockv1.SubmarineSwapRequest{
 		From:            "ARK",
 		To:              "LN",
@@ -100,36 +104,18 @@ func swap(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	log.Infof("vHTLC created: %s", response.GetAddress())
 
+	log.Info("funding vHTLC...")
 	if _, err = nodeClient.SendOffChain(c.Context, &ark_node_pb.SendOffChainRequest{
 		Address: response.GetAddress(),
 		Amount:  amount,
 	}); err != nil {
-		logrus.Errorf("failed to send to vHTLC address: %v", err)
+		log.Errorf("failed to send to vHTLC address: %v", err)
 		return err
 	}
 
-	// wait for the invoice to be paid
-	// reveal preimage
-
-	// wait for the vHTLC to be claimed
-	claimed := false
-	for !claimed {
-		time.Sleep(3 * time.Second)
-
-		listResponse, err := nodeClient.ListVHTLC(c.Context, &ark_node_pb.ListVHTLCRequest{
-			PreimageHashFilter: &preimageHash,
-		})
-		if err != nil {
-			return err
-		}
-
-		if len(listResponse.Vhtlcs) == 0 {
-			claimed = true
-		}
-	}
-
-	fmt.Println("vHTLC claimed")
+	log.Info("done!")
 
 	return nil
 }
@@ -168,7 +154,7 @@ func reverseSwap(c *cli.Context) error {
 	invoice := response.GetInvoice()
 	preimageHash := response.GetPreimageHash()
 
-	logrus.Infof("paying invoice...")
+	log.Infof("paying invoice...")
 	invoiceResp, err := nodeClient.PayInvoice(c.Context, &ark_node_pb.PayInvoiceRequest{
 		Invoice: invoice,
 	})
@@ -176,8 +162,8 @@ func reverseSwap(c *cli.Context) error {
 		return err
 	}
 
-	logrus.Infof("invoice paid %s", invoice)
-	logrus.Info("waiting for vHTLC to be funded...")
+	log.Infof("invoice paid %s", invoice)
+	log.Info("waiting for vHTLC to be funded...")
 
 	ticker := time.NewTicker(3 * time.Second)
 	for range ticker.C {
@@ -195,7 +181,7 @@ func reverseSwap(c *cli.Context) error {
 	}
 	ticker.Stop()
 
-	logrus.Infof("vHTLC funded, claiming...")
+	log.Infof("vHTLC funded, claiming...")
 	claimResponse, err := nodeClient.ClaimVHTLC(c.Context, &ark_node_pb.ClaimVHTLCRequest{
 		Preimage: invoiceResp.GetPreimage(),
 	})
@@ -203,7 +189,7 @@ func reverseSwap(c *cli.Context) error {
 		return err
 	}
 
-	logrus.Infof("vHTLC claimed %s", claimResponse.GetRedeemTxid())
+	log.Infof("vHTLC claimed %s", claimResponse.GetRedeemTxid())
 	return nil
 }
 

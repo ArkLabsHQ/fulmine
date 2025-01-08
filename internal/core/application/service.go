@@ -17,6 +17,7 @@ import (
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -167,6 +168,19 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		logrus.WithError(err).Info("schedule next claim failed")
 	}
 
+	prvkeyStr, err := s.Dump(ctx)
+	if err != nil {
+		return err
+	}
+
+	buf, err := hex.DecodeString(prvkeyStr)
+	if err != nil {
+		return err
+	}
+
+	_, pubkey := btcec.PrivKeyFromBytes(buf)
+	s.publicKey = pubkey
+
 	go func() {
 		settings, err := s.settingsRepo.GetSettings(ctx)
 		if err != nil {
@@ -230,7 +244,7 @@ func (s *Service) GetAddress(
 		amount := fmt.Sprintf("%.8f", btc)
 		bip21Addr += fmt.Sprintf("&amount=%s", amount)
 	}
-	pubkey := hex.EncodeToString(s.publicKey.SerializeCompressed()[1:])
+	pubkey := hex.EncodeToString(s.publicKey.SerializeCompressed())
 	return bip21Addr, offchainAddr, boardingAddr, pubkey, nil
 }
 
@@ -335,11 +349,11 @@ func (s *Service) GetVHTLC(
 	refundLocktime := common.AbsoluteLocktime(80 * 600) // 80 blocks
 	unilateralClaimDelay := common.RelativeLocktime{
 		Type:  common.LocktimeTypeSecond,
-		Value: 60 * 12, // 12 hours
+		Value: 512, //60 * 12, // 12 hours
 	}
 	unilateralRefundDelay := common.RelativeLocktime{
 		Type:  common.LocktimeTypeSecond,
-		Value: 60 * 24, // 24 hours
+		Value: 1024, //60 * 24, // 24 hours
 	}
 	unilateralRefundWithoutReceiverDelay := common.RelativeLocktime{
 		Type:  common.LocktimeTypeBlock,

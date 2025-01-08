@@ -18,6 +18,8 @@ type Config struct {
 	HTTPPort uint32
 	WithTLS  bool
 	LogLevel uint32
+	// Only for testing purposes
+	CLNDatadir string
 }
 
 var (
@@ -26,6 +28,9 @@ var (
 	HTTPPort = "HTTP_PORT"
 	WithTLS  = "NO_TLS"
 	LogLevel = "LOG_LEVEL"
+
+	// Only for testing purposes
+	CLNDatadir = "CLN_DATADIR"
 
 	defaultDatadir  = appDatadir("ark-node", false)
 	defaultGRPCPort = 7000
@@ -49,11 +54,12 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &Config{
-		Datadir:  viper.GetString(Datadir),
-		GRPCPort: viper.GetUint32(GRPCPort),
-		HTTPPort: viper.GetUint32(HTTPPort),
-		WithTLS:  viper.GetBool(WithTLS),
-		LogLevel: viper.GetUint32(LogLevel),
+		Datadir:    viper.GetString(Datadir),
+		GRPCPort:   viper.GetUint32(GRPCPort),
+		HTTPPort:   viper.GetUint32(HTTPPort),
+		WithTLS:    viper.GetBool(WithTLS),
+		LogLevel:   viper.GetUint32(LogLevel),
+		CLNDatadir: cleanAndExpandPath(viper.GetString(CLNDatadir)),
 	}, nil
 }
 
@@ -134,4 +140,27 @@ func appDatadir(appName string, roaming bool) string {
 
 	// Fall back to the current directory if all else fails.
 	return "."
+}
+
+func cleanAndExpandPath(path string) string {
+	if path == "" {
+		return path
+	}
+
+	// Expand initial ~ to OS specific home directory.
+	if strings.HasPrefix(path, "~") {
+		var homeDir string
+		u, err := user.Current()
+		if err == nil {
+			homeDir = u.HomeDir
+		} else {
+			homeDir = os.Getenv("HOME")
+		}
+
+		path = strings.Replace(path, "~", homeDir, 1)
+	}
+
+	// NOTE: The os.ExpandEnv doesn't work with Windows-style %VARIABLE%,
+	// but the variables can still be expanded via POSIX-style $VARIABLE.
+	return filepath.Clean(os.ExpandEnv(path))
 }

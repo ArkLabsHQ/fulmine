@@ -163,7 +163,7 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 }
 
 func parsePreimageHash(preimageHash string) (string, error) {
-	if len(preimageHash) != 64 {
+	if len(preimageHash) != 40 {
 		return "", fmt.Errorf("invalid preimage hash")
 	}
 
