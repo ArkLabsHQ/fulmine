@@ -10,7 +10,7 @@ replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-d
 
 require (
 	github.com/ArkLabsHQ/ark-node/pkg/vhtlc v0.0.0-00010101000000-000000000000
-	github.com/a-h/templ v0.2.778
+	github.com/a-h/templ v0.3.819
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/ark-network/ark/common v0.0.0-20241217135720-7e4cb82944d5
 	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20241217135720-7e4cb82944d5
@@ -27,7 +27,7 @@ require (
 	github.com/timshannon/badgerhold/v4 v4.0.3
 	github.com/tyler-smith/go-bip32 v1.0.0
 	github.com/tyler-smith/go-bip39 v1.1.0
-	golang.org/x/net v0.30.0
+	golang.org/x/net v0.33.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20241021214115-324edc3d5d38
 	google.golang.org/grpc v1.67.1
 	google.golang.org/protobuf v1.35.1
