@@ -50,7 +50,7 @@ func (s *service) Connect(ctx context.Context, serverUrl string) error {
 	}
 	caPool := x509.NewCertPool()
 	if !caPool.AppendCertsFromPEM(caFile) {
-		return err
+		return fmt.Errorf("could not parse root certificate")
 	}
 
 	cert, err := tls.LoadX509KeyPair(s.certChain, s.privateKey)
