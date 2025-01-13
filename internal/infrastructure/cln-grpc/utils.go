@@ -13,11 +13,13 @@ func decodeClnConnectUrl(clnConnectUrl string) (rootCert, privateKey, certChain,
 
 	host = u.Host
 
+	rootCert = toBase64(u.Query().Get("rootCert"))     // ca.pem
 	certChain = toBase64(u.Query().Get("certChain"))   // client.pem
 	privateKey = toBase64(u.Query().Get("privateKey")) // client-key.pem
-	rootCert = toBase64(u.Query().Get("rootCert"))     // ca.pem
 
 	rootCert = "-----BEGIN CERTIFICATE-----\n" + rootCert + "\n-----END CERTIFICATE-----"
+	certChain = "-----BEGIN CERTIFICATE-----\n" + certChain + "\n-----END CERTIFICATE-----"
+	privateKey = "-----BEGIN PRIVATE KEY-----\n" + privateKey + "\n-----END PRIVATE KEY-----"
 
 	return
 }
