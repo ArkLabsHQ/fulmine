@@ -132,7 +132,7 @@ func (s *service) PayInvoice(
 	}
 
 	if err := response.GetPaymentError(); err != "" {
-		return "", fmt.Errorf(err)
+		return "", fmt.Errorf("%s", err)
 	}
 
 	return hex.EncodeToString(response.GetPaymentPreimage()), nil
