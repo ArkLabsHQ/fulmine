@@ -36,7 +36,7 @@ func (s *service) Connect(ctx context.Context, clnConnectUrl string) error {
 
 	cert, err := tls.X509KeyPair([]byte(certChain), []byte(privateKey))
 	if err != nil {
-		return err
+		return fmt.Errorf("error with X509KeyPair, %s", err)
 	}
 
 	creds := credentials.NewTLS(&tls.Config{
