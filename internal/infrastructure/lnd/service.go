@@ -122,7 +122,7 @@ func (s *service) PayInvoice(
 	ctx = getCtx(ctx, s.macaroon)
 	decodeRequest := &lnrpc.PayReqString{PayReq: invoice}
 	if _, err := s.client.DecodePayReq(ctx, decodeRequest); err != nil {
-		return "", err
+		return "", fmt.Errorf("invalid invoice %s : %s", err, invoice)
 	}
 
 	sendRequest := &lnrpc.SendRequest{PaymentRequest: invoice}
