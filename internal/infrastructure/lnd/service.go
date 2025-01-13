@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
 	"github.com/btcsuite/btcd/btcutil"
@@ -117,6 +118,8 @@ func (s *service) PayInvoice(
 	if !s.IsConnected() {
 		return "", ErrServiceNotConnected
 	}
+
+	invoice = strings.TrimPrefix(strings.ToLower(invoice), "lightning=")
 
 	// validate invoice
 	ctx = getCtx(ctx, s.macaroon)
