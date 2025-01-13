@@ -16,8 +16,8 @@ import (
 )
 
 // decodes lndconnect:// url into cert, macaroon and host
-func decodeLNDConnectUrl(lndconnectUrl string) (cp *x509.CertPool, macaroon string, host string, err error) {
-	u, err := url.Parse(lndconnectUrl)
+func decodeLNDConnectUrl(lndConnectUrl string) (cp *x509.CertPool, macaroon string, host string, err error) {
+	u, err := url.Parse(lndConnectUrl)
 	if err != nil {
 		return
 	}
@@ -44,9 +44,9 @@ func decodeLNDConnectUrl(lndconnectUrl string) (cp *x509.CertPool, macaroon stri
 	return
 }
 
-func getClient(lndconnectUrl string) (client lnrpc.LightningClient, conn *grpc.ClientConn, macaroon string, err error) {
+func getClient(lndConnectUrl string) (client lnrpc.LightningClient, conn *grpc.ClientConn, macaroon string, err error) {
 	// decode url
-	cert, macaroon, host, err := decodeLNDConnectUrl(lndconnectUrl)
+	cert, macaroon, host, err := decodeLNDConnectUrl(lndConnectUrl)
 	if err != nil {
 		return
 	}

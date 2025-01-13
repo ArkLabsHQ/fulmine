@@ -27,12 +27,12 @@ func NewService() ports.LnService {
 	return &service{nil, nil, ""}
 }
 
-func (s *service) Connect(ctx context.Context, lndconnectUrl string) error {
-	if len(lndconnectUrl) == 0 {
+func (s *service) Connect(ctx context.Context, lndConnectUrl string) error {
+	if len(lndConnectUrl) == 0 {
 		return fmt.Errorf("empty lnurl")
 	}
 
-	client, conn, macaroon, err := getClient(lndconnectUrl)
+	client, conn, macaroon, err := getClient(lndConnectUrl)
 	if err != nil {
 		return fmt.Errorf("unable to get client: %v", err)
 	}

@@ -306,8 +306,8 @@ func (s *Service) WhenNextClaim(ctx context.Context) time.Time {
 	return s.schedulerSvc.WhenNextClaim()
 }
 
-func (s *Service) ConnectLN(ctx context.Context, lndconnectUrl string) error {
-	return s.lnSvc.Connect(ctx, lndconnectUrl)
+func (s *Service) ConnectLN(ctx context.Context, lndConnectUrl string) error {
+	return s.lnSvc.Connect(ctx, lndConnectUrl)
 }
 
 func (s *Service) DisconnectLN() {
