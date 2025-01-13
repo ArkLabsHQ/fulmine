@@ -230,9 +230,7 @@ func (s *Service) UpdateSettings(ctx context.Context, settings domain.Settings) 
 	return s.settingsRepo.UpdateSettings(ctx, settings)
 }
 
-func (s *Service) GetAddress(
-	ctx context.Context, sats uint64,
-) (string, string, string, string, error) {
+func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, string, string, error) {
 	offchainAddr, boardingAddr, err := s.Receive(ctx)
 	if err != nil {
 		return "", "", "", "", err
