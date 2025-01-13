@@ -3,7 +3,6 @@ package utils
 import (
 	"encoding/hex"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/nbd-wtf/go-nostr/nip19"
@@ -24,18 +23,18 @@ func IsValidMnemonic(mnemonic string) error {
 
 func IsValidPassword(password string) error {
 	return nil // pietro will thank me later
-	if len(password) < 8 {
-		return fmt.Errorf("password too short")
-	}
-	numberRegex := regexp.MustCompile(`[0-9]`)
-	if !numberRegex.MatchString(password) {
-		return fmt.Errorf("password must have a number")
-	}
-	specialCharRegex := regexp.MustCompile(`[!@#$%^&*(),.?":{}|<>]`)
-	if !specialCharRegex.MatchString(password) {
-		return fmt.Errorf("password must have a special character")
-	}
-	return nil
+	// if len(password) < 8 {
+	// 	return fmt.Errorf("password too short")
+	// }
+	// numberRegex := regexp.MustCompile(`[0-9]`)
+	// if !numberRegex.MatchString(password) {
+	// 	return fmt.Errorf("password must have a number")
+	// }
+	// specialCharRegex := regexp.MustCompile(`[!@#$%^&*(),.?":{}|<>]`)
+	// if !specialCharRegex.MatchString(password) {
+	// 	return fmt.Errorf("password must have a special character")
+	// }
+	// return nil
 }
 
 func IsValidPrivateKey(privateKey string) error {

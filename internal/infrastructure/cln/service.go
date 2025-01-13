@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
 	"github.com/google/uuid"
-	"strconv"
 )
 
 const (
@@ -82,6 +83,4 @@ func (s service) PayInvoice(ctx context.Context, invoice string) (preimage strin
 	return payInvResp.PaymentPreimage, nil
 }
 
-func (s service) Disconnect() {
-	return
-}
+func (s service) Disconnect() {}
