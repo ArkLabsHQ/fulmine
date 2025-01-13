@@ -629,3 +629,7 @@ func (s *Service) GetInvoice(
 func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error) {
 	return s.lnSvc.PayInvoice(ctx, invoice)
 }
+
+func (s *Service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
+	return s.lnSvc.IsInvoiceSettled(ctx, invoice)
+}

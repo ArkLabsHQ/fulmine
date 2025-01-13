@@ -286,6 +286,22 @@ func (h *serviceHandler) PayInvoice(
 	return &pb.PayInvoiceResponse{Preimage: preimage}, nil
 }
 
+func (h *serviceHandler) IsInvoiceSettled(
+	ctx context.Context, req *pb.IsInvoiceSettledRequest,
+) (*pb.IsInvoiceSettledResponse, error) {
+	invoice, err := parseInvoice(req.GetInvoice())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	settled, err := h.svc.IsInvoiceSettled(ctx, invoice)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.IsInvoiceSettledResponse{Settled: settled}, nil
+}
+
 func parseAddress(a string) (string, error) {
 	if len(a) <= 0 {
 		return "", fmt.Errorf("missing address")

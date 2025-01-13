@@ -89,6 +89,11 @@ service Service {
       body: "*"
     };
   }
+  rpc IsInvoiceSettled(IsInvoiceSettledRequest) returns (IsInvoiceSettledResponse) {
+    option (google.api.http) = {
+      get: "/v1/invoice/status"
+    };
+  }
 }
 
 message GetAddressRequest {}
@@ -209,4 +214,12 @@ message TaprootTree {
 message TaprootLeaf {
   int32 version = 1;
   string output = 2;
+}
+
+message IsInvoiceSettledRequest {
+  string invoice = 1;
+}
+
+message IsInvoiceSettledResponse {
+  bool settled = 1;
 }

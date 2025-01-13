@@ -171,7 +171,7 @@ func reverseSwap(c *cli.Context) error {
 			PreimageHashFilter: &preimageHash,
 		})
 		if err != nil {
-			return err
+			continue
 		}
 		if len(listResponse.GetVhtlcs()) == 0 {
 			continue

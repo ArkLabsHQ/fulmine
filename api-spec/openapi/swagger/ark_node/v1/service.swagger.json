@@ -149,6 +149,36 @@
         ]
       }
     },
+    "/v1/invoice/status": {
+      "get": {
+        "operationId": "Service_IsInvoiceSettled",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1IsInvoiceSettledResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "invoice",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/onboard": {
       "post": {
         "summary": "GetOnboardAddress returns onchain address and invoice for requested amount",
@@ -662,6 +692,14 @@
         "vout": {
           "type": "integer",
           "format": "int64"
+        }
+      }
+    },
+    "v1IsInvoiceSettledResponse": {
+      "type": "object",
+      "properties": {
+        "settled": {
+          "type": "boolean"
         }
       }
     },

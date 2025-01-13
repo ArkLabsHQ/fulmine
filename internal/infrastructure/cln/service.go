@@ -84,3 +84,7 @@ func (s service) PayInvoice(ctx context.Context, invoice string) (preimage strin
 }
 
 func (s service) Disconnect() {}
+
+func (s service) IsInvoiceSettled(tx context.Context, invoice string) (bool, error) {
+	return false, nil
+}

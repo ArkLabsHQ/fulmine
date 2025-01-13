@@ -2,23 +2,16 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"time"
 
 	arknodepb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/boltz_mock/v1"
-	"github.com/btcsuite/btcd/btcutil"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
-)
-
-const (
-	fakeInvoice = "lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6"
 )
 
 type boltzMockHandler struct {
@@ -28,7 +21,7 @@ type boltzMockHandler struct {
 func newBoltzMockHandler(arknodeURL string) pb.ServiceServer {
 	conn, err := grpc.NewClient(arknodeURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		logrus.Fatalf("failed to connect to ark-node: %v", err)
+		log.Fatalf("failed to connect to ark-node: %v", err)
 	}
 
 	return &boltzMockHandler{
@@ -38,47 +31,47 @@ func newBoltzMockHandler(arknodeURL string) pb.ServiceServer {
 
 // ln --> ark
 func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.ReverseSubmarineSwapRequest) (*pb.ReverseSubmarineSwapResponse, error) {
-	// MOCK ONLY //
-	preimage := make([]byte, 32)
-	if _, err := rand.Read(preimage); err != nil {
+	invoiceResponse, err := b.arknode.CreateInvoice(ctx, &arknodepb.CreateInvoiceRequest{
+		Amount: req.GetInvoiceAmount(),
+	})
+	if err != nil {
+		log.Errorf("failed to get invoice: %v", err)
 		return nil, err
 	}
 
-	preimageHash := hex.EncodeToString(btcutil.Hash160(preimage))
+	log.Debugf("invoice: %s", invoiceResponse.GetInvoice())
+	log.Debugf("preimage hash: %s", invoiceResponse.GetPreimageHash())
 
-	// For the mock, we'll use the fakeInvoice constant
-	invoice := fakeInvoice
+	// TODO: wait for the invoice to be paid
 
 	response, err := b.arknode.CreateVHTLC(ctx, &arknodepb.CreateVHTLCRequest{
-		PreimageHash:   preimageHash,
+		PreimageHash:   invoiceResponse.GetPreimageHash(),
 		ReceiverPubkey: req.GetPubkey(),
 	})
 	if err != nil {
-		logrus.Errorf("failed to fund vHTLC: %v", err)
+		log.Errorf("failed to fund vHTLC: %v", err)
 		return nil, err
 	}
 
-	vhtlcAddress := response.Address
+	vhtlcAddress := response.GetAddress()
 
-	_, err = b.arknode.SendOffChain(ctx, &arknodepb.SendOffChainRequest{
+	log.Debugf("vhtlc created: %s", vhtlcAddress)
+
+	sendResp, err := b.arknode.SendOffChain(ctx, &arknodepb.SendOffChainRequest{
 		Address: vhtlcAddress,
-		Amount:  req.InvoiceAmount,
+		Amount:  req.GetInvoiceAmount(),
 	})
 	if err != nil {
-		logrus.Errorf("failed to send to vHTLC address: %v", err)
+		log.Errorf("failed to send to vHTLC address: %v", err)
 		return nil, err
 	}
-
-	addrResponse, err := b.arknode.GetAddress(ctx, &arknodepb.GetAddressRequest{})
-	if err != nil {
-		return nil, err
-	}
+	log.Debugf("vhtlc funded: %s", sendResp.GetRoundId())
 
 	return &pb.ReverseSubmarineSwapResponse{
-		Invoice:         invoice,
-		LockupAddress:   addrResponse.Address,
+		Invoice:         invoiceResponse.GetInvoice(),
+		LockupAddress:   vhtlcAddress,
 		RefundPublicKey: response.GetRefundPubkey(),
-		PreimageHash:    hex.EncodeToString(preimage), // MOCK ONLY
+		PreimageHash:    invoiceResponse.GetPreimageHash(),
 	}, nil
 }
 
@@ -103,7 +96,7 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 
 	vhtlcAddress := resp.GetAddress()
 	swapTree := swapTree{resp.GetSwapTree()}.toProto()
-	logrus.Infof("created VHTLC: %s", vhtlcAddress)
+	log.Infof("created VHTLC: %s", vhtlcAddress)
 	go func() {
 		ctx := context.Background()
 
@@ -112,7 +105,7 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 
 		var vhtlc *arknodepb.Vtxo
 
-		logrus.Info("waiting for vHTLC to be funded...")
+		log.Info("waiting for vHTLC to be funded...")
 		for range ticker.C {
 			// check if vHTLC has been funded by the user
 			resp, err := b.arknode.ListVHTLC(ctx, &arknodepb.ListVHTLCRequest{
@@ -130,14 +123,14 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 			break
 		}
 
-		logrus.Infof("vHTLC funded %s", vhtlc.Outpoint.Txid)
-		logrus.Info("paying invoice...")
+		log.Infof("vHTLC funded %s", vhtlc.Outpoint.Txid)
+		log.Info("paying invoice...")
 
 		resp, err := b.arknode.PayInvoice(ctx, &arknodepb.PayInvoiceRequest{
 			Invoice: req.GetInvoice(),
 		})
 		if err != nil {
-			logrus.Errorf("failed to pay invoice: %v", err)
+			log.Errorf("failed to pay invoice: %v", err)
 			return
 		}
 
@@ -146,11 +139,11 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 			Preimage: resp.GetPreimage(),
 		})
 		if err != nil {
-			logrus.Errorf("failed to claim vHTLC: %v", err)
+			log.Errorf("failed to claim vHTLC: %v", err)
 			return
 		}
 
-		logrus.Debugf("vHTLC claimed successfully %s", claimResp.GetRedeemTxid())
+		log.Debugf("vHTLC claimed successfully %s", claimResp.GetRedeemTxid())
 	}()
 
 	return &pb.SubmarineSwapResponse{

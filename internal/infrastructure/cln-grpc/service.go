@@ -10,6 +10,7 @@ import (
 
 	"github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/cln"
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
+	"github.com/btcsuite/btcd/btcutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -93,7 +94,7 @@ func (s *service) GetInvoice(
 		return "", "", err
 	}
 
-	return resp.Bolt11, hex.EncodeToString(resp.GetPaymentHash()), nil
+	return resp.Bolt11, hex.EncodeToString(btcutil.Hash160(resp.GetPaymentSecret())), nil
 }
 
 func (s *service) PayInvoice(ctx context.Context, invoice string) (preimage string, err error) {
@@ -109,4 +110,20 @@ func (s *service) PayInvoice(ctx context.Context, invoice string) (preimage stri
 
 func (s *service) Disconnect() {
 	s.conn.Close()
+	s.client = nil
+	s.conn = nil
+}
+
+func (s *service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
+	// TODO: get the hash of the invoice
+	invoiceResp, err := s.client.ListInvoices(ctx, &cln.ListinvoicesRequest{
+		PaymentHash: []byte(invoice),
+	})
+	if err != nil {
+		return false, err
+	}
+	if len(invoiceResp.Invoices) == 0 {
+		return false, fmt.Errorf("invoice not found")
+	}
+	return invoiceResp.Invoices[0].Status == 1, nil // TODO
 }

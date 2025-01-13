@@ -145,3 +145,14 @@ func (s *service) PayInvoice(
 
 	return hex.EncodeToString(response.GetPaymentPreimage()), nil
 }
+
+func (s *service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
+	// TODO: get the hash of the invoice
+	invoiceResp, err := s.client.LookupInvoice(ctx, &lnrpc.PaymentHash{
+		RHashStr: invoice,
+	})
+	if err != nil {
+		return false, err
+	}
+	return invoiceResp.State == lnrpc.Invoice_SETTLED, nil
+}

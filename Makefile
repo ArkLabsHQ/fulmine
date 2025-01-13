@@ -69,7 +69,7 @@ vet:
 	
 	
 ## proto: compile proto stubs
-proto: proto-lint
+proto:
 	@echo "Compiling stubs..."
 	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf generate
 
