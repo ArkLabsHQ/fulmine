@@ -596,14 +596,17 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 
 	txid := redeemPtx.UnsignedTx.TxHash().String()
 
-	// TODO: expose wallet's signer in ark sdk
-	// TODO: sign redeemTx
 	redeemTx, err = redeemPtx.B64Encode()
 	if err != nil {
 		return "", err
 	}
 
-	if _, err := s.grpcClient.SubmitRedeemTx(ctx, redeemTx); err != nil {
+	signedRedeemTx, err := s.SignTransaction(ctx, redeemTx)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRedeemTx); err != nil {
 		return "", err
 	}
 
