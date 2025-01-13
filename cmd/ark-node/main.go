@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 
 	"github.com/ArkLabsHQ/ark-node/internal/config"
@@ -76,10 +75,7 @@ func main() {
 	schedulerSvc := scheduler.NewScheduler()
 	lnSvc := lnd.NewService()
 	if cfg.CLNDatadir != "" {
-		rootCert := filepath.Join(cfg.CLNDatadir, "ca.pem")
-		privateKey := filepath.Join(cfg.CLNDatadir, "client-key.pem")
-		certChain := filepath.Join(cfg.CLNDatadir, "client.pem")
-		lnSvc, err = cln_grpc.NewService(rootCert, privateKey, certChain)
+		lnSvc = cln_grpc.NewService()
 		if err != nil {
 			log.WithError(err).Fatal("failed to init cln client")
 		}

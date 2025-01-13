@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/cln"
@@ -15,55 +14,38 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-const serverName = "cln"
-
 type service struct {
-	rootCert   string
-	privateKey string
-	certChain  string
-
 	client cln.NodeClient
 	conn   *grpc.ClientConn
 }
 
-func NewService(rootCert, privateKey, certChain string) (ports.LnService, error) {
-	if _, err := os.Stat(rootCert); err != nil {
-		return nil, fmt.Errorf("root cert file at path %s does not exist: %w", rootCert, err)
-	}
-	if _, err := os.Stat(privateKey); err != nil {
-		return nil, fmt.Errorf("private key file at path %s does not exist: %w", privateKey, err)
-	}
-	if _, err := os.Stat(certChain); err != nil {
-		return nil, fmt.Errorf("cert chain file at path %s does not exist: %w", certChain, err)
-	}
-	return &service{
-		rootCert:   rootCert,
-		privateKey: privateKey,
-		certChain:  certChain,
-	}, nil
+func NewService() ports.LnService {
+	return &service{nil, nil}
 }
 
-func (s *service) Connect(ctx context.Context, serverUrl string) error {
-	caFile, err := os.ReadFile(s.rootCert)
+func (s *service) Connect(ctx context.Context, clnConnectUrl string) error {
+	rootCert, privateKey, certChain, host, err := decodeClnConnectUrl(clnConnectUrl)
 	if err != nil {
 		return err
 	}
+
 	caPool := x509.NewCertPool()
-	if !caPool.AppendCertsFromPEM(caFile) {
+	if !caPool.AppendCertsFromPEM([]byte(rootCert)) {
 		return fmt.Errorf("could not parse root certificate")
 	}
 
-	cert, err := tls.LoadX509KeyPair(s.certChain, s.privateKey)
+	cert, err := tls.X509KeyPair([]byte(certChain), []byte(privateKey))
 	if err != nil {
 		return err
 	}
 
 	creds := credentials.NewTLS(&tls.Config{
-		ServerName:   serverName,
+		ServerName:   "cln",
 		RootCAs:      caPool,
 		Certificates: []tls.Certificate{cert},
 	})
-	conn, err := grpc.NewClient(serverUrl, grpc.WithTransportCredentials(creds))
+
+	conn, err := grpc.NewClient(host, grpc.WithTransportCredentials(creds))
 	if err != nil {
 		return err
 	}
