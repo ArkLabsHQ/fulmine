@@ -41,12 +41,12 @@ func main() {
 	lndSvc := connect("lnd")
 	fmt.Println("Is Connected:", lndSvc.IsConnected())
 	fmt.Println(lndSvc.GetInfo(context.Background()))
-	fmt.Println(lndSvc.GetInvoice(context.Background(), 21000, "a note"))
+	fmt.Println(lndSvc.GetInvoice(context.Background(), 21000, "a note", ""))
 
 	fmt.Println("---- CLN ----")
 	clnSvc := connect("cln")
 	fmt.Println("Is Connected:", clnSvc.IsConnected())
 	fmt.Println(clnSvc.GetInfo(context.Background()))
-	fmt.Println(clnSvc.GetInvoice(context.Background(), 21000, "a note"))
+	fmt.Println(clnSvc.GetInvoice(context.Background(), 21000, "a note", ""))
 
 }

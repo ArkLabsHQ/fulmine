@@ -257,8 +257,9 @@ func (h *serviceHandler) CreateInvoice(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	memo := req.GetMemo()
+	preimage := req.GetPreimage()
 
-	invoice, preimageHash, err := h.svc.GetInvoice(ctx, amount, memo)
+	invoice, preimageHash, err := h.svc.GetInvoice(ctx, amount, memo, preimage)
 	if err != nil {
 		return nil, err
 	}

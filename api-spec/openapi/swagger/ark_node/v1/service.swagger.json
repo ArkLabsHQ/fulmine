@@ -528,6 +528,9 @@
         },
         "memo": {
           "type": "string"
+        },
+        "preimage": {
+          "type": "string"
         }
       }
     },

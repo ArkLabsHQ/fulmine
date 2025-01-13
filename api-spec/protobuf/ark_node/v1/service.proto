@@ -183,6 +183,7 @@ message ListVHTLCResponse {
 message CreateInvoiceRequest {
   uint64 amount = 1;
   string memo = 2;
+  string preimage = 3;
 }
 message CreateInvoiceResponse {
   string invoice = 1;

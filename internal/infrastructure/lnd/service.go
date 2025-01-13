@@ -82,7 +82,7 @@ func (s *service) GetInfo(ctx context.Context) (version, pubkey string, err erro
 }
 
 func (s *service) GetInvoice(
-	ctx context.Context, value uint64, memo string,
+	ctx context.Context, value uint64, memo, preimage string,
 ) (string, string, error) {
 	if !s.IsConnected() {
 		return "", "", ErrServiceNotConnected
@@ -93,6 +93,11 @@ func (s *service) GetInvoice(
 		Value: int64(value), // amount in satoshis
 		Memo:  memo,         // optional memo
 	}
+
+	if len(preimage) > 0 {
+		invoiceRequest.RPreimage = []byte(preimage)
+	}
+
 	info, err := s.client.AddInvoice(ctx, invoiceRequest)
 	if err != nil {
 		return "", "", err

@@ -621,9 +621,9 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 }
 
 func (s *Service) GetInvoice(
-	ctx context.Context, amount uint64, memo string,
+	ctx context.Context, amount uint64, memo, preimage string,
 ) (string, string, error) {
-	return s.lnSvc.GetInvoice(ctx, amount, memo)
+	return s.lnSvc.GetInvoice(ctx, amount, memo, preimage)
 }
 
 func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error) {

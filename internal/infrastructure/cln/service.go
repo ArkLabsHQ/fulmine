@@ -47,7 +47,7 @@ func (s service) GetInfo(ctx context.Context) (version string, pubkey string, er
 	return info.Version, info.Id, nil
 }
 
-func (s service) GetInvoice(ctx context.Context, value uint64, note string) (invoice string, preimageHash string, err error) {
+func (s service) GetInvoice(ctx context.Context, value uint64, note, preimage string) (invoice string, preimageHash string, err error) {
 	label := uuid.New()
 	amountMsats := value * 1000
 	resp, err := runCommand(

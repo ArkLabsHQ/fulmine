@@ -2,8 +2,9 @@ package cln
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestServiceGetInfo(t *testing.T) {
@@ -14,7 +15,7 @@ func TestServiceGetInfo(t *testing.T) {
 	require.NotEmpty(t, gotVersion)
 	require.NotEmpty(t, gotPubkey)
 
-	inv, hash, err := s.GetInvoice(context.Background(), 1, "test")
+	inv, hash, err := s.GetInvoice(context.Background(), 1, "test", "")
 	require.NoError(t, err)
 	require.NotEmpty(t, inv)
 	require.NotEmpty(t, hash)

@@ -69,7 +69,9 @@ func (s *service) GetInfo(ctx context.Context) (version string, pubkey string, e
 	return resp.Version, hex.EncodeToString(resp.Id), nil
 }
 
-func (s *service) GetInvoice(ctx context.Context, value uint64, note string) (invoice string, preimageHash string, err error) {
+func (s *service) GetInvoice(
+	ctx context.Context, value uint64, note, preimage string,
+) (invoice string, preimageHash string, err error) {
 	request := &cln.InvoiceRequest{
 		AmountMsat: &cln.AmountOrAny{
 			Value: &cln.AmountOrAny_Amount{
@@ -81,6 +83,11 @@ func (s *service) GetInvoice(ctx context.Context, value uint64, note string) (in
 		Description: note,
 		Label:       fmt.Sprint(time.Now().UTC().UnixMilli()),
 	}
+
+	if len(preimage) > 0 {
+		request.Preimage = []byte(preimage)
+	}
+
 	resp, err := s.client.Invoice(ctx, request)
 	if err != nil {
 		return "", "", err
