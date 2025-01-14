@@ -112,17 +112,15 @@ func swap(c *cli.Context) error {
 	// verify that the vHTLC is correct and Boltz is not try to scam us
 	// TODO: maybe there's a better way to do this, without creating a second vhtlc
 	// - ask our node for a vhtlc with the same params and expect some leafs to match
-	log.Infof("verifying vHTLC...")
-	htlcResponse, err := nodeClient.CreateVHTLC(c.Context, &arknodepb.CreateVHTLCRequest{
-		PreimageHash: preimageHash,
-		SenderPubkey: addrResp.GetPubkey(),
+	log.Info("verifying vHTLC...")
+	vhtlcResponse, err := nodeClient.CreateVHTLC(c.Context, &arknodepb.CreateVHTLCRequest{
+		PreimageHash:   preimageHash,
+		ReceiverPubkey: swapResponse.GetClaimPublicKey(),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create verification vHTLC: %v", err)
 	}
-	treeB := swapResponse.GetSwapTree()
-	treeA := htlcResponse.GetSwapTree()
-	if treeB.GetRefundWithoutBoltzLeaf().String() != treeA.GetRefundWithoutBoltzLeaf().String() || treeB.GetUnilateralRefundWithoutBoltzLeaf().String() != treeA.GetUnilateralRefundWithoutBoltzLeaf().String() {
+	if swapResponse.GetAddress() != vhtlcResponse.GetAddress() {
 		return fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
@@ -159,7 +157,7 @@ func reverseSwap(c *cli.Context) error {
 		return err
 	}
 
-	response, err := boltzClient.ReverseSubmarineSwap(c.Context, &boltz_mockv1.ReverseSubmarineSwapRequest{
+	swapResponse, err := boltzClient.ReverseSubmarineSwap(c.Context, &boltz_mockv1.ReverseSubmarineSwapRequest{
 		From:          "LN",
 		To:            "ARK",
 		InvoiceAmount: amount,
@@ -170,24 +168,30 @@ func reverseSwap(c *cli.Context) error {
 		return err
 	}
 
-	invoice := response.GetInvoice()
-	preimageHash := response.GetPreimageHash()
+	log.Infof("adding vHTLC to repo...") // TODO
+	_, err = nodeClient.CreateVHTLC(c.Context, &arknodepb.CreateVHTLCRequest{
+		PreimageHash: swapResponse.GetPreimageHash(),
+		SenderPubkey: swapResponse.GetRefundPublicKey(),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create verification vHTLC: %v", err)
+	}
 
 	log.Infof("paying invoice...")
 	invoiceResp, err := nodeClient.PayInvoice(c.Context, &arknodepb.PayInvoiceRequest{
-		Invoice: invoice,
+		Invoice: swapResponse.GetInvoice(),
 	})
 	if err != nil {
 		return err
 	}
 
-	log.Infof("invoice paid %s", invoice)
+	log.Infof("invoice paid %s", swapResponse.GetInvoice())
 	log.Info("waiting for vHTLC to be funded...")
 
 	ticker := time.NewTicker(3 * time.Second)
 	for range ticker.C {
 		listResponse, err := nodeClient.ListVHTLC(c.Context, &arknodepb.ListVHTLCRequest{
-			PreimageHashFilter: &preimageHash,
+			PreimageHashFilter: swapResponse.GetPreimageHash(),
 		})
 		if err != nil {
 			continue

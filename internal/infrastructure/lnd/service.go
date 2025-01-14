@@ -147,9 +147,13 @@ func (s *service) PayInvoice(
 }
 
 func (s *service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
-	// TODO: get the hash of the invoice
+	ctx = getCtx(ctx, s.macaroon)
+	decodeResp, err := s.client.DecodePayReq(ctx, &lnrpc.PayReqString{PayReq: invoice})
+	if err != nil {
+		return false, err
+	}
 	invoiceResp, err := s.client.LookupInvoice(ctx, &lnrpc.PaymentHash{
-		RHashStr: invoice,
+		RHashStr: decodeResp.GetPaymentHash(),
 	})
 	if err != nil {
 		return false, err

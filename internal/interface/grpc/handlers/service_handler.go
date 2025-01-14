@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
@@ -13,6 +14,7 @@ import (
 	"github.com/ark-network/ark/common/tree"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
+	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -170,11 +172,12 @@ func (h *serviceHandler) SendOffChain(
 	receivers := []arksdk.Receiver{
 		arksdk.NewBitcoinReceiver(address, amount),
 	}
-	roundId, err := h.svc.SendOffChain(ctx, false, receivers)
+	tx, err := h.svc.SendOffChain(ctx, false, receivers)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.SendOffChainResponse{RoundId: roundId}, nil
+	txid := extractTxid(tx)
+	return &pb.SendOffChainResponse{Txid: txid}, nil
 }
 
 func (h *serviceHandler) SendOnChain(
@@ -424,4 +427,9 @@ func toSwapTreeProto(tree *vhtlc.VHTLCScript) *pb.TaprootTree {
 			Output:  hex.EncodeToString(unilateralRefundWithoutBoltzScript),
 		},
 	}
+}
+
+func extractTxid(txBase64 string) string {
+	ptx, _ := psbt.NewFromRawBytes(strings.NewReader(txBase64), true)
+	return ptx.UnsignedTx.TxHash().String()
 }

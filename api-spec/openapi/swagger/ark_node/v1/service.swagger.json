@@ -806,7 +806,7 @@
     "v1SendOffChainResponse": {
       "type": "object",
       "properties": {
-        "roundId": {
+        "txid": {
           "type": "string"
         }
       }

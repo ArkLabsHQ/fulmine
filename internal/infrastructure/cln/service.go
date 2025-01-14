@@ -115,9 +115,12 @@ func (s *service) Disconnect() {
 }
 
 func (s *service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
-	// TODO: get the hash of the invoice
+	decodeResp, err := s.client.Decode(ctx, &clnpb.DecodeRequest{String_: invoice})
+	if err != nil {
+		return false, err
+	}
 	invoiceResp, err := s.client.ListInvoices(ctx, &clnpb.ListinvoicesRequest{
-		PaymentHash: []byte(invoice),
+		PaymentHash: decodeResp.GetPaymentHash(),
 	})
 	if err != nil {
 		return false, err
@@ -125,5 +128,5 @@ func (s *service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, e
 	if len(invoiceResp.Invoices) == 0 {
 		return false, fmt.Errorf("invoice not found")
 	}
-	return invoiceResp.Invoices[0].Status == 1, nil // TODO
+	return invoiceResp.Invoices[0].Status == clnpb.ListinvoicesInvoices_PAID, nil // TODO
 }

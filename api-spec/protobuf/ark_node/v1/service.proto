@@ -135,7 +135,7 @@ message SendOffChainRequest {
   uint64 amount = 2;
 }
 message SendOffChainResponse {
-  string round_id = 1;
+  string txid = 1;
 }
 
 message SendOnChainRequest {
@@ -179,7 +179,7 @@ message ClaimVHTLCResponse {
 }
 
 message ListVHTLCRequest {
-  optional string preimage_hash_filter = 1;
+  string preimage_hash_filter = 1;
 }
 message ListVHTLCResponse {
   repeated Vtxo vhtlcs = 1;
