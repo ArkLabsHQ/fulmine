@@ -134,7 +134,7 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 			return
 		}
 
-		// once user reveals the preimage, claim the vHTLC
+		// claim the VHTLC with the preimage revealed when paying the invoice
 		claimResp, err := b.arknode.ClaimVHTLC(ctx, &arknodepb.ClaimVHTLCRequest{
 			Preimage: resp.GetPreimage(),
 		})

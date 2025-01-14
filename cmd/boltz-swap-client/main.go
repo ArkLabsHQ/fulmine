@@ -27,24 +27,27 @@ func main() {
 			Aliases: []string{"s"},
 			Usage:   "swap",
 			Action:  WithLoader(swap),
-			Flags: append(urlFlags, &cli.Uint64Flag{
-				Name:     "amount",
-				Aliases:  []string{"a"},
-				Required: true,
-				Usage:    "amount to swap",
-			}),
+			Flags: append(urlFlags,
+				&cli.Uint64Flag{
+					Name:     "amount",
+					Aliases:  []string{"a"},
+					Required: true,
+					Usage:    "amount to swap",
+				},
+			),
 		},
 		{
 			Name:    "reverse-swap", // ln -> ark
 			Aliases: []string{"rs"},
 			Usage:   "reverse-swap",
 			Action:  WithLoader(reverseSwap),
-			Flags: append(urlFlags, &cli.Uint64Flag{
-				Name:     "amount",
-				Aliases:  []string{"a"},
-				Required: true,
-				Usage:    "amount to swap",
-			},
+			Flags: append(urlFlags,
+				&cli.Uint64Flag{
+					Name:     "amount",
+					Aliases:  []string{"a"},
+					Required: true,
+					Usage:    "amount to swap",
+				},
 				&cli.StringFlag{
 					Name:    "preimage",
 					Aliases: []string{"p"},
@@ -93,7 +96,7 @@ func swap(c *cli.Context) error {
 
 	log.Info("calling Boltz submarine swap API...")
 	log.Infof("params:\nrefund pubkey: %s\ninvoice and preimage hash: %s %s\namount %d", addrResp.GetPubkey(), invoice, preimageHash, amount)
-	response, err := boltzClient.SubmarineSwap(c.Context, &boltz_mockv1.SubmarineSwapRequest{
+	swapResponse, err := boltzClient.SubmarineSwap(c.Context, &boltz_mockv1.SubmarineSwapRequest{
 		From:            "ARK",
 		To:              "LN",
 		Invoice:         invoice,
@@ -104,15 +107,31 @@ func swap(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("vHTLC created: %s", response.GetAddress())
+	log.Infof("vHTLC created: %s", swapResponse.GetAddress())
+
+	// verify that the vHTLC is correct and Boltz is not try to scam us
+	// - ask our node for a vhtlc with the same params and expect some leafs to match
+	htlcResponse, err := nodeClient.CreateVHTLC(c.Context, &ark_node_pb.CreateVHTLCRequest{
+		PreimageHash: preimageHash,
+		SenderPubkey: addrResp.GetPubkey(),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create verification vHTLC: %v", err)
+	}
+
+	// TODO: maybe there's a better way to compare the two vHTLCs
+	treeB := swapResponse.GetSwapTree()
+	treeA := htlcResponse.GetSwapTree()
+	if treeB.GetRefundWithoutBoltzLeaf().String() != treeA.GetRefundWithoutBoltzLeaf().String() || treeB.GetUnilateralRefundWithoutBoltzLeaf().String() != treeA.GetUnilateralRefundWithoutBoltzLeaf().String() {
+		return fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
+	}
 
 	log.Info("funding vHTLC...")
 	if _, err = nodeClient.SendOffChain(c.Context, &ark_node_pb.SendOffChainRequest{
-		Address: response.GetAddress(),
+		Address: swapResponse.GetAddress(),
 		Amount:  amount,
 	}); err != nil {
-		log.Errorf("failed to send to vHTLC address: %v", err)
-		return err
+		return fmt.Errorf("failed to send to vHTLC address: %v", err)
 	}
 
 	log.Info("done!")
@@ -215,8 +234,8 @@ var urlFlags = []cli.Flag{
 	&cli.StringFlag{
 		Name:    "node-url",
 		Aliases: []string{"n"},
-		Value:   "localhost:7002",
-		Usage:   "ark node server URL (e.g. localhost:7002)",
+		Value:   "localhost:7000",
+		Usage:   "ark node server URL (e.g. localhost:7000)",
 	},
 	&cli.StringFlag{
 		Name:    "boltz-url",
