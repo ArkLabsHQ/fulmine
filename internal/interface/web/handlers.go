@@ -410,6 +410,10 @@ func (s *service) setPrivateKey(c *gin.Context) {
 }
 
 func (s *service) settings(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
 	settings, err := s.svc.GetSettings(c)
 	if err != nil {
 		// nolint:all
