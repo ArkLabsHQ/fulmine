@@ -111,15 +111,14 @@ func swap(c *cli.Context) error {
 
 	// verify that the vHTLC is correct and Boltz is not try to scam us
 	// - ask our node for a vhtlc with the same params and expect some leafs to match
-	htlcResponse, err := nodeClient.CreateVHTLC(c.Context, &ark_node_pb.CreateVHTLCRequest{
+	log.Infof("verifying vHTLC...")
+	htlcResponse, err := nodeClient.CreateVHTLC(c.Context, &arknodepb.CreateVHTLCRequest{
 		PreimageHash: preimageHash,
 		SenderPubkey: addrResp.GetPubkey(),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create verification vHTLC: %v", err)
 	}
-
-	// TODO: maybe there's a better way to compare the two vHTLCs
 	treeB := swapResponse.GetSwapTree()
 	treeA := htlcResponse.GetSwapTree()
 	if treeB.GetRefundWithoutBoltzLeaf().String() != treeA.GetRefundWithoutBoltzLeaf().String() || treeB.GetUnilateralRefundWithoutBoltzLeaf().String() != treeA.GetUnilateralRefundWithoutBoltzLeaf().String() {
