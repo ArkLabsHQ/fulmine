@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
-	cln "github.com/ArkLabsHQ/ark-node/internal/infrastructure/cln-grpc"
+	"github.com/ArkLabsHQ/ark-node/internal/infrastructure/cln"
 	"github.com/ArkLabsHQ/ark-node/internal/infrastructure/lnd"
 )
 

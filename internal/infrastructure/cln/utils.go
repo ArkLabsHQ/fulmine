@@ -1,4 +1,4 @@
-package cln_grpc
+package cln
 
 import (
 	"net/url"

@@ -9,7 +9,7 @@ import (
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
-	cln_grpc "github.com/ArkLabsHQ/ark-node/internal/infrastructure/cln-grpc"
+	"github.com/ArkLabsHQ/ark-node/internal/infrastructure/cln"
 	"github.com/ArkLabsHQ/ark-node/pkg/vhtlc"
 	"github.com/ArkLabsHQ/ark-node/utils"
 	"github.com/ark-network/ark/common"
@@ -190,7 +190,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 		if len(settings.LnUrl) > 0 {
 			if strings.HasPrefix(settings.LnUrl, "clnconnect:") {
-				s.lnSvc = cln_grpc.NewService()
+				s.lnSvc = cln.NewService()
 			}
 			if err := s.lnSvc.Connect(ctx, settings.LnUrl); err != nil {
 				logrus.WithError(err).Warn("failed to connect")
@@ -312,7 +312,7 @@ func (s *Service) WhenNextClaim(ctx context.Context) time.Time {
 
 func (s *Service) ConnectLN(ctx context.Context, connectUrl string) error {
 	if strings.HasPrefix(connectUrl, "clnconnect:") {
-		s.lnSvc = cln_grpc.NewService()
+		s.lnSvc = cln.NewService()
 	}
 	return s.lnSvc.Connect(ctx, connectUrl)
 }
