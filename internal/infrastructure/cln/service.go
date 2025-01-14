@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	cln_pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/cln"
+	clnpb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/cln"
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
 	"github.com/btcsuite/btcd/btcutil"
 	"google.golang.org/grpc"
@@ -16,7 +16,7 @@ import (
 )
 
 type service struct {
-	client cln_pb.NodeClient
+	client clnpb.NodeClient
 	conn   *grpc.ClientConn
 }
 
@@ -52,7 +52,7 @@ func (s *service) Connect(ctx context.Context, clnConnectUrl string) error {
 	}
 
 	s.conn = conn
-	s.client = cln_pb.NewNodeClient(conn)
+	s.client = clnpb.NewNodeClient(conn)
 
 	return nil
 }
@@ -62,7 +62,7 @@ func (s *service) IsConnected() bool {
 }
 
 func (s *service) GetInfo(ctx context.Context) (version string, pubkey string, err error) {
-	resp, err := s.client.Getinfo(ctx, &cln_pb.GetinfoRequest{})
+	resp, err := s.client.Getinfo(ctx, &clnpb.GetinfoRequest{})
 	if err != nil {
 		return "", "", err
 	}
@@ -73,10 +73,10 @@ func (s *service) GetInfo(ctx context.Context) (version string, pubkey string, e
 func (s *service) GetInvoice(
 	ctx context.Context, value uint64, note, preimage string,
 ) (invoice string, preimageHash string, err error) {
-	request := &cln_pb.InvoiceRequest{
-		AmountMsat: &cln_pb.AmountOrAny{
-			Value: &cln_pb.AmountOrAny_Amount{
-				Amount: &cln_pb.Amount{
+	request := &clnpb.InvoiceRequest{
+		AmountMsat: &clnpb.AmountOrAny{
+			Value: &clnpb.AmountOrAny_Amount{
+				Amount: &clnpb.Amount{
 					Msat: value * 1000,
 				},
 			},
@@ -98,7 +98,7 @@ func (s *service) GetInvoice(
 }
 
 func (s *service) PayInvoice(ctx context.Context, invoice string) (preimage string, err error) {
-	res, err := s.client.Pay(ctx, &cln_pb.PayRequest{
+	res, err := s.client.Pay(ctx, &clnpb.PayRequest{
 		Bolt11: invoice,
 	})
 	if err != nil {
@@ -116,7 +116,7 @@ func (s *service) Disconnect() {
 
 func (s *service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
 	// TODO: get the hash of the invoice
-	invoiceResp, err := s.client.ListInvoices(ctx, &cln_pb.ListinvoicesRequest{
+	invoiceResp, err := s.client.ListInvoices(ctx, &clnpb.ListinvoicesRequest{
 		PaymentHash: []byte(invoice),
 	})
 	if err != nil {

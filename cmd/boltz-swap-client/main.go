@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	ark_node_pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
+	arknodepb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	boltz_mockv1 "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/boltz_mock/v1"
 )
 
@@ -79,13 +79,13 @@ func swap(c *cli.Context) error {
 	}
 
 	log.Info("retrieving wallet pubkey...")
-	addrResp, err := nodeClient.GetAddress(c.Context, &ark_node_pb.GetAddressRequest{})
+	addrResp, err := nodeClient.GetAddress(c.Context, &arknodepb.GetAddressRequest{})
 	if err != nil {
 		return err
 	}
 
 	log.Info("creating invoice...")
-	invoiceResp, err := nodeClient.CreateInvoice(c.Context, &ark_node_pb.CreateInvoiceRequest{
+	invoiceResp, err := nodeClient.CreateInvoice(c.Context, &arknodepb.CreateInvoiceRequest{
 		Amount: amount,
 	})
 	if err != nil {
@@ -110,6 +110,7 @@ func swap(c *cli.Context) error {
 	log.Infof("vHTLC created: %s", swapResponse.GetAddress())
 
 	// verify that the vHTLC is correct and Boltz is not try to scam us
+	// TODO: maybe there's a better way to do this, without creating a second vhtlc
 	// - ask our node for a vhtlc with the same params and expect some leafs to match
 	log.Infof("verifying vHTLC...")
 	htlcResponse, err := nodeClient.CreateVHTLC(c.Context, &arknodepb.CreateVHTLCRequest{
@@ -126,7 +127,7 @@ func swap(c *cli.Context) error {
 	}
 
 	log.Info("funding vHTLC...")
-	if _, err = nodeClient.SendOffChain(c.Context, &ark_node_pb.SendOffChainRequest{
+	if _, err = nodeClient.SendOffChain(c.Context, &arknodepb.SendOffChainRequest{
 		Address: swapResponse.GetAddress(),
 		Amount:  amount,
 	}); err != nil {
@@ -153,7 +154,7 @@ func reverseSwap(c *cli.Context) error {
 		return err
 	}
 
-	addrResp, err := nodeClient.GetAddress(c.Context, &ark_node_pb.GetAddressRequest{})
+	addrResp, err := nodeClient.GetAddress(c.Context, &arknodepb.GetAddressRequest{})
 	if err != nil {
 		return err
 	}
@@ -173,7 +174,7 @@ func reverseSwap(c *cli.Context) error {
 	preimageHash := response.GetPreimageHash()
 
 	log.Infof("paying invoice...")
-	invoiceResp, err := nodeClient.PayInvoice(c.Context, &ark_node_pb.PayInvoiceRequest{
+	invoiceResp, err := nodeClient.PayInvoice(c.Context, &arknodepb.PayInvoiceRequest{
 		Invoice: invoice,
 	})
 	if err != nil {
@@ -185,7 +186,7 @@ func reverseSwap(c *cli.Context) error {
 
 	ticker := time.NewTicker(3 * time.Second)
 	for range ticker.C {
-		listResponse, err := nodeClient.ListVHTLC(c.Context, &ark_node_pb.ListVHTLCRequest{
+		listResponse, err := nodeClient.ListVHTLC(c.Context, &arknodepb.ListVHTLCRequest{
 			PreimageHashFilter: &preimageHash,
 		})
 		if err != nil {
@@ -200,7 +201,7 @@ func reverseSwap(c *cli.Context) error {
 	ticker.Stop()
 
 	log.Infof("vHTLC funded, claiming...")
-	claimResponse, err := nodeClient.ClaimVHTLC(c.Context, &ark_node_pb.ClaimVHTLCRequest{
+	claimResponse, err := nodeClient.ClaimVHTLC(c.Context, &arknodepb.ClaimVHTLCRequest{
 		Preimage: invoiceResp.GetPreimage(),
 	})
 	if err != nil {
@@ -211,13 +212,13 @@ func reverseSwap(c *cli.Context) error {
 	return nil
 }
 
-func arkNodeClient(url string) (ark_node_pb.ServiceClient, error) {
+func arkNodeClient(url string) (arknodepb.ServiceClient, error) {
 	conn, err := grpc.NewClient(url, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
 
-	return ark_node_pb.NewServiceClient(conn), nil
+	return arknodepb.NewServiceClient(conn), nil
 }
 
 func boltzClient(url string) (boltz_mockv1.ServiceClient, error) {
