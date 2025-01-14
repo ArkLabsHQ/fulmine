@@ -147,7 +147,7 @@ func (s *service) claimApi(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	time.Sleep(3 * time.Second) // wait or the reload will not change the UI
+	time.Sleep(4 * time.Second) // wait or the reload will not change the UI
 	reload(c)
 }
 
