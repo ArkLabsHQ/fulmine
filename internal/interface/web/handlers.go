@@ -532,7 +532,9 @@ func (s *service) getTx(c *gin.Context) {
 	explorerUrl := getExplorerUrl(data.Network.Name)
 
 	var bodyContent templ.Component
-	if tx.Status == "pending" {
+	if len(tx.Txid) == 0 {
+		bodyContent = pages.TxNotFoundContent()
+	} else if tx.Status == "pending" {
 		bodyContent = pages.TxPendingContent(tx, nextClaim)
 	} else {
 		bodyContent = pages.TxBodyContent(tx, explorerUrl)
