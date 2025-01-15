@@ -182,21 +182,19 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	_, pubkey := btcec.PrivKeyFromBytes(buf)
 	s.publicKey = pubkey
 
-	go func() {
-		settings, err := s.settingsRepo.GetSettings(ctx)
-		if err != nil {
-			logrus.WithError(err).Warn("failed to get settings")
-			return
+	settings, err := s.settingsRepo.GetSettings(ctx)
+	if err != nil {
+		logrus.WithError(err).Warn("failed to get settings")
+		return err
+	}
+	if len(settings.LnUrl) > 0 {
+		if strings.HasPrefix(settings.LnUrl, "clnconnect:") {
+			s.lnSvc = cln.NewService()
 		}
-		if len(settings.LnUrl) > 0 {
-			if strings.HasPrefix(settings.LnUrl, "clnconnect:") {
-				s.lnSvc = cln.NewService()
-			}
-			if err := s.lnSvc.Connect(ctx, settings.LnUrl); err != nil {
-				logrus.WithError(err).Warn("failed to connect")
-			}
+		if err := s.lnSvc.Connect(ctx, settings.LnUrl); err != nil {
+			logrus.WithError(err).Warn("failed to connect to ln node")
 		}
-	}()
+	}
 
 	return nil
 }
