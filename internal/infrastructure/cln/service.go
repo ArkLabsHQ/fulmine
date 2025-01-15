@@ -10,7 +10,7 @@ import (
 
 	clnpb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/cln"
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
-	"github.com/btcsuite/btcd/btcutil"
+	"github.com/lightningnetwork/lnd/input"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -72,7 +72,7 @@ func (s *service) GetInfo(ctx context.Context) (version string, pubkey string, e
 
 func (s *service) GetInvoice(
 	ctx context.Context, value uint64, note, preimage string,
-) (invoice string, preimageHash string, err error) {
+) (string, string, error) {
 	request := &clnpb.InvoiceRequest{
 		AmountMsat: &clnpb.AmountOrAny{
 			Value: &clnpb.AmountOrAny_Amount{
@@ -94,7 +94,8 @@ func (s *service) GetInvoice(
 		return "", "", err
 	}
 
-	return resp.Bolt11, hex.EncodeToString(btcutil.Hash160(resp.GetPaymentSecret())), nil
+	preimageHash := hex.EncodeToString(input.Ripemd160H(resp.GetPaymentHash()))
+	return resp.Bolt11, preimageHash, nil
 }
 
 func (s *service) PayInvoice(ctx context.Context, invoice string) (preimage string, err error) {
