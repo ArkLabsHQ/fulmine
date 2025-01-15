@@ -376,7 +376,7 @@ func HistoryEmpty() templ.Component {
 	})
 }
 
-func HistoryBodyContent(currentBalance, arkAddress string, transactions []types.Transaction, online bool) templ.Component {
+func HistoryBodyContent(currentBalance, arkAddress string, transactions []types.Transaction, online, connected bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -397,7 +397,7 @@ func HistoryBodyContent(currentBalance, arkAddress string, transactions []types.
 			templ_7745c5c3_Var16 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = components.Hero(arkAddress, currentBalance, online).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Hero(arkAddress, currentBalance, online, connected).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

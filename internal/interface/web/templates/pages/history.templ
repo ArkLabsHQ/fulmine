@@ -141,8 +141,8 @@ templ HistoryEmpty() {
 	</div>
 }
 
-templ HistoryBodyContent(currentBalance, arkAddress string, transactions []types.Transaction, online bool) {
-	@components.Hero(arkAddress, currentBalance, online)
+templ HistoryBodyContent(currentBalance, arkAddress string, transactions []types.Transaction, online, connected bool) {
+	@components.Hero(arkAddress, currentBalance, online, connected)
 	if len(transactions) == 0 {
     @HistoryEmpty()
 	} else {

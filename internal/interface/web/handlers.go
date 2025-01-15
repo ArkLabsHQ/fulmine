@@ -120,7 +120,7 @@ func (s *service) index(c *gin.Context) {
 			}
 			s.logVtxos(c) // TODO: remove
 			bodyContent = pages.HistoryBodyContent(
-				spendableBalance, offchainAddr, txHistory, isOnline,
+				spendableBalance, offchainAddr, txHistory, isOnline, s.svc.IsConnectedLN(),
 			)
 		}
 	}
@@ -439,7 +439,7 @@ func (s *service) swap(c *gin.Context) {
 		return
 	}
 
-	bodyContent := pages.SwapBodyContent(spendableBalance, s.getNodeBalance())
+	bodyContent := pages.SwapBodyContent(spendableBalance, s.getNodeBalance(c))
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -447,7 +447,7 @@ func (s *service) swapActive(c *gin.Context) {
 	active := c.Param("active")
 	var balance string
 	if active == "inbound" {
-		balance = s.getNodeBalance()
+		balance = s.getNodeBalance(c)
 	} else {
 		spendableBalance, err := s.getSpendableBalance(c)
 		if err != nil {
@@ -465,17 +465,44 @@ func (s *service) swapConfirm(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
 	}
+
 	data, err := s.svc.GetConfigData(c)
 	if err != nil {
 		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
+
 	kind := c.PostForm("kind")
 	sats := c.PostForm("sats")
 	explorerUrl := getExplorerUrl(data.Network.Name)
 
-	bodyContent := pages.SwapSuccessContent(kind, sats, "TODO", explorerUrl)
+	satsUint64, err := strconv.ParseUint(sats, 10, 64)
+	if err != nil {
+		toast := components.Toast("Invalid amount", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	txid := ""
+
+	if kind == "inbound" {
+		txid, err = s.svc.IncreaseInboundCapacity(c, satsUint64)
+		if err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+	} else {
+		txid, err = s.svc.IncreaseOutboundCapacity(c, satsUint64)
+		if err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+	}
+
+	bodyContent := pages.SwapSuccessContent(kind, sats, txid, explorerUrl)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -571,8 +598,15 @@ func (s *service) getSpendableBalance(c *gin.Context) (string, error) {
 	), nil
 }
 
-func (s *service) getNodeBalance() string {
-	return "50640" // TODO
+func (s *service) getNodeBalance(c *gin.Context) string {
+	if s.svc.IsConnectedLN() {
+		msats, err := s.svc.GetBalanceLN(c)
+		if err == nil {
+			sats := msats / 1000
+			return strconv.FormatUint(sats, 10)
+		}
+	}
+	return "0"
 }
 
 func (s *service) logVtxos(c *gin.Context) {

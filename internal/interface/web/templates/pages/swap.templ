@@ -165,10 +165,10 @@ templ SwapMovementComponent(kind, sats string) {
 		</div>
 		@ArrowDownIcon()
 		<div class="flex items-center gap-4">
-	    if kind == "inbound" {
-	      <p>@components.ArkBalanceIcon()</p>
-			} else {
+	    if kind == "outbound" {
 				<p>@components.LnBalanceIcon()</p>
+			} else {
+	      <p>@components.ArkBalanceIcon()</p>
 			}
       <p class="cryptoAmount" sats={sats}>{sats} SATS</p>
 		</div>
