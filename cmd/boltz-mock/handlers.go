@@ -31,26 +31,32 @@ func newBoltzMockHandler(arknodeURL string) pb.ServiceServer {
 
 // ln --> ark
 func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.ReverseSubmarineSwapRequest) (*pb.ReverseSubmarineSwapResponse, error) {
+	log.Info("processing reverse submarine swap")
+	log.Debug("creating invoice...")
+
 	invoiceResponse, err := b.arknode.CreateInvoice(ctx, &arknodepb.CreateInvoiceRequest{
 		Amount: req.GetInvoiceAmount(),
 	})
 	if err != nil {
-		log.Errorf("failed to get invoice: %v", err)
+		log.Errorf("failed to create invoice: %v", err)
 		return nil, err
 	}
+
+	log.Debugf("invoice: %s", invoiceResponse.GetInvoice())
+	log.Debugf("preimage hash: %s", invoiceResponse.GetPreimageHash())
+	log.Debug("creating vHTLC...")
 
 	response, err := b.arknode.CreateVHTLC(ctx, &arknodepb.CreateVHTLCRequest{
 		PreimageHash:   invoiceResponse.GetPreimageHash(),
 		ReceiverPubkey: req.GetPubkey(),
 	})
 	if err != nil {
-		log.Errorf("failed to fund vHTLC: %v", err)
+		log.Errorf("failed to create vHTLC: %v", err)
 		return nil, err
 	}
-
 	vhtlcAddress := response.GetAddress()
 
-	log.Debugf("vhtlc created: %s", vhtlcAddress)
+	log.Debugf("vHTLC created: %s", vhtlcAddress)
 
 	// wait for the invoice to be paid
 	go func() {
@@ -59,14 +65,15 @@ func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.Rev
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 
-		log.Info("waiting for invoice to be paid...")
+		log.Debug("waiting for invoice to be paid...")
+
 		for range ticker.C {
 			// check if invoice was paid
 			resp, err := b.arknode.IsInvoiceSettled(ctx, &arknodepb.IsInvoiceSettledRequest{
 				Invoice: invoiceResponse.GetInvoice(),
 			})
 			if err != nil {
-				log.Errorf("failed to verify invoice: %s", err)
+				log.Errorf("failed to check invoice status: %s", err)
 				return
 			}
 
@@ -75,14 +82,19 @@ func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.Rev
 			}
 		}
 
-		_, err := b.arknode.SendOffChain(ctx, &arknodepb.SendOffChainRequest{
+		log.Debug("invoice was paid, funding vHTLC...")
+
+		sendResp, err := b.arknode.SendOffChain(ctx, &arknodepb.SendOffChainRequest{
 			Address: vhtlcAddress,
 			Amount:  req.GetInvoiceAmount(),
 		})
 		if err != nil {
-			log.Errorf("failed to send to vHTLC address: %v", err)
+			log.Errorf("failed to fund vHTLC: %v", err)
 			return
 		}
+
+		log.Debugf("vHTLC funded: %s", sendResp.GetTxid())
+		log.Info("reverse submarine swap completed successfully 🎉")
 	}()
 
 	addressResponse, err := b.arknode.GetAddress(ctx, &arknodepb.GetAddressRequest{})
@@ -100,6 +112,8 @@ func (b *boltzMockHandler) ReverseSubmarineSwap(ctx context.Context, req *pb.Rev
 
 // ark --> ln
 func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineSwapRequest) (*pb.SubmarineSwapResponse, error) {
+	log.Info("processing submarine swap")
+
 	preimageHash, err := parsePreimageHash(req.GetPreimageHash())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -109,17 +123,20 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	log.Debug("creating vHTLC...")
+
 	vhtlcResponse, err := b.arknode.CreateVHTLC(ctx, &arknodepb.CreateVHTLCRequest{
 		PreimageHash: preimageHash,
 		SenderPubkey: refundPubkey,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create vHTLC: %s", err)
 	}
-
 	vhtlcAddress := vhtlcResponse.GetAddress()
 	swapTree := swapTree{vhtlcResponse.GetSwapTree()}.toProto()
-	log.Infof("created VHTLC: %s", vhtlcAddress)
+
+	log.Debugf("created vHTLC: %s", vhtlcAddress)
+
 	go func() {
 		ctx := context.Background()
 
@@ -128,7 +145,8 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 
 		var vhtlc *arknodepb.Vtxo
 
-		log.Info("waiting for vHTLC to be funded...")
+		log.Debug("waiting for vHTLC to be funded...")
+
 		for range ticker.C {
 			// check if vHTLC has been funded by the user
 			resp, err := b.arknode.ListVHTLC(ctx, &arknodepb.ListVHTLCRequest{
@@ -146,8 +164,8 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 			break
 		}
 
-		log.Infof("vHTLC funded %s", vhtlc.Outpoint.Txid)
-		log.Info("paying invoice...")
+		log.Debugf("vHTLC funded: %s", vhtlc.Outpoint.Txid)
+		log.Debug("paying invoice...")
 
 		resp, err := b.arknode.PayInvoice(ctx, &arknodepb.PayInvoiceRequest{
 			Invoice: req.GetInvoice(),
@@ -157,16 +175,19 @@ func (b *boltzMockHandler) SubmarineSwap(ctx context.Context, req *pb.SubmarineS
 			return
 		}
 
+		log.Debug("invoice was paid, claiming...")
+
 		// claim the VHTLC with the preimage revealed when paying the invoice
 		claimResp, err := b.arknode.ClaimVHTLC(ctx, &arknodepb.ClaimVHTLCRequest{
 			Preimage: resp.GetPreimage(),
 		})
 		if err != nil {
-			log.Errorf("failed to claim vHTLC: %v", err)
+			log.Errorf("failed to claim funds from vHTLC: %v", err)
 			return
 		}
 
-		log.Debugf("vHTLC claimed successfully %s", claimResp.GetRedeemTxid())
+		log.Debugf("claimed funds from vHTLC: %s", claimResp.GetRedeemTxid())
+		log.Info("submarine swap completed successfully 🎉")
 	}()
 
 	addressResponse, err := b.arknode.GetAddress(ctx, &arknodepb.GetAddressRequest{})

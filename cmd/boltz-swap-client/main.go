@@ -15,6 +15,7 @@ import (
 )
 
 func main() {
+	log.SetLevel(log.DebugLevel)
 	app := cli.NewApp()
 	app.Name = "ark swapper"
 	app.Usage = "swap ark to ln and ln to ark"
@@ -26,7 +27,7 @@ func main() {
 			Name:    "swap", // ark -> ln
 			Aliases: []string{"s"},
 			Usage:   "swap",
-			Action:  WithLoader(swap),
+			Action:  swap,
 			Flags: append(urlFlags,
 				&cli.Uint64Flag{
 					Name:     "amount",
@@ -40,7 +41,7 @@ func main() {
 			Name:    "reverse-swap", // ln -> ark
 			Aliases: []string{"rs"},
 			Usage:   "reverse-swap",
-			Action:  WithLoader(reverseSwap),
+			Action:  reverseSwap,
 			Flags: append(urlFlags,
 				&cli.Uint64Flag{
 					Name:     "amount",
@@ -64,6 +65,8 @@ func main() {
 }
 
 func swap(c *cli.Context) error {
+	log.Info("processing submarine swap")
+
 	amount := c.Uint64("amount")
 	nodeURL := c.String("node-url")
 	boltzURL := c.String("boltz-url")
@@ -78,24 +81,26 @@ func swap(c *cli.Context) error {
 		return err
 	}
 
-	log.Info("retrieving wallet pubkey...")
 	addrResp, err := nodeClient.GetAddress(c.Context, &arknodepb.GetAddressRequest{})
 	if err != nil {
 		return err
 	}
 
-	log.Info("creating invoice...")
+	log.Debug("creating invoice...")
+
 	invoiceResp, err := nodeClient.CreateInvoice(c.Context, &arknodepb.CreateInvoiceRequest{
 		Amount: amount,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to get invoice: %w", err)
+		return fmt.Errorf("failed to create invoice: %w", err)
 	}
 	invoice := invoiceResp.GetInvoice()
 	preimageHash := invoiceResp.GetPreimageHash()
 
-	log.Info("calling Boltz submarine swap API...")
-	log.Infof("params:\nrefund pubkey: %s\ninvoice and preimage hash: %s %s\namount %d", addrResp.GetPubkey(), invoice, preimageHash, amount)
+	log.Debugf("invoice: %s", invoice)
+	log.Debugf("preimage hash: %s", preimageHash)
+	log.Debug("calling Boltz submarine swap API...")
+
 	swapResponse, err := boltzClient.SubmarineSwap(c.Context, &boltz_mockv1.SubmarineSwapRequest{
 		From:            "ARK",
 		To:              "LN",
@@ -107,37 +112,57 @@ func swap(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("vHTLC created: %s", swapResponse.GetAddress())
 
-	// verify that the vHTLC is correct and Boltz is not try to scam us
-	// TODO: maybe there's a better way to do this, without creating a second vhtlc
-	// - ask our node for a vhtlc with the same params and expect some leafs to match
-	log.Info("verifying vHTLC...")
+	log.Debugf("vHTLC returned by Boltz: %s", swapResponse.GetAddress())
+	log.Debug("verifying vHTLC...")
+
 	vhtlcResponse, err := nodeClient.CreateVHTLC(c.Context, &arknodepb.CreateVHTLCRequest{
 		PreimageHash:   preimageHash,
 		ReceiverPubkey: swapResponse.GetClaimPublicKey(),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create verification vHTLC: %v", err)
+		return fmt.Errorf("failed to verify vHTLC: %v", err)
 	}
 	if swapResponse.GetAddress() != vhtlcResponse.GetAddress() {
 		return fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
-	log.Info("funding vHTLC...")
-	if _, err = nodeClient.SendOffChain(c.Context, &arknodepb.SendOffChainRequest{
+	log.Debug("vHTLC verified, funding...")
+
+	sendResp, err := nodeClient.SendOffChain(c.Context, &arknodepb.SendOffChainRequest{
 		Address: swapResponse.GetAddress(),
 		Amount:  amount,
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("failed to send to vHTLC address: %v", err)
 	}
 
-	log.Info("done!")
+	log.Debugf("vHTLC funded: %s", sendResp.GetTxid())
+	log.Debug("waiting for invoice to be paid...")
 
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		resp, err := nodeClient.IsInvoiceSettled(c.Context, &arknodepb.IsInvoiceSettledRequest{
+			Invoice: invoice,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to check invoice status: %s", err)
+		}
+		if resp.GetSettled() {
+			break
+		}
+	}
+
+	log.Debug("invoice was paid")
+	log.Info("submarine swap completed successfully 🎉")
 	return nil
 }
 
 func reverseSwap(c *cli.Context) error {
+	log.Info("processing reverse submarine swap")
+
 	amount := c.Uint64("amount")
 	nodeURL := c.String("node-url")
 	boltzURL := c.String("boltz-url")
@@ -156,6 +181,8 @@ func reverseSwap(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
+	log.Debug("calling Boltz reverse submarine swap API...")
 
 	swapResponse, err := boltzClient.ReverseSubmarineSwap(c.Context, &boltz_mockv1.ReverseSubmarineSwapRequest{
 		From:          "LN",
@@ -168,16 +195,22 @@ func reverseSwap(c *cli.Context) error {
 		return err
 	}
 
-	log.Infof("adding vHTLC to repo...") // TODO
-	_, err = nodeClient.CreateVHTLC(c.Context, &arknodepb.CreateVHTLCRequest{
+	log.Debugf("vHTLC returned by Boltz: %s", swapResponse.GetLockupAddress())
+	log.Debug("verifying vHTLC...")
+
+	vhtlcResponse, err := nodeClient.CreateVHTLC(c.Context, &arknodepb.CreateVHTLCRequest{
 		PreimageHash: swapResponse.GetPreimageHash(),
 		SenderPubkey: swapResponse.GetRefundPublicKey(),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create verification vHTLC: %v", err)
+		return fmt.Errorf("failed to verify vHTLC: %s", err)
+	}
+	if swapResponse.GetLockupAddress() != vhtlcResponse.GetAddress() {
+		return fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
-	log.Infof("paying invoice...")
+	log.Debug("vHTLC verified, paying invoice...")
+
 	invoiceResp, err := nodeClient.PayInvoice(c.Context, &arknodepb.PayInvoiceRequest{
 		Invoice: swapResponse.GetInvoice(),
 	})
@@ -185,8 +218,7 @@ func reverseSwap(c *cli.Context) error {
 		return err
 	}
 
-	log.Infof("invoice paid %s", swapResponse.GetInvoice())
-	log.Info("waiting for vHTLC to be funded...")
+	log.Debugf("invoice was paid, waiting for vHTLC to be funded...")
 
 	ticker := time.NewTicker(3 * time.Second)
 	for range ticker.C {
@@ -204,7 +236,8 @@ func reverseSwap(c *cli.Context) error {
 	}
 	ticker.Stop()
 
-	log.Infof("vHTLC funded, claiming...")
+	log.Debugf("vHTLC funded, claiming...")
+
 	claimResponse, err := nodeClient.ClaimVHTLC(c.Context, &arknodepb.ClaimVHTLCRequest{
 		Preimage: invoiceResp.GetPreimage(),
 	})
@@ -212,7 +245,8 @@ func reverseSwap(c *cli.Context) error {
 		return err
 	}
 
-	log.Infof("vHTLC claimed %s", claimResponse.GetRedeemTxid())
+	log.Debugf("claimed funds from vHTLC: %s", claimResponse.GetRedeemTxid())
+	log.Info("submarine swap completed successfully 🎉")
 	return nil
 }
 
@@ -247,42 +281,4 @@ var urlFlags = []cli.Flag{
 		Value:   "localhost:9000",
 		Usage:   "boltz-mock server URL (e.g. localhost:9000)",
 	},
-}
-
-// Loader function with animation
-func loader(done chan bool) {
-	chars := []rune{'|', '/', '-', '\\'}
-	for {
-		select {
-		case <-done:
-			fmt.Printf("\rDone!          \n")
-			return
-		default:
-			for _, r := range chars {
-				fmt.Printf("\r%c Loading...", r)
-				time.Sleep(100 * time.Millisecond)
-			}
-		}
-	}
-}
-
-// Wrapper for cli.ActionFunc that adds a loader animation
-func WithLoader(action cli.ActionFunc) cli.ActionFunc {
-	return func(c *cli.Context) error {
-		done := make(chan bool)
-
-		// Start the loader animation in a separate goroutine
-		go loader(done)
-
-		// Execute the original action
-		err := action(c)
-
-		// Stop the loader animation
-		done <- true
-
-		// Optional: Add a newline for proper formatting after loader stops
-		fmt.Println()
-
-		return err
-	}
 }
