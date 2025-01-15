@@ -3,7 +3,6 @@ package web
 import (
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
@@ -139,16 +138,6 @@ func (s *service) validateUrlApi(c *gin.Context) {
 		"valid": valid,
 	}
 	c.JSON(http.StatusOK, data)
-}
-
-func (s *service) claimApi(c *gin.Context) {
-	if _, err := s.svc.ClaimPending(c); err != nil {
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
-	}
-	time.Sleep(4 * time.Second) // wait or the reload will not change the UI
-	reload(c)
 }
 
 func (s *service) lockApi(c *gin.Context) {

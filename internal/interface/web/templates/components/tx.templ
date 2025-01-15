@@ -1,0 +1,107 @@
+package components
+
+import (
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
+)
+
+func TxIcon(kind, status string) templ.Component {
+	switch status {
+    case "failure":
+        return FailureTxIcon()
+    case "pending":
+        return PendingTxIcon()
+    case "waiting":
+        return WaitingTxIcon()
+  }
+	switch kind {
+    case "received":
+        return RecvTxIcon()
+    case "sent":
+        return SentTxIcon()
+    case "swap":
+        return SwapTxIcon()
+    default:
+        return SwapTxIcon()
+  }
+}
+
+templ FailureTxIcon() {
+	<div class="flex items-center w-16 h-16 bg-red/10 rounded-full mr-2">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-red" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M18.36 19.78L12 13.41l-6.36 6.37l-1.42-1.42L10.59 12L4.22 5.64l1.42-1.42L12 10.59l6.36-6.36l1.41 1.41L13.41 12l6.36 6.36z"/>
+    </svg>
+  </div>
+}
+
+templ PendingTxIcon() {
+	<div class="flex items-center w-16 h-16 bg-yellowbg/10 rounded-full mr-2">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-yellow" viewBox="0 0 2048 2048">
+      <path fill="currentColor" d="M1536 0v128H384V0h1152zm45 979l-90 90l-467-470v1449H896V599l-467 470l-90-90l621-626l621 626z"/>
+    </svg>
+  </div>
+}
+
+templ SentTxIcon() {
+	<div class="flex items-center w-16 h-16 bg-redbg/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-red" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2">
+        <path stroke-miterlimit="10" d="M17.657 6.343L6.343 17.657"/>
+        <path stroke-linejoin="round" d="M18.101 16.733V7.437A1.53 1.53 0 0 0 16.563 5.9H7.267"/>
+      </g>
+    </svg>
+	</div>
+}
+
+templ SwapTxIcon() {
+	<div class="flex items-center w-16 h-16 bg-white/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-white" viewBox="0 0 21 21">
+      <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+        <path d="M13 8h5V3"/>
+        <path d="M18 8c-2.837-3.333-5.67-5-8.5-5S4.17 4 2 6m4.5 5.5h-5v5"/>
+        <path d="M1.5 11.5c2.837 3.333 5.67 5 8.5 5s5.33-1 7.5-3"/>
+      </g>
+    </svg>
+	</div>
+}
+
+templ RecvTxIcon() {
+	<div class="flex items-center w-16 h-16 bg-greenbg/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-green" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2">
+        <path stroke-miterlimit="10" d="M6.343 17.657L17.657 6.343"/>
+        <path stroke-linejoin="round" d="M5.899 7.267v9.296A1.53 1.53 0 0 0 7.437 18.1h9.296"/>
+      </g>
+    </svg>
+	</div>
+}
+
+templ WaitingTxIcon() {
+	<div class="flex items-center w-16 h-16 bg-yellowbg/10 rounded-full mr-2">
+	  <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-yellow" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v3m6.366-.366l-2.12 2.12M21 12h-3m.366 6.366l-2.12-2.12M12 21v-3m-6.366.366l2.12-2.12M3 12h3m-.366-6.366l2.12 2.12"/>
+    </svg>
+	</div>
+}
+
+templ Tx(tx types.Transaction, explorerUrl string) {
+  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+	  <div>
+      @Header("Transaction details")
+      <div class="flex flex-col items-center">
+        @TxIcon(tx.Kind, tx.Status)
+        <p class="mt-4 capitalize">{tx.Kind}</p>
+        <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
+        if tx.Kind == "received" {
+          @ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status)
+        }
+        if tx.Kind == "sent" {
+          @SentTxTable(tx.Amount, tx.CreatedAt, tx.Status)
+        }
+        if tx.Kind == "swap" {
+          @SwappedTxTable(tx.Amount, tx.CreatedAt, tx.Status)
+        }
+      </div>
+    </div>
+    @ViewTxButton(tx.Txid, explorerUrl)
+	</div>
+} 

@@ -703,3 +703,44 @@ func (s *service) seedInfoModal(c *gin.Context) {
 	info := modals.SeedInfo(seed)
 	modalHandler(info, c)
 }
+
+func (s *service) claimTx(c *gin.Context) {
+	data, err := s.svc.GetConfigData(c)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	txHistory, err := s.getTxHistory(c)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	txid := c.Param("txid")
+	var tx types.Transaction
+	for _, transaction := range txHistory {
+		if transaction.Txid == txid {
+			tx = transaction
+			break
+		}
+	}
+
+	if len(tx.Txid) == 0 {
+		toast := components.Toast("transaction not found", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	if _, err := s.svc.ClaimPending(c); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	tx.Status = "success"
+
+	partial := components.Tx(tx, getExplorerUrl(data.Network.Name))
+	partialViewHandler(partial, c)
+}

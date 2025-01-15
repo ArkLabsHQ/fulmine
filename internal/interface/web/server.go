@@ -107,7 +107,7 @@ func NewService(appSvc *application.Service) *service {
 	svc.POST("/swap/preview", svc.swapPreview)
 	svc.POST("/swap/confirm", svc.swapConfirm)
 
-	svc.POST("/helpers/claim", svc.claimApi)
+	svc.POST("/helpers/claim/:txid", svc.claimTx)
 	svc.POST("/helpers/lock", svc.lockApi)
 	svc.POST("/helpers/settings", svc.updateSettingsApi)
 	svc.POST("/helpers/node/connect", svc.connectLNDApi)
