@@ -201,6 +201,46 @@ func (s *service) newWalletPrivateKey(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
+func (s *service) noteConfirm(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	note := c.PostForm("note")
+
+	sats := utils.SatsFromNote(note)
+	if sats == 0 {
+		toast := components.Toast("invalid ark note", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	txId, err := s.svc.RedeemNotes(c, []string{note})
+
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	if len(txId) == 0 {
+		toast := components.Toast("Something went wrong", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	data, err := s.svc.GetConfigData(c)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+	explorerUrl := getExplorerUrl(data.Network.Name)
+
+	bodyContent := pages.NoteSuccessContent(strconv.Itoa(sats), txId, explorerUrl)
+	partialViewHandler(bodyContent, c)
+}
+
 func (s *service) receiveEdit(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
@@ -277,6 +317,12 @@ func (s *service) sendPreview(c *gin.Context) {
 		toast := components.Toast("Invalid amount", true)
 		toastHandler(toast, c)
 		return
+	}
+
+	if utils.IsValidArkNote(dest) {
+		sats := utils.SatsFromNote(dest)
+		bodyContent := pages.NotePreviewContent(dest, strconv.Itoa(sats))
+		partialViewHandler(bodyContent, c)
 	}
 
 	feeAmount := 206 // TODO

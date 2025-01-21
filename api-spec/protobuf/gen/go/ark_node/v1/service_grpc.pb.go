@@ -23,10 +23,11 @@ const (
 	Service_GetBalance_FullMethodName            = "/ark_node.v1.Service/GetBalance"
 	Service_GetInfo_FullMethodName               = "/ark_node.v1.Service/GetInfo"
 	Service_GetOnboardAddress_FullMethodName     = "/ark_node.v1.Service/GetOnboardAddress"
-	Service_SendOffChain_FullMethodName          = "/ark_node.v1.Service/SendOffChain"
-	Service_SendOnChain_FullMethodName           = "/ark_node.v1.Service/SendOnChain"
 	Service_GetRoundInfo_FullMethodName          = "/ark_node.v1.Service/GetRoundInfo"
 	Service_GetTransactionHistory_FullMethodName = "/ark_node.v1.Service/GetTransactionHistory"
+	Service_RedeemNote_FullMethodName            = "/ark_node.v1.Service/RedeemNote"
+	Service_SendOffChain_FullMethodName          = "/ark_node.v1.Service/SendOffChain"
+	Service_SendOnChain_FullMethodName           = "/ark_node.v1.Service/SendOnChain"
 	Service_CreateVHTLC_FullMethodName           = "/ark_node.v1.Service/CreateVHTLC"
 	Service_ClaimVHTLC_FullMethodName            = "/ark_node.v1.Service/ClaimVHTLC"
 	Service_ListVHTLC_FullMethodName             = "/ark_node.v1.Service/ListVHTLC"
@@ -47,14 +48,16 @@ type ServiceClient interface {
 	GetInfo(ctx context.Context, in *GetInfoRequest, opts ...grpc.CallOption) (*GetInfoResponse, error)
 	// GetOnboardAddress returns onchain address and invoice for requested amount
 	GetOnboardAddress(ctx context.Context, in *GetOnboardAddressRequest, opts ...grpc.CallOption) (*GetOnboardAddressResponse, error)
-	// Send asks to send amount to ark address by joining a round
-	SendOffChain(ctx context.Context, in *SendOffChainRequest, opts ...grpc.CallOption) (*SendOffChainResponse, error)
-	// SendOnChain asks to send requested amount to requested onchain address
-	SendOnChain(ctx context.Context, in *SendOnChainRequest, opts ...grpc.CallOption) (*SendOnChainResponse, error)
 	// Returns round info for optional round_id (no round_id returns current round info)
 	GetRoundInfo(ctx context.Context, in *GetRoundInfoRequest, opts ...grpc.CallOption) (*GetRoundInfoResponse, error)
 	// GetTransactionHistory returns virtual transactions history
 	GetTransactionHistory(ctx context.Context, in *GetTransactionHistoryRequest, opts ...grpc.CallOption) (*GetTransactionHistoryResponse, error)
+	// Redeems an ark note by joining a round
+	RedeemNote(ctx context.Context, in *RedeemNoteRequest, opts ...grpc.CallOption) (*RedeemNoteResponse, error)
+	// Send asks to send amount to ark address by joining a round
+	SendOffChain(ctx context.Context, in *SendOffChainRequest, opts ...grpc.CallOption) (*SendOffChainResponse, error)
+	// SendOnChain asks to send requested amount to requested onchain address
+	SendOnChain(ctx context.Context, in *SendOnChainRequest, opts ...grpc.CallOption) (*SendOnChainResponse, error)
 	// CreateVHTLCAddress computes a VHTLC address
 	CreateVHTLC(ctx context.Context, in *CreateVHTLCRequest, opts ...grpc.CallOption) (*CreateVHTLCResponse, error)
 	// ClaimVHTLC = self send vHTLC -> VTXO
@@ -114,26 +117,6 @@ func (c *serviceClient) GetOnboardAddress(ctx context.Context, in *GetOnboardAdd
 	return out, nil
 }
 
-func (c *serviceClient) SendOffChain(ctx context.Context, in *SendOffChainRequest, opts ...grpc.CallOption) (*SendOffChainResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SendOffChainResponse)
-	err := c.cc.Invoke(ctx, Service_SendOffChain_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *serviceClient) SendOnChain(ctx context.Context, in *SendOnChainRequest, opts ...grpc.CallOption) (*SendOnChainResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SendOnChainResponse)
-	err := c.cc.Invoke(ctx, Service_SendOnChain_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *serviceClient) GetRoundInfo(ctx context.Context, in *GetRoundInfoRequest, opts ...grpc.CallOption) (*GetRoundInfoResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetRoundInfoResponse)
@@ -148,6 +131,36 @@ func (c *serviceClient) GetTransactionHistory(ctx context.Context, in *GetTransa
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetTransactionHistoryResponse)
 	err := c.cc.Invoke(ctx, Service_GetTransactionHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) RedeemNote(ctx context.Context, in *RedeemNoteRequest, opts ...grpc.CallOption) (*RedeemNoteResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RedeemNoteResponse)
+	err := c.cc.Invoke(ctx, Service_RedeemNote_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) SendOffChain(ctx context.Context, in *SendOffChainRequest, opts ...grpc.CallOption) (*SendOffChainResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SendOffChainResponse)
+	err := c.cc.Invoke(ctx, Service_SendOffChain_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) SendOnChain(ctx context.Context, in *SendOnChainRequest, opts ...grpc.CallOption) (*SendOnChainResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SendOnChainResponse)
+	err := c.cc.Invoke(ctx, Service_SendOnChain_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -226,14 +239,16 @@ type ServiceServer interface {
 	GetInfo(context.Context, *GetInfoRequest) (*GetInfoResponse, error)
 	// GetOnboardAddress returns onchain address and invoice for requested amount
 	GetOnboardAddress(context.Context, *GetOnboardAddressRequest) (*GetOnboardAddressResponse, error)
-	// Send asks to send amount to ark address by joining a round
-	SendOffChain(context.Context, *SendOffChainRequest) (*SendOffChainResponse, error)
-	// SendOnChain asks to send requested amount to requested onchain address
-	SendOnChain(context.Context, *SendOnChainRequest) (*SendOnChainResponse, error)
 	// Returns round info for optional round_id (no round_id returns current round info)
 	GetRoundInfo(context.Context, *GetRoundInfoRequest) (*GetRoundInfoResponse, error)
 	// GetTransactionHistory returns virtual transactions history
 	GetTransactionHistory(context.Context, *GetTransactionHistoryRequest) (*GetTransactionHistoryResponse, error)
+	// Redeems an ark note by joining a round
+	RedeemNote(context.Context, *RedeemNoteRequest) (*RedeemNoteResponse, error)
+	// Send asks to send amount to ark address by joining a round
+	SendOffChain(context.Context, *SendOffChainRequest) (*SendOffChainResponse, error)
+	// SendOnChain asks to send requested amount to requested onchain address
+	SendOnChain(context.Context, *SendOnChainRequest) (*SendOnChainResponse, error)
 	// CreateVHTLCAddress computes a VHTLC address
 	CreateVHTLC(context.Context, *CreateVHTLCRequest) (*CreateVHTLCResponse, error)
 	// ClaimVHTLC = self send vHTLC -> VTXO
@@ -261,17 +276,20 @@ func (UnimplementedServiceServer) GetInfo(context.Context, *GetInfoRequest) (*Ge
 func (UnimplementedServiceServer) GetOnboardAddress(context.Context, *GetOnboardAddressRequest) (*GetOnboardAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOnboardAddress not implemented")
 }
-func (UnimplementedServiceServer) SendOffChain(context.Context, *SendOffChainRequest) (*SendOffChainResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendOffChain not implemented")
-}
-func (UnimplementedServiceServer) SendOnChain(context.Context, *SendOnChainRequest) (*SendOnChainResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendOnChain not implemented")
-}
 func (UnimplementedServiceServer) GetRoundInfo(context.Context, *GetRoundInfoRequest) (*GetRoundInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetRoundInfo not implemented")
 }
 func (UnimplementedServiceServer) GetTransactionHistory(context.Context, *GetTransactionHistoryRequest) (*GetTransactionHistoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionHistory not implemented")
+}
+func (UnimplementedServiceServer) RedeemNote(context.Context, *RedeemNoteRequest) (*RedeemNoteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RedeemNote not implemented")
+}
+func (UnimplementedServiceServer) SendOffChain(context.Context, *SendOffChainRequest) (*SendOffChainResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendOffChain not implemented")
+}
+func (UnimplementedServiceServer) SendOnChain(context.Context, *SendOnChainRequest) (*SendOnChainResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendOnChain not implemented")
 }
 func (UnimplementedServiceServer) CreateVHTLC(context.Context, *CreateVHTLCRequest) (*CreateVHTLCResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateVHTLC not implemented")
@@ -375,42 +393,6 @@ func _Service_GetOnboardAddress_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Service_SendOffChain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SendOffChainRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).SendOffChain(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_SendOffChain_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).SendOffChain(ctx, req.(*SendOffChainRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Service_SendOnChain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SendOnChainRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).SendOnChain(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_SendOnChain_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).SendOnChain(ctx, req.(*SendOnChainRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Service_GetRoundInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetRoundInfoRequest)
 	if err := dec(in); err != nil {
@@ -443,6 +425,60 @@ func _Service_GetTransactionHistory_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).GetTransactionHistory(ctx, req.(*GetTransactionHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_RedeemNote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RedeemNoteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).RedeemNote(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_RedeemNote_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).RedeemNote(ctx, req.(*RedeemNoteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_SendOffChain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendOffChainRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).SendOffChain(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_SendOffChain_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).SendOffChain(ctx, req.(*SendOffChainRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_SendOnChain_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendOnChainRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).SendOnChain(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_SendOnChain_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).SendOnChain(ctx, req.(*SendOnChainRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -579,20 +615,24 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Service_GetOnboardAddress_Handler,
 		},
 		{
-			MethodName: "SendOffChain",
-			Handler:    _Service_SendOffChain_Handler,
-		},
-		{
-			MethodName: "SendOnChain",
-			Handler:    _Service_SendOnChain_Handler,
-		},
-		{
 			MethodName: "GetRoundInfo",
 			Handler:    _Service_GetRoundInfo_Handler,
 		},
 		{
 			MethodName: "GetTransactionHistory",
 			Handler:    _Service_GetTransactionHistory_Handler,
+		},
+		{
+			MethodName: "RedeemNote",
+			Handler:    _Service_RedeemNote_Handler,
+		},
+		{
+			MethodName: "SendOffChain",
+			Handler:    _Service_SendOffChain_Handler,
+		},
+		{
+			MethodName: "SendOnChain",
+			Handler:    _Service_SendOnChain_Handler,
 		},
 		{
 			MethodName: "CreateVHTLC",

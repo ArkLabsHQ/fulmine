@@ -100,6 +100,7 @@ func NewService(appSvc *application.Service) *service {
 	svc.POST("/password", svc.setPassword)
 	svc.POST("/privatekey", svc.setPrivateKey)
 
+	svc.POST("/note/confirm", svc.noteConfirm)
 	svc.POST("/receive/preview", svc.receiveQrCode)
 	svc.POST("/receive/success", svc.receiveSuccess)
 	svc.POST("/send/preview", svc.sendPreview)
@@ -112,6 +113,7 @@ func NewService(appSvc *application.Service) *service {
 	svc.POST("/helpers/settings", svc.updateSettingsApi)
 	svc.POST("/helpers/node/connect", svc.connectLNDApi)
 	svc.POST("/helpers/node/disconnect", svc.disconnectLNDApi)
+	svc.POST("/helpers/note/validate", svc.validateNoteApi)
 	svc.POST("/helpers/mnemonic/validate", svc.validateMnemonicApi)
 	svc.POST("/helpers/privatekey/validate", svc.validatePrivateKeyApi)
 	svc.POST("/helpers/url/validate", svc.validateUrlApi)
