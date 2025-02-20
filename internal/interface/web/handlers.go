@@ -119,7 +119,7 @@ func (s *service) index(c *gin.Context) {
 				log.WithError(err).Warn("failed to get tx history")
 			}
 			s.logVtxos(c) // TODO: remove
-			bodyContent = pages.HistoryBodyContent(
+			bodyContent = pages.IndexBodyContent(
 				spendableBalance, offchainAddr, txHistory, isOnline, s.svc.IsConnectedLN(),
 			)
 		}

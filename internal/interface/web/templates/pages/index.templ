@@ -1,0 +1,13 @@
+package pages
+
+import (
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
+)
+
+templ IndexBodyContent(currentBalance, arkAddress string, transactions []types.Transaction, online, connected bool) {
+	@components.Hero(arkAddress, currentBalance, online, connected)
+	<div hx-get="/txs" hx-target="#historyBody" hx-trigger="load">
+		<div id="historyBody"></div>
+	</div>
+}
