@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"strings"
 	"time"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
@@ -14,7 +13,6 @@ import (
 	"github.com/ark-network/ark/common/tree"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
-	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -237,7 +235,7 @@ func (h *serviceHandler) SendOffChain(
 	receivers := []arksdk.Receiver{
 		arksdk.NewBitcoinReceiver(address, amount),
 	}
-	roundId, err := h.svc.SendOffChain(ctx, false, receivers)
+	roundId, err := h.svc.SendOffChain(ctx, false, receivers, true)
 	if err != nil {
 		return nil, err
 	}
@@ -255,10 +253,7 @@ func (h *serviceHandler) SendOnChain(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(address, amount),
-	}
-	txid, err := h.svc.SendOnChain(ctx, receivers)
+	txid, err := h.svc.CollaborativeExit(ctx, address, amount, false)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +385,7 @@ func toNetworkProto(net string) pb.GetInfoResponse_Network {
 	}
 }
 
-func toTreeProto(tree tree.VtxoTree) *pb.Tree {
+func toTreeProto(tree tree.TxTree) *pb.Tree {
 	levels := make([]*pb.TreeLevel, 0, len(tree))
 	for _, treeLevel := range tree {
 		nodes := make([]*pb.Node, 0, len(treeLevel))
@@ -450,9 +445,4 @@ func toSwapTreeProto(tree *vhtlc.VHTLCScript) *pb.TaprootTree {
 			Output:  hex.EncodeToString(unilateralRefundWithoutBoltzScript),
 		},
 	}
-}
-
-func extractTxid(txBase64 string) string {
-	ptx, _ := psbt.NewFromRawBytes(strings.NewReader(txBase64), true)
-	return ptx.UnsignedTx.TxHash().String()
 }

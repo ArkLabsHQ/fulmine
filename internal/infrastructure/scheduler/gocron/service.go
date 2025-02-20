@@ -32,13 +32,13 @@ func (s *service) Stop() {
 // Besides claiming, ClaimPending() also calls this function
 func (s *service) ScheduleNextClaim(txs []types.Transaction, cfg *types.Config, claimFunc func()) error {
 	now := time.Now().Unix()
-	at := now + int64(cfg.RoundLifetime.Value)
+	at := now + int64(cfg.VtxoTreeExpiry.Value)
 
 	for _, tx := range txs {
 		if tx.Settled {
 			continue
 		}
-		expiresAt := tx.CreatedAt.Unix() + int64(cfg.RoundLifetime.Value)
+		expiresAt := tx.CreatedAt.Unix() + int64(cfg.VtxoTreeExpiry.Value)
 		if expiresAt < at {
 			at = expiresAt
 		}
