@@ -136,11 +136,12 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	}
 
 	if err := s.Init(ctx, arksdk.InitArgs{
-		WalletType: arksdk.SingleKeyWallet,
-		ClientType: arksdk.GrpcClient,
-		ServerUrl:  serverUrl,
-		Password:   password,
-		Seed:       privateKey,
+		WalletType:          arksdk.SingleKeyWallet,
+		ClientType:          arksdk.GrpcClient,
+		ServerUrl:           serverUrl,
+		Password:            password,
+		Seed:                privateKey,
+		WithTransactionFeed: true,
 	}); err != nil {
 		return err
 	}
