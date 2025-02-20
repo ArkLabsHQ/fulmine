@@ -615,6 +615,18 @@ func (s *service) getTx(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
+func (s *service) getTxs(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	txHistory, err := s.getTxHistory(c)
+	if err != nil {
+		log.WithError(err).Warn("failed to get tx history")
+	}
+	bodyContent := components.HistoryBodyContent(txHistory)
+	partialViewHandler(bodyContent, c)
+}
+
 func (s *service) welcome(c *gin.Context) {
 	if _, err := s.svc.GetSettings(c); err != nil {
 		if err := s.svc.AddDefaultSettings(c); err != nil {
