@@ -136,11 +136,12 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	}
 
 	if err := s.Init(ctx, arksdk.InitArgs{
-		WalletType: arksdk.SingleKeyWallet,
-		ClientType: arksdk.GrpcClient,
-		ServerUrl:  serverUrl,
-		Password:   password,
-		Seed:       privateKey,
+		WalletType:          arksdk.SingleKeyWallet,
+		ClientType:          arksdk.GrpcClient,
+		ServerUrl:           serverUrl,
+		Password:            password,
+		Seed:                privateKey,
+		WithTransactionFeed: true,
 	}); err != nil {
 		return err
 	}
@@ -616,7 +617,7 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		return "", err
 	}
 
-	if _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRedeemTx); err != nil {
+	if _, _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRedeemTx); err != nil {
 		return "", err
 	}
 
@@ -772,7 +773,7 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 
 	// pay to vHTLC address
 	receivers := []arksdk.Receiver{arksdk.NewBitcoinReceiver(swapResponse.GetAddress(), amount)}
-	txid, err := s.SendOffChain(ctx, false, receivers)
+	txid, err := s.SendOffChain(ctx, false, receivers, true)
 	if err != nil {
 		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
 	}

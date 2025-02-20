@@ -375,7 +375,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsValidArkAddress(address) {
-		txId, err = s.svc.SendOffChain(c, false, receivers)
+		txId, err = s.svc.SendOffChain(c, false, receivers, true)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
@@ -384,7 +384,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsValidBtcAddress(address) {
-		txId, err = s.svc.SendOnChain(c, receivers)
+		txId, err = s.svc.CollaborativeExit(c, address, value, false)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
@@ -706,7 +706,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		// date of creation
 		dateCreated := tx.CreatedAt.Unix()
 		// TODO: use tx.ExpiresAt when it will be available
-		expiresAt := tx.CreatedAt.Unix() + int64(data.RoundLifetime.Value)
+		expiresAt := tx.CreatedAt.Unix() + int64(data.VtxoTreeExpiry.Value)
 		// status of tx
 		status := "pending"
 		if tx.Settled {

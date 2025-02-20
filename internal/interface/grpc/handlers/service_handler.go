@@ -237,7 +237,7 @@ func (h *serviceHandler) SendOffChain(
 	receivers := []arksdk.Receiver{
 		arksdk.NewBitcoinReceiver(address, amount),
 	}
-	roundId, err := h.svc.SendOffChain(ctx, false, receivers)
+	roundId, err := h.svc.SendOffChain(ctx, false, receivers, true)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +258,7 @@ func (h *serviceHandler) SendOnChain(
 	receivers := []arksdk.Receiver{
 		arksdk.NewBitcoinReceiver(address, amount),
 	}
-	txid, err := h.svc.SendOnChain(ctx, receivers)
+	txid, err := h.svc.CollaborativeExit(ctx, receivers[0].To(), receivers[0].Amount(), false)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +390,7 @@ func toNetworkProto(net string) pb.GetInfoResponse_Network {
 	}
 }
 
-func toTreeProto(tree tree.VtxoTree) *pb.Tree {
+func toTreeProto(tree tree.TxTree) *pb.Tree {
 	levels := make([]*pb.TreeLevel, 0, len(tree))
 	for _, treeLevel := range tree {
 		nodes := make([]*pb.Node, 0, len(treeLevel))
