@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	boltz_mockv1 "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/boltz_mock/v1"
@@ -20,6 +21,7 @@ import (
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -58,6 +60,20 @@ type Service struct {
 	publicKey *secp256k1.PublicKey
 
 	isReady bool
+
+	subscriptions    map[string]string // tracks subscribed addresses (vtxo taproot pubkey -> address)
+	subscriptionLock sync.RWMutex
+
+	// Notification channels
+	notifications    chan *Notification
+	notificationSubs []chan *Notification
+	notificationLock sync.RWMutex
+}
+
+type Notification struct {
+	Address string
+	Vtxos   []types.Vtxo
+	Type    string
 }
 
 func NewService(
@@ -77,9 +93,28 @@ func NewService(
 		if err != nil {
 			return nil, err
 		}
-		return &Service{
-			buildInfo, arkClient, storeSvc, settingsRepo, vhtlcRepo, client, schedulerSvc, lnSvc, nil, true,
-		}, nil
+		svc := &Service{
+			BuildInfo:        buildInfo,
+			ArkClient:        arkClient,
+			storeRepo:        storeSvc,
+			settingsRepo:     settingsRepo,
+			vhtlcRepo:        vhtlcRepo,
+			grpcClient:       client,
+			schedulerSvc:     schedulerSvc,
+			lnSvc:            lnSvc,
+			publicKey:        nil,
+			isReady:          true,
+			subscriptions:    make(map[string]string),
+			subscriptionLock: sync.RWMutex{},
+			notifications:    make(chan *Notification, 100),
+			notificationSubs: make([]chan *Notification, 0),
+			notificationLock: sync.RWMutex{},
+		}
+
+		go svc.dispatchNotifications()
+		go svc.listenForNotifications()
+
+		return svc, nil
 	}
 
 	ctx := context.Background()
@@ -95,7 +130,25 @@ func NewService(
 		return nil, err
 	}
 
-	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, vhtlcRepo, nil, schedulerSvc, lnSvc, nil, false}, nil
+	svc := &Service{
+		BuildInfo:        buildInfo,
+		ArkClient:        arkClient,
+		storeRepo:        storeSvc,
+		settingsRepo:     settingsRepo,
+		vhtlcRepo:        vhtlcRepo,
+		grpcClient:       nil,
+		schedulerSvc:     schedulerSvc,
+		lnSvc:            lnSvc,
+		notifications:    make(chan *Notification, 100),
+		notificationSubs: make([]chan *Notification, 0),
+		notificationLock: sync.RWMutex{},
+	}
+
+	// Start notification dispatcher
+	go svc.dispatchNotifications()
+	go svc.listenForNotifications()
+
+	return svc, nil
 }
 
 func (s *Service) IsReady() bool {
@@ -819,4 +872,105 @@ func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
 	}
 
 	return pk, nil
+}
+
+func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string) error {
+	s.subscriptionLock.Lock()
+	defer s.subscriptionLock.Unlock()
+
+	for _, addr := range addresses {
+		decodedAddr, err := common.DecodeAddress(addr)
+		if err != nil {
+			return fmt.Errorf("invalid address: %s", err)
+		}
+		s.subscriptions[hex.EncodeToString(schnorr.SerializePubKey(decodedAddr.VtxoTapKey))] = addr
+	}
+	return nil
+}
+
+func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []string) error {
+	s.subscriptionLock.Lock()
+	defer s.subscriptionLock.Unlock()
+
+	for _, addr := range addresses {
+		delete(s.subscriptions, addr)
+	}
+	return nil
+}
+
+func (s *Service) GetVtxoNotifications(ctx context.Context) (<-chan *Notification, error) {
+	s.notificationLock.Lock()
+	defer s.notificationLock.Unlock()
+
+	ch := make(chan *Notification)
+	s.notificationSubs = append(s.notificationSubs, ch)
+
+	// Remove subscription when context is done
+	go func() {
+		<-ctx.Done()
+		s.notificationLock.Lock()
+		defer s.notificationLock.Unlock()
+
+		for i, sub := range s.notificationSubs {
+			if sub == ch {
+				s.notificationSubs = append(s.notificationSubs[:i], s.notificationSubs[i+1:]...)
+				close(ch)
+				break
+			}
+		}
+	}()
+
+	return ch, nil
+}
+
+func (s *Service) listenForNotifications() {
+	vtxoEventCh := s.ArkClient.GetVtxoEventChannel()
+
+	// listen for SDK vtxo channel events
+	for vtxoEvent := range vtxoEventCh {
+		notifications := make(map[string]Notification)
+
+		for _, vtxo := range vtxoEvent.Vtxos {
+			s.subscriptionLock.RLock()
+
+			// check if the address is subscribed
+			if address, ok := s.subscriptions[vtxo.PubKey]; ok {
+				// check if the address is already in the notifications map
+				if _, ok := notifications[address]; !ok {
+					notifications[address] = Notification{
+						Address: address,
+						Vtxos:   []types.Vtxo{vtxo},
+						Type:    vtxoEvent.Type.String(),
+					}
+					continue
+				}
+
+				// otherwise, append the vtxo to the existing notification
+				notification := notifications[address]
+				notification.Vtxos = append(notification.Vtxos, vtxo)
+				notifications[address] = notification
+			}
+
+			s.subscriptionLock.RUnlock()
+		}
+
+		// send notifications through channel
+		for _, notification := range notifications {
+			go func() {
+				s.notifications <- &notification
+			}()
+		}
+	}
+}
+
+func (s *Service) dispatchNotifications() {
+	for notification := range s.notifications {
+		s.notificationLock.RLock()
+		for _, ch := range s.notificationSubs {
+			go func() {
+				ch <- notification
+			}()
+		}
+		s.notificationLock.RUnlock()
+	}
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"strings"
 	"time"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
@@ -14,7 +13,6 @@ import (
 	"github.com/ark-network/ark/common/tree"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
-	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -318,6 +316,94 @@ func (h *serviceHandler) IsInvoiceSettled(
 	return &pb.IsInvoiceSettledResponse{Settled: settled}, nil
 }
 
+func (h *serviceHandler) SubscribeForAddresses(ctx context.Context, req *pb.SubscribeForAddressesRequest) (*pb.SubscribeForAddressesResponse, error) {
+	if len(req.GetAddresses()) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "no addresses provided")
+	}
+
+	for _, addr := range req.GetAddresses() {
+		if _, err := parseArkAddress(addr); err != nil {
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid address %s: %v", addr, err))
+		}
+	}
+
+	if err := h.svc.SubscribeForAddresses(ctx, req.GetAddresses()); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to subscribe: %v", err))
+	}
+
+	return &pb.SubscribeForAddressesResponse{}, nil
+}
+
+func (h *serviceHandler) UnsubscribeForAddresses(ctx context.Context, req *pb.UnsubscribeForAddressesRequest) (*pb.UnsubscribeForAddressesResponse, error) {
+	if len(req.GetAddresses()) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "no addresses provided")
+	}
+
+	for _, addr := range req.GetAddresses() {
+		if _, err := parseArkAddress(addr); err != nil {
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid address %s: %v", addr, err))
+		}
+	}
+
+	if err := h.svc.UnsubscribeForAddresses(ctx, req.GetAddresses()); err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to unsubscribe: %v", err))
+	}
+
+	return &pb.UnsubscribeForAddressesResponse{}, nil
+}
+
+func (h *serviceHandler) GetVtxoNotifications(_ *pb.GetVtxoNotificationsRequest, stream pb.Service_GetVtxoNotificationsServer) error {
+	notificationCh, err := h.svc.GetVtxoNotifications(stream.Context())
+	if err != nil {
+		return status.Error(codes.Internal, fmt.Sprintf("failed to get notification channel: %v", err))
+	}
+
+	for notification := range notificationCh {
+		// convert vtxos to proto format
+		pbVtxos := make([]*pb.Vtxo, 0, len(notification.Vtxos))
+		for _, vtxo := range notification.Vtxos {
+			pbVtxos = append(pbVtxos, &pb.Vtxo{
+				Outpoint: &pb.Input{
+					Txid: vtxo.Txid,
+					Vout: vtxo.VOut,
+				},
+				Receiver: &pb.Output{
+					Pubkey: vtxo.PubKey,
+					Amount: vtxo.Amount,
+				},
+				SpentBy:   vtxo.SpentBy,
+				RoundTxid: vtxo.RoundTxid,
+				ExpireAt:  vtxo.ExpiresAt.Unix(),
+			})
+		}
+
+		resp := &pb.GetVtxoNotificationsResponse{
+			Notification: &pb.Notification{
+				Address: notification.Address,
+				Vtxos:   pbVtxos,
+				Type:    notification.Type,
+			},
+		}
+
+		// stream notification to client
+		if err := stream.Send(resp); err != nil {
+			return status.Error(codes.Internal, fmt.Sprintf("failed to send notification: %v", err))
+		}
+	}
+
+	return nil
+}
+
+func parseArkAddress(a string) (string, error) {
+	if len(a) <= 0 {
+		return "", fmt.Errorf("missing address")
+	}
+	if !utils.IsValidArkAddress(a) {
+		return "", fmt.Errorf("invalid address")
+	}
+	return a, nil
+}
+
 func parseAddress(a string) (string, error) {
 	if len(a) <= 0 {
 		return "", fmt.Errorf("missing address")
@@ -450,9 +536,4 @@ func toSwapTreeProto(tree *vhtlc.VHTLCScript) *pb.TaprootTree {
 			Output:  hex.EncodeToString(unilateralRefundWithoutBoltzScript),
 		},
 	}
-}
-
-func extractTxid(txBase64 string) string {
-	ptx, _ := psbt.NewFromRawBytes(strings.NewReader(txBase64), true)
-	return ptx.UnsignedTx.TxHash().String()
 }

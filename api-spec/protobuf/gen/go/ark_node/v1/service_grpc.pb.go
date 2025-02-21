@@ -19,21 +19,24 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	Service_GetAddress_FullMethodName            = "/ark_node.v1.Service/GetAddress"
-	Service_GetBalance_FullMethodName            = "/ark_node.v1.Service/GetBalance"
-	Service_GetInfo_FullMethodName               = "/ark_node.v1.Service/GetInfo"
-	Service_GetOnboardAddress_FullMethodName     = "/ark_node.v1.Service/GetOnboardAddress"
-	Service_GetRoundInfo_FullMethodName          = "/ark_node.v1.Service/GetRoundInfo"
-	Service_GetTransactionHistory_FullMethodName = "/ark_node.v1.Service/GetTransactionHistory"
-	Service_RedeemNote_FullMethodName            = "/ark_node.v1.Service/RedeemNote"
-	Service_SendOffChain_FullMethodName          = "/ark_node.v1.Service/SendOffChain"
-	Service_SendOnChain_FullMethodName           = "/ark_node.v1.Service/SendOnChain"
-	Service_CreateVHTLC_FullMethodName           = "/ark_node.v1.Service/CreateVHTLC"
-	Service_ClaimVHTLC_FullMethodName            = "/ark_node.v1.Service/ClaimVHTLC"
-	Service_ListVHTLC_FullMethodName             = "/ark_node.v1.Service/ListVHTLC"
-	Service_CreateInvoice_FullMethodName         = "/ark_node.v1.Service/CreateInvoice"
-	Service_PayInvoice_FullMethodName            = "/ark_node.v1.Service/PayInvoice"
-	Service_IsInvoiceSettled_FullMethodName      = "/ark_node.v1.Service/IsInvoiceSettled"
+	Service_GetAddress_FullMethodName              = "/ark_node.v1.Service/GetAddress"
+	Service_GetBalance_FullMethodName              = "/ark_node.v1.Service/GetBalance"
+	Service_GetInfo_FullMethodName                 = "/ark_node.v1.Service/GetInfo"
+	Service_GetOnboardAddress_FullMethodName       = "/ark_node.v1.Service/GetOnboardAddress"
+	Service_GetRoundInfo_FullMethodName            = "/ark_node.v1.Service/GetRoundInfo"
+	Service_GetTransactionHistory_FullMethodName   = "/ark_node.v1.Service/GetTransactionHistory"
+	Service_RedeemNote_FullMethodName              = "/ark_node.v1.Service/RedeemNote"
+	Service_SendOffChain_FullMethodName            = "/ark_node.v1.Service/SendOffChain"
+	Service_SendOnChain_FullMethodName             = "/ark_node.v1.Service/SendOnChain"
+	Service_CreateVHTLC_FullMethodName             = "/ark_node.v1.Service/CreateVHTLC"
+	Service_ClaimVHTLC_FullMethodName              = "/ark_node.v1.Service/ClaimVHTLC"
+	Service_ListVHTLC_FullMethodName               = "/ark_node.v1.Service/ListVHTLC"
+	Service_CreateInvoice_FullMethodName           = "/ark_node.v1.Service/CreateInvoice"
+	Service_PayInvoice_FullMethodName              = "/ark_node.v1.Service/PayInvoice"
+	Service_IsInvoiceSettled_FullMethodName        = "/ark_node.v1.Service/IsInvoiceSettled"
+	Service_SubscribeForAddresses_FullMethodName   = "/ark_node.v1.Service/SubscribeForAddresses"
+	Service_UnsubscribeForAddresses_FullMethodName = "/ark_node.v1.Service/UnsubscribeForAddresses"
+	Service_GetVtxoNotifications_FullMethodName    = "/ark_node.v1.Service/GetVtxoNotifications"
 )
 
 // ServiceClient is the client API for Service service.
@@ -67,6 +70,12 @@ type ServiceClient interface {
 	CreateInvoice(ctx context.Context, in *CreateInvoiceRequest, opts ...grpc.CallOption) (*CreateInvoiceResponse, error)
 	PayInvoice(ctx context.Context, in *PayInvoiceRequest, opts ...grpc.CallOption) (*PayInvoiceResponse, error)
 	IsInvoiceSettled(ctx context.Context, in *IsInvoiceSettledRequest, opts ...grpc.CallOption) (*IsInvoiceSettledResponse, error)
+	// SubscribeForAddresses subscribes for notifications for given addresses
+	SubscribeForAddresses(ctx context.Context, in *SubscribeForAddressesRequest, opts ...grpc.CallOption) (*SubscribeForAddressesResponse, error)
+	// UnsubscribeForAddresses unsubscribes from notifications for given addresses
+	UnsubscribeForAddresses(ctx context.Context, in *UnsubscribeForAddressesRequest, opts ...grpc.CallOption) (*UnsubscribeForAddressesResponse, error)
+	// GetVtxoNotifications streams notifications for subscribed addresses
+	GetVtxoNotifications(ctx context.Context, in *GetVtxoNotificationsRequest, opts ...grpc.CallOption) (Service_GetVtxoNotificationsClient, error)
 }
 
 type serviceClient struct {
@@ -227,6 +236,59 @@ func (c *serviceClient) IsInvoiceSettled(ctx context.Context, in *IsInvoiceSettl
 	return out, nil
 }
 
+func (c *serviceClient) SubscribeForAddresses(ctx context.Context, in *SubscribeForAddressesRequest, opts ...grpc.CallOption) (*SubscribeForAddressesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SubscribeForAddressesResponse)
+	err := c.cc.Invoke(ctx, Service_SubscribeForAddresses_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) UnsubscribeForAddresses(ctx context.Context, in *UnsubscribeForAddressesRequest, opts ...grpc.CallOption) (*UnsubscribeForAddressesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UnsubscribeForAddressesResponse)
+	err := c.cc.Invoke(ctx, Service_UnsubscribeForAddresses_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) GetVtxoNotifications(ctx context.Context, in *GetVtxoNotificationsRequest, opts ...grpc.CallOption) (Service_GetVtxoNotificationsClient, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &Service_ServiceDesc.Streams[0], Service_GetVtxoNotifications_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &serviceGetVtxoNotificationsClient{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Service_GetVtxoNotificationsClient interface {
+	Recv() (*GetVtxoNotificationsResponse, error)
+	grpc.ClientStream
+}
+
+type serviceGetVtxoNotificationsClient struct {
+	grpc.ClientStream
+}
+
+func (x *serviceGetVtxoNotificationsClient) Recv() (*GetVtxoNotificationsResponse, error) {
+	m := new(GetVtxoNotificationsResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // ServiceServer is the server API for Service service.
 // All implementations should embed UnimplementedServiceServer
 // for forward compatibility
@@ -258,6 +320,12 @@ type ServiceServer interface {
 	CreateInvoice(context.Context, *CreateInvoiceRequest) (*CreateInvoiceResponse, error)
 	PayInvoice(context.Context, *PayInvoiceRequest) (*PayInvoiceResponse, error)
 	IsInvoiceSettled(context.Context, *IsInvoiceSettledRequest) (*IsInvoiceSettledResponse, error)
+	// SubscribeForAddresses subscribes for notifications for given addresses
+	SubscribeForAddresses(context.Context, *SubscribeForAddressesRequest) (*SubscribeForAddressesResponse, error)
+	// UnsubscribeForAddresses unsubscribes from notifications for given addresses
+	UnsubscribeForAddresses(context.Context, *UnsubscribeForAddressesRequest) (*UnsubscribeForAddressesResponse, error)
+	// GetVtxoNotifications streams notifications for subscribed addresses
+	GetVtxoNotifications(*GetVtxoNotificationsRequest, Service_GetVtxoNotificationsServer) error
 }
 
 // UnimplementedServiceServer should be embedded to have forward compatible implementations.
@@ -308,6 +376,15 @@ func (UnimplementedServiceServer) PayInvoice(context.Context, *PayInvoiceRequest
 }
 func (UnimplementedServiceServer) IsInvoiceSettled(context.Context, *IsInvoiceSettledRequest) (*IsInvoiceSettledResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method IsInvoiceSettled not implemented")
+}
+func (UnimplementedServiceServer) SubscribeForAddresses(context.Context, *SubscribeForAddressesRequest) (*SubscribeForAddressesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubscribeForAddresses not implemented")
+}
+func (UnimplementedServiceServer) UnsubscribeForAddresses(context.Context, *UnsubscribeForAddressesRequest) (*UnsubscribeForAddressesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnsubscribeForAddresses not implemented")
+}
+func (UnimplementedServiceServer) GetVtxoNotifications(*GetVtxoNotificationsRequest, Service_GetVtxoNotificationsServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetVtxoNotifications not implemented")
 }
 
 // UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -591,6 +668,63 @@ func _Service_IsInvoiceSettled_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_SubscribeForAddresses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubscribeForAddressesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).SubscribeForAddresses(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_SubscribeForAddresses_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).SubscribeForAddresses(ctx, req.(*SubscribeForAddressesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_UnsubscribeForAddresses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnsubscribeForAddressesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).UnsubscribeForAddresses(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_UnsubscribeForAddresses_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).UnsubscribeForAddresses(ctx, req.(*UnsubscribeForAddressesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_GetVtxoNotifications_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetVtxoNotificationsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ServiceServer).GetVtxoNotifications(m, &serviceGetVtxoNotificationsServer{ServerStream: stream})
+}
+
+type Service_GetVtxoNotificationsServer interface {
+	Send(*GetVtxoNotificationsResponse) error
+	grpc.ServerStream
+}
+
+type serviceGetVtxoNotificationsServer struct {
+	grpc.ServerStream
+}
+
+func (x *serviceGetVtxoNotificationsServer) Send(m *GetVtxoNotificationsResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // Service_ServiceDesc is the grpc.ServiceDesc for Service service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -658,7 +792,21 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "IsInvoiceSettled",
 			Handler:    _Service_IsInvoiceSettled_Handler,
 		},
+		{
+			MethodName: "SubscribeForAddresses",
+			Handler:    _Service_SubscribeForAddresses_Handler,
+		},
+		{
+			MethodName: "UnsubscribeForAddresses",
+			Handler:    _Service_UnsubscribeForAddresses_Handler,
+		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "GetVtxoNotifications",
+			Handler:       _Service_GetVtxoNotifications_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "ark_node/v1/service.proto",
 }

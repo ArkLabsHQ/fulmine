@@ -212,6 +212,38 @@
         ]
       }
     },
+    "/v1/notifications": {
+      "get": {
+        "summary": "GetVtxoNotifications streams notifications for subscribed addresses",
+        "operationId": "Service_GetVtxoNotifications",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/v1GetVtxoNotificationsResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of v1GetVtxoNotificationsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/onboard": {
       "post": {
         "summary": "GetOnboardAddress returns onchain address and invoice for requested amount",
@@ -342,6 +374,39 @@
         ]
       }
     },
+    "/v1/subscribe": {
+      "post": {
+        "summary": "SubscribeForAddresses subscribes for notifications for given addresses",
+        "operationId": "Service_SubscribeForAddresses",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SubscribeForAddressesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SubscribeForAddressesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/transactions": {
       "get": {
         "summary": "GetTransactionHistory returns virtual transactions history",
@@ -360,6 +425,39 @@
             }
           }
         },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v1/unsubscribe": {
+      "post": {
+        "summary": "UnsubscribeForAddresses unsubscribes from notifications for given addresses",
+        "operationId": "Service_UnsubscribeForAddresses",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UnsubscribeForAddressesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UnsubscribeForAddressesRequest"
+            }
+          }
+        ],
         "tags": [
           "Service"
         ]
@@ -716,6 +814,14 @@
         }
       }
     },
+    "v1GetVtxoNotificationsResponse": {
+      "type": "object",
+      "properties": {
+        "notification": {
+          "$ref": "#/definitions/v1Notification"
+        }
+      }
+    },
     "v1Input": {
       "type": "object",
       "properties": {
@@ -758,6 +864,24 @@
           "type": "string"
         },
         "parentTxid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1Notification": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "vtxos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Vtxo"
+          }
+        },
+        "type": {
           "type": "string"
         }
       }
@@ -880,6 +1004,20 @@
         }
       }
     },
+    "v1SubscribeForAddressesRequest": {
+      "type": "object",
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1SubscribeForAddressesResponse": {
+      "type": "object"
+    },
     "v1TransactionInfo": {
       "type": "object",
       "properties": {
@@ -939,6 +1077,20 @@
         "TX_TYPE_RECEIVED"
       ],
       "default": "TX_TYPE_UNSPECIFIED"
+    },
+    "v1UnsubscribeForAddressesRequest": {
+      "type": "object",
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1UnsubscribeForAddressesResponse": {
+      "type": "object"
     },
     "v1Vtxo": {
       "type": "object",
