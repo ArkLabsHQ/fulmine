@@ -12,8 +12,8 @@ require (
 	github.com/ArkLabsHQ/ark-node/pkg/vhtlc v0.0.0-00010101000000-000000000000
 	github.com/a-h/templ v0.3.819
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/ark-network/ark/common v0.0.0-20250221104631-3ea2108a9830
-	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250221104631-3ea2108a9830
+	github.com/ark-network/ark/common v0.0.0-20250223040244-c305815c4a34
+	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250223040244-c305815c4a34
 	github.com/ccoveille/go-safecast v1.2.0
 	github.com/dgraph-io/badger/v4 v4.3.0
 	github.com/gin-gonic/gin v1.10.0
@@ -39,7 +39,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
-	github.com/ark-network/ark/api-spec v0.0.0-20250221104631-3ea2108a9830 // indirect
+	github.com/ark-network/ark/api-spec v0.0.0-20250223040244-c305815c4a34 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btclog/v2 v2.0.0-20241017175713-3428138b75c7 // indirect
 	github.com/btcsuite/winsvc v1.0.0 // indirect
@@ -221,7 +221,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/flatbuffers v24.3.25+incompatible // indirect
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
