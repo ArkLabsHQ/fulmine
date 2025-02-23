@@ -78,6 +78,12 @@ message Vtxo {
   int64 expire_at = 5;
 }
 
+message Notification {
+  string address = 1;
+  repeated Vtxo new_vtxos = 2;
+  repeated Vtxo spent_vtxos = 3;
+}
+
 enum RoundEventType {
   ROUND_EVENT_TYPE_UNSPECIFIED = 0;
   ROUND_EVENT_TYPE_BROADCASTED = 1;

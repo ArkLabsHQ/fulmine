@@ -101,26 +101,6 @@ service Service {
       get: "/v1/invoice/status"
     };
   }
-  // SubscribeForAddresses subscribes for notifications for given addresses
-  rpc SubscribeForAddresses(SubscribeForAddressesRequest) returns (SubscribeForAddressesResponse) {
-    option (google.api.http) = {
-      post: "/v1/subscribe"
-      body: "*"
-    };
-  };
-  // UnsubscribeForAddresses unsubscribes from notifications for given addresses
-  rpc UnsubscribeForAddresses(UnsubscribeForAddressesRequest) returns (UnsubscribeForAddressesResponse) {
-    option (google.api.http) = {
-      post: "/v1/unsubscribe" 
-      body: "*"
-    };
-  };
-  // GetVtxoNotifications streams notifications for subscribed addresses
-  rpc GetVtxoNotifications(GetVtxoNotificationsRequest) returns (stream GetVtxoNotificationsResponse) {
-    option (google.api.http) = {
-      get: "/v1/notifications"
-    };
-  };
 }
 
 message GetAddressRequest {}
@@ -256,28 +236,4 @@ message IsInvoiceSettledRequest {
 
 message IsInvoiceSettledResponse {
   bool settled = 1;
-}
-
-message SubscribeForAddressesRequest {
-  repeated string addresses = 1;
-}
-
-message SubscribeForAddressesResponse {}
-
-message UnsubscribeForAddressesRequest {
-  repeated string addresses = 1;
-}
-
-message UnsubscribeForAddressesResponse {}
-
-message GetVtxoNotificationsRequest {}
-
-message GetVtxoNotificationsResponse {
-  Notification notification = 1;
-}
-
-message Notification {
-  string address = 1;
-  repeated Vtxo vtxos = 2;
-  string type = 3;
 }
