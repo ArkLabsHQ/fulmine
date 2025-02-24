@@ -65,15 +65,15 @@ type Service struct {
 	subscriptionLock sync.RWMutex
 
 	// Notification channels
-	notifications    chan *Notification
-	notificationSubs []chan *Notification
-	notificationLock sync.RWMutex
+	notifications chan Notification
+
+	stopCh chan struct{}
 }
 
 type Notification struct {
-	Address string
-	Vtxos   []types.Vtxo
-	Type    string
+	Address    string
+	NewVtxos   []client.Vtxo
+	SpentVtxos []client.Vtxo
 }
 
 func NewService(
@@ -89,7 +89,7 @@ func NewService(
 		if err != nil {
 			return nil, err
 		}
-		client, err := grpcclient.NewClient(data.ServerUrl)
+		grpcClient, err := grpcclient.NewClient(data.ServerUrl)
 		if err != nil {
 			return nil, err
 		}
@@ -99,20 +99,16 @@ func NewService(
 			storeRepo:        storeSvc,
 			settingsRepo:     settingsRepo,
 			vhtlcRepo:        vhtlcRepo,
-			grpcClient:       client,
+			grpcClient:       grpcClient,
 			schedulerSvc:     schedulerSvc,
 			lnSvc:            lnSvc,
 			publicKey:        nil,
 			isReady:          true,
 			subscriptions:    make(map[string]string),
 			subscriptionLock: sync.RWMutex{},
-			notifications:    make(chan *Notification, 100),
-			notificationSubs: make([]chan *Notification, 0),
-			notificationLock: sync.RWMutex{},
+			notifications:    make(chan Notification),
+			stopCh:           make(chan struct{}, 1),
 		}
-
-		go svc.dispatchNotifications()
-		go svc.listenForNotifications()
 
 		return svc, nil
 	}
@@ -131,22 +127,17 @@ func NewService(
 	}
 
 	svc := &Service{
-		BuildInfo:        buildInfo,
-		ArkClient:        arkClient,
-		storeRepo:        storeSvc,
-		settingsRepo:     settingsRepo,
-		vhtlcRepo:        vhtlcRepo,
-		grpcClient:       nil,
-		schedulerSvc:     schedulerSvc,
-		lnSvc:            lnSvc,
-		notifications:    make(chan *Notification, 100),
-		notificationSubs: make([]chan *Notification, 0),
-		notificationLock: sync.RWMutex{},
+		BuildInfo:     buildInfo,
+		ArkClient:     arkClient,
+		storeRepo:     storeSvc,
+		settingsRepo:  settingsRepo,
+		vhtlcRepo:     vhtlcRepo,
+		grpcClient:    nil,
+		schedulerSvc:  schedulerSvc,
+		lnSvc:         lnSvc,
+		notifications: make(chan Notification),
+		stopCh:        make(chan struct{}, 1),
 	}
-
-	// Start notification dispatcher
-	go svc.dispatchNotifications()
-	go svc.listenForNotifications()
 
 	return svc, nil
 }
@@ -211,12 +202,24 @@ func (s *Service) LockNode(ctx context.Context, password string) error {
 	}
 	s.schedulerSvc.Stop()
 	logrus.Info("scheduler stopped")
+	go func() {
+		select {
+		case <-s.stopCh:
+			return
+		default:
+			time.Sleep(100 * time.Microsecond)
+		}
+	}()
 	return nil
 }
 
 func (s *Service) UnlockNode(ctx context.Context, password string) error {
-	err := s.Unlock(ctx, password)
+	txCh, close, err := s.grpcClient.GetTransactionsStream(context.Background())
 	if err != nil {
+		return fmt.Errorf("server unreachable")
+	}
+
+	if err := s.Unlock(ctx, password); err != nil {
 		return err
 	}
 
@@ -254,6 +257,8 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			logrus.WithError(err).Warn("failed to connect to ln node")
 		}
 	}
+
+	go s.listenForNotifications(txCh, close)
 
 	return nil
 }
@@ -898,79 +903,79 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 	return nil
 }
 
-func (s *Service) GetVtxoNotifications(ctx context.Context) (<-chan *Notification, error) {
-	s.notificationLock.Lock()
-	defer s.notificationLock.Unlock()
-
-	ch := make(chan *Notification)
-	s.notificationSubs = append(s.notificationSubs, ch)
-
-	// Remove subscription when context is done
-	go func() {
-		<-ctx.Done()
-		s.notificationLock.Lock()
-		defer s.notificationLock.Unlock()
-
-		for i, sub := range s.notificationSubs {
-			if sub == ch {
-				s.notificationSubs = append(s.notificationSubs[:i], s.notificationSubs[i+1:]...)
-				close(ch)
-				break
-			}
-		}
-	}()
-
-	return ch, nil
+func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification {
+	return s.notifications
 }
 
-func (s *Service) listenForNotifications() {
-	vtxoEventCh := s.ArkClient.GetVtxoEventChannel()
+func (s *Service) listenForNotifications(
+	txCh <-chan client.TransactionEvent, closeFn func(),
+) {
 
 	// listen for SDK vtxo channel events
-	for vtxoEvent := range vtxoEventCh {
-		notifications := make(map[string]Notification)
-
-		for _, vtxo := range vtxoEvent.Vtxos {
-			s.subscriptionLock.RLock()
-
-			// check if the address is subscribed
-			if address, ok := s.subscriptions[vtxo.PubKey]; ok {
-				// check if the address is already in the notifications map
-				if _, ok := notifications[address]; !ok {
-					notifications[address] = Notification{
-						Address: address,
-						Vtxos:   []types.Vtxo{vtxo},
-						Type:    vtxoEvent.Type.String(),
-					}
-					continue
-				}
-
-				// otherwise, append the vtxo to the existing notification
-				notification := notifications[address]
-				notification.Vtxos = append(notification.Vtxos, vtxo)
-				notifications[address] = notification
+	for {
+		select {
+		case <-s.stopCh:
+			closeFn()
+			return
+		case tx := <-txCh:
+			notifications := make(map[string]Notification)
+			var spendableVtxos []client.Vtxo
+			var spentVtxos []client.Vtxo
+			if tx.Round != nil {
+				spendableVtxos = tx.Round.SpendableVtxos
+				spentVtxos = tx.Round.SpentVtxos
+			} else {
+				spendableVtxos = tx.Redeem.SpendableVtxos
+				spentVtxos = tx.Redeem.SpentVtxos
 			}
 
+			s.subscriptionLock.RLock()
+			for _, vtxo := range spendableVtxos {
+				// check if the address is subscribed
+				if address, ok := s.subscriptions[vtxo.PubKey]; ok {
+					// check if the address is already in the notifications map
+					if _, ok := notifications[address]; !ok {
+						notifications[address] = Notification{
+							Address:    address,
+							NewVtxos:   make([]client.Vtxo, 0),
+							SpentVtxos: make([]client.Vtxo, 0),
+						}
+					}
+
+					n := notifications[address]
+					n.NewVtxos = append(n.NewVtxos, vtxo)
+					notifications[address] = n
+				}
+			}
+			for _, vtxo := range spentVtxos {
+				// check if the address is subscribed
+				if address, ok := s.subscriptions[vtxo.PubKey]; ok {
+					// check if the address is already in the notifications map
+					if _, ok := notifications[address]; !ok {
+						notifications[address] = Notification{
+							Address:    address,
+							NewVtxos:   make([]client.Vtxo, 0),
+							SpentVtxos: make([]client.Vtxo, 0),
+						}
+					}
+
+					n := notifications[address]
+					n.SpentVtxos = append(n.SpentVtxos, vtxo)
+					notifications[address] = n
+				}
+			}
 			s.subscriptionLock.RUnlock()
-		}
 
-		// send notifications through channel
-		for _, notification := range notifications {
-			go func() {
-				s.notifications <- &notification
-			}()
+			// send notifications through channel
+			for _, notification := range notifications {
+				go func() {
+					select {
+					case s.notifications <- notification:
+					default:
+						time.Sleep(100 * time.Millisecond)
+					}
+				}()
+			}
 		}
-	}
-}
-
-func (s *Service) dispatchNotifications() {
-	for notification := range s.notifications {
-		s.notificationLock.RLock()
-		for _, ch := range s.notificationSubs {
-			go func() {
-				ch <- notification
-			}()
-		}
-		s.notificationLock.RUnlock()
 	}
 }
