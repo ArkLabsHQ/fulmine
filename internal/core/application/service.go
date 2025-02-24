@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	boltz_mockv1 "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/boltz_mock/v1"
@@ -20,6 +21,7 @@ import (
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -58,6 +60,20 @@ type Service struct {
 	publicKey *secp256k1.PublicKey
 
 	isReady bool
+
+	subscriptions    map[string]string // tracks subscribed addresses (vtxo taproot pubkey -> address)
+	subscriptionLock sync.RWMutex
+
+	// Notification channels
+	notifications chan Notification
+
+	stopCh chan struct{}
+}
+
+type Notification struct {
+	Address    string
+	NewVtxos   []client.Vtxo
+	SpentVtxos []client.Vtxo
 }
 
 func NewService(
@@ -73,13 +89,28 @@ func NewService(
 		if err != nil {
 			return nil, err
 		}
-		client, err := grpcclient.NewClient(data.ServerUrl)
+		grpcClient, err := grpcclient.NewClient(data.ServerUrl)
 		if err != nil {
 			return nil, err
 		}
-		return &Service{
-			buildInfo, arkClient, storeSvc, settingsRepo, vhtlcRepo, client, schedulerSvc, lnSvc, nil, true,
-		}, nil
+		svc := &Service{
+			BuildInfo:        buildInfo,
+			ArkClient:        arkClient,
+			storeRepo:        storeSvc,
+			settingsRepo:     settingsRepo,
+			vhtlcRepo:        vhtlcRepo,
+			grpcClient:       grpcClient,
+			schedulerSvc:     schedulerSvc,
+			lnSvc:            lnSvc,
+			publicKey:        nil,
+			isReady:          true,
+			subscriptions:    make(map[string]string),
+			subscriptionLock: sync.RWMutex{},
+			notifications:    make(chan Notification),
+			stopCh:           make(chan struct{}, 1),
+		}
+
+		return svc, nil
 	}
 
 	ctx := context.Background()
@@ -95,7 +126,20 @@ func NewService(
 		return nil, err
 	}
 
-	return &Service{buildInfo, arkClient, storeSvc, settingsRepo, vhtlcRepo, nil, schedulerSvc, lnSvc, nil, false}, nil
+	svc := &Service{
+		BuildInfo:     buildInfo,
+		ArkClient:     arkClient,
+		storeRepo:     storeSvc,
+		settingsRepo:  settingsRepo,
+		vhtlcRepo:     vhtlcRepo,
+		grpcClient:    nil,
+		schedulerSvc:  schedulerSvc,
+		lnSvc:         lnSvc,
+		notifications: make(chan Notification),
+		stopCh:        make(chan struct{}, 1),
+	}
+
+	return svc, nil
 }
 
 func (s *Service) IsReady() bool {
@@ -158,12 +202,24 @@ func (s *Service) LockNode(ctx context.Context, password string) error {
 	}
 	s.schedulerSvc.Stop()
 	logrus.Info("scheduler stopped")
+	go func() {
+		select {
+		case <-s.stopCh:
+			return
+		default:
+			time.Sleep(100 * time.Microsecond)
+		}
+	}()
 	return nil
 }
 
 func (s *Service) UnlockNode(ctx context.Context, password string) error {
-	err := s.Unlock(ctx, password)
+	txCh, close, err := s.grpcClient.GetTransactionsStream(context.Background())
 	if err != nil {
+		return fmt.Errorf("server unreachable")
+	}
+
+	if err := s.Unlock(ctx, password); err != nil {
 		return err
 	}
 
@@ -201,6 +257,8 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			logrus.WithError(err).Warn("failed to connect to ln node")
 		}
 	}
+
+	go s.listenForNotifications(txCh, close)
 
 	return nil
 }
@@ -819,4 +877,105 @@ func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
 	}
 
 	return pk, nil
+}
+
+func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string) error {
+	s.subscriptionLock.Lock()
+	defer s.subscriptionLock.Unlock()
+
+	for _, addr := range addresses {
+		decodedAddr, err := common.DecodeAddress(addr)
+		if err != nil {
+			return fmt.Errorf("invalid address: %s", err)
+		}
+		s.subscriptions[hex.EncodeToString(schnorr.SerializePubKey(decodedAddr.VtxoTapKey))] = addr
+	}
+	return nil
+}
+
+func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []string) error {
+	s.subscriptionLock.Lock()
+	defer s.subscriptionLock.Unlock()
+
+	for _, addr := range addresses {
+		delete(s.subscriptions, addr)
+	}
+	return nil
+}
+
+func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification {
+	return s.notifications
+}
+
+func (s *Service) listenForNotifications(
+	txCh <-chan client.TransactionEvent, closeFn func(),
+) {
+
+	// listen for SDK vtxo channel events
+	for {
+		select {
+		case <-s.stopCh:
+			closeFn()
+			return
+		case tx := <-txCh:
+			notifications := make(map[string]Notification)
+			var spendableVtxos []client.Vtxo
+			var spentVtxos []client.Vtxo
+			if tx.Round != nil {
+				spendableVtxos = tx.Round.SpendableVtxos
+				spentVtxos = tx.Round.SpentVtxos
+			} else {
+				spendableVtxos = tx.Redeem.SpendableVtxos
+				spentVtxos = tx.Redeem.SpentVtxos
+			}
+
+			s.subscriptionLock.RLock()
+			for _, vtxo := range spendableVtxos {
+				// check if the address is subscribed
+				if address, ok := s.subscriptions[vtxo.PubKey]; ok {
+					// check if the address is already in the notifications map
+					if _, ok := notifications[address]; !ok {
+						notifications[address] = Notification{
+							Address:    address,
+							NewVtxos:   make([]client.Vtxo, 0),
+							SpentVtxos: make([]client.Vtxo, 0),
+						}
+					}
+
+					n := notifications[address]
+					n.NewVtxos = append(n.NewVtxos, vtxo)
+					notifications[address] = n
+				}
+			}
+			for _, vtxo := range spentVtxos {
+				// check if the address is subscribed
+				if address, ok := s.subscriptions[vtxo.PubKey]; ok {
+					// check if the address is already in the notifications map
+					if _, ok := notifications[address]; !ok {
+						notifications[address] = Notification{
+							Address:    address,
+							NewVtxos:   make([]client.Vtxo, 0),
+							SpentVtxos: make([]client.Vtxo, 0),
+						}
+					}
+
+					n := notifications[address]
+					n.SpentVtxos = append(n.SpentVtxos, vtxo)
+					notifications[address] = n
+				}
+			}
+			s.subscriptionLock.RUnlock()
+
+			// send notifications through channel
+			for _, notification := range notifications {
+				go func() {
+					select {
+					case s.notifications <- notification:
+					default:
+						time.Sleep(100 * time.Millisecond)
+					}
+				}()
+			}
+		}
+	}
 }

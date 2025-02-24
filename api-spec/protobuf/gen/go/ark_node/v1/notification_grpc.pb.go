@@ -19,10 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	NotificationService_RoundNotifications_FullMethodName = "/ark_node.v1.NotificationService/RoundNotifications"
-	NotificationService_AddWebhook_FullMethodName         = "/ark_node.v1.NotificationService/AddWebhook"
-	NotificationService_RemoveWebhook_FullMethodName      = "/ark_node.v1.NotificationService/RemoveWebhook"
-	NotificationService_ListWebhooks_FullMethodName       = "/ark_node.v1.NotificationService/ListWebhooks"
+	NotificationService_SubscribeForAddresses_FullMethodName   = "/ark_node.v1.NotificationService/SubscribeForAddresses"
+	NotificationService_UnsubscribeForAddresses_FullMethodName = "/ark_node.v1.NotificationService/UnsubscribeForAddresses"
+	NotificationService_GetVtxoNotifications_FullMethodName    = "/ark_node.v1.NotificationService/GetVtxoNotifications"
+	NotificationService_RoundNotifications_FullMethodName      = "/ark_node.v1.NotificationService/RoundNotifications"
+	NotificationService_AddWebhook_FullMethodName              = "/ark_node.v1.NotificationService/AddWebhook"
+	NotificationService_RemoveWebhook_FullMethodName           = "/ark_node.v1.NotificationService/RemoveWebhook"
+	NotificationService_ListWebhooks_FullMethodName            = "/ark_node.v1.NotificationService/ListWebhooks"
 )
 
 // NotificationServiceClient is the client API for NotificationService service.
@@ -34,6 +37,12 @@ const (
 // server-side stream or by subscribing webhooks invoked whenever an event
 // occurs.
 type NotificationServiceClient interface {
+	// SubscribeForAddresses subscribes for notifications for given addresses
+	SubscribeForAddresses(ctx context.Context, in *SubscribeForAddressesRequest, opts ...grpc.CallOption) (*SubscribeForAddressesResponse, error)
+	// UnsubscribeForAddresses unsubscribes from notifications for given addresses
+	UnsubscribeForAddresses(ctx context.Context, in *UnsubscribeForAddressesRequest, opts ...grpc.CallOption) (*UnsubscribeForAddressesResponse, error)
+	// GetVtxoNotifications streams notifications for subscribed addresses
+	GetVtxoNotifications(ctx context.Context, in *GetVtxoNotificationsRequest, opts ...grpc.CallOption) (NotificationService_GetVtxoNotificationsClient, error)
 	// Notifies about events related to wallet transactions.
 	RoundNotifications(ctx context.Context, in *RoundNotificationsRequest, opts ...grpc.CallOption) (NotificationService_RoundNotificationsClient, error)
 	// Adds a webhook registered for some kind of event.
@@ -52,9 +61,62 @@ func NewNotificationServiceClient(cc grpc.ClientConnInterface) NotificationServi
 	return &notificationServiceClient{cc}
 }
 
+func (c *notificationServiceClient) SubscribeForAddresses(ctx context.Context, in *SubscribeForAddressesRequest, opts ...grpc.CallOption) (*SubscribeForAddressesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SubscribeForAddressesResponse)
+	err := c.cc.Invoke(ctx, NotificationService_SubscribeForAddresses_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *notificationServiceClient) UnsubscribeForAddresses(ctx context.Context, in *UnsubscribeForAddressesRequest, opts ...grpc.CallOption) (*UnsubscribeForAddressesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UnsubscribeForAddressesResponse)
+	err := c.cc.Invoke(ctx, NotificationService_UnsubscribeForAddresses_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *notificationServiceClient) GetVtxoNotifications(ctx context.Context, in *GetVtxoNotificationsRequest, opts ...grpc.CallOption) (NotificationService_GetVtxoNotificationsClient, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &NotificationService_ServiceDesc.Streams[0], NotificationService_GetVtxoNotifications_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &notificationServiceGetVtxoNotificationsClient{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type NotificationService_GetVtxoNotificationsClient interface {
+	Recv() (*GetVtxoNotificationsResponse, error)
+	grpc.ClientStream
+}
+
+type notificationServiceGetVtxoNotificationsClient struct {
+	grpc.ClientStream
+}
+
+func (x *notificationServiceGetVtxoNotificationsClient) Recv() (*GetVtxoNotificationsResponse, error) {
+	m := new(GetVtxoNotificationsResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *notificationServiceClient) RoundNotifications(ctx context.Context, in *RoundNotificationsRequest, opts ...grpc.CallOption) (NotificationService_RoundNotificationsClient, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &NotificationService_ServiceDesc.Streams[0], NotificationService_RoundNotifications_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &NotificationService_ServiceDesc.Streams[1], NotificationService_RoundNotifications_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -124,6 +186,12 @@ func (c *notificationServiceClient) ListWebhooks(ctx context.Context, in *ListWe
 // server-side stream or by subscribing webhooks invoked whenever an event
 // occurs.
 type NotificationServiceServer interface {
+	// SubscribeForAddresses subscribes for notifications for given addresses
+	SubscribeForAddresses(context.Context, *SubscribeForAddressesRequest) (*SubscribeForAddressesResponse, error)
+	// UnsubscribeForAddresses unsubscribes from notifications for given addresses
+	UnsubscribeForAddresses(context.Context, *UnsubscribeForAddressesRequest) (*UnsubscribeForAddressesResponse, error)
+	// GetVtxoNotifications streams notifications for subscribed addresses
+	GetVtxoNotifications(*GetVtxoNotificationsRequest, NotificationService_GetVtxoNotificationsServer) error
 	// Notifies about events related to wallet transactions.
 	RoundNotifications(*RoundNotificationsRequest, NotificationService_RoundNotificationsServer) error
 	// Adds a webhook registered for some kind of event.
@@ -138,6 +206,15 @@ type NotificationServiceServer interface {
 type UnimplementedNotificationServiceServer struct {
 }
 
+func (UnimplementedNotificationServiceServer) SubscribeForAddresses(context.Context, *SubscribeForAddressesRequest) (*SubscribeForAddressesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubscribeForAddresses not implemented")
+}
+func (UnimplementedNotificationServiceServer) UnsubscribeForAddresses(context.Context, *UnsubscribeForAddressesRequest) (*UnsubscribeForAddressesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnsubscribeForAddresses not implemented")
+}
+func (UnimplementedNotificationServiceServer) GetVtxoNotifications(*GetVtxoNotificationsRequest, NotificationService_GetVtxoNotificationsServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetVtxoNotifications not implemented")
+}
 func (UnimplementedNotificationServiceServer) RoundNotifications(*RoundNotificationsRequest, NotificationService_RoundNotificationsServer) error {
 	return status.Errorf(codes.Unimplemented, "method RoundNotifications not implemented")
 }
@@ -160,6 +237,63 @@ type UnsafeNotificationServiceServer interface {
 
 func RegisterNotificationServiceServer(s grpc.ServiceRegistrar, srv NotificationServiceServer) {
 	s.RegisterService(&NotificationService_ServiceDesc, srv)
+}
+
+func _NotificationService_SubscribeForAddresses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubscribeForAddressesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotificationServiceServer).SubscribeForAddresses(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NotificationService_SubscribeForAddresses_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotificationServiceServer).SubscribeForAddresses(ctx, req.(*SubscribeForAddressesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NotificationService_UnsubscribeForAddresses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnsubscribeForAddressesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NotificationServiceServer).UnsubscribeForAddresses(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NotificationService_UnsubscribeForAddresses_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NotificationServiceServer).UnsubscribeForAddresses(ctx, req.(*UnsubscribeForAddressesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NotificationService_GetVtxoNotifications_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetVtxoNotificationsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(NotificationServiceServer).GetVtxoNotifications(m, &notificationServiceGetVtxoNotificationsServer{ServerStream: stream})
+}
+
+type NotificationService_GetVtxoNotificationsServer interface {
+	Send(*GetVtxoNotificationsResponse) error
+	grpc.ServerStream
+}
+
+type notificationServiceGetVtxoNotificationsServer struct {
+	grpc.ServerStream
+}
+
+func (x *notificationServiceGetVtxoNotificationsServer) Send(m *GetVtxoNotificationsResponse) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _NotificationService_RoundNotifications_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -245,6 +379,14 @@ var NotificationService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*NotificationServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "SubscribeForAddresses",
+			Handler:    _NotificationService_SubscribeForAddresses_Handler,
+		},
+		{
+			MethodName: "UnsubscribeForAddresses",
+			Handler:    _NotificationService_UnsubscribeForAddresses_Handler,
+		},
+		{
 			MethodName: "AddWebhook",
 			Handler:    _NotificationService_AddWebhook_Handler,
 		},
@@ -258,6 +400,11 @@ var NotificationService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "GetVtxoNotifications",
+			Handler:       _NotificationService_GetVtxoNotifications_Handler,
+			ServerStreams: true,
+		},
 		{
 			StreamName:    "RoundNotifications",
 			Handler:       _NotificationService_RoundNotifications_Handler,
