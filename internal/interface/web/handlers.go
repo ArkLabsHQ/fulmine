@@ -796,6 +796,7 @@ func (s *service) claimTx(c *gin.Context) {
 
 	txHistory, err := s.getTxHistory(c)
 	if err != nil {
+		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}

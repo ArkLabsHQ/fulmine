@@ -236,14 +236,6 @@ func toVtxosProto(vtxos []client.Vtxo) []*pb.Vtxo {
 	return list
 }
 
-func toInputsProto(outpoints []client.Outpoint) []*pb.Input {
-	list := make([]*pb.Input, 0, len(outpoints))
-	for _, outpoint := range outpoints {
-		list = append(list, toInputProto(outpoint))
-	}
-	return list
-}
-
 func toInputProto(outpoint client.Outpoint) *pb.Input {
 	return &pb.Input{
 		Txid: outpoint.Txid,
