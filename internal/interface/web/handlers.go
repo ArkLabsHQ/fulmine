@@ -92,27 +92,21 @@ func (s *service) events(c *gin.Context) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 
-	fmt.Printf("AAAAAAAAAAAAAAAA\n")
-
-	// channel := s.svc.GetTransactionEventChannel(c)
-	// for {
-	// 	select {
-	// 	case <-c.Done():
-	// 		fmt.Printf("done\n")
-	// 		return
-	// 	case event, ok := <-channel:
-	// 		if !ok {
-	// 			fmt.Printf("not ok\n")
-	// 			return
-	// 		}
-	// 		fmt.Printf("event %+v\n", event)
-	// 		c.SSEvent(event.Type.String(), event)
-	// 		c.Writer.Flush()
-	// 	default:
-	// 		fmt.Printf("default\n")
-	// 		time.Sleep(1 * time.Second)
-	// 	}
-	// }
+	channel := s.svc.GetTransactionEventChannel(c.Request.Context())
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		case <-c.Request.Context().Done():
+			return
+		case event, ok := <-channel:
+			if !ok {
+				return
+			}
+			c.SSEvent(event.Type.String(), event)
+			c.Writer.Flush()
+		}
+	}
 }
 
 func (s *service) forgot(c *gin.Context) {

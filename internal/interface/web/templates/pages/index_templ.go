@@ -38,7 +38,7 @@ func IndexBodyContent(currentBalance, arkAddress string, transactions []types.Tr
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div hx-get=\"/txs\" hx-trigger=\"load\"></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div hx-ext=\"sse\" sse-connect=\"/events\"><div hx-get=\"/txs\" hx-trigger=\"load, sse:TXS_ADDED\"></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
