@@ -408,10 +408,6 @@ func HistoryBodyContent(transactions []types.Transaction) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, " <script>\n\t    const showTx = (el) => {\n\t  \t\tconst txid = el.getAttribute(\"txid\")\n\t  \t\tif (txid) redirect(`/tx/${txid}`)\n\t  \t}\n\t  </script>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
 		}
 		return nil
 	})

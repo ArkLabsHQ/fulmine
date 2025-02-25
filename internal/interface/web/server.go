@@ -89,6 +89,7 @@ func NewService(appSvc *application.Service) *service {
 	svc.GET("/receive/edit", svc.receiveEdit)
 	svc.GET("/send", svc.send)
 	svc.GET("/settings/:active", svc.settings)
+	svc.GET("/events", svc.events)
 	svc.GET("/swap", svc.swap)
 	svc.GET("/swap/:active", svc.swapActive)
 	svc.GET("/tx/:txid", svc.getTx)

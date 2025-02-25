@@ -7,7 +7,5 @@ import (
 
 templ IndexBodyContent(currentBalance, arkAddress string, transactions []types.Transaction, online, connected bool) {
 	@components.Hero(arkAddress, currentBalance, online, connected)
-	<div hx-get="/txs" hx-target="#historyBody" hx-trigger="load">
-		<div id="historyBody"></div>
-	</div>
+	<div hx-get="/txs" hx-trigger="load" />
 }

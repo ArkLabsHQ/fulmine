@@ -87,6 +87,34 @@ func (s *service) done(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
+func (s *service) events(c *gin.Context) {
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+
+	fmt.Printf("AAAAAAAAAAAAAAAA\n")
+
+	// channel := s.svc.GetTransactionEventChannel(c)
+	// for {
+	// 	select {
+	// 	case <-c.Done():
+	// 		fmt.Printf("done\n")
+	// 		return
+	// 	case event, ok := <-channel:
+	// 		if !ok {
+	// 			fmt.Printf("not ok\n")
+	// 			return
+	// 		}
+	// 		fmt.Printf("event %+v\n", event)
+	// 		c.SSEvent(event.Type.String(), event)
+	// 		c.Writer.Flush()
+	// 	default:
+	// 		fmt.Printf("default\n")
+	// 		time.Sleep(1 * time.Second)
+	// 	}
+	// }
+}
+
 func (s *service) forgot(c *gin.Context) {
 	if err := s.svc.Reset(c); err != nil {
 		toast := components.Toast("Unable to delete previous wallet", true)
@@ -755,8 +783,6 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		})
 	}
 
-	log.Infof("history %v", history)
-	log.Infof("transactions %+v", transactions)
 	return
 }
 

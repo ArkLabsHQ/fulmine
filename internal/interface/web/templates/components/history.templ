@@ -147,11 +147,5 @@ templ HistoryBodyContent(transactions []types.Transaction) {
 	  for _, tx := range transactions {
 	  	@HistoryLine(tx)
 	  }
-	  <script>
-	    const showTx = (el) => {
-	  		const txid = el.getAttribute("txid")
-	  		if (txid) redirect(`/tx/${txid}`)
-	  	}
-	  </script>
 	}
 }

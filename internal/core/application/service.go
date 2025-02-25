@@ -260,6 +260,12 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 	go s.listenForNotifications(txCh, close)
 
+	go func() {
+		for event := range s.GetVtxoEventChannel(context.Background()) {
+			fmt.Printf("event2: %v\n", event)
+		}
+	}()
+
 	return nil
 }
 
