@@ -140,7 +140,7 @@ func (s *service) index(c *gin.Context) {
 			if err != nil {
 				log.WithError(err).Warn("failed to get tx history")
 			}
-			s.logVtxos(c) // TODO: remove
+
 			bodyContent = pages.IndexBodyContent(
 				spendableBalance, offchainAddr, txHistory, isOnline, s.svc.IsConnectedLN(),
 			)
@@ -689,37 +689,6 @@ func (s *service) getNodeBalance(c *gin.Context) string {
 	return "0"
 }
 
-func (s *service) logVtxos(c *gin.Context) {
-	spendableVtxos, spentVtxos, err := s.svc.ListVtxos(c)
-	if err != nil {
-		return
-	}
-
-	log.Info("spendableVtxos")
-	for _, v := range spendableVtxos {
-		log.Info("---------")
-		log.Infof("Amount %d", v.Amount)
-		log.Infof("ExpiresAt %v", v.ExpiresAt)
-		log.Infof("IsPending %v", v.IsPending)
-		log.Infof("RoundTxid %v", v.RoundTxid)
-		log.Infof("Txid %v", v.Txid)
-		log.Infof("SpentBy %v", v.SpentBy)
-		log.Info("---------")
-	}
-
-	log.Info("spentVtxos")
-	for _, v := range spentVtxos {
-		log.Info("---------")
-		log.Infof("Amount %d", v.Amount)
-		log.Infof("ExpiresAt %v", v.ExpiresAt)
-		log.Infof("IsPending %v", v.IsPending)
-		log.Infof("RoundTxid %v", v.RoundTxid)
-		log.Infof("Txid %v", v.Txid)
-		log.Infof("SpentBy %v", v.SpentBy)
-		log.Info("---------")
-	}
-}
-
 func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction, err error) {
 	// get tx history from Server
 	history, err := s.svc.GetTransactionHistory(c)
@@ -776,7 +745,6 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			UnixDate:   dateCreated,
 		})
 	}
-
 	return
 }
 

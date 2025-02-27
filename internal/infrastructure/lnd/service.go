@@ -9,7 +9,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
 	"github.com/lightningnetwork/lnd/input"
 	"github.com/lightningnetwork/lnd/lnrpc"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
@@ -55,7 +55,7 @@ func (s *service) Connect(ctx context.Context, lndConnectUrl string) error {
 	s.conn = conn
 	s.macaroon = macaroon
 
-	logrus.Infof("connected to LND version %s with pubkey %s", info.GetVersion(), info.GetIdentityPubkey())
+	log.Infof("connected to LND version %s with pubkey %s", info.GetVersion(), info.GetIdentityPubkey())
 
 	return nil
 }

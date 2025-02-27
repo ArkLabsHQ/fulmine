@@ -33,7 +33,7 @@ import (
 	"github.com/lightningnetwork/lnd/input"
 	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/lnwallet/chainfee"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -201,7 +201,7 @@ func (s *Service) LockNode(ctx context.Context, password string) error {
 		return err
 	}
 	s.schedulerSvc.Stop()
-	logrus.Info("scheduler stopped")
+	log.Info("scheduler stopped")
 	go func() {
 		select {
 		case <-s.stopCh:
@@ -224,11 +224,11 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 
 	s.schedulerSvc.Start()
-	logrus.Info("scheduler started")
+	log.Info("scheduler started")
 
 	err = s.ScheduleClaims(ctx)
 	if err != nil {
-		logrus.WithError(err).Info("schedule next claim failed")
+		log.WithError(err).Info("schedule next claim failed")
 	}
 
 	prvkeyStr, err := s.Dump(ctx)
@@ -246,7 +246,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 	settings, err := s.settingsRepo.GetSettings(ctx)
 	if err != nil {
-		logrus.WithError(err).Warn("failed to get settings")
+		log.WithError(err).Warn("failed to get settings")
 		return err
 	}
 	if len(settings.LnUrl) > 0 {
@@ -254,7 +254,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			s.lnSvc = cln.NewService()
 		}
 		if err := s.lnSvc.Connect(ctx, settings.LnUrl); err != nil {
-			logrus.WithError(err).Warn("failed to connect to ln node")
+			log.WithError(err).Warn("failed to connect to ln node")
 		}
 	}
 
@@ -336,7 +336,7 @@ func (s *Service) ClaimPending(ctx context.Context) (string, error) {
 	if err == nil {
 		err := s.ScheduleClaims(ctx)
 		if err != nil {
-			logrus.WithError(err).Warn("error scheduling next claims")
+			log.WithError(err).Warn("error scheduling next claims")
 		}
 	}
 	return roundTxid, err
@@ -358,10 +358,10 @@ func (s *Service) ScheduleClaims(ctx context.Context) error {
 	}
 
 	task := func() {
-		logrus.Infof("running auto claim at %s", time.Now())
+		log.Infof("running auto claim at %s", time.Now())
 		_, err := s.ClaimPending(ctx)
 		if err != nil {
-			logrus.WithError(err).Warn("failed to auto claim")
+			log.WithError(err).Warn("failed to auto claim")
 		}
 	}
 
@@ -774,7 +774,7 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		return "", fmt.Errorf("failed to claim vHTLC: %v", err)
 	}
 
-	logrus.Info("reverse submarine swap completed successfully 🎉")
+	log.Info("reverse submarine swap completed successfully 🎉")
 	return txid, nil
 }
 
@@ -849,7 +849,7 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		}
 	}
 
-	logrus.Info("submarine swap completed successfully 🎉")
+	log.Info("submarine swap completed successfully 🎉")
 	return txid, nil
 }
 
