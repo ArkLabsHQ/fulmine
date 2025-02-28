@@ -87,6 +87,28 @@ func (s *service) done(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
+func (s *service) events(c *gin.Context) {
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+
+	channel := s.svc.GetTransactionEventChannel(c.Request.Context())
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		case <-c.Request.Context().Done():
+			return
+		case event, ok := <-channel:
+			if !ok {
+				return
+			}
+			c.SSEvent(event.Type.String(), event)
+			c.Writer.Flush()
+		}
+	}
+}
+
 func (s *service) forgot(c *gin.Context) {
 	if err := s.svc.Reset(c); err != nil {
 		toast := components.Toast("Unable to delete previous wallet", true)
@@ -119,7 +141,7 @@ func (s *service) index(c *gin.Context) {
 				log.WithError(err).Warn("failed to get tx history")
 			}
 			s.logVtxos(c) // TODO: remove
-			bodyContent = pages.HistoryBodyContent(
+			bodyContent = pages.IndexBodyContent(
 				spendableBalance, offchainAddr, txHistory, isOnline, s.svc.IsConnectedLN(),
 			)
 		}
@@ -615,6 +637,18 @@ func (s *service) getTx(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
+func (s *service) getTxs(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	txHistory, err := s.getTxHistory(c)
+	if err != nil {
+		log.WithError(err).Warn("failed to get tx history")
+	}
+	bodyContent := components.HistoryBodyContent(txHistory)
+	partialViewHandler(bodyContent, c)
+}
+
 func (s *service) welcome(c *gin.Context) {
 	if _, err := s.svc.GetSettings(c); err != nil {
 		if err := s.svc.AddDefaultSettings(c); err != nil {
@@ -743,8 +777,6 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		})
 	}
 
-	log.Infof("history %v", history)
-	log.Infof("transactions %+v", transactions)
 	return
 }
 

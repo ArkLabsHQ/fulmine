@@ -54,10 +54,11 @@ func (t *TemplRender) Instance(name string, data interface{}) render.Render {
 
 type service struct {
 	*gin.Engine
-	svc *application.Service
+	svc    *application.Service
+	stopCh chan struct{}
 }
 
-func NewService(appSvc *application.Service) *service {
+func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	// Create a new Fiber server.
 	router := gin.Default()
 
@@ -65,7 +66,7 @@ func NewService(appSvc *application.Service) *service {
 	router.HTMLRender = &TemplRender{}
 	staticFS, _ := fs.Sub(static, "static")
 
-	svc := &service{router, appSvc}
+	svc := &service{router, appSvc, stopCh}
 
 	// Handle static files.
 	// svc.Static("/static", "./static")
@@ -89,9 +90,11 @@ func NewService(appSvc *application.Service) *service {
 	svc.GET("/receive/edit", svc.receiveEdit)
 	svc.GET("/send", svc.send)
 	svc.GET("/settings/:active", svc.settings)
+	svc.GET("/events", svc.events)
 	svc.GET("/swap", svc.swap)
 	svc.GET("/swap/:active", svc.swapActive)
 	svc.GET("/tx/:txid", svc.getTx)
+	svc.GET("/txs", svc.getTxs)
 	svc.GET("/unlock", svc.unlock)
 	svc.GET("/welcome", svc.welcome)
 

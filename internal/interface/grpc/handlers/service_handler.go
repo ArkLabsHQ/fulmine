@@ -247,10 +247,7 @@ func (h *serviceHandler) SendOnChain(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(address, amount),
-	}
-	txid, err := h.svc.CollaborativeExit(ctx, receivers[0].To(), receivers[0].Amount(), false)
+	txid, err := h.svc.CollaborativeExit(ctx, address, amount, false)
 	if err != nil {
 		return nil, err
 	}

@@ -66,18 +66,20 @@ templ ReceiveQrCodeContent(bip21, encoded, sats string) {
         const res = await fetch("/helpers/balance")
 		    return res.ok ? await res.json() : {}
 			}
-		  const initialBalance = await getBalance()
-			const intervalId = setInterval(() => {
-				getBalance().then((balance) => {
-			    if (balance.total > initialBalance.total) {
-						document.querySelector("input[name='sats']").value = balance.total - initialBalance.total
-			      document.querySelector("#submitButton").click()
-						clearInterval(intervalId)
-					}
-				})
-			}, 1000)
+		  let initialBalance = await getBalance()
+			const eventSource = new EventSource('/events');
+			eventSource.addEventListener('TXS_ADDED', async (event) => {
+				const balance = await getBalance()
+				const value = balance.total - initialBalance.total
+				if (value > 0) {
+					eventSource.close()
+			  	document.querySelector("input[name='sats']").value = value
+			    document.querySelector("#submitButton").click()
+			  } else {
+					initialBalance = balance
+				}
+      })
 		}
-
 		waitForPayment()
 	</script>
 }
