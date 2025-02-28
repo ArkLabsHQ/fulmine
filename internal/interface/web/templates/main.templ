@@ -42,7 +42,7 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 	<link rel="icon" href="/static/favicon.png" sizes="any" />
 	<link href="/static/styles.css" rel="stylesheet" />
 	<script src="https://unpkg.com/htmx.org@2.0.4"></script>
-  <script src="https://unpkg.com/htmx-ext-sse@2.2.2"></script>
+  <script src="/static/htmx-ext-sse@2.2.3-patch.js"></script>
 	<script src="/static/decimal.js"></script>
 	<script src="/static/scripts.js"></script>
 </head>
@@ -210,6 +210,28 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 	document.body.addEventListener("toast", (e) => {
 		setTimeout(() => document.querySelector("#toast").innerHTML = "", toastTimeout)
 	})
+
+	document.body.addEventListener('htmx:sseClose', function (e) {
+		console.log('sseClose', e)
+	})
+
+	document.body.addEventListener('htmx:sseBeforeMessage', function (e) {
+		console.log('sseBeforeMessage', e)
+	})
+
+	document.body.addEventListener('htmx:sseOpen', function (e) {
+		console.log('sseOpen', e)
+	})
+
+	document.body.addEventListener('htmx:sseError', function (e) {
+		console.log('sseError', e)
+	})
+
+	document.body.addEventListener('htmx:sseMessage', function (e) {
+		console.log('ssesseMessageOpen', e)
+	})
+
+
 </script>
 
 </html>
