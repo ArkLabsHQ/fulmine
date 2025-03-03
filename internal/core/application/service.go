@@ -127,16 +127,18 @@ func NewService(
 	}
 
 	svc := &Service{
-		BuildInfo:     buildInfo,
-		ArkClient:     arkClient,
-		storeRepo:     storeSvc,
-		settingsRepo:  settingsRepo,
-		vhtlcRepo:     vhtlcRepo,
-		grpcClient:    nil,
-		schedulerSvc:  schedulerSvc,
-		lnSvc:         lnSvc,
-		notifications: make(chan Notification),
-		stopCh:        make(chan struct{}, 1),
+		BuildInfo:        buildInfo,
+		ArkClient:        arkClient,
+		storeRepo:        storeSvc,
+		settingsRepo:     settingsRepo,
+		vhtlcRepo:        vhtlcRepo,
+		grpcClient:       nil,
+		schedulerSvc:     schedulerSvc,
+		lnSvc:            lnSvc,
+		subscriptions:    make(map[string]string),
+		subscriptionLock: sync.RWMutex{},
+		notifications:    make(chan Notification),
+		stopCh:           make(chan struct{}, 1),
 	}
 
 	return svc, nil
@@ -910,6 +912,7 @@ func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification 
 func (s *Service) listenForNotifications(
 	txCh <-chan client.TransactionEvent, closeFn func(),
 ) {
+	emptyTx := client.TransactionEvent{}
 
 	// listen for SDK vtxo channel events
 	for {
@@ -918,6 +921,11 @@ func (s *Service) listenForNotifications(
 			closeFn()
 			return
 		case tx := <-txCh:
+			if tx == emptyTx {
+				closeFn()
+				return
+			}
+
 			notifications := make(map[string]Notification)
 			var spendableVtxos []client.Vtxo
 			var spentVtxos []client.Vtxo
