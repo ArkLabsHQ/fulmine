@@ -1,4 +1,4 @@
-.PHONY: build build-templates clean cov help intergrationtest lint run test vet proto proto-lint serve-boltz-mock
+.PHONY: build build-templates clean cov help intergrationtest lint run test vet proto proto-lint
 
 ## build: build for all platforms
 build:
@@ -73,23 +73,7 @@ proto:
 	@echo "Compiling stubs..."
 	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf generate
 
-## proto-cln: compile cln proto stubs
-proto-cln:
-	@echo "Compiling cln stubs..."
-	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf generate
-
 ## proto-lint: lint protos
 proto-lint:
 	@echo "Linting protos..."
 	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf lint
-
-## serve-boltz-mock: start boltz mock server
-serve-boltz-mock:
-	@echo "Starting boltz mock server..."
-	@go run ./cmd/boltz-mock
-
-boltz-swap:
-	@go run ./cmd/boltz-swap-client
-
-build-swap-cli:
-	@go build -o build/boltz-swap-client ./cmd/boltz-swap-client
