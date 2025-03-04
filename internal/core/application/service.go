@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	boltz_mockv1 "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/boltz_mock/v1"
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
 	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
 	"github.com/ArkLabsHQ/ark-node/internal/infrastructure/cln"
 	"github.com/ArkLabsHQ/ark-node/pkg/vhtlc"
 	"github.com/ArkLabsHQ/ark-node/utils"
+	"github.com/BoltzExchange/boltz-client/v2/pkg/boltz"
 	"github.com/ark-network/ark/common"
 	"github.com/ark-network/ark/common/bitcointree"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
@@ -34,11 +34,13 @@ import (
 	"github.com/lightningnetwork/lnd/lntypes"
 	"github.com/lightningnetwork/lnd/lnwallet/chainfee"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
-const boltzURL = "localhost:9000"
+var boltzURLByNetwork = map[string]string{
+	common.Bitcoin.Name:        "https://api.boltz.exchange/v2",
+	common.BitcoinTestNet.Name: "https://api.testnet.boltz.exchange/v2",
+	common.BitcoinRegTest.Name: "https://localhost:9001/v2",
+}
 
 type BuildInfo struct {
 	Version string
@@ -56,6 +58,7 @@ type Service struct {
 	grpcClient   client.TransportClient
 	schedulerSvc ports.SchedulerService
 	lnSvc        ports.LnService
+	boltzSvc     *boltz.Api
 
 	publicKey *secp256k1.PublicKey
 
@@ -252,12 +255,19 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 	if len(settings.LnUrl) > 0 {
+		data, err := s.GetConfigData(ctx)
+		if err != nil {
+			return err
+		}
+
 		if strings.HasPrefix(settings.LnUrl, "clnconnect:") {
 			s.lnSvc = cln.NewService()
 		}
 		if err := s.lnSvc.Connect(ctx, settings.LnUrl); err != nil {
 			log.WithError(err).Warn("failed to connect to ln node")
 		}
+		boltzSvc := &boltz.Api{URL: boltzURLByNetwork[data.Network.Name]}
+		s.boltzSvc = boltzSvc
 	}
 
 	go s.listenForNotifications(txCh, close)
@@ -375,10 +385,21 @@ func (s *Service) WhenNextClaim(ctx context.Context) time.Time {
 }
 
 func (s *Service) ConnectLN(ctx context.Context, connectUrl string) error {
+	data, err := s.GetConfigData(ctx)
+	if err != nil {
+		return err
+	}
+	boltzSvc := &boltz.Api{URL: boltzURLByNetwork[data.Network.Name]}
+
 	if strings.HasPrefix(connectUrl, "clnconnect:") {
 		s.lnSvc = cln.NewService()
 	}
-	return s.lnSvc.Connect(ctx, connectUrl)
+	if err := s.lnSvc.Connect(ctx, connectUrl); err != nil {
+		return err
+	}
+
+	s.boltzSvc = boltzSvc
+	return nil
 }
 
 func (s *Service) DisconnectLN() {
@@ -702,38 +723,37 @@ func (s *Service) GetBalanceLN(ctx context.Context) (msats uint64, err error) {
 
 // ln -> ark (reverse submarine swap)
 func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (string, error) {
-	boltzClient, err := boltzClient()
+	// get our pubkey
+	_, _, _, pk, err := s.GetAddress(ctx, 0)
 	if err != nil {
-		return "", fmt.Errorf("failed to connect to boltz server: %v", err)
+		return "", fmt.Errorf("failed to get address: %s", err)
 	}
 
-	// get our pubkey
-	_, _, _, myPubkey, err := s.GetAddress(ctx, 0)
+	_, ph, err := s.GetInvoice(ctx, amount, "", "")
 	if err != nil {
-		return "", fmt.Errorf("failed to get address: %v", err)
+		return "", fmt.Errorf("failed to ger preimage hash: %s", err)
 	}
+
+	myPubkey, _ := hex.DecodeString(pk)
+	preimageHash, _ := hex.DecodeString(ph)
 
 	// make swap
-	swapResponse, err := boltzClient.ReverseSubmarineSwap(ctx, &boltz_mockv1.ReverseSubmarineSwapRequest{
-		From:          "LN",
-		To:            "ARK",
-		InvoiceAmount: amount,
-		OnchainAmount: amount,
-		Pubkey:        myPubkey,
+	swapResponse, err := s.boltzSvc.CreateReverseSwap(boltz.CreateReverseSwapRequest{
+		From:           boltz.Currency("LN"),
+		To:             boltz.Currency("ARK"),
+		InvoiceAmount:  amount,
+		OnchainAmount:  amount,
+		ClaimPublicKey: boltz.HexString(myPubkey),
+		PreimageHash:   boltz.HexString(preimageHash),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to make reverse submarine swap: %v", err)
 	}
 
 	// verify vHTLC
-	senderPubkey, err := parsePubkey(swapResponse.GetRefundPublicKey())
+	senderPubkey, err := parsePubkey(swapResponse.RefundPublicKey)
 	if err != nil {
 		return "", fmt.Errorf("invalid refund pubkey: %v", err)
-	}
-
-	preimageHash, err := hex.DecodeString(swapResponse.GetPreimageHash())
-	if err != nil {
-		return "", fmt.Errorf("invalid preimage hash: %v", err)
 	}
 
 	vhtlcAddress, _, err := s.GetVHTLC(ctx, nil, senderPubkey, preimageHash)
@@ -741,12 +761,12 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
 	}
 
-	if swapResponse.GetLockupAddress() != vhtlcAddress {
+	if swapResponse.LockupAddress != vhtlcAddress {
 		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
 	// pay the invoice
-	preimage, err := s.PayInvoice(ctx, swapResponse.GetInvoice())
+	preimage, err := s.PayInvoice(ctx, swapResponse.Invoice)
 	if err != nil {
 		return "", fmt.Errorf("failed to pay invoice: %v", err)
 	}
@@ -757,11 +777,12 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 	}
 
 	// wait for swap to complete
+	// TODO: use vtxo watch
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		vhtlcs, _, err := s.ListVHTLC(ctx, swapResponse.GetPreimageHash())
+		vhtlcs, _, err := s.ListVHTLC(ctx, ph)
 		if err != nil {
 			continue
 		}
@@ -782,16 +803,13 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 
 // ark -> ln (submarine swap)
 func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (string, error) {
-	boltzClient, err := boltzClient()
-	if err != nil {
-		return "", fmt.Errorf("failed to connect to boltz server: %v", err)
-	}
-
 	// get our pubkey
-	_, _, _, pubkey, err := s.GetAddress(ctx, 0)
+	_, _, _, pk, err := s.GetAddress(ctx, 0)
 	if err != nil {
 		return "", fmt.Errorf("failed to get address: %v", err)
 	}
+
+	myPubkey, _ := hex.DecodeString(pk)
 
 	// generate invoice where to receive funds
 	invoice, preimageHash, err := s.GetInvoice(ctx, amount, "increase inbound capacity", "")
@@ -805,20 +823,18 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 	}
 
 	// make swap
-	swapResponse, err := boltzClient.SubmarineSwap(ctx, &boltz_mockv1.SubmarineSwapRequest{
-		From:            "ARK",
-		To:              "LN",
+	swapResponse, err := s.boltzSvc.CreateSwap(boltz.CreateSwapRequest{
+		From:            boltz.Currency("ARK"),
+		To:              boltz.Currency("LN"),
 		Invoice:         invoice,
-		PreimageHash:    preimageHash,
-		RefundPublicKey: pubkey,
-		InvoiceAmount:   amount,
+		RefundPublicKey: boltz.HexString(myPubkey),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to make submarine swap: %v", err)
 	}
 
 	// verify vHTLC
-	receiverPubkey, err := parsePubkey(swapResponse.GetClaimPublicKey())
+	receiverPubkey, err := parsePubkey(swapResponse.ClaimPublicKey)
 	if err != nil {
 		return "", fmt.Errorf("invalid claim pubkey: %v", err)
 	}
@@ -827,12 +843,12 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
 	}
-	if swapResponse.GetAddress() != address {
+	if swapResponse.Address != address {
 		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
 	// pay to vHTLC address
-	receivers := []arksdk.Receiver{arksdk.NewBitcoinReceiver(swapResponse.GetAddress(), amount)}
+	receivers := []arksdk.Receiver{arksdk.NewBitcoinReceiver(swapResponse.Address, amount)}
 	txid, err := s.SendOffChain(ctx, false, receivers, true)
 	if err != nil {
 		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
@@ -855,25 +871,12 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 	return txid, nil
 }
 
-func boltzClient() (boltz_mockv1.ServiceClient, error) {
-	conn, err := grpc.NewClient(boltzURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, err
-	}
-	return boltz_mockv1.NewServiceClient(conn), nil
-}
-
-func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
+func parsePubkey(pubkey boltz.HexString) (*secp256k1.PublicKey, error) {
 	if len(pubkey) <= 0 {
 		return nil, nil
 	}
 
-	buf, err := hex.DecodeString(pubkey)
-	if err != nil {
-		return nil, fmt.Errorf("pubkey must be encoded in hex format")
-	}
-
-	pk, err := secp256k1.ParsePubKey(buf)
+	pk, err := secp256k1.ParsePubKey(pubkey)
 	if err != nil {
 		return nil, fmt.Errorf("invalid pubkey: %s", err)
 	}
