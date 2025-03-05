@@ -49,6 +49,14 @@ run-bob: clean
 	export ARK_NODE_DATADIR="./tmp"; \
 	go run ./cmd/ark-node
 
+run-cln: clean
+	@echo "Running ark-node in dev mode with CLN support..."
+	@export ARK_NODE_GRPC_PORT=7008; \
+	export ARK_NODE_HTTP_PORT=7009; \
+	export ARK_NODE_DATADIR="./node-cln"; \
+	export ARK_NODE_CLN_DATADIR="~/Library/Application Support/Nigiri/volumes/lightningd/regtest/"; \
+	go run ./cmd/ark-node
+
 ## test: runs unit and component tests
 test:
 	@echo "Running unit tests..."
@@ -61,12 +69,11 @@ vet:
 	
 	
 ## proto: compile proto stubs
-proto: proto-lint
+proto:
 	@echo "Compiling stubs..."
 	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf generate
 
 ## proto-lint: lint protos
 proto-lint:
 	@echo "Linting protos..."
-	@docker build -q -t buf -f buf.Dockerfile . &> /dev/null
-	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf lint
+	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf lint --exclude-path ./api-spec/protobuf/cln

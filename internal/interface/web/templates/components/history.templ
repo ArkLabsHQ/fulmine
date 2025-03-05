@@ -1,11 +1,10 @@
-package pages
+package components
 
 import (
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
 )
 
-func HistoryIcon(kind, status string) templ.Component {
+func ShowTxIcon(kind, status string) templ.Component {
 	if status == "pending" {
 		return PendingIcon()
 	}
@@ -14,13 +13,13 @@ func HistoryIcon(kind, status string) templ.Component {
 	}
 	switch kind {
     case "received":
-        return ReceivedIcon()
+        return TxReceivedIcon()
     case "sent":
-        return SentIcon()
+        return TxSentIcon()
     case "swap":
-        return SwapIcon()
+        return TxSwapIcon()
     default:
-        return SwapIcon()
+        return TxSwapIcon()
   }
 }
 
@@ -32,7 +31,7 @@ templ PendingIcon() {
 	</div>
 }
 
-templ ReceivedIcon() {
+templ TxReceivedIcon() {
 	<div class="flex items-center w-8 h-8 bg-greenbg/10 rounded-full mr-2">
 	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-green" viewBox="0 0 24 24">
       <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2">
@@ -43,7 +42,7 @@ templ ReceivedIcon() {
 	</div>
 }
 
-templ SentIcon() {
+templ TxSentIcon() {
 	<div class="flex items-center w-8 h-8 bg-redbg/10 rounded-full mr-2">
 	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-red" viewBox="0 0 24 24">
       <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2">
@@ -54,7 +53,7 @@ templ SentIcon() {
 	</div>
 }
 
-templ SwapIcon() {
+templ TxSwapIcon() {
 	<div class="flex items-center w-8 h-8 bg-white/10 rounded-full mr-2">
 	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-white" viewBox="0 0 21 21">
       <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
@@ -78,7 +77,7 @@ templ HistoryLine(tx types.Transaction) {
 	<div txid={tx.Txid} onclick="showTx(this)">
 	  <div class="flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10" >
 	  	<div class="flex w-64">
-	  	  @HistoryIcon(tx.Kind, tx.Status)
+	  	  @ShowTxIcon(tx.Kind, tx.Status)
 				if tx.UnixDate != 0 {
 	  	    <p class="leading-4">{tx.Day}<br /><span class="text-white/50">{tx.Hour}</span></p>
 				}
@@ -141,19 +140,12 @@ templ HistoryEmpty() {
 	</div>
 }
 
-templ HistoryBodyContent(currentBalance, arkAddress string, transactions []types.Transaction, online bool) {
-	@components.Hero(arkAddress, currentBalance, online)
+templ HistoryBodyContent(transactions []types.Transaction) {
 	if len(transactions) == 0 {
     @HistoryEmpty()
 	} else {
 	  for _, tx := range transactions {
 	  	@HistoryLine(tx)
 	  }
-	  <script>
-	    const showTx = (el) => {
-	  		const txid = el.getAttribute("txid")
-	  		if (txid) redirect(`/tx/${txid}`)
-	  	}
-	  </script>
 	}
 }

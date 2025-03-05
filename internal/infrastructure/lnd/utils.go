@@ -16,8 +16,8 @@ import (
 )
 
 // decodes lndconnect:// url into cert, macaroon and host
-func decodeLNDConnectUrl(lndconnectUrl string) (cp *x509.CertPool, macaroon string, host string, err error) {
-	u, err := url.Parse(lndconnectUrl)
+func decodeLNDConnectUrl(lndConnectUrl string) (cp *x509.CertPool, macaroon string, host string, err error) {
+	u, err := url.Parse(lndConnectUrl)
 	if err != nil {
 		return
 	}
@@ -44,9 +44,9 @@ func decodeLNDConnectUrl(lndconnectUrl string) (cp *x509.CertPool, macaroon stri
 	return
 }
 
-func getClient(lndconnectUrl string) (client lnrpc.LightningClient, conn *grpc.ClientConn, macaroon string, err error) {
+func getClient(lndConnectUrl string) (client lnrpc.LightningClient, conn *grpc.ClientConn, macaroon string, err error) {
 	// decode url
-	cert, macaroon, host, err := decodeLNDConnectUrl(lndconnectUrl)
+	cert, macaroon, host, err := decodeLNDConnectUrl(lndConnectUrl)
 	if err != nil {
 		return
 	}
@@ -60,8 +60,8 @@ func getClient(lndconnectUrl string) (client lnrpc.LightningClient, conn *grpc.C
 	return lnrpc.NewLightningClient(conn), conn, macaroon, nil
 }
 
-func getCtx(macaroon string) context.Context {
-	return metadata.AppendToOutgoingContext(context.Background(), "macaroon", macaroon)
+func getCtx(ctx context.Context, macaroon string) context.Context {
+	return metadata.AppendToOutgoingContext(ctx, "macaroon", macaroon)
 }
 
 // padBase64 adds '=' characters to the end of the input

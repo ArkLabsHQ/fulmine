@@ -26,7 +26,7 @@ jobs:
           args: '-confidence medium -severity high -quiet ./...'
       - uses: bufbuild/buf-setup-action@v1.47.2
       - name: check proto linting
-        run: buf lint
+        run: buf lint --exclude-path ./api-spec/protobuf/cln
       - run: go get -v -t -d ./...
       - name: unit testing
         run: make test

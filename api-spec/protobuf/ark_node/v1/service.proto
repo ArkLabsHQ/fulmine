@@ -64,11 +64,49 @@ service Service {
       body: "*"
     };
   };
+  // CreateVHTLCAddress computes a VHTLC address
+  rpc CreateVHTLC(CreateVHTLCRequest) returns (CreateVHTLCResponse) {
+    option (google.api.http) = {
+      post: "/v1/vhtlc"
+      body: "*"
+    };
+  };
+  // ClaimVHTLC = self send vHTLC -> VTXO
+  rpc ClaimVHTLC(ClaimVHTLCRequest) returns (ClaimVHTLCResponse) {
+    option (google.api.http) = {
+      post: "/v1/vhtlc/claim"
+      body: "*"
+    };
+  };
+  // ListVHTLC = list all vhtlc OR filter by preimage_hash
+  rpc ListVHTLC(ListVHTLCRequest) returns (ListVHTLCResponse) {
+    option (google.api.http) = {
+      get: "/v1/vhtlc"
+    };
+  };
+  rpc CreateInvoice(CreateInvoiceRequest) returns (CreateInvoiceResponse) {
+    option (google.api.http) = {
+      post: "/v1/invoice"
+      body: "*"
+    };
+  }
+  rpc PayInvoice(PayInvoiceRequest) returns (PayInvoiceResponse) {
+    option (google.api.http) = {
+      post: "/v1/invoice/pay"
+      body: "*"
+    };
+  }
+  rpc IsInvoiceSettled(IsInvoiceSettledRequest) returns (IsInvoiceSettledResponse) {
+    option (google.api.http) = {
+      get: "/v1/invoice/status"
+    };
+  }
 }
 
 message GetAddressRequest {}
 message GetAddressResponse {
   string address = 1;
+  string pubkey = 2;
 }
 
 message GetBalanceRequest {}
@@ -123,7 +161,7 @@ message SendOffChainRequest {
   uint64 amount = 2;
 }
 message SendOffChainResponse {
-  string round_id = 1;
+  string txid = 1;
 }
 
 message SendOnChainRequest {
@@ -132,4 +170,70 @@ message SendOnChainRequest {
 }
 message SendOnChainResponse {
   string txid = 1;
+}
+
+message CreateVHTLCRequest {
+  string preimage_hash = 1;
+  string sender_pubkey = 2; 
+  string receiver_pubkey = 3; 
+}
+message CreateVHTLCResponse {
+  string address = 1;
+  string claim_pubkey = 2;
+  string refund_pubkey = 3;
+  string server_pubkey = 4;
+  TaprootTree swap_tree = 5;
+}
+
+message ClaimVHTLCRequest {
+  string preimage = 1;
+}
+message ClaimVHTLCResponse {
+  string redeem_txid = 1;
+}
+
+message ListVHTLCRequest {
+  string preimage_hash_filter = 1;
+}
+message ListVHTLCResponse {
+  repeated Vtxo vhtlcs = 1;
+}
+
+message CreateInvoiceRequest {
+  uint64 amount = 1;
+  string memo = 2;
+  string preimage = 3;
+}
+message CreateInvoiceResponse {
+  string invoice = 1;
+  string preimage_hash = 2;
+}
+
+message PayInvoiceRequest {
+  string invoice = 1;
+}
+message PayInvoiceResponse {
+  string preimage = 1;
+}
+
+message TaprootTree {
+  TaprootLeaf claim_leaf = 1;
+  TaprootLeaf refund_leaf = 2;
+  TaprootLeaf refund_without_boltz_leaf = 3;
+  TaprootLeaf unilateral_claim_leaf = 4;
+  TaprootLeaf unilateral_refund_leaf = 5;
+  TaprootLeaf unilateral_refund_without_boltz_leaf = 6;
+}
+
+message TaprootLeaf {
+  int32 version = 1;
+  string output = 2;
+}
+
+message IsInvoiceSettledRequest {
+  string invoice = 1;
+}
+
+message IsInvoiceSettledResponse {
+  bool settled = 1;
 }

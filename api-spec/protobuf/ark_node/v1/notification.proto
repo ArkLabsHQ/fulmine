@@ -3,12 +3,38 @@ syntax = "proto3";
 package ark_node.v1;
 
 import "ark_node/v1/types.proto";
+import "google/api/annotations.proto";
 
 // NotificationService is used to get notification about wallet events.
 // It offers 2 way of getting notified about events: with the help of grpc 
 // server-side stream or by subscribing webhooks invoked whenever an event 
 // occurs.
 service NotificationService {
+  //**************//
+  //   PUB-SUB    //
+  //**************//
+
+  // SubscribeForAddresses subscribes for notifications for given addresses
+  rpc SubscribeForAddresses(SubscribeForAddressesRequest) returns (SubscribeForAddressesResponse) {
+    option (google.api.http) = {
+      post: "/v1/subscribe"
+      body: "*"
+    };
+  };
+  // UnsubscribeForAddresses unsubscribes from notifications for given addresses
+  rpc UnsubscribeForAddresses(UnsubscribeForAddressesRequest) returns (UnsubscribeForAddressesResponse) {
+    option (google.api.http) = {
+      post: "/v1/unsubscribe" 
+      body: "*"
+    };
+  };
+  // GetVtxoNotifications streams notifications for subscribed addresses
+  rpc GetVtxoNotifications(GetVtxoNotificationsRequest) returns (stream GetVtxoNotificationsResponse) {
+    option (google.api.http) = {
+      get: "/v1/notifications"
+    };
+  };
+
   //**************//
   //   STREAMS    //
   //**************//
@@ -28,6 +54,22 @@ service NotificationService {
 
   // Returns registered webhooks.
   rpc ListWebhooks(ListWebhooksRequest) returns(ListWebhooksResponse);
+}
+
+message SubscribeForAddressesRequest {
+  repeated string addresses = 1;
+}
+message SubscribeForAddressesResponse {}
+
+message UnsubscribeForAddressesRequest {
+  repeated string addresses = 1;
+}
+message UnsubscribeForAddressesResponse {}
+
+message GetVtxoNotificationsRequest {}
+
+message GetVtxoNotificationsResponse {
+  Notification notification = 1;
 }
 
 message RoundNotificationsRequest{}

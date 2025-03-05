@@ -3,12 +3,10 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
 	"github.com/ArkLabsHQ/ark-node/utils"
-	"github.com/nbd-wtf/go-nostr/nip19"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -119,41 +117,4 @@ func (h *walletHandler) Auth(
 	ctx context.Context, req *pb.AuthRequest,
 ) (*pb.AuthResponse, error) {
 	return nil, fmt.Errorf("not implemented")
-}
-
-func parseServerUrl(a string) (string, error) {
-	if len(a) == 0 {
-		return "", fmt.Errorf("missing server url")
-	}
-	if !utils.IsValidURL(a) {
-		return "", fmt.Errorf("invalid server url")
-	}
-	return a, nil
-}
-
-func parsePassword(p string) (string, error) {
-	if len(p) == 0 {
-		return "", fmt.Errorf("missing password")
-	}
-	if err := utils.IsValidPassword(p); err != nil {
-		return "", err
-	}
-	return p, nil
-}
-
-func parsePrivateKey(sk string) (string, error) {
-	if len(sk) == 0 {
-		return "", fmt.Errorf("missing private key")
-	}
-	if strings.HasPrefix(sk, "nsec") {
-		_, seed, err := nip19.Decode(sk)
-		if err != nil {
-			return "", err
-		}
-		sk = fmt.Sprint(seed)
-	}
-	if err := utils.IsValidPrivateKey(sk); err != nil {
-		return "", err
-	}
-	return sk, nil
 }

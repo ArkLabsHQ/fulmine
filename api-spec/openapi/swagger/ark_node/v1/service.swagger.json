@@ -85,6 +85,100 @@
         ]
       }
     },
+    "/v1/invoice": {
+      "post": {
+        "operationId": "Service_CreateInvoice",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CreateInvoiceResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateInvoiceRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v1/invoice/pay": {
+      "post": {
+        "operationId": "Service_PayInvoice",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PayInvoiceResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1PayInvoiceRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v1/invoice/status": {
+      "get": {
+        "operationId": "Service_IsInvoiceSettled",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1IsInvoiceSettledResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "invoice",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/note/redeem": {
       "post": {
         "summary": "Redeems an ark note by joining a round",
@@ -270,6 +364,101 @@
           "Service"
         ]
       }
+    },
+    "/v1/vhtlc": {
+      "get": {
+        "summary": "ListVHTLC = list all vhtlc OR filter by preimage_hash",
+        "operationId": "Service_ListVHTLC",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListVHTLCResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "preimageHashFilter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      },
+      "post": {
+        "summary": "CreateVHTLCAddress computes a VHTLC address",
+        "operationId": "Service_CreateVHTLC",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CreateVHTLCResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateVHTLCRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v1/vhtlc/claim": {
+      "post": {
+        "summary": "ClaimVHTLC = self send vHTLC -\u003e VTXO",
+        "operationId": "Service_ClaimVHTLC",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ClaimVHTLCResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ClaimVHTLCRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
     }
   },
   "definitions": {
@@ -342,10 +531,89 @@
         }
       }
     },
+    "v1ClaimVHTLCRequest": {
+      "type": "object",
+      "properties": {
+        "preimage": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ClaimVHTLCResponse": {
+      "type": "object",
+      "properties": {
+        "redeemTxid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateInvoiceRequest": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "memo": {
+          "type": "string"
+        },
+        "preimage": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateInvoiceResponse": {
+      "type": "object",
+      "properties": {
+        "invoice": {
+          "type": "string"
+        },
+        "preimageHash": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateVHTLCRequest": {
+      "type": "object",
+      "properties": {
+        "preimageHash": {
+          "type": "string"
+        },
+        "senderPubkey": {
+          "type": "string"
+        },
+        "receiverPubkey": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateVHTLCResponse": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "claimPubkey": {
+          "type": "string"
+        },
+        "refundPubkey": {
+          "type": "string"
+        },
+        "serverPubkey": {
+          "type": "string"
+        },
+        "swapTree": {
+          "$ref": "#/definitions/v1TaprootTree"
+        }
+      }
+    },
     "v1GetAddressResponse": {
       "type": "object",
       "properties": {
         "address": {
+          "type": "string"
+        },
+        "pubkey": {
           "type": "string"
         }
       }
@@ -413,6 +681,38 @@
         }
       }
     },
+    "v1Input": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        },
+        "vout": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "v1IsInvoiceSettledResponse": {
+      "type": "object",
+      "properties": {
+        "settled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1ListVHTLCResponse": {
+      "type": "object",
+      "properties": {
+        "vhtlcs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Vtxo"
+          }
+        }
+      }
+    },
     "v1Node": {
       "type": "object",
       "properties": {
@@ -423,6 +723,34 @@
           "type": "string"
         },
         "parentTxid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1Output": {
+      "type": "object",
+      "properties": {
+        "pubkey": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1PayInvoiceRequest": {
+      "type": "object",
+      "properties": {
+        "invoice": {
+          "type": "string"
+        }
+      }
+    },
+    "v1PayInvoiceResponse": {
+      "type": "object",
+      "properties": {
+        "preimage": {
           "type": "string"
         }
       }
@@ -492,7 +820,7 @@
     "v1SendOffChainResponse": {
       "type": "object",
       "properties": {
-        "roundId": {
+        "txid": {
           "type": "string"
         }
       }
@@ -514,6 +842,41 @@
       "properties": {
         "txid": {
           "type": "string"
+        }
+      }
+    },
+    "v1TaprootLeaf": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "output": {
+          "type": "string"
+        }
+      }
+    },
+    "v1TaprootTree": {
+      "type": "object",
+      "properties": {
+        "claimLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "refundLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "refundWithoutBoltzLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "unilateralClaimLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "unilateralRefundLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "unilateralRefundWithoutBoltzLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
         }
       }
     },
@@ -576,6 +939,27 @@
         "TX_TYPE_RECEIVED"
       ],
       "default": "TX_TYPE_UNSPECIFIED"
+    },
+    "v1Vtxo": {
+      "type": "object",
+      "properties": {
+        "outpoint": {
+          "$ref": "#/definitions/v1Input"
+        },
+        "receiver": {
+          "$ref": "#/definitions/v1Output"
+        },
+        "roundTxid": {
+          "type": "string"
+        },
+        "spentBy": {
+          "type": "string"
+        },
+        "expireAt": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
     }
   }
 }

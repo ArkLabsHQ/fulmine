@@ -22,8 +22,9 @@
   "dependencies": {
     "@tailwindcss/forms": "latest",
     "@tailwindcss/typography": "latest",
-    "tailwindcss": "latest",
-    "htmx.org": "latest"
+    "htmx-ext-sse": "^2.2.3",
+    "htmx.org": "latest",
+    "tailwindcss": "latest"
   },
   "devDependencies": {
     "@parcel/transformer-sass": "latest",

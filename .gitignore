@@ -15,6 +15,7 @@
 /dist/
 /storage/
 /tmp/
+/.idea
 
 DS_Store
 ._.DS_Store
@@ -22,3 +23,5 @@ DS_Store
 **/._.DS_Store
   
 .vscode
+
+/node-cln/

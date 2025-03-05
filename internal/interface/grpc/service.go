@@ -28,12 +28,18 @@ type service struct {
 	appSvc     *application.Service
 	httpServer *http.Server
 	grpcServer *grpc.Server
+
+	appStopCh chan struct{}
+	feStopCh  chan struct{}
 }
 
 func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %s", err)
 	}
+
+	appStopCh := make(chan struct{}, 1)
+	feStopCh := make(chan struct{}, 1)
 
 	grpcConfig := []grpc.ServerOption{
 		interceptors.UnaryInterceptor(),
@@ -56,7 +62,7 @@ func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 	serviceHandler := handlers.NewServiceHandler(appSvc)
 	pb.RegisterServiceServer(grpcServer, serviceHandler)
 
-	notificationHandler := handlers.NewNotificationHandler()
+	notificationHandler := handlers.NewNotificationHandler(appSvc, appStopCh)
 	pb.RegisterNotificationServiceServer(grpcServer, notificationHandler)
 
 	healthHandler := handlers.NewHealthHandler()
@@ -99,8 +105,13 @@ func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 	); err != nil {
 		return nil, err
 	}
+	if err := pb.RegisterNotificationServiceHandler(
+		ctx, gwmux, conn,
+	); err != nil {
+		return nil, err
+	}
 
-	feHandler := web.NewService(appSvc)
+	feHandler := web.NewService(appSvc, feStopCh)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", feHandler)
@@ -118,7 +129,7 @@ func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 		TLSConfig: cfg.tlsConfig(),
 	}
 
-	return &service{cfg, appSvc, httpServer, grpcServer}, nil
+	return &service{cfg, appSvc, httpServer, grpcServer, appStopCh, feStopCh}, nil
 }
 
 func (s *service) Start() error {
@@ -143,6 +154,9 @@ func (s *service) Start() error {
 }
 
 func (s *service) Stop() {
+	s.appStopCh <- struct{}{}
+	s.feStopCh <- struct{}{}
+
 	s.grpcServer.GracefulStop()
 	log.Info("stopped grpc server")
 	// nolint:all

@@ -87,6 +87,28 @@ func (s *service) done(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
+func (s *service) events(c *gin.Context) {
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+
+	channel := s.svc.GetTransactionEventChannel(c.Request.Context())
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		case <-c.Request.Context().Done():
+			return
+		case event, ok := <-channel:
+			if !ok {
+				return
+			}
+			c.SSEvent(event.Type.String(), event)
+			c.Writer.Flush()
+		}
+	}
+}
+
 func (s *service) forgot(c *gin.Context) {
 	if err := s.svc.Reset(c); err != nil {
 		toast := components.Toast("Unable to delete previous wallet", true)
@@ -118,9 +140,9 @@ func (s *service) index(c *gin.Context) {
 			if err != nil {
 				log.WithError(err).Warn("failed to get tx history")
 			}
-			s.logVtxos(c) // TODO: remove
-			bodyContent = pages.HistoryBodyContent(
-				spendableBalance, offchainAddr, txHistory, isOnline,
+
+			bodyContent = pages.IndexBodyContent(
+				spendableBalance, offchainAddr, txHistory, isOnline, s.svc.IsConnectedLN(),
 			)
 		}
 	}
@@ -264,7 +286,7 @@ func (s *service) receiveQrCode(c *gin.Context) {
 			return
 		}
 	}
-	bip21, _, _, err := s.svc.GetAddress(c, sats)
+	bip21, _, _, _, err := s.svc.GetAddress(c, sats)
 	if err != nil {
 		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -375,7 +397,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsValidArkAddress(address) {
-		txId, err = s.svc.SendOffChain(c, false, receivers)
+		txId, err = s.svc.SendOffChain(c, false, receivers, true)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
@@ -384,7 +406,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsValidBtcAddress(address) {
-		txId, err = s.svc.SendOnChain(c, receivers)
+		txId, err = s.svc.CollaborativeExit(c, address, value, false)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
@@ -456,6 +478,10 @@ func (s *service) setPrivateKey(c *gin.Context) {
 }
 
 func (s *service) settings(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
 	settings, err := s.svc.GetSettings(c)
 	if err != nil {
 		// nolint:all
@@ -481,7 +507,7 @@ func (s *service) swap(c *gin.Context) {
 		return
 	}
 
-	bodyContent := pages.SwapBodyContent(spendableBalance, s.getNodeBalance())
+	bodyContent := pages.SwapBodyContent(spendableBalance, s.getNodeBalance(c))
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -489,7 +515,7 @@ func (s *service) swapActive(c *gin.Context) {
 	active := c.Param("active")
 	var balance string
 	if active == "inbound" {
-		balance = s.getNodeBalance()
+		balance = s.getNodeBalance(c)
 	} else {
 		spendableBalance, err := s.getSpendableBalance(c)
 		if err != nil {
@@ -507,17 +533,44 @@ func (s *service) swapConfirm(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
 	}
+
 	data, err := s.svc.GetConfigData(c)
 	if err != nil {
 		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
+
 	kind := c.PostForm("kind")
 	sats := c.PostForm("sats")
 	explorerUrl := getExplorerUrl(data.Network.Name)
 
-	bodyContent := pages.SwapSuccessContent(kind, sats, "TODO", explorerUrl)
+	satsUint64, err := strconv.ParseUint(sats, 10, 64)
+	if err != nil {
+		toast := components.Toast("Invalid amount", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	txid := ""
+
+	if kind == "inbound" {
+		txid, err = s.svc.IncreaseInboundCapacity(c, satsUint64)
+		if err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+	} else {
+		txid, err = s.svc.IncreaseOutboundCapacity(c, satsUint64)
+		if err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+	}
+
+	bodyContent := pages.SwapSuccessContent(kind, sats, txid, explorerUrl)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -574,12 +627,26 @@ func (s *service) getTx(c *gin.Context) {
 	explorerUrl := getExplorerUrl(data.Network.Name)
 
 	var bodyContent templ.Component
-	if tx.Status == "pending" {
+	if len(tx.Txid) == 0 {
+		bodyContent = pages.TxNotFoundContent()
+	} else if tx.Status == "pending" {
 		bodyContent = pages.TxPendingContent(tx, nextClaim)
 	} else {
 		bodyContent = pages.TxBodyContent(tx, explorerUrl)
 	}
 	s.pageViewHandler(bodyContent, c)
+}
+
+func (s *service) getTxs(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	txHistory, err := s.getTxHistory(c)
+	if err != nil {
+		log.WithError(err).Warn("failed to get tx history")
+	}
+	bodyContent := components.HistoryBodyContent(txHistory)
+	partialViewHandler(bodyContent, c)
 }
 
 func (s *service) welcome(c *gin.Context) {
@@ -611,39 +678,15 @@ func (s *service) getSpendableBalance(c *gin.Context) (string, error) {
 	), nil
 }
 
-func (s *service) getNodeBalance() string {
-	return "50640" // TODO
-}
-
-func (s *service) logVtxos(c *gin.Context) {
-	spendableVtxos, spentVtxos, err := s.svc.ListVtxos(c)
-	if err != nil {
-		return
+func (s *service) getNodeBalance(c *gin.Context) string {
+	if s.svc.IsConnectedLN() {
+		msats, err := s.svc.GetBalanceLN(c)
+		if err == nil {
+			sats := msats / 1000
+			return strconv.FormatUint(sats, 10)
+		}
 	}
-
-	log.Info("spendableVtxos")
-	for _, v := range spendableVtxos {
-		log.Info("---------")
-		log.Infof("Amount %d", v.Amount)
-		log.Infof("ExpiresAt %v", v.ExpiresAt)
-		log.Infof("IsPending %v", v.IsPending)
-		log.Infof("RoundTxid %v", v.RoundTxid)
-		log.Infof("Txid %v", v.Txid)
-		log.Infof("SpentBy %v", v.SpentBy)
-		log.Info("---------")
-	}
-
-	log.Info("spentVtxos")
-	for _, v := range spentVtxos {
-		log.Info("---------")
-		log.Infof("Amount %d", v.Amount)
-		log.Infof("ExpiresAt %v", v.ExpiresAt)
-		log.Infof("IsPending %v", v.IsPending)
-		log.Infof("RoundTxid %v", v.RoundTxid)
-		log.Infof("Txid %v", v.Txid)
-		log.Infof("SpentBy %v", v.SpentBy)
-		log.Info("---------")
-	}
+	return "0"
 }
 
 func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction, err error) {
@@ -666,7 +709,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		// date of creation
 		dateCreated := tx.CreatedAt.Unix()
 		// TODO: use tx.ExpiresAt when it will be available
-		expiresAt := tx.CreatedAt.Unix() + int64(data.RoundLifetime.Value)
+		expiresAt := tx.CreatedAt.Unix() + int64(data.VtxoTreeExpiry.Value)
 		// status of tx
 		status := "pending"
 		if tx.Settled {
@@ -702,9 +745,6 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			UnixDate:   dateCreated,
 		})
 	}
-
-	log.Infof("history %v", history)
-	log.Infof("transactions %+v", transactions)
 	return
 }
 
@@ -744,4 +784,46 @@ func (s *service) seedInfoModal(c *gin.Context) {
 	}
 	info := modals.SeedInfo(seed)
 	modalHandler(info, c)
+}
+
+func (s *service) claimTx(c *gin.Context) {
+	data, err := s.svc.GetConfigData(c)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	txHistory, err := s.getTxHistory(c)
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	txid := c.Param("txid")
+	var tx types.Transaction
+	for _, transaction := range txHistory {
+		if transaction.Txid == txid {
+			tx = transaction
+			break
+		}
+	}
+
+	if len(tx.Txid) == 0 {
+		toast := components.Toast("transaction not found", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	if _, err := s.svc.ClaimPending(c); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	tx.Status = "success"
+
+	partial := components.Tx(tx, getExplorerUrl(data.Network.Name))
+	partialViewHandler(partial, c)
 }

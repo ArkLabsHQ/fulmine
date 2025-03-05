@@ -1,11 +1,17 @@
 package db_test
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"testing"
 
 	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
 	badgerdb "github.com/ArkLabsHQ/ark-node/internal/infrastructure/db/badger"
+	"github.com/ArkLabsHQ/ark-node/pkg/vhtlc"
+	"github.com/ark-network/ark/common"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,6 +21,13 @@ var (
 			return badgerdb.NewSettingsRepo("", nil)
 		},
 	}
+
+	vhtlcDbs = map[string]func() (domain.VHTLCRepository, error){
+		"badger": func() (domain.VHTLCRepository, error) {
+			return badgerdb.NewVHTLCRepo("", nil)
+		},
+	}
+
 	testSettings = domain.Settings{
 		ApiRoot:     "apiroot",
 		ServerUrl:   "serverurl",
@@ -24,6 +37,35 @@ var (
 		LnUrl:       "lndconnect",
 		Unit:        "unit",
 	}
+
+	testVHTLC = func() vhtlc.Opts {
+		randBytes := make([]byte, 20)
+		_, _ = rand.Read(randBytes)
+
+		serverKey, _ := secp256k1.GeneratePrivateKey()
+		senderKey, _ := secp256k1.GeneratePrivateKey()
+		receiverKey, _ := secp256k1.GeneratePrivateKey()
+
+		return vhtlc.Opts{
+			PreimageHash:   randBytes,
+			Sender:         senderKey.PubKey(),
+			Receiver:       receiverKey.PubKey(),
+			Server:         serverKey.PubKey(),
+			RefundLocktime: common.AbsoluteLocktime(100 * 600),
+			UnilateralClaimDelay: common.RelativeLocktime{
+				Type:  common.LocktimeTypeBlock,
+				Value: 300,
+			},
+			UnilateralRefundDelay: common.RelativeLocktime{
+				Type:  common.LocktimeTypeBlock,
+				Value: 400,
+			},
+			UnilateralRefundWithoutReceiverDelay: common.RelativeLocktime{
+				Type:  common.LocktimeTypeBlock,
+				Value: 500,
+			},
+		}
+	}()
 )
 
 func TestSettingsRepo(t *testing.T) {
@@ -134,6 +176,110 @@ func getSettingsRepos() ([]settingsDb, error) {
 			return nil, err
 		}
 		repos = append(repos, settingsDb{dbName, repo})
+	}
+	return repos, nil
+}
+
+func TestVHTLCRepo(t *testing.T) {
+	repos, err := getVHTLCRepos()
+	require.NoError(t, err)
+
+	for _, v := range repos {
+		t.Parallel()
+
+		t.Run(v.name, func(t *testing.T) {
+			testAddVHTLC(t, v.repo)
+			testGetVHTLC(t, v.repo)
+			testGetAllVHTLC(t, v.repo)
+			testDeleteVHTLC(t, v.repo)
+		})
+	}
+}
+
+func testAddVHTLC(t *testing.T, repo domain.VHTLCRepository) {
+	t.Run("add vHTLC", func(t *testing.T) {
+		ctx := context.Background()
+
+		// Add new vHTLC
+		err := repo.Add(ctx, testVHTLC)
+		require.NoError(t, err)
+
+		// Verify Get returns the added vHTLC
+		opt, err := repo.Get(ctx, hex.EncodeToString(testVHTLC.PreimageHash))
+		require.NoError(t, err)
+		require.NotNil(t, opt)
+		require.Equal(t, testVHTLC, *opt)
+	})
+}
+
+func testGetVHTLC(t *testing.T, repo domain.VHTLCRepository) {
+	t.Run("get vHTLC", func(t *testing.T) {
+		ctx := context.Background()
+
+		// Get non-existent vHTLC
+		opt, err := repo.Get(ctx, "non_existent_hash")
+		require.Error(t, err)
+		require.Nil(t, opt)
+	})
+}
+
+func testGetAllVHTLC(t *testing.T, repo domain.VHTLCRepository) {
+	t.Run("get all vHTLC", func(t *testing.T) {
+		ctx := context.Background()
+
+		// Add another vHTLC
+		secondVHTLC := testVHTLC
+		secondVHTLC.PreimageHash = []byte("second_preimage_hash")
+		err := repo.Add(ctx, secondVHTLC)
+		require.NoError(t, err)
+
+		// Get all vHTLCs
+		opts, err := repo.GetAll(ctx)
+		require.NoError(t, err)
+		require.Len(t, opts, 2)
+
+		// Verify both vHTLCs are present
+		found := 0
+		for _, opt := range opts {
+			if bytes.Equal(opt.PreimageHash, testVHTLC.PreimageHash) || bytes.Equal(opt.PreimageHash, secondVHTLC.PreimageHash) {
+				found++
+			}
+		}
+		require.Equal(t, 2, found)
+	})
+}
+
+func testDeleteVHTLC(t *testing.T, repo domain.VHTLCRepository) {
+	t.Run("delete vHTLC", func(t *testing.T) {
+		ctx := context.Background()
+
+		// Delete existing vHTLC
+		err := repo.Delete(ctx, hex.EncodeToString(testVHTLC.PreimageHash))
+		require.NoError(t, err)
+
+		// Verify it was deleted
+		opt, err := repo.Get(ctx, hex.EncodeToString(testVHTLC.PreimageHash))
+		require.Error(t, err)
+		require.Nil(t, opt)
+
+		err = repo.Delete(ctx, "non_existent_hash")
+		require.Error(t, err)
+	})
+}
+
+type vhtlcDb struct {
+	name string
+	repo domain.VHTLCRepository
+}
+
+func getVHTLCRepos() ([]vhtlcDb, error) {
+	var repos []vhtlcDb
+	for dbName, factory := range vhtlcDbs {
+		repo, err := factory()
+		if err != nil {
+			return nil, err
+		}
+		repos = append(repos, vhtlcDb{dbName, repo})
 	}
 	return repos, nil
 }

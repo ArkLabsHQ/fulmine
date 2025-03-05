@@ -15,7 +15,106 @@
   "produces": [
     "application/json"
   ],
-  "paths": {},
+  "paths": {
+    "/v1/notifications": {
+      "get": {
+        "summary": "GetVtxoNotifications streams notifications for subscribed addresses",
+        "operationId": "NotificationService_GetVtxoNotifications",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/v1GetVtxoNotificationsResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of v1GetVtxoNotificationsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "NotificationService"
+        ]
+      }
+    },
+    "/v1/subscribe": {
+      "post": {
+        "summary": "SubscribeForAddresses subscribes for notifications for given addresses",
+        "operationId": "NotificationService_SubscribeForAddresses",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SubscribeForAddressesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SubscribeForAddressesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "NotificationService"
+        ]
+      }
+    },
+    "/v1/unsubscribe": {
+      "post": {
+        "summary": "UnsubscribeForAddresses unsubscribes from notifications for given addresses",
+        "operationId": "NotificationService_UnsubscribeForAddresses",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UnsubscribeForAddressesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UnsubscribeForAddressesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "NotificationService"
+        ]
+      }
+    }
+  },
   "definitions": {
     "protobufAny": {
       "type": "object",
@@ -70,6 +169,26 @@
         }
       }
     },
+    "v1GetVtxoNotificationsResponse": {
+      "type": "object",
+      "properties": {
+        "notification": {
+          "$ref": "#/definitions/v1Notification"
+        }
+      }
+    },
+    "v1Input": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        },
+        "vout": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
     "v1ListWebhooksResponse": {
       "type": "object",
       "properties": {
@@ -80,6 +199,40 @@
             "$ref": "#/definitions/v1WebhookInfo"
           },
           "description": "The list of info about the webhooks regitered for an action."
+        }
+      }
+    },
+    "v1Notification": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "newVtxos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Vtxo"
+          }
+        },
+        "spentVtxos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Vtxo"
+          }
+        }
+      }
+    },
+    "v1Output": {
+      "type": "object",
+      "properties": {
+        "pubkey": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64"
         }
       }
     },
@@ -110,6 +263,55 @@
         },
         "blockDetails": {
           "$ref": "#/definitions/v1BlockDetails"
+        }
+      }
+    },
+    "v1SubscribeForAddressesRequest": {
+      "type": "object",
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1SubscribeForAddressesResponse": {
+      "type": "object"
+    },
+    "v1UnsubscribeForAddressesRequest": {
+      "type": "object",
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1UnsubscribeForAddressesResponse": {
+      "type": "object"
+    },
+    "v1Vtxo": {
+      "type": "object",
+      "properties": {
+        "outpoint": {
+          "$ref": "#/definitions/v1Input"
+        },
+        "receiver": {
+          "$ref": "#/definitions/v1Output"
+        },
+        "roundTxid": {
+          "type": "string"
+        },
+        "spentBy": {
+          "type": "string"
+        },
+        "expireAt": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
