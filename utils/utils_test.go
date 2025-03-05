@@ -88,17 +88,18 @@ func testSecrets(t *testing.T) {
 		err = utils.IsValidMnemonic(mnemonic)
 		require.NoError(t, err)
 
-		err = utils.IsValidPassword("abc")
-		require.Error(t, err)
-		require.ErrorContains(t, err, "too short")
+		// TODO: enable when password validation is enabled
+		// err = utils.IsValidPassword("abc")
+		// require.Error(t, err)
+		// require.ErrorContains(t, err, "too short")
 
-		err = utils.IsValidPassword("abcdefgh")
-		require.Error(t, err)
-		require.ErrorContains(t, err, "must have a number")
+		// err = utils.IsValidPassword("abcdefgh")
+		// require.Error(t, err)
+		// require.ErrorContains(t, err, "must have a number")
 
-		err = utils.IsValidPassword("12345678")
-		require.Error(t, err)
-		require.ErrorContains(t, err, "must have a special character")
+		// err = utils.IsValidPassword("12345678")
+		// require.Error(t, err)
+		// require.ErrorContains(t, err, "must have a special character")
 
 		err = utils.IsValidPassword("12345678!")
 		require.NoError(t, err)
