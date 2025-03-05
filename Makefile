@@ -76,4 +76,4 @@ proto:
 ## proto-lint: lint protos
 proto-lint:
 	@echo "Linting protos..."
-	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf lint
+	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf lint --exclude-path ./api-spec/protobuf/cln
