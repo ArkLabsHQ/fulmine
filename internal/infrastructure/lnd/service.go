@@ -90,6 +90,7 @@ func (s *service) GetInvoice(
 
 	ctx = getCtx(ctx, s.macaroon)
 	invoiceRequest := &lnrpc.Invoice{
+		// nolint:all
 		Value: int64(value), // amount in satoshis
 		Memo:  memo,         // optional memo
 	}

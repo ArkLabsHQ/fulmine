@@ -44,6 +44,7 @@ func (s *service) Connect(ctx context.Context, clnConnectUrl string) error {
 		ServerName:   "cln",
 		RootCAs:      caPool,
 		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
 	})
 
 	conn, err := grpc.NewClient(host, grpc.WithTransportCredentials(creds))
