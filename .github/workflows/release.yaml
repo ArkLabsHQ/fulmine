@@ -1,47 +1,92 @@
-name: release
+name: Release Binaries and Docker Build
 
 on:
-  workflow_dispatch:
-  push:
-    tags:
-      - "*"
+  release:
+    types: [released]
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
-  goreleaser:
-    runs-on: ubuntu-20.04
-    env:
-      DOCKER_CLI_EXPERIMENTAL: "enabled"
-
+  build-and-upload:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v3
-        with:
-          go-version: ">1.17.2"
-      - uses: actions/cache@v1
-        with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - uses: docker/login-action@v1
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: release artifacts
-        uses: goreleaser/goreleaser-action@v2
-        with:
-          version: latest
-          args: release --rm-dist --debug
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-      - uses: bufbuild/buf-setup-action@v1.3.1
-      - name: release protos
-        uses: bufbuild/buf-push-action@v1
-        with:
-          input: api-spec/protobuf
-          buf_token: ${{ secrets.BUF_TOKEN }}
-  
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.23.1
+
+    # Build binaries for all architectures
+    - name: Build binaries
+      run: make build-all
+
+    # Binary uploads
+    - name: Upload binary (Linux, AMD64)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./build/ark-node-linux-amd64
+        asset_name: ark-node-linux-amd64
+        asset_content_type: application/octet-stream
+
+    - name: Upload binary (Linux, ARM)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./build/ark-node-linux-arm64
+        asset_name: ark-node-linux-arm64
+        asset_content_type: application/octet-stream
+
+    - name: Upload server binary (Darwin, AMD64)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./build/ark-node-darwin-amd64
+        asset_name: ark-node-darwin-amd64
+        asset_content_type: application/octet-stream
+
+    - name: Upload binary (Darwin, ARM)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./build/ark-node-darwin-arm64
+        asset_name: ark-node-darwin-arm64
+        asset_content_type: application/octet-stream
+
+  docker-build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Docker
+      uses: docker/setup-buildx-action@v1
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v1 
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        push: true
+        tags: ghcr.io/arklabshq/ark-node:${{ github.event.release.tag_name }},ghcr.io/arklabshq/ark-node:latest
+        platforms: linux/amd64,linux/arm64
+        build-args: |
+          VERSION=${{ github.event.release.tag_name }}

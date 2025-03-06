@@ -1,15 +1,19 @@
-.PHONY: build build-templates clean cov help intergrationtest lint run test vet proto proto-lint
+.PHONY: build build-all build-templates clean cov help intergrationtest lint run run-cln test vet proto proto-lint
 
-## build: build for all platforms
-build:
+## build: build for your platform
+build: build-templates
 	@echo "Building ark-node binary..."
 	@bash ./scripts/build
+
+## build-all: build for all platforms
+build-all: build-templates
+	@echo "Building ark-node binary for all archs..."
+	@bash ./scripts/build-all
 
 ## build-templates: build html templates for embedded frontend
 build-templates:
 	@echo "Building templates..."
-	@go run github.com/a-h/templ/cmd/templ@latest generate
-		
+	@go run github.com/a-h/templ/cmd/templ@latest generate		
 
 ## clean: cleans the binary
 clean:
@@ -37,19 +41,11 @@ lint:
 	@golangci-lint run --fix
 
 ## run: run in dev mode
-run: clean
+run: clean build-templates
 	@echo "Running ark-node in dev mode..."
 	@go run ./cmd/ark-node
 
-## run: run in dev mode
-run-bob: clean
-	@echo "Running ark-node in dev mode..."
-	@export ARK_NODE_GRPC_PORT=7002; \
-	export ARK_NODE_HTTP_PORT=7003; \
-	export ARK_NODE_DATADIR="./tmp"; \
-	go run ./cmd/ark-node
-
-run-cln: clean
+run-cln: clean build-templates
 	@echo "Running ark-node in dev mode with CLN support..."
 	@export ARK_NODE_GRPC_PORT=7008; \
 	export ARK_NODE_HTTP_PORT=7009; \
@@ -69,7 +65,7 @@ vet:
 	
 	
 ## proto: compile proto stubs
-proto:
+proto: proto-lint
 	@echo "Compiling stubs..."
 	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf generate
 
