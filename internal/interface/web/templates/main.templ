@@ -211,26 +211,6 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 		setTimeout(() => document.querySelector("#toast").innerHTML = "", toastTimeout)
 	})
 
-	document.body.addEventListener('htmx:sseClose', function (e) {
-		console.log('sseClose', e)
-	})
-
-	document.body.addEventListener('htmx:sseBeforeMessage', function (e) {
-		console.log('sseBeforeMessage', e)
-	})
-
-	document.body.addEventListener('htmx:sseOpen', function (e) {
-		console.log('sseOpen', e)
-	})
-
-	document.body.addEventListener('htmx:sseError', function (e) {
-		console.log('sseError', e)
-	})
-
-	document.body.addEventListener('htmx:sseMessage', function (e) {
-		console.log('ssesseMessageOpen', e)
-	})
-
 
 </script>
 
