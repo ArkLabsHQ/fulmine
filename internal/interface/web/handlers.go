@@ -189,7 +189,8 @@ func (s *service) initialize(c *gin.Context) {
 	}
 
 	if err := s.svc.Setup(c, serverUrl, password, privateKey); err != nil {
-		toast := components.Toast("Error on setup", true)
+		log.WithError(err).Warn("failed to initialize")
+		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
 		return
 	}
