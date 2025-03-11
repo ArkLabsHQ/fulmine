@@ -347,7 +347,7 @@ func (s *service) sendPreview(c *gin.Context) {
 		partialViewHandler(bodyContent, c)
 	}
 
-	feeAmount := 206 // TODO
+	feeAmount := 0 // TODO
 	total := sats + feeAmount
 
 	if utils.IsBip21(dest) {
@@ -588,7 +588,7 @@ func (s *service) swapPreview(c *gin.Context) {
 		return
 	}
 
-	feeAmount := 206 // TODO
+	feeAmount := 0 // TODO
 	total := sats + feeAmount
 
 	bodyContent := pages.SwapPreviewContent(kind, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total))
