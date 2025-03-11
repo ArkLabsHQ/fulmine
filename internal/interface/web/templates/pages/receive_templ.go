@@ -145,14 +145,14 @@ func ReceiveQrCodeContent(bip21, encoded, sats string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"></div><p class=\"text-center w-64\">Scan QR code or use the address with one of the supported wallets to receive BTC.</p><div class=\"rounded-lg bg-white/10 p-2 flex justify-between items-center gap-4 w-72\"><p class=\"overflow-hidden text-ellipsis whitespace-nowrap\" id=\"bip21\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"></div><p class=\"text-center w-64\">Scan QR code or use the address with one of the supported wallets to receive BTC.</p><div class=\"rounded-lg bg-white/10 p-4\"><p class=\"break-words w-80\" id=\"bip21\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(bip21)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/receive.templ`, Line: 36, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/receive.templ`, Line: 36, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
