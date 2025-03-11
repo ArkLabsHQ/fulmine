@@ -26,30 +26,32 @@ templ ServerUrlBodyContent(serverUrl, privateKey, password string) {
     </div>
   </form>
   <script>
-		const button = document.querySelector('#createWallet')
 		const input = document.querySelector('#serverUrl')
-		if (input && button) {
-		  input.addEventListener('change', () => {
-		  	if (input.value.length == 0) return
-		  	const data = new FormData()
-		    data.set('url', input.value)
-		    fetch('/helpers/url/validate', {
-		    	method: 'POST',
-          body: data,
-		    }).then((res) => {
-		    	if (res.ok) {
-		    		res.json().then(({ valid }) => {
-		    			if (valid) {
-		    				button.disabled = false
-		    				button.innerText = 'Create wallet'
-		    			} else {
-		    				button.disabled = true
-		    				button.innerText = 'Invalid URL'
-		    			}
-		    		})
-		    	}
-		    })
+		const button = document.querySelector('#createWallet')
+		const validate = () => {
+      if (input.value.length == 0) return
+		  const data = new FormData()
+		  data.set('url', input.value)
+		  fetch('/helpers/url/validate', {
+		  	method: 'POST',
+        body: data,
+		  }).then((res) => {
+		  	if (res.ok) {
+		  		res.json().then(({ valid }) => {
+		  			if (valid) {
+		  				button.disabled = false
+		  				button.innerText = 'Create wallet'
+		  			} else {
+		  				button.disabled = true
+		  				button.innerText = 'Invalid URL'
+		  			}
+		  		})
+		  	}
 		  })
+		}
+		if (input && button) {
+			validate()
+		  input.addEventListener('change', validate)
 		}
   </script>
 }

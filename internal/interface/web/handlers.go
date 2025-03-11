@@ -152,16 +152,47 @@ func (s *service) index(c *gin.Context) {
 }
 
 func (s *service) initialize(c *gin.Context) {
-	password := c.PostForm("password")
 	serverUrl := c.PostForm("serverUrl")
-	privateKey := c.PostForm("privateKey")
+	if serverUrl == "" {
+		toast := components.Toast("Server URL can't be empty", true)
+		toastHandler(toast, c)
+		return
+	}
+	if !utils.IsValidURL(serverUrl) {
+		toast := components.Toast("Invalid server URL", true)
+		toastHandler(toast, c)
+		return
+	}
 
-	if err := s.validateAndSetup(c, serverUrl, privateKey, password); err != nil {
+	privateKey := c.PostForm("privateKey")
+	if privateKey == "" {
+		toast := components.Toast("Private key can't be empty", true)
+		toastHandler(toast, c)
+		return
+	}
+	if err := utils.IsValidPrivateKey(privateKey); err != nil {
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
 		return
 	}
 
+	password := c.PostForm("password")
+	if password == "" {
+		toast := components.Toast("Password can't be empty", true)
+		toastHandler(toast, c)
+		return
+	}
+	if err := utils.IsValidPassword(password); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	if err := s.svc.Setup(c, serverUrl, password, privateKey); err != nil {
+		toast := components.Toast("Error on setup", true)
+		toastHandler(toast, c)
+		return
+	}
 	redirect("/done", c)
 }
 
@@ -438,22 +469,15 @@ func (s *service) setPassword(c *gin.Context) {
 	privateKey := c.PostForm("privateKey")
 
 	// priority rules to serverUrl:
-	// 1. from query string
-	// 2. from env variable
+	// 1. from query string (aka urlOnQuery)
+	// 2. from env variable (aka cfg.ArkServer)
 	// 3. user inserts on form
 	serverUrl := c.PostForm("urlOnQuery")
 	if serverUrl == "" && cfg.ArkServer != "" {
 		serverUrl = cfg.ArkServer
 	}
 
-	if serverUrl != "" {
-		if err := s.validateAndSetup(c, serverUrl, privateKey, password); err == nil {
-			redirect("/done", c)
-			return
-		}
-	}
-
-	bodyContent := pages.ServerUrlBodyContent("", privateKey, password)
+	bodyContent := pages.ServerUrlBodyContent(serverUrl, privateKey, password)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -821,33 +845,4 @@ func (s *service) claimTx(c *gin.Context) {
 
 	partial := components.Tx(tx, getExplorerUrl(data.Network.Name))
 	partialViewHandler(partial, c)
-}
-
-func (s *service) validateAndSetup(c *gin.Context, serverUrl, privateKey, password string) error {
-	if serverUrl == "" {
-		return fmt.Errorf("server URL can't be empty")
-	}
-	if !utils.IsValidURL(serverUrl) {
-		return fmt.Errorf("invalid server URL")
-	}
-
-	if privateKey == "" {
-		return fmt.Errorf("private key can't be empty")
-	}
-	if err := utils.IsValidPrivateKey(privateKey); err != nil {
-		return err
-	}
-
-	if password == "" {
-		return fmt.Errorf("password can't be empty")
-	}
-	if err := utils.IsValidPassword(password); err != nil {
-		return err
-	}
-
-	if err := s.svc.Setup(c, serverUrl, password, privateKey); err != nil {
-		return err
-	}
-
-	return nil
 }
