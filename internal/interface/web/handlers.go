@@ -852,13 +852,3 @@ func (s *service) lnConnectInfoModal(c *gin.Context) {
 	info := modals.LnConnectInfo()
 	modalHandler(info, c)
 }
-
-func (s *service) lnConnectCLNInfoModal(c *gin.Context) {
-	partial := modals.LnConnectCLNInfo()
-	partialViewHandler(partial, c)
-}
-
-func (s *service) lnConnectLNDInfoModal(c *gin.Context) {
-	partial := modals.LnConnectLNDInfo()
-	partialViewHandler(partial, c)
-}
