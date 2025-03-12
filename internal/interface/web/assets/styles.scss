@@ -34,6 +34,15 @@ body {
   min-height: 100vh;
 }
 
+a.visible {
+  color: #f28c52;
+  cursor: pointer;
+  text-decoration: underline;
+  &:hover {
+    color: #f2bf52;
+  }
+}
+
 input {
   border: none;
   color: #fbfbfb80;
@@ -78,6 +87,11 @@ div:has(> input:not(.hidden):not(.unframed):focus) {
   &:has(div.fullscreen) {
     max-width: 100%;
   }
+}
+
+#modalContainer div {
+  max-width: 648px;
+  width: 90%;
 }
 
 #htmx-result {

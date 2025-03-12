@@ -27,8 +27,8 @@
     "tailwindcss": "latest"
   },
   "devDependencies": {
-    "@parcel/transformer-sass": "latest",
-    "parcel": "latest",
+    "@parcel/transformer-sass": "^2.13.3",
+    "parcel": "^2.13.3",
     "prettier": "latest"
   }
 }
