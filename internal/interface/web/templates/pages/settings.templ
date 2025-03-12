@@ -118,7 +118,7 @@ templ SettingsServerContent(settings domain.Settings) {
     @components.Label("Server Link")
     <div class="border border-1 border-white/50 flex bg-graybg items-center justify-between rounded-lg gap-4 pr-3 focus:border-orange">
       <input
-        class="border-0 bg-graybg p-4 rounded-lg text-white/50 focus:text-white w-full"
+        class="border-0 bg-graybg p-4 rounded-lg text-white/50 focus:text-white max-w-96"
         id="serverlink"
         name="serverlink"
         value={settings.ApiRoot}>
@@ -146,20 +146,19 @@ templ SettingsLightningContent(settings domain.Settings, nodeStatus bool) {
     @components.Label("URL")
     if nodeStatus {
       @components.InputFake(settings.LnUrl)
-      <button
-        class="bg-red/10 text-red font-semibold rounded-lg mt-8"
-        hx-post="/helpers/node/disconnect"
-      >
+      <button class="bg-red/10 text-red font-semibold rounded-lg mt-8" hx-post="/helpers/node/disconnect">
         Disconnect
       </button>
-    
     } else {
       @components.InputWithPaste("lnurl", "", settings.LnUrl)
-      <button class="bg-graybg font-semibold rounded-lg mt-8" hx-post="/helpers/node/connect">Connect</button>
-      <button class="bg-graybg font-semibold rounded-lg mt-4 flex items-center justify-center gap-3">
-        @components.ScanIcon()
-        Scan
-      </button>
+      <div class="flex items-start gap-4 mt-4 max-w-96">
+        <p class="mt-1">@components.InfoLightIcon()</p>
+        <div>
+          <p class="mb-2">Connect to you own LN node to rebalance your channels with low fees and faster settlements</p>
+          <p>How to connect? <a hx-get="/modal/lnconnectinfo" hx-target="#modal" class="visible">View guide</a></p>
+        </div>
+      </div>
+      @components.LnConnectButtons()
     }
   </form>
 }

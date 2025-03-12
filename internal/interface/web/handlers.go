@@ -847,3 +847,18 @@ func (s *service) claimTx(c *gin.Context) {
 	partial := components.Tx(tx, getExplorerUrl(data.Network.Name))
 	partialViewHandler(partial, c)
 }
+
+func (s *service) lnConnectInfoModal(c *gin.Context) {
+	info := modals.LnConnectInfo()
+	modalHandler(info, c)
+}
+
+func (s *service) lnConnectCLNInfoModal(c *gin.Context) {
+	partial := modals.LnConnectCLNInfo()
+	partialViewHandler(partial, c)
+}
+
+func (s *service) lnConnectLNDInfoModal(c *gin.Context) {
+	partial := modals.LnConnectLNDInfo()
+	partialViewHandler(partial, c)
+}

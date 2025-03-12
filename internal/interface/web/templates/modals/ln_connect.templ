@@ -1,0 +1,65 @@
+package modals
+
+templ lnConnectBullet(number string) {
+  <p class="bg-white/10 rounded-full text-center w-5 h-5">{number}</p>
+}
+
+templ lnConnectText(text string) {
+  <p class="text-sm text-white/80">{text}</p>
+}
+
+templ lnConnectTitle(title string) {
+  <p class="text-sm font-semibold">{title}</p>
+}
+
+templ lnConnectSection(number, title, text string) {
+  <div class="flex flex-col gap-2">
+    <div class="text-sm flex items-center gap-2">
+      if number != "" {
+        @lnConnectBullet(number)
+      }
+      @lnConnectTitle(title)
+    </div>
+    @lnConnectText(text)
+  </div>
+}
+
+templ LnConnectLNDInfo() {
+  @LnConnectSpecificInfo("lnd", "lndconnect://localhost:10009${macaroonParameter}${certParameter}")
+}
+
+templ LnConnectCLNInfo() {
+  @LnConnectSpecificInfo("cln","clnconnect://localhost:9936${rootCertParameter}${privateKeyParameter}${certChainParameter}")
+}
+
+templ LnConnectSpecificInfo(kind, code string) {
+  <div class="flex gap-4 mb-2 text-sm">
+    if kind == "lnd" {
+      <p class="px-2 py-1 rounded-lg bg-white text-black">LND</p>
+      <p class="px-2 py-1 cursor-pointer" hx-get="/modal/lnconnectinfo/cln" hx-target="#lnconnectPartial">CLN</p>
+    } else {
+      <p class="px-2 py-1 cursor-pointer" hx-get="/modal/lnconnectinfo/lnd" hx-target="#lnconnectPartial">LND</p>
+      <p class="px-2 py-1 rounded-lg bg-white text-black">CLN</p>
+    }
+  </div>
+  <div class="bg-white/10 border border-white/20 p-4 rounded-lg text-white text-wrap break-words w-full">
+    <p>{code}</p>
+  </div>
+}
+
+templ LnConnectInfoBody() {
+  <div class="flex flex-col gap-6">
+    <p class="text-lg font-semibold">How to connect?</p>
+    @lnConnectSection("1", "Generate connection string", "Run the connect tool on your node to create a secure connection string that contains your node credentials")
+    @lnConnectSection("2", "Copy code", "Copy the connection string displayed after running the command")
+    <p class="text-sm text-white/50">SAMPLE CODE</p>
+    <div id="lnconnectPartial">@LnConnectLNDInfo()</div>
+    @lnConnectSection("3", "Paste in Ark Node", "Enter your connection string in the app to establish a secure connection to your Lightning node")
+    <hr class="text-white/10 w-full"/>
+    @lnConnectSection("", "Why connect?", "Direct node connection gives you full control over your channels, enabling lower fees on transactions and faster settlements without intermediaries")
+  </div>
+}
+
+templ LnConnectInfo() {
+  @Modal(LnConnectInfoBody())
+}
