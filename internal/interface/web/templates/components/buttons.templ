@@ -6,12 +6,25 @@ script openInExplorer(txid, explorerUrl string) {
 
 // buttons
 
+templ grayButton(label string) {
+	<button class="bg-graybg md:w-auto">
+	  {label}
+	</button>
+}
+
 templ greenButton(label string) {
 	<button
 	  class="bg-green md:w-auto"
 		onclick="disableButton(this)"
 		type="submit">
 	  {label}
+	</button>
+}
+
+templ iconButton(label string, icon templ.Component) {
+	<button class="bg-graybg flex md:w-auto">
+		@icon	
+	  <span class="ml-2">{label}</span>
 	</button>
 }
 
@@ -83,10 +96,10 @@ templ ActionButtons(label string, disabled ...bool) {
 	)
 }
 
-templ SettleButtons() {
-  @twoButtonsContainer(
-	  greenButton("Settle now"),
-		cancelButton("Skip transaction"),
+templ LnConnectButtons() {
+	@twoButtonsContainer(
+		grayButton("Continue"),
+		iconButton("Scan", ScanIconXL()),
 	)
 }
 
@@ -96,6 +109,13 @@ templ OrangeButton(label string, disabled ...bool) {
 
 templ RedirectButton(label string, disabled ...bool) {
 	@oneButtonContainer(redirectButton(label, disabled))
+}
+
+templ SettleButtons() {
+  @twoButtonsContainer(
+	  greenButton("Settle now"),
+		cancelButton("Skip transaction"),
+	)
 }
 
 templ ViewTxButton(txid, explorerUrl string) {
