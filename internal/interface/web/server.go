@@ -80,6 +80,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.GET("/backup/tab/:active", svc.backupTabActive)
 	svc.GET("/done", svc.done)
 	svc.GET("/forgot", svc.forgot)
+	svc.GET("/hero", svc.getHero)
 	svc.GET("/import", svc.importWalletPrivateKey)
 	svc.GET("/lock", svc.lock)
 	svc.GET("/modal/feeinfo", svc.feeInfoModal)
