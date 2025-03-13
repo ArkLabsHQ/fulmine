@@ -13,30 +13,32 @@ import (
 )
 
 type Config struct {
-	Datadir  string
-	GRPCPort uint32
-	HTTPPort uint32
-	WithTLS  bool
-	LogLevel uint32
-	// Only for testing purposes
-	CLNDatadir string
+	Datadir    string
+	GRPCPort   uint32
+	HTTPPort   uint32
+	WithTLS    bool
+	LogLevel   uint32
+	ArkServer  string
+	CLNDatadir string // for testing purposes only
 }
 
 var (
-	Datadir  = "DATADIR"
-	GRPCPort = "GRPC_PORT"
-	HTTPPort = "HTTP_PORT"
-	WithTLS  = "NO_TLS"
-	LogLevel = "LOG_LEVEL"
+	Datadir   = "DATADIR"
+	GRPCPort  = "GRPC_PORT"
+	HTTPPort  = "HTTP_PORT"
+	WithTLS   = "NO_TLS"
+	LogLevel  = "LOG_LEVEL"
+	ArkServer = "ARK_SERVER"
 
 	// Only for testing purposes
 	CLNDatadir = "CLN_DATADIR"
 
-	defaultDatadir  = appDatadir("ark-node", false)
-	defaultGRPCPort = 7000
-	defaultHTTPPort = 7001
-	defaultWithTLS  = false
-	defaultLogLevel = 4
+	defaultDatadir   = appDatadir("ark-node", false)
+	defaultGRPCPort  = 7000
+	defaultHTTPPort  = 7001
+	defaultWithTLS   = false
+	defaultLogLevel  = 4
+	defaultArkServer = ""
 )
 
 func LoadConfig() (*Config, error) {
@@ -48,6 +50,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(HTTPPort, defaultHTTPPort)
 	viper.SetDefault(WithTLS, defaultWithTLS)
 	viper.SetDefault(LogLevel, defaultLogLevel)
+	viper.SetDefault(ArkServer, defaultArkServer)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
@@ -59,6 +62,7 @@ func LoadConfig() (*Config, error) {
 		HTTPPort:   viper.GetUint32(HTTPPort),
 		WithTLS:    viper.GetBool(WithTLS),
 		LogLevel:   viper.GetUint32(LogLevel),
+		ArkServer:  viper.GetString(ArkServer),
 		CLNDatadir: cleanAndExpandPath(viper.GetString(CLNDatadir)),
 	}, nil
 }

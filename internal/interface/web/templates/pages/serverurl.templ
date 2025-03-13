@@ -4,7 +4,7 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
-templ ServerUrlBodyContent(serverurl, privateKey, password string) {
+templ ServerUrlBodyContent(serverUrl, privateKey, password string) {
   <form hx-post="/initialize">
     <input type="hidden" name="privateKey" value={privateKey}/>
     <input type="hidden" name="password" value={password}/>
@@ -14,7 +14,7 @@ templ ServerUrlBodyContent(serverurl, privateKey, password string) {
 	      @components.Header("Choose Server", "/welcome")
 	  		<p class="mb-10">Choose your Server</p>
         <p class="mb-2">Server URL</p>
-        @components.InputWithPaste("serverurl", "", serverurl)
+        @components.InputWithPaste("serverUrl", "", serverUrl)
       </div>
 	  	<button
 			  id="createWallet"
@@ -26,30 +26,32 @@ templ ServerUrlBodyContent(serverurl, privateKey, password string) {
     </div>
   </form>
   <script>
+		const input = document.querySelector('#serverUrl')
 		const button = document.querySelector('#createWallet')
-		const input = document.querySelector('#serverurl')
-		if (input && button) {
-		  input.addEventListener('change', () => {
-		  	if (input.value.length == 0) return
-		  	const data = new FormData()
-		    data.set('url', input.value)
-		    fetch('/helpers/url/validate', {
-		    	method: 'POST',
-          body: data,
-		    }).then((res) => {
-		    	if (res.ok) {
-		    		res.json().then(({ valid }) => {
-		    			if (valid) {
-		    				button.disabled = false
-		    				button.innerText = 'Create wallet'
-		    			} else {
-		    				button.disabled = true
-		    				button.innerText = 'Invalid URL'
-		    			}
-		    		})
-		    	}
-		    })
+		const validate = () => {
+      if (input.value.length == 0) return
+		  const data = new FormData()
+		  data.set('url', input.value)
+		  fetch('/helpers/url/validate', {
+		  	method: 'POST',
+        body: data,
+		  }).then((res) => {
+		  	if (res.ok) {
+		  		res.json().then(({ valid }) => {
+		  			if (valid) {
+		  				button.disabled = false
+		  				button.innerText = 'Create wallet'
+		  			} else {
+		  				button.disabled = true
+		  				button.innerText = 'Invalid URL'
+		  			}
+		  		})
+		  	}
 		  })
+		}
+		if (input && button) {
+			validate()
+		  input.addEventListener('change', validate)
 		}
   </script>
 }
