@@ -72,7 +72,7 @@ func modalHandler(t templ.Component, c *gin.Context) {
 // Function to format Unix timestamp to a pretty date string
 func prettyUnixTimestamp(unixTime int64) string {
 	// return time.Unix(unixTime, 0).Format(time.RFC3339) // Adjust format as needed
-	return time.Unix(unixTime, 0).Format("02/01/2006 15:04")
+	return time.Unix(unixTime, 0).Format("January, 2 2006 15:04")
 }
 
 func prettyDay(unixTime int64) string {
