@@ -4,6 +4,19 @@ import (
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
 )
 
+templ addressLine(title, value string) {
+	<div class="flex justify-between items-center w-80">
+	  <div>
+	    <p class="text-white/50">{title}</p>
+	    <p class="overflow-hidden truncate text-white w-64">{value}</p>
+		</div>
+		<div class="bg-graybg p-2 rounded-lg" data-value={value} onclick="handleCopy(this, event)">
+		  <span data-kind="copy">@components.CopyIcon()</span>
+		  <span data-kind="done" class="hidden">@components.CheckMarkIcon()</span>
+		</div>
+	</div>
+}
+
 templ ReceiveEditContent() {
 	<div id="receiveBody">
 	  @components.DesktopHeader()
@@ -19,7 +32,7 @@ templ ReceiveEditContent() {
 	</div>
 }
 
-templ ReceiveQrCodeContent(bip21, encoded, sats string) {
+templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats string) {
 	<form id="success" hx-post="/receive/success">
 	  @components.DesktopHeader()
 	  <input class="hidden" id="submitButton" type="submit"/>
@@ -28,19 +41,14 @@ templ ReceiveQrCodeContent(bip21, encoded, sats string) {
 	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	    @components.Header("Receive")
       <div class="flex flex-col justify-center items-center gap-2 overflow-auto">
-	  	  <div class="h-64">
+	  	  <div class="h-64 mb-8">
           <img src={"data:image/png;base64," + encoded} alt="qrcode for receive address" title={bip21}>
 	  		</div>
-	  		<p class="text-center w-64">Scan QR code or use the address with one of the supported wallets to receive BTC.</p>
-        <div class="rounded-lg bg-white/10 p-2 flex justify-between items-center gap-4 w-72">
-	        <p class="overflow-hidden text-ellipsis whitespace-nowrap" id="bip21">{bip21}</p>
-	      </div>
+				@addressLine("BIP 21", bip21)
+				@addressLine("BTC address", boardingAddr)
+				@addressLine("Ark address", offchainAddr)
 	  	</div>
       <div class="flex flex-col md:flex-row-reverse justify-start gap-4 mt-10 mb-2">
-	      <button class="bg-graybg md:w-32" onclick="handleCopy(event)">
-	  		  @components.CopyIcon()
-	  			<span id="copyText" class="ml-2">Copy</span>
-	  		</button>
 	      <button class="bg-graybg md:w-auto" onclick="handleEdit(event)">
 	  		  @components.EditIcon()
 	  			<span class="ml-2">Edit</span>
@@ -49,11 +57,16 @@ templ ReceiveQrCodeContent(bip21, encoded, sats string) {
 	  </div>
 	</form>
 	<script>
-	  const handleCopy = (event) => {
+		const handleCopy = (element, event) => {
 			event.preventDefault()
-			copyToClipboard('#bip21')
-			document.querySelector('#copyText').innerText = 'Copied'
-			setTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2100)
+			if (!navigator.clipboard) return
+			navigator.clipboard.writeText(element.dataset.value)
+			element.querySelector("[data-kind='copy']").classList.add("hidden")
+			element.querySelector("[data-kind='done']").classList.remove("hidden")
+			setTimeout(() => {
+				element.querySelector("[data-kind='copy']").classList.remove("hidden")
+				element.querySelector("[data-kind='done']").classList.add("hidden")
+			}, 1000)
 		}
 
 		const handleEdit = (event) => {
