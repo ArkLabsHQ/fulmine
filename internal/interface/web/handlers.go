@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
@@ -715,8 +714,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		if tx.Settled {
 			status = "success"
 		}
-		emptyTime := time.Time{}
-		if tx.CreatedAt == emptyTime {
+		if tx.CreatedAt.IsZero() {
 			status = "unconfirmed"
 			dateCreated = 0
 		}
