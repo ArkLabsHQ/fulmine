@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ArkLabsHQ/ark-node/internal/config"
 	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates"
@@ -125,29 +124,9 @@ func (s *service) index(c *gin.Context) {
 		if s.svc.IsLocked(c) {
 			bodyContent = pages.Unlock()
 		} else {
-			var offchainAddr string
-			var isOnline bool
-			if addr, _, err := s.svc.Receive(c); err == nil {
-				offchainAddr = addr
-				isOnline = true
-			} else {
-				log.WithError(err).Warn("failed to get receiving address")
-			}
-			spendableBalance, err := s.getSpendableBalance(c)
-			if err != nil {
-				log.WithError(err).Warn("failed to get spendable balance")
-			}
-			txHistory, err := s.getTxHistory(c)
-			if err != nil {
-				log.WithError(err).Warn("failed to get tx history")
-			}
-
-			bodyContent = pages.IndexBodyContent(
-				spendableBalance, offchainAddr, txHistory, isOnline, s.svc.IsConnectedLN(),
-			)
+			bodyContent = pages.IndexBodyContent()
 		}
 	}
-
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -735,8 +714,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		if tx.Settled {
 			status = "success"
 		}
-		emptyTime := time.Time{}
-		if tx.CreatedAt == emptyTime {
+		if tx.CreatedAt.IsZero() {
 			status = "unconfirmed"
 			dateCreated = 0
 		}
@@ -846,4 +824,28 @@ func (s *service) claimTx(c *gin.Context) {
 
 	partial := components.Tx(tx, getExplorerUrl(data.Network.Name))
 	partialViewHandler(partial, c)
+}
+
+func (s *service) getHero(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	var offchainAddr string
+	var isOnline bool
+
+	if addr, _, err := s.svc.Receive(c); err == nil {
+		offchainAddr = addr
+		isOnline = true
+	} else {
+		log.WithError(err).Warn("failed to get receiving address")
+	}
+
+	spendableBalance, err := s.getSpendableBalance(c)
+	if err != nil {
+		log.WithError(err).Warn("failed to get spendable balance")
+	}
+
+	partialContent := components.Hero(offchainAddr, spendableBalance, isOnline, s.svc.IsConnectedLN())
+	partialViewHandler(partialContent, c)
 }

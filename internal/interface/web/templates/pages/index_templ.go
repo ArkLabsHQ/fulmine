@@ -8,12 +8,7 @@ package pages
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import (
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
-)
-
-func IndexBodyContent(currentBalance, arkAddress string, transactions []types.Transaction, online, connected bool) templ.Component {
+func IndexBodyContent() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -34,11 +29,7 @@ func IndexBodyContent(currentBalance, arkAddress string, transactions []types.Tr
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = components.Hero(arkAddress, currentBalance, online, connected).Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div hx-ext=\"sse\" sse-connect=\"/events\"><div hx-get=\"/txs\" hx-trigger=\"load, sse:TXS_ADDED\"></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div hx-ext=\"sse\" sse-connect=\"/events\"><div hx-get=\"/hero\" hx-trigger=\"load, sse:TXS_ADDED, sse:TXS_CONFIRMED, sse:TXS_REPLACED\"></div><div hx-get=\"/txs\" hx-trigger=\"load, sse:TXS_ADDED, sse:TXS_CONFIRMED, sse:TXS_REPLACED\"></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
