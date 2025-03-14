@@ -89,7 +89,7 @@ div:has(> input:not(.hidden):not(.unframed):focus) {
   }
 }
 
-#modalContainer div {
+#modalContainer > div {
   max-width: 648px;
   width: 90%;
 }
