@@ -1,0 +1,52 @@
+package modals
+
+import (
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
+)
+
+templ lnConnectBullet(number string) {
+  <p class="bg-white/10 rounded-full text-center w-5 h-5">{number}</p>
+}
+
+templ lnConnectText(text string) {
+  <p class="text-sm text-white/80">{text}</p>
+}
+
+templ lnConnectTitle(title string) {
+  <p class="text-sm font-semibold">{title}</p>
+}
+
+templ lnConnectSection(number, title, text string) {
+  <div class="flex flex-col gap-2">
+    <div class="text-sm flex items-center gap-2">
+      if number != "" {
+        @lnConnectBullet(number)
+      }
+      @lnConnectTitle(title)
+    </div>
+    @lnConnectText(text)
+  </div>
+}
+
+templ LnConnectCodeSample() {
+  <div class="flex flex-col gap-2">
+    <p class="text-sm text-white/50">SAMPLE CODE</p>
+    @components.CodeSample("echo 'lndconnect://example.com?cert='\"`grep -v 'CERTIFICATE' tls.cert | tr -d '=' | tr '/+' '_-'`\"'&macaroon='\"`base64 admin.macaroon | tr -d '=' | tr '/+' '_-'`\" | tr -d '\n' | qrencode -o /tmp/out.png")
+  </div>
+}
+
+templ LnConnectInfoBody() {
+  <div class="flex flex-col gap-6">
+    <p class="text-lg font-semibold">How to connect?</p>
+    @lnConnectSection("1", "Generate connection string", "Run the connect tool on your node to create a secure connection string that contains your node credentials")
+    @lnConnectSection("2", "Copy code", "Copy the connection string displayed after running the command")
+    @LnConnectCodeSample()
+    @lnConnectSection("3", "Paste in Ark Node", "Enter your connection string in the app to establish a secure connection to your Lightning node")
+    <hr class="text-white/10 w-full"/>
+    @lnConnectSection("", "Why connect?", "Direct node connection gives you full control over your channels, enabling lower fees on transactions and faster settlements without intermediaries")
+  </div>
+}
+
+templ LnConnectInfo() {
+  @Modal(LnConnectInfoBody())
+}

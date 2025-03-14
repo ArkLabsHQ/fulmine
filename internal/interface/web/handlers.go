@@ -826,6 +826,11 @@ func (s *service) claimTx(c *gin.Context) {
 	partialViewHandler(partial, c)
 }
 
+func (s *service) lnConnectInfoModal(c *gin.Context) {
+	info := modals.LnConnectInfo()
+	modalHandler(info, c)
+}
+
 func (s *service) getHero(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return

@@ -6,7 +6,7 @@ import (
 )
 
 templ Separator(text string) {
-  <p class="uppercase text-sm text-white/50 mb-4 mt-8">{text}</p>
+  <p class="uppercase text-sm text-white/50 my-4">{text}</p>
 }
 
 templ Status(ok bool, goodLabel, badLabel string) {
@@ -26,7 +26,9 @@ templ Status(ok bool, goodLabel, badLabel string) {
 }
 
 templ StatusNode(connected bool) {
-  @Status(connected, "Connected", "Disconnected")
+  <div class="mb-4">
+    @Status(connected, "Connected", "Disconnected")
+  </div>
 }
 
 templ StatusLock(locked bool) {
@@ -78,6 +80,7 @@ templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) 
   <form hx-post="/helpers/settings" hx-trigger="change">
     @Separator("Wallet")
     @StatusLock(locked)
+     <hr class="border border-1 border-white/10 my-8 w-full"/>
     @Separator("Details")
     @components.Label("Bitcoin unit")
     <select
@@ -99,6 +102,7 @@ templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) 
     </select>
     @components.Label("Server URL")
     @components.InputFake(settings.ServerUrl)
+     <hr class="border border-1 border-white/10 my-8 w-full"/>
     @Separator("Security")
     <button class="bg-graybg font-semibold rounded-lg mb-4" onclick="handleBackup(event)">
       Backup Private Key
@@ -118,7 +122,7 @@ templ SettingsServerContent(settings domain.Settings) {
     @components.Label("Server Link")
     <div class="border border-1 border-white/50 flex bg-graybg items-center justify-between rounded-lg gap-4 pr-3 focus:border-orange">
       <input
-        class="border-0 bg-graybg p-4 rounded-lg text-white/50 focus:text-white w-full"
+        class="border-0 bg-graybg p-4 rounded-lg text-white/50 focus:text-white max-w-96"
         id="serverlink"
         name="serverlink"
         value={settings.ApiRoot}>
@@ -127,6 +131,7 @@ templ SettingsServerContent(settings domain.Settings) {
         <p class="cursor-pointer" onclick="notImplemented(event)">@components.ScanIcon()</p>
       </div>
     </div>
+    <hr class="border border-1 border-white/10 my-8 w-full"/>
     @Separator("Host settings")
     @components.Label("Server Host")
     @components.InputGeneric("serverhost", "", settings.ApiRoot)
@@ -141,25 +146,27 @@ templ SettingsLightningContent(settings domain.Settings, nodeStatus bool) {
   <form hx-post="/helpers/settings" hx-trigger="change">
     @Separator("Status")
     @StatusNode(nodeStatus)
+    <hr class="border border-1 border-white/10 my-8 w-full"/>
     @Separator("Connect")
     <p>Enter details manually or scan to connect</p>
     @components.Label("URL")
     if nodeStatus {
       @components.InputFake(settings.LnUrl)
-      <button
-        class="bg-red/10 text-red font-semibold rounded-lg mt-8"
-        hx-post="/helpers/node/disconnect"
-      >
+      <button class="bg-red/10 text-red font-semibold rounded-lg mt-8" hx-post="/helpers/node/disconnect">
         Disconnect
       </button>
-    
     } else {
       @components.InputWithPaste("lnurl", "", settings.LnUrl)
-      <button class="bg-graybg font-semibold rounded-lg mt-8" hx-post="/helpers/node/connect">Connect</button>
-      <button class="bg-graybg font-semibold rounded-lg mt-4 flex items-center justify-center gap-3">
-        @components.ScanIcon()
-        Scan
-      </button>
+      <hr class="border border-1 border-white/10 my-4 w-full"/>
+      <div class="flex items-start gap-4 max-w-96">
+        <p class="mt-1">@components.InfoLightIcon()</p>
+        <div>
+          <p class="mb-2">Connect to you own LN node to rebalance your channels with low fees and faster settlements</p>
+          <p>How to connect? <a hx-get="/modal/lnconnectinfo" hx-target="#modal" class="visible">View guide</a></p>
+        </div>
+      </div>
+      <hr class="border border-1 border-white/10 my-4 w-full"/>
+      @components.LnConnectButtons()
     }
   </form>
 }

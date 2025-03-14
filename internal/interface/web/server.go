@@ -83,9 +83,6 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.GET("/hero", svc.getHero)
 	svc.GET("/import", svc.importWalletPrivateKey)
 	svc.GET("/lock", svc.lock)
-	svc.GET("/modal/feeinfo", svc.feeInfoModal)
-	svc.GET("/modal/reversibleinfo", svc.reversibleInfoModal)
-	svc.GET("/modal/seedinfo", svc.seedInfoModal)
 	svc.GET("/new", svc.newWalletPrivateKey)
 	svc.GET("/receive", svc.receiveQrCode)
 	svc.GET("/receive/edit", svc.receiveEdit)
@@ -98,6 +95,11 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.GET("/txs", svc.getTxs)
 	svc.GET("/unlock", svc.unlock)
 	svc.GET("/welcome", svc.welcome)
+
+	svc.GET("/modal/feeinfo", svc.feeInfoModal)
+	svc.GET("/modal/lnconnectinfo", svc.lnConnectInfoModal)
+	svc.GET("/modal/reversibleinfo", svc.reversibleInfoModal)
+	svc.GET("/modal/seedinfo", svc.seedInfoModal)
 
 	svc.POST("/initialize", svc.initialize)
 	svc.POST("/mnemonic", svc.setMnemonic)
