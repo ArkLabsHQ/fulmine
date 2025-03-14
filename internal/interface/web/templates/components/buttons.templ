@@ -118,13 +118,6 @@ templ RedirectButton(label string, disabled ...bool) {
 	@oneButtonContainer(redirectButton(label, disabled))
 }
 
-templ SettleButtons() {
-  @twoButtonsContainer(
-	  greenButton("Settle now"),
-		cancelButton("Skip transaction"),
-	)
-}
-
 templ ViewTxButton(txid, explorerUrl string) {
 	@oneButtonContainer(viewTxButton(txid, explorerUrl))
 }
