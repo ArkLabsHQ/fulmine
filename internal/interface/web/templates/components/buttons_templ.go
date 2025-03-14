@@ -475,8 +475,8 @@ func LnConnectButtons() templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = twoButtonsContainer(
-			grayButton("Continue"),
-			iconButton("Scan", ScanIconXL()),
+			greenButton("Settle now"),
+			cancelButton("I trust the sender"),
 		).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

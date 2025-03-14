@@ -1,13 +1,8 @@
 package pages
 
-import (
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
-)
-
-templ IndexBodyContent(currentBalance, arkAddress string, transactions []types.Transaction, online, connected bool) {
-	@components.Hero(arkAddress, currentBalance, online, connected)
+templ IndexBodyContent() {
 	<div hx-ext="sse" sse-connect="/events">
-	  <div hx-get="/txs" hx-trigger="load, sse:TXS_ADDED" />
+	  <div hx-get="/hero" hx-trigger="load, sse:TXS_ADDED, sse:TXS_CONFIRMED, sse:TXS_REPLACED" />
+	  <div hx-get="/txs" hx-trigger="load, sse:TXS_ADDED, sse:TXS_CONFIRMED, sse:TXS_REPLACED" />
 	</div>
 }

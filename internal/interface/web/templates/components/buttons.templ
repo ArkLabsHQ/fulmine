@@ -103,6 +103,13 @@ templ LnConnectButtons() {
 	)
 }
 
+templ SettleButtons() {
+  @twoButtonsContainer(
+	  greenButton("Settle now"),
+		cancelButton("I trust the sender"),
+	)
+}
+
 templ OrangeButton(label string, disabled ...bool) {
 	@oneButtonContainer(orangeButton(label, disabled))
 }
