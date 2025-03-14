@@ -1,5 +1,9 @@
 package modals
 
+import (
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
+)
+
 templ lnConnectBullet(number string) {
   <p class="bg-white/10 rounded-full text-center w-5 h-5">{number}</p>
 }
@@ -24,14 +28,10 @@ templ lnConnectSection(number, title, text string) {
   </div>
 }
 
-templ codeSample(code string) {
-  <p class="bg-white/10 border border-white/20 p-4 rounded-lg text-white text-wrap break-words w-full">{code}</p>
-}
-
 templ LnConnectCodeSample() {
   <div class="flex flex-col gap-2">
     <p class="text-sm text-white/50">SAMPLE CODE</p>
-    @codeSample("echo 'lndconnect://example.com?cert='\"`grep -v 'CERTIFICATE' tls.cert | tr -d '=' | tr '/+' '_-'`\"'&macaroon='\"`base64 admin.macaroon | tr -d '=' | tr '/+' '_-'`\" | tr -d '\n' | qrencode -o /tmp/out.png")
+    @components.CodeSample("echo 'lndconnect://example.com?cert='\"`grep -v 'CERTIFICATE' tls.cert | tr -d '=' | tr '/+' '_-'`\"'&macaroon='\"`base64 admin.macaroon | tr -d '=' | tr '/+' '_-'`\" | tr -d '\n' | qrencode -o /tmp/out.png")
   </div>
 }
 
