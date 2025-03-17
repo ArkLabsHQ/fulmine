@@ -151,6 +151,29 @@
         ]
       }
     },
+    "/v1/delegate/watched": {
+      "get": {
+        "summary": "ListWatchedAddresses lists all watched addresses",
+        "operationId": "Service_ListWatchedAddresses",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListWatchedAddressesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/info": {
       "get": {
         "summary": "GetInfo returns info about the ark account",
@@ -812,6 +835,19 @@
         }
       }
     },
+    "v1ListWatchedAddressesResponse": {
+      "type": "object",
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1RolloverAddress"
+          },
+          "title": "List of all watched addresses"
+        }
+      }
+    },
     "v1Node": {
       "type": "object",
       "properties": {
@@ -867,6 +903,23 @@
       "properties": {
         "txid": {
           "type": "string"
+        }
+      }
+    },
+    "v1RolloverAddress": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "title": "The watched address"
+        },
+        "taprootTree": {
+          "type": "string",
+          "title": "Full taproot tree in serialized format"
+        },
+        "destinationAddress": {
+          "type": "string",
+          "title": "Where funds will be rolled over to"
         }
       }
     },
@@ -1075,17 +1128,8 @@
     "v1WatchAddressForRolloverRequest": {
       "type": "object",
       "properties": {
-        "address": {
-          "type": "string",
-          "title": "The address to be watched"
-        },
-        "taprootTree": {
-          "type": "string",
-          "title": "Full taproot tree in serialized format"
-        },
-        "destinationAddress": {
-          "type": "string",
-          "title": "Where funds should be rolled over to"
+        "rolloverAddress": {
+          "$ref": "#/definitions/v1RolloverAddress"
         }
       }
     },

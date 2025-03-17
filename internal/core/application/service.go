@@ -951,6 +951,10 @@ func (s *Service) UnwatchAddress(ctx context.Context, address string) error {
 	return s.vtxoRolloverRepo.RemoveTarget(ctx, address)
 }
 
+func (s *Service) ListWatchedAddresses(ctx context.Context) ([]domain.VtxoRolloverTarget, error) {
+	return s.vtxoRolloverRepo.GetAllTargets(ctx)
+}
+
 func (s *Service) listenForNotifications(
 	txCh <-chan client.TransactionEvent, closeFn func(),
 ) {

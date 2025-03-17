@@ -121,6 +121,12 @@ service Service {
       body: "*"
     };
   };
+  // ListWatchedAddresses lists all watched addresses
+  rpc ListWatchedAddresses(ListWatchedAddressesRequest) returns (ListWatchedAddressesResponse) {
+    option (google.api.http) = {
+      get: "/v1/delegate/watched"
+    };
+  };
 }
 
 message GetAddressRequest {}
@@ -270,9 +276,7 @@ message GetDelegatePublicKeyResponse {
 }
 
 message WatchAddressForRolloverRequest {
-  string address = 1;            // The address to be watched
-  string taproot_tree = 2;       // Full taproot tree in serialized format
-  string destination_address = 3; // Where funds should be rolled over to
+    RolloverAddress rollover_address = 1;
 }
 
 message WatchAddressForRolloverResponse {}
@@ -282,3 +286,16 @@ message UnwatchAddressRequest {
 }
 
 message UnwatchAddressResponse {}
+
+message ListWatchedAddressesRequest {
+}
+
+message ListWatchedAddressesResponse {
+  repeated RolloverAddress addresses = 1;  // List of all watched addresses
+}
+
+message RolloverAddress {
+  string address = 1;            // The watched address
+  string taproot_tree = 2;       // Full taproot tree in serialized format
+  string destination_address = 3; // Where funds will be rolled over to
+}

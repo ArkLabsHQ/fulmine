@@ -37,6 +37,7 @@ const (
 	Service_GetDelegatePublicKey_FullMethodName    = "/ark_node.v1.Service/GetDelegatePublicKey"
 	Service_WatchAddressForRollover_FullMethodName = "/ark_node.v1.Service/WatchAddressForRollover"
 	Service_UnwatchAddress_FullMethodName          = "/ark_node.v1.Service/UnwatchAddress"
+	Service_ListWatchedAddresses_FullMethodName    = "/ark_node.v1.Service/ListWatchedAddresses"
 )
 
 // ServiceClient is the client API for Service service.
@@ -76,6 +77,8 @@ type ServiceClient interface {
 	WatchAddressForRollover(ctx context.Context, in *WatchAddressForRolloverRequest, opts ...grpc.CallOption) (*WatchAddressForRolloverResponse, error)
 	// UnwatchAddress unsubscribes an address from vtxo rollover
 	UnwatchAddress(ctx context.Context, in *UnwatchAddressRequest, opts ...grpc.CallOption) (*UnwatchAddressResponse, error)
+	// ListWatchedAddresses lists all watched addresses
+	ListWatchedAddresses(ctx context.Context, in *ListWatchedAddressesRequest, opts ...grpc.CallOption) (*ListWatchedAddressesResponse, error)
 }
 
 type serviceClient struct {
@@ -266,6 +269,16 @@ func (c *serviceClient) UnwatchAddress(ctx context.Context, in *UnwatchAddressRe
 	return out, nil
 }
 
+func (c *serviceClient) ListWatchedAddresses(ctx context.Context, in *ListWatchedAddressesRequest, opts ...grpc.CallOption) (*ListWatchedAddressesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListWatchedAddressesResponse)
+	err := c.cc.Invoke(ctx, Service_ListWatchedAddresses_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServiceServer is the server API for Service service.
 // All implementations should embed UnimplementedServiceServer
 // for forward compatibility
@@ -303,6 +316,8 @@ type ServiceServer interface {
 	WatchAddressForRollover(context.Context, *WatchAddressForRolloverRequest) (*WatchAddressForRolloverResponse, error)
 	// UnwatchAddress unsubscribes an address from vtxo rollover
 	UnwatchAddress(context.Context, *UnwatchAddressRequest) (*UnwatchAddressResponse, error)
+	// ListWatchedAddresses lists all watched addresses
+	ListWatchedAddresses(context.Context, *ListWatchedAddressesRequest) (*ListWatchedAddressesResponse, error)
 }
 
 // UnimplementedServiceServer should be embedded to have forward compatible implementations.
@@ -362,6 +377,9 @@ func (UnimplementedServiceServer) WatchAddressForRollover(context.Context, *Watc
 }
 func (UnimplementedServiceServer) UnwatchAddress(context.Context, *UnwatchAddressRequest) (*UnwatchAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UnwatchAddress not implemented")
+}
+func (UnimplementedServiceServer) ListWatchedAddresses(context.Context, *ListWatchedAddressesRequest) (*ListWatchedAddressesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListWatchedAddresses not implemented")
 }
 
 // UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -699,6 +717,24 @@ func _Service_UnwatchAddress_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_ListWatchedAddresses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListWatchedAddressesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).ListWatchedAddresses(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_ListWatchedAddresses_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).ListWatchedAddresses(ctx, req.(*ListWatchedAddressesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Service_ServiceDesc is the grpc.ServiceDesc for Service service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -777,6 +813,10 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UnwatchAddress",
 			Handler:    _Service_UnwatchAddress_Handler,
+		},
+		{
+			MethodName: "ListWatchedAddresses",
+			Handler:    _Service_ListWatchedAddresses_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
