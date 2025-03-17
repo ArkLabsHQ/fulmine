@@ -943,6 +943,14 @@ func (s *Service) WatchAddressForRollover(ctx context.Context, address, taprootT
 	return s.vtxoRolloverRepo.AddTarget(ctx, target)
 }
 
+func (s *Service) UnwatchAddress(ctx context.Context, address string) error {
+	if address == "" {
+		return fmt.Errorf("address cannot be empty")
+	}
+
+	return s.vtxoRolloverRepo.RemoveTarget(ctx, address)
+}
+
 func (s *Service) listenForNotifications(
 	txCh <-chan client.TransactionEvent, closeFn func(),
 ) {

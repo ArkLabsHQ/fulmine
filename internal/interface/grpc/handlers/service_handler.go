@@ -318,7 +318,6 @@ func (h *serviceHandler) GetDelegatePublicKey(ctx context.Context, req *pb.GetDe
 	}, nil
 }
 
-// WatchAddressForRollover handles requests to watch an address for rollover
 func (h *serviceHandler) WatchAddressForRollover(ctx context.Context, req *pb.WatchAddressForRolloverRequest) (*pb.WatchAddressForRolloverResponse, error) {
 	err := h.svc.WatchAddressForRollover(ctx, req.Address, req.TaprootTree, req.DestinationAddress)
 	if err != nil {
@@ -326,4 +325,13 @@ func (h *serviceHandler) WatchAddressForRollover(ctx context.Context, req *pb.Wa
 	}
 
 	return &pb.WatchAddressForRolloverResponse{}, nil
+}
+
+func (h *serviceHandler) UnwatchAddress(ctx context.Context, req *pb.UnwatchAddressRequest) (*pb.UnwatchAddressResponse, error) {
+	err := h.svc.UnwatchAddress(ctx, req.Address)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to unwatch address: %v", err)
+	}
+
+	return &pb.UnwatchAddressResponse{}, nil
 }

@@ -85,6 +85,39 @@
         ]
       }
     },
+    "/v1/delegate/unwatch": {
+      "post": {
+        "summary": "UnwatchAddress unsubscribes an address from vtxo rollover",
+        "operationId": "Service_UnwatchAddress",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UnwatchAddressResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UnwatchAddressRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/delegate/watch": {
       "post": {
         "summary": "WatchAddressForRollover watches an address for rollover",
@@ -1006,6 +1039,18 @@
       ],
       "default": "TX_TYPE_UNSPECIFIED"
     },
+    "v1UnwatchAddressRequest": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "title": "The address to stop watching"
+        }
+      }
+    },
+    "v1UnwatchAddressResponse": {
+      "type": "object"
+    },
     "v1Vtxo": {
       "type": "object",
       "properties": {
@@ -1045,8 +1090,7 @@
       }
     },
     "v1WatchAddressForRolloverResponse": {
-      "type": "object",
-      "title": "Empty response as success is indicated by lack of error"
+      "type": "object"
     }
   }
 }
