@@ -101,6 +101,12 @@ service Service {
       get: "/v1/invoice/status"
     };
   }
+  // GetDelegatePublicKey retrieves the Ark node's public key to be included in VTXO scripts.
+  rpc GetDelegatePublicKey(GetDelegatePublicKeyRequest) returns (GetDelegatePublicKeyResponse) {
+    option (google.api.http) = {
+      get: "/v1/delegate/pubkey"
+    };
+  }
 }
 
 message GetAddressRequest {}
@@ -236,4 +242,15 @@ message IsInvoiceSettledRequest {
 
 message IsInvoiceSettledResponse {
   bool settled = 1;
+}
+
+// Request for getting the delegate public key. No fields required.
+message GetDelegatePublicKeyRequest {
+  // No fields needed
+}
+
+// Response containing the delegate public key.
+message GetDelegatePublicKeyResponse {
+  // The Ark node's public key to be used for delegate operations, encoded in hex
+  string public_key = 1;
 }

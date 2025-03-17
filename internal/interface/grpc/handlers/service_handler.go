@@ -306,3 +306,14 @@ func (h *serviceHandler) IsInvoiceSettled(
 
 	return &pb.IsInvoiceSettledResponse{Settled: settled}, nil
 }
+
+func (h *serviceHandler) GetDelegatePublicKey(ctx context.Context, req *pb.GetDelegatePublicKeyRequest) (*pb.GetDelegatePublicKeyResponse, error) {
+	pubKey, err := h.svc.GetDelegatePublicKey(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get delegate public key: %v", err)
+	}
+
+	return &pb.GetDelegatePublicKeyResponse{
+		PublicKey: pubKey,
+	}, nil
+}

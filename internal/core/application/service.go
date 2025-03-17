@@ -990,3 +990,11 @@ func (s *Service) listenForNotifications(
 		}
 	}
 }
+
+func (s *Service) GetDelegatePublicKey(ctx context.Context) (string, error) {
+	if s.publicKey == nil {
+		return "", fmt.Errorf("ark-node wallet not created")
+	}
+
+	return hex.EncodeToString(s.publicKey.SerializeCompressed()), nil
+}
