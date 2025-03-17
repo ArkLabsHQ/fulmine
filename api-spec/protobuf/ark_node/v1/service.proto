@@ -107,6 +107,13 @@ service Service {
       get: "/v1/delegate/pubkey"
     };
   }
+  // WatchAddressForRollover watches an address for rollover
+  rpc WatchAddressForRollover(WatchAddressForRolloverRequest) returns (WatchAddressForRolloverResponse) {
+    option (google.api.http) = {
+      post: "/v1/delegate/watch"
+      body: "*"
+    };
+  };
 }
 
 message GetAddressRequest {}
@@ -253,4 +260,14 @@ message GetDelegatePublicKeyRequest {
 message GetDelegatePublicKeyResponse {
   // The Ark node's public key to be used for delegate operations, encoded in hex
   string public_key = 1;
+}
+
+message WatchAddressForRolloverRequest {
+  string address = 1;            // The address to be watched
+  string taproot_tree = 2;       // Full taproot tree in serialized format
+  string destination_address = 3; // Where funds should be rolled over to
+}
+
+message WatchAddressForRolloverResponse {
+  // Empty response as success is indicated by lack of error
 }

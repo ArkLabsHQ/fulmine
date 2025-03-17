@@ -85,6 +85,39 @@
         ]
       }
     },
+    "/v1/delegate/watch": {
+      "post": {
+        "summary": "WatchAddressForRollover watches an address for rollover",
+        "operationId": "Service_WatchAddressForRollover",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1WatchAddressForRolloverResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1WatchAddressForRolloverRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/info": {
       "get": {
         "summary": "GetInfo returns info about the ark account",
@@ -993,6 +1026,27 @@
           "format": "int64"
         }
       }
+    },
+    "v1WatchAddressForRolloverRequest": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "title": "The address to be watched"
+        },
+        "taprootTree": {
+          "type": "string",
+          "title": "Full taproot tree in serialized format"
+        },
+        "destinationAddress": {
+          "type": "string",
+          "title": "Where funds should be rolled over to"
+        }
+      }
+    },
+    "v1WatchAddressForRolloverResponse": {
+      "type": "object",
+      "title": "Empty response as success is indicated by lack of error"
     }
   }
 }
