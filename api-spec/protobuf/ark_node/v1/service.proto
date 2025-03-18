@@ -191,6 +191,10 @@ message CreateVHTLCResponse {
   string refund_pubkey = 3;
   string server_pubkey = 4;
   TaprootTree swap_tree = 5;
+  int64 refund_locktime = 6;
+  int64 unilateral_claim_delay = 7;
+  int64 unilateral_refund_delay = 8;
+  int64 unilateral_refund_without_receiver_delay = 9;
 }
 
 message ClaimVHTLCRequest {

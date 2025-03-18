@@ -138,11 +138,15 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		return nil, err
 	}
 	return &pb.CreateVHTLCResponse{
-		Address:      addr,
-		ClaimPubkey:  hex.EncodeToString(swapTree.Receiver.SerializeCompressed()[1:]),
-		RefundPubkey: hex.EncodeToString(swapTree.Sender.SerializeCompressed()[1:]),
-		ServerPubkey: hex.EncodeToString(swapTree.Server.SerializeCompressed()[1:]),
-		SwapTree:     toSwapTreeProto(swapTree),
+		Address:                              addr,
+		ClaimPubkey:                          hex.EncodeToString(swapTree.Receiver.SerializeCompressed()[1:]),
+		RefundPubkey:                         hex.EncodeToString(swapTree.Sender.SerializeCompressed()[1:]),
+		ServerPubkey:                         hex.EncodeToString(swapTree.Server.SerializeCompressed()[1:]),
+		SwapTree:                             toSwapTreeProto(swapTree),
+		RefundLocktime:                       int64(req.RefundLocktime),
+		UnilateralClaimDelay:                 int64(req.UnilateralClaimDelay.Value),
+		UnilateralRefundDelay:                int64(req.UnilateralRefundDelay.Value),
+		UnilateralRefundWithoutReceiverDelay: int64(req.UnilateralRefundWithoutReceiverDelay.Value),
 	}, nil
 }
 

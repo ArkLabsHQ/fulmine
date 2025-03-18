@@ -630,6 +630,22 @@
         },
         "swapTree": {
           "$ref": "#/definitions/v1TaprootTree"
+        },
+        "refundLocktime": {
+          "type": "string",
+          "format": "int64"
+        },
+        "unilateralClaimDelay": {
+          "type": "string",
+          "format": "int64"
+        },
+        "unilateralRefundDelay": {
+          "type": "string",
+          "format": "int64"
+        },
+        "unilateralRefundWithoutReceiverDelay": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
