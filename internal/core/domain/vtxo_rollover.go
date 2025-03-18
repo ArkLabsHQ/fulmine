@@ -4,9 +4,9 @@ import "context"
 
 // VtxoRolloverTarget represents an address being watched for rollover
 type VtxoRolloverTarget struct {
-	Address            string // The address being watched
-	TaprootTree        string // Full taproot tree in serialized format
-	DestinationAddress string // Where VTXO should be rolled over to
+	Address            string   // The address being watched
+	TaprootTree        []string // Full taproot tree as list of hex tapscripts
+	DestinationAddress string   // Where VTXO should be rolled over to
 }
 
 type VtxoRolloverRepository interface {

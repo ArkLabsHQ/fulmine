@@ -28,6 +28,12 @@ var (
 		},
 	}
 
+	vtxoRolloverDbs = map[string]func() (domain.VtxoRolloverRepository, error){
+		"badger": func() (domain.VtxoRolloverRepository, error) {
+			return badgerdb.NewVtxoRolloverRepo("", nil)
+		},
+	}
+
 	testSettings = domain.Settings{
 		ApiRoot:     "apiroot",
 		ServerUrl:   "serverurl",
@@ -36,6 +42,12 @@ var (
 		FullNode:    "fullnode",
 		LnUrl:       "lndconnect",
 		Unit:        "unit",
+	}
+
+	testVtxoRolloverTarget = domain.VtxoRolloverTarget{
+		Address:            "test_address",
+		TaprootTree:        []string{"tapscript1", "tapscript2"},
+		DestinationAddress: "destination_address",
 	}
 
 	testVHTLC = func() vhtlc.Opts {
@@ -280,6 +292,128 @@ func getVHTLCRepos() ([]vhtlcDb, error) {
 			return nil, err
 		}
 		repos = append(repos, vhtlcDb{dbName, repo})
+	}
+	return repos, nil
+}
+
+func TestVtxoRolloverRepo(t *testing.T) {
+	repos, err := getVtxoRolloverRepos()
+	require.NoError(t, err)
+
+	for _, v := range repos {
+		t.Parallel()
+
+		t.Run(v.name, func(t *testing.T) {
+			testAddVtxoRolloverTarget(t, v.repo)
+			testGetVtxoRolloverTarget(t, v.repo)
+			testGetAllVtxoRolloverTargets(t, v.repo)
+			testRemoveVtxoRolloverTarget(t, v.repo)
+		})
+	}
+}
+
+func testAddVtxoRolloverTarget(t *testing.T, repo domain.VtxoRolloverRepository) {
+	t.Run("add vtxo rollover target", func(t *testing.T) {
+		ctx := context.Background()
+
+		// Add new target
+		err := repo.AddTarget(ctx, testVtxoRolloverTarget)
+		require.NoError(t, err)
+
+		// Try to add the same target again, should not error
+		err = repo.AddTarget(ctx, testVtxoRolloverTarget)
+		require.NoError(t, err)
+
+		// Verify the target was added correctly
+		target, err := repo.GetTarget(ctx, testVtxoRolloverTarget.Address)
+		require.NoError(t, err)
+		require.NotNil(t, target)
+		require.Equal(t, testVtxoRolloverTarget, *target)
+	})
+}
+
+func testGetVtxoRolloverTarget(t *testing.T, repo domain.VtxoRolloverRepository) {
+	t.Run("get vtxo rollover target", func(t *testing.T) {
+		ctx := context.Background()
+
+		// Try to get a non-existent target
+		target, err := repo.GetTarget(ctx, "non_existent_address")
+		require.Error(t, err)
+		require.Nil(t, target)
+
+		// Get an existing target
+		target, err = repo.GetTarget(ctx, testVtxoRolloverTarget.Address)
+		require.NoError(t, err)
+		require.NotNil(t, target)
+		require.Equal(t, testVtxoRolloverTarget, *target)
+	})
+}
+
+func testGetAllVtxoRolloverTargets(t *testing.T, repo domain.VtxoRolloverRepository) {
+	t.Run("get all vtxo rollover targets", func(t *testing.T) {
+		ctx := context.Background()
+
+		// Add a second target
+		secondTarget := domain.VtxoRolloverTarget{
+			Address:            "second_address",
+			TaprootTree:        []string{"other_tapscript1", "other_tapscript2"},
+			DestinationAddress: "other_destination_address",
+		}
+		err := repo.AddTarget(ctx, secondTarget)
+		require.NoError(t, err)
+
+		// Get all targets
+		targets, err := repo.GetAllTargets(ctx)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(targets), 2)
+
+		// Verify both targets are present
+		found := 0
+		for _, t := range targets {
+			if t.Address == testVtxoRolloverTarget.Address || t.Address == secondTarget.Address {
+				found++
+			}
+		}
+		require.GreaterOrEqual(t, found, 2)
+	})
+}
+
+func testRemoveVtxoRolloverTarget(t *testing.T, repo domain.VtxoRolloverRepository) {
+	t.Run("remove vtxo rollover target", func(t *testing.T) {
+		ctx := context.Background()
+
+		// Remove an existing target
+		err := repo.RemoveTarget(ctx, testVtxoRolloverTarget.Address)
+		require.NoError(t, err)
+
+		// Verify it was removed
+		target, err := repo.GetTarget(ctx, testVtxoRolloverTarget.Address)
+		require.Error(t, err)
+		require.Nil(t, target)
+
+		// Try to remove it again, should not error
+		err = repo.RemoveTarget(ctx, testVtxoRolloverTarget.Address)
+		require.NoError(t, err)
+
+		// Try to remove a non-existent target, should not error
+		err = repo.RemoveTarget(ctx, "non_existent_address")
+		require.NoError(t, err)
+	})
+}
+
+type vtxoRolloverDb struct {
+	name string
+	repo domain.VtxoRolloverRepository
+}
+
+func getVtxoRolloverRepos() ([]vtxoRolloverDb, error) {
+	var repos []vtxoRolloverDb
+	for dbName, factory := range vtxoRolloverDbs {
+		repo, err := factory()
+		if err != nil {
+			return nil, err
+		}
+		repos = append(repos, vtxoRolloverDb{dbName, repo})
 	}
 	return repos, nil
 }

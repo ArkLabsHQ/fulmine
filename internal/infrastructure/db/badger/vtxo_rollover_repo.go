@@ -2,6 +2,7 @@ package badgerdb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -33,9 +34,21 @@ func NewVtxoRolloverRepo(baseDir string, logger badger.Logger) (domain.VtxoRollo
 func (s *vtxoRolloverService) AddTarget(ctx context.Context, target domain.VtxoRolloverTarget) error {
 	if ctx.Value("tx") != nil {
 		tx := ctx.Value("tx").(*badger.Txn)
-		return s.store.TxInsert(tx, target.Address, target)
+		if err := s.store.TxInsert(tx, target.Address, target); err != nil {
+			if errors.Is(err, badgerhold.ErrKeyExists) {
+				return nil
+			}
+			return err
+		}
 	}
-	return s.store.Insert(target.Address, target)
+	if err := s.store.Insert(target.Address, target); err != nil {
+		if errors.Is(err, badgerhold.ErrKeyExists) {
+			return nil
+		}
+		return err
+	}
+
+	return nil
 }
 
 func (s *vtxoRolloverService) GetTarget(ctx context.Context, address string) (*domain.VtxoRolloverTarget, error) {
@@ -84,7 +97,7 @@ func (s *vtxoRolloverService) RemoveTarget(ctx context.Context, address string) 
 		tx := ctx.Value("tx").(*badger.Txn)
 		err := s.store.TxGet(tx, address, &target)
 		if err != nil {
-			if err == badgerhold.ErrNotFound {
+			if errors.Is(err, badgerhold.ErrNotFound) {
 				return nil // Already removed, no error
 			}
 			return err
@@ -94,8 +107,8 @@ func (s *vtxoRolloverService) RemoveTarget(ctx context.Context, address string) 
 
 	err := s.store.Get(address, &target)
 	if err != nil {
-		if err == badgerhold.ErrNotFound {
-			return nil // Already removed, no error
+		if errors.Is(err, badgerhold.ErrNotFound) {
+			return nil
 		}
 		return err
 	}

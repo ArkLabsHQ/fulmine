@@ -917,21 +917,21 @@ func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification 
 
 func (s *Service) GetDelegatePublicKey(ctx context.Context) (string, error) {
 	if s.publicKey == nil {
-		return "", fmt.Errorf("ark-node wallet not created")
+		return "", fmt.Errorf("service not initialized")
 	}
 
 	return hex.EncodeToString(s.publicKey.SerializeCompressed()), nil
 }
 
-func (s *Service) WatchAddressForRollover(ctx context.Context, address, taprootTree, destinationAddress string) error {
+func (s *Service) WatchAddressForRollover(ctx context.Context, address, destinationAddress string, taprootTree []string) error {
 	if address == "" {
-		return fmt.Errorf("address cannot be empty")
+		return fmt.Errorf("missing address")
 	}
-	if taprootTree == "" {
-		return fmt.Errorf("taproot tree cannot be empty")
+	if len(taprootTree) == 0 {
+		return fmt.Errorf("missing taproot tree")
 	}
 	if destinationAddress == "" {
-		return fmt.Errorf("destination address cannot be empty")
+		return fmt.Errorf("missing destination address")
 	}
 
 	target := domain.VtxoRolloverTarget{
@@ -945,7 +945,7 @@ func (s *Service) WatchAddressForRollover(ctx context.Context, address, taprootT
 
 func (s *Service) UnwatchAddress(ctx context.Context, address string) error {
 	if address == "" {
-		return fmt.Errorf("address cannot be empty")
+		return fmt.Errorf("missing address")
 	}
 
 	return s.vtxoRolloverRepo.RemoveTarget(ctx, address)

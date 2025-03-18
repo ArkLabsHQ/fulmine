@@ -326,8 +326,8 @@ func (h *serviceHandler) WatchAddressForRollover(
 ) (*pb.WatchAddressForRolloverResponse, error) {
 	err := h.svc.WatchAddressForRollover(
 		ctx, req.RolloverAddress.Address,
-		req.RolloverAddress.TaprootTree,
 		req.RolloverAddress.DestinationAddress,
+		req.RolloverAddress.TaprootTree.Scripts,
 	)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to watch address: %v", err)
@@ -358,8 +358,10 @@ func (h *serviceHandler) ListWatchedAddresses(
 	rolloverAddresses := make([]*pb.RolloverAddress, 0, len(targets))
 	for _, target := range targets {
 		rolloverAddresses = append(rolloverAddresses, &pb.RolloverAddress{
-			Address:            target.Address,
-			TaprootTree:        target.TaprootTree,
+			Address: target.Address,
+			TaprootTree: &pb.Tapscripts{
+				Scripts: target.TaprootTree,
+			},
 			DestinationAddress: target.DestinationAddress,
 		})
 	}

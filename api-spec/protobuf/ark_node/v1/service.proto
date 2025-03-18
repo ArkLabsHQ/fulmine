@@ -296,6 +296,10 @@ message ListWatchedAddressesResponse {
 
 message RolloverAddress {
   string address = 1;            // The watched address
-  string taproot_tree = 2;       // Full taproot tree in serialized format
+  Tapscripts taproot_tree = 2;   // Full taproot tree as list of hex tapscripts
   string destination_address = 3; // Where funds will be rolled over to
+}
+
+message Tapscripts {
+  repeated string scripts = 1;
 }

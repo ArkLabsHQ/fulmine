@@ -914,8 +914,8 @@
           "title": "The watched address"
         },
         "taprootTree": {
-          "type": "string",
-          "title": "Full taproot tree in serialized format"
+          "$ref": "#/definitions/v1Tapscripts",
+          "title": "Full taproot tree as list of hex tapscripts"
         },
         "destinationAddress": {
           "type": "string",
@@ -1029,6 +1029,17 @@
         },
         "unilateralRefundWithoutBoltzLeaf": {
           "$ref": "#/definitions/v1TaprootLeaf"
+        }
+      }
+    },
+    "v1Tapscripts": {
+      "type": "object",
+      "properties": {
+        "scripts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
