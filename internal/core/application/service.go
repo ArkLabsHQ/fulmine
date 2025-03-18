@@ -777,6 +777,7 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		return "", fmt.Errorf("invalid refund pubkey: %v", err)
 	}
 
+	// TODO fetch refundLocktimeParam, unilateralClaimDelayParam, unilateralRefundDelayParam, unilateralRefundWithoutReceiverDelayParam from Boltz API
 	vhtlcAddress, _, err := s.GetVHTLC(ctx, nil, senderPubkey, preimageHash, nil, nil, nil, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
@@ -860,6 +861,7 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		return "", fmt.Errorf("invalid claim pubkey: %v", err)
 	}
 
+	// TODO fetch refundLocktimeParam, unilateralClaimDelayParam, unilateralRefundDelayParam, unilateralRefundWithoutReceiverDelayParam from Boltz API
 	address, _, err := s.GetVHTLC(ctx, receiverPubkey, nil, decodedPreimageHash, nil, nil, nil, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
