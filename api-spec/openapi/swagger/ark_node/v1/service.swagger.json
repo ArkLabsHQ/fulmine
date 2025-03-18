@@ -472,6 +472,15 @@
       ],
       "default": "NETWORK_UNSPECIFIED"
     },
+    "RelativeLocktimeLocktimeType": {
+      "type": "string",
+      "enum": [
+        "LOCKTIME_TYPE_UNSPECIFIED",
+        "LOCKTIME_TYPE_BLOCK",
+        "LOCKTIME_TYPE_SECOND"
+      ],
+      "default": "LOCKTIME_TYPE_UNSPECIFIED"
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -584,6 +593,23 @@
         },
         "receiverPubkey": {
           "type": "string"
+        },
+        "refundLocktime": {
+          "type": "integer",
+          "format": "int64",
+          "title": "Optional absolute locktime for refund condition (in blocks)"
+        },
+        "unilateralClaimDelay": {
+          "$ref": "#/definitions/v1RelativeLocktime",
+          "title": "Optional unilateral claim delay (relative timelock)"
+        },
+        "unilateralRefundDelay": {
+          "$ref": "#/definitions/v1RelativeLocktime",
+          "title": "Optional unilateral refund delay (relative timelock)"
+        },
+        "unilateralRefundWithoutReceiverDelay": {
+          "$ref": "#/definitions/v1RelativeLocktime",
+          "title": "Optional unilateral refund without receiver delay (relative timelock)"
         }
       }
     },
@@ -604,6 +630,22 @@
         },
         "swapTree": {
           "$ref": "#/definitions/v1TaprootTree"
+        },
+        "refundLocktime": {
+          "type": "string",
+          "format": "int64"
+        },
+        "unilateralClaimDelay": {
+          "type": "string",
+          "format": "int64"
+        },
+        "unilateralRefundDelay": {
+          "type": "string",
+          "format": "int64"
+        },
+        "unilateralRefundWithoutReceiverDelay": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
@@ -770,6 +812,19 @@
           "type": "string"
         }
       }
+    },
+    "v1RelativeLocktime": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/RelativeLocktimeLocktimeType"
+        },
+        "value": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "title": "RelativeLocktime represents a relative timelock"
     },
     "v1Round": {
       "type": "object",

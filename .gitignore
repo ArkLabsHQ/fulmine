@@ -25,3 +25,8 @@ DS_Store
 .vscode
 
 /node-cln/
+
+.windsurfrules
+.cursor/rules/developer-guide.mdc
+.cursor/mcp.json
+windsurfrules1

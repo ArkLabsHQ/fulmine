@@ -176,6 +176,14 @@ message CreateVHTLCRequest {
   string preimage_hash = 1;
   string sender_pubkey = 2; 
   string receiver_pubkey = 3; 
+  // Optional absolute locktime for refund condition (in blocks)
+  uint32 refund_locktime = 4;
+  // Optional unilateral claim delay (relative timelock)
+  RelativeLocktime unilateral_claim_delay = 5;
+  // Optional unilateral refund delay (relative timelock)
+  RelativeLocktime unilateral_refund_delay = 6;
+  // Optional unilateral refund without receiver delay (relative timelock)
+  RelativeLocktime unilateral_refund_without_receiver_delay = 7;
 }
 message CreateVHTLCResponse {
   string address = 1;
@@ -183,6 +191,10 @@ message CreateVHTLCResponse {
   string refund_pubkey = 3;
   string server_pubkey = 4;
   TaprootTree swap_tree = 5;
+  int64 refund_locktime = 6;
+  int64 unilateral_claim_delay = 7;
+  int64 unilateral_refund_delay = 8;
+  int64 unilateral_refund_without_receiver_delay = 9;
 }
 
 message ClaimVHTLCRequest {
@@ -236,4 +248,15 @@ message IsInvoiceSettledRequest {
 
 message IsInvoiceSettledResponse {
   bool settled = 1;
+}
+
+// RelativeLocktime represents a relative timelock
+message RelativeLocktime {
+  enum LocktimeType {
+    LOCKTIME_TYPE_UNSPECIFIED = 0;
+    LOCKTIME_TYPE_BLOCK = 1;
+    LOCKTIME_TYPE_SECOND = 2;
+  }
+  LocktimeType type = 1;
+  uint32 value = 2;
 }

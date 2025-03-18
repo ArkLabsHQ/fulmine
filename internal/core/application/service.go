@@ -411,7 +411,13 @@ func (s *Service) IsConnectedLN() bool {
 }
 
 func (s *Service) GetVHTLC(
-	ctx context.Context, receiverPubkey, senderPubkey *secp256k1.PublicKey, preimageHash []byte,
+	ctx context.Context,
+	receiverPubkey, senderPubkey *secp256k1.PublicKey,
+	preimageHash []byte,
+	refundLocktimeParam *common.AbsoluteLocktime,
+	unilateralClaimDelayParam *common.RelativeLocktime,
+	unilateralRefundDelayParam *common.RelativeLocktime,
+	unilateralRefundWithoutReceiverDelayParam *common.RelativeLocktime,
 ) (string, *vhtlc.VHTLCScript, error) {
 	receiverPubkeySet := receiverPubkey != nil
 	senderPubkeySet := senderPubkey != nil
@@ -435,19 +441,34 @@ func (s *Service) GetVHTLC(
 		return "", nil, err
 	}
 
-	// TODO: make these delays configurable
+	// Default values if not provided
 	refundLocktime := common.AbsoluteLocktime(80 * 600) // 80 blocks
+	if refundLocktimeParam != nil {
+		refundLocktime = *refundLocktimeParam
+	}
+
 	unilateralClaimDelay := common.RelativeLocktime{
 		Type:  common.LocktimeTypeSecond,
 		Value: 512, //60 * 12, // 12 hours
 	}
+	if unilateralClaimDelayParam != nil {
+		unilateralClaimDelay = *unilateralClaimDelayParam
+	}
+
 	unilateralRefundDelay := common.RelativeLocktime{
 		Type:  common.LocktimeTypeSecond,
 		Value: 1024, //60 * 24, // 24 hours
 	}
+	if unilateralRefundDelayParam != nil {
+		unilateralRefundDelay = *unilateralRefundDelayParam
+	}
+
 	unilateralRefundWithoutReceiverDelay := common.RelativeLocktime{
 		Type:  common.LocktimeTypeBlock,
 		Value: 224, // 224 blocks
+	}
+	if unilateralRefundWithoutReceiverDelayParam != nil {
+		unilateralRefundWithoutReceiverDelay = *unilateralRefundWithoutReceiverDelayParam
 	}
 
 	opts := vhtlc.Opts{
@@ -756,7 +777,8 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		return "", fmt.Errorf("invalid refund pubkey: %v", err)
 	}
 
-	vhtlcAddress, _, err := s.GetVHTLC(ctx, nil, senderPubkey, preimageHash)
+	// TODO fetch refundLocktimeParam, unilateralClaimDelayParam, unilateralRefundDelayParam, unilateralRefundWithoutReceiverDelayParam from Boltz API
+	vhtlcAddress, _, err := s.GetVHTLC(ctx, nil, senderPubkey, preimageHash, nil, nil, nil, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
 	}
@@ -839,7 +861,8 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		return "", fmt.Errorf("invalid claim pubkey: %v", err)
 	}
 
-	address, _, err := s.GetVHTLC(ctx, receiverPubkey, nil, decodedPreimageHash)
+	// TODO fetch refundLocktimeParam, unilateralClaimDelayParam, unilateralRefundDelayParam, unilateralRefundWithoutReceiverDelayParam from Boltz API
+	address, _, err := s.GetVHTLC(ctx, receiverPubkey, nil, decodedPreimageHash, nil, nil, nil, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
 	}
