@@ -30,7 +30,7 @@ mkdir -p build
 # Build the binary with version information
 CGO_ENABLED=0 go build -ldflags="-X 'main.Version=$VERSION'" -o build/ark-node-$GOOS-$GOARCH cmd/ark-node/main.go
 
-echo "Build complete: build/ark-node-$GOOS-$GOARCH"
+echo "Build successful for $GOOS $GOARCH: build/ark-node-$GOOS-$GOARCH"
 
 # Return to the original directory
 popd

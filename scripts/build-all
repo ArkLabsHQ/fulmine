@@ -25,9 +25,8 @@ handle_error() {
 # Loop through OS and ARCH combinations
 for os in "${OS[@]}"; do
     for arch in "${ARCH[@]}"; do
-        echo "Building for $os $arch"
         if GOOS=$os GOARCH=$arch ./scripts/build; then
-            echo "Build successful for $os $arch"
+            :
         else
             handle_error $os $arch $?
         fi

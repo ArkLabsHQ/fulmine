@@ -7,6 +7,7 @@ import (
 
 	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
 	"github.com/ArkLabsHQ/ark-node/internal/core/application"
+	"github.com/ark-network/ark/common"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -86,17 +87,78 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		return nil, status.Error(codes.InvalidArgument, "invalid preimage hash")
 	}
 
-	addr, swapTree, err := h.svc.GetVHTLC(ctx, receiverPubkey, senderPubkey, preimageHashBytes)
+	// Parse optional locktime values
+	var refundLocktime *common.AbsoluteLocktime
+	if req.RefundLocktime > 0 {
+		locktime := common.AbsoluteLocktime(req.RefundLocktime)
+		refundLocktime = &locktime
+	}
+
+	// Parse unilateral claim delay
+	var unilateralClaimDelay *common.RelativeLocktime
+	if req.UnilateralClaimDelay != nil {
+		delay := common.RelativeLocktime{
+			Type:  toCommonLocktimeType(req.UnilateralClaimDelay.Type),
+			Value: req.UnilateralClaimDelay.Value,
+		}
+		unilateralClaimDelay = &delay
+	}
+
+	// Parse unilateral refund delay
+	var unilateralRefundDelay *common.RelativeLocktime
+	if req.UnilateralRefundDelay != nil {
+		delay := common.RelativeLocktime{
+			Type:  toCommonLocktimeType(req.UnilateralRefundDelay.Type),
+			Value: req.UnilateralRefundDelay.Value,
+		}
+		unilateralRefundDelay = &delay
+	}
+
+	// Parse unilateral refund without receiver delay
+	var unilateralRefundWithoutReceiverDelay *common.RelativeLocktime
+	if req.UnilateralRefundWithoutReceiverDelay != nil {
+		delay := common.RelativeLocktime{
+			Type:  toCommonLocktimeType(req.UnilateralRefundWithoutReceiverDelay.Type),
+			Value: req.UnilateralRefundWithoutReceiverDelay.Value,
+		}
+		unilateralRefundWithoutReceiverDelay = &delay
+	}
+
+	addr, swapTree, err := h.svc.GetVHTLC(
+		ctx,
+		receiverPubkey,
+		senderPubkey,
+		preimageHashBytes,
+		refundLocktime,
+		unilateralClaimDelay,
+		unilateralRefundDelay,
+		unilateralRefundWithoutReceiverDelay,
+	)
 	if err != nil {
 		return nil, err
 	}
 	return &pb.CreateVHTLCResponse{
-		Address:      addr,
-		ClaimPubkey:  hex.EncodeToString(swapTree.Receiver.SerializeCompressed()[1:]),
-		RefundPubkey: hex.EncodeToString(swapTree.Sender.SerializeCompressed()[1:]),
-		ServerPubkey: hex.EncodeToString(swapTree.Server.SerializeCompressed()[1:]),
-		SwapTree:     toSwapTreeProto(swapTree),
+		Address:                              addr,
+		ClaimPubkey:                          hex.EncodeToString(swapTree.Receiver.SerializeCompressed()[1:]),
+		RefundPubkey:                         hex.EncodeToString(swapTree.Sender.SerializeCompressed()[1:]),
+		ServerPubkey:                         hex.EncodeToString(swapTree.Server.SerializeCompressed()[1:]),
+		SwapTree:                             toSwapTreeProto(swapTree),
+		RefundLocktime:                       int64(req.RefundLocktime),
+		UnilateralClaimDelay:                 int64(req.UnilateralClaimDelay.Value),
+		UnilateralRefundDelay:                int64(req.UnilateralRefundDelay.Value),
+		UnilateralRefundWithoutReceiverDelay: int64(req.UnilateralRefundWithoutReceiverDelay.Value),
 	}, nil
+}
+
+func toCommonLocktimeType(pbType pb.RelativeLocktime_LocktimeType) common.RelativeLocktimeType {
+	switch pbType {
+	case pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK:
+		return common.LocktimeTypeBlock
+	case pb.RelativeLocktime_LOCKTIME_TYPE_SECOND:
+		return common.LocktimeTypeSecond
+	default:
+		return common.LocktimeTypeBlock
+	}
 }
 
 func (h *serviceHandler) GetAddress(

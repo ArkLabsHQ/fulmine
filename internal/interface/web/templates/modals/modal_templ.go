@@ -8,6 +8,10 @@ package modals
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import (
+	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
+)
+
 func Modal(content templ.Component) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -29,7 +33,7 @@ func Modal(content templ.Component) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"modalContainer\" onclick=\"closeModal()\" class=\"fixed inset-0 flex justify-center items-center bg-black/60\"><div onclick=\"event.stopPropagation()\" class=\"bg-graybg rounded-xl shadow p-6 transition-all max-w-64 sm:max-w-96 \">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"modalContainer\" onclick=\"closeModal()\" class=\"fixed inset-0 flex justify-center items-center bg-black/60\"><div onclick=\"event.stopPropagation()\" class=\"bg-graybg relative rounded-xl shadow p-6 transition-all\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -37,7 +41,15 @@ func Modal(content templ.Component) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<button class=\"border-1 border-white/20 mt-4\" onclick=\"closeModal()\">Close</button></div></div><script>\n    const closeModal = () => document.querySelector(\"#modalContainer\").style.display = 'none'\n  </script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<p class=\"bg-white/10 cursor-pointer p-3 rounded-full absolute top-6 right-6 text-white\" onclick=\"closeModal()\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = components.CloseIcon().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p></div></div><script>\n    const closeModal = () => document.querySelector(\"#modalContainer\").style.display = 'none'\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

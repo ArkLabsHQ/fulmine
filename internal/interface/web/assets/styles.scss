@@ -34,6 +34,15 @@ body {
   min-height: 100vh;
 }
 
+a.visible {
+  color: #f28c52;
+  cursor: pointer;
+  text-decoration: underline;
+  &:hover {
+    color: #f2bf52;
+  }
+}
+
 input {
   border: none;
   color: #fbfbfb80;
@@ -80,6 +89,11 @@ div:has(> input:not(.hidden):not(.unframed):focus) {
   }
 }
 
+#modalContainer > div {
+  max-width: 648px;
+  width: 90%;
+}
+
 #htmx-result {
   padding: 2rem 0;
 }
@@ -116,7 +130,6 @@ button {
   padding: 1rem;
   text-align: center;
   transition: border-color 0.25s;
-  width: 100%;
 }
 
 button:hover {

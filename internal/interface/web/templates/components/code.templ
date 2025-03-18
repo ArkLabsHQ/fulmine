@@ -1,0 +1,26 @@
+package components
+
+templ CodeSample(code string) {
+  <div class="bg-white/10 border border-white/20 p-2 rounded-lg w-full">
+    <div class="flex justify-between items-start gap-4">
+      <p class="p-2 text-white text-wrap break-words">{code}</p>
+      <div class="bg-graybg p-2 rounded-lg" data-value={code} onclick="handleCopy(this, event)">
+		    <span data-kind="copy">@CopyIcon()</span>
+		    <span data-kind="done" class="hidden">@CheckMarkIcon()</span>
+		  </div>
+    </div>
+  </div>
+  <script>
+		const handleCopy = (element, event) => {
+			event.preventDefault()
+			if (!navigator.clipboard) return
+			navigator.clipboard.writeText(element.dataset.value)
+			element.querySelector("[data-kind='copy']").classList.add("hidden")
+			element.querySelector("[data-kind='done']").classList.remove("hidden")
+			setTimeout(() => {
+				element.querySelector("[data-kind='copy']").classList.remove("hidden")
+				element.querySelector("[data-kind='done']").classList.add("hidden")
+			}, 1000)
+		}
+  </script>
+}

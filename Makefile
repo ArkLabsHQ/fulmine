@@ -1,7 +1,12 @@
-.PHONY: build build-all build-templates clean cov help intergrationtest lint run run-cln test vet proto proto-lint
+.PHONY: build build-all build-static-assets build-templates clean cov help intergrationtest lint run run-cln test vet proto proto-lint
+
+build-static-assets:
+	@echo "Generating static assets..."
+	@cd internal/interface/web && rm -rf .parcel-cache && yarn build
+	@cd ../../..
 
 ## build: build for your platform
-build: build-templates
+build: build-static-assets build-templates
 	@echo "Building ark-node binary..."
 	@bash ./scripts/build
 
@@ -41,7 +46,7 @@ lint:
 	@golangci-lint run --fix
 
 ## run: run in dev mode
-run: clean build-templates
+run: clean build-static-assets build-templates
 	@echo "Running ark-node in dev mode..."
 	@go run ./cmd/ark-node
 
