@@ -368,3 +368,67 @@ func (h *serviceHandler) IsInvoiceSettled(
 
 	return &pb.IsInvoiceSettledResponse{Settled: settled}, nil
 }
+
+func (h *serviceHandler) GetDelegatePublicKey(
+	ctx context.Context, req *pb.GetDelegatePublicKeyRequest,
+) (*pb.GetDelegatePublicKeyResponse, error) {
+	pubKey, err := h.svc.GetDelegatePublicKey(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get delegate public key: %v", err)
+	}
+
+	return &pb.GetDelegatePublicKeyResponse{
+		PublicKey: pubKey,
+	}, nil
+}
+
+func (h *serviceHandler) WatchAddressForRollover(
+	ctx context.Context,
+	req *pb.WatchAddressForRolloverRequest,
+) (*pb.WatchAddressForRolloverResponse, error) {
+	err := h.svc.WatchAddressForRollover(
+		ctx, req.RolloverAddress.Address,
+		req.RolloverAddress.DestinationAddress,
+		req.RolloverAddress.TaprootTree.Scripts,
+	)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to watch address: %v", err)
+	}
+
+	return &pb.WatchAddressForRolloverResponse{}, nil
+}
+
+func (h *serviceHandler) UnwatchAddress(
+	ctx context.Context, req *pb.UnwatchAddressRequest,
+) (*pb.UnwatchAddressResponse, error) {
+	err := h.svc.UnwatchAddress(ctx, req.Address)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to unwatch address: %v", err)
+	}
+
+	return &pb.UnwatchAddressResponse{}, nil
+}
+
+func (h *serviceHandler) ListWatchedAddresses(
+	ctx context.Context, req *pb.ListWatchedAddressesRequest,
+) (*pb.ListWatchedAddressesResponse, error) {
+	targets, err := h.svc.ListWatchedAddresses(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list watched addresses: %v", err)
+	}
+
+	rolloverAddresses := make([]*pb.RolloverAddress, 0, len(targets))
+	for _, target := range targets {
+		rolloverAddresses = append(rolloverAddresses, &pb.RolloverAddress{
+			Address: target.Address,
+			TaprootTree: &pb.Tapscripts{
+				Scripts: target.TaprootTree,
+			},
+			DestinationAddress: target.DestinationAddress,
+		})
+	}
+
+	return &pb.ListWatchedAddressesResponse{
+		Addresses: rolloverAddresses,
+	}, nil
+}

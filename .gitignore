@@ -27,6 +27,5 @@ DS_Store
 /node-cln/
 
 .windsurfrules
-.cursor/rules/developer-guide.mdc
-.cursor/mcp.json
-windsurfrules1
+
+.cursor

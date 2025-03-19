@@ -62,6 +62,118 @@
         ]
       }
     },
+    "/v1/delegate/pubkey": {
+      "get": {
+        "summary": "GetDelegatePublicKey retrieves the Ark node's public key to be included in VTXO scripts.",
+        "operationId": "Service_GetDelegatePublicKey",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetDelegatePublicKeyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v1/delegate/unwatch": {
+      "post": {
+        "summary": "UnwatchAddress unsubscribes an address from vtxo rollover",
+        "operationId": "Service_UnwatchAddress",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UnwatchAddressResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UnwatchAddressRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v1/delegate/watch": {
+      "post": {
+        "summary": "WatchAddressForRollover watches an address for rollover",
+        "operationId": "Service_WatchAddressForRollover",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1WatchAddressForRolloverResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1WatchAddressForRolloverRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v1/delegate/watched": {
+      "get": {
+        "summary": "ListWatchedAddresses lists all watched addresses",
+        "operationId": "Service_ListWatchedAddresses",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListWatchedAddressesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/info": {
       "get": {
         "summary": "GetInfo returns info about the ark account",
@@ -669,6 +781,16 @@
         }
       }
     },
+    "v1GetDelegatePublicKeyResponse": {
+      "type": "object",
+      "properties": {
+        "publicKey": {
+          "type": "string",
+          "title": "The Ark node's public key to be used for delegate operations, encoded in hex"
+        }
+      },
+      "description": "Response containing the delegate public key."
+    },
     "v1GetInfoResponse": {
       "type": "object",
       "properties": {
@@ -755,6 +877,19 @@
         }
       }
     },
+    "v1ListWatchedAddressesResponse": {
+      "type": "object",
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1RolloverAddress"
+          },
+          "title": "List of all watched addresses"
+        }
+      }
+    },
     "v1Node": {
       "type": "object",
       "properties": {
@@ -825,6 +960,23 @@
         }
       },
       "title": "RelativeLocktime represents a relative timelock"
+    },
+    "v1RolloverAddress": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "title": "The watched address"
+        },
+        "taprootTree": {
+          "$ref": "#/definitions/v1Tapscripts",
+          "title": "Full taproot tree as list of hex tapscripts"
+        },
+        "destinationAddress": {
+          "type": "string",
+          "title": "Where funds will be rolled over to"
+        }
+      }
     },
     "v1Round": {
       "type": "object",
@@ -935,6 +1087,17 @@
         }
       }
     },
+    "v1Tapscripts": {
+      "type": "object",
+      "properties": {
+        "scripts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1TransactionInfo": {
       "type": "object",
       "properties": {
@@ -995,6 +1158,18 @@
       ],
       "default": "TX_TYPE_UNSPECIFIED"
     },
+    "v1UnwatchAddressRequest": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "title": "The address to stop watching"
+        }
+      }
+    },
+    "v1UnwatchAddressResponse": {
+      "type": "object"
+    },
     "v1Vtxo": {
       "type": "object",
       "properties": {
@@ -1015,6 +1190,17 @@
           "format": "int64"
         }
       }
+    },
+    "v1WatchAddressForRolloverRequest": {
+      "type": "object",
+      "properties": {
+        "rolloverAddress": {
+          "$ref": "#/definitions/v1RolloverAddress"
+        }
+      }
+    },
+    "v1WatchAddressForRolloverResponse": {
+      "type": "object"
     }
   }
 }

@@ -52,13 +52,14 @@ type Service struct {
 	BuildInfo BuildInfo
 
 	arksdk.ArkClient
-	storeRepo    types.Store
-	settingsRepo domain.SettingsRepository
-	vhtlcRepo    domain.VHTLCRepository
-	grpcClient   client.TransportClient
-	schedulerSvc ports.SchedulerService
-	lnSvc        ports.LnService
-	boltzSvc     *boltz.Api
+	storeRepo        types.Store
+	settingsRepo     domain.SettingsRepository
+	vhtlcRepo        domain.VHTLCRepository
+	vtxoRolloverRepo domain.VtxoRolloverRepository
+	grpcClient       client.TransportClient
+	schedulerSvc     ports.SchedulerService
+	lnSvc            ports.LnService
+	boltzSvc         *boltz.Api
 
 	publicKey *secp256k1.PublicKey
 
@@ -84,6 +85,7 @@ func NewService(
 	storeSvc types.Store,
 	settingsRepo domain.SettingsRepository,
 	vhtlcRepo domain.VHTLCRepository,
+	vtxoRolloverRepo domain.VtxoRolloverRepository,
 	schedulerSvc ports.SchedulerService,
 	lnSvc ports.LnService,
 ) (*Service, error) {
@@ -102,6 +104,7 @@ func NewService(
 			storeRepo:        storeSvc,
 			settingsRepo:     settingsRepo,
 			vhtlcRepo:        vhtlcRepo,
+			vtxoRolloverRepo: vtxoRolloverRepo,
 			grpcClient:       grpcClient,
 			schedulerSvc:     schedulerSvc,
 			lnSvc:            lnSvc,
@@ -933,6 +936,46 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 
 func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification {
 	return s.notifications
+}
+
+func (s *Service) GetDelegatePublicKey(ctx context.Context) (string, error) {
+	if s.publicKey == nil {
+		return "", fmt.Errorf("service not initialized")
+	}
+
+	return hex.EncodeToString(s.publicKey.SerializeCompressed()), nil
+}
+
+func (s *Service) WatchAddressForRollover(ctx context.Context, address, destinationAddress string, taprootTree []string) error {
+	if address == "" {
+		return fmt.Errorf("missing address")
+	}
+	if len(taprootTree) == 0 {
+		return fmt.Errorf("missing taproot tree")
+	}
+	if destinationAddress == "" {
+		return fmt.Errorf("missing destination address")
+	}
+
+	target := domain.VtxoRolloverTarget{
+		Address:            address,
+		TaprootTree:        taprootTree,
+		DestinationAddress: destinationAddress,
+	}
+
+	return s.vtxoRolloverRepo.AddTarget(ctx, target)
+}
+
+func (s *Service) UnwatchAddress(ctx context.Context, address string) error {
+	if address == "" {
+		return fmt.Errorf("missing address")
+	}
+
+	return s.vtxoRolloverRepo.RemoveTarget(ctx, address)
+}
+
+func (s *Service) ListWatchedAddresses(ctx context.Context) ([]domain.VtxoRolloverTarget, error) {
+	return s.vtxoRolloverRepo.GetAllTargets(ctx)
 }
 
 func (s *Service) listenForNotifications(

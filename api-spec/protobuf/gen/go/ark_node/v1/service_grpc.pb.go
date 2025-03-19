@@ -19,21 +19,25 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	Service_GetAddress_FullMethodName            = "/ark_node.v1.Service/GetAddress"
-	Service_GetBalance_FullMethodName            = "/ark_node.v1.Service/GetBalance"
-	Service_GetInfo_FullMethodName               = "/ark_node.v1.Service/GetInfo"
-	Service_GetOnboardAddress_FullMethodName     = "/ark_node.v1.Service/GetOnboardAddress"
-	Service_GetRoundInfo_FullMethodName          = "/ark_node.v1.Service/GetRoundInfo"
-	Service_GetTransactionHistory_FullMethodName = "/ark_node.v1.Service/GetTransactionHistory"
-	Service_RedeemNote_FullMethodName            = "/ark_node.v1.Service/RedeemNote"
-	Service_SendOffChain_FullMethodName          = "/ark_node.v1.Service/SendOffChain"
-	Service_SendOnChain_FullMethodName           = "/ark_node.v1.Service/SendOnChain"
-	Service_CreateVHTLC_FullMethodName           = "/ark_node.v1.Service/CreateVHTLC"
-	Service_ClaimVHTLC_FullMethodName            = "/ark_node.v1.Service/ClaimVHTLC"
-	Service_ListVHTLC_FullMethodName             = "/ark_node.v1.Service/ListVHTLC"
-	Service_CreateInvoice_FullMethodName         = "/ark_node.v1.Service/CreateInvoice"
-	Service_PayInvoice_FullMethodName            = "/ark_node.v1.Service/PayInvoice"
-	Service_IsInvoiceSettled_FullMethodName      = "/ark_node.v1.Service/IsInvoiceSettled"
+	Service_GetAddress_FullMethodName              = "/ark_node.v1.Service/GetAddress"
+	Service_GetBalance_FullMethodName              = "/ark_node.v1.Service/GetBalance"
+	Service_GetInfo_FullMethodName                 = "/ark_node.v1.Service/GetInfo"
+	Service_GetOnboardAddress_FullMethodName       = "/ark_node.v1.Service/GetOnboardAddress"
+	Service_GetRoundInfo_FullMethodName            = "/ark_node.v1.Service/GetRoundInfo"
+	Service_GetTransactionHistory_FullMethodName   = "/ark_node.v1.Service/GetTransactionHistory"
+	Service_RedeemNote_FullMethodName              = "/ark_node.v1.Service/RedeemNote"
+	Service_SendOffChain_FullMethodName            = "/ark_node.v1.Service/SendOffChain"
+	Service_SendOnChain_FullMethodName             = "/ark_node.v1.Service/SendOnChain"
+	Service_CreateVHTLC_FullMethodName             = "/ark_node.v1.Service/CreateVHTLC"
+	Service_ClaimVHTLC_FullMethodName              = "/ark_node.v1.Service/ClaimVHTLC"
+	Service_ListVHTLC_FullMethodName               = "/ark_node.v1.Service/ListVHTLC"
+	Service_CreateInvoice_FullMethodName           = "/ark_node.v1.Service/CreateInvoice"
+	Service_PayInvoice_FullMethodName              = "/ark_node.v1.Service/PayInvoice"
+	Service_IsInvoiceSettled_FullMethodName        = "/ark_node.v1.Service/IsInvoiceSettled"
+	Service_GetDelegatePublicKey_FullMethodName    = "/ark_node.v1.Service/GetDelegatePublicKey"
+	Service_WatchAddressForRollover_FullMethodName = "/ark_node.v1.Service/WatchAddressForRollover"
+	Service_UnwatchAddress_FullMethodName          = "/ark_node.v1.Service/UnwatchAddress"
+	Service_ListWatchedAddresses_FullMethodName    = "/ark_node.v1.Service/ListWatchedAddresses"
 )
 
 // ServiceClient is the client API for Service service.
@@ -67,6 +71,14 @@ type ServiceClient interface {
 	CreateInvoice(ctx context.Context, in *CreateInvoiceRequest, opts ...grpc.CallOption) (*CreateInvoiceResponse, error)
 	PayInvoice(ctx context.Context, in *PayInvoiceRequest, opts ...grpc.CallOption) (*PayInvoiceResponse, error)
 	IsInvoiceSettled(ctx context.Context, in *IsInvoiceSettledRequest, opts ...grpc.CallOption) (*IsInvoiceSettledResponse, error)
+	// GetDelegatePublicKey retrieves the Ark node's public key to be included in VTXO scripts.
+	GetDelegatePublicKey(ctx context.Context, in *GetDelegatePublicKeyRequest, opts ...grpc.CallOption) (*GetDelegatePublicKeyResponse, error)
+	// WatchAddressForRollover watches an address for rollover
+	WatchAddressForRollover(ctx context.Context, in *WatchAddressForRolloverRequest, opts ...grpc.CallOption) (*WatchAddressForRolloverResponse, error)
+	// UnwatchAddress unsubscribes an address from vtxo rollover
+	UnwatchAddress(ctx context.Context, in *UnwatchAddressRequest, opts ...grpc.CallOption) (*UnwatchAddressResponse, error)
+	// ListWatchedAddresses lists all watched addresses
+	ListWatchedAddresses(ctx context.Context, in *ListWatchedAddressesRequest, opts ...grpc.CallOption) (*ListWatchedAddressesResponse, error)
 }
 
 type serviceClient struct {
@@ -227,6 +239,46 @@ func (c *serviceClient) IsInvoiceSettled(ctx context.Context, in *IsInvoiceSettl
 	return out, nil
 }
 
+func (c *serviceClient) GetDelegatePublicKey(ctx context.Context, in *GetDelegatePublicKeyRequest, opts ...grpc.CallOption) (*GetDelegatePublicKeyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDelegatePublicKeyResponse)
+	err := c.cc.Invoke(ctx, Service_GetDelegatePublicKey_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) WatchAddressForRollover(ctx context.Context, in *WatchAddressForRolloverRequest, opts ...grpc.CallOption) (*WatchAddressForRolloverResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WatchAddressForRolloverResponse)
+	err := c.cc.Invoke(ctx, Service_WatchAddressForRollover_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) UnwatchAddress(ctx context.Context, in *UnwatchAddressRequest, opts ...grpc.CallOption) (*UnwatchAddressResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UnwatchAddressResponse)
+	err := c.cc.Invoke(ctx, Service_UnwatchAddress_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) ListWatchedAddresses(ctx context.Context, in *ListWatchedAddressesRequest, opts ...grpc.CallOption) (*ListWatchedAddressesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListWatchedAddressesResponse)
+	err := c.cc.Invoke(ctx, Service_ListWatchedAddresses_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServiceServer is the server API for Service service.
 // All implementations should embed UnimplementedServiceServer
 // for forward compatibility
@@ -258,6 +310,14 @@ type ServiceServer interface {
 	CreateInvoice(context.Context, *CreateInvoiceRequest) (*CreateInvoiceResponse, error)
 	PayInvoice(context.Context, *PayInvoiceRequest) (*PayInvoiceResponse, error)
 	IsInvoiceSettled(context.Context, *IsInvoiceSettledRequest) (*IsInvoiceSettledResponse, error)
+	// GetDelegatePublicKey retrieves the Ark node's public key to be included in VTXO scripts.
+	GetDelegatePublicKey(context.Context, *GetDelegatePublicKeyRequest) (*GetDelegatePublicKeyResponse, error)
+	// WatchAddressForRollover watches an address for rollover
+	WatchAddressForRollover(context.Context, *WatchAddressForRolloverRequest) (*WatchAddressForRolloverResponse, error)
+	// UnwatchAddress unsubscribes an address from vtxo rollover
+	UnwatchAddress(context.Context, *UnwatchAddressRequest) (*UnwatchAddressResponse, error)
+	// ListWatchedAddresses lists all watched addresses
+	ListWatchedAddresses(context.Context, *ListWatchedAddressesRequest) (*ListWatchedAddressesResponse, error)
 }
 
 // UnimplementedServiceServer should be embedded to have forward compatible implementations.
@@ -308,6 +368,18 @@ func (UnimplementedServiceServer) PayInvoice(context.Context, *PayInvoiceRequest
 }
 func (UnimplementedServiceServer) IsInvoiceSettled(context.Context, *IsInvoiceSettledRequest) (*IsInvoiceSettledResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method IsInvoiceSettled not implemented")
+}
+func (UnimplementedServiceServer) GetDelegatePublicKey(context.Context, *GetDelegatePublicKeyRequest) (*GetDelegatePublicKeyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDelegatePublicKey not implemented")
+}
+func (UnimplementedServiceServer) WatchAddressForRollover(context.Context, *WatchAddressForRolloverRequest) (*WatchAddressForRolloverResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method WatchAddressForRollover not implemented")
+}
+func (UnimplementedServiceServer) UnwatchAddress(context.Context, *UnwatchAddressRequest) (*UnwatchAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnwatchAddress not implemented")
+}
+func (UnimplementedServiceServer) ListWatchedAddresses(context.Context, *ListWatchedAddressesRequest) (*ListWatchedAddressesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListWatchedAddresses not implemented")
 }
 
 // UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -591,6 +663,78 @@ func _Service_IsInvoiceSettled_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_GetDelegatePublicKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDelegatePublicKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).GetDelegatePublicKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_GetDelegatePublicKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).GetDelegatePublicKey(ctx, req.(*GetDelegatePublicKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_WatchAddressForRollover_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WatchAddressForRolloverRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).WatchAddressForRollover(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_WatchAddressForRollover_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).WatchAddressForRollover(ctx, req.(*WatchAddressForRolloverRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_UnwatchAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnwatchAddressRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).UnwatchAddress(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_UnwatchAddress_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).UnwatchAddress(ctx, req.(*UnwatchAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_ListWatchedAddresses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListWatchedAddressesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).ListWatchedAddresses(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_ListWatchedAddresses_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).ListWatchedAddresses(ctx, req.(*ListWatchedAddressesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Service_ServiceDesc is the grpc.ServiceDesc for Service service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -657,6 +801,22 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "IsInvoiceSettled",
 			Handler:    _Service_IsInvoiceSettled_Handler,
+		},
+		{
+			MethodName: "GetDelegatePublicKey",
+			Handler:    _Service_GetDelegatePublicKey_Handler,
+		},
+		{
+			MethodName: "WatchAddressForRollover",
+			Handler:    _Service_WatchAddressForRollover_Handler,
+		},
+		{
+			MethodName: "UnwatchAddress",
+			Handler:    _Service_UnwatchAddress_Handler,
+		},
+		{
+			MethodName: "ListWatchedAddresses",
+			Handler:    _Service_ListWatchedAddresses_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
