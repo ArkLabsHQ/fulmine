@@ -1,26 +1,17 @@
 # ark-node
 
+[![Go Version](https://img.shields.io/badge/Go-1.23.1-blue.svg)](https://golang.org/doc/go1.23)
+[![GitHub Release](https://img.shields.io/github/v/release/ArkLabsHQ/ark-node)](https://github.com/ArkLabsHQ/ark-node/releases/latest)
+[![License](https://img.shields.io/github/license/ArkLabsHQ/ark-node)](https://github.com/ArkLabsHQ/ark-node/blob/main/LICENSE)
+[![Docker Image](https://img.shields.io/docker/pulls/arklabshq/ark-node)](https://ghcr.io/arklabshq/ark-node)
+[![GitHub Stars](https://img.shields.io/github/stars/ArkLabsHQ/ark-node)](https://github.com/ArkLabsHQ/ark-node/stargazers)
+[![GitHub Issues](https://img.shields.io/github/issues/ArkLabsHQ/ark-node)](https://github.com/ArkLabsHQ/ark-node/issues)
+
 ark-node is Bitcoin wallet daemon that support Ark and Lightning Network, providing a secure and efficient way to interact with Bitcoin.
 
-## Table of Contents
+## 🚀 Usage
 
-- [ark-node](#ark-node)
-  - [Table of Contents](#table-of-contents)
-  - [Usage](#usage)
-    - [Using Docker (Recommended)](#using-docker-recommended)
-    - [Using the Binary](#using-the-binary)
-    - [Environment Variables](#environment-variables)
-  - [Getting Started](#getting-started)
-  - [Contributing](#contributing)
-  - [API Documentation](#api-documentation)
-    - [API Interfaces](#api-interfaces)
-    - [Wallet Service](#wallet-service)
-    - [Service API](#service-api)
-    - [Notification Service](#notification-service)
-
-## Usage
-
-### Using Docker (Recommended)
+### 🐳 Using Docker (Recommended)
 
 The easiest way to run ark-node is using Docker. Make sure you have [Docker](https://docs.docker.com/get-docker/) installed on your machine.
 
@@ -30,7 +21,7 @@ docker run -d \
   -p 7000:7000 \
   -p 7001:7001 \
   -v ark-node-data:/app/data \
-  arklabshq/ark-node:latest
+  ghcr.io/arklabshq/ark-node:latest
 ```
 
 Once the container is running, you can access the web UI at [http://localhost:7001](localhost:7001).
@@ -47,7 +38,7 @@ To stop the container:
 docker stop ark-node
 ```
 
-### Using the Binary
+### 💻 Using the Binary
 
 Alternatively, you can download the latest release from the [releases page](https://github.com/ArkLabsHQ/ark-node/releases) for your platform. After downloading:
 
@@ -55,7 +46,7 @@ Alternatively, you can download the latest release from the [releases page](http
 2. Make it executable (on Linux/macOS): `chmod +x ark-node`
 3. Run the binary: `./ark-node`
 
-### Environment Variables
+### 🔧 Environment Variables
 
 The following environment variables can be configured:
 
@@ -75,12 +66,12 @@ docker run -d \
   -e ARK_NODE_HTTP_PORT=7001 \
   -e ARK_NODE_ARK_SERVER="https://server.example.com" \
   -v ark-node-data:/app/data \
-  arklabshq/ark-node:latest
+  ghcr.io/arklabshq/ark-node:latest
 ```
 
-## Getting Started
+## 👨‍💻 Development
 
-To get started with ark-node development you need Go `1.23.1` or higher.
+To get started with ark-node development you need Go `1.23.1` or higher and Node.js `18.17.1` or higher.
 
 ```bash
 git clone https://github.com/ArkLabsHQ/ark-node.git
@@ -91,7 +82,7 @@ make run
 
 Now navigate to [http://localhost:7001/](http://localhost:7001/) to see the dashboard.
 
-## Contributing
+## 🤝 Contributing
 
 We welcome contributions to ark-node! Here's how you can help:
 
@@ -103,7 +94,7 @@ We welcome contributions to ark-node! Here's how you can help:
 
 For major changes, please open an issue first to discuss what you would like to change.
 
-### Development Commands
+### 🛠️ Development Commands
 
 The Makefile contains several useful commands for development:
 
@@ -113,9 +104,9 @@ The Makefile contains several useful commands for development:
 - `make lint`: Lint the codebase
 - `make proto`: Generate protobuf stubs (requires Docker)
 
-## API Documentation
+## 📚 API Documentation
 
-### API Interfaces
+### 🔌 API Interfaces
 
 ark-node provides two main interfaces:
 
@@ -126,7 +117,7 @@ The REST API is accessible at the same port as the Web UI, while the gRPC servic
 
 Here's a high-level overview of the main API endpoints, including examples using curl:
 
-### Wallet Service
+### 💰 Wallet Service
 
 1. Generate Seed
 
@@ -173,7 +164,7 @@ Here's a high-level overview of the main API endpoints, including examples using
    curl -X GET http://localhost:7001/api/v1/wallet/status
    ```
 
-### Service API
+### ⚡ Service API
 
 1. Get Address
 
@@ -209,7 +200,7 @@ Here's a high-level overview of the main API endpoints, including examples using
    curl -X GET http://localhost:7001/api/v1/transactions
    ```
 
-### Notification Service
+### 🔔 Notification Service
 
 1. Add Webhook
 
