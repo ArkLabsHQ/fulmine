@@ -1,99 +1,30 @@
+version: 2
+
 builds:
-  - id: "ark-node"
+  - id: ark-node
     main: ./cmd/ark-node
-    ldflags:
-      - -s -X 'main.version={{.Version}}' -X 'main.commit={{.Commit}}' -X 'main.date={{.Date}}'
+    binary: ark-node
     goos:
-      - linux
       - darwin
     goarch:
       - amd64
       - arm64
-    binary: ark-node
-
-## flag the semver v**.**.**-<tag>.* as pre-release on Github
-release:
-  prerelease: auto
-
-checksum:
-  name_template: "checksums.txt"
-
-snapshot:
-  name_template: "{{ .Tag }}-next"
-
-changelog:
-  use: github-native
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
 
 archives:
-  - id: ark-node
-    format: binary
-    builds:
-      - ark-node
-    name_template: "ark-node-v{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+  - formats: [binary]
+    name_template: "ark-node_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
-dockers:
-  ###########################
-  # tag latest & prerelease #
-  ###########################
+app_bundles:
+  - bundle: com.arklabs.ark-node
+    icon: ./static/myapp.icns
+    if: '{{eq .Os "darwin"}}'
 
-  #amd64
-  - image_templates:
-      - "ghcr.io/ArkLabsHQ/ark-node:{{ .Tag }}-amd64"
-        # push always either release or prerelease with a docker tag with the semver only
-    skip_push: "false"
-    use: buildx
-    ids:
-      - ark-node
-    dockerfile: goreleaser.Dockerfile
-    # GOOS of the built binaries/packages that should be used.
-    goos: linux
-    # GOARCH of the built binaries/packages that should be used.
-    goarch: amd64
-    # Template of the docker build flags.
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title=ark-node"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--build-arg=VERSION={{.Version}}"
-      - "--build-arg=COMMIT={{.Commit}}"
-      - "--build-arg=DATE={{.Date}}"
-  - image_templates:
-      - "ghcr.io/ArkLabsHQ/ark-node:{{ .Tag }}-arm64v8"
-        # push always either release or prerelease with a docker tag with the semver only
-    skip_push: "false"
-    use: buildx
-    ids:
-      - ark-node
-    dockerfile: goreleaser.Dockerfile
-    # GOOS of the built binaries/packages that should be used.
-    goos: linux
-    # GOARCH of the built binaries/packages that should be used.
-    goarch: arm64
-    # Template of the docker build flags.
-    build_flag_templates:
-      - "--platform=linux/arm64/v8"
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title=ark-node"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--build-arg=VERSION={{.Version}}"
-      - "--build-arg=COMMIT={{.Commit}}"
-      - "--build-arg=DATE={{.Date}}"
+dmg:
+  - name: ark-node
+    use: appbundle
 
-docker_manifests:
-  - name_template: ghcr.io/ArkLabsHQ/ark-node:{{ .Tag }}
-    image_templates:
-      - ghcr.io/ArkLabsHQ/ark-node:{{ .Tag }}-amd64
-      - ghcr.io/ArkLabsHQ/ark-node:{{ .Tag }}-arm64v8
-    skip_push: "false"
-
-  - name_template: ghcr.io/ArkLabsHQ/ark-node:latest
-    image_templates:
-      - ghcr.io/ArkLabsHQ/ark-node:{{ .Tag }}-amd64
-      - ghcr.io/ArkLabsHQ/ark-node:{{ .Tag }}-arm64v8
-    skip_push: auto
-  
+release:
+  disable: true
