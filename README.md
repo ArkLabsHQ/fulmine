@@ -7,7 +7,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/ArkLabsHQ/ark-node)](https://github.com/ArkLabsHQ/ark-node/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/ArkLabsHQ/ark-node)](https://github.com/ArkLabsHQ/ark-node/issues)
 
-ark-node is a Bitcoin wallet daemon that seamlessly integrates Ark protocol's batched transaction model with Lightning Network infrastructure, enabling routing nodes, service providers and payment hubs to optimize channel liquidity while minimizing on-chain fees, without compromising on self-custody.
+Ark Node is a Bitcoin wallet daemon that integrates Ark protocol's batched transaction model with Lightning Network infrastructure, enabling routing nodes, service providers and payment hubs to optimize channel liquidity while minimizing on-chain fees, without compromising on self-custody.
 
 ## 🚀 Usage
 
