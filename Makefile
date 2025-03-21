@@ -46,7 +46,7 @@ lint:
 	@golangci-lint run --fix
 
 ## run: run in dev mode
-run: clean build-static-assets build-templates
+run: clean build-templates
 	@echo "Running fulmine in dev mode..."
 	@go run ./cmd/fulmine
 
