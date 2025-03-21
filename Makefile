@@ -52,10 +52,10 @@ run: clean build-static-assets build-templates
 
 run-cln: clean build-templates
 	@echo "Running fulmine in dev mode with CLN support..."
-	@export ARK_NODE_GRPC_PORT=7008; \
-	export ARK_NODE_HTTP_PORT=7009; \
-	export ARK_NODE_DATADIR="./node-cln"; \
-	export ARK_NODE_CLN_DATADIR="~/Library/Application Support/Nigiri/volumes/lightningd/regtest/"; \
+	@export FULMINE_GRPC_PORT=7008; \
+	export FULMINE_HTTP_PORT=7009; \
+	export FULMINE_DATADIR="./node-cln"; \
+	export FULMINE_CLN_DATADIR="~/Library/Application Support/Nigiri/volumes/lightningd/regtest/"; \
 	go run ./cmd/fulmine
 
 ## test: runs unit and component tests

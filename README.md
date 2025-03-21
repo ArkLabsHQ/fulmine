@@ -1,4 +1,4 @@
-# fulmine
+# ⚡️fulmine
 
 [![Go Version](https://img.shields.io/badge/Go-1.23.1-blue.svg)](https://golang.org/doc/go1.23)
 [![GitHub Release](https://img.shields.io/github/v/release/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/releases/latest)
@@ -52,10 +52,10 @@ The following environment variables can be configured:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ARK_NODE_DATADIR` | Directory to store wallet data | `/app/data` in Docker, `~/.fulmine` otherwise |
-| `ARK_NODE_HTTP_PORT` | HTTP port for the web UI and REST API | `7001` |
-| `ARK_NODE_GRPC_PORT` | gRPC port for service communication | `7002` |
-| `ARK_NODE_ARK_SERVER` | URL of the Ark server to connect to | It pre-fills with the default Ark server |
+| `FULMINE_DATADIR` | Directory to store wallet data | `/app/data` in Docker, `~/.fulmine` otherwise |
+| `FULMINE_HTTP_PORT` | HTTP port for the web UI and REST API | `7001` |
+| `FULMINE_GRPC_PORT` | gRPC port for service communication | `7002` |
+| `FULMINE_ARK_SERVER` | URL of the Ark server to connect to | It pre-fills with the default Ark server |
 
 When using Docker, you can set these variables using the `-e` flag:
 
@@ -63,8 +63,8 @@ When using Docker, you can set these variables using the `-e` flag:
 docker run -d \
   --name fulmine \
   -p 7001:7001 \
-  -e ARK_NODE_HTTP_PORT=7001 \
-  -e ARK_NODE_ARK_SERVER="https://server.example.com" \
+  -e FULMINE_HTTP_PORT=7001 \
+  -e FULMINE_ARK_SERVER="https://server.example.com" \
   -v fulmine-data:/app/data \
   ghcr.io/arklabshq/fulmine:latest
 ```
