@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/lightningnetwork/lnd/input"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	log "github.com/sirupsen/logrus"

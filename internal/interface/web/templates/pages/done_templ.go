@@ -9,7 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 )
 
 func OpenX() templ.ComponentScript {
@@ -59,7 +59,7 @@ func DoneBodyContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p class=\"text-3xl\">You are all done!</p><p class=\"text-center\">You may start sending and receiving Bitcoin transactions faster and more private on Ark Node.</p><button class=\"bg-white/10 flex items-center p-3 text-center justify-center w-full\" onclick=\"window.open(&#39;https://x.com/ArkLabsHQ/&#39;, &#39;_blank&#39;)\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p class=\"text-3xl\">You are all done!</p><p class=\"text-center\">You may start sending and receiving Bitcoin transactions faster and more private on Fulmine.</p><button class=\"bg-white/10 flex items-center p-3 text-center justify-center w-full\" onclick=\"window.open(&#39;https://x.com/ArkLabsHQ/&#39;, &#39;_blank&#39;)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

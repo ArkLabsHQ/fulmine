@@ -3,7 +3,7 @@ managed:
   enabled: true
   override:
     - file_option: go_package_prefix
-      value: github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen
+      value: github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen
   disable:
     - module: buf.build/googleapis/googleapis
 plugins:

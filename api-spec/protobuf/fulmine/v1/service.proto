@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package ark_node.v1;
+package fulmine.v1;
 
-import "ark_node/v1/types.proto";
+import "fulmine/v1/types.proto";
 import "google/api/annotations.proto";
 
 service Service {
@@ -101,7 +101,7 @@ service Service {
       get: "/v1/invoice/status"
     };
   }
-  // GetDelegatePublicKey retrieves the Ark node's public key to be included in VTXO scripts.
+  // GetDelegatePublicKey retrieves the Fulmine's public key to be included in VTXO scripts.
   rpc GetDelegatePublicKey(GetDelegatePublicKeyRequest) returns (GetDelegatePublicKeyResponse) {
     option (google.api.http) = {
       get: "/v1/delegate/pubkey"
@@ -294,7 +294,7 @@ message GetDelegatePublicKeyRequest {
 
 // Response containing the delegate public key.
 message GetDelegatePublicKeyResponse {
-  // The Ark node's public key to be used for delegate operations, encoded in hex
+  // The Fulmine's public key to be used for delegate operations, encoded in hex
   string public_key = 1;
 }
 

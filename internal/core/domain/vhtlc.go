@@ -3,7 +3,7 @@ package domain
 import (
 	"context"
 
-	"github.com/ArkLabsHQ/ark-node/pkg/vhtlc"
+	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 )
 
 // VHTLCRepository stores the VHTLC options owned by the wallet

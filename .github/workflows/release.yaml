@@ -31,8 +31,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./build/ark-node-linux-amd64
-        asset_name: ark-node-linux-amd64
+        asset_path: ./build/fulmine-linux-amd64
+        asset_name: fulmine-linux-amd64
         asset_content_type: application/octet-stream
 
     - name: Upload binary (Linux, ARM)
@@ -41,8 +41,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./build/ark-node-linux-arm64
-        asset_name: ark-node-linux-arm64
+        asset_path: ./build/fulmine-linux-arm64
+        asset_name: fulmine-linux-arm64
         asset_content_type: application/octet-stream
 
     - name: Upload server binary (Darwin, AMD64)
@@ -51,8 +51,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./build/ark-node-darwin-amd64
-        asset_name: ark-node-darwin-amd64
+        asset_path: ./build/fulmine-darwin-amd64
+        asset_name: fulmine-darwin-amd64
         asset_content_type: application/octet-stream
 
     - name: Upload binary (Darwin, ARM)
@@ -61,8 +61,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./build/ark-node-darwin-arm64
-        asset_name: ark-node-darwin-arm64
+        asset_path: ./build/fulmine-darwin-arm64
+        asset_name: fulmine-darwin-arm64
         asset_content_type: application/octet-stream
 
   docker-build-and-push:
@@ -86,7 +86,7 @@ jobs:
       with:
         context: .
         push: true
-        tags: ghcr.io/arklabshq/ark-node:${{ github.event.release.tag_name }},ghcr.io/arklabshq/ark-node:latest
+        tags: ghcr.io/arklabshq/fulmine:${{ github.event.release.tag_name }},ghcr.io/arklabshq/fulmine:latest
         platforms: linux/amd64,linux/arm64
         build-args: |
           VERSION=${{ github.event.release.tag_name }}

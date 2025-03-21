@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package ark_node.v1;
+package fulmine.v1;
 
 import "google/api/annotations.proto";
 

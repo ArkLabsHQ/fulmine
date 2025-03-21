@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/ark_node/v1"
-	"github.com/ArkLabsHQ/ark-node/internal/core/application"
-	"github.com/ArkLabsHQ/ark-node/utils"
+	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
+	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

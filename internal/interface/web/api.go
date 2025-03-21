@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
-	"github.com/ArkLabsHQ/ark-node/utils"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/fulmine/utils"
 
 	"github.com/gin-gonic/gin"
 )

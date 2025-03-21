@@ -9,7 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/types"
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
 )
 
 func TxIcon(kind, status string) templ.Component {

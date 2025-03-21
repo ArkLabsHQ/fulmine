@@ -1,7 +1,7 @@
 package modals
 
 import (
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 )
 
 templ lnConnectBullet(number string) {
@@ -41,7 +41,7 @@ templ LnConnectInfoBody() {
     @lnConnectSection("1", "Generate connection string", "Run the connect tool on your node to create a secure connection string that contains your node credentials")
     @lnConnectSection("2", "Copy code", "Copy the connection string displayed after running the command")
     @LnConnectCodeSample()
-    @lnConnectSection("3", "Paste in Ark Node", "Enter your connection string in the app to establish a secure connection to your Lightning node")
+    @lnConnectSection("3", "Paste in Fulmine", "Enter your connection string in the app to establish a secure connection to your Lightning node")
     <hr class="text-white/10 w-full"/>
     @lnConnectSection("", "Why connect?", "Direct node connection gives you full control over your channels, enabling lower fees on transactions and faster settlements without intermediaries")
   </div>

@@ -1,7 +1,7 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "ark_node/v1/service.proto",
+    "title": "fulmine/v1/service.proto",
     "version": "version not set"
   },
   "tags": [
@@ -64,7 +64,7 @@
     },
     "/v1/delegate/pubkey": {
       "get": {
-        "summary": "GetDelegatePublicKey retrieves the Ark node's public key to be included in VTXO scripts.",
+        "summary": "GetDelegatePublicKey retrieves the Fulmine's public key to be included in VTXO scripts.",
         "operationId": "Service_GetDelegatePublicKey",
         "responses": {
           "200": {
@@ -786,7 +786,7 @@
       "properties": {
         "publicKey": {
           "type": "string",
-          "title": "The Ark node's public key to be used for delegate operations, encoded in hex"
+          "title": "The Fulmine's public key to be used for delegate operations, encoded in hex"
         }
       },
       "description": "Response containing the delegate public key."

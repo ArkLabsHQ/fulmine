@@ -1,4 +1,4 @@
-module github.com/ArkLabsHQ/ark-node/pkg/vhtlc
+module github.com/ArkLabsHQ/fulmine/pkg/vhtlc
 
 go 1.23.1
 

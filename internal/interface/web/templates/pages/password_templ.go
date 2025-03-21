@@ -9,7 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 )
 
 func checkLine(id, text string) templ.Component {
@@ -173,7 +173,7 @@ func SetPasswordContent(privateKey string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div></div><button class=\"bg-orange text-white\" disabled type=\"submit\">Continue</button></div></form><script>\n    const toggleCheck = (id, ok) => {\n      document.querySelector(id).classList.remove(\"text-green\");\n      document.querySelector(id).classList.remove(\"text-white/50\");\n      if (ok) {\n        document.querySelector(id).classList.add(\"text-green\");\n      } else {\n        document.querySelector(id).classList.add(\"text-white/50\");\n      }\n      return ok\n    }\n\n    const checkPass = () => {\n      const pass = document.querySelector(\"input[name='password']\").value\n      const conf = document.querySelector(\"input[name='pconfirm']\").value\n      // check if password is valid\n      let valid = toggleCheck(\"#minchar\", pass.length > 7) &&\n        toggleCheck(\"#onenumb\", /\\d/.test(pass)) &&\n        toggleCheck(\"#special\", /[^a-zA-Z0-9]/.test(pass))\n      valid = true // pietro will thank me later\n      // check if passwords match\n      const match = pass && pass.length > 0 && pass === conf\n      // change button text to inform user\n      const buttonText = !valid\n        ? 'Invalid password'\n        : !match\n        ? 'Passwords must match'\n        : 'Continue'\n      // update button\n      document.querySelector('button').disabled = !valid || !match\n      document.querySelector('button').innerText = buttonText\n    }\n  </script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div></div><button class=\"bg-orange text-white\" disabled type=\"submit\">Continue</button></div></form><script>\n    const toggleCheck = (id, ok) => {\n      document.querySelector(id).classList.remove(\"text-green\");\n      document.querySelector(id).classList.remove(\"text-white/50\");\n      if (ok) {\n        document.querySelector(id).classList.add(\"text-green\");\n      } else {\n        document.querySelector(id).classList.add(\"text-white/50\");\n      }\n      return ok\n    }\n\n    const checkPass = () => {\n      const pass = document.querySelector(\"input[name='password']\").value\n      const conf = document.querySelector(\"input[name='pconfirm']\").value\n      // check if password is valid\n      let valid = toggleCheck(\"#minchar\", pass.length > 7) &&\n        toggleCheck(\"#onenumb\", /\\d/.test(pass)) &&\n        toggleCheck(\"#special\", /[^a-zA-Z0-9]/.test(pass))\n      valid = true // TODO: remove this line\n      // check if passwords match\n      const match = pass && pass.length > 0 && pass === conf\n      // change button text to inform user\n      const buttonText = !valid\n        ? 'Invalid password'\n        : !match\n        ? 'Passwords must match'\n        : 'Continue'\n      // update button\n      document.querySelector('button').disabled = !valid || !match\n      document.querySelector('button').innerText = buttonText\n    }\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -5,12 +5,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ArkLabsHQ/ark-node/internal/config"
-	"github.com/ArkLabsHQ/ark-node/internal/core/application"
-	badgerdb "github.com/ArkLabsHQ/ark-node/internal/infrastructure/db/badger"
-	lnd "github.com/ArkLabsHQ/ark-node/internal/infrastructure/lnd"
-	scheduler "github.com/ArkLabsHQ/ark-node/internal/infrastructure/scheduler/gocron"
-	grpcservice "github.com/ArkLabsHQ/ark-node/internal/interface/grpc"
+	"github.com/ArkLabsHQ/fulmine/internal/config"
+	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	badgerdb "github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/badger"
+	lnd "github.com/ArkLabsHQ/fulmine/internal/infrastructure/lnd"
+	scheduler "github.com/ArkLabsHQ/fulmine/internal/infrastructure/scheduler/gocron"
+	grpcservice "github.com/ArkLabsHQ/fulmine/internal/interface/grpc"
 	"github.com/ark-network/ark/pkg/client-sdk/store"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	log "github.com/sirupsen/logrus"
@@ -38,7 +38,7 @@ func main() {
 
 	// Initialize the ARK SDK
 
-	log.Info("starting ark-node...")
+	log.Info("starting fulmine...")
 
 	svcConfig := grpcservice.Config{
 		GRPCPort: cfg.GRPCPort,

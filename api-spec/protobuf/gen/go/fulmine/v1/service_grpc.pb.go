@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             (unknown)
-// source: ark_node/v1/service.proto
+// source: fulmine/v1/service.proto
 
-package ark_nodev1
+package fulminev1
 
 import (
 	context "context"
@@ -19,25 +19,25 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	Service_GetAddress_FullMethodName              = "/ark_node.v1.Service/GetAddress"
-	Service_GetBalance_FullMethodName              = "/ark_node.v1.Service/GetBalance"
-	Service_GetInfo_FullMethodName                 = "/ark_node.v1.Service/GetInfo"
-	Service_GetOnboardAddress_FullMethodName       = "/ark_node.v1.Service/GetOnboardAddress"
-	Service_GetRoundInfo_FullMethodName            = "/ark_node.v1.Service/GetRoundInfo"
-	Service_GetTransactionHistory_FullMethodName   = "/ark_node.v1.Service/GetTransactionHistory"
-	Service_RedeemNote_FullMethodName              = "/ark_node.v1.Service/RedeemNote"
-	Service_SendOffChain_FullMethodName            = "/ark_node.v1.Service/SendOffChain"
-	Service_SendOnChain_FullMethodName             = "/ark_node.v1.Service/SendOnChain"
-	Service_CreateVHTLC_FullMethodName             = "/ark_node.v1.Service/CreateVHTLC"
-	Service_ClaimVHTLC_FullMethodName              = "/ark_node.v1.Service/ClaimVHTLC"
-	Service_ListVHTLC_FullMethodName               = "/ark_node.v1.Service/ListVHTLC"
-	Service_CreateInvoice_FullMethodName           = "/ark_node.v1.Service/CreateInvoice"
-	Service_PayInvoice_FullMethodName              = "/ark_node.v1.Service/PayInvoice"
-	Service_IsInvoiceSettled_FullMethodName        = "/ark_node.v1.Service/IsInvoiceSettled"
-	Service_GetDelegatePublicKey_FullMethodName    = "/ark_node.v1.Service/GetDelegatePublicKey"
-	Service_WatchAddressForRollover_FullMethodName = "/ark_node.v1.Service/WatchAddressForRollover"
-	Service_UnwatchAddress_FullMethodName          = "/ark_node.v1.Service/UnwatchAddress"
-	Service_ListWatchedAddresses_FullMethodName    = "/ark_node.v1.Service/ListWatchedAddresses"
+	Service_GetAddress_FullMethodName              = "/fulmine.v1.Service/GetAddress"
+	Service_GetBalance_FullMethodName              = "/fulmine.v1.Service/GetBalance"
+	Service_GetInfo_FullMethodName                 = "/fulmine.v1.Service/GetInfo"
+	Service_GetOnboardAddress_FullMethodName       = "/fulmine.v1.Service/GetOnboardAddress"
+	Service_GetRoundInfo_FullMethodName            = "/fulmine.v1.Service/GetRoundInfo"
+	Service_GetTransactionHistory_FullMethodName   = "/fulmine.v1.Service/GetTransactionHistory"
+	Service_RedeemNote_FullMethodName              = "/fulmine.v1.Service/RedeemNote"
+	Service_SendOffChain_FullMethodName            = "/fulmine.v1.Service/SendOffChain"
+	Service_SendOnChain_FullMethodName             = "/fulmine.v1.Service/SendOnChain"
+	Service_CreateVHTLC_FullMethodName             = "/fulmine.v1.Service/CreateVHTLC"
+	Service_ClaimVHTLC_FullMethodName              = "/fulmine.v1.Service/ClaimVHTLC"
+	Service_ListVHTLC_FullMethodName               = "/fulmine.v1.Service/ListVHTLC"
+	Service_CreateInvoice_FullMethodName           = "/fulmine.v1.Service/CreateInvoice"
+	Service_PayInvoice_FullMethodName              = "/fulmine.v1.Service/PayInvoice"
+	Service_IsInvoiceSettled_FullMethodName        = "/fulmine.v1.Service/IsInvoiceSettled"
+	Service_GetDelegatePublicKey_FullMethodName    = "/fulmine.v1.Service/GetDelegatePublicKey"
+	Service_WatchAddressForRollover_FullMethodName = "/fulmine.v1.Service/WatchAddressForRollover"
+	Service_UnwatchAddress_FullMethodName          = "/fulmine.v1.Service/UnwatchAddress"
+	Service_ListWatchedAddresses_FullMethodName    = "/fulmine.v1.Service/ListWatchedAddresses"
 )
 
 // ServiceClient is the client API for Service service.
@@ -71,7 +71,7 @@ type ServiceClient interface {
 	CreateInvoice(ctx context.Context, in *CreateInvoiceRequest, opts ...grpc.CallOption) (*CreateInvoiceResponse, error)
 	PayInvoice(ctx context.Context, in *PayInvoiceRequest, opts ...grpc.CallOption) (*PayInvoiceResponse, error)
 	IsInvoiceSettled(ctx context.Context, in *IsInvoiceSettledRequest, opts ...grpc.CallOption) (*IsInvoiceSettledResponse, error)
-	// GetDelegatePublicKey retrieves the Ark node's public key to be included in VTXO scripts.
+	// GetDelegatePublicKey retrieves the Fulmine's public key to be included in VTXO scripts.
 	GetDelegatePublicKey(ctx context.Context, in *GetDelegatePublicKeyRequest, opts ...grpc.CallOption) (*GetDelegatePublicKeyResponse, error)
 	// WatchAddressForRollover watches an address for rollover
 	WatchAddressForRollover(ctx context.Context, in *WatchAddressForRolloverRequest, opts ...grpc.CallOption) (*WatchAddressForRolloverResponse, error)
@@ -310,7 +310,7 @@ type ServiceServer interface {
 	CreateInvoice(context.Context, *CreateInvoiceRequest) (*CreateInvoiceResponse, error)
 	PayInvoice(context.Context, *PayInvoiceRequest) (*PayInvoiceResponse, error)
 	IsInvoiceSettled(context.Context, *IsInvoiceSettledRequest) (*IsInvoiceSettledResponse, error)
-	// GetDelegatePublicKey retrieves the Ark node's public key to be included in VTXO scripts.
+	// GetDelegatePublicKey retrieves the Fulmine's public key to be included in VTXO scripts.
 	GetDelegatePublicKey(context.Context, *GetDelegatePublicKeyRequest) (*GetDelegatePublicKeyResponse, error)
 	// WatchAddressForRollover watches an address for rollover
 	WatchAddressForRollover(context.Context, *WatchAddressForRolloverRequest) (*WatchAddressForRolloverResponse, error)
@@ -739,7 +739,7 @@ func _Service_ListWatchedAddresses_Handler(srv interface{}, ctx context.Context,
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Service_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "ark_node.v1.Service",
+	ServiceName: "fulmine.v1.Service",
 	HandlerType: (*ServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -820,5 +820,5 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "ark_node/v1/service.proto",
+	Metadata: "fulmine/v1/service.proto",
 }
