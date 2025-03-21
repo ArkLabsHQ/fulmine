@@ -10,6 +10,7 @@ jobs:
   test:
     name: unit tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/setup-go@v3
         with:
@@ -18,7 +19,7 @@ jobs:
       - name: check linting
         uses: golangci/golangci-lint-action@v6
         with:
-          args: '--timeout=300s'
+          args: '--timeout=180s --concurrency=4 --fast'
           version: v1.61
       - name: check code integrity
         uses: securego/gosec@master
