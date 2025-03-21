@@ -12,7 +12,7 @@ RUN set -ex \
   && mv "fulmine-linux-$TARGETPLATFORM" /usr/local/bin/fulmine
 
 ENV PATH="/app:${PATH}"
-ENV ARK_NODE_DATADIR=/app/data
+ENV FULMINE_DATADIR=/app/data
 
 # Expose volume containing all 'arkd' data
 VOLUME /app/data
