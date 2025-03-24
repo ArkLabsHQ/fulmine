@@ -30,9 +30,6 @@ import (
 	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/ccoveille/go-safecast"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
-	"github.com/lightningnetwork/lnd/input"
-	"github.com/lightningnetwork/lnd/lntypes"
-	"github.com/lightningnetwork/lnd/lnwallet/chainfee"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -642,40 +639,9 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		return "", err
 	}
 
-	witnessSize, err := safecast.ToUint64(claimWitnessSize)
-	if err != nil {
-		return "", err
-	}
-
-	weightEstimator := &input.TxWeightEstimator{}
-	weightEstimator.AddTapscriptInput(
-		lntypes.VByte(witnessSize).ToWU(),
-		&waddrmgr.Tapscript{
-			ControlBlock:   ctrlBlock,
-			RevealedScript: claimScript,
-		},
-	)
-	weightEstimator.AddP2TROutput()
-
-	size, err := safecast.ToUint64(weightEstimator.VSize())
-	if err != nil {
-		return "", err
-	}
-
-	// TODO better fee rate
-	sats := chainfee.AbsoluteFeePerKwFloor.FeeForVByte(lntypes.VByte(size)).ToUnit(btcutil.AmountSatoshi)
-	fees, err := safecast.ToInt64(sats)
-	if err != nil {
-		return "", err
-	}
-
 	amount, err := safecast.ToInt64(vtxo.Amount)
 	if err != nil {
 		return "", err
-	}
-
-	if amount < fees {
-		return "", fmt.Errorf("fees are greater than vhtlc amount %d < %d", vtxo.Amount, fees)
 	}
 
 	redeemTx, err := bitcointree.BuildRedeemTx(
@@ -692,7 +658,7 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		},
 		[]*wire.TxOut{
 			{
-				Value:    amount - fees,
+				Value:    amount,
 				PkScript: pkScript,
 			},
 		},
@@ -707,6 +673,126 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 	}
 
 	if err := bitcointree.AddConditionWitness(0, redeemPtx, wire.TxWitness{preimage}); err != nil {
+		return "", err
+	}
+
+	txid := redeemPtx.UnsignedTx.TxHash().String()
+
+	redeemTx, err = redeemPtx.B64Encode()
+	if err != nil {
+		return "", err
+	}
+
+	signedRedeemTx, err := s.SignTransaction(ctx, redeemTx)
+	if err != nil {
+		return "", err
+	}
+
+	if _, _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRedeemTx); err != nil {
+		return "", err
+	}
+
+	return txid, nil
+}
+
+func (s *Service) RefundVHTLC(ctx context.Context, preimageHash string) (string, error) {
+	vtxos, vhtlcOpts, err := s.ListVHTLC(ctx, preimageHash)
+	if err != nil {
+		return "", err
+	}
+
+	if len(vtxos) == 0 {
+		return "", fmt.Errorf("no vhtlc found")
+	}
+
+	vtxo := vtxos[0]
+	opts := vhtlcOpts[0]
+
+	vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
+	if err != nil {
+		return "", err
+	}
+
+	vtxoOutpoint := &wire.OutPoint{
+		Hash:  *vtxoTxHash,
+		Index: vtxo.VOut,
+	}
+
+	vtxoScript, err := vhtlc.NewVHTLCScript(opts)
+	if err != nil {
+		return "", err
+	}
+
+	refundClosure := vtxoScript.RefundClosure
+	refundWitnessSize := refundClosure.WitnessSize()
+	refundScript, err := refundClosure.Script()
+	if err != nil {
+		return "", err
+	}
+
+	_, tapTree, err := vtxoScript.TapTree()
+	if err != nil {
+		return "", err
+	}
+
+	refundLeafProof, err := tapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(refundScript).TapHash(),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	ctrlBlock, err := txscript.ParseControlBlock(refundLeafProof.ControlBlock)
+	if err != nil {
+		return "", err
+	}
+
+	// self send output
+	_, myAddr, _, _, err := s.GetAddress(ctx, 0)
+	if err != nil {
+		return "", err
+	}
+
+	decodedAddr, err := common.DecodeAddress(myAddr)
+	if err != nil {
+		return "", err
+	}
+
+	pkScript, err := common.P2TRScript(decodedAddr.VtxoTapKey)
+	if err != nil {
+		return "", err
+	}
+
+	amount, err := safecast.ToInt64(vtxo.Amount)
+	if err != nil {
+		return "", err
+	}
+
+	redeemTx, err := bitcointree.BuildRedeemTx(
+		[]common.VtxoInput{
+			{
+				Outpoint:    vtxoOutpoint,
+				Amount:      amount,
+				WitnessSize: refundWitnessSize,
+				Tapscript: &waddrmgr.Tapscript{
+					ControlBlock:   ctrlBlock,
+					RevealedScript: refundScript,
+				},
+			},
+		},
+		[]*wire.TxOut{
+			{
+				Value:    amount,
+				PkScript: pkScript,
+			},
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	redeemPtx, err := psbt.NewFromRawBytes(strings.NewReader(redeemTx), true)
+	if err != nil {
 		return "", err
 	}
 
