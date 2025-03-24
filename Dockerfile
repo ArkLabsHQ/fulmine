@@ -11,7 +11,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-X 'main.Version=${VERSION}' -X 'main.Commit=${COMMIT}' -X 'main.Date=${DATE}'" -o bin/ark-node cmd/ark-node/main.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-X 'main.Version=${VERSION}' -X 'main.Commit=${COMMIT}' -X 'main.Date=${DATE}'" -o bin/fulmine cmd/fulmine/main.go
 
 # Second image, running the arkd executable
 FROM alpine:3.20
@@ -21,10 +21,10 @@ WORKDIR /app
 COPY --from=builder /app/bin/* /app
 
 ENV PATH="/app:${PATH}"
-ENV ARK_NODE_DATADIR=/app/data
+ENV FULMINE_DATADIR=/app/data
 
 # Expose volume containing all 'arkd' data
 VOLUME /app/data
 
-ENTRYPOINT [ "ark-node" ]
+ENTRYPOINT [ "fulmine" ]
     

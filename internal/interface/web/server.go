@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
 
-	"github.com/ArkLabsHQ/ark-node/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 )
 
 //go:embed static/*

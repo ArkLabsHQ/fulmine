@@ -7,9 +7,9 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
-	badgerdb "github.com/ArkLabsHQ/ark-node/internal/infrastructure/db/badger"
-	"github.com/ArkLabsHQ/ark-node/pkg/vhtlc"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
+	badgerdb "github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/badger"
+	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ark-network/ark/common"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/stretchr/testify/require"

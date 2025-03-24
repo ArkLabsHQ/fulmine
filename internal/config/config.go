@@ -33,7 +33,7 @@ var (
 	// Only for testing purposes
 	CLNDatadir = "CLN_DATADIR"
 
-	defaultDatadir   = appDatadir("ark-node", false)
+	defaultDatadir   = appDatadir("fulmine", false)
 	defaultGRPCPort  = 7000
 	defaultHTTPPort  = 7001
 	defaultWithTLS   = false
@@ -42,7 +42,7 @@ var (
 )
 
 func LoadConfig() (*Config, error) {
-	viper.SetEnvPrefix("ARK_NODE")
+	viper.SetEnvPrefix("FULMINE")
 	viper.AutomaticEnv()
 
 	viper.SetDefault(Datadir, defaultDatadir)

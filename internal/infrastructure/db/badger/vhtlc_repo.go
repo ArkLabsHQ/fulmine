@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/ArkLabsHQ/ark-node/internal/core/domain"
-	"github.com/ArkLabsHQ/ark-node/pkg/vhtlc"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
+	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ark-network/ark/common"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/dgraph-io/badger/v4"

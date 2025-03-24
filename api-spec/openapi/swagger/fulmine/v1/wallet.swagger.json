@@ -1,7 +1,7 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "ark_node/v1/wallet.proto",
+    "title": "fulmine/v1/wallet.proto",
     "version": "version not set"
   },
   "tags": [

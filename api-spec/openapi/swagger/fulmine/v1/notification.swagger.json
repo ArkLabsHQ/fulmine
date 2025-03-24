@@ -1,7 +1,7 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "ark_node/v1/notification.proto",
+    "title": "fulmine/v1/notification.proto",
     "version": "version not set"
   },
   "tags": [

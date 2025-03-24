@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.4.0
 // - protoc             (unknown)
-// source: ark_node/v1/notification.proto
+// source: fulmine/v1/notification.proto
 
-package ark_nodev1
+package fulminev1
 
 import (
 	context "context"
@@ -19,13 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	NotificationService_SubscribeForAddresses_FullMethodName   = "/ark_node.v1.NotificationService/SubscribeForAddresses"
-	NotificationService_UnsubscribeForAddresses_FullMethodName = "/ark_node.v1.NotificationService/UnsubscribeForAddresses"
-	NotificationService_GetVtxoNotifications_FullMethodName    = "/ark_node.v1.NotificationService/GetVtxoNotifications"
-	NotificationService_RoundNotifications_FullMethodName      = "/ark_node.v1.NotificationService/RoundNotifications"
-	NotificationService_AddWebhook_FullMethodName              = "/ark_node.v1.NotificationService/AddWebhook"
-	NotificationService_RemoveWebhook_FullMethodName           = "/ark_node.v1.NotificationService/RemoveWebhook"
-	NotificationService_ListWebhooks_FullMethodName            = "/ark_node.v1.NotificationService/ListWebhooks"
+	NotificationService_SubscribeForAddresses_FullMethodName   = "/fulmine.v1.NotificationService/SubscribeForAddresses"
+	NotificationService_UnsubscribeForAddresses_FullMethodName = "/fulmine.v1.NotificationService/UnsubscribeForAddresses"
+	NotificationService_GetVtxoNotifications_FullMethodName    = "/fulmine.v1.NotificationService/GetVtxoNotifications"
+	NotificationService_RoundNotifications_FullMethodName      = "/fulmine.v1.NotificationService/RoundNotifications"
+	NotificationService_AddWebhook_FullMethodName              = "/fulmine.v1.NotificationService/AddWebhook"
+	NotificationService_RemoveWebhook_FullMethodName           = "/fulmine.v1.NotificationService/RemoveWebhook"
+	NotificationService_ListWebhooks_FullMethodName            = "/fulmine.v1.NotificationService/ListWebhooks"
 )
 
 // NotificationServiceClient is the client API for NotificationService service.
@@ -375,7 +375,7 @@ func _NotificationService_ListWebhooks_Handler(srv interface{}, ctx context.Cont
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var NotificationService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "ark_node.v1.NotificationService",
+	ServiceName: "fulmine.v1.NotificationService",
 	HandlerType: (*NotificationServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -411,5 +411,5 @@ var NotificationService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "ark_node/v1/notification.proto",
+	Metadata: "fulmine/v1/notification.proto",
 }

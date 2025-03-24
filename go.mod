@@ -1,15 +1,15 @@
-module github.com/ArkLabsHQ/ark-node
+module github.com/ArkLabsHQ/fulmine
 
 go 1.23.1
 
 replace github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.3
 
-replace github.com/ArkLabsHQ/ark-node/pkg/vhtlc => ./pkg/vhtlc
+replace github.com/ArkLabsHQ/fulmine/pkg/vhtlc => ./pkg/vhtlc
 
 replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-display v1.30.0-hex-display
 
 require (
-	github.com/ArkLabsHQ/ark-node/pkg/vhtlc v0.0.0-00010101000000-000000000000
+	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-00010101000000-000000000000
 	github.com/BoltzExchange/boltz-client/v2 v2.4.0
 	github.com/a-h/templ v0.3.833
 	github.com/angelofallars/htmx-go v0.5.0

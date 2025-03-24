@@ -3,7 +3,7 @@ package utils_test
 import (
 	"testing"
 
-	"github.com/ArkLabsHQ/ark-node/utils"
+	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/stretchr/testify/require"
 )
 

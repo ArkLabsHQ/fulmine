@@ -1,6 +1,6 @@
 version: v2
 modules:
-  - name: buf.build/ArkLabsHQ/ark_node
+  - name: buf.build/ArkLabsHQ/fulmine
     path: api-spec/protobuf/
 deps:
   - buf.build/googleapis/googleapis

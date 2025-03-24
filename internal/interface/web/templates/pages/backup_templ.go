@@ -9,7 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 )
 
 func BackupTab(kind string, active bool) templ.Component {
@@ -226,7 +226,7 @@ func BackupInitialBodyContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"flex flex-col gap-4\"><p class=\"text-lg font-semibold\">Backup info</p><p>In case of losing or forgeting your password, you will need your Private Key to log back in and continue   using the Ark node wallet.</p><div class=\"bg-white/10 rounded-lg flex justify-start items-center gap-4 p-3\"><p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"flex flex-col gap-4\"><p class=\"text-lg font-semibold\">Backup info</p><p>In case of losing or forgeting your password, you will need your Private Key to log back in and continue   using the Fulmine wallet.</p><div class=\"bg-white/10 rounded-lg flex justify-start items-center gap-4 p-3\"><p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -348,7 +348,7 @@ func BackupAckBodyContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"flex flex-col gap-4\"><p class=\"text-lg font-semibold\">Acknowledgements</p><p>Please take care of the following:</p><div class=\"flex justify-start items-center gap-4 p-3 text-white/80\"><input class=\"bg-white/20 w-5 h-5 unframed\" onchange=\"handleAck()\" type=\"checkbox\"><p>I understand that Ark Node doesn't keep a copy of my password and cannot access it in any way.</p></div><div class=\"flex justify-start items-center gap-4 p-3 text-white/80\"><input class=\"bg-white/20 w-5 h-5 unframed\" onchange=\"handleAck()\" type=\"checkbox\"><p>I understand that I'll need my secret phrase to access my funds in case of losing the password.</p></div></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"flex flex-col gap-4\"><p class=\"text-lg font-semibold\">Acknowledgements</p><p>Please take care of the following:</p><div class=\"flex justify-start items-center gap-4 p-3 text-white/80\"><input class=\"bg-white/20 w-5 h-5 unframed\" onchange=\"handleAck()\" type=\"checkbox\"><p>I understand that Fulmine doesn't keep a copy of my password and cannot access it in any way.</p></div><div class=\"flex justify-start items-center gap-4 p-3 text-white/80\"><input class=\"bg-white/20 w-5 h-5 unframed\" onchange=\"handleAck()\" type=\"checkbox\"><p>I understand that I'll need my secret phrase to access my funds in case of losing the password.</p></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

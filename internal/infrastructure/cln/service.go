@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	clnpb "github.com/ArkLabsHQ/ark-node/api-spec/protobuf/gen/go/cln"
-	"github.com/ArkLabsHQ/ark-node/internal/core/ports"
+	clnpb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/cln"
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/lightningnetwork/lnd/input"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

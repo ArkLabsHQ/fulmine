@@ -9,7 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/ArkLabsHQ/ark-node/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 )
 
 func lnConnectBullet(number string) templ.Component {
@@ -263,7 +263,7 @@ func LnConnectInfoBody() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = lnConnectSection("3", "Paste in Ark Node", "Enter your connection string in the app to establish a secure connection to your Lightning node").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = lnConnectSection("3", "Paste in Fulmine", "Enter your connection string in the app to establish a secure connection to your Lightning node").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -7,12 +7,12 @@ build-static-assets:
 
 ## build: build for your platform
 build: build-static-assets build-templates
-	@echo "Building ark-node binary..."
+	@echo "Building fulmine binary..."
 	@bash ./scripts/build
 
 ## build-all: build for all platforms
 build-all: build-templates
-	@echo "Building ark-node binary for all archs..."
+	@echo "Building fulmine binary for all archs..."
 	@bash ./scripts/build-all
 
 ## build-templates: build html templates for embedded frontend
@@ -46,17 +46,17 @@ lint:
 	@golangci-lint run --fix
 
 ## run: run in dev mode
-run: clean build-static-assets build-templates
-	@echo "Running ark-node in dev mode..."
-	@go run ./cmd/ark-node
+run: clean build-templates
+	@echo "Running fulmine in dev mode..."
+	@go run ./cmd/fulmine
 
 run-cln: clean build-templates
-	@echo "Running ark-node in dev mode with CLN support..."
-	@export ARK_NODE_GRPC_PORT=7008; \
-	export ARK_NODE_HTTP_PORT=7009; \
-	export ARK_NODE_DATADIR="./node-cln"; \
-	export ARK_NODE_CLN_DATADIR="~/Library/Application Support/Nigiri/volumes/lightningd/regtest/"; \
-	go run ./cmd/ark-node
+	@echo "Running fulmine in dev mode with CLN support..."
+	@export FULMINE_GRPC_PORT=7008; \
+	export FULMINE_HTTP_PORT=7009; \
+	export FULMINE_DATADIR="./node-cln"; \
+	export FULMINE_CLN_DATADIR="~/Library/Application Support/Nigiri/volumes/lightningd/regtest/"; \
+	go run ./cmd/fulmine
 
 ## test: runs unit and component tests
 test:
