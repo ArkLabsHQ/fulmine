@@ -2,6 +2,8 @@ package scheduler
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
@@ -44,7 +46,7 @@ func (s *service) ScheduleNextClaim(txs []types.Transaction, cfg *types.Config, 
 		}
 	}
 
-	bestTime := bestMarketHour(at, cfg.RoundInterval)
+	bestTime := bestMarketHour(at, cfg.MarketHourStartTime, cfg.MarketHourPeriod)
 
 	delay := bestTime - now
 	if delay < 0 {
@@ -67,14 +69,22 @@ func (s *service) WhenNextClaim() time.Time {
 	return s.job.NextRun()
 }
 
-// TODO: get market hour info from config data
-func bestMarketHour(at int64, roundInterval int64) int64 {
-	firstMarketHour := int64(1231006505) // block 0 timestamp
-	marketHourInterval := int64(86400)   // 24 hours
-	cycles := (at - firstMarketHour) / marketHourInterval
-	best := firstMarketHour + cycles*marketHourInterval
-	if at-best <= roundInterval {
-		return best - marketHourInterval
+func bestMarketHour(expiresAt int64, startTime, period string) int64 {
+	nextMarketHour, err := strconv.ParseInt(startTime, 10, 64)
+	if err != nil {
+		return expiresAt
 	}
-	return best
+
+	if expiresAt < nextMarketHour {
+		return expiresAt
+	}
+
+	marketHourPeriod, err := strconv.ParseInt(period, 10, 64)
+	if err != nil {
+		return expiresAt
+	}
+
+	cycles := int64(math.Floor(float64(expiresAt-nextMarketHour) / float64(marketHourPeriod)))
+
+	return nextMarketHour + (cycles * marketHourPeriod)
 }
