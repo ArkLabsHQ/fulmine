@@ -9,9 +9,11 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
+	"github.com/ark-network/ark/common"
 	"github.com/ark-network/ark/common/tree"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
+	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"google.golang.org/grpc/codes"
@@ -134,6 +136,45 @@ func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
 	}
 
 	return pk, nil
+}
+
+func parseAbsoluteLocktime(locktime uint32) *common.AbsoluteLocktime {
+	if locktime == 0 {
+		return nil
+	}
+	lt := common.AbsoluteLocktime(locktime)
+	return &lt
+}
+
+func parseRelativeLocktime(locktime *pb.RelativeLocktime) *common.RelativeLocktime {
+	if locktime == nil {
+		return nil
+	}
+	return &common.RelativeLocktime{
+		Type:  parseRelativeLocktimeType(locktime.Type),
+		Value: locktime.Value,
+	}
+}
+
+func parseRelativeLocktimeType(locktimeType pb.RelativeLocktime_LocktimeType) common.RelativeLocktimeType {
+	switch locktimeType {
+	case pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK:
+		return common.LocktimeTypeBlock
+	case pb.RelativeLocktime_LOCKTIME_TYPE_SECOND:
+		return common.LocktimeTypeSecond
+	default:
+		return common.LocktimeTypeBlock
+	}
+}
+
+func parseTransaction(tx string) (string, error) {
+	if len(tx) <= 0 {
+		return "", fmt.Errorf("missing transaction")
+	}
+	if _, err := psbt.NewFromRawBytes(strings.NewReader(tx), true); err != nil {
+		return "", fmt.Errorf("invalid transaction: %s", err)
+	}
+	return tx, nil
 }
 
 func toNetworkProto(net string) pb.GetInfoResponse_Network {

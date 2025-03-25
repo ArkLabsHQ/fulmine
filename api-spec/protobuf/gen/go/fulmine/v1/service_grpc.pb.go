@@ -28,6 +28,7 @@ const (
 	Service_RedeemNote_FullMethodName              = "/fulmine.v1.Service/RedeemNote"
 	Service_SendOffChain_FullMethodName            = "/fulmine.v1.Service/SendOffChain"
 	Service_SendOnChain_FullMethodName             = "/fulmine.v1.Service/SendOnChain"
+	Service_SignTransaction_FullMethodName         = "/fulmine.v1.Service/SignTransaction"
 	Service_CreateVHTLC_FullMethodName             = "/fulmine.v1.Service/CreateVHTLC"
 	Service_ClaimVHTLC_FullMethodName              = "/fulmine.v1.Service/ClaimVHTLC"
 	Service_ListVHTLC_FullMethodName               = "/fulmine.v1.Service/ListVHTLC"
@@ -62,6 +63,7 @@ type ServiceClient interface {
 	SendOffChain(ctx context.Context, in *SendOffChainRequest, opts ...grpc.CallOption) (*SendOffChainResponse, error)
 	// SendOnChain asks to send requested amount to requested onchain address
 	SendOnChain(ctx context.Context, in *SendOnChainRequest, opts ...grpc.CallOption) (*SendOnChainResponse, error)
+	SignTransaction(ctx context.Context, in *SignTransactionRequest, opts ...grpc.CallOption) (*SignTransactionResponse, error)
 	// CreateVHTLCAddress computes a VHTLC address
 	CreateVHTLC(ctx context.Context, in *CreateVHTLCRequest, opts ...grpc.CallOption) (*CreateVHTLCResponse, error)
 	// ClaimVHTLC = self send vHTLC -> VTXO
@@ -173,6 +175,16 @@ func (c *serviceClient) SendOnChain(ctx context.Context, in *SendOnChainRequest,
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SendOnChainResponse)
 	err := c.cc.Invoke(ctx, Service_SendOnChain_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) SignTransaction(ctx context.Context, in *SignTransactionRequest, opts ...grpc.CallOption) (*SignTransactionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SignTransactionResponse)
+	err := c.cc.Invoke(ctx, Service_SignTransaction_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -301,6 +313,7 @@ type ServiceServer interface {
 	SendOffChain(context.Context, *SendOffChainRequest) (*SendOffChainResponse, error)
 	// SendOnChain asks to send requested amount to requested onchain address
 	SendOnChain(context.Context, *SendOnChainRequest) (*SendOnChainResponse, error)
+	SignTransaction(context.Context, *SignTransactionRequest) (*SignTransactionResponse, error)
 	// CreateVHTLCAddress computes a VHTLC address
 	CreateVHTLC(context.Context, *CreateVHTLCRequest) (*CreateVHTLCResponse, error)
 	// ClaimVHTLC = self send vHTLC -> VTXO
@@ -350,6 +363,9 @@ func (UnimplementedServiceServer) SendOffChain(context.Context, *SendOffChainReq
 }
 func (UnimplementedServiceServer) SendOnChain(context.Context, *SendOnChainRequest) (*SendOnChainResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendOnChain not implemented")
+}
+func (UnimplementedServiceServer) SignTransaction(context.Context, *SignTransactionRequest) (*SignTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SignTransaction not implemented")
 }
 func (UnimplementedServiceServer) CreateVHTLC(context.Context, *CreateVHTLCRequest) (*CreateVHTLCResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateVHTLC not implemented")
@@ -551,6 +567,24 @@ func _Service_SendOnChain_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).SendOnChain(ctx, req.(*SendOnChainRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_SignTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SignTransactionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).SignTransaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_SignTransaction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).SignTransaction(ctx, req.(*SignTransactionRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -777,6 +811,10 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendOnChain",
 			Handler:    _Service_SendOnChain_Handler,
+		},
+		{
+			MethodName: "SignTransaction",
+			Handler:    _Service_SignTransaction_Handler,
 		},
 		{
 			MethodName: "CreateVHTLC",
