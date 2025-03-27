@@ -3,7 +3,6 @@ package scheduler
 import (
 	"fmt"
 	"math"
-	"strconv"
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
@@ -69,18 +68,8 @@ func (s *service) WhenNextClaim() time.Time {
 	return s.job.NextRun()
 }
 
-func bestMarketHour(expiresAt int64, startTime, period string) int64 {
-	nextMarketHour, err := strconv.ParseInt(startTime, 10, 64)
-	if err != nil {
-		return expiresAt
-	}
-
+func bestMarketHour(expiresAt, nextMarketHour, marketHourPeriod int64) int64 {
 	if expiresAt < nextMarketHour {
-		return expiresAt
-	}
-
-	marketHourPeriod, err := strconv.ParseInt(period, 10, 64)
-	if err != nil {
 		return expiresAt
 	}
 
