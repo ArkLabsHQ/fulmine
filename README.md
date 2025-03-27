@@ -3,7 +3,6 @@
 [![Go Version](https://img.shields.io/badge/Go-1.23.1-blue.svg)](https://golang.org/doc/go1.23)
 [![GitHub Release](https://img.shields.io/github/v/release/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/releases/latest)
 [![License](https://img.shields.io/github/license/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/blob/main/LICENSE)
-[![Docker Image](https://img.shields.io/docker/pulls/arklabshq/fulmine)](https://ghcr.io/arklabshq/fulmine)
 [![GitHub Stars](https://img.shields.io/github/stars/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/issues)
 
@@ -24,7 +23,7 @@ docker run -d \
   ghcr.io/arklabshq/fulmine:latest
 ```
 
-Once the container is running, you can access the web UI at [http://localhost:7001](localhost:7001).
+Once the container is running, you can access the web UI at [http://localhost:7001](http://localhost:7001).
 
 To view logs:
 
@@ -54,7 +53,7 @@ The following environment variables can be configured:
 |----------|-------------|---------|
 | `FULMINE_DATADIR` | Directory to store wallet data | `/app/data` in Docker, `~/.fulmine` otherwise |
 | `FULMINE_HTTP_PORT` | HTTP port for the web UI and REST API | `7001` |
-| `FULMINE_GRPC_PORT` | gRPC port for service communication | `7002` |
+| `FULMINE_GRPC_PORT` | gRPC port for service communication | `7000` |
 | `FULMINE_ARK_SERVER` | URL of the Ark server to connect to | It pre-fills with the default Ark server |
 
 When using Docker, you can set these variables using the `-e` flag:
@@ -69,53 +68,23 @@ docker run -d \
   ghcr.io/arklabshq/fulmine:latest
 ```
 
-## 👨‍💻 Development
-
-To get started with fulmine development you need Go `1.23.1` or higher and Node.js `18.17.1` or higher.
-
-```bash
-git clone https://github.com/ArkLabsHQ/fulmine.git
-cd fulmine
-go mod download
-make run
-```
-
-Now navigate to [http://localhost:7001/](http://localhost:7001/) to see the dashboard.
-
-## 🤝 Contributing
-
-We welcome contributions to fulmine! Here's how you can help:
-
-1. **Fork the repository** and create your branch from `main`
-2. **Install dependencies**: `go mod download`
-3. **Make your changes** and ensure tests pass: `make test`
-4. **Run the linter** to ensure code quality: `make lint`
-5. **Submit a pull request**
-
-For major changes, please open an issue first to discuss what you would like to change.
-
-### 🛠️ Development Commands
-
-The Makefile contains several useful commands for development:
-
-- `make run`: Run in development mode
-- `make build`: Build the binary for your platform
-- `make test`: Run unit tests
-- `make lint`: Lint the codebase
-- `make proto`: Generate protobuf stubs (requires Docker)
-
 ## 📚 API Documentation
+
+### ⚠️ Security Notice
+
+**IMPORTANT**: The REST API and gRPC interfaces are currently **not protected** by authentication. This is a known limitation and is being tracked in [issue #98](https://github.com/ArkLabsHQ/fulmine/issues/98). 
+
+**DO NOT** expose these interfaces over the public internet until authentication is implemented. The interfaces should only be accessed from trusted networks or localhost.
+
+While the wallet seed is encrypted using AES-256 with a password that the user set, the API endpoints themselves are not protected.
 
 ### 🔌 API Interfaces
 
-fulmine provides two main interfaces:
+fulmine provides three main interfaces:
 
 1. **Web UI** - Available at [http://localhost:7001](http://localhost:7001) by default
-2. **API Services** - Both REST and gRPC interfaces
-
-The REST API is accessible at the same port as the Web UI, while the gRPC service runs on a separate port (default: 7002).
-
-Here's a high-level overview of the main API endpoints, including examples using curl:
+2. **REST API** - Available at [http://localhost:7001/api](http://localhost:7001/api)
+3. **gRPC Service** - Available at `localhost:7000`
 
 ### 💰 Wallet Service
 
@@ -200,28 +169,54 @@ Here's a high-level overview of the main API endpoints, including examples using
    curl -X GET http://localhost:7001/api/v1/transactions
    ```
 
-### 🔔 Notification Service
-
-1. Add Webhook
-
-   ```sh
-   curl -X POST http://localhost:7001/api/v1/notifications/webhook \
-        -H "Content-Type: application/json" \
-        -d '{"endpoint": "https://your-webhook.com/endpoint", "event_type": "WEBHOOK_EVENT_TYPE_ROUND", "secret": "your_secret"}'
-   ```
-
-2. Remove Webhook
-
-   ```sh
-   curl -X DELETE http://localhost:7001/api/v1/notifications/webhook/{webhook_id}
-   ```
-
-3. List Webhooks
-
-   ```sh
-   curl -X GET http://localhost:7001/api/v1/notifications/webhooks
-   ```
-
 Note: Replace `http://localhost:7001` with the appropriate host and port where your fulmine is running. Also, ensure to replace placeholder values (like `strong password`, `ark_address`, etc.) with actual values when making requests.
 
 For more detailed information about request and response structures, please refer to the proto files in the `api-spec/protobuf/fulmine/v1/` directory.
+
+## 👨‍💻 Development
+
+To get started with fulmine development you need Go `1.23.1` or higher and Node.js `18.17.1` or higher.
+
+```bash
+git clone https://github.com/ArkLabsHQ/fulmine.git
+cd fulmine
+go mod download
+make run
+```
+
+Now navigate to [http://localhost:7001/](http://localhost:7001/) to see the dashboard.
+
+## 🤝 Contributing
+
+We welcome contributions to fulmine! Here's how you can help:
+
+1. **Fork the repository** and create your branch from `main`
+2. **Install dependencies**: `go mod download`
+3. **Make your changes** and ensure tests pass: `make test`4. **Run the linter** to ensure code quality: `make lint`
+4. **Submit a pull request**
+
+For major changes, please open an issue first to discuss what you would like to change.
+
+### 🛠️ Development Commands
+
+The Makefile contains several useful commands for development:
+
+- `make run`: Run in development mode
+- `make build`: Build the binary for your platform
+- `make test`: Run unit tests
+- `make lint`: Lint the codebase
+- `make proto`: Generate protobuf stubs (requires Docker)
+
+## Support
+
+If you encounter any issues or have questions, please file an issue on our [GitHub Issues](https://github.com/ArkLabsHQ/fulmine/issues) page.
+
+## Security
+
+We take the security of Ark seriously. If you discover a security vulnerability, we appreciate your responsible disclosure.
+
+Currently, we do not have an official bug bounty program. However, we value the efforts of security researchers and will consider offering appropriate compensation for significant, [responsibly disclosed vulnerabilities](./SECURITY.md).
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
