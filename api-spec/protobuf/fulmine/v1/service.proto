@@ -64,6 +64,12 @@ service Service {
       body: "*"
     };
   };
+  rpc SignTransaction(SignTransactionRequest) returns (SignTransactionResponse) {
+    option (google.api.http) = {
+      post: "/v1/transaction/sign"
+      body: "*"
+    };
+  }
   // CreateVHTLCAddress computes a VHTLC address
   rpc CreateVHTLC(CreateVHTLCRequest) returns (CreateVHTLCResponse) {
     option (google.api.http) = {
@@ -196,6 +202,13 @@ message SendOnChainRequest {
 }
 message SendOnChainResponse {
   string txid = 1;
+}
+
+message SignTransactionRequest {
+  string tx = 1;
+}
+message SignTransactionResponse {
+  string signed_tx = 1;
 }
 
 message CreateVHTLCRequest {

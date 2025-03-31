@@ -7,7 +7,6 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
-	"github.com/ark-network/ark/common"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -19,146 +18,6 @@ type serviceHandler struct {
 
 func NewServiceHandler(svc *application.Service) pb.ServiceServer {
 	return &serviceHandler{svc}
-}
-
-func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCRequest) (*pb.ClaimVHTLCResponse, error) {
-	preimage := req.GetPreimage()
-	if len(preimage) <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "missing preimage")
-	}
-
-	preimageBytes, err := hex.DecodeString(preimage)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid preimage")
-	}
-
-	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pb.ClaimVHTLCResponse{RedeemTxid: redeemTxid}, nil
-}
-
-func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest) (*pb.ListVHTLCResponse, error) {
-	vtxos, _, err := h.svc.ListVHTLC(ctx, req.GetPreimageHashFilter())
-	if err != nil {
-		return nil, err
-	}
-
-	vhtlcs := make([]*pb.Vtxo, 0, len(vtxos))
-	for _, vtxo := range vtxos {
-		vhtlcs = append(vhtlcs, &pb.Vtxo{
-			Outpoint: &pb.Input{
-				Txid: vtxo.Txid,
-				Vout: vtxo.VOut,
-			},
-			Receiver: &pb.Output{
-				Pubkey: vtxo.PubKey,
-				Amount: vtxo.Amount,
-			},
-			SpentBy:   vtxo.SpentBy,
-			RoundTxid: vtxo.RoundTxid,
-			ExpireAt:  vtxo.ExpiresAt.Unix(),
-		})
-	}
-
-	return &pb.ListVHTLCResponse{Vhtlcs: vhtlcs}, nil
-}
-
-func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCRequest) (*pb.CreateVHTLCResponse, error) {
-	receiverPubkey, err := parsePubkey(req.GetReceiverPubkey())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid pubkey")
-	}
-	senderPubkey, err := parsePubkey(req.GetSenderPubkey())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid pubkey")
-	}
-
-	receiverPubkeySet := receiverPubkey != nil
-	senderPubkeySet := senderPubkey != nil
-	if receiverPubkeySet == senderPubkeySet {
-		return nil, status.Error(codes.InvalidArgument, "only one of receiver or sender public keys must be set")
-	}
-
-	preimageHashBytes, err := hex.DecodeString(req.GetPreimageHash())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid preimage hash")
-	}
-
-	// Parse optional locktime values
-	var refundLocktime *common.AbsoluteLocktime
-	if req.RefundLocktime > 0 {
-		locktime := common.AbsoluteLocktime(req.RefundLocktime)
-		refundLocktime = &locktime
-	}
-
-	// Parse unilateral claim delay
-	var unilateralClaimDelay *common.RelativeLocktime
-	if req.UnilateralClaimDelay != nil {
-		delay := common.RelativeLocktime{
-			Type:  toCommonLocktimeType(req.UnilateralClaimDelay.Type),
-			Value: req.UnilateralClaimDelay.Value,
-		}
-		unilateralClaimDelay = &delay
-	}
-
-	// Parse unilateral refund delay
-	var unilateralRefundDelay *common.RelativeLocktime
-	if req.UnilateralRefundDelay != nil {
-		delay := common.RelativeLocktime{
-			Type:  toCommonLocktimeType(req.UnilateralRefundDelay.Type),
-			Value: req.UnilateralRefundDelay.Value,
-		}
-		unilateralRefundDelay = &delay
-	}
-
-	// Parse unilateral refund without receiver delay
-	var unilateralRefundWithoutReceiverDelay *common.RelativeLocktime
-	if req.UnilateralRefundWithoutReceiverDelay != nil {
-		delay := common.RelativeLocktime{
-			Type:  toCommonLocktimeType(req.UnilateralRefundWithoutReceiverDelay.Type),
-			Value: req.UnilateralRefundWithoutReceiverDelay.Value,
-		}
-		unilateralRefundWithoutReceiverDelay = &delay
-	}
-
-	addr, swapTree, err := h.svc.GetVHTLC(
-		ctx,
-		receiverPubkey,
-		senderPubkey,
-		preimageHashBytes,
-		refundLocktime,
-		unilateralClaimDelay,
-		unilateralRefundDelay,
-		unilateralRefundWithoutReceiverDelay,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &pb.CreateVHTLCResponse{
-		Address:                              addr,
-		ClaimPubkey:                          hex.EncodeToString(swapTree.Receiver.SerializeCompressed()[1:]),
-		RefundPubkey:                         hex.EncodeToString(swapTree.Sender.SerializeCompressed()[1:]),
-		ServerPubkey:                         hex.EncodeToString(swapTree.Server.SerializeCompressed()[1:]),
-		SwapTree:                             toSwapTreeProto(swapTree),
-		RefundLocktime:                       int64(req.RefundLocktime),
-		UnilateralClaimDelay:                 int64(req.UnilateralClaimDelay.Value),
-		UnilateralRefundDelay:                int64(req.UnilateralRefundDelay.Value),
-		UnilateralRefundWithoutReceiverDelay: int64(req.UnilateralRefundWithoutReceiverDelay.Value),
-	}, nil
-}
-
-func toCommonLocktimeType(pbType pb.RelativeLocktime_LocktimeType) common.RelativeLocktimeType {
-	switch pbType {
-	case pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK:
-		return common.LocktimeTypeBlock
-	case pb.RelativeLocktime_LOCKTIME_TYPE_SECOND:
-		return common.LocktimeTypeSecond
-	default:
-		return common.LocktimeTypeBlock
-	}
 }
 
 func (h *serviceHandler) GetAddress(
@@ -314,6 +173,119 @@ func (h *serviceHandler) SendOnChain(
 		return nil, err
 	}
 	return &pb.SendOnChainResponse{Txid: txid}, nil
+}
+
+func (h *serviceHandler) SignTransaction(
+	ctx context.Context, req *pb.SignTransactionRequest,
+) (*pb.SignTransactionResponse, error) {
+	tx, err := parseTransaction(req.GetTx())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	signedTx, err := h.svc.SignTransaction(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.SignTransactionResponse{SignedTx: signedTx}, nil
+}
+
+func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCRequest) (*pb.ClaimVHTLCResponse, error) {
+	preimage := req.GetPreimage()
+	if len(preimage) <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "missing preimage")
+	}
+
+	preimageBytes, err := hex.DecodeString(preimage)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid preimage")
+	}
+
+	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.ClaimVHTLCResponse{RedeemTxid: redeemTxid}, nil
+}
+
+func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest) (*pb.ListVHTLCResponse, error) {
+	vtxos, _, err := h.svc.ListVHTLC(ctx, req.GetPreimageHashFilter())
+	if err != nil {
+		return nil, err
+	}
+
+	vhtlcs := make([]*pb.Vtxo, 0, len(vtxos))
+	for _, vtxo := range vtxos {
+		vhtlcs = append(vhtlcs, &pb.Vtxo{
+			Outpoint: &pb.Input{
+				Txid: vtxo.Txid,
+				Vout: vtxo.VOut,
+			},
+			Receiver: &pb.Output{
+				Pubkey: vtxo.PubKey,
+				Amount: vtxo.Amount,
+			},
+			SpentBy:   vtxo.SpentBy,
+			RoundTxid: vtxo.RoundTxid,
+			ExpireAt:  vtxo.ExpiresAt.Unix(),
+		})
+	}
+
+	return &pb.ListVHTLCResponse{Vhtlcs: vhtlcs}, nil
+}
+
+func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCRequest) (*pb.CreateVHTLCResponse, error) {
+	receiverPubkey, err := parsePubkey(req.GetReceiverPubkey())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid pubkey")
+	}
+	senderPubkey, err := parsePubkey(req.GetSenderPubkey())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid pubkey")
+	}
+
+	receiverPubkeySet := receiverPubkey != nil
+	senderPubkeySet := senderPubkey != nil
+	if receiverPubkeySet == senderPubkeySet {
+		return nil, status.Error(codes.InvalidArgument, "only one of receiver or sender public keys must be set")
+	}
+
+	preimageHashBytes, err := hex.DecodeString(req.GetPreimageHash())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "invalid preimage hash")
+	}
+
+	// Parse optional locktime values
+	refundLocktime := parseAbsoluteLocktime(req.GetRefundLocktime())
+	unilateralClaimDelay := parseRelativeLocktime(req.GetUnilateralClaimDelay())
+	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
+	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
+
+	addr, swapTree, err := h.svc.GetVHTLC(
+		ctx,
+		receiverPubkey,
+		senderPubkey,
+		preimageHashBytes,
+		refundLocktime,
+		unilateralClaimDelay,
+		unilateralRefundDelay,
+		unilateralRefundWithoutReceiverDelay,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.CreateVHTLCResponse{
+		Address:                              addr,
+		ClaimPubkey:                          hex.EncodeToString(swapTree.Receiver.SerializeCompressed()[1:]),
+		RefundPubkey:                         hex.EncodeToString(swapTree.Sender.SerializeCompressed()[1:]),
+		ServerPubkey:                         hex.EncodeToString(swapTree.Server.SerializeCompressed()[1:]),
+		SwapTree:                             toSwapTreeProto(swapTree),
+		RefundLocktime:                       int64(req.RefundLocktime),
+		UnilateralClaimDelay:                 int64(req.UnilateralClaimDelay.Value),
+		UnilateralRefundDelay:                int64(req.UnilateralRefundDelay.Value),
+		UnilateralRefundWithoutReceiverDelay: int64(req.UnilateralRefundWithoutReceiverDelay.Value),
+	}, nil
 }
 
 func (h *serviceHandler) CreateInvoice(

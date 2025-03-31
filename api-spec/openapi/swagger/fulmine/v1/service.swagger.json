@@ -454,6 +454,38 @@
         ]
       }
     },
+    "/v1/transaction/sign": {
+      "post": {
+        "operationId": "Service_SignTransaction",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SignTransactionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SignTransactionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/transactions": {
       "get": {
         "summary": "GetTransactionHistory returns virtual transactions history",
@@ -1048,6 +1080,22 @@
       "type": "object",
       "properties": {
         "txid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1SignTransactionRequest": {
+      "type": "object",
+      "properties": {
+        "tx": {
+          "type": "string"
+        }
+      }
+    },
+    "v1SignTransactionResponse": {
+      "type": "object",
+      "properties": {
+        "signedTx": {
           "type": "string"
         }
       }
