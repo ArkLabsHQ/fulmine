@@ -48,6 +48,6 @@ jobs:
       
       # Security check with minimal output
       - name: Security Check
-        uses: securego/gosec@master
+        uses: securego/gosec@v2.22.2
         with:
-          args: '-no-fail -confidence medium -severity high -quiet ./...'
+          args: '-no-fail -confidence medium -severity high -quiet -exclude-dir=.git -exclude-dir=vendor -exclude-generated ./...'
