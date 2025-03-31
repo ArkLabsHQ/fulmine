@@ -46,19 +46,22 @@ func (h *serviceHandler) GetBalance(
 func (h *serviceHandler) GetInfo(
 	ctx context.Context, req *pb.GetInfoRequest,
 ) (*pb.GetInfoResponse, error) {
-	data, err := h.svc.GetConfigData(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pb.GetInfoResponse{
-		Network: toNetworkProto(data.Network.Name),
+	response := &pb.GetInfoResponse{
 		BuildInfo: &pb.BuildInfo{
 			Version: h.svc.BuildInfo.Version,
 			Commit:  h.svc.BuildInfo.Commit,
 			Date:    h.svc.BuildInfo.Date,
 		},
-	}, nil
+	}
+
+	// Try to get network info, but don't fail if wallet is not initialized
+	data, err := h.svc.GetConfigData(ctx)
+	if err == nil && data != nil {
+		// Only set Network field if we successfully got config data
+		response.Network = toNetworkProto(data.Network.Name)
+	}
+
+	return response, nil
 }
 
 func (h *serviceHandler) GetOnboardAddress(
