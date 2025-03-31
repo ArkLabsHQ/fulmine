@@ -7,8 +7,22 @@ PARENT_PATH=$(dirname $(
   pwd -P
 ))
 
-# Set VERSION (you can modify this to get the version from a file or environment variable)
-VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "unknown")
+# Version information handling
+# Check if VERSION is already set (from Docker build args or GitHub Actions)
+if [[ -z $VERSION ]]; then
+  # Try to get version from git tags
+  VERSION=$(git describe --tags --always 2>/dev/null || echo "")
+fi
+
+# Get commit hash if not already set
+if [[ -z $COMMIT ]]; then
+  COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+fi
+
+# Get build date if not already set
+if [[ -z $DATE ]]; then
+  DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+fi
 
 # Set GOOS and GOARCH if not already set
 if [[ -z $GOOS ]]; then
@@ -20,6 +34,8 @@ fi
 
 echo "Building for $GOOS $GOARCH"
 echo "Version: $VERSION"
+echo "Commit: $COMMIT"
+echo "Date: $DATE"
 
 # Change to the parent directory
 pushd $PARENT_PATH
@@ -28,7 +44,7 @@ pushd $PARENT_PATH
 mkdir -p build
 
 # Build the binary with version information
-CGO_ENABLED=0 go build -ldflags="-X 'main.Version=$VERSION'" -o build/fulmine-$GOOS-$GOARCH cmd/fulmine/main.go
+CGO_ENABLED=0 go build -ldflags="-X 'main.version=$VERSION' -X 'main.commit=$COMMIT' -X 'main.date=$DATE'" -o build/fulmine-$GOOS-$GOARCH cmd/fulmine/main.go
 
 echo "Build successful for $GOOS $GOARCH: build/fulmine-$GOOS-$GOARCH"
 
