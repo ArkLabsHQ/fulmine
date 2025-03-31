@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: '>=1.23.1'
-          cache: false
+          cache: true
       
       # Run linting with the original working configuration
       - name: check linting
