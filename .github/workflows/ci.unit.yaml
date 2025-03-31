@@ -32,13 +32,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       
-      # Install golangci-lint
-      - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v3
+      # Run linting with the original working configuration
+      - name: check linting
+        uses: golangci/golangci-lint-action@v7
         with:
+          args: '--timeout=180s --concurrency=4 --fast'
           version: v1.61
-          install-mode: binary
-          args: --version
       
       # Run tests
       - name: Get dependencies
@@ -46,10 +45,6 @@ jobs:
       
       - name: Run tests
         run: make test
-      
-      # Run linting separately
-      - name: Run linting
-        run: golangci-lint run --timeout=60s --concurrency=4 --fast --skip-dirs-use-default --skip-files=".*_test.go$" ./...
       
       # Security check with minimal output
       - name: Security Check
