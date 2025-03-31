@@ -190,7 +190,7 @@ Now navigate to [http://localhost:7001/](http://localhost:7001/) to see the dash
 
 We welcome contributions to fulmine! Here's how you can help:
 
-1. **Fork the repository** and create your branch from `main`
+1. **Fork the repository** and create your branch from `master`
 2. **Install dependencies**: `go mod download`
 3. **Make your changes** and ensure tests pass: `make test`4. **Run the linter** to ensure code quality: `make lint`
 4. **Submit a pull request**
