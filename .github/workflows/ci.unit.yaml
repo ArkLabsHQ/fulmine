@@ -31,6 +31,8 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+        # Don't fail the workflow if cache restore has issues
+        continue-on-error: true
       
       # Run linting with the original working configuration
       - name: check linting
