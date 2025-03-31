@@ -8,8 +8,5 @@ templ Header(title string, backPath ...string) {
 	    <a href="/">@BackIcon()</a>
 		}
 		<h1 class="text-lg text-center font-semibold">{title}</h1>
-		if title == "Receive" {
-			@ShareIcon()
-		}
 	</div>
 }
