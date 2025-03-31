@@ -359,7 +359,7 @@ func (s *Service) ScheduleClaims(ctx context.Context) error {
 		return fmt.Errorf("service not initialized")
 	}
 
-	txHistory, err := s.ArkClient.GetTransactionHistory(ctx)
+	spendableVtxos, _, err := s.ArkClient.ListVtxos(ctx)
 	if err != nil {
 		return err
 	}
@@ -377,10 +377,10 @@ func (s *Service) ScheduleClaims(ctx context.Context) error {
 		}
 	}
 
-	return s.schedulerSvc.ScheduleNextClaim(txHistory, data, task)
+	return s.schedulerSvc.ScheduleNextClaim(spendableVtxos, data, task)
 }
 
-func (s *Service) WhenNextClaim(ctx context.Context) time.Time {
+func (s *Service) WhenNextClaim(ctx context.Context) (*time.Time, error) {
 	return s.schedulerSvc.WhenNextClaim()
 }
 
@@ -1106,7 +1106,7 @@ func (s *Service) listenForNotifications(
 			if tx.Round != nil {
 				spendableVtxos = tx.Round.SpendableVtxos
 				spentVtxos = tx.Round.SpentVtxos
-			} else {
+			} else if tx.Redeem != nil {
 				spendableVtxos = tx.Redeem.SpendableVtxos
 				spentVtxos = tx.Redeem.SpentVtxos
 			}

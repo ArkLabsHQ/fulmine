@@ -622,14 +622,20 @@ func (s *service) getTx(c *gin.Context) {
 		return
 	}
 
-	nextClaim := prettyUnixTimestamp(s.svc.WhenNextClaim(c).Unix())
 	explorerUrl := getExplorerUrl(data.Network.Name)
 
 	var bodyContent templ.Component
 	if len(tx.Txid) == 0 {
 		bodyContent = pages.TxNotFoundContent()
 	} else if tx.Status == "pending" {
-		bodyContent = pages.TxPendingContent(tx, nextClaim)
+		var nextClaimStr string
+		nextClaim, err := s.svc.WhenNextClaim(c)
+		if err != nil {
+			nextClaimStr = "unknown"
+		} else {
+			nextClaimStr = prettyUnixTimestamp(nextClaim.Unix())
+		}
+		bodyContent = pages.TxPendingContent(tx, nextClaimStr)
 	} else {
 		bodyContent = pages.TxBodyContent(tx, explorerUrl)
 	}
@@ -664,17 +670,11 @@ func (s *service) feeInfoModal(c *gin.Context) {
 }
 
 func (s *service) getSpendableBalance(c *gin.Context) (string, error) {
-	balance, err := s.svc.Balance(c, false)
+	balance, err := s.svc.GetTotalBalance(c)
 	if err != nil {
 		return "", err
 	}
-	onchainBalance := balance.OnchainBalance.SpendableAmount
-	for _, amount := range balance.OnchainBalance.LockedAmount {
-		onchainBalance += amount.Amount
-	}
-	return strconv.FormatUint(
-		balance.OffchainBalance.Total+onchainBalance, 10,
-	), nil
+	return strconv.FormatUint(balance, 10), nil
 }
 
 func (s *service) getNodeBalance(c *gin.Context) string {
@@ -747,11 +747,22 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 }
 
 func (s *service) redirectedBecauseWalletIsLocked(c *gin.Context) bool {
-	redirect := s.svc.IsLocked(c)
-	if redirect {
+	var shouldRedirect bool
+	func() {
+		defer func() {
+			// redirect even if IsLocked() panics
+			if r := recover(); r != nil {
+				log.WithError(fmt.Errorf("%v", r)).Warn("IsLocked() panicked")
+				shouldRedirect = true
+			}
+		}()
+		shouldRedirect = s.svc.IsLocked(c)
+	}()
+
+	if shouldRedirect {
 		c.Redirect(http.StatusFound, "/")
 	}
-	return redirect
+	return shouldRedirect
 }
 
 func (s *service) reversibleInfoModal(c *gin.Context) {
