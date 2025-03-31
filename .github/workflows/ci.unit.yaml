@@ -32,14 +32,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       
-      # Run linting in parallel with tests to save time
-      - name: Lint and Test
-        run: |
-          go get -v -t -d ./...
-          make test &
-          LINT_PID=$!
-          golangci-lint run --timeout=60s --concurrency=4 --fast --skip-dirs-use-default --skip-files=".*_test.go$" ./...
-          wait $LINT_PID
+      # Install golangci-lint
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.61
+          install-mode: binary
+          args: --version
+      
+      # Run tests
+      - name: Get dependencies
+        run: go get -v -t -d ./...
+      
+      - name: Run tests
+        run: make test
+      
+      # Run linting separately
+      - name: Run linting
+        run: golangci-lint run --timeout=60s --concurrency=4 --fast --skip-dirs-use-default --skip-files=".*_test.go$" ./...
       
       # Security check with minimal output
       - name: Security Check
