@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
+	"github.com/ark-network/ark/pkg/client-sdk/client"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/go-co-op/gocron"
 )
@@ -17,8 +18,7 @@ type service struct {
 
 func NewScheduler() ports.SchedulerService {
 	svc := gocron.NewScheduler(time.UTC)
-	job := gocron.Job{}
-	return &service{svc, &job}
+	return &service{svc, nil}
 }
 
 func (s *service) Start() {
@@ -31,23 +31,21 @@ func (s *service) Stop() {
 
 // Sets a ClaimPending() to run in the best market hour
 // Besides claiming, ClaimPending() also calls this function
-func (s *service) ScheduleNextClaim(txs []types.Transaction, cfg *types.Config, claimFunc func()) error {
-	now := time.Now().Unix()
-	at := now + int64(cfg.VtxoTreeExpiry.Value)
+func (s *service) ScheduleNextClaim(spendableVtxos []client.Vtxo, cfg *types.Config, claimFunc func()) error {
+	if len(spendableVtxos) == 0 {
+		return nil
+	}
 
-	for _, tx := range txs {
-		if tx.Settled {
-			continue
-		}
-		expiresAt := tx.CreatedAt.Unix() + int64(cfg.VtxoTreeExpiry.Value)
-		if expiresAt < at {
-			at = expiresAt
+	var at *time.Time
+
+	for _, vtxo := range spendableVtxos {
+		if at == nil || vtxo.ExpiresAt.Before(*at) {
+			at = &vtxo.ExpiresAt
 		}
 	}
 
-	bestTime := bestMarketHour(at, cfg.MarketHourStartTime, cfg.MarketHourPeriod)
-
-	delay := bestTime - now
+	bestTime := bestMarketHour(at.Unix(), cfg.MarketHourStartTime, cfg.MarketHourPeriod)
+	delay := bestTime - time.Now().Unix()
 	if delay < 0 {
 		return fmt.Errorf("cannot schedule task in the past")
 	}
@@ -64,8 +62,13 @@ func (s *service) ScheduleNextClaim(txs []types.Transaction, cfg *types.Config, 
 	return err
 }
 
-func (s *service) WhenNextClaim() time.Time {
-	return s.job.NextRun()
+func (s *service) WhenNextClaim() (*time.Time, error) {
+	if s.job == nil {
+		return nil, fmt.Errorf("no job scheduled")
+	}
+
+	nextRun := s.job.NextRun()
+	return &nextRun, nil
 }
 
 func bestMarketHour(expiresAt, nextMarketHour, marketHourPeriod int64) int64 {
