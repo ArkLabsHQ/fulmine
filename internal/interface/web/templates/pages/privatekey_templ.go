@@ -89,7 +89,7 @@ func importWalletPrivateKeyContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"mb-6\">Import an existing wallet with your Private Key.</p><p class=\"font-semibold mb-2\">Enter Private Key</p><div class=\"border border-1 border-white/20 bg-graybg p-4 flex items-center justify-between rounded-lg\"><input class=\"bg-graybg border-0 p-0 mr-4\" id=\"privateKey\" name=\"privateKey\" placeholder=\"abcdef0123456789...\" onchange=\"validatePrivateKey()\"><p class=\"cursor-pointer text-white/50\" onclick=\"handlePrivateKeyPaste()\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"mb-6\">Import an existing wallet with your Private Key.</p><p class=\"font-semibold mb-2\">Enter Private Key</p><div class=\"border border-1 border-white/20 bg-graybg p-4 flex items-center justify-between rounded-lg\"><input class=\"bg-graybg border-0 p-0 mr-4\" id=\"privateKey\" name=\"privateKey\" placeholder=\"abcdef0123456789...\" onchange=\"validatePrivateKey()\"><p class=\"cursor-pointer text-white/50\" data-needs=\"clipboard\" onclick=\"handlePrivateKeyPaste()\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
