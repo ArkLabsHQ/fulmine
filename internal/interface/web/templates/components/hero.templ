@@ -12,7 +12,7 @@ templ HeroHeader(arkAddress string) {
 	  <div class="flex gap-4 text-white/60">
 	    <div class="rounded-lg bg-white/10 py-1 px-2 flex items-center gap-4">
 			  <p class="overflow-hidden text-ellipsis w-16 md:w-32" id="arkAddress">{arkAddress}</p>
-				<p onclick="copyToClipboard('#arkAddress')">@CopyIcon()</p>
+				<p data-needs="clipboard" onclick="copyToClipboard('#arkAddress')">@CopyIcon()</p>
 			</div>
 	    <a href="/settings/general">@SettingsIcon()</a>
 	  </div>

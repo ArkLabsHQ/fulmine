@@ -71,7 +71,7 @@ templ BackupSecretBodyContent(hex, nsec string) {
         <button class="bg-orange md:w-auto" type="submit">
 	  		  Continue
 	  		</button>
-        <button class="bg-graybg md:w-32" onclick="handleCopy(event)">
+        <button class="bg-graybg md:w-32" data-needs="clipboard" onclick="handleCopy(event)">
 	  		  @components.CopyIcon()
 	  			<span id="copyText" class="ml-2">Copy</span>
 	  		</button>
