@@ -19,16 +19,18 @@ type Config struct {
 	WithTLS    bool
 	LogLevel   uint32
 	ArkServer  string
+	EsploraURL string
 	CLNDatadir string // for testing purposes only
 }
 
 var (
-	Datadir   = "DATADIR"
-	GRPCPort  = "GRPC_PORT"
-	HTTPPort  = "HTTP_PORT"
-	WithTLS   = "NO_TLS"
-	LogLevel  = "LOG_LEVEL"
-	ArkServer = "ARK_SERVER"
+	Datadir    = "DATADIR"
+	GRPCPort   = "GRPC_PORT"
+	HTTPPort   = "HTTP_PORT"
+	WithTLS    = "NO_TLS"
+	LogLevel   = "LOG_LEVEL"
+	ArkServer  = "ARK_SERVER"
+	EsploraURL = "ESPLORA_URL"
 
 	// Only for testing purposes
 	CLNDatadir = "CLN_DATADIR"
@@ -63,6 +65,7 @@ func LoadConfig() (*Config, error) {
 		WithTLS:    viper.GetBool(WithTLS),
 		LogLevel:   viper.GetUint32(LogLevel),
 		ArkServer:  viper.GetString(ArkServer),
+		EsploraURL: viper.GetString(EsploraURL),
 		CLNDatadir: cleanAndExpandPath(viper.GetString(CLNDatadir)),
 	}, nil
 }

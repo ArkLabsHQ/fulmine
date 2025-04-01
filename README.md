@@ -55,6 +55,7 @@ The following environment variables can be configured:
 | `FULMINE_HTTP_PORT` | HTTP port for the web UI and REST API | `7001` |
 | `FULMINE_GRPC_PORT` | gRPC port for service communication | `7000` |
 | `FULMINE_ARK_SERVER` | URL of the Ark server to connect to | It pre-fills with the default Ark server |
+| `FULMINE_ESPLORA_URL` | URL of the Esplora server to connect to | It pre-fills with the default Esplora server |
 
 When using Docker, you can set these variables using the `-e` flag:
 
@@ -64,6 +65,7 @@ docker run -d \
   -p 7001:7001 \
   -e FULMINE_HTTP_PORT=7001 \
   -e FULMINE_ARK_SERVER="https://server.example.com" \
+  -e FULMINE_ESPLORA_URL="https://mempool.space/api" \
   -v fulmine-data:/app/data \
   ghcr.io/arklabshq/fulmine:latest
 ```
