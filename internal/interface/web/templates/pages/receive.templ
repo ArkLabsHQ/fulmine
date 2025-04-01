@@ -33,7 +33,7 @@ templ ReceiveEditContent() {
 }
 
 templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats string) {
-	<form id="success" hx-post="/receive/success" hx-ext="sse" sse-connect="/events" hx-trigger="sse:TXS_ADDED from:body">
+	<form id="success" hx-post="/receive/success" hx-ext="sse" sse-connect="/events" hx-trigger="sse:TXS_ADDED">
 	  @components.DesktopHeader()
 	  <input class="hidden" id="submitButton" type="submit"/>
 	  <input class="hidden" name="bip21" value={bip21} />
