@@ -174,7 +174,7 @@ func ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats strin
 			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<form id=\"success\" hx-post=\"/receive/success\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<form id=\"success\" hx-post=\"/receive/success\" hx-ext=\"sse\" sse-connect=\"/events\" hx-trigger=\"sse:TXS_ADDED\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -195,7 +195,7 @@ func ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats strin
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\"> <input class=\"hidden\" name=\"sats\"><div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\"><div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -210,7 +210,7 @@ func ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats strin
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs("data:image/png;base64," + encoded)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/receive.templ`, Line: 45, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/receive.templ`, Line: 44, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -223,7 +223,7 @@ func ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats strin
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(bip21)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/receive.templ`, Line: 45, Col: 101}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/receive.templ`, Line: 44, Col: 101}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -253,7 +253,7 @@ func ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats strin
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<span class=\"ml-2\">Edit</span></button></div></div></form><script>\n\t\tconst handleCopy = (element, event) => {\n\t\t\tevent.preventDefault()\n\t\t\tif (!navigator.clipboard) return\n\t\t\tnavigator.clipboard.writeText(element.dataset.value)\n\t\t\telement.querySelector(\"[data-kind='copy']\").classList.add(\"hidden\")\n\t\t\telement.querySelector(\"[data-kind='done']\").classList.remove(\"hidden\")\n\t\t\tsetTimeout(() => {\n\t\t\t\telement.querySelector(\"[data-kind='copy']\").classList.remove(\"hidden\")\n\t\t\t\telement.querySelector(\"[data-kind='done']\").classList.add(\"hidden\")\n\t\t\t}, 1000)\n\t\t}\n\n\t\tconst handleEdit = (event) => {\n\t\t\tevent.preventDefault()\n\t\t\tredirect('/receive/edit')\n\t\t}\n\t\t\n\t\tconst waitForPayment = async () => {\n\t\t\tconst getBalance = async () => {\n        const res = await fetch(\"/helpers/balance\")\n\t\t    return res.ok ? await res.json() : {}\n\t\t\t}\n\t\t  let initialBalance = await getBalance()\n\t\t\tconst eventSource = new EventSource('/events');\n\t\t\teventSource.addEventListener('TXS_ADDED', async (event) => {\n\t\t\t\tconst balance = await getBalance()\n\t\t\t\tconst value = balance.total - initialBalance.total\n\t\t\t\tif (value > 0) {\n\t\t\t\t\teventSource.close()\n\t\t\t  \tdocument.querySelector(\"input[name='sats']\").value = value\n\t\t\t    document.querySelector(\"#submitButton\").click()\n\t\t\t  } else {\n\t\t\t\t\tinitialBalance = balance\n\t\t\t\t}\n      })\n\t\t}\n\t\twaitForPayment()\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<span class=\"ml-2\">Edit</span></button></div></div></form><script>\n\t\tconst handleCopy = (element, event) => {\n\t\t\tevent.preventDefault()\n\t\t\tif (!navigator.clipboard) return\n\t\t\tnavigator.clipboard.writeText(element.dataset.value)\n\t\t\telement.querySelector(\"[data-kind='copy']\").classList.add(\"hidden\")\n\t\t\telement.querySelector(\"[data-kind='done']\").classList.remove(\"hidden\")\n\t\t\tsetTimeout(() => {\n\t\t\t\telement.querySelector(\"[data-kind='copy']\").classList.remove(\"hidden\")\n\t\t\t\telement.querySelector(\"[data-kind='done']\").classList.add(\"hidden\")\n\t\t\t}, 1000)\n\t\t}\n\n\t\tconst handleEdit = (event) => {\n\t\t\tevent.preventDefault()\n\t\t\tredirect('/receive/edit')\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -305,7 +305,7 @@ func ReceiveSuccessContent(offchainAddr, sats string) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/receive.templ`, Line: 107, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/receive.templ`, Line: 85, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -318,7 +318,7 @@ func ReceiveSuccessContent(offchainAddr, sats string) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/receive.templ`, Line: 107, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/receive.templ`, Line: 85, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -331,7 +331,7 @@ func ReceiveSuccessContent(offchainAddr, sats string) templ.Component {
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(offchainAddr)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/receive.templ`, Line: 110, Col: 76}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/receive.templ`, Line: 88, Col: 76}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {

@@ -33,11 +33,10 @@ templ ReceiveEditContent() {
 }
 
 templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats string) {
-	<form id="success" hx-post="/receive/success">
+	<form id="success" hx-post="/receive/success" hx-ext="sse" sse-connect="/events" hx-trigger="sse:TXS_ADDED">
 	  @components.DesktopHeader()
 	  <input class="hidden" id="submitButton" type="submit"/>
 	  <input class="hidden" name="bip21" value={bip21} />
-	  <input class="hidden" name="sats" />
 	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	    @components.Header("Receive")
       <div class="flex flex-col justify-center items-center gap-2 overflow-auto">
@@ -73,27 +72,6 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats stri
 			event.preventDefault()
 			redirect('/receive/edit')
 		}
-		
-		const waitForPayment = async () => {
-			const getBalance = async () => {
-        const res = await fetch("/helpers/balance")
-		    return res.ok ? await res.json() : {}
-			}
-		  let initialBalance = await getBalance()
-			const eventSource = new EventSource('/events');
-			eventSource.addEventListener('TXS_ADDED', async (event) => {
-				const balance = await getBalance()
-				const value = balance.total - initialBalance.total
-				if (value > 0) {
-					eventSource.close()
-			  	document.querySelector("input[name='sats']").value = value
-			    document.querySelector("#submitButton").click()
-			  } else {
-					initialBalance = balance
-				}
-      })
-		}
-		waitForPayment()
 	</script>
 }
 

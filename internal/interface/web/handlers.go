@@ -284,8 +284,18 @@ func (s *service) receiveQrCode(c *gin.Context) {
 }
 
 func (s *service) receiveSuccess(c *gin.Context) {
-	sats := c.PostForm("sats")
 	bip21 := c.PostForm(("bip21"))
+
+	txHistory, err := s.svc.GetTransactionHistory(c)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	lastTx := txHistory[0]
+	sats := strconv.Itoa(int(lastTx.Amount))
+
 	offchainAddr := utils.GetArkAddress(bip21)
 	partial := pages.ReceiveSuccessContent(offchainAddr, sats)
 	partialViewHandler(partial, c)
