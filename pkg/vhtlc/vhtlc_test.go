@@ -1,45 +1,21 @@
-package vhtlc
+package vhtlc_test
 
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"golang.org/x/crypto/ripemd160"
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/ripemd160"
+
+	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ark-network/ark/common"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// Helper function to generate a random private key
-func generatePrivateKey(t *testing.T) *btcec.PrivateKey {
-	t.Helper()
-	privKey, err := btcec.NewPrivateKey()
-	require.NoError(t, err)
-	return privKey
-}
-
-// Helper function to generate a random preimage
-func generatePreimage(t *testing.T) []byte {
-	t.Helper()
-	preimage := make([]byte, 32)
-	_, err := rand.Read(preimage)
-	require.NoError(t, err)
-	return preimage
-}
-
-// Helper function to calculate hash160 of a preimage
-func calculatePreimageHash(preimage []byte) []byte {
-	sha := sha256.Sum256(preimage)
-	rmd := ripemd160.New()
-	rmd.Write(sha[:])
-	return rmd.Sum(nil) // RIPEMD160(SHA256(preimage))
-}
-
-func TestVHTLCCreateClaimRefund(t *testing.T) {
+func TestVHTLC(t *testing.T) {
 	// Generate test data
 	senderKey := generatePrivateKey(t)
 	receiverKey := generatePrivateKey(t)
@@ -48,7 +24,7 @@ func TestVHTLCCreateClaimRefund(t *testing.T) {
 	preimageHash := calculatePreimageHash(preimage)
 
 	// Create VHTLC
-	script, err := NewVHTLCScript(Opts{
+	script, err := vhtlc.NewVHTLCScript(vhtlc.Opts{
 		Sender:                               senderKey.PubKey(),
 		Receiver:                             receiverKey.PubKey(),
 		Server:                               serverKey.PubKey(),
@@ -71,14 +47,15 @@ func TestVHTLCCreateClaimRefund(t *testing.T) {
 		require.NotNil(t, script.UnilateralRefundWithoutReceiverClosure)
 
 		scripts := script.GetRevealedTapscripts()
-		assert.NotEmpty(t, scripts)
-		assert.GreaterOrEqual(t, len(scripts), 6)
+		require.NotEmpty(t, scripts)
+		require.GreaterOrEqual(t, len(scripts), 6)
 	})
 
 	// Test claim path
 	t.Run("Claim", func(t *testing.T) {
 		claimScript, err := script.ClaimClosure.Script()
 		require.NoError(t, err)
+		require.NotEmpty(t, claimScript)
 
 		// Generate a dummy signature with proper 32-byte message
 		msg := make([]byte, 32)
@@ -95,11 +72,11 @@ func TestVHTLCCreateClaimRefund(t *testing.T) {
 			[]byte{0x01}, // dummy control block
 		}
 
-		assert.Equal(t, 4, len(witness), "Claim witness should have 4 elements")
-		assert.Equal(t, 64, len(witness[0]), "Schnorr signature should be 64 bytes")
-		assert.Equal(t, 32, len(witness[1]), "Preimage should be 32 bytes")
-		assert.NotEmpty(t, witness[2], "Claim script should not be empty")
-		assert.NotEmpty(t, witness[3], "Control block should not be empty")
+		require.Len(t, witness, 4, "Claim witness should have 4 elements")
+		require.Len(t, witness[0], 64, "Schnorr signature should be 64 bytes")
+		require.Len(t, witness[1], 32, "Preimage should be 32 bytes")
+		require.NotEmpty(t, witness[2], "Claim script should not be empty")
+		require.NotEmpty(t, witness[3], "Control block should not be empty")
 	})
 
 	// Test refund path
@@ -128,11 +105,36 @@ func TestVHTLCCreateClaimRefund(t *testing.T) {
 			[]byte{0x01}, // dummy control block
 		}
 
-		assert.Equal(t, 5, len(witness), "Refund witness should have 5 elements")
-		assert.Equal(t, 64, len(witness[0]), "Sender signature should be 64 bytes")
-		assert.Equal(t, 64, len(witness[1]), "Receiver signature should be 64 bytes")
-		assert.Equal(t, 64, len(witness[2]), "Server signature should be 64 bytes")
-		assert.NotEmpty(t, witness[3], "Refund script should not be empty")
-		assert.NotEmpty(t, witness[4], "Control block should not be empty")
+		require.Len(t, witness, 5, "Refund witness should have 5 elements")
+		require.Len(t, witness[0], 64, "Sender signature should be 64 bytes")
+		require.Len(t, witness[1], 64, "Receiver signature should be 64 bytes")
+		require.Len(t, witness[2], 64, "Server signature should be 64 bytes")
+		require.NotEmpty(t, witness[3], "Refund script should not be empty")
+		require.NotEmpty(t, witness[4], "Control block should not be empty")
 	})
+}
+
+// Helper function to generate a random private key
+func generatePrivateKey(t *testing.T) *btcec.PrivateKey {
+	t.Helper()
+	privKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+	return privKey
+}
+
+// Helper function to generate a random preimage
+func generatePreimage(t *testing.T) []byte {
+	t.Helper()
+	preimage := make([]byte, 32)
+	_, err := rand.Read(preimage)
+	require.NoError(t, err)
+	return preimage
+}
+
+// Helper function to calculate hash160 of a preimage
+func calculatePreimageHash(preimage []byte) []byte {
+	sha := sha256.Sum256(preimage)
+	rmd := ripemd160.New()
+	rmd.Write(sha[:])
+	return rmd.Sum(nil) // RIPEMD160(SHA256(preimage))
 }
