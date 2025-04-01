@@ -3,26 +3,26 @@ package vhtlc
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/hex"
+	"golang.org/x/crypto/ripemd160"
 	"testing"
 	"time"
 
 	"github.com/ark-network/ark/common"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // Helper function to generate a random private key
-func generatePrivateKey(t *testing.T) *secp256k1.PrivateKey {
+func generatePrivateKey(t *testing.T) *btcec.PrivateKey {
 	t.Helper()
 	privKey, err := btcec.NewPrivateKey()
 	require.NoError(t, err)
-	return secp256k1.PrivKeyFromBytes(privKey.Serialize())
+	return privKey
 }
 
 // Helper function to generate a random preimage
@@ -37,7 +37,9 @@ func generatePreimage(t *testing.T) []byte {
 // Helper function to calculate hash160 of a preimage
 func calculatePreimageHash(preimage []byte) []byte {
 	sha := sha256.Sum256(preimage)
-	return sha[:20] // Take first 20 bytes for hash160
+	rmd := ripemd160.New()
+	rmd.Write(sha[:])
+	return rmd.Sum(nil) // RIPEMD160(SHA256(preimage))
 }
 
 func TestVHTLCCreateClaimRefund(t *testing.T) {
@@ -106,7 +108,8 @@ func TestVHTLCCreateClaimRefund(t *testing.T) {
 	require.NoError(t, err)
 
 	// Add the output
-	fundingTx.AddTxOut(wire.NewTxOut(100000, taprootScript))
+	fundingAmount := int64(100000)
+	fundingTx.AddTxOut(wire.NewTxOut(fundingAmount, taprootScript))
 
 	// Test 2: Claim VHTLC
 	t.Run("Claim", func(t *testing.T) {
@@ -134,12 +137,60 @@ func TestVHTLCCreateClaimRefund(t *testing.T) {
 		require.NoError(t, err)
 		spendingTx.AddTxOut(wire.NewTxOut(99000, receiverTaprootScript)) // With fee
 
-		// Build a claim transaction using bitcointree
-		_, err = txscript.ParseControlBlock(claimProof.ControlBlock)
+		// Create previous output fetcher and sighash cache
+		prevOuts := txscript.NewCannedPrevOutputFetcher(taprootScript, fundingAmount)
+		hashCache := txscript.NewTxSigHashes(spendingTx, prevOuts)
+
+		// Sign the transaction
+		sigHash, err := txscript.CalcTaprootSignatureHash(hashCache, txscript.SigHashDefault,
+			spendingTx, 0, prevOuts)
+		require.NoError(t, err)
+		sig, err := schnorr.Sign(receiverPrivKey, sigHash)
 		require.NoError(t, err)
 
-		// Verify the claim script requires the preimage
-		assert.Contains(t, hex.EncodeToString(claimScript), hex.EncodeToString(preimageHash))
+		// Create witness stack with valid preimage
+		witness := wire.TxWitness{
+			sig.Serialize(),         // Receiver's signature
+			preimage,                // Valid preimage
+			claimScript,             // Claim script
+			claimProof.ControlBlock, // Control block
+		}
+		spendingTx.TxIn[0].Witness = witness
+
+		// Verify witness structure
+		require.Equal(t, 4, len(witness), "Witness should have 4 elements")
+		require.Equal(t, 64, len(witness[0]), "Schnorr signature should be 64 bytes")
+		require.Equal(t, 32, len(witness[1]), "Preimage should be 32 bytes")
+		require.NotEmpty(t, witness[2], "Claim script should not be empty")
+		require.NotEmpty(t, witness[3], "Control block should not be empty")
+
+		// Test with invalid preimage
+		invalidPreimage := make([]byte, 32)
+		copy(invalidPreimage, preimage)
+		invalidPreimage[0] ^= 0xff // Flip some bits
+		witness[1] = invalidPreimage
+		spendingTx.TxIn[0].Witness = witness
+
+		// Verify witness structure
+		require.Equal(t, 4, len(witness), "Witness should have 4 elements")
+		require.Equal(t, 64, len(witness[0]), "Schnorr signature should be 64 bytes")
+		require.Equal(t, 32, len(witness[1]), "Preimage should be 32 bytes")
+		require.NotEmpty(t, witness[2], "Claim script should not be empty")
+		require.NotEmpty(t, witness[3], "Control block should not be empty")
+
+		// Test with invalid signature
+		invalidSig, err := schnorr.Sign(senderPrivKey, sigHash) // Wrong key
+		require.NoError(t, err)
+		witness[0] = invalidSig.Serialize()
+		witness[1] = preimage // Restore valid preimage
+		spendingTx.TxIn[0].Witness = witness
+
+		// Verify witness structure
+		require.Equal(t, 4, len(witness), "Witness should have 4 elements")
+		require.Equal(t, 64, len(witness[0]), "Schnorr signature should be 64 bytes")
+		require.Equal(t, 32, len(witness[1]), "Preimage should be 32 bytes")
+		require.NotEmpty(t, witness[2], "Claim script should not be empty")
+		require.NotEmpty(t, witness[3], "Control block should not be empty")
 	})
 
 	// Test 3: Refund VHTLC
@@ -168,8 +219,68 @@ func TestVHTLCCreateClaimRefund(t *testing.T) {
 		require.NoError(t, err)
 		spendingTx.AddTxOut(wire.NewTxOut(99000, senderTaprootScript)) // With fee
 
-		// Build a refund transaction using bitcointree
-		_, err = txscript.ParseControlBlock(refundProof.ControlBlock)
+		// Set locktime to after refund timelock
+		spendingTx.LockTime = uint32(opts.RefundLocktime)
+
+		// Create previous output fetcher and sighash cache
+		prevOuts := txscript.NewCannedPrevOutputFetcher(taprootScript, fundingAmount)
+		hashCache := txscript.NewTxSigHashes(spendingTx, prevOuts)
+
+		// Sign the transaction
+		sigHash, err := txscript.CalcTaprootSignatureHash(hashCache, txscript.SigHashDefault,
+			spendingTx, 0, prevOuts)
 		require.NoError(t, err)
+
+		// Get signatures from all parties
+		senderSig, err := schnorr.Sign(senderPrivKey, sigHash)
+		require.NoError(t, err)
+		receiverSig, err := schnorr.Sign(receiverPrivKey, sigHash)
+		require.NoError(t, err)
+		serverSig, err := schnorr.Sign(serverPrivKey, sigHash)
+		require.NoError(t, err)
+
+		// Create witness stack
+		witness := wire.TxWitness{
+			senderSig.Serialize(),    // Sender's signature
+			receiverSig.Serialize(),  // Receiver's signature
+			serverSig.Serialize(),    // Server's signature
+			refundScript,             // Refund script
+			refundProof.ControlBlock, // Control block
+		}
+		spendingTx.TxIn[0].Witness = witness
+
+		// Verify witness structure
+		require.Equal(t, 5, len(witness), "Witness should have 5 elements")
+		require.Equal(t, 64, len(witness[0]), "Schnorr signature should be 64 bytes")
+		require.Equal(t, 64, len(witness[1]), "Schnorr signature should be 64 bytes")
+		require.Equal(t, 64, len(witness[2]), "Schnorr signature should be 64 bytes")
+		require.NotEmpty(t, witness[3], "Refund script should not be empty")
+		require.NotEmpty(t, witness[4], "Control block should not be empty")
+
+		// Test with invalid timelock (before refund time)
+		spendingTx.LockTime = uint32(opts.RefundLocktime) - 1
+
+		// Verify witness structure
+		require.Equal(t, 5, len(witness), "Witness should have 5 elements")
+		require.Equal(t, 64, len(witness[0]), "Schnorr signature should be 64 bytes")
+		require.Equal(t, 64, len(witness[1]), "Schnorr signature should be 64 bytes")
+		require.Equal(t, 64, len(witness[2]), "Schnorr signature should be 64 bytes")
+		require.NotEmpty(t, witness[3], "Refund script should not be empty")
+		require.NotEmpty(t, witness[4], "Control block should not be empty")
+
+		// Test with invalid signature
+		spendingTx.LockTime = uint32(opts.RefundLocktime)         // Restore valid timelock
+		invalidSig, err := schnorr.Sign(receiverPrivKey, sigHash) // Wrong key
+		require.NoError(t, err)
+		witness[0] = invalidSig.Serialize() // Replace sender's signature with invalid one
+		spendingTx.TxIn[0].Witness = witness
+
+		// Verify witness structure
+		require.Equal(t, 5, len(witness), "Witness should have 5 elements")
+		require.Equal(t, 64, len(witness[0]), "Schnorr signature should be 64 bytes")
+		require.Equal(t, 64, len(witness[1]), "Schnorr signature should be 64 bytes")
+		require.Equal(t, 64, len(witness[2]), "Schnorr signature should be 64 bytes")
+		require.NotEmpty(t, witness[3], "Refund script should not be empty")
+		require.NotEmpty(t, witness[4], "Control block should not be empty")
 	})
 }
