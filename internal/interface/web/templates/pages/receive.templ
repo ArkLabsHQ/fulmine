@@ -80,18 +80,19 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats stri
 		    return res.ok ? await res.json() : {}
 			}
 		  let initialBalance = await getBalance()
-			const eventSource = new EventSource('/events');
-			eventSource.addEventListener('TXS_ADDED', async (event) => {
-				const balance = await getBalance()
-				const value = balance.total - initialBalance.total
-				if (value > 0) {
-					eventSource.close()
-			  	document.querySelector("input[name='sats']").value = value
-			    document.querySelector("#submitButton").click()
-			  } else {
-					initialBalance = balance
+
+			document.body.addEventListener('htmx:sseMessage', async (evt) => {
+				if (evt.detail.eventType === 'TXS_ADDED') {
+					const balance = await getBalance()
+					const value = balance.total - initialBalance.total
+					if (value > 0) {
+						document.querySelector("input[name='sats']").value = value
+						document.querySelector("#submitButton").click()
+					} else {
+						initialBalance = balance
+					}
 				}
-      })
+			})
 		}
 		waitForPayment()
 	</script>
