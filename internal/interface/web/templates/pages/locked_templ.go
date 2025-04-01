@@ -46,11 +46,11 @@ func lockPage(kind string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><div class=\"bg-radial-gradient h-screen fullscreen\"><div class=\"flex flex-col h-screen justify-between md:h-auto md:gap-10 w-80 m-auto p-3\"><div><div class=\"flex flex-col items-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><div class=\"bg-radial-gradient h-screen fullscreen\"><div class=\"flex flex-col h-screen justify-between md:h-auto md:gap-10 w-80 m-auto p-3\"><div class=\"flex flex-col gap-12 items-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = LogoWhite().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = BigLogo().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -88,14 +88,14 @@ func lockPage(kind string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div></div><button class=\"bg-white ee text-black mt-10 capitalize\" hx-on:click=\"disableButton(this)\" type=\"submit\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><button class=\"bg-white ee text-black mt-10 capitalize\" hx-on:click=\"disableButton(this)\" type=\"submit\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(kind)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/locked.templ`, Line: 36, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/locked.templ`, Line: 34, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {

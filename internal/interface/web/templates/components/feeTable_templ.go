@@ -251,7 +251,7 @@ func PendingTxTable(createdAt, expiresAt, nextClaim string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</span> for 500 SATS.</p><p class=\"mb-4\">You can settle now for 25.000 SATS</p><div class=\"flex justify-between text-white/50 items-center gap-4\"><p hx-get=\"/modal/reversibleinfo\" hx-target=\"#modal\" class=\"cursor-pointer\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</span></p><div class=\"flex justify-between text-white/50 items-center gap-4\"><p hx-get=\"/modal/reversibleinfo\" hx-target=\"#modal\" class=\"cursor-pointer\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
