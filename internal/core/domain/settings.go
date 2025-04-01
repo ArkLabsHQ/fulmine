@@ -5,6 +5,7 @@ import "context"
 type Settings struct {
 	ApiRoot     string
 	ServerUrl   string
+	EsploraUrl  string
 	Currency    string
 	EventServer string
 	FullNode    string

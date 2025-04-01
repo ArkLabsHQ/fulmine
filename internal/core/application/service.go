@@ -60,6 +60,8 @@ type Service struct {
 
 	publicKey *secp256k1.PublicKey
 
+	esploraUrl string
+
 	isReady bool
 
 	subscriptions    map[string]string // tracks subscribed addresses (vtxo taproot pubkey -> address)
@@ -85,6 +87,7 @@ func NewService(
 	vtxoRolloverRepo domain.VtxoRolloverRepository,
 	schedulerSvc ports.SchedulerService,
 	lnSvc ports.LnService,
+	esploraUrl string,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
@@ -111,6 +114,7 @@ func NewService(
 			subscriptionLock: sync.RWMutex{},
 			notifications:    make(chan Notification),
 			stopCh:           make(chan struct{}, 1),
+			esploraUrl:       esploraUrl,
 		}
 
 		return svc, nil
@@ -142,6 +146,7 @@ func NewService(
 		subscriptionLock: sync.RWMutex{},
 		notifications:    make(chan Notification),
 		stopCh:           make(chan struct{}, 1),
+		esploraUrl:       esploraUrl,
 	}
 
 	return svc, nil
@@ -166,19 +171,6 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	}
 	prvKey := secp256k1.PrivKeyFromBytes(privKeyBytes)
 
-	if err := s.settingsRepo.UpdateSettings(
-		ctx, domain.Settings{ServerUrl: serverUrl},
-	); err != nil {
-		return err
-	}
-
-	defer func() {
-		if err != nil {
-			// nolint:all
-			s.settingsRepo.UpdateSettings(ctx, domain.Settings{ServerUrl: ""})
-		}
-	}()
-
 	client, err := grpcclient.NewClient(serverUrl)
 	if err != nil {
 		return err
@@ -188,12 +180,25 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		WalletType:          arksdk.SingleKeyWallet,
 		ClientType:          arksdk.GrpcClient,
 		ServerUrl:           serverUrl,
+		ExplorerURL:         s.esploraUrl,
 		Password:            password,
 		Seed:                privateKey,
 		WithTransactionFeed: true,
 	}); err != nil {
 		return err
 	}
+
+	config, err := s.GetConfigData(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := s.settingsRepo.UpdateSettings(
+		ctx, domain.Settings{ServerUrl: config.ServerUrl, EsploraUrl: config.ExplorerURL},
+	); err != nil {
+		return err
+	}
+
 	s.publicKey = prvKey.PubKey()
 	s.grpcClient = client
 	s.isReady = true
