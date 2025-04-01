@@ -1,4 +1,4 @@
-.PHONY: build build-all build-static-assets build-templates clean cov help intergrationtest lint run run-cln test vet proto proto-lint
+.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-cln test test-vhtlc vet proto proto-lint
 
 build-static-assets:
 	@echo "Generating static assets..."
@@ -35,7 +35,7 @@ help:
 	@echo "Usage: \n"
 	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
 
-## intergrationtest: runs integration tests
+## integrationtest: runs integration tests
 integrationtest:
 	@echo "Running integration tests..."
 	@go test -v -count=1 -race ./... $(go list ./... | grep internal/test)
@@ -58,10 +58,15 @@ run-cln: clean build-templates
 	export FULMINE_CLN_DATADIR="~/Library/Application Support/Nigiri/volumes/lightningd/regtest/"; \
 	go run ./cmd/fulmine
 
-## test: runs unit and component tests
+## test: runs all tests
 test:
-	@echo "Running unit tests..."
-	@go test -v -count=1 -race ./... $(go list ./... | grep -v internal/test)
+	@echo "Running all tests..."
+	@go test -v -count=1 -race ./...
+
+## test-vhtlc: runs tests for the VHTLC package
+test-vhtlc:
+	@echo "Running VHTLC tests..."
+	@cd pkg/vhtlc && go test -v
 
 ## vet: code analysis
 vet:

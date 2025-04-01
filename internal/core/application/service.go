@@ -652,6 +652,7 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 	redeemTx, err := bitcointree.BuildRedeemTx(
 		[]common.VtxoInput{
 			{
+				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
 				Outpoint:    vtxoOutpoint,
 				Amount:      amount,
 				WitnessSize: claimWitnessSize,
@@ -765,6 +766,7 @@ func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string) 
 	refundTx, err := bitcointree.BuildRedeemTx(
 		[]common.VtxoInput{
 			{
+				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
 				Outpoint:    vtxoOutpoint,
 				Amount:      amount,
 				WitnessSize: refundWitnessSize,
