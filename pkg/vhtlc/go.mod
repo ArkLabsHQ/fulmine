@@ -8,9 +8,10 @@ require (
 	github.com/ark-network/ark/common v0.0.0-20241217135720-7e4cb82944d5
 	github.com/btcsuite/btcd v0.24.2
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
-	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
+	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
 	github.com/stretchr/testify v1.9.0
+	golang.org/x/crypto v0.31.0
 )
 
 require (
@@ -52,7 +53,6 @@ require (
 	github.com/vulpemventures/fastsha256 v0.0.0-20160815193821-637e65642941 // indirect
 	github.com/vulpemventures/go-elements v0.5.4 // indirect
 	go.opentelemetry.io/otel v1.32.0 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
