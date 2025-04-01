@@ -604,6 +604,15 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		return "", err
 	}
 
+	tapscripts := make([]string, 0, len(vtxoScript.Closures))
+	for _, closure := range vtxoScript.Closures {
+		script, err := closure.Script()
+		if err != nil {
+			return "", err
+		}
+		tapscripts = append(tapscripts, hex.EncodeToString(script))
+	}
+
 	claimClosure := vtxoScript.ClaimClosure
 	claimWitnessSize := claimClosure.WitnessSize(len(preimage))
 	claimScript, err := claimClosure.Script()
@@ -652,9 +661,10 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 	redeemTx, err := bitcointree.BuildRedeemTx(
 		[]common.VtxoInput{
 			{
-				Outpoint:    vtxoOutpoint,
-				Amount:      amount,
-				WitnessSize: claimWitnessSize,
+				Outpoint:           vtxoOutpoint,
+				Amount:             amount,
+				WitnessSize:        claimWitnessSize,
+				RevealedTapscripts: tapscripts,
 				Tapscript: &waddrmgr.Tapscript{
 					ControlBlock:   ctrlBlock,
 					RevealedScript: claimScript,
@@ -728,6 +738,15 @@ func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string) 
 		return "", err
 	}
 
+	tapscripts := make([]string, 0, len(vtxoScript.Closures))
+	for _, closure := range vtxoScript.Closures {
+		script, err := closure.Script()
+		if err != nil {
+			return "", err
+		}
+		tapscripts = append(tapscripts, hex.EncodeToString(script))
+	}
+
 	refundClosure := vtxoScript.RefundClosure
 	refundWitnessSize := refundClosure.WitnessSize()
 	refundScript, err := refundClosure.Script()
@@ -765,9 +784,10 @@ func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string) 
 	refundTx, err := bitcointree.BuildRedeemTx(
 		[]common.VtxoInput{
 			{
-				Outpoint:    vtxoOutpoint,
-				Amount:      amount,
-				WitnessSize: refundWitnessSize,
+				Outpoint:           vtxoOutpoint,
+				Amount:             amount,
+				WitnessSize:        refundWitnessSize,
+				RevealedTapscripts: tapscripts,
 				Tapscript: &waddrmgr.Tapscript{
 					ControlBlock:   ctrlBlock,
 					RevealedScript: refundScript,
