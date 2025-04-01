@@ -98,6 +98,14 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 		navigator.clipboard.writeText(addr)
 	}
 
+	const hideCopyButtonsIfInsecure = () => {
+		if (!navigator.clipboard) {
+			document.querySelectorAll('[data-needs="clipboard"]').forEach((el) => {
+				el.classList.add('hidden')
+			})
+		}
+	}
+
 	const pasteFromClipboard = (id) => {
 		if (navigator.clipboard) {
 			navigator.clipboard.readText().then((addr) => {
@@ -195,6 +203,7 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 		enableButtons()
 		updateFiatValues()
 		updateCryptoValues()
+		hideCopyButtonsIfInsecure()
 
 		// pass along query parameter with serverUrl
 		const url = new URL(window.location.href)

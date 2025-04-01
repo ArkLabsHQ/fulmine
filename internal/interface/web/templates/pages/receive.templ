@@ -10,7 +10,7 @@ templ addressLine(title, value string) {
 	    <p class="text-white/50">{title}</p>
 	    <p class="overflow-hidden truncate text-white w-64">{value}</p>
 		</div>
-		<div class="bg-graybg p-2 rounded-lg" data-value={value} onclick="handleCopy(this, event)">
+		<div class="bg-graybg p-2 rounded-lg" data-needs="clipboard" data-value={value} onclick="handleCopy(this, event)">
 		  <span data-kind="copy">@components.CopyIcon()</span>
 		  <span data-kind="done" class="hidden">@components.CheckMarkIcon()</span>
 		</div>

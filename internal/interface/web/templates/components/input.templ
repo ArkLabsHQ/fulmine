@@ -50,7 +50,9 @@ templ InputAddress() {
 			onchange="handleAddressChange()"
 			placeholder="ark1ccc..."
 		/>
-		<p class="cursor-pointer text-white/50" onclick="pasteAddressFromClipboard()">@PasteIcon()</p>
+		<p class="cursor-pointer text-white/50" data-needs="clipboard" onclick="pasteAddressFromClipboard()">
+		  @PasteIcon()
+		</p>
 	</div>
 	<script>
 	  const handleAddressChange = () => {
@@ -101,7 +103,9 @@ templ InputWithPaste(id, placeholder, value string) {
 			placeholder={placeholder}
 			value={value}
 		/>
-		<p class="cursor-pointer text-white/50" onclick={smartPaste(id)}>@PasteIcon()</p>
+		<p class="cursor-pointer text-white/50" data-needs="clipboard" onclick={smartPaste(id)}>
+		  @PasteIcon()
+		</p>
 	</div>
 }
 

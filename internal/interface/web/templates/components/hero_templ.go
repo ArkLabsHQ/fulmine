@@ -50,7 +50,7 @@ func HeroHeader(arkAddress string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p><p onclick=\"copyToClipboard(&#39;#arkAddress&#39;)\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p><p data-needs=\"clipboard\" onclick=\"copyToClipboard(&#39;#arkAddress&#39;)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

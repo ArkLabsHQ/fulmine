@@ -168,7 +168,7 @@ func newWalletPrivateKeyContent(privateKey string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p></div><div class=\"flex flex-col md:flex-row md:justify-center gap-2 w-full\"><button class=\"md:w-auto bg-orange text-white\" id=\"importButton\" type=\"submit\">Continue</button> <button class=\"md:w-32 bg-graybg\" onclick=\"handleCopy(event)\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p></div><div class=\"flex flex-col md:flex-row md:justify-center gap-2 w-full\"><button class=\"md:w-auto bg-orange text-white\" id=\"importButton\" type=\"submit\">Continue</button> <button class=\"md:w-32 bg-graybg\" data-needs=\"clipboard\" onclick=\"handleCopy(event)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
