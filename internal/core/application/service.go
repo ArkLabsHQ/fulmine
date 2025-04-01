@@ -652,28 +652,7 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 	redeemTx, err := bitcointree.BuildRedeemTx(
 		[]common.VtxoInput{
 			{
-				RevealedTapscripts: func() []string {
-					scripts := []string{}
-					if claimScript, err := vtxoScript.ClaimClosure.Script(); err == nil {
-						scripts = append(scripts, hex.EncodeToString(claimScript))
-					}
-					if refundScript, err := vtxoScript.RefundClosure.Script(); err == nil {
-						scripts = append(scripts, hex.EncodeToString(refundScript))
-					}
-					if refundWithoutReceiverScript, err := vtxoScript.RefundWithoutReceiverClosure.Script(); err == nil {
-						scripts = append(scripts, hex.EncodeToString(refundWithoutReceiverScript))
-					}
-					if unilateralClaimScript, err := vtxoScript.UnilateralClaimClosure.Script(); err == nil {
-						scripts = append(scripts, hex.EncodeToString(unilateralClaimScript))
-					}
-					if unilateralRefundScript, err := vtxoScript.UnilateralRefundClosure.Script(); err == nil {
-						scripts = append(scripts, hex.EncodeToString(unilateralRefundScript))
-					}
-					if unilateralRefundWithoutReceiverScript, err := vtxoScript.UnilateralRefundWithoutReceiverClosure.Script(); err == nil {
-						scripts = append(scripts, hex.EncodeToString(unilateralRefundWithoutReceiverScript))
-					}
-					return scripts
-				}(),
+				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
 				Outpoint:    vtxoOutpoint,
 				Amount:      amount,
 				WitnessSize: claimWitnessSize,
@@ -787,26 +766,7 @@ func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string) 
 	refundTx, err := bitcointree.BuildRedeemTx(
 		[]common.VtxoInput{
 			{
-				RevealedTapscripts: func() []string {
-					scripts := []string{hex.EncodeToString(refundScript)}
-
-					if claimScript, err := vtxoScript.ClaimClosure.Script(); err == nil {
-						scripts = append(scripts, hex.EncodeToString(claimScript))
-					}
-					if refundWithoutReceiverScript, err := vtxoScript.RefundWithoutReceiverClosure.Script(); err == nil {
-						scripts = append(scripts, hex.EncodeToString(refundWithoutReceiverScript))
-					}
-					if unilateralClaimScript, err := vtxoScript.UnilateralClaimClosure.Script(); err == nil {
-						scripts = append(scripts, hex.EncodeToString(unilateralClaimScript))
-					}
-					if unilateralRefundScript, err := vtxoScript.UnilateralRefundClosure.Script(); err == nil {
-						scripts = append(scripts, hex.EncodeToString(unilateralRefundScript))
-					}
-					if unilateralRefundWithoutReceiverScript, err := vtxoScript.UnilateralRefundWithoutReceiverClosure.Script(); err == nil {
-						scripts = append(scripts, hex.EncodeToString(unilateralRefundWithoutReceiverScript))
-					}
-					return scripts
-				}(),
+				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
 				Outpoint:    vtxoOutpoint,
 				Amount:      amount,
 				WitnessSize: refundWitnessSize,
