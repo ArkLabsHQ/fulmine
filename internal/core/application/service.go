@@ -171,19 +171,6 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	}
 	prvKey := secp256k1.PrivKeyFromBytes(privKeyBytes)
 
-	if err := s.settingsRepo.UpdateSettings(
-		ctx, domain.Settings{ServerUrl: serverUrl, EsploraUrl: s.esploraUrl},
-	); err != nil {
-		return err
-	}
-
-	defer func() {
-		if err != nil {
-			// nolint:all
-			s.settingsRepo.UpdateSettings(ctx, domain.Settings{ServerUrl: "", EsploraUrl: ""})
-		}
-	}()
-
 	client, err := grpcclient.NewClient(serverUrl)
 	if err != nil {
 		return err
@@ -200,6 +187,18 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	}); err != nil {
 		return err
 	}
+
+	config, err := s.GetConfigData(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := s.settingsRepo.UpdateSettings(
+		ctx, domain.Settings{ServerUrl: config.ServerUrl, EsploraUrl: config.ExplorerURL},
+	); err != nil {
+		return err
+	}
+
 	s.publicKey = prvKey.PubKey()
 	s.grpcClient = client
 	s.isReady = true
