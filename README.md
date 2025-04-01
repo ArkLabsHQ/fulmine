@@ -188,6 +188,18 @@ make run
 
 Now navigate to [http://localhost:7001/](http://localhost:7001/) to see the dashboard.
 
+### Testing
+
+Run all tests:
+```bash
+make test
+```
+
+Run VHTLC-specific tests:
+```bash
+make test-vhtlc
+```
+
 ## 🤝 Contributing
 
 We welcome contributions to fulmine! Here's how you can help:
