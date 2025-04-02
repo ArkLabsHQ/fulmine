@@ -12,4 +12,5 @@ type VHTLCRepository interface {
 	Get(ctx context.Context, preimageHash string) (*vhtlc.Opts, error)
 	Add(ctx context.Context, opts vhtlc.Opts) error
 	Delete(ctx context.Context, preimageHash string) error
+	Close()
 }

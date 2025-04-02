@@ -7,7 +7,7 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/internal/config"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
-	badgerdb "github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/badger"
+	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db"
 	lnd "github.com/ArkLabsHQ/fulmine/internal/infrastructure/lnd"
 	scheduler "github.com/ArkLabsHQ/fulmine/internal/infrastructure/scheduler/gocron"
 	grpcservice "github.com/ArkLabsHQ/fulmine/internal/interface/grpc"
@@ -55,19 +55,12 @@ func main() {
 		log.WithError(err).Fatal(err)
 	}
 
-	settingsRepo, err := badgerdb.NewSettingsRepo(cfg.Datadir, log.New())
+	dbSvc, err := db.NewService(db.ServiceConfig{
+		DbType:   "badger",
+		DbConfig: []any{cfg.Datadir, log.New()},
+	})
 	if err != nil {
-		log.WithError(err).Fatal(err)
-	}
-
-	vhtlcRepo, err := badgerdb.NewVHTLCRepo(cfg.Datadir, log.New())
-	if err != nil {
-		log.WithError(err).Fatal(err)
-	}
-
-	vtxoRolloverRepo, err := badgerdb.NewVtxoRolloverRepo(cfg.Datadir, log.New())
-	if err != nil {
-		log.WithError(err).Fatal(err)
+		log.WithError(err).Fatal("failed to open db")
 	}
 
 	buildInfo := application.BuildInfo{
@@ -80,14 +73,7 @@ func main() {
 	lnSvc := lnd.NewService()
 
 	appSvc, err := application.NewService(
-		buildInfo,
-		storeSvc,
-		settingsRepo,
-		vhtlcRepo,
-		vtxoRolloverRepo,
-		schedulerSvc,
-		lnSvc,
-		cfg.EsploraURL,
+		buildInfo, storeSvc, dbSvc, schedulerSvc, lnSvc, cfg.EsploraURL,
 	)
 	if err != nil {
 		log.WithError(err).Fatal(err)
