@@ -26,6 +26,7 @@ const (
 	Service_GetRoundInfo_FullMethodName            = "/fulmine.v1.Service/GetRoundInfo"
 	Service_GetTransactionHistory_FullMethodName   = "/fulmine.v1.Service/GetTransactionHistory"
 	Service_RedeemNote_FullMethodName              = "/fulmine.v1.Service/RedeemNote"
+	Service_Settle_FullMethodName                  = "/fulmine.v1.Service/Settle"
 	Service_SendOffChain_FullMethodName            = "/fulmine.v1.Service/SendOffChain"
 	Service_SendOnChain_FullMethodName             = "/fulmine.v1.Service/SendOnChain"
 	Service_SignTransaction_FullMethodName         = "/fulmine.v1.Service/SignTransaction"
@@ -59,6 +60,8 @@ type ServiceClient interface {
 	GetTransactionHistory(ctx context.Context, in *GetTransactionHistoryRequest, opts ...grpc.CallOption) (*GetTransactionHistoryResponse, error)
 	// Redeems an ark note by joining a round
 	RedeemNote(ctx context.Context, in *RedeemNoteRequest, opts ...grpc.CallOption) (*RedeemNoteResponse, error)
+	// Settle vtxos and boarding utxos
+	Settle(ctx context.Context, in *SettleRequest, opts ...grpc.CallOption) (*SettleResponse, error)
 	// Send asks to send amount to ark address by joining a round
 	SendOffChain(ctx context.Context, in *SendOffChainRequest, opts ...grpc.CallOption) (*SendOffChainResponse, error)
 	// SendOnChain asks to send requested amount to requested onchain address
@@ -155,6 +158,16 @@ func (c *serviceClient) RedeemNote(ctx context.Context, in *RedeemNoteRequest, o
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RedeemNoteResponse)
 	err := c.cc.Invoke(ctx, Service_RedeemNote_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) Settle(ctx context.Context, in *SettleRequest, opts ...grpc.CallOption) (*SettleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SettleResponse)
+	err := c.cc.Invoke(ctx, Service_Settle_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -309,6 +322,8 @@ type ServiceServer interface {
 	GetTransactionHistory(context.Context, *GetTransactionHistoryRequest) (*GetTransactionHistoryResponse, error)
 	// Redeems an ark note by joining a round
 	RedeemNote(context.Context, *RedeemNoteRequest) (*RedeemNoteResponse, error)
+	// Settle vtxos and boarding utxos
+	Settle(context.Context, *SettleRequest) (*SettleResponse, error)
 	// Send asks to send amount to ark address by joining a round
 	SendOffChain(context.Context, *SendOffChainRequest) (*SendOffChainResponse, error)
 	// SendOnChain asks to send requested amount to requested onchain address
@@ -357,6 +372,9 @@ func (UnimplementedServiceServer) GetTransactionHistory(context.Context, *GetTra
 }
 func (UnimplementedServiceServer) RedeemNote(context.Context, *RedeemNoteRequest) (*RedeemNoteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RedeemNote not implemented")
+}
+func (UnimplementedServiceServer) Settle(context.Context, *SettleRequest) (*SettleResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Settle not implemented")
 }
 func (UnimplementedServiceServer) SendOffChain(context.Context, *SendOffChainRequest) (*SendOffChainResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendOffChain not implemented")
@@ -531,6 +549,24 @@ func _Service_RedeemNote_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).RedeemNote(ctx, req.(*RedeemNoteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_Settle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SettleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).Settle(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_Settle_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).Settle(ctx, req.(*SettleRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -803,6 +839,10 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RedeemNote",
 			Handler:    _Service_RedeemNote_Handler,
+		},
+		{
+			MethodName: "Settle",
+			Handler:    _Service_Settle_Handler,
 		},
 		{
 			MethodName: "SendOffChain",

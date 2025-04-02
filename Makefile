@@ -1,4 +1,4 @@
-.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-cln test test-vhtlc vet proto proto-lint
+.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-cln test test-vhtlc vet proto proto-lint up-test-env setup-arkd down-test-env
 
 build-static-assets:
 	@echo "Generating static assets..."
@@ -34,11 +34,6 @@ cov:
 help:
 	@echo "Usage: \n"
 	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
-
-## integrationtest: runs integration tests
-integrationtest:
-	@echo "Running integration tests..."
-	@go test -v -count=1 -race ./... $(go list ./... | grep internal/test)
 
 ## lint: lint codebase
 lint:
@@ -83,3 +78,29 @@ proto: proto-lint
 proto-lint:
 	@echo "Linting protos..."
 	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf lint --exclude-path ./api-spec/protobuf/cln
+
+build-test-env:
+	@echo "Building test environment..."
+	@docker compose -f test.docker-compose.yml build
+
+## up-test-env: starts test environment
+up-test-env:
+	@echo "Starting test environment..."
+	@docker compose -f test.docker-compose.yml up -d
+
+## setup-arkd: sets up the ARK server
+setup-test-env:
+	@echo "Setting up ARK server..."
+	@go run ./internal/test/e2e/setup/arkd/setup_ark.go
+	@echo "Setting up Fulmine server..."
+	@go run ./internal/test/e2e/setup/fulmine/setup_fulmine.go
+
+## down-test-env: stops test environment
+down-test-env:
+	@echo "Stopping test environment..."
+	@docker compose -f test.docker-compose.yml down
+
+## integrationtest: runs e2e tests
+integrationtest:
+	@echo "Running e2e tests..."
+	@go test -v -count=1 -race -p=1 ./internal/test/e2e/...

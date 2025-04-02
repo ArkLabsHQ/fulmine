@@ -348,7 +348,7 @@ func (s *Service) GetRound(ctx context.Context, roundId string) (*client.Round, 
 	return s.grpcClient.GetRoundByID(ctx, roundId)
 }
 
-func (s *Service) ClaimPending(ctx context.Context) (string, error) {
+func (s *Service) Settle(ctx context.Context) (string, error) {
 	roundTxid, err := s.ArkClient.Settle(ctx)
 	if err == nil {
 		err := s.ScheduleClaims(ctx)
@@ -376,7 +376,7 @@ func (s *Service) ScheduleClaims(ctx context.Context) error {
 
 	task := func() {
 		log.Infof("running auto claim at %s", time.Now())
-		_, err := s.ClaimPending(ctx)
+		_, err := s.Settle(ctx)
 		if err != nil {
 			log.WithError(err).Warn("failed to auto claim")
 		}
@@ -424,6 +424,14 @@ func (s *Service) GetVHTLC(
 	unilateralRefundDelayParam *common.RelativeLocktime,
 	unilateralRefundWithoutReceiverDelayParam *common.RelativeLocktime,
 ) (string, *vhtlc.VHTLCScript, error) {
+	if !s.isReady {
+		return "", nil, fmt.Errorf("service not initialized")
+	}
+
+	if s.IsLocked(ctx) {
+		return "", nil, fmt.Errorf("service is locked")
+	}
+
 	receiverPubkeySet := receiverPubkey != nil
 	senderPubkeySet := senderPubkey != nil
 	if receiverPubkeySet == senderPubkeySet {
@@ -653,9 +661,9 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		[]common.VtxoInput{
 			{
 				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
-				Outpoint:    vtxoOutpoint,
-				Amount:      amount,
-				WitnessSize: claimWitnessSize,
+				Outpoint:           vtxoOutpoint,
+				Amount:             amount,
+				WitnessSize:        claimWitnessSize,
 				Tapscript: &waddrmgr.Tapscript{
 					ControlBlock:   ctrlBlock,
 					RevealedScript: claimScript,
@@ -767,9 +775,9 @@ func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string) 
 		[]common.VtxoInput{
 			{
 				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
-				Outpoint:    vtxoOutpoint,
-				Amount:      amount,
-				WitnessSize: refundWitnessSize,
+				Outpoint:           vtxoOutpoint,
+				Amount:             amount,
+				WitnessSize:        refundWitnessSize,
 				Tapscript: &waddrmgr.Tapscript{
 					ControlBlock:   ctrlBlock,
 					RevealedScript: refundScript,
