@@ -210,11 +210,6 @@ func findInHistory(txid string, history []transactionInfo, txType transactionTyp
 	return transactionInfo{}, fmt.Errorf("transaction not found %s", txid)
 }
 
-type relativeLocktime struct {
-	Type  string `json:"type"`
-	Value uint32 `json:"value"`
-}
-
 type createVHTLCResponse struct {
 	Address                              string `json:"address"`
 	ClaimPubkey                          string `json:"claimPubkey"`
@@ -297,8 +292,6 @@ func listVHTLC(preimageHashFilter string) ([]Vtxo, error) {
 	if preimageHashFilter != "" {
 		url += "?preimage_hash_filter=" + preimageHashFilter
 	}
-	fmt.Println(url)
-
 	resp, err := httpClient.Get(url)
 	if err != nil {
 		return nil, err
