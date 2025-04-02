@@ -20,6 +20,7 @@ func faucetOffchain(address string, amount string) error {
 	if err != nil {
 		return err
 	}
+	time.Sleep(time.Second)
 	return nil
 }
 
@@ -30,6 +31,7 @@ func faucet(address string, amount string) (string, error) {
 		return "", err
 	}
 	txid := strings.TrimPrefix(string(output), "txId: ")
+	time.Sleep(6 * time.Second)
 	return strings.TrimSpace(txid), nil
 }
 
@@ -97,6 +99,7 @@ func settle() (string, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&settleResp); err != nil {
 		return "", err
 	}
+	time.Sleep(time.Second)
 	return settleResp.Txid, nil
 }
 
@@ -123,6 +126,7 @@ func sendOffChain(address string, amount uint64) (string, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&sendResp); err != nil {
 		return "", err
 	}
+	time.Sleep(time.Second)
 	return sendResp.Txid, nil
 }
 
@@ -149,6 +153,7 @@ func sendOnChain(address string, amount uint64) (string, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&sendResp); err != nil {
 		return "", err
 	}
+	time.Sleep(time.Second)
 	return sendResp.Txid, nil
 }
 
@@ -167,7 +172,6 @@ type transactionHistoryResponse struct {
 }
 
 func getTransactionHistory() ([]transactionInfo, error) {
-	time.Sleep(5 * time.Second)
 	resp, err := httpClient.Get("http://localhost:7001/api/v1/transactions")
 	if err != nil {
 		return nil, err
@@ -274,6 +278,7 @@ func claimVHTLC(preimage string) (string, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&claimResp); err != nil {
 		return "", err
 	}
+	time.Sleep(time.Second)
 	return claimResp.RedeemTxid, nil
 }
 
