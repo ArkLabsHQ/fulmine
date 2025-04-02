@@ -3,6 +3,8 @@ name: ci_integration
 on:
   push:
     branches: [master]
+  pull_request:
+    branches: [master]
 
 jobs:
   test:
@@ -13,7 +15,28 @@ jobs:
         with:
           go-version: ">1.17.2"
       - uses: actions/checkout@v3
+      
+      # Install dependencies
       - run: go get -v -t -d ./...
-      - name: integration testing
+      
+      # Build test environment
+      - name: Build test environment
+        run: make build-test-env
+      
+      # Start test environment
+      - name: Start test environment
+        run: make up-test-env
+      
+      # Setup test environment
+      - name: Setup test environment
+        run: make setup-test-env
+      
+      # Run integration tests
+      - name: Run integration tests
         run: make integrationtest
+      
+      # Cleanup
+      - name: Cleanup test environment
+        run: make down-test-env
+        if: always()  # Run cleanup even if tests fail
   
