@@ -16,26 +16,26 @@ jobs:
           go-version: ">1.17.2"
       - uses: actions/checkout@v3
       
-      # Install dependencies
       - run: go get -v -t -d ./...
       
-      # Build test environment
+      - name: Run Nigiri
+        uses: vulpemventures/nigiri-github-action@v1
+        with:
+          use_liquid: false
+          use_ln: false
+
       - name: Build test environment
         run: make build-test-env
       
-      # Start test environment
       - name: Start test environment
         run: make up-test-env
       
-      # Setup test environment
       - name: Setup test environment
         run: make setup-test-env
       
-      # Run integration tests
       - name: Run integration tests
         run: make integrationtest
       
-      # Cleanup
       - name: Cleanup test environment
         run: make down-test-env
         if: always()  # Run cleanup even if tests fail
