@@ -6,6 +6,16 @@ script openInExplorer(txid, explorerUrl string) {
 
 // buttons
 
+templ cancelButton(label string) {
+	<button class="bg-graybg md:w-auto" onclick="handleCancel(event)">{label}</button>
+	<script>
+	  const handleCancel = (event) => {
+			event.preventDefault()
+			redirect('/')
+		}
+	</script>
+}
+
 templ grayButton(label string) {
 	<button class="bg-graybg md:w-auto">
 	  {label}
@@ -21,7 +31,13 @@ templ greenButton(label string) {
 	</button>
 }
 
-templ iconButton(label string, icon templ.Component) {
+templ iconButton(icon templ.Component) {
+	<div class="border border-2 border-white/20 flex items-center w-10 h-10 bg-white/10 rounded-full hover:border-hover">
+	  @icon
+	</div>
+}
+
+templ iconTextButton(label string, icon templ.Component) {
 	<button class="bg-graybg flex md:w-auto">
 		@icon	
 	  <span class="ml-2">{label}</span>
@@ -38,16 +54,6 @@ templ orangeButton(label string, disabled []bool) {
 		type="submit">
 	  {label}
 	</button>
-}
-
-templ cancelButton(label string) {
-	<button class="bg-graybg md:w-auto" onclick="handleCancel(event)">{label}</button>
-	<script>
-	  const handleCancel = (event) => {
-			event.preventDefault()
-			redirect('/')
-		}
-	</script>
 }
 
 templ redirectButton(label string, disabled []bool) {
@@ -97,22 +103,18 @@ templ ActionButtons(label string, disabled ...bool) {
 }
 
 templ BackButton() {
-	<button class="bg-white/20 flex items-center p-2 rounded-full">
-	  @BackIcon()
-	</button>
+	@iconButton(BackIcon())
 }
 
 templ LnConnectButtons() {
 	@twoButtonsContainer(
 		grayButton("Continue"),
-		iconButton("Scan", ScanIconXL()),
+		iconTextButton("Scan", ScanIconXL()),
 	)
 }
 
 templ SettingsButton() {
-	<button class="bg-white/20 flex items-center p-2 rounded-full">
-	  @SettingsIcon()
-	</button>
+	@iconButton(SettingsIcon())
 }
 
 templ SettleButtons() {
