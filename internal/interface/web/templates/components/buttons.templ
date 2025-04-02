@@ -96,11 +96,23 @@ templ ActionButtons(label string, disabled ...bool) {
 	)
 }
 
+templ BackButton() {
+	<button class="bg-white/20 flex items-center p-2 rounded-full">
+	  @BackIcon()
+	</button>
+}
+
 templ LnConnectButtons() {
 	@twoButtonsContainer(
 		grayButton("Continue"),
 		iconButton("Scan", ScanIconXL()),
 	)
+}
+
+templ SettingsButton() {
+	<button class="bg-white/20 flex items-center p-2 rounded-full">
+	  @SettingsIcon()
+	</button>
 }
 
 templ SettleButtons() {
