@@ -1,6 +1,7 @@
 package vhtlc
 
 import (
+	"encoding/hex"
 	"errors"
 
 	"github.com/ark-network/ark/common"
@@ -165,4 +166,22 @@ func makePreimageConditionScript(preimageHash []byte) ([]byte, error) {
 		AddData(preimageHash).
 		AddOp(txscript.OP_EQUAL).
 		Script()
+}
+
+// GetRevealedTapscripts returns all available scripts as hex-encoded strings
+func (v *VHTLCScript) GetRevealedTapscripts() []string {
+	var scripts []string
+	for _, closure := range []tree.Closure{
+		v.ClaimClosure,
+		v.RefundClosure,
+		v.RefundWithoutReceiverClosure,
+		v.UnilateralClaimClosure,
+		v.UnilateralRefundClosure,
+		v.UnilateralRefundWithoutReceiverClosure,
+	} {
+		if script, err := closure.Script(); err == nil {
+			scripts = append(scripts, hex.EncodeToString(script))
+		}
+	}
+	return scripts
 }
