@@ -67,7 +67,7 @@ templ ReceivedTxTable(sats, date, status string) {
 templ SendTxTable(sats, feeAmount, total string) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @tableLine("network fee", feeAmount, "cryptoAmount")
-    @tableLine("est. time", "seconds")
+    @arkFeeLine()
     <hr class="text-white/20 mb-2" />
     @tableLine("total", total, "cryptoAmount")
   </div>
@@ -85,7 +85,7 @@ templ SentTxTable(sats, date, status string) {
 templ SwapTxTable(sats, feeAmount, total string) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @tableLine("network fee", feeAmount, "cryptoAmount")
-    @tableLine("est. time", "seconds")
+    @arkFeeLine()
     <hr class="text-white/20 mb-2" />
     @tableLine("total", total, "cryptoAmount")
   </div>
