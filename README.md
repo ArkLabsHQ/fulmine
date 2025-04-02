@@ -193,14 +193,23 @@ Now navigate to [http://localhost:7001/](http://localhost:7001/) to see the dash
 
 ### Testing
 
-Run all tests:
+Run all unit tests:
 ```bash
 make test
 ```
 
-Run VHTLC-specific tests:
+Run VHTLC-specific unit tests:
 ```bash
 make test-vhtlc
+```
+
+Run integration tests:
+```bash
+make build-test-env
+make up-test-env
+make setup-test-env
+make integrationtest
+make down-test-env
 ```
 
 ## 🤝 Contributing
