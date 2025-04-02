@@ -50,6 +50,12 @@ service Service {
       body: "*"
     };
   };
+  // Settle vtxos and boarding utxos
+  rpc Settle(SettleRequest) returns (SettleResponse) {
+    option (google.api.http) = {
+      get: "/v1/settle"
+    };
+  };
   // Send asks to send amount to ark address by joining a round
   rpc SendOffChain(SendOffChainRequest) returns (SendOffChainResponse) {
     option (google.api.http) = {
@@ -185,6 +191,11 @@ message RedeemNoteRequest {
   string note = 1;
 }
 message RedeemNoteResponse {
+  string txid = 1;
+}
+
+message SettleRequest {}
+message SettleResponse {
   string txid = 1;
 }
 

@@ -27,7 +27,7 @@ var (
 	Datadir    = "DATADIR"
 	GRPCPort   = "GRPC_PORT"
 	HTTPPort   = "HTTP_PORT"
-	WithTLS    = "NO_TLS"
+	WithTLS    = "WITH_TLS"
 	LogLevel   = "LOG_LEVEL"
 	ArkServer  = "ARK_SERVER"
 	EsploraURL = "ESPLORA_URL"

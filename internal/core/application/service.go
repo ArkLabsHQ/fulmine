@@ -206,6 +206,10 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 }
 
 func (s *Service) LockNode(ctx context.Context, password string) error {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return err
+	}
+
 	err := s.Lock(ctx, password)
 	if err != nil {
 		return err
@@ -224,6 +228,10 @@ func (s *Service) LockNode(ctx context.Context, password string) error {
 }
 
 func (s *Service) UnlockNode(ctx context.Context, password string) error {
+	if !s.isReady {
+		return fmt.Errorf("service not initialized")
+	}
+
 	txCh, close, err := s.grpcClient.GetTransactionsStream(context.Background())
 	if err != nil {
 		return fmt.Errorf("server unreachable")
@@ -281,6 +289,10 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 }
 
 func (s *Service) Reset(ctx context.Context) error {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return err
+	}
+
 	backup, err := s.settingsRepo.GetSettings(ctx)
 	if err != nil {
 		return err
@@ -306,14 +318,26 @@ func (s *Service) GetSettings(ctx context.Context) (*domain.Settings, error) {
 }
 
 func (s *Service) NewSettings(ctx context.Context, settings domain.Settings) error {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return err
+	}
+
 	return s.settingsRepo.AddSettings(ctx, settings)
 }
 
 func (s *Service) UpdateSettings(ctx context.Context, settings domain.Settings) error {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return err
+	}
+
 	return s.settingsRepo.UpdateSettings(ctx, settings)
 }
 
 func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, string, string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", "", "", "", err
+	}
+
 	offchainAddr, boardingAddr, err := s.Receive(ctx)
 	if err != nil {
 		return "", "", "", "", err
@@ -330,6 +354,10 @@ func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, 
 }
 
 func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return 0, err
+	}
+
 	balance, err := s.Balance(ctx, false)
 	if err != nil {
 		return 0, err
@@ -342,13 +370,18 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 }
 
 func (s *Service) GetRound(ctx context.Context, roundId string) (*client.Round, error) {
-	if !s.isReady {
-		return nil, fmt.Errorf("service not initialized")
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil, err
 	}
+
 	return s.grpcClient.GetRoundByID(ctx, roundId)
 }
 
-func (s *Service) ClaimPending(ctx context.Context) (string, error) {
+func (s *Service) Settle(ctx context.Context) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
 	roundTxid, err := s.ArkClient.Settle(ctx)
 	if err == nil {
 		err := s.ScheduleClaims(ctx)
@@ -360,8 +393,8 @@ func (s *Service) ClaimPending(ctx context.Context) (string, error) {
 }
 
 func (s *Service) ScheduleClaims(ctx context.Context) error {
-	if !s.isReady {
-		return fmt.Errorf("service not initialized")
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return err
 	}
 
 	spendableVtxos, _, err := s.ArkClient.ListVtxos(ctx)
@@ -376,7 +409,7 @@ func (s *Service) ScheduleClaims(ctx context.Context) error {
 
 	task := func() {
 		log.Infof("running auto claim at %s", time.Now())
-		_, err := s.ClaimPending(ctx)
+		_, err := s.Settle(ctx)
 		if err != nil {
 			log.WithError(err).Warn("failed to auto claim")
 		}
@@ -424,6 +457,10 @@ func (s *Service) GetVHTLC(
 	unilateralRefundDelayParam *common.RelativeLocktime,
 	unilateralRefundWithoutReceiverDelayParam *common.RelativeLocktime,
 ) (string, *vhtlc.VHTLCScript, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", nil, err
+	}
+
 	receiverPubkeySet := receiverPubkey != nil
 	senderPubkeySet := senderPubkey != nil
 	if receiverPubkeySet == senderPubkeySet {
@@ -515,6 +552,10 @@ func (s *Service) GetVHTLC(
 }
 
 func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]client.Vtxo, []vhtlc.Opts, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil, nil, err
+	}
+
 	// Get VHTLC options based on filter
 	var vhtlcOpts []vhtlc.Opts
 	if preimageHashFilter != "" {
@@ -575,6 +616,10 @@ func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]c
 }
 
 func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
 	preimageHash := hex.EncodeToString(btcutil.Hash160(preimage))
 
 	vtxos, vhtlcOpts, err := s.ListVHTLC(ctx, preimageHash)
@@ -653,9 +698,9 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		[]common.VtxoInput{
 			{
 				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
-				Outpoint:    vtxoOutpoint,
-				Amount:      amount,
-				WitnessSize: claimWitnessSize,
+				Outpoint:           vtxoOutpoint,
+				Amount:             amount,
+				WitnessSize:        claimWitnessSize,
 				Tapscript: &waddrmgr.Tapscript{
 					ControlBlock:   ctrlBlock,
 					RevealedScript: claimScript,
@@ -702,6 +747,10 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 }
 
 func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
 	vtxos, vhtlcOpts, err := s.ListVHTLC(ctx, preimageHash)
 	if err != nil {
 		return "", err
@@ -767,9 +816,9 @@ func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string) 
 		[]common.VtxoInput{
 			{
 				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
-				Outpoint:    vtxoOutpoint,
-				Amount:      amount,
-				WitnessSize: refundWitnessSize,
+				Outpoint:           vtxoOutpoint,
+				Amount:             amount,
+				WitnessSize:        refundWitnessSize,
 				Tapscript: &waddrmgr.Tapscript{
 					ControlBlock:   ctrlBlock,
 					RevealedScript: refundScript,
@@ -817,23 +866,59 @@ func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string) 
 }
 
 func (s *Service) GetInvoice(ctx context.Context, amount uint64, memo, preimage string) (string, string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", "", err
+	}
+
+	if !s.lnSvc.IsConnected() {
+		return "", "", fmt.Errorf("not connected to LN")
+	}
+
 	return s.lnSvc.GetInvoice(ctx, amount, memo, preimage)
 }
 
 func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	if !s.lnSvc.IsConnected() {
+		return "", fmt.Errorf("not connected to LN")
+	}
+
 	return s.lnSvc.PayInvoice(ctx, invoice)
 }
 
 func (s *Service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return false, err
+	}
+
+	if !s.lnSvc.IsConnected() {
+		return false, fmt.Errorf("not connected to LN")
+	}
+
 	return s.lnSvc.IsInvoiceSettled(ctx, invoice)
 }
 
 func (s *Service) GetBalanceLN(ctx context.Context) (msats uint64, err error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return 0, err
+	}
+
+	if !s.lnSvc.IsConnected() {
+		return 0, fmt.Errorf("not connected to LN")
+	}
+
 	return s.lnSvc.GetBalance(ctx)
 }
 
 // ln -> ark (reverse submarine swap)
 func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
 	// get our pubkey
 	_, _, _, pk, err := s.GetAddress(ctx, 0)
 	if err != nil {
@@ -930,6 +1015,10 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 
 // ark -> ln (submarine swap)
 func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
 	// get our pubkey
 	_, _, _, pk, err := s.GetAddress(ctx, 0)
 	if err != nil {
@@ -1023,6 +1112,10 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 }
 
 func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string) error {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return err
+	}
+
 	s.subscriptionLock.Lock()
 	defer s.subscriptionLock.Unlock()
 
@@ -1037,6 +1130,10 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 }
 
 func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []string) error {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return err
+	}
+
 	s.subscriptionLock.Lock()
 	defer s.subscriptionLock.Unlock()
 
@@ -1047,10 +1144,18 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 }
 
 func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil
+	}
+
 	return s.notifications
 }
 
 func (s *Service) GetDelegatePublicKey(ctx context.Context) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
 	if s.publicKey == nil {
 		return "", fmt.Errorf("service not initialized")
 	}
@@ -1059,6 +1164,10 @@ func (s *Service) GetDelegatePublicKey(ctx context.Context) (string, error) {
 }
 
 func (s *Service) WatchAddressForRollover(ctx context.Context, address, destinationAddress string, taprootTree []string) error {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return err
+	}
+
 	if address == "" {
 		return fmt.Errorf("missing address")
 	}
@@ -1079,6 +1188,10 @@ func (s *Service) WatchAddressForRollover(ctx context.Context, address, destinat
 }
 
 func (s *Service) UnwatchAddress(ctx context.Context, address string) error {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return err
+	}
+
 	if address == "" {
 		return fmt.Errorf("missing address")
 	}
@@ -1087,7 +1200,23 @@ func (s *Service) UnwatchAddress(ctx context.Context, address string) error {
 }
 
 func (s *Service) ListWatchedAddresses(ctx context.Context) ([]domain.VtxoRolloverTarget, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil, err
+	}
+
 	return s.vtxoRolloverRepo.GetAllTargets(ctx)
+}
+
+func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
+	if !s.isReady {
+		return fmt.Errorf("service not initialized")
+	}
+
+	if s.IsLocked(ctx) {
+		return fmt.Errorf("service is locked")
+	}
+
+	return nil
 }
 
 func (s *Service) listenForNotifications(

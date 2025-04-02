@@ -835,7 +835,7 @@ func (s *service) claimTx(c *gin.Context) {
 		return
 	}
 
-	if _, err := s.svc.ClaimPending(c); err != nil {
+	if _, err := s.svc.Settle(c); err != nil {
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
 		return

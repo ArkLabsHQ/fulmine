@@ -454,6 +454,29 @@
         ]
       }
     },
+    "/v1/settle": {
+      "get": {
+        "summary": "Settle vtxos and boarding utxos",
+        "operationId": "Service_Settle",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SettleResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/transaction/sign": {
       "post": {
         "operationId": "Service_SignTransaction",
@@ -1077,6 +1100,14 @@
       }
     },
     "v1SendOnChainResponse": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1SettleResponse": {
       "type": "object",
       "properties": {
         "txid": {
