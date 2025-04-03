@@ -5,6 +5,7 @@ import (
 )
 
 templ lockPage(kind string) {
+  <form hx-post="/helpers/forgot" id="forgot"><button class="hidden" type="submit" /></form>
   <form hx-post={"/helpers/" + kind}>
     <div class="bg-radial-gradient h-screen fullscreen">
       <div class="flex flex-col h-screen justify-between md:h-auto md:gap-10 w-80 m-auto p-3">
@@ -28,7 +29,7 @@ templ lockPage(kind string) {
               </p>
             </div>
             if kind == "unlock" {
-              <p class="text-right mt-2 cursor-pointer" hx-on:click="redirect('/forgot')">Forgot password?</p>
+              <p class="text-right mt-2 cursor-pointer" onclick="forgotPass()">Forgot password?</p>
             }
           </div>
         </div>
@@ -37,6 +38,11 @@ templ lockPage(kind string) {
         </button>
       </div>
     </div>
+    <script>
+      const forgotPass = () => {
+        document.querySelector("#forgot").querySelector("button").click()
+      }
+    </script>
   </form>
 }
 

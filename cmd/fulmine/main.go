@@ -46,11 +46,12 @@ func main() {
 		WithTLS:  cfg.WithTLS,
 	}
 
-	storeSvc, err := store.NewStore(store.Config{
+	storeCfg := store.Config{
 		BaseDir:          cfg.Datadir,
 		ConfigStoreType:  configStoreType,
 		AppDataStoreType: appDataStoreType,
-	})
+	}
+	storeSvc, err := store.NewStore(storeCfg)
 	if err != nil {
 		log.WithError(err).Fatal(err)
 	}
@@ -81,6 +82,7 @@ func main() {
 
 	appSvc, err := application.NewService(
 		buildInfo,
+		storeCfg,
 		storeSvc,
 		settingsRepo,
 		vhtlcRepo,

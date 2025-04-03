@@ -85,6 +85,15 @@ func (s *service) disconnectLNDApi(c *gin.Context) {
 	reload(c)
 }
 
+func (s *service) forgotApi(c *gin.Context) {
+	if err := s.svc.Reset(c); err != nil {
+		toast := components.Toast("Unable to delete previous wallet", true)
+		toastHandler(toast, c)
+		return
+	}
+	redirect("/welcome", c)
+}
+
 func (s *service) validateNoteApi(c *gin.Context) {
 	var data gin.H
 	note := c.PostForm("note")

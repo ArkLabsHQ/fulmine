@@ -19,6 +19,7 @@ import (
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
+	"github.com/ark-network/ark/pkg/client-sdk/store"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -49,6 +50,7 @@ type Service struct {
 	BuildInfo BuildInfo
 
 	arksdk.ArkClient
+	storeCfg         store.Config
 	storeRepo        types.Store
 	settingsRepo     domain.SettingsRepository
 	vhtlcRepo        domain.VHTLCRepository
@@ -81,6 +83,7 @@ type Notification struct {
 
 func NewService(
 	buildInfo BuildInfo,
+	storeCfg store.Config,
 	storeSvc types.Store,
 	settingsRepo domain.SettingsRepository,
 	vhtlcRepo domain.VHTLCRepository,
@@ -101,6 +104,7 @@ func NewService(
 		svc := &Service{
 			BuildInfo:        buildInfo,
 			ArkClient:        arkClient,
+			storeCfg:         storeCfg,
 			storeRepo:        storeSvc,
 			settingsRepo:     settingsRepo,
 			vhtlcRepo:        vhtlcRepo,
@@ -136,6 +140,7 @@ func NewService(
 	svc := &Service{
 		BuildInfo:        buildInfo,
 		ArkClient:        arkClient,
+		storeCfg:         storeCfg,
 		storeRepo:        storeSvc,
 		settingsRepo:     settingsRepo,
 		vhtlcRepo:        vhtlcRepo,
@@ -289,10 +294,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 }
 
 func (s *Service) Reset(ctx context.Context) error {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return err
-	}
-
 	backup, err := s.settingsRepo.GetSettings(ctx)
 	if err != nil {
 		return err
@@ -305,6 +306,17 @@ func (s *Service) Reset(ctx context.Context) error {
 		s.settingsRepo.AddSettings(ctx, *backup)
 		return err
 	}
+
+	s.Stop()
+	// nolint:all
+	storeSvc, _ := store.NewStore(s.storeCfg)
+	// nolint:all
+	cli, _ := arksdk.NewCovenantlessClient(storeSvc)
+	// TODO: Maybe drop?
+	// nolint:all
+	s.settingsRepo.AddDefaultSettings(ctx)
+	s.ArkClient = cli
+	s.storeRepo = storeSvc
 	return nil
 }
 
@@ -370,10 +382,6 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 }
 
 func (s *Service) GetRound(ctx context.Context, roundId string) (*client.Round, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return nil, err
-	}
-
 	return s.grpcClient.GetRoundByID(ctx, roundId)
 }
 
