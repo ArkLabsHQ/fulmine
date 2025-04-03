@@ -9,7 +9,7 @@ templ CopyButtonText(payload string) {
 }
 
 templ CopyButton(payload string) {
-  <button class="bg-graybg cursor-pointer" data-needs="clipboard" onclick="handleCopy(this, event)">
+  <button class="bg-graybg p-2" data-needs="clipboard" onclick="handleCopy(this, event)">
     <span data-kind="copy">@CopyIcon()</span>
 		<span data-kind="done" class="hidden">@CheckMarkIcon()</span>
     <span class="payload" data-value={payload} class="hidden" />

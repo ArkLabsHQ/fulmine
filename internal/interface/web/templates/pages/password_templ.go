@@ -125,7 +125,7 @@ func SetPasswordContent(privateKey string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><div><p class=\"mb-6\">Create a password to protect your wallet.</p><p class=\"font-semibold mb-2\">Password</p><div class=\"flex justify-between items-center gap-4 bg-graybg border-1 border-white/10 p-2 rounded-lg w-full\"><input autocomplete=\"new-password\" class=\"bg-graybg border-0 w-full eyeopener\" name=\"password\" oninput=\"checkPass()\" type=\"password\"><p class=\"eyes\" onclick=\"togglePasswordVisibility()\"><span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<p class=\"mb-6\">Create a password to protect your wallet.</p><p class=\"font-semibold mb-2\">Password</p><div class=\"flex justify-between items-center gap-4 bg-graybg border-1 border-white/10 p-2 rounded-lg w-full\"><input autocomplete=\"new-password\" class=\"bg-graybg border-0 w-full eyeopener\" name=\"password\" oninput=\"checkPass()\" type=\"password\"><p class=\"eyes\" onclick=\"togglePasswordVisibility()\"><span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

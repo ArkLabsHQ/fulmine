@@ -34,9 +34,12 @@ body {
   min-height: 100vh;
 }
 
+a {
+  cursor: pointer;
+}
+
 a.visible {
   color: #f28c52;
-  cursor: pointer;
   text-decoration: underline;
   &:hover {
     color: #f2bf52;

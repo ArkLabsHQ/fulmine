@@ -22,7 +22,7 @@ templ greenButton(label string) {
 }
 
 templ iconButton(icon templ.Component) {
-	<div class="border border-2 border-white/20 w-10 h-10 bg-white/10 rounded-full hover:border-hover">
+	<div class="border border-2 border-white/20 cursor-pointer w-10 h-10 bg-white/10 rounded-full hover:border-hover">
 	  <div class="flex items-center justify-center w-full h-full">
 	    @icon
 		</div>
@@ -124,6 +124,21 @@ templ SettleButtons() {
 	)
 }
 
+templ SettleButtonsAction(txid, explorerUrl string) {
+	<div class="cursor-pointer relative z-10 mb-3">
+		<div class="flex gap-3 items-center" onclick={openInExplorer(txid, explorerUrl)}>
+			@ExplorerIcon()
+			Open in explorer
+		</div>
+	</div>
+	<div class="cursor-pointer relative z-10 text-red ">
+    <button class="border-0 flex gap-3 items-center p-0" type="submit">
+      @WarningIcon()
+      Settle now
+    </button>
+	</div>
+}
+
 templ OrangeButton(label string, disabled ...bool) {
 	@oneButtonContainer(orangeButton(label, disabled))
 }
@@ -134,4 +149,13 @@ templ RedirectButton(label string, disabled ...bool) {
 
 templ ViewTxButton(txid, explorerUrl string) {
 	@oneButtonContainer(viewTxButton(txid, explorerUrl))
+}
+
+templ ViewTxButtonAction(txid, explorerUrl string) {
+	<div class="cursor-pointer relative z-10">
+		<div class="flex gap-3 items-center" onclick={openInExplorer(txid, explorerUrl)}>
+			@ExplorerIcon()
+			Open in explorer
+		</div>
+	</div>
 }
