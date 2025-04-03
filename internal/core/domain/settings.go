@@ -19,4 +19,5 @@ type SettingsRepository interface {
 	GetSettings(ctx context.Context) (*Settings, error)
 	CleanSettings(ctx context.Context) error
 	UpdateSettings(ctx context.Context, settings Settings) error
+	Close()
 }

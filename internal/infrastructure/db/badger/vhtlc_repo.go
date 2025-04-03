@@ -14,11 +14,11 @@ import (
 	"github.com/timshannon/badgerhold/v4"
 )
 
-type badgerRepo struct {
+type vhtlcRepository struct {
 	store *badgerhold.Store
 }
 
-func NewVHTLCRepo(baseDir string, logger badger.Logger) (domain.VHTLCRepository, error) {
+func NewVHTLCRepository(baseDir string, logger badger.Logger) (domain.VHTLCRepository, error) {
 	var dir string
 	if len(baseDir) > 0 {
 		dir = filepath.Join(baseDir, "vhtlc")
@@ -27,11 +27,11 @@ func NewVHTLCRepo(baseDir string, logger badger.Logger) (domain.VHTLCRepository,
 	if err != nil {
 		return nil, fmt.Errorf("failed to open vHTLC store: %s", err)
 	}
-	return &badgerRepo{store}, nil
+	return &vhtlcRepository{store}, nil
 }
 
 // GetAll retrieves all VHTLC options from the database
-func (r *badgerRepo) GetAll(ctx context.Context) ([]vhtlc.Opts, error) {
+func (r *vhtlcRepository) GetAll(ctx context.Context) ([]vhtlc.Opts, error) {
 	var opts []data
 	err := r.store.Find(&opts, nil)
 	if err != nil {
@@ -50,7 +50,7 @@ func (r *badgerRepo) GetAll(ctx context.Context) ([]vhtlc.Opts, error) {
 }
 
 // Get retrieves a specific VHTLC option by preimage hash
-func (r *badgerRepo) Get(ctx context.Context, preimageHash string) (*vhtlc.Opts, error) {
+func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*vhtlc.Opts, error) {
 	var dataOpts data
 	err := r.store.Get(preimageHash, &dataOpts)
 	if err == badgerhold.ErrNotFound {
@@ -69,7 +69,7 @@ func (r *badgerRepo) Get(ctx context.Context, preimageHash string) (*vhtlc.Opts,
 }
 
 // Add stores a new VHTLC option in the database
-func (r *badgerRepo) Add(ctx context.Context, opts vhtlc.Opts) error {
+func (r *vhtlcRepository) Add(ctx context.Context, opts vhtlc.Opts) error {
 	data := data{
 		PreimageHash:                         hex.EncodeToString(opts.PreimageHash),
 		Sender:                               hex.EncodeToString(opts.Sender.SerializeCompressed()),
@@ -85,8 +85,12 @@ func (r *badgerRepo) Add(ctx context.Context, opts vhtlc.Opts) error {
 }
 
 // Delete removes a VHTLC option from the database
-func (r *badgerRepo) Delete(ctx context.Context, preimageHash string) error {
+func (r *vhtlcRepository) Delete(ctx context.Context, preimageHash string) error {
 	return r.store.Delete(preimageHash, data{})
+}
+
+func (s *vhtlcRepository) Close() {
+	s.store.Close()
 }
 
 type data struct {

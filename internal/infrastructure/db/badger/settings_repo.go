@@ -24,11 +24,11 @@ var defaultSettings = domain.Settings{
 	Unit:        "sat",
 }
 
-type service struct {
+type settingsRepository struct {
 	store *badgerhold.Store
 }
 
-func NewSettingsRepo(baseDir string, logger badger.Logger) (domain.SettingsRepository, error) {
+func NewSettingsRepository(baseDir string, logger badger.Logger) (domain.SettingsRepository, error) {
 	var dir string
 	if len(baseDir) > 0 {
 		dir = filepath.Join(baseDir, settingsDir)
@@ -37,26 +37,26 @@ func NewSettingsRepo(baseDir string, logger badger.Logger) (domain.SettingsRepos
 	if err != nil {
 		return nil, fmt.Errorf("failed to open round events store: %s", err)
 	}
-	return &service{store}, nil
+	return &settingsRepository{store}, nil
 }
 
-func (s *service) AddDefaultSettings(ctx context.Context) error {
+func (s *settingsRepository) AddDefaultSettings(ctx context.Context) error {
 	return s.addSettings(ctx, defaultSettings)
 }
 
-func (s *service) AddSettings(ctx context.Context, settings domain.Settings) error {
+func (s *settingsRepository) AddSettings(ctx context.Context, settings domain.Settings) error {
 	return s.addSettings(ctx, settings)
 }
 
-func (s *service) GetSettings(ctx context.Context) (*domain.Settings, error) {
+func (s *settingsRepository) GetSettings(ctx context.Context) (*domain.Settings, error) {
 	return s.getSettings(ctx)
 }
 
-func (s *service) CleanSettings(ctx context.Context) error {
+func (s *settingsRepository) CleanSettings(ctx context.Context) error {
 	return s.deleteSettings(ctx)
 }
 
-func (s *service) UpdateSettings(
+func (s *settingsRepository) UpdateSettings(
 	ctx context.Context, newSettings domain.Settings,
 ) error {
 	settings, err := s.getSettings(ctx)
@@ -87,7 +87,11 @@ func (s *service) UpdateSettings(
 	return s.updateSettings(ctx, *settings)
 }
 
-func (s *service) addSettings(
+func (s *settingsRepository) Close() {
+	s.store.Close()
+}
+
+func (s *settingsRepository) addSettings(
 	ctx context.Context, settings domain.Settings,
 ) (err error) {
 	if ctx.Value("tx") != nil {
@@ -99,7 +103,7 @@ func (s *service) addSettings(
 	return
 }
 
-func (s *service) updateSettings(
+func (s *settingsRepository) updateSettings(
 	ctx context.Context, settings domain.Settings,
 ) (err error) {
 	if ctx.Value("tx") != nil {
@@ -111,7 +115,7 @@ func (s *service) updateSettings(
 	return
 }
 
-func (s *service) getSettings(ctx context.Context) (*domain.Settings, error) {
+func (s *settingsRepository) getSettings(ctx context.Context) (*domain.Settings, error) {
 	var settings domain.Settings
 	var err error
 	if ctx.Value("tx") != nil {
@@ -127,7 +131,7 @@ func (s *service) getSettings(ctx context.Context) (*domain.Settings, error) {
 	return &settings, nil
 }
 
-func (s *service) deleteSettings(ctx context.Context) (err error) {
+func (s *settingsRepository) deleteSettings(ctx context.Context) (err error) {
 	if ctx.Value("tx") != nil {
 		tx := ctx.Value("tx").(*badger.Txn)
 		err = s.store.TxDelete(tx, settingsKey, domain.Settings{})

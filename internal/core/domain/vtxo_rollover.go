@@ -13,5 +13,6 @@ type VtxoRolloverRepository interface {
 	AddTarget(ctx context.Context, target VtxoRolloverTarget) error
 	GetTarget(ctx context.Context, address string) (*VtxoRolloverTarget, error)
 	GetAllTargets(ctx context.Context) ([]VtxoRolloverTarget, error)
-	RemoveTarget(ctx context.Context, address string) error
+	DeleteTarget(ctx context.Context, address string) error
+	Close()
 }

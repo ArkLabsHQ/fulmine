@@ -15,11 +15,13 @@ const (
 	vtxoRolloverDir = "vtxo_rollover"
 )
 
-type vtxoRolloverService struct {
+type vtxoRolloverRepository struct {
 	store *badgerhold.Store
 }
 
-func NewVtxoRolloverRepo(baseDir string, logger badger.Logger) (domain.VtxoRolloverRepository, error) {
+func NewVtxoRolloverRepository(
+	baseDir string, logger badger.Logger,
+) (domain.VtxoRolloverRepository, error) {
 	var dir string
 	if len(baseDir) > 0 {
 		dir = filepath.Join(baseDir, vtxoRolloverDir)
@@ -28,10 +30,12 @@ func NewVtxoRolloverRepo(baseDir string, logger badger.Logger) (domain.VtxoRollo
 	if err != nil {
 		return nil, fmt.Errorf("failed to open vtxo rollover store: %s", err)
 	}
-	return &vtxoRolloverService{store}, nil
+	return &vtxoRolloverRepository{store}, nil
 }
 
-func (s *vtxoRolloverService) AddTarget(ctx context.Context, target domain.VtxoRolloverTarget) error {
+func (s *vtxoRolloverRepository) AddTarget(
+	ctx context.Context, target domain.VtxoRolloverTarget,
+) error {
 	if ctx.Value("tx") != nil {
 		tx := ctx.Value("tx").(*badger.Txn)
 		if err := s.store.TxInsert(tx, target.Address, target); err != nil {
@@ -51,7 +55,9 @@ func (s *vtxoRolloverService) AddTarget(ctx context.Context, target domain.VtxoR
 	return nil
 }
 
-func (s *vtxoRolloverService) GetTarget(ctx context.Context, address string) (*domain.VtxoRolloverTarget, error) {
+func (s *vtxoRolloverRepository) GetTarget(
+	ctx context.Context, address string,
+) (*domain.VtxoRolloverTarget, error) {
 	var target domain.VtxoRolloverTarget
 	var err error
 
@@ -72,7 +78,9 @@ func (s *vtxoRolloverService) GetTarget(ctx context.Context, address string) (*d
 	return &target, nil
 }
 
-func (s *vtxoRolloverService) GetAllTargets(ctx context.Context) ([]domain.VtxoRolloverTarget, error) {
+func (s *vtxoRolloverRepository) GetAllTargets(
+	ctx context.Context,
+) ([]domain.VtxoRolloverTarget, error) {
 	var targets []domain.VtxoRolloverTarget
 	var err error
 
@@ -90,7 +98,9 @@ func (s *vtxoRolloverService) GetAllTargets(ctx context.Context) ([]domain.VtxoR
 	return targets, nil
 }
 
-func (s *vtxoRolloverService) RemoveTarget(ctx context.Context, address string) error {
+func (s *vtxoRolloverRepository) DeleteTarget(
+	ctx context.Context, address string,
+) error {
 	var target domain.VtxoRolloverTarget
 
 	if ctx.Value("tx") != nil {
@@ -114,4 +124,8 @@ func (s *vtxoRolloverService) RemoveTarget(ctx context.Context, address string) 
 	}
 
 	return s.store.Delete(address, target)
+}
+
+func (s *vtxoRolloverRepository) Close() {
+	s.store.Close()
 }
