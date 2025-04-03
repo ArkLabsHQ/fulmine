@@ -91,7 +91,7 @@ func (s *service) forgotApi(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	c.Redirect(http.StatusFound, "/welcome")
+	redirect("/welcome", c)
 }
 
 func (s *service) validateNoteApi(c *gin.Context) {
