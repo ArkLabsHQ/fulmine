@@ -42,12 +42,6 @@ templ orangeButton(label string, disabled []bool) {
 
 templ cancelButton(label string) {
 	<button class="bg-graybg md:w-auto" onclick="handleCancel(event)">{label}</button>
-	<script>
-	  const handleCancel = (event) => {
-			event.preventDefault()
-			redirect('/')
-		}
-	</script>
 }
 
 templ redirectButton(label string, disabled []bool) {

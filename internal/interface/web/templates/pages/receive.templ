@@ -10,10 +10,7 @@ templ addressLine(title, value string) {
 	    <p class="text-white/50">{title}</p>
 	    <p class="overflow-hidden truncate text-white w-64">{value}</p>
 		</div>
-		<div class="bg-graybg p-2 rounded-lg" data-needs="clipboard" data-value={value} onclick="handleCopy(this, event)">
-		  <span data-kind="copy">@components.CopyIcon()</span>
-		  <span data-kind="done" class="hidden">@components.CheckMarkIcon()</span>
-		</div>
+		@components.CopyButton(value)
 	</div>
 }
 
@@ -56,18 +53,6 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats stri
 	  </div>
 	</form>
 	<script>
-		const handleCopy = (element, event) => {
-			event.preventDefault()
-			if (!navigator.clipboard) return
-			navigator.clipboard.writeText(element.dataset.value)
-			element.querySelector("[data-kind='copy']").classList.add("hidden")
-			element.querySelector("[data-kind='done']").classList.remove("hidden")
-			setTimeout(() => {
-				element.querySelector("[data-kind='copy']").classList.remove("hidden")
-				element.querySelector("[data-kind='done']").classList.add("hidden")
-			}, 1000)
-		}
-
 		const handleEdit = (event) => {
 			event.preventDefault()
 			redirect('/receive/edit')
@@ -85,8 +70,10 @@ templ ReceiveSuccessContent(offchainAddr, sats string) {
 			<p class="mt-8 text-3xl cryptoAmount" sats={sats}>{sats} SATS</p>
 			<div class="flex mt-8 w-64 gap-2">
 			  <p class="text-white/50">to</p>
-				<p class="overflow-hidden text-ellipsis whitespace-nowrap">{offchainAddr}</p>
-				<p class="text-white/50">@components.CopyIcon()</p>
+				<p class="overflow-hidden text-ellipsis whitespace-nowrap" id="recvAddress">{offchainAddr}</p>
+				<p class="text-white/50" data-needs="clipboard" onclick="copyToClipboard('#recvAddress')">
+					@components.CopyIcon()
+				</p>
 			</div>
 		</div>
 	</div>

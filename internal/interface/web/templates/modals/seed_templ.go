@@ -46,15 +46,15 @@ func SeedInfoBody(seed string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</p><button class=\"bg-graybg border-1 border-white/20\" data-needs=\"clipboard\" onclick=\"handleCopySeed(event)\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.CopyIcon().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.CopyButton(seed).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<span id=\"copySeed\" class=\"ml-2\">Copy</span></button></div><script>\n\t  const handleCopySeed = (event) => {\n\t\t\tevent.preventDefault()\n\t\t\tif (!navigator.clipboard) return\n      const seed = document.querySelector(\"#seed\").textContent\n      navigator.clipboard.writeText(seed)\n\t\t\tdocument.querySelector('#copySeed').innerText = 'Copied'\n\t\t\tsetTimeout(() => document.querySelector('#copySeed').innerText = 'Copy', 2100)\n\t\t}\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

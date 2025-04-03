@@ -136,7 +136,7 @@ func SendBodyContent(currentBalance string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></form></div><script>\n\t  const validateArkNote = (note) => {\n      const data = new FormData()\n\t\t\tdata.set('note', note)\n\t\t\tfetch('/helpers/note/validate', {\n\t\t\t\tmethod: 'POST',\n        body: data,\n\t\t\t}).then((res) => {\n\t\t\t\tif (res.ok) {\n\t\t\t\t\tres.json().then(({ error, sats, valid }) => {\n\t\t\t\t\t\tconst button = document.querySelector('button[type=\"submit\"]')\n\t\t\t\t\t\tif (button && valid) {\n\t\t\t\t\t\t\tbutton.disabled = false\n\t\t\t\t\t\t\tbutton.innerText = 'Redeem note'\n\t\t\t\t\t\t\tdocument.querySelector('#sats').value = sats\n\t\t\t\t\t\t\tconst unit = document.querySelector('#unit').innerText\n\t\t\t\t\t\t\tconst amount = unit === 'SATS' ? sats : fromSatoshis(sats)\n\t\t\t        document.querySelector('#amount').value = amount\n\t\t\t\t\t\t}\n\t\t\t\t\t})\n\t\t\t\t}\n\t\t  })\n\t\t}\n\n\t  const canProceed = () => {\n\t\t\tconst address = document.querySelector('#address').value\n\t\t\tconst amount = document.querySelector('#amount').value\n\t\t\tconst button = document.querySelector('button[type=\"submit\"]')\n\t\t\tconst balance = parseInt(document.querySelector('#balance').value)\n\t\t\tconst sats = parseInt(document.querySelector('#sats').value)\n\t\t\tbutton.disabled = address.length === 0 || amount.length === 0 || sats > balance\n\t\t\tbutton.innerText = sats > balance ? 'Not enough funds' : 'Preview send'\n\t\t\tvalidateArkNote(address)\n\t\t}\n\t  document.querySelector('#address').addEventListener('change', canProceed)\n\t  document.querySelector('#amount').addEventListener('change', canProceed)\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></form></div><script>\n\t  const validateArkNote = (note) => {\n      const data = new FormData()\n\t\t\tdata.set('note', note)\n\t\t\tfetch('/helpers/note/validate', {\n\t\t\t\tmethod: 'POST',\n        body: data,\n\t\t\t}).then((res) => {\n\t\t\t\tif (res.ok) {\n\t\t\t\t\tres.json().then(({ error, sats, valid }) => {\n\t\t\t\t\t\tconst button = document.querySelector('button[type=\"submit\"]')\n\t\t\t\t\t\tif (button && valid) {\n\t\t\t\t\t\t\tbutton.disabled = false\n\t\t\t\t\t\t\tbutton.innerText = 'Redeem note'\n\t\t\t\t\t\t\tdocument.querySelector('#sats').value = sats\n\t\t\t\t\t\t\tconst unit = document.querySelector('#unit').innerText\n\t\t\t\t\t\t\tconst amount = unit === 'SATS' ? sats : fromSatoshis(sats)\n\t\t\t        document.querySelector('#amount').value = amount\n\t\t\t\t\t\t}\n\t\t\t\t\t})\n\t\t\t\t}\n\t\t  })\n\t\t}\n\n\t  const canProceed = () => {\n\t\t\tconst address = document.querySelector('#address').value\n\t\t\tconst amount = document.querySelector('#amount').value\n\t\t\tconst button = document.querySelector('button[type=\"submit\"]')\n\t\t\tconst balance = parseInt(document.querySelector('#balance').value)\n\t\t\tconst sats = parseInt(document.querySelector('#sats').value)\n\t\t\tbutton.disabled = address.length === 0 || amount.length === 0 || !sats || sats > balance\n\t\t\tbutton.innerText = sats > balance ? 'Not enough funds' : 'Preview send'\n\t\t\tvalidateArkNote(address)\n\t\t}\n\t  document.querySelector('#address').addEventListener('change', canProceed)\n\t  document.querySelector('#amount').addEventListener('change', canProceed)\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -241,28 +241,28 @@ func SendPreviewContent(address, sats, feeAmount, total string) templ.Component 
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " SATS</p><div class=\"flex mt-4 w-64 gap-2\"><p class=\"text-white/50\">to</p><p class=\"overflow-hidden text-ellipsis whitespace-nowrap\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " SATS</p><div class=\"flex mt-4 w-64 gap-2\"><p class=\"text-white/50\">to</p><p class=\"overflow-hidden text-ellipsis whitespace-nowrap\" id=\"sentAddress\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(address)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 99, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 99, Col: 92}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</p><p class=\"text-white/50\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.CopyIcon().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.CopyWidget(address).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

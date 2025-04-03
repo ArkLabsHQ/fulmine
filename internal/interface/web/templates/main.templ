@@ -92,6 +92,37 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 		window.location.href = path + (serverUrl ? `/?serverurl=${serverUrl}` : '')
 	}
 
+	const handleCancel = (event) => {
+		event.preventDefault()
+		redirect('/')
+	}
+
+	const handleCopy = (element, event) => {
+	  event.preventDefault()
+	  if (!navigator.clipboard) return
+		const payload = element.querySelector('.payload')?.dataset?.value
+		if (!payload) return
+    navigator.clipboard.writeText(payload)
+    // change the button text to "Copied"
+    buttonText = element.querySelector('span.buttonText')
+    if (buttonText) {
+			const previousText = buttonText.innerText
+	    buttonText.innerText = 'Copied'
+	    setTimeout(() => buttonText.innerText = previousText, 2100)
+    }
+    // update icons if present
+    const c = element.querySelector("[data-kind='copy']")
+    const d = element.querySelector("[data-kind='done']")
+    if (c && d) {
+      c.classList.add("hidden")
+		  d.classList.remove("hidden")
+		  setTimeout(() => {
+			  c.classList.remove("hidden")
+			  d.classList.add("hidden")
+		  }, 1000)
+    }
+	}
+
 	const copyToClipboard = (id) => {
 		if (!navigator.clipboard) return
 		const addr = document.querySelector(id).innerText

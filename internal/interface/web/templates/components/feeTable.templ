@@ -15,9 +15,9 @@ templ arkFeeLine() {
   <div class="flex justify-between mb-2">
     <div class="flex items-center gap-2 text-white/50">
       <p>ARK FEE</p>
-      <p hx-get="/modal/feeinfo" hx-target="#modal" class="cursor-pointer">@InfoIcon()</p>
+      <!-- <p hx-get="/modal/feeinfo" hx-target="#modal" class="cursor-pointer">@InfoIcon()</p> -->
     </div>
-    <p>0%</p>
+    <p>0</p>
   </div>
 }
 
@@ -68,7 +68,6 @@ templ SendTxTable(sats, feeAmount, total string) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @tableLine("network fee", feeAmount, "cryptoAmount")
     @arkFeeLine()
-    @tableLine("est. time", "seconds")
     <hr class="text-white/20 mb-2" />
     @tableLine("total", total, "cryptoAmount")
   </div>
@@ -87,7 +86,6 @@ templ SwapTxTable(sats, feeAmount, total string) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @tableLine("network fee", feeAmount, "cryptoAmount")
     @arkFeeLine()
-    @tableLine("est. time", "seconds")
     <hr class="text-white/20 mb-2" />
     @tableLine("total", total, "cryptoAmount")
   </div>

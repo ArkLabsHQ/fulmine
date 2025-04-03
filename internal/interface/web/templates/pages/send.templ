@@ -69,7 +69,7 @@ templ SendBodyContent(currentBalance string) {
 			const button = document.querySelector('button[type="submit"]')
 			const balance = parseInt(document.querySelector('#balance').value)
 			const sats = parseInt(document.querySelector('#sats').value)
-			button.disabled = address.length === 0 || amount.length === 0 || sats > balance
+			button.disabled = address.length === 0 || amount.length === 0 || !sats || sats > balance
 			button.innerText = sats > balance ? 'Not enough funds' : 'Preview send'
 			validateArkNote(address)
 		}
@@ -96,8 +96,8 @@ templ SendPreviewContent(address, sats, feeAmount, total string) {
 					  <p class="mt-4 text-3xl cryptoAmount" sats={sats}>{sats} SATS</p>
 					  <div class="flex mt-4 w-64 gap-2">
 					    <p class="text-white/50">to</p>
-					  	<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
-					  	<p class="text-white/50">@components.CopyIcon()</p>
+					  	<p class="overflow-hidden text-ellipsis whitespace-nowrap" id="sentAddress">{address}</p>
+							@components.CopyWidget(address)
 					  </div>
 					  @components.SendTxTable(sats, feeAmount, total)
 					</div>
