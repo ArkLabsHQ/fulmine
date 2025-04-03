@@ -40,6 +40,19 @@ To stop the container:
 docker stop fulmine
 ```
 
+To update to the latest version:
+
+```bash
+docker pull ghcr.io/arklabshq/fulmine:latest
+docker stop fulmine && docker rm fulmine
+docker run -d \
+  --name fulmine \
+  -p 7000:7000 \
+  -p 7001:7001 \
+  -v fulmine-data:/app/data \
+  ghcr.io/arklabshq/fulmine:latest
+```
+
 ### 💻 Using the Binary
 
 Alternatively, you can download the latest release from the [releases page](https://github.com/ArkLabsHQ/fulmine/releases) for your platform. After downloading:
