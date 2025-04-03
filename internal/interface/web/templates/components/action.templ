@@ -1,17 +1,17 @@
 package components
 
-templ ActionSettleButton(txid string) {
+templ ActionSettleButton(txid, explorerUrl string) {
   <div class="flex flex-col items-end overflow-visible">
     <div onclick="showOptions()">@DotsButton()</div>
-    <div id="options" class="bg-graybg hidden p-2 rounded-lg w-32 z-10">
-      <button class="border-0 flex gap-2 p-0">
-	      @ExplorerIcon()
+    <div id="options" class="bg-graybg font-semibold hidden mt-2 p-2 rounded-lg z-10">
+      <div class="border-0 flex gap-4 mb-3 p-0" onclick={openInExplorer(txid, explorerUrl)}>
+        @ExplorerIcon()
         Open in explorer
-	    </button>
-      <button class="border-0 flex gap-2 p-0" type="submit">
-	      @SettleIcon()
+      </div>
+      <button class="border-0 flex gap-4 p-0 text-red" type="submit">
+        @WarningIcon()
         Settle now
-	    </button>
+      </button>
     </div>
   </div>
   <script>
@@ -19,13 +19,6 @@ templ ActionSettleButton(txid string) {
       event.stopPropagation()
       const options = document.getElementById('options')
       options.classList.toggle('hidden')
-    }
-    const submitForm = (button, event) => {
-      event.preventDefault()
-      console.log('xico')
-      button.classList.add("disabled")
-      const form = document.querySelector('form')
-      htmx.trigger(form, 'htmx:submit')
     }
   </script>
 }

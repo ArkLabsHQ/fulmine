@@ -10,12 +10,12 @@ templ TxBodyContent(tx types.Transaction, explorerUrl string) {
 	@components.Tx(tx, explorerUrl)
 }
 
-templ TxPendingContent(tx types.Transaction, nextClaim string) {
+templ TxPendingContent(tx types.Transaction, explorerUrl string, nextClaim string) {
   @components.DesktopHeader()
   <form hx-post={"/helpers/claim/" + tx.Txid}>
 	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	    <div>
-        @components.HeaderWithAction("Settle Transaction", components.ActionSettleButton(tx.Txid))
+        @components.HeaderWithAction("Settle Transaction", components.ActionSettleButton(tx.Txid, explorerUrl))
         <div class="hideOnRequest flex flex-col items-center">
           @components.TxIcon(tx.Kind, "")
           <p class="mt-4 capitalize">{tx.Kind}</p>

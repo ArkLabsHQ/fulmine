@@ -79,7 +79,6 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.GET("/backup/ack", svc.backupAck)
 	svc.GET("/backup/tab/:active", svc.backupTabActive)
 	svc.GET("/done", svc.done)
-	svc.GET("/forgot", svc.forgot)
 	svc.GET("/hero", svc.getHero)
 	svc.GET("/import", svc.importWalletPrivateKey)
 	svc.GET("/lock", svc.lock)
@@ -101,6 +100,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.GET("/modal/reversibleinfo", svc.reversibleInfoModal)
 	svc.GET("/modal/seedinfo", svc.seedInfoModal)
 
+	svc.POST("/forgot", svc.forgot)
 	svc.POST("/initialize", svc.initialize)
 	svc.POST("/mnemonic", svc.setMnemonic)
 	svc.POST("/password", svc.setPassword)

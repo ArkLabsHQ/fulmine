@@ -645,7 +645,7 @@ func (s *service) getTx(c *gin.Context) {
 		} else {
 			nextClaimStr = prettyUnixTimestamp(nextClaim.Unix())
 		}
-		bodyContent = pages.TxPendingContent(tx, nextClaimStr)
+		bodyContent = pages.TxPendingContent(tx, explorerUrl, nextClaimStr)
 	} else {
 		bodyContent = pages.TxBodyContent(tx, explorerUrl)
 	}
