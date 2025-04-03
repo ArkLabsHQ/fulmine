@@ -15,7 +15,7 @@ templ TxPendingContent(tx types.Transaction, nextClaim string) {
   <form hx-post={"/helpers/claim/" + tx.Txid}>
 	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	    <div>
-        @components.Header("Settle Transaction")
+        @components.HeaderWithAction("Settle Transaction", components.ActionSettleButton(tx.Txid))
         <div class="hideOnRequest flex flex-col items-center">
           @components.TxIcon(tx.Kind, "")
           <p class="mt-4 capitalize">{tx.Kind}</p>
@@ -25,7 +25,7 @@ templ TxPendingContent(tx types.Transaction, nextClaim string) {
       </div>
       <div class="showOnRequest flex flex-col items-center mt-10 w-full">
 	  	  @components.SpinnerIconGreen()
-	  	   <p class="mt-10">Settling...</p>
+	  	  <p class="mt-10">Settling...</p>
 	  	</div>
       @components.SettleButtons()
 	  </div>

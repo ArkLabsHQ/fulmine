@@ -1,9 +1,14 @@
 package components
 
-templ HeaderTemplate(title string, backPath templ.SafeURL) {
-	<div class="grid grid-cols-[1fr_6fr_1fr] items-center w-full mb-8">
+templ HeaderTemplate(title string, backPath templ.SafeURL, action ...templ.Component) {
+	<div class="grid grid-cols-[1fr_6fr_1fr] items-start h-[40px] w-full mb-8">
 	  <a href={backPath}>@BackButton()</a>
 		<h1 class="text-2xl text-center font-semibold">{title}</h1>
+		if len(action) > 0 {
+			<div class="flex justify-end">
+			  @action[0]
+			</div>
+		}
 	</div>
 }
 
@@ -11,6 +16,14 @@ templ Header(title string, backPath ...string) {
 	if len(backPath) > 0 {
 	  @HeaderTemplate(title, templ.URL(backPath[0]))
 	} else {
-	  @HeaderTemplate(title,  templ.URL("/"))
+	  @HeaderTemplate(title, templ.URL("/"))
+	}
+}
+
+templ HeaderWithAction(title string, action templ.Component, backPath ...string) {
+	if len(backPath) > 0 {
+	  @HeaderTemplate(title, templ.URL(backPath[0]), action)
+	} else {
+	  @HeaderTemplate(title, templ.URL("/"), action)
 	}
 }
