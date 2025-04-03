@@ -133,7 +133,7 @@ func arkFeeLine() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p></div><p>0%</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p></div><p>0</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -349,10 +349,6 @@ func SendTxTable(sats, feeAmount, total string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = tableLine("est. time", "seconds").Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<hr class=\"text-white/20 mb-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -448,10 +444,6 @@ func SwapTxTable(sats, feeAmount, total string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		templ_7745c5c3_Err = arkFeeLine().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = tableLine("est. time", "seconds").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -3,6 +3,8 @@ name: ci_integration
 on:
   push:
     branches: [master]
+  pull_request:
+    branches: [master]
 
 jobs:
   test:
@@ -13,7 +15,28 @@ jobs:
         with:
           go-version: ">1.17.2"
       - uses: actions/checkout@v3
+      
       - run: go get -v -t -d ./...
-      - name: integration testing
+      
+      - name: Run Nigiri
+        uses: vulpemventures/nigiri-github-action@v1
+        with:
+          use_liquid: false
+          use_ln: false
+
+      - name: Build test environment
+        run: make build-test-env
+      
+      - name: Start test environment
+        run: make up-test-env
+      
+      - name: Setup test environment
+        run: make setup-test-env
+      
+      - name: Run integration tests
         run: make integrationtest
+      
+      - name: Cleanup test environment
+        run: make down-test-env
+        if: always()  # Run cleanup even if tests fail
   

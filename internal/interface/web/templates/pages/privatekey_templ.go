@@ -168,15 +168,15 @@ func newWalletPrivateKeyContent(privateKey string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p></div><div class=\"flex flex-col md:flex-row md:justify-center gap-2 w-full\"><button class=\"md:w-auto bg-orange text-white\" id=\"importButton\" type=\"submit\">Continue</button> <button class=\"md:w-32 bg-graybg\" data-needs=\"clipboard\" onclick=\"handleCopy(event)\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p></div><div class=\"flex flex-col md:flex-row md:justify-center gap-2 w-full\"><button class=\"md:w-auto bg-orange text-white\" id=\"importButton\" type=\"submit\">Continue</button>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.CopyIcon().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.CopyButtonText(privateKey).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<span id=\"copyText\" class=\"ml-2\">Copy</span></button></div></div></form><script>\n\t  const handleCopy = (event) => {\n\t\t\tevent.preventDefault()\n\t\t\tif (!navigator.clipboard) return\n      navigator.clipboard.writeText(getPrivateKey())\n\t\t\tdocument.querySelector('#copyText').innerText = 'Copied'\n\t\t\tsetTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2100)\n\t\t}\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

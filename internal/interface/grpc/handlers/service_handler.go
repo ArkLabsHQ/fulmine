@@ -139,6 +139,16 @@ func (h *serviceHandler) RedeemNote(
 	return &pb.RedeemNoteResponse{Txid: txid}, nil
 }
 
+func (h *serviceHandler) Settle(
+	ctx context.Context, req *pb.SettleRequest,
+) (*pb.SettleResponse, error) {
+	txid, err := h.svc.Settle(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.SettleResponse{Txid: txid}, nil
+}
+
 func (h *serviceHandler) SendOffChain(
 	ctx context.Context, req *pb.SendOffChainRequest,
 ) (*pb.SendOffChainResponse, error) {
@@ -239,13 +249,21 @@ func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest
 }
 
 func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCRequest) (*pb.CreateVHTLCResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "request cannot be nil")
+	}
+
+	if req.GetPreimageHash() == "" {
+		return nil, status.Error(codes.InvalidArgument, "preimage hash is required")
+	}
+
 	receiverPubkey, err := parsePubkey(req.GetReceiverPubkey())
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid pubkey")
+		return nil, status.Error(codes.InvalidArgument, "invalid receiver pubkey")
 	}
 	senderPubkey, err := parsePubkey(req.GetSenderPubkey())
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid pubkey")
+		return nil, status.Error(codes.InvalidArgument, "invalid sender pubkey")
 	}
 
 	receiverPubkeySet := receiverPubkey != nil
@@ -265,7 +283,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
 	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
 
-	addr, swapTree, err := h.svc.GetVHTLC(
+	addr, vhtlcScript, err := h.svc.GetVHTLC(
 		ctx,
 		receiverPubkey,
 		senderPubkey,
@@ -280,14 +298,14 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	}
 	return &pb.CreateVHTLCResponse{
 		Address:                              addr,
-		ClaimPubkey:                          hex.EncodeToString(swapTree.Receiver.SerializeCompressed()[1:]),
-		RefundPubkey:                         hex.EncodeToString(swapTree.Sender.SerializeCompressed()[1:]),
-		ServerPubkey:                         hex.EncodeToString(swapTree.Server.SerializeCompressed()[1:]),
-		SwapTree:                             toSwapTreeProto(swapTree),
-		RefundLocktime:                       int64(req.RefundLocktime),
-		UnilateralClaimDelay:                 int64(req.UnilateralClaimDelay.Value),
-		UnilateralRefundDelay:                int64(req.UnilateralRefundDelay.Value),
-		UnilateralRefundWithoutReceiverDelay: int64(req.UnilateralRefundWithoutReceiverDelay.Value),
+		ClaimPubkey:                          hex.EncodeToString(vhtlcScript.Receiver.SerializeCompressed()[1:]),
+		RefundPubkey:                         hex.EncodeToString(vhtlcScript.Sender.SerializeCompressed()[1:]),
+		ServerPubkey:                         hex.EncodeToString(vhtlcScript.Server.SerializeCompressed()[1:]),
+		SwapTree:                             toSwapTreeProto(vhtlcScript),
+		RefundLocktime:                       int64(vhtlcScript.RefundWithoutReceiverClosure.Locktime),
+		UnilateralClaimDelay:                 int64(vhtlcScript.UnilateralClaimClosure.Locktime.Value),
+		UnilateralRefundDelay:                int64(vhtlcScript.UnilateralRefundClosure.Locktime.Value),
+		UnilateralRefundWithoutReceiverDelay: int64(vhtlcScript.UnilateralRefundWithoutReceiverClosure.Locktime.Value),
 	}, nil
 }
 

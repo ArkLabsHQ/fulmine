@@ -32,7 +32,7 @@ jobs:
         run: go get -v -t -d ./...
       
       - name: Run main tests
-        run: go test -v -count=1 -race ./...
+        run: make test
 
       - name: Run VHTLC tests
         run: cd pkg/vhtlc && go test -v -count=1 -race

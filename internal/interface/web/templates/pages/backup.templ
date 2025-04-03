@@ -71,21 +71,10 @@ templ BackupSecretBodyContent(hex, nsec string) {
         <button class="bg-orange md:w-auto" type="submit">
 	  		  Continue
 	  		</button>
-        <button class="bg-graybg md:w-32" data-needs="clipboard" onclick="handleCopy(event)">
-	  		  @components.CopyIcon()
-	  			<span id="copyText" class="ml-2">Copy</span>
-	  		</button>
+        @components.CopyButtonText(nsec)
 	    </div>
     </div>
   </form>
-  <script>
-    const handleCopy = (event) => {
-			event.preventDefault()
-			copyToClipboard('#secret')
-			document.querySelector('#copyText').innerText = 'Copied'
-			setTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2100)
-		}
-  </script>
 }
 
 templ BackupAckBodyContent() {

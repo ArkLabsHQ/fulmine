@@ -8,21 +8,8 @@ templ SeedInfoBody(seed string) {
   <div class="flex flex-col gap-4">
     <p class="text-center text-lg font-semibold">Your Private Key</p>
     <p class="break-words" id="seed">{seed}</p>
-    <button class="bg-graybg border-1 border-white/20" data-needs="clipboard" onclick="handleCopySeed(event)">
-		  @components.CopyIcon()
-		  <span id="copySeed"class="ml-2">Copy</span>
-		</button>
+    @components.CopyButton(seed)
   </div>
-  <script>
-	  const handleCopySeed = (event) => {
-			event.preventDefault()
-			if (!navigator.clipboard) return
-      const seed = document.querySelector("#seed").textContent
-      navigator.clipboard.writeText(seed)
-			document.querySelector('#copySeed').innerText = 'Copied'
-			setTimeout(() => document.querySelector('#copySeed').innerText = 'Copy', 2100)
-		}
-	</script>
 }
 
 templ SeedInfo(seed string) {

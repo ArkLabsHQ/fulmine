@@ -6,16 +6,6 @@ script openInExplorer(txid, explorerUrl string) {
 
 // buttons
 
-templ cancelButton(label string) {
-	<button class="bg-graybg md:w-auto" onclick="handleCancel(event)">{label}</button>
-	<script>
-	  const handleCancel = (event) => {
-			event.preventDefault()
-			redirect('/')
-		}
-	</script>
-}
-
 templ grayButton(label string) {
 	<button class="bg-graybg md:w-auto">
 	  {label}
@@ -56,6 +46,10 @@ templ orangeButton(label string, disabled []bool) {
 		type="submit">
 	  {label}
 	</button>
+}
+
+templ cancelButton(label string) {
+	<button class="bg-graybg md:w-auto" onclick="handleCancel(event)">{label}</button>
 }
 
 templ redirectButton(label string, disabled []bool) {

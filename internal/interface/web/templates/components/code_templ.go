@@ -42,36 +42,15 @@ func CodeSample(code string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</p><div class=\"bg-graybg p-2 rounded-lg\" data-needs=\"clipboard\" data-value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(code)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/code.templ`, Line: 7, Col: 83}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		templ_7745c5c3_Err = CopyButton(code).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" onclick=\"handleCopy(this, event)\"><span data-kind=\"copy\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = CopyIcon().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</span> <span data-kind=\"done\" class=\"hidden\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = CheckMarkIcon().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span></div></div></div><script>\n\t\tconst handleCopy = (element, event) => {\n\t\t\tevent.preventDefault()\n\t\t\tif (!navigator.clipboard) return\n\t\t\tnavigator.clipboard.writeText(element.dataset.value)\n\t\t\telement.querySelector(\"[data-kind='copy']\").classList.add(\"hidden\")\n\t\t\telement.querySelector(\"[data-kind='done']\").classList.remove(\"hidden\")\n\t\t\tsetTimeout(() => {\n\t\t\t\telement.querySelector(\"[data-kind='copy']\").classList.remove(\"hidden\")\n\t\t\t\telement.querySelector(\"[data-kind='done']\").classList.add(\"hidden\")\n\t\t\t}, 1000)\n\t\t}\n  </script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
