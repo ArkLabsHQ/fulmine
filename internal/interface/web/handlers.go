@@ -187,7 +187,6 @@ func (s *service) lock(c *gin.Context) {
 }
 
 func (s *service) unlock(c *gin.Context) {
-	log.Infof("referer %s", c.Request.Referer())
 	bodyContent := pages.Unlock()
 	s.pageViewHandler(bodyContent, c)
 }
