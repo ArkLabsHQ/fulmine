@@ -1,0 +1,31 @@
+package components
+
+templ ActionSettleButton(txid string) {
+  <div class="flex flex-col items-end overflow-visible">
+    <div onclick="showOptions()">@DotsButton()</div>
+    <div id="options" class="bg-graybg hidden p-2 rounded-lg w-32 z-10">
+      <button class="border-0 flex gap-2 p-0">
+	      @ExplorerIcon()
+        Open in explorer
+	    </button>
+      <button class="border-0 flex gap-2 p-0" type="submit">
+	      @SettleIcon()
+        Settle now
+	    </button>
+    </div>
+  </div>
+  <script>
+    const showOptions = () => {
+      event.stopPropagation()
+      const options = document.getElementById('options')
+      options.classList.toggle('hidden')
+    }
+    const submitForm = (button, event) => {
+      event.preventDefault()
+      console.log('xico')
+      button.classList.add("disabled")
+      const form = document.querySelector('form')
+      htmx.trigger(form, 'htmx:submit')
+    }
+  </script>
+}
