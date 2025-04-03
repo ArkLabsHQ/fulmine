@@ -33,7 +33,7 @@ func lockPage(kind string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form hx-post=\"/forgot\" id=\"forgot\"><button class=\"hidden\" type=\"submit\"></button></form><form hx-post=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form hx-post=\"/helpers/forgot\" id=\"forgot\"><button class=\"hidden\" type=\"submit\"></button></form><form hx-post=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -46,7 +46,7 @@ func lockPage(kind string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><div class=\"bg-radial-gradient h-screen fullscreen\"><div class=\"flex flex-col justify-between h-screen justify-between md:h-auto md:gap-10 w-80 m-auto p-3\"><div><div class=\"flex flex-col gap-12 items-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><div class=\"bg-radial-gradient h-screen fullscreen\"><div class=\"flex flex-col justify-between h-screen justify-between md:h-[600px] md:gap-10 w-80 m-auto p-3\"><div><div class=\"flex flex-col gap-12 items-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -95,7 +95,7 @@ func lockPage(kind string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if kind == "unlock" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p class=\"text-right mt-2 cursor-pointer\" onclick=\"resetWallet()\">Forgot password?</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p class=\"text-right mt-2 cursor-pointer\" onclick=\"forgotPass()\">Forgot password?</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -113,7 +113,7 @@ func lockPage(kind string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</button></div></div></form><script>\n    function resetWallet() {\n      document.getElementById(\"forgot\").querySelector(\"button\").click()\n    }\n  </script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</button></div></div><script>\n      const forgotPass = () => {\n        document.querySelector(\"#forgot\").querySelector(\"button\").click()\n      }\n    </script></form><script>\n    function resetWallet() {\n      document.getElementById(\"forgot\").querySelector(\"button\").click()\n    }\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

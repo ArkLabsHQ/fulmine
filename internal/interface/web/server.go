@@ -100,7 +100,6 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.GET("/modal/reversibleinfo", svc.reversibleInfoModal)
 	svc.GET("/modal/seedinfo", svc.seedInfoModal)
 
-	svc.POST("/forgot", svc.forgot)
 	svc.POST("/initialize", svc.initialize)
 	svc.POST("/mnemonic", svc.setMnemonic)
 	svc.POST("/password", svc.setPassword)
@@ -115,6 +114,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.POST("/swap/confirm", svc.swapConfirm)
 
 	svc.POST("/helpers/claim/:txid", svc.claimTx)
+	svc.POST("/helpers/forgot", svc.forgotApi)
 	svc.POST("/helpers/lock", svc.lockApi)
 	svc.POST("/helpers/settings", svc.updateSettingsApi)
 	svc.POST("/helpers/node/connect", svc.connectLNDApi)

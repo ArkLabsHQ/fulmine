@@ -109,15 +109,6 @@ func (s *service) events(c *gin.Context) {
 	}
 }
 
-func (s *service) forgot(c *gin.Context) {
-	if err := s.svc.Reset(c); err != nil {
-		toast := components.Toast("Unable to delete previous wallet", true)
-		toastHandler(toast, c)
-		return
-	}
-	c.Redirect(http.StatusFound, "/welcome")
-}
-
 func (s *service) index(c *gin.Context) {
 	bodyContent := pages.Welcome()
 	if s.svc.IsReady() {
@@ -187,7 +178,6 @@ func (s *service) lock(c *gin.Context) {
 }
 
 func (s *service) unlock(c *gin.Context) {
-	log.Infof("referer %s", c.Request.Referer())
 	bodyContent := pages.Unlock()
 	s.pageViewHandler(bodyContent, c)
 }
