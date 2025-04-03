@@ -79,7 +79,6 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.GET("/backup/ack", svc.backupAck)
 	svc.GET("/backup/tab/:active", svc.backupTabActive)
 	svc.GET("/done", svc.done)
-	svc.GET("/forgot", svc.forgot)
 	svc.GET("/hero", svc.getHero)
 	svc.GET("/import", svc.importWalletPrivateKey)
 	svc.GET("/lock", svc.lock)
@@ -115,6 +114,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.POST("/swap/confirm", svc.swapConfirm)
 
 	svc.POST("/helpers/claim/:txid", svc.claimTx)
+	svc.POST("/helpers/forgot", svc.forgotApi)
 	svc.POST("/helpers/lock", svc.lockApi)
 	svc.POST("/helpers/settings", svc.updateSettingsApi)
 	svc.POST("/helpers/node/connect", svc.connectLNDApi)
