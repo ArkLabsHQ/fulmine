@@ -115,7 +115,6 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 
 	svc.POST("/helpers/claim/:txid", svc.claimTx)
 	svc.POST("/helpers/forgot", svc.forgotApi)
-	svc.POST("/helpers/lock", svc.lockApi)
 	svc.POST("/helpers/settings", svc.updateSettingsApi)
 	svc.POST("/helpers/node/connect", svc.connectLNDApi)
 	svc.POST("/helpers/node/disconnect", svc.disconnectLNDApi)

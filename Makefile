@@ -1,17 +1,17 @@
 .PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-cln test test-vhtlc vet proto proto-lint up-test-env setup-arkd down-test-env
 
-build-static-assets:
+build-static-assets: build-templates
 	@echo "Generating static assets..."
-	@cd internal/interface/web && rm -rf .parcel-cache && yarn build
+	@cd internal/interface/web && rm -rf .parcel-cache && yarn && yarn build
 	@cd ../../..
 
 ## build: build for your platform
-build: build-static-assets build-templates
+build: build-static-assets
 	@echo "Building fulmine binary..."
 	@bash ./scripts/build
 
 ## build-all: build for all platforms
-build-all: build-templates
+build-all: build-static-assets
 	@echo "Building fulmine binary for all archs..."
 	@bash ./scripts/build-all
 
@@ -41,11 +41,11 @@ lint:
 	@golangci-lint run --fix
 
 ## run: run in dev mode
-run: clean build-templates
+run: clean build-static-assets
 	@echo "Running fulmine in dev mode..."
 	@go run ./cmd/fulmine
 
-run-cln: clean build-templates
+run-cln: clean build-static-assets
 	@echo "Running fulmine in dev mode with CLN support..."
 	@export FULMINE_GRPC_PORT=7008; \
 	export FULMINE_HTTP_PORT=7009; \
