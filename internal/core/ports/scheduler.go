@@ -9,6 +9,6 @@ import (
 type SchedulerService interface {
 	Start()
 	Stop()
-	ScheduleNextSettlement(data *types.Config, settleFunc func()) error
+	ScheduleNextSettlement(expiryAt time.Time, cfg *types.Config, settleFunc func()) error
 	WhenNextSettlement() (*time.Time, error)
 }

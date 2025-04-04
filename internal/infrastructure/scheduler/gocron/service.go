@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
-	"github.com/ark-network/ark/common"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/go-co-op/gocron"
 )
@@ -30,16 +29,11 @@ func (s *service) Stop() {
 }
 
 // ScheduleNextSettlement schedules a Settle() to run in the best market hour
-func (s *service) ScheduleNextSettlement(cfg *types.Config, settleFunc func()) error {
-	if cfg.VtxoTreeExpiry.Type == common.LocktimeTypeBlock {
-		return fmt.Errorf("vtxo tree expiry type 'block' not supported")
-	}
+func (s *service) ScheduleNextSettlement(at time.Time, cfg *types.Config, settleFunc func()) error {
+	roundInterval := time.Duration(cfg.RoundInterval) * time.Second
+	at = at.Add(-2 * roundInterval) // schedule 2 rounds before the expiry
 
-	expiry := cfg.VtxoTreeExpiry.Seconds()
-	nextExpiry := time.Now().Unix() + expiry
-	nextSettle := nextExpiry - 60 // 1 min before the expiry
-
-	bestTime := bestMarketHour(nextSettle, cfg.MarketHourStartTime, cfg.MarketHourPeriod)
+	bestTime := bestMarketHour(at.Unix(), cfg.MarketHourStartTime, cfg.MarketHourPeriod)
 	delay := bestTime - time.Now().Unix()
 	if delay < 0 {
 		return fmt.Errorf("cannot schedule task in the past")

@@ -19,6 +19,7 @@ import (
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
+	"github.com/ark-network/ark/pkg/client-sdk/explorer"
 	"github.com/ark-network/ark/pkg/client-sdk/store"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -66,13 +67,13 @@ type Service struct {
 
 	isReady bool
 
-	subscriptions    map[string]string // tracks subscribed addresses (vtxo taproot pubkey -> address)
+	subscriptions    map[string]func() // tracks subscribed addresses (address -> closeFn)
 	subscriptionLock sync.RWMutex
 
 	// Notification channels
 	notifications chan Notification
 
-	stopCh chan struct{}
+	stopBoardingEventListener chan struct{}
 }
 
 type Notification struct {
@@ -102,23 +103,23 @@ func NewService(
 			return nil, err
 		}
 		svc := &Service{
-			BuildInfo:        buildInfo,
-			ArkClient:        arkClient,
-			storeCfg:         storeCfg,
-			storeRepo:        storeSvc,
-			settingsRepo:     settingsRepo,
-			vhtlcRepo:        vhtlcRepo,
-			vtxoRolloverRepo: vtxoRolloverRepo,
-			grpcClient:       grpcClient,
-			schedulerSvc:     schedulerSvc,
-			lnSvc:            lnSvc,
-			publicKey:        nil,
-			isReady:          true,
-			subscriptions:    make(map[string]string),
-			subscriptionLock: sync.RWMutex{},
-			notifications:    make(chan Notification),
-			stopCh:           make(chan struct{}, 1),
-			esploraUrl:       esploraUrl,
+			BuildInfo:                 buildInfo,
+			ArkClient:                 arkClient,
+			storeCfg:                  storeCfg,
+			storeRepo:                 storeSvc,
+			settingsRepo:              settingsRepo,
+			vhtlcRepo:                 vhtlcRepo,
+			vtxoRolloverRepo:          vtxoRolloverRepo,
+			grpcClient:                grpcClient,
+			schedulerSvc:              schedulerSvc,
+			lnSvc:                     lnSvc,
+			publicKey:                 nil,
+			isReady:                   true,
+			subscriptions:             make(map[string]func()),
+			subscriptionLock:          sync.RWMutex{},
+			notifications:             make(chan Notification),
+			esploraUrl:                esploraUrl,
+			stopBoardingEventListener: make(chan struct{}),
 		}
 
 		return svc, nil
@@ -138,20 +139,20 @@ func NewService(
 	}
 
 	svc := &Service{
-		BuildInfo:        buildInfo,
-		ArkClient:        arkClient,
-		storeCfg:         storeCfg,
-		storeRepo:        storeSvc,
-		settingsRepo:     settingsRepo,
-		vhtlcRepo:        vhtlcRepo,
-		grpcClient:       nil,
-		schedulerSvc:     schedulerSvc,
-		lnSvc:            lnSvc,
-		subscriptions:    make(map[string]string),
-		subscriptionLock: sync.RWMutex{},
-		notifications:    make(chan Notification),
-		stopCh:           make(chan struct{}, 1),
-		esploraUrl:       esploraUrl,
+		BuildInfo:                 buildInfo,
+		ArkClient:                 arkClient,
+		storeCfg:                  storeCfg,
+		storeRepo:                 storeSvc,
+		settingsRepo:              settingsRepo,
+		vhtlcRepo:                 vhtlcRepo,
+		grpcClient:                nil,
+		schedulerSvc:              schedulerSvc,
+		lnSvc:                     lnSvc,
+		subscriptions:             make(map[string]func()),
+		subscriptionLock:          sync.RWMutex{},
+		notifications:             make(chan Notification),
+		esploraUrl:                esploraUrl,
+		stopBoardingEventListener: make(chan struct{}),
 	}
 
 	return svc, nil
@@ -221,25 +222,26 @@ func (s *Service) LockNode(ctx context.Context, password string) error {
 	}
 	s.schedulerSvc.Stop()
 	log.Info("scheduler stopped")
-	go func() {
-		select {
-		case <-s.stopCh:
-			return
-		default:
-			time.Sleep(100 * time.Microsecond)
-		}
-	}()
+
+	// close all subscriptions
+	s.subscriptionLock.Lock()
+	defer s.subscriptionLock.Unlock()
+	for _, closeFn := range s.subscriptions {
+		closeFn()
+	}
+	s.subscriptions = make(map[string]func())
+
+	// close boarding event listener
+	s.stopBoardingEventListener <- struct{}{}
+	close(s.stopBoardingEventListener)
+	s.stopBoardingEventListener = make(chan struct{})
+
 	return nil
 }
 
 func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if !s.isReady {
 		return fmt.Errorf("service not initialized")
-	}
-
-	txCh, close, err := s.grpcClient.GetTransactionsStream(context.Background())
-	if err != nil {
-		return fmt.Errorf("server unreachable")
 	}
 
 	if err := s.Unlock(ctx, password); err != nil {
@@ -249,8 +251,20 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	s.schedulerSvc.Start()
 	log.Info("scheduler started")
 
-	if err := s.ScheduleNextSettlement(ctx); err != nil {
-		log.WithError(err).Info("schedule next claim failed")
+	data, err := s.GetConfigData(ctx)
+	if err != nil {
+		return err
+	}
+
+	nextExpiry, err := s.computeNextExpiry(ctx, data)
+	if err != nil {
+		log.WithError(err).Error("failed to compute next expiry")
+	}
+
+	if nextExpiry != nil {
+		if err := s.scheduleNextSettlement(ctx, *nextExpiry, data); err != nil {
+			log.WithError(err).Info("schedule next claim failed")
+		}
 	}
 
 	prvkeyStr, err := s.Dump(ctx)
@@ -272,11 +286,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 	if len(settings.LnUrl) > 0 {
-		data, err := s.GetConfigData(ctx)
-		if err != nil {
-			return err
-		}
-
 		if strings.HasPrefix(settings.LnUrl, "clnconnect:") {
 			s.lnSvc = cln.NewService()
 		}
@@ -287,7 +296,18 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		s.boltzSvc = boltzSvc
 	}
 
-	go s.listenForNotifications(txCh, close)
+	offchainAddress, onchainAddress, err := s.Receive(ctx)
+	if err != nil {
+		log.WithError(err).Error("failed to get addresses")
+		return err
+	}
+
+	if err := s.SubscribeForAddresses(ctx, []string{offchainAddress}); err != nil {
+		log.WithError(err).Error("failed to subscribe for offchain address")
+		return err
+	}
+
+	go s.subscribeForBoardingEvent(ctx, onchainAddress, data)
 
 	return nil
 }
@@ -391,21 +411,23 @@ func (s *Service) Settle(ctx context.Context) (string, error) {
 
 	roundTxid, err := s.ArkClient.Settle(ctx)
 	if err == nil {
-		// if settlement was successful, schedule the next one
-		if err := s.ScheduleNextSettlement(ctx); err != nil {
+		// if settlement was successful, schedule the next one at now+vtxo expiry
+		now := time.Now()
+		data, err := s.GetConfigData(ctx)
+		if err != nil {
+			return "", err
+		}
+		expiry := data.VtxoTreeExpiry.Seconds()
+		nextSettlement := now.Add(time.Duration(expiry) * time.Second)
+		if err := s.scheduleNextSettlement(ctx, nextSettlement, data); err != nil {
 			log.WithError(err).Warn("error scheduling next claims")
 		}
 	}
 	return roundTxid, err
 }
 
-func (s *Service) ScheduleNextSettlement(ctx context.Context) error {
+func (s *Service) scheduleNextSettlement(ctx context.Context, at time.Time, data *types.Config) error {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return err
-	}
-
-	data, err := s.GetConfigData(ctx)
-	if err != nil {
 		return err
 	}
 
@@ -417,7 +439,7 @@ func (s *Service) ScheduleNextSettlement(ctx context.Context) error {
 		}
 	}
 
-	return s.schedulerSvc.ScheduleNextSettlement(data, task)
+	return s.schedulerSvc.ScheduleNextSettlement(at, data, task)
 }
 
 func (s *Service) WhenNextSettlement(ctx context.Context) (*time.Time, error) {
@@ -1122,11 +1144,13 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 	defer s.subscriptionLock.Unlock()
 
 	for _, addr := range addresses {
-		decodedAddr, err := common.DecodeAddress(addr)
+		eventsCh, closeFn, err := s.grpcClient.SubscribeForAddress(context.Background(), addr)
 		if err != nil {
-			return fmt.Errorf("invalid address: %s", err)
+			return fmt.Errorf("server unreachable")
 		}
-		s.subscriptions[hex.EncodeToString(schnorr.SerializePubKey(decodedAddr.VtxoTapKey))] = addr
+
+		s.subscriptions[addr] = closeFn
+		go s.handleAddressEventChannel(eventsCh, addr)
 	}
 	return nil
 }
@@ -1140,6 +1164,12 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 	defer s.subscriptionLock.Unlock()
 
 	for _, addr := range addresses {
+		closeFn, ok := s.subscriptions[addr]
+		if !ok {
+			log.Warnf("address %s not subscribed, skipping unsubscription", addr)
+			continue
+		}
+		closeFn()
 		delete(s.subscriptions, addr)
 	}
 	return nil
@@ -1221,85 +1251,6 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) listenForNotifications(
-	txCh <-chan client.TransactionEvent, closeFn func(),
-) {
-	emptyTx := client.TransactionEvent{}
-
-	// listen for SDK vtxo channel events
-	for {
-		select {
-		case <-s.stopCh:
-			closeFn()
-			return
-		case tx := <-txCh:
-			if tx == emptyTx {
-				closeFn()
-				return
-			}
-
-			notifications := make(map[string]Notification)
-			var spendableVtxos []client.Vtxo
-			var spentVtxos []client.Vtxo
-			if tx.Round != nil {
-				spendableVtxos = tx.Round.SpendableVtxos
-				spentVtxos = tx.Round.SpentVtxos
-			} else if tx.Redeem != nil {
-				spendableVtxos = tx.Redeem.SpendableVtxos
-				spentVtxos = tx.Redeem.SpentVtxos
-			}
-
-			s.subscriptionLock.RLock()
-			for _, vtxo := range spendableVtxos {
-				// check if the address is subscribed
-				if address, ok := s.subscriptions[vtxo.PubKey]; ok {
-					// check if the address is already in the notifications map
-					if _, ok := notifications[address]; !ok {
-						notifications[address] = Notification{
-							Address:    address,
-							NewVtxos:   make([]client.Vtxo, 0),
-							SpentVtxos: make([]client.Vtxo, 0),
-						}
-					}
-
-					n := notifications[address]
-					n.NewVtxos = append(n.NewVtxos, vtxo)
-					notifications[address] = n
-				}
-			}
-			for _, vtxo := range spentVtxos {
-				// check if the address is subscribed
-				if address, ok := s.subscriptions[vtxo.PubKey]; ok {
-					// check if the address is already in the notifications map
-					if _, ok := notifications[address]; !ok {
-						notifications[address] = Notification{
-							Address:    address,
-							NewVtxos:   make([]client.Vtxo, 0),
-							SpentVtxos: make([]client.Vtxo, 0),
-						}
-					}
-
-					n := notifications[address]
-					n.SpentVtxos = append(n.SpentVtxos, vtxo)
-					notifications[address] = n
-				}
-			}
-			s.subscriptionLock.RUnlock()
-
-			// send notifications through channel
-			for _, notification := range notifications {
-				go func() {
-					select {
-					case s.notifications <- notification:
-					default:
-						time.Sleep(100 * time.Millisecond)
-					}
-				}()
-			}
-		}
-	}
-}
-
 func (s *Service) boltzRefundSwap(swapId, refundTx, signedRefundTx string, boltzPubkey *btcec.PublicKey) (string, error) {
 	partialSig, err := s.boltzSvc.RefundSwap(swapId, &boltz.RefundRequest{
 		Transaction: refundTx,
@@ -1320,6 +1271,212 @@ func (s *Service) boltzRefundSwap(swapId, refundTx, signedRefundTx string, boltz
 		SigHash:     ptx.Inputs[0].TaprootScriptSpendSig[0].SigHash,
 	})
 	return ptx.B64Encode()
+}
+
+func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*time.Time, error) {
+	spendableVtxos, _, err := s.ListVtxos(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var expiry *time.Time
+
+	if len(spendableVtxos) > 0 {
+		nextExpiry := spendableVtxos[0].ExpiresAt
+		for _, vtxo := range spendableVtxos[1:] {
+			if vtxo.ExpiresAt.Before(nextExpiry) {
+				nextExpiry = vtxo.ExpiresAt
+			}
+		}
+		expiry = &nextExpiry
+	}
+
+	txs, err := s.GetTransactionHistory(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// check for unsettled boarding UTXOs
+	for _, tx := range txs {
+		if len(tx.TransactionKey.BoardingTxid) > 0 && !tx.Settled {
+			// TODO replace by boardingExitDelay https://github.com/ark-network/ark/pull/501
+			boardingExpiry := tx.CreatedAt.Add(time.Duration(data.UnilateralExitDelay.Seconds()*2) * time.Second)
+			if expiry == nil || boardingExpiry.Before(*expiry) {
+				expiry = &boardingExpiry
+			}
+		}
+	}
+
+	return expiry, nil
+}
+
+// subscribeForBoardingEvent aims to update the scheduled settlement
+// by checking for spent and new vtxos on the given boarding address
+func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string, cfg *types.Config) {
+	ticker := time.NewTicker(time.Minute * 10)
+	defer ticker.Stop()
+
+	expl := explorer.NewExplorer(s.esploraUrl, cfg.Network)
+
+	currentSet, err := expl.GetUtxos(address)
+	if err != nil {
+		log.WithError(err).Error("failed to get utxos")
+		return
+	}
+
+	for {
+		select {
+		case <-s.stopBoardingEventListener:
+			return
+		case <-ticker.C:
+			utxos, err := expl.GetUtxos(address)
+			if err != nil {
+				log.WithError(err).Error("failed to get utxos")
+				continue
+			}
+
+			if len(utxos) == 0 {
+				continue
+			}
+
+			// TODO: use boardingExitDelay https://github.com/ark-network/ark/pull/501
+			boardingTimelock := common.RelativeLocktime{Type: cfg.UnilateralExitDelay.Type, Value: cfg.UnilateralExitDelay.Value * 2}
+
+			// find spent utxos
+			spentUtxos := make([]types.Utxo, 0)
+			for _, oldSetUtxo := range currentSet {
+				found := false
+				for _, newSetUtxo := range utxos {
+					if oldSetUtxo.Txid == newSetUtxo.Txid && oldSetUtxo.Vout == newSetUtxo.Vout {
+						found = true
+						break
+					}
+				}
+				if !found {
+					spentUtxos = append(spentUtxos, oldSetUtxo.ToUtxo(boardingTimelock, []string{}))
+				}
+			}
+
+			// find new utxos
+			newUtxos := make([]types.Utxo, 0)
+			for _, newSetUtxo := range utxos {
+				found := false
+				for _, oldSetUtxo := range currentSet {
+					if oldSetUtxo.Txid == newSetUtxo.Txid && oldSetUtxo.Vout == newSetUtxo.Vout {
+						found = true
+						break
+					}
+				}
+				if !found {
+					newUtxos = append(newUtxos, newSetUtxo.ToUtxo(boardingTimelock, []string{}))
+				}
+			}
+
+			log.Infof("boarding event detected: %d utxos spent, %d new utxos", len(spentUtxos), len(newUtxos))
+
+			// if some are spent, it means we had a boarding tx settled
+			if len(spentUtxos) > 0 {
+				nextExpiry, err := s.computeNextExpiry(ctx, cfg)
+				if err != nil {
+					log.WithError(err).Error("failed to compute next expiry")
+					continue
+				}
+
+				if err := s.scheduleNextSettlement(ctx, *nextExpiry, cfg); err != nil {
+					log.WithError(err).Info("schedule next claim failed")
+				}
+				continue
+			}
+
+			// if some are new, it means we have a new boarding tx
+			// if expiry is before the next scheduled settlement, we need to schedule a new one
+			if len(newUtxos) > 0 {
+				nextScheduledSettlement, _ := s.WhenNextSettlement(ctx)
+
+				needSchedule := false
+
+				for _, vtxo := range newUtxos {
+					if nextScheduledSettlement == nil || vtxo.SpendableAt.Before(*nextScheduledSettlement) {
+						nextScheduledSettlement = &vtxo.SpendableAt
+						needSchedule = true
+					}
+				}
+
+				if needSchedule {
+					if err := s.scheduleNextSettlement(ctx, *nextScheduledSettlement, cfg); err != nil {
+						log.WithError(err).Info("schedule next claim failed")
+					}
+				}
+			}
+
+			// update current set
+			currentSet = utxos
+		}
+	}
+
+}
+
+func (s *Service) handleAddressEventChannel(eventsCh <-chan client.AddressEvent, addr string) {
+	for event := range eventsCh {
+		if event.Err != nil {
+			log.WithError(event.Err).Error("AddressEvent subscription error")
+			continue
+		}
+
+		log.Infof("received address event for %s (%d spent vtxos, %d new vtxos)", addr, len(event.SpentVtxos), len(event.NewVtxos))
+
+		// non-blocking forward to notifications channel
+		go func() {
+			s.notifications <- Notification{
+				Address:    addr,
+				NewVtxos:   event.NewVtxos,
+				SpentVtxos: event.SpentVtxos,
+			}
+		}()
+
+		ctx := context.Background()
+
+		data, err := s.GetConfigData(ctx)
+		if err != nil {
+			log.WithError(err).Error("failed to get config data")
+			return
+		}
+
+		// if some vtxos were spent, schedule a settlement to soonest expiry among new vtxos / boarding UTXOs set
+		if len(event.SpentVtxos) > 0 {
+			nextExpiry, err := s.computeNextExpiry(ctx, data)
+			if err != nil {
+				log.WithError(err).Error("failed to compute next expiry")
+				return
+			}
+
+			if err := s.scheduleNextSettlement(ctx, *nextExpiry, data); err != nil {
+				log.WithError(err).Info("schedule next claim failed")
+			}
+
+			return
+		}
+
+		// if some vtxos were created, schedule a settlement to the soonest expiry among new vtxos
+		if len(event.NewVtxos) > 0 {
+			nextScheduledSettlement, _ := s.WhenNextSettlement(ctx)
+
+			needSchedule := false
+
+			for _, vtxo := range event.NewVtxos {
+				if nextScheduledSettlement == nil || vtxo.ExpiresAt.Before(*nextScheduledSettlement) {
+					nextScheduledSettlement = &vtxo.ExpiresAt
+					needSchedule = true
+				}
+			}
+
+			if needSchedule {
+				if err := s.scheduleNextSettlement(ctx, *nextScheduledSettlement, data); err != nil {
+					log.WithError(err).Info("schedule next claim failed")
+				}
+			}
+		}
+	}
 }
 
 func parsePubkey(pubkey boltz.HexString) (*secp256k1.PublicKey, error) {
