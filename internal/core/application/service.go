@@ -210,12 +210,12 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	return nil
 }
 
-func (s *Service) LockNode(ctx context.Context, password string) error {
+func (s *Service) LockNode(ctx context.Context) error {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return err
 	}
 
-	err := s.Lock(ctx, password)
+	err := s.Lock(ctx)
 	if err != nil {
 		return err
 	}

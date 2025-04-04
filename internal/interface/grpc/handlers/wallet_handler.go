@@ -71,11 +71,7 @@ func (h *walletHandler) Unlock(
 func (h *walletHandler) Lock(
 	ctx context.Context, req *pb.LockRequest,
 ) (*pb.LockResponse, error) {
-	password, err := parsePassword(req.GetPassword())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	if err := h.svc.Lock(ctx, password); err != nil {
+	if err := h.svc.LockNode(ctx); err != nil {
 		return nil, err
 	}
 	return &pb.LockResponse{}, nil
