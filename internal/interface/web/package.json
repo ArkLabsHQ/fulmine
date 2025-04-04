@@ -14,10 +14,10 @@
     }
   },
   "scripts": {
-    "watch": "parcel watch",
-    "fmt": "prettier --write .",
-    "dev": "parcel build --no-optimize",
-    "build": "parcel build --no-content-hash"
+    "watch": "npx parcel watch",
+    "fmt": "npx prettier --write .",
+    "dev": "npx parcel build --no-optimize",
+    "build": "npx parcel build --no-content-hash"
   },
   "dependencies": {
     "@tailwindcss/forms": "latest",

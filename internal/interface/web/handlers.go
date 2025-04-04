@@ -173,8 +173,12 @@ func (s *service) importWalletPrivateKey(c *gin.Context) {
 }
 
 func (s *service) lock(c *gin.Context) {
-	bodyContent := pages.Lock()
-	s.pageViewHandler(bodyContent, c)
+	if err := s.svc.LockNode(c); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+	c.Redirect(http.StatusFound, "/")
 }
 
 func (s *service) unlock(c *gin.Context) {
