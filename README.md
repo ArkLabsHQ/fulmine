@@ -181,7 +181,13 @@ fulmine provides three main interfaces:
         -d '{"address": <bitcoin address>, "amount": <in sats>}'
    ```
 
-5. Get transaction history
+5. Settle transactions, Renew VTXOs or swap boarding UTXOs for VTXOs
+
+   ```sh
+   curl -X GET http://localhost:7001/api/v1/settle
+   ```
+
+6. Get transaction history
 
    ```sh
    curl -X GET http://localhost:7001/api/v1/transactions
