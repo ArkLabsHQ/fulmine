@@ -6,6 +6,10 @@ script openInExplorer(txid, explorerUrl string) {
 
 // buttons
 
+templ cancelButton(label string) {
+	<button class="bg-graybg md:w-auto" onclick="handleCancel(event)">{label}</button>
+}
+
 templ grayButton(label string) {
 	<button class="bg-graybg md:w-auto">
 	  {label}
@@ -29,13 +33,6 @@ templ iconButton(icon templ.Component) {
 	</div>
 }
 
-templ iconTextButton(label string, icon templ.Component) {
-	<button class="bg-graybg flex md:w-auto">
-		@icon	
-	  <span class="ml-2">{label}</span>
-	</button>
-}
-
 templ orangeButton(label string, disabled []bool) {
 	<button
 	  class="bg-orange md:w-auto"
@@ -46,10 +43,6 @@ templ orangeButton(label string, disabled []bool) {
 		type="submit">
 	  {label}
 	</button>
-}
-
-templ cancelButton(label string) {
-	<button class="bg-graybg md:w-auto" onclick="handleCancel(event)">{label}</button>
 }
 
 templ redirectButton(label string, disabled []bool) {
@@ -103,26 +96,23 @@ templ BackButton() {
 }
 
 templ CopyButton(payload string) {
-  <button class="bg-graybg p-2" data-needs="clipboard" onclick="handleCopy(this, event)">
+  <button class="bg-graybg p-2" data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
     <span data-kind="copy">@CopyIcon()</span>
 		<span data-kind="done" class="hidden">@CheckMarkIcon()</span>
-    <span class="payload" data-value={payload} class="hidden" />
   </button>
 }
 
 templ CopyButtonText(payload string) {
-  <button class="bg-graybg cursor-pointer" data-needs="clipboard" onclick="handleCopy(this, event)">
+  <button class="bg-graybg" data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
     @CopyIcon()
     <span class="ml-2 buttonText">Copy</span>
-    <span class="payload" data-value={payload} class="hidden" />
   </button>
 }
 
 templ CopyWidget(payload string) {
-  <p class="cursor-pointer text-white/50" data-needs="clipboard" onclick="handleCopy(this, event)">
+  <p class="text-white/50" data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
     <span data-kind="copy">@CopyIcon()</span>
 	  <span data-kind="done" class="hidden">@CheckMarkIcon()</span>
-    <span class="payload" data-value={payload} class="hidden" />
   </p>
 }
 
@@ -130,11 +120,18 @@ templ DotsButton() {
 	@iconButton(DotsIcon())
 }
 
-templ LnConnectButtons() {
+templ LnConnectButtons(id string) {
 	@twoButtonsContainer(
 		grayButton("Continue"),
-		iconTextButton("Scan", ScanIconXL()),
+		ScanButton(id),
 	)
+}
+
+templ ScanButton(id string) {
+	<button class="bg-graybg flex md:w-auto" data-id={id} data-needs="camera" onclick="scanCodeWithCamera(this, event)">
+	  @ScanIconXL()	
+	  <span class="ml-2">Scan</span>
+	</button>
 }
 
 templ SettingsButton() {
@@ -149,18 +146,14 @@ templ SettleButtons() {
 }
 
 templ SettleButtonsAction(txid, explorerUrl string) {
-	<div class="cursor-pointer relative z-10 mb-3">
-		<div class="flex gap-3 items-center" onclick={openInExplorer(txid, explorerUrl)}>
-			@ExplorerIcon()
-			Open in explorer
-		</div>
+	<div class="cursor-pointer relative z-10 mb-3 flex gap-3 items-center" onclick={openInExplorer(txid, explorerUrl)}>
+		@ExplorerIcon()
+		Open in explorer
 	</div>
-	<div class="cursor-pointer relative z-10 text-red ">
-    <button class="border-0 flex gap-3 items-center p-0" type="submit">
-      @WarningIcon()
-      Settle now
-    </button>
-	</div>
+  <button class="cursor-pointer relative z-10 text-red border-0 flex gap-3 items-center p-0" type="submit">
+    @WarningIcon()
+    Settle now
+  </button>
 }
 
 templ OrangeButton(label string, disabled ...bool) {

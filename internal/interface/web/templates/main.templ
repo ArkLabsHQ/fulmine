@@ -57,51 +57,12 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
   <script>
   	const toastTimeout = 2100
   
-  	const disableButton = (button) => {
-  		button.classList.add("disabled")
-  	}
-  
-  	// re enable buttons after receiving a htmx:load event
-  	const enableButtons = () => {
-  		document.querySelectorAll('.disabled').forEach((x) => {
-  			x.classList.remove('disabled')
-  		})
-  	}
-  
-  	const prettyNum = (num, maximumFractionDigits = 2) => {
-  		if (!num) return '0'
-  		return new Intl.NumberFormat('en', {
-  			style: 'decimal',
-  			maximumFractionDigits,
-  		}).format(num)
-  	}
-  
-  	const fromSatoshis = (sats) => {
-  		return Decimal.div(sats, 100_000_000).toNumber()
-  	}
-  
-  	const toSatoshis = (btc) => {
-  		return Decimal.mul(btc, 100_000_000).toNumber()
-  	}
-  
-  	const redirect = (path) => {
-  		const url = new URL(window.location.href)
-  		const params = new URLSearchParams(url.search);
-  		const serverUrl = params.get('serverurl')
-  		window.location.href = path + (serverUrl ? `/?serverurl=${serverUrl}` : '')
-  	}
-  
-  	const handleCancel = (event) => {
-  		event.preventDefault()
-  		redirect('/')
-  	}
-  
-  	const handleCopy = (element, event) => {
+  	const copyToClipboard = (element, event) => {
   	  event.preventDefault()
   	  if (!navigator.clipboard) return
-  		const payload = element.querySelector('.payload')?.dataset?.value
-  		if (!payload) return
-      navigator.clipboard.writeText(payload)
+  		const value = element.dataset.value
+  		if (!value) return
+      navigator.clipboard.writeText(value)
       // change the button text to "Copied"
       buttonText = element.querySelector('span.buttonText')
       if (buttonText) {
@@ -122,10 +83,23 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
       }
   	}
   
-  	const copyToClipboard = (id) => {
-  		if (!navigator.clipboard) return
-  		const addr = document.querySelector(id).innerText
-  		navigator.clipboard.writeText(addr)
+  	const disableButton = (button) => {
+  		button.classList.add("disabled")
+  	}
+  	
+		const enableButtons = () => {
+  		document.querySelectorAll('.disabled').forEach((x) => {
+  			x.classList.remove('disabled')
+  		})
+  	}
+  
+  	const fromSatoshis = (sats) => {
+  		return Decimal.div(sats, 100_000_000).toNumber()
+  	}
+  
+  	const handleCancel = (event) => {
+  		event.preventDefault()
+  		redirect('/')
   	}
   
   	const hideCopyButtonsIfInsecure = () => {
@@ -135,15 +109,55 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
   			})
   		}
   	}
+
+		const hideScanButtonsIfNoCameraAvailable = async () => {
+			const isCamAvailable = async () => {
+				if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false
+				try {
+					await navigator.mediaDevices.getUserMedia({ video: true })
+					return true
+				} catch {}
+				return false
+			}
+			if (!(await isCamAvailable())) {
+				document.querySelectorAll('[data-needs="camera"]').forEach((el) => {
+					el.classList.add('hidden')
+				})
+			}
+		}
   
-  	const pasteFromClipboard = (id) => {
-  		if (navigator.clipboard) {
-  			navigator.clipboard.readText().then((addr) => {
-  				document.querySelector(id).value = addr
+  	const pasteFromClipboard = (element, event) => {
+			event.preventDefault()
+			const id = element.dataset.id
+  		if (id && navigator.clipboard) {
+  			navigator.clipboard.readText().then((data) => {
+  				document.getElementById(id).value = data
   			})
   		}
   	}
   
+  	const prettyNum = (num, maximumFractionDigits = 2) => {
+  		if (!num) return '0'
+  		return new Intl.NumberFormat('en', {
+  			style: 'decimal',
+  			maximumFractionDigits,
+  		}).format(num)
+  	}
+  
+  	const redirect = (path) => {
+  		const url = new URL(window.location.href)
+  		const params = new URLSearchParams(url.search);
+  		const serverUrl = params.get('serverurl')
+  		window.location.href = path + (serverUrl ? `/?serverurl=${serverUrl}` : '')
+  	}
+  
+	  const scanCodeWithCamera = (element, event) => {
+			event.preventDefault()
+			const id = element.dataset.id
+			console.log('id', id)
+			if (id) document.getElementById(id).value = `TODO ${id}`
+		}
+
   	const setMaxValue = (val = 0) => {
   		const sats = val || document.querySelector('#amount').getAttribute('max')
   		if (isNaN(sats)) return
@@ -151,6 +165,11 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
   		document.querySelector('#sats').value = sats
   		document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
   		document.querySelector('#amount').dispatchEvent(new Event('change'))
+  	}
+  
+  	const showTx = (el) => {
+  		const txid = el.getAttribute("txid")
+  		if (txid) redirect(`/tx/${txid}`)
   	}
   
   	// change between btc and sat
@@ -188,6 +207,10 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
   		})
   	}
   
+  	const toSatoshis = (btc) => {
+  		return Decimal.mul(btc, 100_000_000).toNumber()
+  	}
+  
   	// this function finds every crypto amount in the dom and make it use
   	// the preferred unit choosen in settings: sats or btc
   	const updateCryptoValues = () => {
@@ -216,17 +239,6 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
   				})
   			})
   		})
-  	}
-  
-  	const notImplemented = (event) => {
-  		event.preventDefault()
-  		document.querySelector("#toast").innerHTML = '<p class="border border-1 border border-red/20 bg-errorbg capitalize   text-red px-2 py-1 rounded-md mx-auto">Not implemented</p>'
-  		setTimeout(() => document.querySelector("#toast").innerHTML = "", toastTimeout)
-  	}
-  
-  	const showTx = (el) => {
-  		const txid = el.getAttribute("txid")
-  		if (txid) redirect(`/tx/${txid}`)
   	}
   
   	document.addEventListener('htmx:load', () => {

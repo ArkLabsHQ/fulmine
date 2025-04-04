@@ -535,7 +535,7 @@ func SettingsServerContent(settings domain.Settings) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"border border-1 border-white/50 flex bg-graybg items-center justify-between rounded-lg gap-4 pr-3 focus:border-orange\"><input class=\"border-0 bg-graybg p-4 rounded-lg text-white/50 focus:text-white max-w-96\" id=\"serverlink\" name=\"serverlink\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"border border-1 border-white/50 flex bg-graybg items-center justify-between rounded-lg gap-4 pr-3 focus:border-orange\"><input class=\"border-0 bg-graybg p-4 rounded-lg text-white/50 focus:text-white max-w-96\" id=\"link\" name=\"serverlink\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -548,7 +548,7 @@ func SettingsServerContent(settings domain.Settings) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\"><div class=\"flex items-center gap-4 text-white/50\"><p class=\"cursor-pointer\" onclick=\"pasteFromClipboard(&#39;#serverlink&#39;)\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\"><div class=\"cursor-pointer flex items-center gap-4 text-white/50\"><p data-id=\"link\" data-needs=\"clipboard\" onclick=\"pasteFromClipboard(this, event)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -556,7 +556,7 @@ func SettingsServerContent(settings domain.Settings) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</p><p class=\"cursor-pointer\" onclick=\"notImplemented(event)\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</p><p data-id=\"link\" data-needs=\"camera\" onclick=\"scanCodeWithCamera(this, event)\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -679,7 +679,7 @@ func SettingsLightningContent(settings domain.Settings, nodeStatus bool) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.LnConnectButtons().Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = components.LnConnectButtons("lnurl").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
