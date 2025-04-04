@@ -249,8 +249,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	s.schedulerSvc.Start()
 	log.Info("scheduler started")
 
-	err = s.ScheduleClaims(ctx)
-	if err != nil {
+	if err := s.ScheduleNextSettlement(ctx); err != nil {
 		log.WithError(err).Info("schedule next claim failed")
 	}
 
@@ -392,21 +391,16 @@ func (s *Service) Settle(ctx context.Context) (string, error) {
 
 	roundTxid, err := s.ArkClient.Settle(ctx)
 	if err == nil {
-		err := s.ScheduleClaims(ctx)
-		if err != nil {
+		// if settlement was successful, schedule the next one
+		if err := s.ScheduleNextSettlement(ctx); err != nil {
 			log.WithError(err).Warn("error scheduling next claims")
 		}
 	}
 	return roundTxid, err
 }
 
-func (s *Service) ScheduleClaims(ctx context.Context) error {
+func (s *Service) ScheduleNextSettlement(ctx context.Context) error {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return err
-	}
-
-	spendableVtxos, _, err := s.ArkClient.ListVtxos(ctx)
-	if err != nil {
 		return err
 	}
 
@@ -423,11 +417,11 @@ func (s *Service) ScheduleClaims(ctx context.Context) error {
 		}
 	}
 
-	return s.schedulerSvc.ScheduleNextClaim(spendableVtxos, data, task)
+	return s.schedulerSvc.ScheduleNextSettlement(data, task)
 }
 
-func (s *Service) WhenNextClaim(ctx context.Context) (*time.Time, error) {
-	return s.schedulerSvc.WhenNextClaim()
+func (s *Service) WhenNextSettlement(ctx context.Context) (*time.Time, error) {
+	return s.schedulerSvc.WhenNextSettlement()
 }
 
 func (s *Service) ConnectLN(ctx context.Context, connectUrl string) error {

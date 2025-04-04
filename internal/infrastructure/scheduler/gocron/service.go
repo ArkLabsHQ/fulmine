@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
-	"github.com/ark-network/ark/pkg/client-sdk/client"
+	"github.com/ark-network/ark/common"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/go-co-op/gocron"
 )
@@ -29,22 +29,17 @@ func (s *service) Stop() {
 	s.scheduler.Stop()
 }
 
-// Sets a ClaimPending() to run in the best market hour
-// Besides claiming, ClaimPending() also calls this function
-func (s *service) ScheduleNextClaim(spendableVtxos []client.Vtxo, cfg *types.Config, claimFunc func()) error {
-	if len(spendableVtxos) == 0 {
-		return nil
+// ScheduleNextSettlement schedules a Settle() to run in the best market hour
+func (s *service) ScheduleNextSettlement(cfg *types.Config, settleFunc func()) error {
+	if cfg.VtxoTreeExpiry.Type == common.LocktimeTypeBlock {
+		return fmt.Errorf("vtxo tree expiry type 'block' not supported")
 	}
 
-	var at *time.Time
+	expiry := cfg.VtxoTreeExpiry.Seconds()
+	nextExpiry := time.Now().Unix() + expiry
+	nextSettle := nextExpiry - 60 // 1 min before the expiry
 
-	for _, vtxo := range spendableVtxos {
-		if at == nil || vtxo.ExpiresAt.Before(*at) {
-			at = &vtxo.ExpiresAt
-		}
-	}
-
-	bestTime := bestMarketHour(at.Unix(), cfg.MarketHourStartTime, cfg.MarketHourPeriod)
+	bestTime := bestMarketHour(nextSettle, cfg.MarketHourStartTime, cfg.MarketHourPeriod)
 	delay := bestTime - time.Now().Unix()
 	if delay < 0 {
 		return fmt.Errorf("cannot schedule task in the past")
@@ -52,7 +47,7 @@ func (s *service) ScheduleNextClaim(spendableVtxos []client.Vtxo, cfg *types.Con
 
 	s.scheduler.Remove(s.job)
 
-	job, err := s.scheduler.Every(int(delay)).Seconds().WaitForSchedule().LimitRunsTo(1).Do(claimFunc)
+	job, err := s.scheduler.Every(int(delay)).Seconds().WaitForSchedule().LimitRunsTo(1).Do(settleFunc)
 	if err != nil {
 		return err
 	}
@@ -62,7 +57,8 @@ func (s *service) ScheduleNextClaim(spendableVtxos []client.Vtxo, cfg *types.Con
 	return err
 }
 
-func (s *service) WhenNextClaim() (*time.Time, error) {
+// WhenNextSettlement returns the next scheduled settlement time
+func (s *service) WhenNextSettlement() (*time.Time, error) {
 	if s.job == nil {
 		return nil, fmt.Errorf("no job scheduled")
 	}

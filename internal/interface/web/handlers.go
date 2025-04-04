@@ -628,14 +628,14 @@ func (s *service) getTx(c *gin.Context) {
 	if len(tx.Txid) == 0 {
 		bodyContent = pages.TxNotFoundContent()
 	} else if tx.Status == "pending" {
-		var nextClaimStr string
-		nextClaim, err := s.svc.WhenNextClaim(c)
+		var nextSettlementStr string
+		nextSettlement, err := s.svc.WhenNextSettlement(c)
 		if err != nil {
-			nextClaimStr = "unknown"
+			nextSettlementStr = "unknown"
 		} else {
-			nextClaimStr = prettyUnixTimestamp(nextClaim.Unix())
+			nextSettlementStr = prettyUnixTimestamp(nextSettlement.Unix())
 		}
-		bodyContent = pages.TxPendingContent(tx, nextClaimStr)
+		bodyContent = pages.TxPendingContent(tx, nextSettlementStr)
 	} else {
 		bodyContent = pages.TxBodyContent(tx, explorerUrl)
 	}
