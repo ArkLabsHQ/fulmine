@@ -641,8 +641,8 @@ func (s *service) getTx(c *gin.Context) {
 			} else {
 				// TODO: use boardingExitDelay https://github.com/ark-network/ark/pull/501
 				boardingTimelock := common.RelativeLocktime{Type: data.UnilateralExitDelay.Type, Value: data.UnilateralExitDelay.Value * 2}
-				closedBoardingSettlement := time.Now().Add(time.Duration(boardingTimelock.Seconds()) * time.Second)
-				nextSettlement = &closedBoardingSettlement
+				closeToBoardingSettlement := time.Now().Add(time.Duration(boardingTimelock.Seconds()) * time.Second)
+				nextSettlement = &closeToBoardingSettlement
 			}
 		}
 
