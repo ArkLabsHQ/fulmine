@@ -788,6 +788,12 @@ func (s *service) pageViewHandler(bodyContent templ.Component, c *gin.Context) {
 	}
 }
 
+func (s *service) scannerModal(c *gin.Context) {
+	id := c.Param("id")
+	scan := modals.Scanner(id)
+	modalHandler(scan, c)
+}
+
 func (s *service) seedInfoModal(c *gin.Context) {
 	seed, err := s.svc.ArkClient.Dump(c)
 	if err != nil {

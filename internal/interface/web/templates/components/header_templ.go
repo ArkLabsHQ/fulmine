@@ -188,7 +188,7 @@ func HeaderWithActionTemplate(title string, backPath templ.SafeURL, buttons temp
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div></div><script>\n    const showOptions = () => {\n      event.stopPropagation()\n      const options = document.getElementById('options')\n      options.classList.toggle('hidden')\n    }\n  </script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

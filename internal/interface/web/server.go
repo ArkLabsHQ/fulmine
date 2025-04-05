@@ -98,6 +98,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.GET("/modal/feeinfo", svc.feeInfoModal)
 	svc.GET("/modal/lnconnectinfo", svc.lnConnectInfoModal)
 	svc.GET("/modal/reversibleinfo", svc.reversibleInfoModal)
+	svc.GET("/modal/scanner/:id", svc.scannerModal)
 	svc.GET("/modal/seedinfo", svc.seedInfoModal)
 
 	svc.POST("/initialize", svc.initialize)

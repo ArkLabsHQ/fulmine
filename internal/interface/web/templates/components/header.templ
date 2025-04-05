@@ -31,13 +31,6 @@ templ HeaderWithActionTemplate(title string, backPath templ.SafeURL, buttons tem
 		  @buttons
 		</div>
 	</div>
-	<script>
-    const showOptions = () => {
-      event.stopPropagation()
-      const options = document.getElementById('options')
-      options.classList.toggle('hidden')
-    }
-  </script>
 }
 
 templ HeaderWithAction(title string, buttons templ.Component, backPath ...string) {

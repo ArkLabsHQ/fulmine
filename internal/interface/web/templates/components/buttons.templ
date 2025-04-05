@@ -110,7 +110,12 @@ templ CopyButtonText(payload string) {
 }
 
 templ CopyWidget(payload string) {
-  <p class="text-white/50" data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
+  <p
+	  class="cursor-pointer text-white/50"
+		data-needs="clipboard"
+		data-value={payload}
+		onclick="copyToClipboard(this, event)"
+	>
     <span data-kind="copy">@CopyIcon()</span>
 	  <span data-kind="done" class="hidden">@CheckMarkIcon()</span>
   </p>
@@ -127,11 +132,27 @@ templ LnConnectButtons(id string) {
 	)
 }
 
+templ PasteWidget(id string) {
+  <p class="cursor-pointer" data-id={id} data-needs="clipboard" onclick="pasteFromClipboard(this, event)">
+	  @PasteIcon()
+	</p>    
+}
+
 templ ScanButton(id string) {
-	<button class="bg-graybg flex md:w-auto" data-id={id} data-needs="camera" onclick="scanCodeWithCamera(this, event)">
-	  @ScanIconXL()	
-	  <span class="ml-2">Scan</span>
-	</button>
+	<a data-needs="camera" hx-get={"/modal/scanner/" + id} hx-target="#modal">
+		<div class="border border-2 border-white/20 bg-graybg rounded-lg hover:border-hover">
+			<div class="flex items-center justify-center p-4">
+				@ScanIcon()
+				<span class="ml-2">Scan</span>
+			</div>
+		</div>
+	</a>
+}
+
+templ ScanWidget(id string) {
+	<a data-needs="camera" hx-get={"/modal/scanner/" + id} hx-target="#modal">
+    <p class="text-white/50">@CopyIcon()</p>
+	</a>
 }
 
 templ SettingsButton() {
