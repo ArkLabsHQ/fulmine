@@ -84,9 +84,9 @@ templ WaitingTxIcon() {
 }
 
 templ Tx(tx types.Transaction, explorerUrl string) {
-  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+  <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div>
-      @Header("Transaction details")
+      @HeaderWithAction("Transaction details", ViewTxButtonAction(tx.Txid, explorerUrl))
       <div class="flex flex-col items-center">
         @TxIcon(tx.Kind, tx.Status)
         <p class="mt-4 capitalize">{tx.Kind}</p>
@@ -102,6 +102,5 @@ templ Tx(tx types.Transaction, explorerUrl string) {
         }
       </div>
     </div>
-    @ViewTxButton(tx.Txid, explorerUrl)
 	</div>
 } 

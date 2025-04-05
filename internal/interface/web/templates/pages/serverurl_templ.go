@@ -63,7 +63,7 @@ func ServerUrlBodyContent(serverUrl, privateKey, password string) templ.Componen
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = LogoWhite().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = BigLogo().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

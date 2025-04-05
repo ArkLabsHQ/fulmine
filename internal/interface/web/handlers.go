@@ -639,7 +639,7 @@ func (s *service) getTx(c *gin.Context) {
 		} else {
 			nextClaimStr = prettyUnixTimestamp(nextClaim.Unix())
 		}
-		bodyContent = pages.TxPendingContent(tx, nextClaimStr)
+		bodyContent = pages.TxPendingContent(tx, explorerUrl, nextClaimStr)
 	} else {
 		bodyContent = pages.TxBodyContent(tx, explorerUrl)
 	}
@@ -786,6 +786,12 @@ func (s *service) pageViewHandler(bodyContent templ.Component, c *gin.Context) {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
+}
+
+func (s *service) scannerModal(c *gin.Context) {
+	id := c.Param("id")
+	scan := modals.Scanner(id)
+	modalHandler(scan, c)
 }
 
 func (s *service) seedInfoModal(c *gin.Context) {

@@ -1,12 +1,42 @@
 package components
 
-templ Header(title string, backPath ...string) {
-	<div class="grid grid-cols-[1fr_6fr_1fr] items-center w-full mb-8">
-	  if len(backPath) > 0 {
-	    <a href={templ.URL(backPath[0])}>@BackIcon()</a>
-		} else {
-	    <a href="/">@BackIcon()</a>
+templ HeaderTemplate(title string, backPath templ.SafeURL, action ...templ.Component) {
+	<div class="grid grid-cols-[2fr_4fr_2fr] items-center h-[40px] w-full mb-8">
+	  <a href={backPath}>@BackButton()</a>
+		<h1 class="text-xl text-center font-semibold">{title}</h1>
+		if len(action) > 0 {
+			<div class="flex justify-end overflow-visible">
+			  @action[0]
+			</div>
 		}
-		<h1 class="text-lg text-center font-semibold">{title}</h1>
 	</div>
+}
+
+templ Header(title string, backPath ...string) {
+	if len(backPath) > 0 {
+	  @HeaderTemplate(title, templ.URL(backPath[0]))
+	} else {
+	  @HeaderTemplate(title, templ.URL("/"))
+	}
+}
+
+templ HeaderWithActionTemplate(title string, backPath templ.SafeURL, buttons templ.Component ) {
+	<div class="h-[40px] w-full mb-8 overflow-visible">
+		<div class="grid grid-cols-[2fr_4fr_2fr] items-center h-[40px] w-full">
+			<a href={backPath}>@BackButton()</a>
+			<h1 class="text-xl text-center font-semibold">{title}</h1>
+			<div class="flex justify-end" onclick="showOptions()">@DotsButton()</div>
+		</div>
+		<div id="options" class="bg-graybg font-semibold hidden ml-auto w-48 mt-2 p-2 relative rounded-lg z-10">
+		  @buttons
+		</div>
+	</div>
+}
+
+templ HeaderWithAction(title string, buttons templ.Component, backPath ...string) {
+	if len(backPath) > 0 {
+	  @HeaderWithActionTemplate(title, templ.URL(backPath[0]), buttons)
+	} else {
+	  @HeaderWithActionTemplate(title, templ.URL("/"), buttons)
+	}
 }

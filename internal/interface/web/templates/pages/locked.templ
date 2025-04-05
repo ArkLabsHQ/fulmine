@@ -8,11 +8,11 @@ templ Unlock() {
   <form hx-post="/helpers/forgot" id="forgot"><button class="hidden" type="submit" /></form>
   <form hx-post="/helpers/unlock">
     <div class="bg-radial-gradient h-screen fullscreen">
-      <div class="flex flex-col h-screen justify-between md:h-auto md:gap-10 w-80 m-auto p-3">
+      <div class="flex flex-col justify-between h-screen justify-between md:h-[600px] md:gap-10 w-80 m-auto p-3">
         <div>
-          <div class="flex flex-col items-center">
-            @LogoWhite()
-            <p class="font-medium text-center text-3xl pb-8">Enter your password</p>
+          <div class="flex flex-col gap-12 items-center">
+            @BigLogo()
+            <p class="font-medium text-center text-3xl pb-8">Unlock your wallet</p>
           </div>
           <div>
             @components.Label("Password")
@@ -42,4 +42,9 @@ templ Unlock() {
       }
     </script>
   </form>
+  <script>
+    function resetWallet() {
+      document.getElementById("forgot").querySelector("button").click()
+    }
+  </script>
 }

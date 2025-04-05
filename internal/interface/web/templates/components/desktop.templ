@@ -3,16 +3,13 @@ package components
 templ DesktopHeader() {
 	<div class="hidden md:flex justify-between items-center p-3 mb-2 bg-desktopbg rounded-lg w-full">
 	  <a href="/">
-		  <div class="flex items-center text-orange">
-	      @Logo()
-		  	<div>
-		  	  <p class="leading-4 font-bold">ARK</p>
-		  		<p class="leading-4 font-bold">NODE</p>
-		  	</div>
+		  <div class="flex gap-2 items-center text-orange">
+	      @LogoOrange()
+		  	@LogoNameSmall()
 		  </div>
 		</a>
 		<a href="/settings/general">
-      @SettingsIcon()
+      @SettingsButton()
 		</a>
 	</div>
 }

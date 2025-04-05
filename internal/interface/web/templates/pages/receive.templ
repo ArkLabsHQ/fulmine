@@ -71,9 +71,7 @@ templ ReceiveSuccessContent(offchainAddr, sats string) {
 			<div class="flex mt-8 w-64 gap-2">
 			  <p class="text-white/50">to</p>
 				<p class="overflow-hidden text-ellipsis whitespace-nowrap" id="recvAddress">{offchainAddr}</p>
-				<p class="text-white/50" data-needs="clipboard" onclick="copyToClipboard('#recvAddress')">
-					@components.CopyIcon()
-				</p>
+				@components.CopyWidget(offchainAddr)
 			</div>
 		</div>
 	</div>

@@ -20,6 +20,7 @@ module.exports = {
         desktopbg: '#1b1c1e',
         toastbg: '#1c3c0e',
         errorbg: '#330f0f',
+        hover: '#bc3f20',
       },
     },
   },
