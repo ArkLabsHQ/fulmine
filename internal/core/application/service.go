@@ -1273,13 +1273,11 @@ func (s *Service) handleAddressEventChannel(eventsCh <-chan client.AddressEvent,
 
 		// non-blocking forward to notifications channel
 		go func() {
-			log.Infof("forwarding notification to notifications channel")
 			s.notifications <- Notification{
 				Address:    addr,
 				NewVtxos:   event.NewVtxos,
 				SpentVtxos: event.SpentVtxos,
 			}
-			log.Infof("forwarded notification to notifications channel")
 		}()
 	}
 }
