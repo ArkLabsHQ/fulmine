@@ -994,7 +994,7 @@ func SettingsIcon() templ.Component {
 	})
 }
 
-func SettleIcon() templ.Component {
+func ShareIcon() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1015,36 +1015,7 @@ func SettleIcon() templ.Component {
 			templ_7745c5c3_Var35 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<svg width=\"70\" height=\"70\" viewBox=\"0 0 70 70\" xmlns=\"http://www.w3.org/2000/svg\"><defs><style>\n        @keyframes loadership_OUZSK_spin {\n          0% { transform: rotate(0deg); }\n          100% { transform: rotate(360deg); }\n        }\n        #clip_OUZSK {\n          clip-path: polygon(50% 50%, 0 0, 100% 0, 100% 20.00%);\n        }\n      </style><clipPath id=\"clipPath_OUZSK\"><path d=\"M35,35 L0,0 L70,0 L70,14.00 Z\"></path></clipPath></defs> <circle cx=\"35\" cy=\"35\" r=\"30\" fill=\"none\" stroke=\"#fc8d4e33\" stroke-width=\"10\"></circle> <circle cx=\"35\" cy=\"35\" r=\"30\" fill=\"none\" stroke=\"#fc8d4e\" stroke-width=\"10\" clip-path=\"url(#clipPath_OUZSK)\" style=\"animation:loadership_OUZSK_spin 1.2s linear infinite;transform-origin:35px 35px\"></circle></svg>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
-func ShareIcon() templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var36 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var36 == nil {
-			templ_7745c5c3_Var36 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<div class=\"flex items-center w-10 h-10 bg-white/10 rounded-full ml-auto\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 mx-auto text-white/50\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M11.293 2.293a1 1 0 0 1 1.414 0l3 3a1 1 0 0 1-1.414 1.414L13 5.414V15a1 1 0 1 1-2 0V5.414L9.707 6.707a1 1 0 0 1-1.414-1.414l3-3zM4 11a2 2 0 0 1 2-2h2a1 1 0 0 1 0 2H6v9h12v-9h-2a1 1 0 1 1 0-2h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9z\"></path></svg></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"flex items-center w-10 h-10 bg-white/10 rounded-full ml-auto\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 mx-auto text-white/50\" viewBox=\"0 0 24 24\"><path fill=\"currentColor\" d=\"M11.293 2.293a1 1 0 0 1 1.414 0l3 3a1 1 0 0 1-1.414 1.414L13 5.414V15a1 1 0 1 1-2 0V5.414L9.707 6.707a1 1 0 0 1-1.414-1.414l3-3zM4 11a2 2 0 0 1 2-2h2a1 1 0 0 1 0 2H6v9h12v-9h-2a1 1 0 1 1 0-2h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9z\"></path></svg></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1068,12 +1039,12 @@ func SwapIcon() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var37 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var37 == nil {
-			templ_7745c5c3_Var37 = templ.NopComponent
+		templ_7745c5c3_Var36 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var36 == nil {
+			templ_7745c5c3_Var36 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"w-4 h-4 mr-1 inline\" viewBox=\"0 0 20 20\"><g fill=\"none\" fill-rule=\"evenodd\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M13 8h5V3\"></path> <path d=\"M18 8c-2.837-3.333-5.67-5-8.5-5S4.17 4 2 6m4.5 5.5h-5v5\"></path> <path d=\"M1.5 11.5c2.837 3.333 5.67 5 8.5 5s5.33-1 7.5-3\"></path></g></svg>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<svg xmlns=\"http://www.w3.org/2000/svg\" class=\"w-4 h-4 mr-1 inline\" viewBox=\"0 0 20 20\"><g fill=\"none\" fill-rule=\"evenodd\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\"><path d=\"M13 8h5V3\"></path> <path d=\"M18 8c-2.837-3.333-5.67-5-8.5-5S4.17 4 2 6m4.5 5.5h-5v5\"></path> <path d=\"M1.5 11.5c2.837 3.333 5.67 5 8.5 5s5.33-1 7.5-3\"></path></g></svg>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1097,12 +1068,12 @@ func TwitterIcon() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var38 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var38 == nil {
-			templ_7745c5c3_Var38 = templ.NopComponent
+		templ_7745c5c3_Var37 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var37 == nil {
+			templ_7745c5c3_Var37 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<svg class=\"w-8 h-8 mr-1 inline\" viewBox=\"0 0 37 37\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g clip-path=\"url(#clip0_731_1274)\"><path d=\"M24.25 9.4375H27.3175L20.6175 17.115L28.5 27.5625H22.3287L17.495 21.225L11.9637 27.5625H8.895L16.0612 19.35L8.5 9.4375H14.8288L19.1975 15.2287L24.25 9.4375ZM23.175 25.7225H24.875L13.9037 11.1812H12.0812L23.175 25.7225Z\" fill=\"#FBFBFB\" fill-opacity=\"0.7\"></path></g> <defs><clipPath id=\"clip0_731_1274\"><rect width=\"20\" height=\"20\" fill=\"white\" transform=\"translate(8.5 8.5)\"></rect></clipPath></defs></svg>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<svg class=\"w-8 h-8 mr-1 inline\" viewBox=\"0 0 37 37\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><g clip-path=\"url(#clip0_731_1274)\"><path d=\"M24.25 9.4375H27.3175L20.6175 17.115L28.5 27.5625H22.3287L17.495 21.225L11.9637 27.5625H8.895L16.0612 19.35L8.5 9.4375H14.8288L19.1975 15.2287L24.25 9.4375ZM23.175 25.7225H24.875L13.9037 11.1812H12.0812L23.175 25.7225Z\" fill=\"#FBFBFB\" fill-opacity=\"0.7\"></path></g> <defs><clipPath id=\"clip0_731_1274\"><rect width=\"20\" height=\"20\" fill=\"white\" transform=\"translate(8.5 8.5)\"></rect></clipPath></defs></svg>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1126,12 +1097,12 @@ func SpinnerIconOrange() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var39 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var39 == nil {
-			templ_7745c5c3_Var39 = templ.NopComponent
+		templ_7745c5c3_Var38 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var38 == nil {
+			templ_7745c5c3_Var38 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<svg width=\"72\" height=\"72\" viewBox=\"0 0 72 72\" xmlns=\"http://www.w3.org/2000/svg\"><defs><style>\n        @keyframes loadership_OUZSK_spin {\n          0% {\n            transform: rotate(0deg);\n          }\n          100% {\n            transform: rotate(360deg);\n          }\n        }\n\n        #clip_OUZSK {\n          clip-path: polygon(50% 50%, 0 0, 84% 0);\n        }\n      </style><clipPath id=\"clipPath_OUZSK\"><path d=\"M36,36 L0,0 L60.48,0 Z\"></path></clipPath></defs> <circle cx=\"36\" cy=\"36\" r=\"30\" fill=\"none\" stroke=\"#fc8d4e36\" stroke-width=\"12\"></circle> <circle cx=\"36\" cy=\"36\" r=\"30\" fill=\"none\" stroke=\"#fc8d4e\" stroke-width=\"12\" clip-path=\"url(#clipPath_OUZSK)\" style=\"\n        animation: loadership_OUZSK_spin 1.2s linear infinite;\n        transform-origin: 36px 36px;\n      \"></circle></svg>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<svg width=\"60\" height=\"60\" viewBox=\"0 0 60 60\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><defs><style>\n        .rotating {\n          transform-origin: center;\n          animation: spinner 1.2s infinite linear;\n        }\n        @keyframes spinner{\n          100% {\n            transform: rotate(360deg)\n          }\n        }\n      </style></defs> <g clip-path=\"url(#paint0_angular_2109_1296_clip_path)\" data-figma-skip-parse=\"true\"><g transform=\"matrix(0.0291667 0 0 0.0291667 30.0026 29.9992)\"><foreignObject x=\"-1000\" y=\"-1000\" width=\"2000\" height=\"2000\"><div xmlns=\"http://www.w3.org/1999/xhtml\" style=\"background:conic-gradient(from 90deg,rgba(252, 141, 78, 0.0001) 0deg,rgba(252, 141, 78, 1) 359.964deg,rgba(252, 141, 78, 0.0001) 360deg);height:100%;width:100%;opacity:1\" class=\"rotating\"></div></foreignObject></g></g> <path d=\"M59.1693 29.9992C59.1693 46.1075 46.1109 59.1658 30.0026 59.1658C13.8943 59.1658 0.835938 46.1075 0.835938 29.9992C0.835938 13.8909 13.8943 0.83252 30.0026 0.83252C46.1109 0.83252 59.1693 13.8909 59.1693 29.9992ZM11.0443 29.9992C11.0443 40.4696 19.5322 48.9575 30.0026 48.9575C40.473 48.9575 48.9609 40.4696 48.9609 29.9992C48.9609 19.5288 40.473 11.0409 30.0026 11.0409C19.5322 11.0409 11.0443 19.5288 11.0443 29.9992Z\" data-figma-gradient-fill=\"{&#34;type&#34;:&#34;GRADIENT_ANGULAR&#34;,&#34;stops&#34;:[{&#34;color&#34;:{&#34;r&#34;:0.98823529481887817,&#34;g&#34;:0.55294120311737061,&#34;b&#34;:0.30588236451148987,&#34;a&#34;:1.0},&#34;position&#34;:0.99989998340606689},{&#34;color&#34;:{&#34;r&#34;:0.98823529481887817,&#34;g&#34;:0.55294120311737061,&#34;b&#34;:0.30588236451148987,&#34;a&#34;:9.9999997473787516e-05},&#34;position&#34;:1.0}],&#34;stopsVar&#34;:[{&#34;color&#34;:{&#34;r&#34;:0.98823529481887817,&#34;g&#34;:0.55294120311737061,&#34;b&#34;:0.30588236451148987,&#34;a&#34;:1.0},&#34;position&#34;:0.99989998340606689},{&#34;color&#34;:{&#34;r&#34;:0.98823529481887817,&#34;g&#34;:0.55294120311737061,&#34;b&#34;:0.30588236451148987,&#34;a&#34;:9.9999997473787516e-05},&#34;position&#34;:1.0}],&#34;transform&#34;:{&#34;m00&#34;:58.333328247070312,&#34;m01&#34;:0.0,&#34;m02&#34;:0.83593750,&#34;m10&#34;:0.0,&#34;m11&#34;:58.333328247070312,&#34;m12&#34;:0.832519531250},&#34;opacity&#34;:1.0,&#34;blendMode&#34;:&#34;NORMAL&#34;,&#34;visible&#34;:true}\"></path> <defs><clipPath id=\"paint0_angular_2109_1296_clip_path\"><path d=\"M59.1693 29.9992C59.1693 46.1075 46.1109 59.1658 30.0026 59.1658C13.8943 59.1658 0.835938 46.1075 0.835938 29.9992C0.835938 13.8909 13.8943 0.83252 30.0026 0.83252C46.1109 0.83252 59.1693 13.8909 59.1693 29.9992ZM11.0443 29.9992C11.0443 40.4696 19.5322 48.9575 30.0026 48.9575C40.473 48.9575 48.9609 40.4696 48.9609 29.9992C48.9609 19.5288 40.473 11.0409 30.0026 11.0409C19.5322 11.0409 11.0443 19.5288 11.0443 29.9992Z\"></path></clipPath></defs></svg>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1155,12 +1126,12 @@ func WarningIcon() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var40 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var40 == nil {
-			templ_7745c5c3_Var40 = templ.NopComponent
+		templ_7745c5c3_Var39 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var39 == nil {
+			templ_7745c5c3_Var39 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M18.5008 14.6945L11.6688 2.82968C11.4981 2.53899 11.2544 2.29797 10.9618 2.13051C10.6692 1.96304 10.3379 1.87494 10.0008 1.87494C9.66373 1.87494 9.33247 1.96304 9.0399 2.13051C8.74732 2.29797 8.50359 2.53899 8.33287 2.82968L1.50084 14.6945C1.33657 14.9757 1.25 15.2955 1.25 15.6211C1.25 15.9467 1.33657 16.2665 1.50084 16.5476C1.66938 16.8401 1.91269 17.0824 2.20581 17.2498C2.49893 17.4171 2.83129 17.5035 3.16881 17.5H16.8329C17.1701 17.5032 17.5022 17.4167 17.795 17.2494C18.0878 17.082 18.3309 16.8399 18.4993 16.5476C18.6638 16.2666 18.7506 15.9469 18.7509 15.6213C18.7512 15.2957 18.6649 14.9758 18.5008 14.6945ZM17.4172 15.9219C17.3577 16.0235 17.2722 16.1074 17.1695 16.1651C17.0668 16.2227 16.9506 16.252 16.8329 16.25H3.16881C3.05105 16.252 2.93488 16.2227 2.83219 16.1651C2.7295 16.1074 2.64399 16.0235 2.58443 15.9219C2.53048 15.8305 2.50202 15.7264 2.50202 15.6203C2.50202 15.5142 2.53048 15.4101 2.58443 15.3187L9.41646 3.4539C9.47723 3.35278 9.56312 3.26911 9.6658 3.21102C9.76847 3.15294 9.88443 3.12241 10.0024 3.12241C10.1204 3.12241 10.2363 3.15294 10.339 3.21102C10.4417 3.26911 10.5276 3.35278 10.5883 3.4539L17.4204 15.3187C17.4738 15.4104 17.5018 15.5146 17.5012 15.6207C17.5007 15.7268 17.4717 15.8308 17.4172 15.9219ZM9.37584 11.25V8.12499C9.37584 7.95923 9.44169 7.80026 9.5589 7.68305C9.67611 7.56584 9.83508 7.49999 10.0008 7.49999C10.1666 7.49999 10.3256 7.56584 10.4428 7.68305C10.56 7.80026 10.6258 7.95923 10.6258 8.12499V11.25C10.6258 11.4158 10.56 11.5747 10.4428 11.6919C10.3256 11.8091 10.1666 11.875 10.0008 11.875C9.83508 11.875 9.67611 11.8091 9.5589 11.6919C9.44169 11.5747 9.37584 11.4158 9.37584 11.25ZM10.9383 14.0625C10.9383 14.2479 10.8834 14.4292 10.7803 14.5833C10.6773 14.7375 10.5309 14.8577 10.3596 14.9286C10.1883 14.9996 9.9998 15.0182 9.81794 14.982C9.63608 14.9458 9.46904 14.8565 9.33792 14.7254C9.20681 14.5943 9.11753 14.4272 9.08135 14.2454C9.04518 14.0635 9.06374 13.875 9.1347 13.7037C9.20566 13.5324 9.32582 13.386 9.47999 13.283C9.63416 13.18 9.81542 13.125 10.0008 13.125C10.2495 13.125 10.4879 13.2238 10.6637 13.3996C10.8396 13.5754 10.9383 13.8138 10.9383 14.0625Z\" fill=\"currentColor\"></path></svg>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M18.5008 14.6945L11.6688 2.82968C11.4981 2.53899 11.2544 2.29797 10.9618 2.13051C10.6692 1.96304 10.3379 1.87494 10.0008 1.87494C9.66373 1.87494 9.33247 1.96304 9.0399 2.13051C8.74732 2.29797 8.50359 2.53899 8.33287 2.82968L1.50084 14.6945C1.33657 14.9757 1.25 15.2955 1.25 15.6211C1.25 15.9467 1.33657 16.2665 1.50084 16.5476C1.66938 16.8401 1.91269 17.0824 2.20581 17.2498C2.49893 17.4171 2.83129 17.5035 3.16881 17.5H16.8329C17.1701 17.5032 17.5022 17.4167 17.795 17.2494C18.0878 17.082 18.3309 16.8399 18.4993 16.5476C18.6638 16.2666 18.7506 15.9469 18.7509 15.6213C18.7512 15.2957 18.6649 14.9758 18.5008 14.6945ZM17.4172 15.9219C17.3577 16.0235 17.2722 16.1074 17.1695 16.1651C17.0668 16.2227 16.9506 16.252 16.8329 16.25H3.16881C3.05105 16.252 2.93488 16.2227 2.83219 16.1651C2.7295 16.1074 2.64399 16.0235 2.58443 15.9219C2.53048 15.8305 2.50202 15.7264 2.50202 15.6203C2.50202 15.5142 2.53048 15.4101 2.58443 15.3187L9.41646 3.4539C9.47723 3.35278 9.56312 3.26911 9.6658 3.21102C9.76847 3.15294 9.88443 3.12241 10.0024 3.12241C10.1204 3.12241 10.2363 3.15294 10.339 3.21102C10.4417 3.26911 10.5276 3.35278 10.5883 3.4539L17.4204 15.3187C17.4738 15.4104 17.5018 15.5146 17.5012 15.6207C17.5007 15.7268 17.4717 15.8308 17.4172 15.9219ZM9.37584 11.25V8.12499C9.37584 7.95923 9.44169 7.80026 9.5589 7.68305C9.67611 7.56584 9.83508 7.49999 10.0008 7.49999C10.1666 7.49999 10.3256 7.56584 10.4428 7.68305C10.56 7.80026 10.6258 7.95923 10.6258 8.12499V11.25C10.6258 11.4158 10.56 11.5747 10.4428 11.6919C10.3256 11.8091 10.1666 11.875 10.0008 11.875C9.83508 11.875 9.67611 11.8091 9.5589 11.6919C9.44169 11.5747 9.37584 11.4158 9.37584 11.25ZM10.9383 14.0625C10.9383 14.2479 10.8834 14.4292 10.7803 14.5833C10.6773 14.7375 10.5309 14.8577 10.3596 14.9286C10.1883 14.9996 9.9998 15.0182 9.81794 14.982C9.63608 14.9458 9.46904 14.8565 9.33792 14.7254C9.20681 14.5943 9.11753 14.4272 9.08135 14.2454C9.04518 14.0635 9.06374 13.875 9.1347 13.7037C9.20566 13.5324 9.32582 13.386 9.47999 13.283C9.63416 13.18 9.81542 13.125 10.0008 13.125C10.2495 13.125 10.4879 13.2238 10.6637 13.3996C10.8396 13.5754 10.9383 13.8138 10.9383 14.0625Z\" fill=\"currentColor\"></path></svg>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

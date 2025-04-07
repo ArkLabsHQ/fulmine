@@ -278,52 +278,33 @@ templ TwitterIcon() {
 }
 
 templ SpinnerIconOrange() {
-  <svg
-    width="72"
-    height="72"
-    viewBox="0 0 72 72"
-    xmlns="http://www.w3.org/2000/svg"
-  >
+  <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <style>
-        @keyframes loadership_OUZSK_spin {
-          0% {
-            transform: rotate(0deg);
-          }
-          100% {
-            transform: rotate(360deg);
-          }
+        .rotating {
+          transform-origin: center;
+          animation: spinner 1.2s infinite linear;
         }
-
-        #clip_OUZSK {
-          clip-path: polygon(50% 50%, 0 0, 84% 0);
+        @keyframes spinner{
+          100% {
+            transform: rotate(360deg)
+          }
         }
       </style>
-      <clipPath id="clipPath_OUZSK">
-        <path d="M36,36 L0,0 L60.48,0 Z"></path>
+    </defs>
+    <g clip-path="url(#paint0_angular_2109_1296_clip_path)" data-figma-skip-parse="true">
+      <g transform="matrix(0.0291667 0 0 0.0291667 30.0026 29.9992)">
+        <foreignObject x="-1000" y="-1000" width="2000" height="2000">
+          <div xmlns="http://www.w3.org/1999/xhtml" style="background:conic-gradient(from 90deg,rgba(252, 141, 78, 0.0001) 0deg,rgba(252, 141, 78, 1) 359.964deg,rgba(252, 141, 78, 0.0001) 360deg);height:100%;width:100%;opacity:1" class="rotating" />
+        </foreignObject>
+      </g>
+    </g>
+    <path d="M59.1693 29.9992C59.1693 46.1075 46.1109 59.1658 30.0026 59.1658C13.8943 59.1658 0.835938 46.1075 0.835938 29.9992C0.835938 13.8909 13.8943 0.83252 30.0026 0.83252C46.1109 0.83252 59.1693 13.8909 59.1693 29.9992ZM11.0443 29.9992C11.0443 40.4696 19.5322 48.9575 30.0026 48.9575C40.473 48.9575 48.9609 40.4696 48.9609 29.9992C48.9609 19.5288 40.473 11.0409 30.0026 11.0409C19.5322 11.0409 11.0443 19.5288 11.0443 29.9992Z" data-figma-gradient-fill="{&#34;type&#34;:&#34;GRADIENT_ANGULAR&#34;,&#34;stops&#34;:[{&#34;color&#34;:{&#34;r&#34;:0.98823529481887817,&#34;g&#34;:0.55294120311737061,&#34;b&#34;:0.30588236451148987,&#34;a&#34;:1.0},&#34;position&#34;:0.99989998340606689},{&#34;color&#34;:{&#34;r&#34;:0.98823529481887817,&#34;g&#34;:0.55294120311737061,&#34;b&#34;:0.30588236451148987,&#34;a&#34;:9.9999997473787516e-05},&#34;position&#34;:1.0}],&#34;stopsVar&#34;:[{&#34;color&#34;:{&#34;r&#34;:0.98823529481887817,&#34;g&#34;:0.55294120311737061,&#34;b&#34;:0.30588236451148987,&#34;a&#34;:1.0},&#34;position&#34;:0.99989998340606689},{&#34;color&#34;:{&#34;r&#34;:0.98823529481887817,&#34;g&#34;:0.55294120311737061,&#34;b&#34;:0.30588236451148987,&#34;a&#34;:9.9999997473787516e-05},&#34;position&#34;:1.0}],&#34;transform&#34;:{&#34;m00&#34;:58.333328247070312,&#34;m01&#34;:0.0,&#34;m02&#34;:0.83593750,&#34;m10&#34;:0.0,&#34;m11&#34;:58.333328247070312,&#34;m12&#34;:0.832519531250},&#34;opacity&#34;:1.0,&#34;blendMode&#34;:&#34;NORMAL&#34;,&#34;visible&#34;:true}"/>
+    <defs>
+      <clipPath id="paint0_angular_2109_1296_clip_path">
+        <path d="M59.1693 29.9992C59.1693 46.1075 46.1109 59.1658 30.0026 59.1658C13.8943 59.1658 0.835938 46.1075 0.835938 29.9992C0.835938 13.8909 13.8943 0.83252 30.0026 0.83252C46.1109 0.83252 59.1693 13.8909 59.1693 29.9992ZM11.0443 29.9992C11.0443 40.4696 19.5322 48.9575 30.0026 48.9575C40.473 48.9575 48.9609 40.4696 48.9609 29.9992C48.9609 19.5288 40.473 11.0409 30.0026 11.0409C19.5322 11.0409 11.0443 19.5288 11.0443 29.9992Z"/>
       </clipPath>
     </defs>
-    <circle
-      cx="36"
-      cy="36"
-      r="30"
-      fill="none"
-      stroke="#fc8d4e36"
-      stroke-width="12"
-    ></circle>
-    <circle
-      cx="36"
-      cy="36"
-      r="30"
-      fill="none"
-      stroke="#fc8d4e"
-      stroke-width="12"
-      clip-path="url(#clipPath_OUZSK)"
-      style="
-        animation: loadership_OUZSK_spin 1.2s linear infinite;
-        transform-origin: 36px 36px;
-      "
-    ></circle>
   </svg>
 }
 
