@@ -169,4 +169,18 @@ templ SettingsLightningContent(settings domain.Settings, nodeStatus bool) {
       @components.LnConnectButtons("lnurl")
     }
   </form>
+  <script>
+    const validateCLNUrl = (lnurl) => lnurl.startsWith('clnconnect://')
+    const validateLNDUrl = (lnurl) => lnurl.startsWith('lndconnect://')
+    const isValidConnUrl = (lnurl) => validateCLNUrl(lnurl) || validateLNDUrl(lnurl)
+
+    const canConnect = () => {
+      const lnurl = document.querySelector('#lnurl').value
+      const button = document.querySelector('button[name="connect"]')
+      button.disabled = !isValidConnUrl(lnurl)
+      button.innerText = lnurl.length === 0 ? 'Add url' : 'Connect'
+    }
+
+    document.querySelector('#lnurl').addEventListener('change', canConnect)
+  </script>
 }

@@ -10,12 +10,6 @@ templ cancelButton(label string) {
 	<button class="bg-graybg md:w-auto" onclick="handleCancel(event)">{label}</button>
 }
 
-templ grayButton(label string) {
-	<button class="bg-graybg md:w-auto">
-	  {label}
-	</button>
-}
-
 templ greenButton(label string) {
 	<button
 	  class="bg-green md:w-auto"
@@ -95,6 +89,12 @@ templ BackButton() {
 	@iconButton(BackIcon())
 }
 
+templ ConnectButton() {
+	<button class="bg-graybg md:w-auto" name="continue">
+	  Connect
+	</button>
+}
+
 templ CopyButton(payload string) {
   <button class="bg-graybg p-2" data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
     <span data-kind="copy">@CopyIcon()</span>
@@ -127,7 +127,7 @@ templ DotsButton() {
 
 templ LnConnectButtons(id string) {
 	@twoButtonsContainer(
-		grayButton("Continue"),
+		ConnectButton(),
 		ScanButton(id),
 	)
 }
