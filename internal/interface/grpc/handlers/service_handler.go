@@ -59,6 +59,8 @@ func (h *serviceHandler) GetInfo(
 	if err == nil && data != nil {
 		// Only set Network field if we successfully got config data
 		response.Network = toNetworkProto(data.Network.Name)
+		response.AddrPrefix = data.Network.Addr
+		response.ServerUrl = data.ServerUrl
 	}
 
 	return response, nil
