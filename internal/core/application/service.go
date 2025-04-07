@@ -441,9 +441,11 @@ func (s *Service) scheduleNextSettlement(ctx context.Context, at time.Time, data
 	}
 
 	// if market hour is set, schedule the task at the best market hour = market hour closer to `at` timestamp
-	if data.MarketHourStartTime > 0 && data.MarketHourPeriod > 0 && at.Unix() > data.MarketHourStartTime {
-		cycles := int64(math.Floor(float64(at.Unix()-data.MarketHourStartTime) / float64(data.MarketHourPeriod)))
-		at = time.Unix(data.MarketHourStartTime+(cycles*data.MarketHourPeriod), 0)
+
+	marketHourStartTime := time.Unix(data.MarketHourStartTime, 0)
+	if !marketHourStartTime.IsZero() && data.MarketHourPeriod > 0 && at.After(marketHourStartTime) {
+		cycles := math.Floor(at.Sub(marketHourStartTime).Seconds() / float64(data.MarketHourPeriod))
+		at = marketHourStartTime.Add(time.Duration(cycles) * time.Duration(data.MarketHourPeriod) * time.Second)
 	}
 
 	return s.schedulerSvc.ScheduleNextSettlement(at, data, task)
