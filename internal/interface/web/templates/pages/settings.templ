@@ -9,8 +9,14 @@ templ Separator(text string) {
   <p class="uppercase text-sm text-white/50 my-4">{text}</p>
 }
 
-templ Status(ok bool, goodLabel, badLabel string) {
-  <div class="flex">
+templ Status(ok bool, goodLabel, badLabel string, pointer bool) {
+  <div 
+    if pointer {
+      class="flex cursor-pointer"
+    } else {
+      class="flex"
+    }
+  >
     if ok {
       <p class="flex p-2 rounded-lg bg-green/10 border border-1 border-green/50">
         <span class="text-green mr-2">&#9679;</span>
@@ -27,7 +33,7 @@ templ Status(ok bool, goodLabel, badLabel string) {
 
 templ StatusNode(connected bool) {
   <div class="mb-4">
-    @Status(connected, "Connected", "Disconnected")
+    @Status(connected, "Connected", "Disconnected", false)
   </div>
 }
 
@@ -39,7 +45,7 @@ templ StatusLock(locked bool) {
       onclick="redirect('/lock')"
     }
   >
-    @Status(!locked, "Unlocked", "Locked")
+    @Status(!locked, "Unlocked", "Locked", true)
   </div>
 }
 
