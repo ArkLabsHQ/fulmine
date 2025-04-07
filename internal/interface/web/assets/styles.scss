@@ -34,9 +34,12 @@ body {
   min-height: 100vh;
 }
 
+a {
+  cursor: pointer;
+}
+
 a.visible {
   color: #f28c52;
-  cursor: pointer;
   text-decoration: underline;
   &:hover {
     color: #f2bf52;
@@ -100,6 +103,8 @@ div:has(> input:not(.hidden):not(.unframed):focus) {
 
 #toast {
   display: flex;
+  max-width: 720px;
+  padding: 0 12px;
   position: fixed;
   top: 50px;
   width: 100%;
@@ -120,7 +125,7 @@ div:has(> input:not(.hidden):not(.unframed):focus) {
 
 button {
   border-radius: 8px;
-  border: 1px solid transparent;
+  border: 2px solid #fbfbfb33;
   cursor: pointer;
   display: block;
   font-size: 1em;
@@ -168,4 +173,11 @@ label {
 
 .htmx-request .showOnRequest {
   display: flex;
+}
+
+input[type=text]:focus,
+input[type=number]:focus,
+input[type=password]:focus {
+  border: none;
+  --tw-ring-shadow: none;
 }

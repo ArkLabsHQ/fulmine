@@ -6,10 +6,8 @@ script openInExplorer(txid, explorerUrl string) {
 
 // buttons
 
-templ grayButton(label string) {
-	<button class="bg-graybg md:w-auto">
-	  {label}
-	</button>
+templ cancelButton(label string) {
+	<button class="bg-graybg md:w-auto" onclick="handleCancel(event)">{label}</button>
 }
 
 templ greenButton(label string) {
@@ -21,11 +19,12 @@ templ greenButton(label string) {
 	</button>
 }
 
-templ iconButton(label string, icon templ.Component) {
-	<button class="bg-graybg flex md:w-auto">
-		@icon	
-	  <span class="ml-2">{label}</span>
-	</button>
+templ iconButton(icon templ.Component) {
+	<div class="border border-2 border-white/20 cursor-pointer w-10 h-10 bg-white/10 rounded-full hover:border-hover">
+	  <div class="flex items-center justify-center w-full h-full">
+	    @icon
+		</div>
+	</div>
 }
 
 templ orangeButton(label string, disabled []bool) {
@@ -38,10 +37,6 @@ templ orangeButton(label string, disabled []bool) {
 		type="submit">
 	  {label}
 	</button>
-}
-
-templ cancelButton(label string) {
-	<button class="bg-graybg md:w-auto" onclick="handleCancel(event)">{label}</button>
 }
 
 templ redirectButton(label string, disabled []bool) {
@@ -90,11 +85,84 @@ templ ActionButtons(label string, disabled ...bool) {
 	)
 }
 
-templ LnConnectButtons() {
+templ BackButton() {
+	@iconButton(BackIcon())
+}
+
+templ ConnectButton() {
+	<button class="bg-graybg md:w-auto" name="connect" hx-post="/helpers/node/connect">
+	  Connect
+	</button>
+}
+
+templ CopyButton(payload string) {
+  <button class="bg-graybg p-2" data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
+    <span data-kind="copy">@CopyIcon()</span>
+		<span data-kind="done" class="hidden">@CheckMarkIcon()</span>
+  </button>
+}
+
+templ CopyButtonText(payload string) {
+  <button class="bg-graybg" data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
+    @CopyIcon()
+    <span class="ml-2 buttonText">Copy</span>
+  </button>
+}
+
+templ CopyWidget(payload string) {
+  <p
+	  class="cursor-pointer text-white/50"
+		data-needs="clipboard"
+		data-value={payload}
+		onclick="copyToClipboard(this, event)"
+	>
+    <span data-kind="copy">@CopyIcon()</span>
+	  <span data-kind="done" class="hidden">@CheckMarkIcon()</span>
+  </p>
+}
+
+templ DisconnectButton() {
+	<button class="bg-red/10 text-red font-semibold rounded-lg mt-8" hx-post="/helpers/node/disconnect">
+	  Disconnect
+	</button>
+}
+
+templ DotsButton() {
+	@iconButton(DotsIcon())
+}
+
+templ LnConnectButtons(id string) {
 	@twoButtonsContainer(
-		grayButton("Continue"),
-		iconButton("Scan", ScanIconXL()),
+		ConnectButton(),
+		ScanButton(id),
 	)
+}
+
+templ PasteWidget(id string) {
+  <p class="cursor-pointer" data-id={id} data-needs="clipboard" onclick="pasteFromClipboard(this, event)">
+	  @PasteIcon()
+	</p>    
+}
+
+templ ScanButton(id string) {
+	<a data-needs="camera" hx-get={"/modal/scanner/" + id} hx-target="#modal">
+		<div class="border border-2 border-white/20 bg-graybg rounded-lg hover:border-hover">
+			<div class="flex items-center justify-center p-4">
+				@ScanIcon()
+				<span class="ml-2">Scan</span>
+			</div>
+		</div>
+	</a>
+}
+
+templ ScanWidget(id string) {
+	<a data-needs="camera" hx-get={"/modal/scanner/" + id} hx-target="#modal">
+    <p class="text-white/50">@CopyIcon()</p>
+	</a>
+}
+
+templ SettingsButton() {
+	@iconButton(SettingsIcon())
 }
 
 templ SettleButtons() {
@@ -102,6 +170,17 @@ templ SettleButtons() {
 	  greenButton("Settle now"),
 		cancelButton("I trust the sender"),
 	)
+}
+
+templ SettleButtonsAction(txid, explorerUrl string) {
+	<div class="cursor-pointer relative z-10 mb-3 flex gap-3 items-center" onclick={openInExplorer(txid, explorerUrl)}>
+		@ExplorerIcon()
+		Open in explorer
+	</div>
+  <button class="cursor-pointer relative z-10 text-red border-0 flex gap-3 items-center p-0" type="submit">
+    @WarningIcon()
+    Settle now
+  </button>
 }
 
 templ OrangeButton(label string, disabled ...bool) {
@@ -114,4 +193,13 @@ templ RedirectButton(label string, disabled ...bool) {
 
 templ ViewTxButton(txid, explorerUrl string) {
 	@oneButtonContainer(viewTxButton(txid, explorerUrl))
+}
+
+templ ViewTxButtonAction(txid, explorerUrl string) {
+	<div class="cursor-pointer relative z-10">
+		<div class="flex gap-3 items-center" onclick={openInExplorer(txid, explorerUrl)}>
+			@ExplorerIcon()
+			Open in explorer
+		</div>
+	</div>
 }

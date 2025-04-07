@@ -30,7 +30,7 @@ templ InputAmount(max string) {
 	    onchange={updateSats()}
 			type="number"
 		/>
-		<div class="flex items-center gap-2">
+		<div class="flex items-center gap-2 ml-2">
 		  <p class="py-1 w-10 text-center" id="unit">SATS</p>
 		  <p class="cursor-pointer" onclick="toggleUnit()">@ChevronDownIcon()</p>
 		</div>
@@ -90,10 +90,6 @@ templ InputGeneric(id, placeholder, value string) {
 	</div>
 }
 
-script smartPaste(id string) {
-	pasteFromClipboard(`#${id}`)
-}
-
 templ InputWithPaste(id, placeholder, value string) {
   <div class="border border-1 border-white/20 bg-graybg p-4 flex items-center justify-between rounded-lg">
 	  <input
@@ -103,7 +99,7 @@ templ InputWithPaste(id, placeholder, value string) {
 			placeholder={placeholder}
 			value={value}
 		/>
-		<p class="cursor-pointer text-white/50" data-needs="clipboard" onclick={smartPaste(id)}>
+		<p class="text-white/50" data-id={id} data-needs="clipboard" onclick="pasteFromClipboard(this, event)">
 		  @PasteIcon()
 		</p>
 	</div>

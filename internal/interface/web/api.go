@@ -51,7 +51,7 @@ func (s *service) updateSettingsApi(c *gin.Context) {
 
 	// TODO lnconnect
 
-	if lnURL := c.PostForm("lnurl"); len(lnURL) > 0 {
+	if lnURL := c.PostForm("lnurl"); utils.IsValidLnUrl(lnURL) {
 		settings.LnUrl = lnURL
 	}
 
@@ -154,6 +154,15 @@ func (s *service) validatePrivateKeyApi(c *gin.Context) {
 			"valid": false,
 			"error": err.Error(),
 		}
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func (s *service) validateLnUrlApi(c *gin.Context) {
+	url := c.PostForm("lnurl")
+	valid := utils.IsValidLnUrl(url)
+	data := gin.H{
+		"valid": valid,
 	}
 	c.JSON(http.StatusOK, data)
 }

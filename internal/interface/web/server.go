@@ -98,6 +98,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.GET("/modal/feeinfo", svc.feeInfoModal)
 	svc.GET("/modal/lnconnectinfo", svc.lnConnectInfoModal)
 	svc.GET("/modal/reversibleinfo", svc.reversibleInfoModal)
+	svc.GET("/modal/scanner/:id", svc.scannerModal)
 	svc.GET("/modal/seedinfo", svc.seedInfoModal)
 
 	svc.POST("/initialize", svc.initialize)
@@ -115,6 +116,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 
 	svc.POST("/helpers/claim/:txid", svc.claimTx)
 	svc.POST("/helpers/forgot", svc.forgotApi)
+	svc.POST("/helpers/lnurl/validate", svc.validateLnUrlApi)
 	svc.POST("/helpers/settings", svc.updateSettingsApi)
 	svc.POST("/helpers/node/connect", svc.connectLNDApi)
 	svc.POST("/helpers/node/disconnect", svc.disconnectLNDApi)

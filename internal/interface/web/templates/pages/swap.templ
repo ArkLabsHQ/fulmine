@@ -104,7 +104,7 @@ templ SwapBodyContent(currentBalance, nodeBalance string) {
 			document.querySelector(`#${kind}`).click()
 			setTimeout(() => setMaxValue(sats), 1000)
 		}
-		const canProceed = () => {
+		const canSwap = () => {
 			const amount = document.querySelector('#amount').value
 			const button = document.querySelector('button[type="submit"]')
 			const balance = parseInt(document.querySelector('#balance').value)
@@ -113,7 +113,7 @@ templ SwapBodyContent(currentBalance, nodeBalance string) {
 			button.innerText = sats > balance ? 'Not enough funds' : 'Preview send'
 		}
 		document.addEventListener('htmx:load', () => {
-		  document.querySelector('#amount').addEventListener('change', canProceed)
+		  document.querySelector('#amount').addEventListener('change', canSwap)
 		})
 	</script>
 }

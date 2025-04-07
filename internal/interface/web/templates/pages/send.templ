@@ -63,7 +63,7 @@ templ SendBodyContent(currentBalance string) {
 		  })
 		}
 
-	  const canProceed = () => {
+	  const canSend = () => {
 			const address = document.querySelector('#address').value
 			const amount = document.querySelector('#amount').value
 			const button = document.querySelector('button[type="submit"]')
@@ -73,8 +73,9 @@ templ SendBodyContent(currentBalance string) {
 			button.innerText = sats > balance ? 'Not enough funds' : 'Preview send'
 			validateArkNote(address)
 		}
-	  document.querySelector('#address').addEventListener('change', canProceed)
-	  document.querySelector('#amount').addEventListener('change', canProceed)
+
+	  document.querySelector('#address').addEventListener('change', canSend)
+	  document.querySelector('#amount').addEventListener('change', canSend)
 	</script>
 }
 
@@ -118,7 +119,7 @@ templ SendSuccessContent(address, amount, txid, explorerUrl string) {
 			<div class="flex mt-8 w-64 gap-2">
 			  <p class="text-white/50">to</p>
 				<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
-				<p class="text-white/50">@components.CopyIcon()</p>
+				<p class="text-white/50">@components.CopyWidget(address)</p>
 			</div>
 		</div>
 		if len(txid) == 32 {
