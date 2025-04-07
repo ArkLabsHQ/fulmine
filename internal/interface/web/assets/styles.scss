@@ -174,3 +174,10 @@ label {
 .htmx-request .showOnRequest {
   display: flex;
 }
+
+input[type=text]:focus,
+input[type=number]:focus,
+input[type=password]:focus {
+  border: none;
+  --tw-ring-shadow: none;
+}
