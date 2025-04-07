@@ -52,13 +52,12 @@ func (s *service) ScheduleNextSettlement(at time.Time, cfg *types.Config, settle
 }
 
 // WhenNextSettlement returns the next scheduled settlement time
-func (s *service) WhenNextSettlement() (*time.Time, error) {
+func (s *service) WhenNextSettlement() time.Time {
 	if s.job == nil {
-		return nil, fmt.Errorf("no job scheduled")
+		return time.Time{}
 	}
 
-	nextRun := s.job.NextRun()
-	return &nextRun, nil
+	return s.job.NextRun()
 }
 
 func bestMarketHour(expiresAt, nextMarketHour, marketHourPeriod int64) int64 {

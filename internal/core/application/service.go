@@ -442,7 +442,7 @@ func (s *Service) scheduleNextSettlement(ctx context.Context, at time.Time, data
 	return s.schedulerSvc.ScheduleNextSettlement(at, data, task)
 }
 
-func (s *Service) WhenNextSettlement(ctx context.Context) (*time.Time, error) {
+func (s *Service) WhenNextSettlement(ctx context.Context) time.Time {
 	return s.schedulerSvc.WhenNextSettlement()
 }
 
@@ -1391,19 +1391,19 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 			// if some are new, it means we have a new boarding tx
 			// if expiry is before the next scheduled settlement, we need to schedule a new one
 			if len(newUtxos) > 0 {
-				nextScheduledSettlement, _ := s.WhenNextSettlement(ctx)
+				nextScheduledSettlement := s.WhenNextSettlement(ctx)
 
 				needSchedule := false
 
 				for _, vtxo := range newUtxos {
-					if nextScheduledSettlement == nil || vtxo.SpendableAt.Before(*nextScheduledSettlement) {
-						nextScheduledSettlement = &vtxo.SpendableAt
+					if nextScheduledSettlement.IsZero() || vtxo.SpendableAt.Before(nextScheduledSettlement) {
+						nextScheduledSettlement = vtxo.SpendableAt
 						needSchedule = true
 					}
 				}
 
 				if needSchedule {
-					if err := s.scheduleNextSettlement(ctx, *nextScheduledSettlement, cfg); err != nil {
+					if err := s.scheduleNextSettlement(ctx, nextScheduledSettlement, cfg); err != nil {
 						log.WithError(err).Info("schedule next claim failed")
 					}
 				}
@@ -1459,19 +1459,19 @@ func (s *Service) handleAddressEventChannel(eventsCh <-chan client.AddressEvent,
 
 		// if some vtxos were created, schedule a settlement to the soonest expiry among new vtxos
 		if len(event.NewVtxos) > 0 {
-			nextScheduledSettlement, _ := s.WhenNextSettlement(ctx)
+			nextScheduledSettlement := s.WhenNextSettlement(ctx)
 
 			needSchedule := false
 
 			for _, vtxo := range event.NewVtxos {
-				if nextScheduledSettlement == nil || vtxo.ExpiresAt.Before(*nextScheduledSettlement) {
-					nextScheduledSettlement = &vtxo.ExpiresAt
+				if nextScheduledSettlement.IsZero() || vtxo.ExpiresAt.Before(nextScheduledSettlement) {
+					nextScheduledSettlement = vtxo.ExpiresAt
 					needSchedule = true
 				}
 			}
 
 			if needSchedule {
-				if err := s.scheduleNextSettlement(ctx, *nextScheduledSettlement, data); err != nil {
+				if err := s.scheduleNextSettlement(ctx, nextScheduledSettlement, data); err != nil {
 					log.WithError(err).Info("schedule next claim failed")
 				}
 			}

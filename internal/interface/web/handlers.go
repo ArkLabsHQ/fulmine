@@ -631,8 +631,8 @@ func (s *service) getTx(c *gin.Context) {
 		bodyContent = pages.TxNotFoundContent()
 	} else if tx.Status == "pending" {
 		var nextSettlementStr string
-		nextSettlement, err := s.svc.WhenNextSettlement(c)
-		if err != nil {
+		nextSettlement := s.svc.WhenNextSettlement(c)
+		if nextSettlement.IsZero() {
 			// if no next settlement, it means it is about to be scheduled for a boarding tx
 			// fallback to now + boarding timelock to show a time closest to next settlement
 			data, err := s.svc.GetConfigData(c)
@@ -642,11 +642,11 @@ func (s *service) getTx(c *gin.Context) {
 				// TODO: use boardingExitDelay https://github.com/ark-network/ark/pull/501
 				boardingTimelock := common.RelativeLocktime{Type: data.UnilateralExitDelay.Type, Value: data.UnilateralExitDelay.Value * 2}
 				closeToBoardingSettlement := time.Now().Add(time.Duration(boardingTimelock.Seconds()) * time.Second)
-				nextSettlement = &closeToBoardingSettlement
+				nextSettlement = closeToBoardingSettlement
 			}
 		}
 
-		if nextSettlement != nil {
+		if nextSettlementStr != "unknown" {
 			nextSettlementStr = prettyUnixTimestamp(nextSettlement.Unix())
 		}
 
