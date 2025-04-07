@@ -76,7 +76,7 @@ func Status(ok bool, goodLabel, badLabel string) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"flex cursor-pointer\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"flex\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -680,7 +680,7 @@ func SettingsLightningContent(settings domain.Settings, nodeStatus bool) templ.C
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</form><script>\n    const lnurl = document.querySelector('#lnurl')\n    const button = document.querySelector('button[name=\"connect\"]')\n\n    const validateCLNUrl = () => lnurl.value.startsWith('clnconnect://')\n    const validateLNDUrl = () => lnurl.value.startsWith('lndconnect://')\n    const isValidConnUrl = () => validateCLNUrl() || validateLNDUrl()\n\n    const canConnect = () => {\n      button.disabled = !isValidConnUrl()\n      button.innerText = lnurl.value.length === 0 ? 'Add url' : 'Connect'\n    }\n    \n    canConnect()\n    document.querySelector('#lnurl').addEventListener('change', canConnect)\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

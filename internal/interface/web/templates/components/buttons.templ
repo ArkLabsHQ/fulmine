@@ -90,7 +90,7 @@ templ BackButton() {
 }
 
 templ ConnectButton() {
-	<button class="bg-graybg md:w-auto" name="continue">
+	<button class="bg-graybg md:w-auto" name="connect" hx-post="/helpers/node/connect">
 	  Connect
 	</button>
 }
@@ -119,6 +119,12 @@ templ CopyWidget(payload string) {
     <span data-kind="copy">@CopyIcon()</span>
 	  <span data-kind="done" class="hidden">@CheckMarkIcon()</span>
   </p>
+}
+
+templ DisconnectButton() {
+	<button class="bg-red/10 text-red font-semibold rounded-lg mt-8" hx-post="/helpers/node/disconnect">
+	  Disconnect
+	</button>
 }
 
 templ DotsButton() {
