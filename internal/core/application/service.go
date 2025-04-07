@@ -1156,7 +1156,6 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 	for _, addr := range addresses {
 		closeFn, ok := s.subscriptions[addr]
 		if !ok {
-			log.Warnf("address %s not subscribed, skipping unsubscription", addr)
 			continue
 		}
 		closeFn()
