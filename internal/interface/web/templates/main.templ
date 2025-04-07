@@ -274,6 +274,9 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				enableButtons()
 				updateFiatValues()
 				updateCryptoValues()
+			})
+
+			document.addEventListener('load', () => {
 				passAlongQueryParams()
 				hideCopyButtonsIfInsecure()
 				hideScanButtonsIfNoCameraAvailable()
