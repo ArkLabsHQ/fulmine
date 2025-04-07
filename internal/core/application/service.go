@@ -1330,12 +1330,20 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 	ticker := time.NewTicker(time.Minute * 10)
 	defer ticker.Stop()
 
+	// TODO: use boardingExitDelay https://github.com/ark-network/ark/pull/501
+	boardingTimelock := common.RelativeLocktime{Type: cfg.UnilateralExitDelay.Type, Value: cfg.UnilateralExitDelay.Value * 2}
+
 	expl := explorer.NewExplorer(s.esploraUrl, cfg.Network)
 
-	currentSet, err := expl.GetUtxos(address)
+	currentSet := make(map[string]types.Utxo)
+	utxos, err := expl.GetUtxos(address)
 	if err != nil {
 		log.WithError(err).Error("failed to get utxos")
 		return
+	}
+	for _, utxo := range utxos {
+		key := fmt.Sprintf("%s:%d", utxo.Txid, utxo.Vout)
+		currentSet[key] = utxo.ToUtxo(boardingTimelock, []string{})
 	}
 
 	for {
@@ -1353,36 +1361,25 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 				continue
 			}
 
-			// TODO: use boardingExitDelay https://github.com/ark-network/ark/pull/501
-			boardingTimelock := common.RelativeLocktime{Type: cfg.UnilateralExitDelay.Type, Value: cfg.UnilateralExitDelay.Value * 2}
+			newSet := make(map[string]types.Utxo)
+			for _, utxo := range utxos {
+				key := fmt.Sprintf("%s:%d", utxo.Txid, utxo.Vout)
+				newSet[key] = utxo.ToUtxo(boardingTimelock, []string{})
+			}
 
 			// find spent utxos
 			spentUtxos := make([]types.Utxo, 0)
-			for _, oldSetUtxo := range currentSet {
-				found := false
-				for _, newSetUtxo := range utxos {
-					if oldSetUtxo.Txid == newSetUtxo.Txid && oldSetUtxo.Vout == newSetUtxo.Vout {
-						found = true
-						break
-					}
-				}
-				if !found {
-					spentUtxos = append(spentUtxos, oldSetUtxo.ToUtxo(boardingTimelock, []string{}))
+			for key, oldUtxo := range currentSet {
+				if _, exists := newSet[key]; !exists {
+					spentUtxos = append(spentUtxos, oldUtxo)
 				}
 			}
 
 			// find new utxos
 			newUtxos := make([]types.Utxo, 0)
-			for _, newSetUtxo := range utxos {
-				found := false
-				for _, oldSetUtxo := range currentSet {
-					if oldSetUtxo.Txid == newSetUtxo.Txid && oldSetUtxo.Vout == newSetUtxo.Vout {
-						found = true
-						break
-					}
-				}
-				if !found {
-					newUtxos = append(newUtxos, newSetUtxo.ToUtxo(boardingTimelock, []string{}))
+			for key, newUtxo := range newSet {
+				if _, exists := currentSet[key]; !exists {
+					newUtxos = append(newUtxos, newUtxo)
 				}
 			}
 
@@ -1424,10 +1421,9 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 			}
 
 			// update current set
-			currentSet = utxos
+			currentSet = newSet
 		}
 	}
-
 }
 
 func (s *Service) handleAddressEventChannel(eventsCh <-chan client.AddressEvent, addr string) {
