@@ -89,6 +89,9 @@ div:has(> input:not(.hidden):not(.unframed):focus) {
   width: 100%;
   &:has(div.fullscreen) {
     max-width: 100%;
+    & #toast {
+      max-width: 100%;
+    }
   }
 }
 
