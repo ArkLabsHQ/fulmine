@@ -28,7 +28,7 @@ templ ServerUrlBodyContent(serverUrl, privateKey, password string) {
   <script>
 		const input = document.querySelector('#serverUrl')
 		const button = document.querySelector('#createWallet')
-		const validate = () => {
+		const validateServerUrl = () => {
       if (input.value.length == 0) return
 		  const data = new FormData()
 		  data.set('url', input.value)
@@ -50,8 +50,8 @@ templ ServerUrlBodyContent(serverUrl, privateKey, password string) {
 		  })
 		}
 		if (input && button) {
-			validate()
-		  input.addEventListener('change', validate)
+			validateServerUrl()
+		  input.addEventListener('change', validateServerUrl)
 		}
   </script>
 }

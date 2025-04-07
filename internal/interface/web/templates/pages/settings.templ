@@ -170,19 +170,32 @@ templ SettingsLightningContent(settings domain.Settings, nodeStatus bool) {
     }
   </form>
   <script>
-    const lnurl = document.querySelector('#lnurl')
+    const input = document.querySelector('#lnurl')
     const button = document.querySelector('button[name="connect"]')
-
-    const validateCLNUrl = () => lnurl.value.startsWith('clnconnect://')
-    const validateLNDUrl = () => lnurl.value.startsWith('lndconnect://')
-    const isValidConnUrl = () => validateCLNUrl() || validateLNDUrl()
-
-    const canConnect = () => {
-      button.disabled = !isValidConnUrl()
-      button.innerText = lnurl.value.length === 0 ? 'Add url' : 'Connect'
-    }
-    
-    canConnect()
-    document.querySelector('#lnurl').addEventListener('change', canConnect)
+		const validateLnUrl = () => {
+      if (input.value.length == 0) return
+		  const data = new FormData()
+		  data.set('lnurl', input.value)
+		  fetch('/helpers/lnurl/validate', {
+		  	method: 'POST',
+        body: data,
+		  }).then((res) => {
+		  	if (res.ok) {
+		  		res.json().then(({ valid }) => {
+		  			if (valid) {
+		  				button.disabled = false
+		  				button.innerText = 'Connect'
+		  			} else {
+		  				button.disabled = true
+		  				button.innerText = 'Invalid URL'
+		  			}
+		  		})
+		  	}
+		  })
+		}
+    if (input && button) {
+			validateLnUrl()
+		  input.addEventListener('change', validateLnUrl)
+		}
   </script>
 }
