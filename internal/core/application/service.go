@@ -119,7 +119,7 @@ func NewService(
 			subscriptions:             make(map[string]func()),
 			subscriptionLock:          sync.RWMutex{},
 			notifications:             make(chan Notification),
-			esploraUrl:                esploraUrl,
+			esploraUrl:                data.ExplorerURL,
 			stopBoardingEventListener: make(chan struct{}),
 		}
 
@@ -139,6 +139,11 @@ func NewService(
 		return nil, err
 	}
 
+	data, err := arkClient.GetConfigData(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	svc := &Service{
 		BuildInfo:                 buildInfo,
 		ArkClient:                 arkClient,
@@ -152,7 +157,7 @@ func NewService(
 		subscriptions:             make(map[string]func()),
 		subscriptionLock:          sync.RWMutex{},
 		notifications:             make(chan Notification),
-		esploraUrl:                esploraUrl,
+		esploraUrl:                data.ExplorerURL,
 		stopBoardingEventListener: make(chan struct{}),
 	}
 
