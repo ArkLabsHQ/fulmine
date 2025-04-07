@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -437,6 +438,12 @@ func (s *Service) scheduleNextSettlement(ctx context.Context, at time.Time, data
 		if err != nil {
 			log.WithError(err).Warn("failed to auto claim")
 		}
+	}
+
+	// if market hour is set, schedule the task at the best market hour = market hour closer to `at` timestamp
+	if data.MarketHourStartTime > 0 && data.MarketHourPeriod > 0 && at.Unix() > data.MarketHourStartTime {
+		cycles := int64(math.Floor(float64(at.Unix()-data.MarketHourStartTime) / float64(data.MarketHourPeriod)))
+		at = time.Unix(data.MarketHourStartTime+(cycles*data.MarketHourPeriod), 0)
 	}
 
 	return s.schedulerSvc.ScheduleNextSettlement(at, data, task)
