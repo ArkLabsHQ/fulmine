@@ -224,7 +224,7 @@ func InputGeneric(id, placeholder, value string) templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"border border-1 border-white/20 bg-graybg p-4 rounded-lg\"><input class=\"bg-graybg border-0 p-0 mr-4 focus:border-0 focus:outline-none\" id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"border border-1 border-white/20 bg-graybg p-4 rounded-lg\"><input class=\"bg-graybg border-0 p-0 mr-4\" id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -305,7 +305,7 @@ func InputWithPaste(id, placeholder, value string) templ.Component {
 			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"border border-1 border-white/20 bg-graybg p-4 flex items-center justify-between rounded-lg\"><input class=\"bg-graybg border-0 p-0 mr-4 focus:border-0 focus:outline-none\" id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"border border-1 border-white/20 bg-graybg p-4 flex items-center justify-between rounded-lg\"><input class=\"bg-graybg border-0 p-0 mr-4\" id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
