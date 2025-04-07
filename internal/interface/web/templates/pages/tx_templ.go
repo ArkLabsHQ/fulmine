@@ -155,7 +155,7 @@ func TxPendingContent(tx types.Transaction, explorerUrl string, nextClaim string
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p class=\"font-semibold mt-10 mb-3 text-lg\">Processing...</p><p class=\"max-w-[320px] text-center\">Your sats will be added to your balance when this transaction processes...</p></div></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p class=\"font-semibold mt-10 mb-3 text-lg\">Processing...</p><p class=\"max-w-[320px] text-center\">Settlement is underway—your off-chain Ark transactions are securely being confirmed into the Bitcoin blockchain. You can safely leave this page; the signing sessions will continue seamlessly in the background with all available participants.</p></div></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
