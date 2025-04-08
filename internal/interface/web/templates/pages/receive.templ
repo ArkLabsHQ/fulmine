@@ -23,10 +23,17 @@ templ ReceiveEditContent() {
 	        @components.Header("Receive")
 	        @components.ReceiveAmount()
 	    	</div>
-	    	@components.ActionButtons("Confirm")
+	    	@components.ActionButtons("Confirm", true)
 	    </div>
 	  </form>
 	</div>
+	<script>
+	  document.querySelector('#amount').addEventListener('input', () => {
+			const amount = document.querySelector('#amount').value
+			const button = document.querySelector('button[type="submit"]')
+			button.disabled = !amount || !amount > 0
+		})
+	</script>
 }
 
 templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats string) {
@@ -45,19 +52,13 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats stri
 				@addressLine("Ark address", offchainAddr)
 	  	</div>
       <div class="flex flex-col md:flex-row justify-start gap-4 mt-10 mb-2">
-	      <button class="bg-graybg md:w-auto" onclick="handleEdit(event)">
+	      <a class="button md:w-auto" onclick="redirect('/receive/edit')">
 	  		  @components.EditIcon()
 	  			<span class="ml-2">Edit</span>
-	  		</button>
+	  		</a>
 	    </div>
 	  </div>
 	</form>
-	<script>
-		const handleEdit = (event) => {
-			event.preventDefault()
-			redirect('/receive/edit')
-		}
-	</script>
 }
 
 templ ReceiveSuccessContent(offchainAddr, sats string) {

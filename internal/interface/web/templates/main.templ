@@ -89,11 +89,6 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				return Decimal.div(sats, 100_000_000).toNumber()
 			}
 		
-			const handleCancel = (event) => {
-				event.preventDefault()
-				redirect('/')
-			}
-		
 			const hideCopyButtonsIfInsecure = () => {
 				if (!navigator.clipboard) {
 					document.querySelectorAll('[data-needs="clipboard"]').forEach((el) => {
@@ -110,6 +105,10 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				}
 			}
 
+			const openInExplorer = (txid, explorerUrl) => {
+	      window.open(`${explorerUrl}/tx/${txid}`, '_blank') 
+      }
+
 			// pass along query parameter with serverUrl
 			const passAlongQueryParams = () => {
 				const url = new URL(window.location.href)
@@ -121,8 +120,7 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				}
 			}
 		
-			const pasteFromClipboard = (element, event) => {
-				event.preventDefault()
+			const pasteFromClipboard = (element) => {
 				const id = element.dataset.id
 				if (id && navigator.clipboard) {
 					navigator.clipboard.readText().then((data) => {
@@ -187,7 +185,7 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				const unit = document.querySelector('#unit').innerText
 				document.querySelector('#sats').value = sats
 				document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
-				document.querySelector('#amount').dispatchEvent(new Event('change'))
+				document.querySelector('#amount').dispatchEvent(new Event('input'))
 			}
 		
 			const showOptions = () => {

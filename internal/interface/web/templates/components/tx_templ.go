@@ -232,7 +232,7 @@ func Tx(tx types.Transaction, explorerUrl string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = HeaderWithAction("Transaction details", ViewTxButtonAction(tx.Txid, explorerUrl)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = HeaderWithAction("Transaction details", ViewTxButtonDot(tx.Txid, explorerUrl)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

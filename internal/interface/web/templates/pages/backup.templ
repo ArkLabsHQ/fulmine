@@ -99,7 +99,7 @@ templ BackupAckBodyContent() {
   </div>
   <script>
     const handleAck = () => {
-      const button = document.querySelector('button[type="submit"]')
+      const button = document.querySelector('[name="redirect"]')
       const boxes = document.querySelectorAll('input[type="checkbox"]')
       if (!button || !boxes || boxes.length === 0) return
       button.disabled = !Array.from(boxes).reduce((prev, curr) => prev && curr.checked, true)

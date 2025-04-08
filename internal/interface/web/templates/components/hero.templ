@@ -22,7 +22,7 @@ templ Actions(online, connected bool, currentBalance string) {
 	if online {
 	  <div class="grid grid-cols-3 gap-4 md:flex md:flex-row">
 	    <button
-			  class="bg-white flex items-center justify-center text-black p-2 md:px-4 md:py-3 md:w-auto"
+			  class="white flex items-center justify-center text-black p-2 md:px-4 md:py-3 md:w-auto"
 				hx-on:click="redirect('/send')"
 				if currentBalance == "0" {
 					disabled
@@ -31,13 +31,13 @@ templ Actions(online, connected bool, currentBalance string) {
 	  	  @SendIcon() Send
 	  	</button>
 	    <button
-			  class="bg-white flex items-center justify-center text-black px-2 md:px-4 md:w-auto"
+			  class="white flex items-center justify-center text-black px-2 md:px-4 md:w-auto"
 				hx-on:click="redirect('/receive')"
 			>
 	  	  @ReceiveIcon() Receive
 	  	</button>
 			<button
-			  class="bg-white flex items-center justify-center text-black px-2 md:px-4 md:w-auto"
+			  class="white flex items-center justify-center text-black px-2 md:px-4 md:w-auto"
 				hx-on:click="redirect('/swap')"
 				if !connected {
 					disabled

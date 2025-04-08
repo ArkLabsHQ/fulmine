@@ -126,21 +126,52 @@ div:has(> input:not(.hidden):not(.unframed):focus) {
   aspect-ratio: 1 / 1;
 }
 
-button {
+button,
+.button {
+  background-color: #fbfbfb0d;
   border-radius: 8px;
-  border: 2px solid #fbfbfb33;
+  border: 1px solid #fbfbfb33;
   cursor: pointer;
-  display: block;
+  display: inline-block;
   font-size: 1em;
   font-weight: 600;
   font-family: inherit;
   padding: 0.75rem 1rem;
   text-align: center;
   transition: border-color 0.25s;
+  &.single {
+    padding: 0.5rem;
+  }
+  &.small {
+    padding: 0.25rem 0.5rem;
+  }
+  &:hover {
+    background-color: #fbfbfb1a;
+    border-color: #fbfbfb4d;
+  }
+  &.orange {
+    background-color: #fc8d4e;
+    &:hover {
+      background-color: #fc8d4ee0;
+    }
+  }
+  &.white {
+    background-color: #ffffff;
+    color: #000000;
+    &:hover {
+      background-color: #ffffffe0;
+    }
+  }
 }
 
-button:hover {
-  border-color: #bc3f20;
+.dots button,
+.dots .button {
+  background-color: transparent;
+  border: none;
+  &:hover {
+    background-color: transparent;
+    border: none;
+  }
 }
 
 button:disabled,

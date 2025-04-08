@@ -71,11 +71,11 @@ templ SendBodyContent(currentBalance string) {
 			const sats = parseInt(document.querySelector('#sats').value)
 			button.disabled = address.length === 0 || amount.length === 0 || !sats || sats > balance
 			button.innerText = sats > balance ? 'Not enough funds' : 'Preview send'
-			validateArkNote(address)
+			if (address) validateArkNote(address)
 		}
 
-	  document.querySelector('#address').addEventListener('change', canSend)
-	  document.querySelector('#amount').addEventListener('change', canSend)
+	  document.querySelector('#address').addEventListener('input', canSend)
+	  document.querySelector('#amount').addEventListener('input', canSend)
 	</script>
 }
 

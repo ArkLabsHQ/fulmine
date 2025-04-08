@@ -65,7 +65,7 @@ func Unlock() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span></p></div><p class=\"text-right mt-2 cursor-pointer\" hx-post=\"/helpers/forgot\">Forgot password?</p></div></div><button class=\"bg-white ee text-black mt-10 capitalize\" hx-on:click=\"disableButton(this)\" type=\"submit\">Unlock</button></div></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span></p></div><p class=\"text-right mt-2 cursor-pointer\" hx-post=\"/helpers/forgot\">Forgot password?</p></div></div><button class=\"white\" hx-on:click=\"disableButton(this)\" type=\"submit\">Unlock</button></div></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
