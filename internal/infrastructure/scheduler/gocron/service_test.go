@@ -21,7 +21,7 @@ func TestSchedulerService(t *testing.T) {
 			}()
 		}
 
-		// Schedule 1 second in the future
+		// Schedule 5 second in the future
 		nextTime := time.Now().Add(5 * time.Second)
 		err := svc.ScheduleNextSettlement(nextTime, settleFunc)
 		require.NoError(t, err)
