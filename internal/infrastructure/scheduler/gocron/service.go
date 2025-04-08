@@ -12,12 +12,12 @@ import (
 type service struct {
 	scheduler *gocron.Scheduler
 	job       *gocron.Job
-	mu        sync.Mutex
+	mu        *sync.Mutex
 }
 
 func NewScheduler() ports.SchedulerService {
 	svc := gocron.NewScheduler(time.UTC)
-	return &service{svc, nil, sync.Mutex{}}
+	return &service{svc, nil, &sync.Mutex{}}
 }
 
 func (s *service) Start() {

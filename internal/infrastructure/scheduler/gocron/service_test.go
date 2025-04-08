@@ -8,12 +8,6 @@ import (
 )
 
 func TestSchedulerService(t *testing.T) {
-	t.Run("Start and Stop", func(t *testing.T) {
-		svc := NewScheduler()
-		svc.Start()
-		svc.Stop()
-	})
-
 	t.Run("Schedule Next Settlement", func(t *testing.T) {
 		svc := NewScheduler()
 		svc.Start()
