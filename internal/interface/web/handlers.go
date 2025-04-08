@@ -857,21 +857,15 @@ func (s *service) getHero(c *gin.Context) {
 		return
 	}
 
-	var offchainAddr string
 	var isOnline bool
 
-	if addr, _, err := s.svc.Receive(c); err == nil {
-		offchainAddr = addr
+	spendableBalance, err := s.getSpendableBalance(c)
+	if err == nil {
 		isOnline = true
 	} else {
-		log.WithError(err).Warn("failed to get receiving address")
-	}
-
-	spendableBalance, err := s.getSpendableBalance(c)
-	if err != nil {
 		log.WithError(err).Warn("failed to get spendable balance")
 	}
 
-	partialContent := components.Hero(offchainAddr, spendableBalance, isOnline, s.svc.IsConnectedLN())
+	partialContent := components.Hero(spendableBalance, isOnline, s.svc.IsConnectedLN())
 	partialViewHandler(partialContent, c)
 }
