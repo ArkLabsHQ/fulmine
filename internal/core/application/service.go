@@ -93,7 +93,6 @@ func NewService(
 	vtxoRolloverRepo domain.VtxoRolloverRepository,
 	schedulerSvc ports.SchedulerService,
 	lnSvc ports.LnService,
-	esploraUrl string,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
@@ -228,6 +227,9 @@ func (s *Service) LockNode(ctx context.Context) error {
 	// close all subscriptions
 	s.subscriptionLock.Lock()
 	defer s.subscriptionLock.Unlock()
+
+	log.Infof("closing %d address subscriptions", len(s.subscriptions))
+
 	for _, closeFn := range s.subscriptions {
 		closeFn()
 	}
@@ -1131,7 +1133,6 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 	}
 
 	for update := range ws.Updates {
-		fmt.Printf("EVENT %+v\n", update)
 		parsedStatus := boltz.ParseEvent(update.Status)
 
 		switch parsedStatus {
@@ -1159,15 +1160,25 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 	s.subscriptionLock.Lock()
 	defer s.subscriptionLock.Unlock()
 
+	// open an AddressEvent stream for each address
+	// register the close function to close the stream
+	// and handle the events in a separate goroutine
 	for _, addr := range addresses {
+		_, ok := s.subscriptions[addr]
+		if ok {
+			log.Warnf("address %s already subscribed, skipping", addr)
+			continue
+		}
+
 		eventsCh, closeFn, err := s.grpcClient.SubscribeForAddress(context.Background(), addr)
 		if err != nil {
-			return fmt.Errorf("server unreachable")
+			return fmt.Errorf("failed to subscribe for address %s: %w", addr, err)
 		}
 
 		s.subscriptions[addr] = closeFn
 		go s.handleAddressEventChannel(eventsCh, addr)
 	}
+
 	return nil
 }
 
@@ -1182,7 +1193,6 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 	for _, addr := range addresses {
 		closeFn, ok := s.subscriptions[addr]
 		if !ok {
-			log.Warnf("address %s not subscribed, skipping unsubscription", addr)
 			continue
 		}
 		closeFn()

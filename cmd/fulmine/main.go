@@ -89,7 +89,6 @@ func main() {
 		vtxoRolloverRepo,
 		schedulerSvc,
 		lnSvc,
-		cfg.EsploraURL,
 	)
 	if err != nil {
 		log.WithError(err).Fatal(err)

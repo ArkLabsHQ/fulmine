@@ -13,8 +13,8 @@ templ TxBodyContent(tx types.Transaction, explorerUrl string) {
 templ TxPendingContent(tx types.Transaction, explorerUrl string, nextClaim string) {
   @components.DesktopHeader()
   <form hx-post={"/helpers/claim/" + tx.Txid}>
-	  <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
-	    <div>
+    <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
+      <div>
         @components.HeaderWithAction("Settle Transaction", components.SettleButtonsAction(tx.Txid, explorerUrl))
         <div class="hideOnRequest flex flex-col items-center">
           @components.TxIcon(tx.Kind, "")
@@ -24,10 +24,11 @@ templ TxPendingContent(tx types.Transaction, explorerUrl string, nextClaim strin
         </div>
       </div>
       <div class="showOnRequest flex flex-col items-center mt-10 w-full">
-	  	  @components.SpinnerIconOrange()
-	  	  <p class="mt-10">Settling...</p>
-	  	</div>
-	  </div>
+        @components.SpinnerIconOrange()
+        <p class="font-semibold mt-10 mb-3 text-lg">Processing...</p>
+        <p class="max-w-[320px] text-center">Settlement is underway—your off-chain Ark transactions are securely being confirmed into the Bitcoin blockchain. You can safely leave this page; the signing sessions will continue seamlessly in the background with all available participants.</p>
+      </div>
+    </div>
   </form>
 }
 

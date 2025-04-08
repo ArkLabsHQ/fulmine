@@ -13,8 +13,8 @@ require (
 	github.com/BoltzExchange/boltz-client/v2 v2.4.0
 	github.com/a-h/templ v0.3.857
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/ark-network/ark/common v0.0.0-20250404093852-2b380451b1f6
-	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250404093852-2b380451b1f6
+	github.com/ark-network/ark/common v0.0.0-20250407165547-04b019f83569
+	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250407165547-04b019f83569
 	github.com/ccoveille/go-safecast v1.2.0
 	github.com/dgraph-io/badger/v4 v4.6.0
 	github.com/gin-gonic/gin v1.10.0
@@ -40,7 +40,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
-	github.com/ark-network/ark/api-spec v0.0.0-20250404093852-2b380451b1f6 // indirect
+	github.com/ark-network/ark/api-spec v0.0.0-20250407165547-04b019f83569 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btclog/v2 v2.0.0-20241017175713-3428138b75c7 // indirect
 	github.com/btcsuite/winsvc v1.0.0 // indirect
@@ -263,7 +263,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.8.0 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/crypto v0.36.0
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/term v0.30.0 // indirect
