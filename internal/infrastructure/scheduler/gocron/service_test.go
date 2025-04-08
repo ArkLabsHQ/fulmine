@@ -23,13 +23,15 @@ func TestSchedulerService(t *testing.T) {
 
 		// Schedule 5 second in the future
 		nextTime := time.Now().Add(5 * time.Second)
+		now := time.Now()
 		err := svc.ScheduleNextSettlement(nextTime, settleFunc)
 		require.NoError(t, err)
 
 		// Verify next settlement time
 		nextSettlement := svc.WhenNextSettlement()
 		require.False(t, nextSettlement.IsZero())
-		require.True(t, nextSettlement.After(time.Now()))
+		require.True(t, nextSettlement.After(now))
+		require.True(t, nextSettlement.Before(now.Add(5*time.Second).Add(1*time.Millisecond)))
 
 		// Wait for the job to execute
 		select {
