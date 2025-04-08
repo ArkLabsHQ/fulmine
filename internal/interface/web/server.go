@@ -79,7 +79,6 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.GET("/backup/ack", svc.backupAck)
 	svc.GET("/backup/tab/:active", svc.backupTabActive)
 	svc.GET("/done", svc.done)
-	svc.GET("/forgot", svc.forgot)
 	svc.GET("/hero", svc.getHero)
 	svc.GET("/import", svc.importWalletPrivateKey)
 	svc.GET("/lock", svc.lock)
@@ -99,6 +98,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.GET("/modal/feeinfo", svc.feeInfoModal)
 	svc.GET("/modal/lnconnectinfo", svc.lnConnectInfoModal)
 	svc.GET("/modal/reversibleinfo", svc.reversibleInfoModal)
+	svc.GET("/modal/scanner/:id", svc.scannerModal)
 	svc.GET("/modal/seedinfo", svc.seedInfoModal)
 
 	svc.POST("/initialize", svc.initialize)
@@ -115,7 +115,8 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.POST("/swap/confirm", svc.swapConfirm)
 
 	svc.POST("/helpers/claim/:txid", svc.claimTx)
-	svc.POST("/helpers/lock", svc.lockApi)
+	svc.POST("/helpers/forgot", svc.forgotApi)
+	svc.POST("/helpers/lnurl/validate", svc.validateLnUrlApi)
 	svc.POST("/helpers/settings", svc.updateSettingsApi)
 	svc.POST("/helpers/node/connect", svc.connectLNDApi)
 	svc.POST("/helpers/node/disconnect", svc.disconnectLNDApi)

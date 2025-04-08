@@ -13,12 +13,6 @@ templ BalanceWithMax(icon templ.Component, sats string) {
   			<p class="cryptoAmount" sats={sats}>{sats} SATS</p>
   		</div>
   	</div>
-    <p
-  	  class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer"
-  		onclick={setMax(sats)}
-  		sats={sats}
-  		kind="outbound">
-  		MAX
-  	</p>
+    <button class="bg-graybg py-1 px-2 rounded-lg" onclick={setMax(sats)} sats={sats} kind="outbound">MAX</button>
   </div>
 }

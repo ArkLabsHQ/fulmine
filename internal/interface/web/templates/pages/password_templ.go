@@ -113,7 +113,7 @@ func SetPasswordContent(privateKey string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = LogoWhite().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = BigLogo().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -125,7 +125,7 @@ func SetPasswordContent(privateKey string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<p class=\"mb-10\">Create a password that will be used to unlock your wallet.</p><p class=\"mb-2\">Password</p><div class=\"flex justify-between items-center gap-4 bg-graybg border-1 border-white/10 p-2 rounded-lg w-full\"><input autocomplete=\"new-password\" class=\"bg-graybg border-0 w-full eyeopener\" name=\"password\" oninput=\"checkPass()\" type=\"password\"><p class=\"eyes\" onclick=\"togglePasswordVisibility()\"><span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<p class=\"mb-6\">Create a password to protect your wallet.</p><p class=\"font-semibold mb-2\">Password</p><div class=\"flex justify-between items-center gap-4 bg-graybg border-1 border-white/10 p-2 rounded-lg w-full\"><input autocomplete=\"new-password\" class=\"bg-graybg border-0 w-full eyeopener\" name=\"password\" oninput=\"checkPass()\" type=\"password\"><p class=\"eyes\" onclick=\"togglePasswordVisibility()\"><span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -141,7 +141,7 @@ func SetPasswordContent(privateKey string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span></p></div><p class=\"mt-4 mb-2\">Repeat password</p><div class=\"flex justify-between items-center gap-4 bg-graybg border-1 border-white/10 p-2 rounded-lg w-full\"><input autocomplete=\"new-password\" class=\"bg-graybg border-0 w-full eyeopener\" name=\"pconfirm\" oninput=\"checkPass()\" type=\"password\"><p class=\"eyes\" onclick=\"togglePasswordVisibility()\"><span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span></p></div><p class=\"font-semibold mt-4 mb-2\">Repeat password</p><div class=\"flex justify-between items-center gap-4 bg-graybg border-1 border-white/10 p-2 rounded-lg w-full\"><input autocomplete=\"new-password\" class=\"bg-graybg border-0 w-full eyeopener\" name=\"pconfirm\" oninput=\"checkPass()\" type=\"password\"><p class=\"eyes\" onclick=\"togglePasswordVisibility()\"><span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

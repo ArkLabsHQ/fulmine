@@ -676,23 +676,6 @@
         }
       }
     },
-    "v1AccountInfo": {
-      "type": "object",
-      "properties": {
-        "namespace": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "derivationPath": {
-          "type": "string"
-        },
-        "xpubs": {
-          "type": "string"
-        }
-      }
-    },
     "v1BuildInfo": {
       "type": "object",
       "properties": {
@@ -851,11 +834,15 @@
       "properties": {
         "network": {
           "$ref": "#/definitions/GetInfoResponseNetwork",
-          "title": "the network of the wallet"
+          "description": "The bitcoin network on which Fulmine is runnig."
         },
-        "account": {
-          "$ref": "#/definitions/v1AccountInfo",
-          "description": "list containing info about the wallet accounts."
+        "addrPrefix": {
+          "type": "string",
+          "description": "The ark address prefix (ark | tark)."
+        },
+        "serverUrl": {
+          "type": "string",
+          "description": "The URL of the server to which Fulmine is connected to if already initialized."
         },
         "buildInfo": {
           "$ref": "#/definitions/v1BuildInfo",

@@ -160,12 +160,14 @@ message GetInfoResponse {
     NETWORK_TESTNET = 2;
     NETWORK_REGTEST = 3;
   }
-  // the network of the wallet
+  // The bitcoin network on which Fulmine is runnig.
   Network network = 1;
-  // list containing info about the wallet accounts.
-  AccountInfo account = 2;
+  // The ark address prefix (ark | tark).
+  string addr_prefix = 2;
+  // The URL of the server to which Fulmine is connected to if already initialized.
+  string server_url = 3;
   // info about the current version of the ark wallet.
-  BuildInfo build_info = 3;
+  BuildInfo build_info = 4;
 }
 
 message GetOnboardAddressRequest {

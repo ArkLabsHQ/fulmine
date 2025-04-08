@@ -109,15 +109,6 @@ func (s *service) events(c *gin.Context) {
 	}
 }
 
-func (s *service) forgot(c *gin.Context) {
-	if err := s.svc.Reset(c); err != nil {
-		toast := components.Toast("Unable to delete previous wallet", true)
-		toastHandler(toast, c)
-		return
-	}
-	c.Redirect(http.StatusFound, "/welcome")
-}
-
 func (s *service) index(c *gin.Context) {
 	bodyContent := pages.Welcome()
 	if s.svc.IsReady() {
@@ -182,12 +173,15 @@ func (s *service) importWalletPrivateKey(c *gin.Context) {
 }
 
 func (s *service) lock(c *gin.Context) {
-	bodyContent := pages.Lock()
-	s.pageViewHandler(bodyContent, c)
+	if err := s.svc.LockNode(c); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+	c.Redirect(http.StatusFound, "/")
 }
 
 func (s *service) unlock(c *gin.Context) {
-	log.Infof("referer %s", c.Request.Referer())
 	bodyContent := pages.Unlock()
 	s.pageViewHandler(bodyContent, c)
 }
@@ -645,7 +639,7 @@ func (s *service) getTx(c *gin.Context) {
 		} else {
 			nextClaimStr = prettyUnixTimestamp(nextClaim.Unix())
 		}
-		bodyContent = pages.TxPendingContent(tx, nextClaimStr)
+		bodyContent = pages.TxPendingContent(tx, explorerUrl, nextClaimStr)
 	} else {
 		bodyContent = pages.TxBodyContent(tx, explorerUrl)
 	}
@@ -794,6 +788,12 @@ func (s *service) pageViewHandler(bodyContent templ.Component, c *gin.Context) {
 	}
 }
 
+func (s *service) scannerModal(c *gin.Context) {
+	id := c.Param("id")
+	scan := modals.Scanner(id)
+	modalHandler(scan, c)
+}
+
 func (s *service) seedInfoModal(c *gin.Context) {
 	seed, err := s.svc.ArkClient.Dump(c)
 	if err != nil {
@@ -857,21 +857,15 @@ func (s *service) getHero(c *gin.Context) {
 		return
 	}
 
-	var offchainAddr string
 	var isOnline bool
 
-	if addr, _, err := s.svc.Receive(c); err == nil {
-		offchainAddr = addr
+	spendableBalance, err := s.getSpendableBalance(c)
+	if err == nil {
 		isOnline = true
 	} else {
-		log.WithError(err).Warn("failed to get receiving address")
-	}
-
-	spendableBalance, err := s.getSpendableBalance(c)
-	if err != nil {
 		log.WithError(err).Warn("failed to get spendable balance")
 	}
 
-	partialContent := components.Hero(offchainAddr, spendableBalance, isOnline, s.svc.IsConnectedLN())
+	partialContent := components.Hero(spendableBalance, isOnline, s.svc.IsConnectedLN())
 	partialViewHandler(partialContent, c)
 }

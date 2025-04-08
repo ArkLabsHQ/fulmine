@@ -46,11 +46,12 @@ func main() {
 		WithTLS:  cfg.WithTLS,
 	}
 
-	storeSvc, err := store.NewStore(store.Config{
+	storeCfg := store.Config{
 		BaseDir:          cfg.Datadir,
 		ConfigStoreType:  configStoreType,
 		AppDataStoreType: appDataStoreType,
-	})
+	}
+	storeSvc, err := store.NewStore(storeCfg)
 	if err != nil {
 		log.WithError(err).Fatal(err)
 	}
@@ -73,7 +74,7 @@ func main() {
 	lnSvc := lnd.NewService()
 
 	appSvc, err := application.NewService(
-		buildInfo, storeSvc, dbSvc, schedulerSvc, lnSvc, cfg.EsploraURL,
+		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc, lnSvc, cfg.EsploraURL,
 	)
 	if err != nil {
 		log.WithError(err).Fatal(err)

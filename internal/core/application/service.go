@@ -19,6 +19,7 @@ import (
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
+	"github.com/ark-network/ark/pkg/client-sdk/store"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -49,6 +50,7 @@ type Service struct {
 	BuildInfo BuildInfo
 
 	arksdk.ArkClient
+	storeCfg     store.Config
 	storeRepo    types.Store
 	dbSvc        ports.RepoManager
 	grpcClient   client.TransportClient
@@ -62,7 +64,7 @@ type Service struct {
 
 	isReady bool
 
-	subscriptions    map[string]string // tracks subscribed addresses (vtxo taproot pubkey -> address)
+	subscriptions    map[string]func() // tracks subscribed addresses (address -> closeFn)
 	subscriptionLock sync.RWMutex
 
 	// Notification channels
@@ -79,6 +81,7 @@ type Notification struct {
 
 func NewService(
 	buildInfo BuildInfo,
+	storeCfg store.Config,
 	storeSvc types.Store,
 	dbSvc ports.RepoManager,
 	schedulerSvc ports.SchedulerService,
@@ -97,6 +100,7 @@ func NewService(
 		svc := &Service{
 			BuildInfo:        buildInfo,
 			ArkClient:        arkClient,
+			storeCfg:         storeCfg,
 			storeRepo:        storeSvc,
 			dbSvc:            dbSvc,
 			grpcClient:       grpcClient,
@@ -104,7 +108,7 @@ func NewService(
 			lnSvc:            lnSvc,
 			publicKey:        nil,
 			isReady:          true,
-			subscriptions:    make(map[string]string),
+			subscriptions:    make(map[string]func()),
 			subscriptionLock: sync.RWMutex{},
 			notifications:    make(chan Notification),
 			stopCh:           make(chan struct{}, 1),
@@ -131,12 +135,13 @@ func NewService(
 	svc := &Service{
 		BuildInfo:        buildInfo,
 		ArkClient:        arkClient,
+		storeCfg:         storeCfg,
 		storeRepo:        storeSvc,
 		dbSvc:            dbSvc,
 		grpcClient:       nil,
 		schedulerSvc:     schedulerSvc,
 		lnSvc:            lnSvc,
-		subscriptions:    make(map[string]string),
+		subscriptions:    make(map[string]func()),
 		subscriptionLock: sync.RWMutex{},
 		notifications:    make(chan Notification),
 		stopCh:           make(chan struct{}, 1),
@@ -199,36 +204,35 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	return nil
 }
 
-func (s *Service) LockNode(ctx context.Context, password string) error {
+func (s *Service) LockNode(ctx context.Context) error {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return err
 	}
 
-	err := s.Lock(ctx, password)
+	err := s.Lock(ctx)
 	if err != nil {
 		return err
 	}
 	s.schedulerSvc.Stop()
 	log.Info("scheduler stopped")
-	go func() {
-		select {
-		case <-s.stopCh:
-			return
-		default:
-			time.Sleep(100 * time.Microsecond)
-		}
-	}()
+
+	// close all subscriptions
+	s.subscriptionLock.Lock()
+	defer s.subscriptionLock.Unlock()
+
+	log.Infof("closing %d address subscriptions", len(s.subscriptions))
+
+	for _, closeFn := range s.subscriptions {
+		closeFn()
+	}
+	s.subscriptions = make(map[string]func())
+
 	return nil
 }
 
 func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if !s.isReady {
 		return fmt.Errorf("service not initialized")
-	}
-
-	txCh, close, err := s.grpcClient.GetTransactionsStream(context.Background())
-	if err != nil {
-		return fmt.Errorf("server unreachable")
 	}
 
 	if err := s.Unlock(ctx, password); err != nil {
@@ -238,7 +242,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	s.schedulerSvc.Start()
 	log.Info("scheduler started")
 
-	err = s.ScheduleClaims(ctx)
+	err := s.ScheduleClaims(ctx)
 	if err != nil {
 		log.WithError(err).Info("schedule next claim failed")
 	}
@@ -277,29 +281,18 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		s.boltzSvc = boltzSvc
 	}
 
-	go s.listenForNotifications(txCh, close)
-
 	return nil
 }
 
-func (s *Service) Reset(ctx context.Context) error {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+func (s *Service) ResetWallet(ctx context.Context) error {
+	if err := s.dbSvc.Settings().CleanSettings(ctx); err != nil {
 		return err
 	}
-
-	settingsRepo := s.dbSvc.Settings()
-	backup, err := settingsRepo.GetSettings(ctx)
-	if err != nil {
-		return err
-	}
-	if err := settingsRepo.CleanSettings(ctx); err != nil {
-		return err
-	}
-	if err := s.storeRepo.ConfigStore().CleanData(ctx); err != nil {
-		// nolint:all
-		settingsRepo.AddSettings(ctx, *backup)
-		return err
-	}
+	// reset wallet (cleans all repos)
+	s.Reset(ctx)
+	// TODO: Maybe drop?
+	// nolint:all
+	s.dbSvc.Settings().AddDefaultSettings(ctx)
 	return nil
 }
 
@@ -365,10 +358,6 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 }
 
 func (s *Service) GetRound(ctx context.Context, roundId string) (*client.Round, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return nil, err
-	}
-
 	return s.grpcClient.GetRoundByID(ctx, roundId)
 }
 
@@ -1087,7 +1076,6 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 	}
 
 	for update := range ws.Updates {
-		fmt.Printf("EVENT %+v\n", update)
 		parsedStatus := boltz.ParseEvent(update.Status)
 
 		switch parsedStatus {
@@ -1115,13 +1103,25 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 	s.subscriptionLock.Lock()
 	defer s.subscriptionLock.Unlock()
 
+	// open an AddressEvent stream for each address
+	// register the close function to close the stream
+	// and handle the events in a separate goroutine
 	for _, addr := range addresses {
-		decodedAddr, err := common.DecodeAddress(addr)
-		if err != nil {
-			return fmt.Errorf("invalid address: %s", err)
+		_, ok := s.subscriptions[addr]
+		if ok {
+			log.Warnf("address %s already subscribed, skipping", addr)
+			continue
 		}
-		s.subscriptions[hex.EncodeToString(schnorr.SerializePubKey(decodedAddr.VtxoTapKey))] = addr
+
+		eventsCh, closeFn, err := s.grpcClient.SubscribeForAddress(context.Background(), addr)
+		if err != nil {
+			return fmt.Errorf("failed to subscribe for address %s: %w", addr, err)
+		}
+
+		s.subscriptions[addr] = closeFn
+		go s.handleAddressEventChannel(eventsCh, addr)
 	}
+
 	return nil
 }
 
@@ -1134,16 +1134,17 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 	defer s.subscriptionLock.Unlock()
 
 	for _, addr := range addresses {
+		closeFn, ok := s.subscriptions[addr]
+		if !ok {
+			continue
+		}
+		closeFn()
 		delete(s.subscriptions, addr)
 	}
 	return nil
 }
 
 func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return nil
-	}
-
 	return s.notifications
 }
 
@@ -1215,85 +1216,6 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) listenForNotifications(
-	txCh <-chan client.TransactionEvent, closeFn func(),
-) {
-	emptyTx := client.TransactionEvent{}
-
-	// listen for SDK vtxo channel events
-	for {
-		select {
-		case <-s.stopCh:
-			closeFn()
-			return
-		case tx := <-txCh:
-			if tx == emptyTx {
-				closeFn()
-				return
-			}
-
-			notifications := make(map[string]Notification)
-			var spendableVtxos []client.Vtxo
-			var spentVtxos []client.Vtxo
-			if tx.Round != nil {
-				spendableVtxos = tx.Round.SpendableVtxos
-				spentVtxos = tx.Round.SpentVtxos
-			} else if tx.Redeem != nil {
-				spendableVtxos = tx.Redeem.SpendableVtxos
-				spentVtxos = tx.Redeem.SpentVtxos
-			}
-
-			s.subscriptionLock.RLock()
-			for _, vtxo := range spendableVtxos {
-				// check if the address is subscribed
-				if address, ok := s.subscriptions[vtxo.PubKey]; ok {
-					// check if the address is already in the notifications map
-					if _, ok := notifications[address]; !ok {
-						notifications[address] = Notification{
-							Address:    address,
-							NewVtxos:   make([]client.Vtxo, 0),
-							SpentVtxos: make([]client.Vtxo, 0),
-						}
-					}
-
-					n := notifications[address]
-					n.NewVtxos = append(n.NewVtxos, vtxo)
-					notifications[address] = n
-				}
-			}
-			for _, vtxo := range spentVtxos {
-				// check if the address is subscribed
-				if address, ok := s.subscriptions[vtxo.PubKey]; ok {
-					// check if the address is already in the notifications map
-					if _, ok := notifications[address]; !ok {
-						notifications[address] = Notification{
-							Address:    address,
-							NewVtxos:   make([]client.Vtxo, 0),
-							SpentVtxos: make([]client.Vtxo, 0),
-						}
-					}
-
-					n := notifications[address]
-					n.SpentVtxos = append(n.SpentVtxos, vtxo)
-					notifications[address] = n
-				}
-			}
-			s.subscriptionLock.RUnlock()
-
-			// send notifications through channel
-			for _, notification := range notifications {
-				go func() {
-					select {
-					case s.notifications <- notification:
-					default:
-						time.Sleep(100 * time.Millisecond)
-					}
-				}()
-			}
-		}
-	}
-}
-
 func (s *Service) boltzRefundSwap(swapId, refundTx, signedRefundTx string, boltzPubkey *btcec.PublicKey) (string, error) {
 	partialSig, err := s.boltzSvc.RefundSwap(swapId, &boltz.RefundRequest{
 		Transaction: refundTx,
@@ -1314,6 +1236,29 @@ func (s *Service) boltzRefundSwap(swapId, refundTx, signedRefundTx string, boltz
 		SigHash:     ptx.Inputs[0].TaprootScriptSpendSig[0].SigHash,
 	})
 	return ptx.B64Encode()
+}
+
+func (s *Service) handleAddressEventChannel(eventsCh <-chan client.AddressEvent, addr string) {
+	for event := range eventsCh {
+		if event.Err != nil {
+			log.WithError(event.Err).Error("address event subscription error")
+			continue
+		}
+
+		log.Infof(
+			"received address event for %s (%d spent vtxos, %d new vtxos)",
+			addr, len(event.SpentVtxos), len(event.NewVtxos),
+		)
+
+		// non-blocking forward to notifications channel
+		go func() {
+			s.notifications <- Notification{
+				Address:    addr,
+				NewVtxos:   event.NewVtxos,
+				SpentVtxos: event.SpentVtxos,
+			}
+		}()
+	}
 }
 
 func parsePubkey(pubkey boltz.HexString) (*secp256k1.PublicKey, error) {
