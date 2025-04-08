@@ -290,20 +290,16 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	return nil
 }
 
-func (s *Service) ResetWallet(ctx context.Context) {
+func (s *Service) ResetWallet(ctx context.Context) error {
+	if err := s.settingsRepo.CleanSettings(ctx); err != nil {
+		return err
+	}
 	// reset wallet (cleans all repos)
 	s.Reset(ctx)
-	// stop stream
-	s.Stop()
-	// nolint:all
-	storeSvc, _ := store.NewStore(s.storeCfg)
-	// nolint:all
-	cli, _ := arksdk.NewCovenantlessClient(storeSvc)
 	// TODO: Maybe drop?
 	// nolint:all
 	s.settingsRepo.AddDefaultSettings(ctx)
-	s.ArkClient = cli
-	s.storeRepo = storeSvc
+	return nil
 }
 
 func (s *Service) AddDefaultSettings(ctx context.Context) error {
