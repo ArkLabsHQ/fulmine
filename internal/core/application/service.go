@@ -75,6 +75,7 @@ type Service struct {
 	notifications chan Notification
 
 	stopBoardingEventListener chan struct{}
+	closeInternalListener     func()
 }
 
 type Notification struct {
@@ -242,6 +243,10 @@ func (s *Service) LockNode(ctx context.Context) error {
 	close(s.stopBoardingEventListener)
 	s.stopBoardingEventListener = make(chan struct{})
 
+	// close internal address event listener
+	s.closeInternalListener()
+	s.closeInternalListener = nil
+
 	return nil
 }
 
@@ -308,11 +313,13 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 
-	if err := s.SubscribeForAddresses(ctx, []string{offchainAddress}); err != nil {
+	eventsCh, closeFn, err := s.grpcClient.SubscribeForAddress(context.Background(), offchainAddress)
+	if err != nil {
 		log.WithError(err).Error("failed to subscribe for offchain address")
 		return err
 	}
-
+	s.closeInternalListener = closeFn
+	go s.handleInternalAddressEventChannel(eventsCh)
 	go s.subscribeForBoardingEvent(ctx, onchainAddress, data)
 
 	return nil
@@ -1190,10 +1197,6 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 }
 
 func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return nil
-	}
-
 	return s.notifications
 }
 
@@ -1327,7 +1330,7 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 // subscribeForBoardingEvent aims to update the scheduled settlement
 // by checking for spent and new vtxos on the given boarding address
 func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string, cfg *types.Config) {
-	ticker := time.NewTicker(time.Minute * 10)
+	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 
 	// TODO: use boardingExitDelay https://github.com/ark-network/ark/pull/501
@@ -1426,6 +1429,7 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 	}
 }
 
+// handleAddressEventChannel is used to forward address events to the notifications channel
 func (s *Service) handleAddressEventChannel(eventsCh <-chan client.AddressEvent, addr string) {
 	for event := range eventsCh {
 		if event.Err != nil {
@@ -1443,6 +1447,17 @@ func (s *Service) handleAddressEventChannel(eventsCh <-chan client.AddressEvent,
 				SpentVtxos: event.SpentVtxos,
 			}
 		}()
+	}
+}
+
+// handleInternalAddressEventChannel is used to handle address events from the internal address event channel
+// it is used to schedule next settlement when a VTXO is spent or created
+func (s *Service) handleInternalAddressEventChannel(eventsCh <-chan client.AddressEvent) {
+	for event := range eventsCh {
+		if event.Err != nil {
+			log.WithError(event.Err).Error("AddressEvent subscription error")
+			continue
+		}
 
 		ctx := context.Background()
 
