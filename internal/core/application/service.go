@@ -290,7 +290,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	return nil
 }
 
-func (s *Service) ResetWallet(ctx context.Context) error {
+func (s *Service) ResetWallet(ctx context.Context) {
 	// reset wallet (cleans all repos)
 	s.Reset(ctx)
 	// stop stream
@@ -304,7 +304,6 @@ func (s *Service) ResetWallet(ctx context.Context) error {
 	s.settingsRepo.AddDefaultSettings(ctx)
 	s.ArkClient = cli
 	s.storeRepo = storeSvc
-	return nil
 }
 
 func (s *Service) AddDefaultSettings(ctx context.Context) error {
