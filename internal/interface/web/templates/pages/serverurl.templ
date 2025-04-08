@@ -10,7 +10,7 @@ templ ServerUrlBodyContent(serverUrl, privateKey, password string) {
     <input type="hidden" name="password" value={password}/>
     <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	    <div>
-		    <div class="hidden md:block">@LogoWhite()</div>
+		    <div class="hidden md:block">@BigLogo()</div>
 	      @components.Header("Choose Server", "/welcome")
 	  		<p class="mb-10">Choose your Server</p>
         <p class="mb-2">Server URL</p>
@@ -28,7 +28,7 @@ templ ServerUrlBodyContent(serverUrl, privateKey, password string) {
   <script>
 		const input = document.querySelector('#serverUrl')
 		const button = document.querySelector('#createWallet')
-		const validate = () => {
+		const validateServerUrl = () => {
       if (input.value.length == 0) return
 		  const data = new FormData()
 		  data.set('url', input.value)
@@ -50,8 +50,8 @@ templ ServerUrlBodyContent(serverUrl, privateKey, password string) {
 		  })
 		}
 		if (input && button) {
-			validate()
-		  input.addEventListener('change', validate)
+			validateServerUrl()
+		  input.addEventListener('change', validateServerUrl)
 		}
   </script>
 }

@@ -53,11 +53,10 @@ templ ManagePrivateKeyContent(privateKey string) {
 templ importWalletPrivateKeyContent() {
 	<form hx-post="/privatekey">
 	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
-	    <div>
-			  <div class="hidden md:block">@LogoWhite()</div>
+		  <div>
+	      <div class="hidden md:block">@BigLogo()</div>
 	      @components.Header("Import wallet", "/welcome")
-	  		<p class="mb-6">Import an existing wallet with your Private Key.</p>
-        <p class="font-semibold mb-2">Enter Private Key</p>
+	  	  <p class="mb-6">Import an existing wallet with your Private Key.</p>
 				<div class="border border-1 border-white/20 bg-graybg p-4 flex items-center justify-between rounded-lg">
 	        <input
 	      	  class="bg-graybg border-0 p-0 mr-4"
@@ -80,13 +79,12 @@ templ newWalletPrivateKeyContent(privateKey string) {
 	<form hx-post="/privatekey">
 	  <input type="hidden" name="privateKey" value={privateKey} />
 	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
-	    <div>
-	  	  <div class="hidden md:block">@LogoWhite()</div>
-	      @components.Header("New wallet", "/welcome")
-	  		<p class="mb-10">Write down the following Private Key in a secure place.</p>
+		  <div>
+				<div class="hidden md:block">@BigLogo()</div>
+				@components.Header("New wallet", "/welcome")
+	  	  <p class="mb-10">Write down the following Private Key in a secure place.</p>
 	  	  <p class="bg-white/20 rounded-lg p-3 break-words text-lg">{privateKey}</p>
-	  	</div>
-
+			</div>
       <div class="flex flex-col md:flex-row md:justify-center gap-2 w-full">
 	      <button class="md:w-auto bg-orange text-white" id="importButton" type="submit">Continue</button>
 				@components.CopyButtonText(privateKey)

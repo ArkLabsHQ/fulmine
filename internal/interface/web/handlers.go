@@ -175,8 +175,12 @@ func (s *service) importWalletPrivateKey(c *gin.Context) {
 }
 
 func (s *service) lock(c *gin.Context) {
-	bodyContent := pages.Lock()
-	s.pageViewHandler(bodyContent, c)
+	if err := s.svc.LockNode(c); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+	c.Redirect(http.StatusFound, "/")
 }
 
 func (s *service) unlock(c *gin.Context) {
@@ -650,7 +654,7 @@ func (s *service) getTx(c *gin.Context) {
 			nextSettlementStr = prettyUnixTimestamp(nextSettlement.Unix())
 		}
 
-		bodyContent = pages.TxPendingContent(tx, nextSettlementStr)
+		bodyContent = pages.TxPendingContent(tx, explorerUrl, nextSettlementStr)
 	} else {
 		bodyContent = pages.TxBodyContent(tx, explorerUrl)
 	}
@@ -797,6 +801,12 @@ func (s *service) pageViewHandler(bodyContent templ.Component, c *gin.Context) {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
+}
+
+func (s *service) scannerModal(c *gin.Context) {
+	id := c.Param("id")
+	scan := modals.Scanner(id)
+	modalHandler(scan, c)
 }
 
 func (s *service) seedInfoModal(c *gin.Context) {

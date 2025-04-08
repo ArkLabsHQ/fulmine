@@ -51,7 +51,7 @@ func (s *service) updateSettingsApi(c *gin.Context) {
 
 	// TODO lnconnect
 
-	if lnURL := c.PostForm("lnurl"); len(lnURL) > 0 {
+	if lnURL := c.PostForm("lnurl"); utils.IsValidLnUrl(lnURL) {
 		settings.LnUrl = lnURL
 	}
 
@@ -158,6 +158,15 @@ func (s *service) validatePrivateKeyApi(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
+func (s *service) validateLnUrlApi(c *gin.Context) {
+	url := c.PostForm("lnurl")
+	valid := utils.IsValidLnUrl(url)
+	data := gin.H{
+		"valid": valid,
+	}
+	c.JSON(http.StatusOK, data)
+}
+
 func (s *service) validateUrlApi(c *gin.Context) {
 	url := c.PostForm("url")
 	valid := utils.IsValidURL(url)
@@ -165,23 +174,6 @@ func (s *service) validateUrlApi(c *gin.Context) {
 		"valid": valid,
 	}
 	c.JSON(http.StatusOK, data)
-}
-
-func (s *service) lockApi(c *gin.Context) {
-	password := c.PostForm("password")
-	if password == "" {
-		toast := components.Toast("Password can't be empty", true)
-		toastHandler(toast, c)
-		return
-	}
-
-	if err := s.svc.Lock(c, password); err != nil {
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
-	}
-
-	redirect("/", c)
 }
 
 func (s *service) unlockApi(c *gin.Context) {

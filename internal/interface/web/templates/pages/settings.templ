@@ -9,8 +9,14 @@ templ Separator(text string) {
   <p class="uppercase text-sm text-white/50 my-4">{text}</p>
 }
 
-templ Status(ok bool, goodLabel, badLabel string) {
-  <div class="flex cursor-pointer">
+templ Status(ok bool, goodLabel, badLabel string, pointer bool) {
+  <div 
+    if pointer {
+      class="flex cursor-pointer"
+    } else {
+      class="flex"
+    }
+  >
     if ok {
       <p class="flex p-2 rounded-lg bg-green/10 border border-1 border-green/50">
         <span class="text-green mr-2">&#9679;</span>
@@ -27,7 +33,7 @@ templ Status(ok bool, goodLabel, badLabel string) {
 
 templ StatusNode(connected bool) {
   <div class="mb-4">
-    @Status(connected, "Connected", "Disconnected")
+    @Status(connected, "Connected", "Disconnected", false)
   </div>
 }
 
@@ -39,7 +45,7 @@ templ StatusLock(locked bool) {
       onclick="redirect('/lock')"
     }
   >
-    @Status(!locked, "Unlocked", "Locked")
+    @Status(!locked, "Unlocked", "Locked", true)
   </div>
 }
 
@@ -126,9 +132,9 @@ templ SettingsServerContent(settings domain.Settings) {
         id="serverlink"
         name="serverlink"
         value={settings.ApiRoot}>
-      <div class="flex items-center gap-4 text-white/50">
-        <p class="cursor-pointer" onclick="pasteFromClipboard('#serverlink')">@components.PasteIcon()</p>
-        <p class="cursor-pointer" onclick="notImplemented(event)">@components.ScanIcon()</p>
+      <div class="cursor-pointer flex items-center gap-4 text-white/50">
+        @components.PasteWidget("serverlink")
+        @components.ScanWidget("serverlink")
       </div>
     </div>
     <hr class="border border-1 border-white/10 my-8 w-full"/>
@@ -166,7 +172,36 @@ templ SettingsLightningContent(settings domain.Settings, nodeStatus bool) {
         </div>
       </div>
       <hr class="border border-1 border-white/10 my-4 w-full"/>
-      @components.LnConnectButtons()
+      @components.LnConnectButtons("lnurl")
     }
   </form>
+  <script>
+    const input = document.querySelector('#lnurl')
+    const button = document.querySelector('button[name="connect"]')
+		const validateLnUrl = () => {
+      if (input.value.length == 0) return
+		  const data = new FormData()
+		  data.set('lnurl', input.value)
+		  fetch('/helpers/lnurl/validate', {
+		  	method: 'POST',
+        body: data,
+		  }).then((res) => {
+		  	if (res.ok) {
+		  		res.json().then(({ valid }) => {
+		  			if (valid) {
+		  				button.disabled = false
+		  				button.innerText = 'Connect'
+		  			} else {
+		  				button.disabled = true
+		  				button.innerText = 'Invalid URL'
+		  			}
+		  		})
+		  	}
+		  })
+		}
+    if (input && button) {
+			validateLnUrl()
+		  input.addEventListener('change', validateLnUrl)
+		}
+  </script>
 }

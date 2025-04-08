@@ -55,7 +55,7 @@ func Separator(text string) templ.Component {
 	})
 }
 
-func Status(ok bool, goodLabel, badLabel string) templ.Component {
+func Status(ok bool, goodLabel, badLabel string, pointer bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -76,48 +76,63 @@ func Status(ok bool, goodLabel, badLabel string) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"flex cursor-pointer\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if pointer {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " class=\"flex cursor-pointer\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " class=\"flex\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, ">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if ok {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"flex p-2 rounded-lg bg-green/10 border border-1 border-green/50\"><span class=\"text-green mr-2\">&#9679;</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<p class=\"flex p-2 rounded-lg bg-green/10 border border-1 border-green/50\"><span class=\"text-green mr-2\">&#9679;</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(goodLabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 17, Col: 18}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 23, Col: 18}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p class=\"flex p-2 rounded-lg bg-red/10 border border-1 border-red/50\"><span class=\"text-red mr-2\">&#9679;</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p class=\"flex p-2 rounded-lg bg-red/10 border border-1 border-red/50\"><span class=\"text-red mr-2\">&#9679;</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(badLabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 22, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 28, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -146,15 +161,15 @@ func StatusNode(connected bool) templ.Component {
 			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"mb-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"mb-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Status(connected, "Connected", "Disconnected").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Status(connected, "Connected", "Disconnected", false).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -183,30 +198,30 @@ func StatusLock(locked bool) templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if locked {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " onclick=\"redirect(&#39;/unlock&#39;)\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, " onclick=\"redirect(&#39;/unlock&#39;)\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, " onclick=\"redirect(&#39;/lock&#39;)\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " onclick=\"redirect(&#39;/lock&#39;)\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, ">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, ">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Status(!locked, "Unlocked", "Locked").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Status(!locked, "Unlocked", "Locked", true).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -235,7 +250,7 @@ func SettingsTab(text, path string, active bool) templ.Component {
 			templ_7745c5c3_Var8 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<a href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -244,7 +259,7 @@ func SettingsTab(text, path string, active bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -253,7 +268,7 @@ func SettingsTab(text, path string, active bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<p class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<p class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -266,20 +281,20 @@ func SettingsTab(text, path string, active bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 48, Col: 113}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 54, Col: 113}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</p></a>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</p></a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -308,7 +323,7 @@ func SettingsTabs(active string) templ.Component {
 			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"flex gap-2 mb-8 text-sm text-white/80 font-semibold\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div class=\"flex gap-2 mb-8 text-sm text-white/80 font-semibold\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -316,7 +331,7 @@ func SettingsTabs(active string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<!-- @SettingsTab(\"Server\", \"/settings/server\", active == \"server\") // TODO: reactivate this -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<!-- @SettingsTab(\"Server\", \"/settings/server\", active == \"server\") // TODO: reactivate this -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -324,7 +339,7 @@ func SettingsTabs(active string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -357,7 +372,7 @@ func SettingsBodyContent(active string, settings domain.Settings, nodeStatus, lo
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\"><div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\"><div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -387,7 +402,7 @@ func SettingsBodyContent(active string, settings domain.Settings, nodeStatus, lo
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -416,7 +431,7 @@ func SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) t
 			templ_7745c5c3_Var15 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<form hx-post=\"/helpers/settings\" hx-trigger=\"change\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<form hx-post=\"/helpers/settings\" hx-trigger=\"change\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -428,7 +443,7 @@ func SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<hr class=\"border border-1 border-white/10 my-8 w-full\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<hr class=\"border border-1 border-white/10 my-8 w-full\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -440,20 +455,20 @@ func SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<select class=\"border border-1 border-white/20 bg-graybg p-4 rounded-lg text-white/50 w-full\" name=\"unit\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<select class=\"border border-1 border-white/20 bg-graybg p-4 rounded-lg text-white/50 w-full\" name=\"unit\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(settings.Unit)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 89, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 95, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\"><option value=\"sat\">Satoshi (0.00000001 BTC)</option> <option value=\"btc\">Bitcoin (100.000.000 SATS)</option></select>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\"><option value=\"sat\">Satoshi (0.00000001 BTC)</option> <option value=\"btc\">Bitcoin (100.000.000 SATS)</option></select>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -461,20 +476,20 @@ func SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<select class=\"border border-1 border-white/20 bg-graybg p-4 rounded-lg text-white/50 w-full\" name=\"currency\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<select class=\"border border-1 border-white/20 bg-graybg p-4 rounded-lg text-white/50 w-full\" name=\"currency\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(settings.Currency)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 98, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 104, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\"><option value=\"usd\">USD ($)</option> <option value=\"eur\">EURO (€)</option></select>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "\"><option value=\"usd\">USD ($)</option> <option value=\"eur\">EURO (€)</option></select>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -486,7 +501,7 @@ func SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<hr class=\"border border-1 border-white/10 my-8 w-full\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<hr class=\"border border-1 border-white/10 my-8 w-full\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -494,7 +509,7 @@ func SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<button class=\"bg-graybg font-semibold rounded-lg mb-4\" onclick=\"handleBackup(event)\">Backup Private Key</button></form><script>\n    const handleBackup = (event) => {\n      event.preventDefault()\n      redirect('/backup')\n    }\n  </script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<button class=\"bg-graybg font-semibold rounded-lg mb-4\" onclick=\"handleBackup(event)\">Backup Private Key</button></form><script>\n    const handleBackup = (event) => {\n      event.preventDefault()\n      redirect('/backup')\n    }\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -523,7 +538,7 @@ func SettingsServerContent(settings domain.Settings) templ.Component {
 			templ_7745c5c3_Var18 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<form hx-post=\"/helpers/settings\" hx-trigger=\"change\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<form hx-post=\"/helpers/settings\" hx-trigger=\"change\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -535,36 +550,32 @@ func SettingsServerContent(settings domain.Settings) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div class=\"border border-1 border-white/50 flex bg-graybg items-center justify-between rounded-lg gap-4 pr-3 focus:border-orange\"><input class=\"border-0 bg-graybg p-4 rounded-lg text-white/50 focus:text-white max-w-96\" id=\"serverlink\" name=\"serverlink\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<div class=\"border border-1 border-white/50 flex bg-graybg items-center justify-between rounded-lg gap-4 pr-3 focus:border-orange\"><input class=\"border-0 bg-graybg p-4 rounded-lg text-white/50 focus:text-white max-w-96\" id=\"serverlink\" name=\"serverlink\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(settings.ApiRoot)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 128, Col: 31}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/settings.templ`, Line: 134, Col: 31}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\"><div class=\"flex items-center gap-4 text-white/50\"><p class=\"cursor-pointer\" onclick=\"pasteFromClipboard(&#39;#serverlink&#39;)\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "\"><div class=\"cursor-pointer flex items-center gap-4 text-white/50\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.PasteIcon().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.PasteWidget("serverlink").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</p><p class=\"cursor-pointer\" onclick=\"notImplemented(event)\">")
+		templ_7745c5c3_Err = components.ScanWidget("serverlink").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.ScanIcon().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "</p></div></div><hr class=\"border border-1 border-white/10 my-8 w-full\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</div></div><hr class=\"border border-1 border-white/10 my-8 w-full\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -596,7 +607,7 @@ func SettingsServerContent(settings domain.Settings) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "</form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -625,7 +636,7 @@ func SettingsLightningContent(settings domain.Settings, nodeStatus bool) templ.C
 			templ_7745c5c3_Var20 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<form hx-post=\"/helpers/settings\" hx-trigger=\"change\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<form hx-post=\"/helpers/settings\" hx-trigger=\"change\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -637,7 +648,7 @@ func SettingsLightningContent(settings domain.Settings, nodeStatus bool) templ.C
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<hr class=\"border border-1 border-white/10 my-8 w-full\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<hr class=\"border border-1 border-white/10 my-8 w-full\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -645,7 +656,7 @@ func SettingsLightningContent(settings domain.Settings, nodeStatus bool) templ.C
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<p>Enter details manually or scan to connect</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<p>Enter details manually or scan to connect</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -658,7 +669,7 @@ func SettingsLightningContent(settings domain.Settings, nodeStatus bool) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, " <button class=\"bg-red/10 text-red font-semibold rounded-lg mt-8\" hx-post=\"/helpers/node/disconnect\">Disconnect</button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, " <button class=\"bg-red/10 text-red font-semibold rounded-lg mt-8\" hx-post=\"/helpers/node/disconnect\">Disconnect</button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -667,7 +678,7 @@ func SettingsLightningContent(settings domain.Settings, nodeStatus bool) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, " <hr class=\"border border-1 border-white/10 my-4 w-full\"><div class=\"flex items-start gap-4 max-w-96\"><p class=\"mt-1\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, " <hr class=\"border border-1 border-white/10 my-4 w-full\"><div class=\"flex items-start gap-4 max-w-96\"><p class=\"mt-1\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -675,16 +686,16 @@ func SettingsLightningContent(settings domain.Settings, nodeStatus bool) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</p><div><p class=\"mb-2\">Connect to you own LN node to rebalance your channels with low fees and faster settlements</p><p>How to connect? <a hx-get=\"/modal/lnconnectinfo\" hx-target=\"#modal\" class=\"visible\">View guide</a></p></div></div><hr class=\"border border-1 border-white/10 my-4 w-full\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</p><div><p class=\"mb-2\">Connect to you own LN node to rebalance your channels with low fees and faster settlements</p><p>How to connect? <a hx-get=\"/modal/lnconnectinfo\" hx-target=\"#modal\" class=\"visible\">View guide</a></p></div></div><hr class=\"border border-1 border-white/10 my-4 w-full\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = components.LnConnectButtons().Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = components.LnConnectButtons("lnurl").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</form><script>\n    const input = document.querySelector('#lnurl')\n    const button = document.querySelector('button[name=\"connect\"]')\n\t\tconst validateLnUrl = () => {\n      if (input.value.length == 0) return\n\t\t  const data = new FormData()\n\t\t  data.set('lnurl', input.value)\n\t\t  fetch('/helpers/lnurl/validate', {\n\t\t  \tmethod: 'POST',\n        body: data,\n\t\t  }).then((res) => {\n\t\t  \tif (res.ok) {\n\t\t  \t\tres.json().then(({ valid }) => {\n\t\t  \t\t\tif (valid) {\n\t\t  \t\t\t\tbutton.disabled = false\n\t\t  \t\t\t\tbutton.innerText = 'Connect'\n\t\t  \t\t\t} else {\n\t\t  \t\t\t\tbutton.disabled = true\n\t\t  \t\t\t\tbutton.innerText = 'Invalid URL'\n\t\t  \t\t\t}\n\t\t  \t\t})\n\t\t  \t}\n\t\t  })\n\t\t}\n    if (input && button) {\n\t\t\tvalidateLnUrl()\n\t\t  input.addEventListener('change', validateLnUrl)\n\t\t}\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

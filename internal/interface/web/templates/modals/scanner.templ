@@ -1,0 +1,20 @@
+package modals
+
+import (
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
+)
+
+templ Scanner(id string) {
+  <div class="fixed inset-0 flex justify-center items-center bg-black/60" id="modalContainer" onclick="scanClose()">
+    <div class="bg-graybg relative rounded-xl shadow p-6 transition-all">
+      <p class="text-center mb-6" id="qr-title">Waiting for camera access</p>
+      <video id="qr-video" autoplay="" />
+      <p class="bg-white/10 cursor-pointer text-white p-3 rounded-full absolute top-6 right-6" onclick="scanClose()">
+        @components.CloseIcon()
+      </p>
+    </div>
+  </div>
+  <script>
+    scanStart({{ id }})
+  </script>
+}
