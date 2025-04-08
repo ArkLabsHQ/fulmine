@@ -5,7 +5,6 @@ import (
 )
 
 templ Unlock() {
-  <form hx-post="/helpers/forgot" id="forgot"><button class="hidden" type="submit" /></form>
   <form hx-post="/helpers/unlock">
     <div class="bg-radial-gradient h-screen fullscreen">
       <div class="flex flex-col justify-between h-screen justify-between md:h-[600px] md:gap-10 w-80 m-auto p-3">
@@ -28,7 +27,7 @@ templ Unlock() {
                 <span style="display: none">@components.EyeCloseIcon()</span>
               </p>
             </div>
-            <p class="text-right mt-2 cursor-pointer" onclick="forgotPass()">Forgot password?</p>
+            <p class="text-right mt-2 cursor-pointer" hx-post="/helpers/forgot">Forgot password?</p>
           </div>
         </div>
         <button class="bg-white ee text-black mt-10 capitalize" hx-on:click="disableButton(this)" type="submit">
@@ -36,15 +35,5 @@ templ Unlock() {
         </button>
       </div>
     </div>
-    <script>
-      const forgotPass = () => {
-        document.querySelector("#forgot").querySelector("button").click()
-      }
-    </script>
   </form>
-  <script>
-    function resetWallet() {
-      document.getElementById("forgot").querySelector("button").click()
-    }
-  </script>
 }

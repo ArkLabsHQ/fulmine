@@ -41,7 +41,7 @@ templ ManagePrivateKeyContent(privateKey string) {
 							button.innerText = 'Continue'
 						} else {
 							button.disabled = true
-							button.innerText = error
+							button.innerText = 'Invalid Private Key'
 						}
 					})
 				}
@@ -63,14 +63,14 @@ templ importWalletPrivateKeyContent() {
 	      		id="privateKey"
 	      		name="privateKey"
 	      		placeholder="abcdef0123456789..."
-						onchange="validatePrivateKey()"
+						oninput="validatePrivateKey()"
 	      	/>
 	      	<p class="cursor-pointer text-white/50" data-needs="clipboard" onclick="handlePrivateKeyPaste()">
 					  @components.PasteIcon()
 					</p>
 	      </div>
 	  	</div>
-			<button class="bg-orange text-white" disabled id="importButton" type="submit">Invalid Private Key</button>
+			<button class="bg-orange text-white" disabled id="importButton" type="submit">Insert Private Key</button>
 	  </div>
 	</form>
 }

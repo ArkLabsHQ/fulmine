@@ -124,7 +124,7 @@ func iconButton(icon templ.Component) templ.Component {
 			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"border border-2 border-white/20 cursor-pointer w-10 h-10 bg-white/10 rounded-full hover:border-hover\"><div class=\"flex items-center justify-center w-full h-full\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"bg-white/05 hover:bg-white/10 border border-white/20 hover:border-white/30 cursor-pointer w-10 h-10 rounded-full\"><div class=\"flex items-center justify-center w-full h-full\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
