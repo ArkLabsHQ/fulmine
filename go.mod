@@ -56,6 +56,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/fergusstrange/embedded-postgres v1.28.0 // indirect
+	github.com/getsentry/sentry-go v0.31.1 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-macaroon-bakery/macaroonpb v1.0.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.1.0 // indirect

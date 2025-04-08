@@ -68,6 +68,9 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 
 	svc := &service{router, appSvc, stopCh}
 
+	// Add Sentry middleware to capture errors
+	svc.Use(SentryMiddleware())
+
 	// Handle static files.
 	// svc.Static("/static", "./static")
 	svc.StaticFS("/static", http.FS(staticFS))
