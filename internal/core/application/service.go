@@ -140,11 +140,6 @@ func NewService(
 		return nil, err
 	}
 
-	data, err := arkClient.GetConfigData(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	svc := &Service{
 		BuildInfo:                 buildInfo,
 		ArkClient:                 arkClient,
@@ -158,7 +153,6 @@ func NewService(
 		subscriptions:             make(map[string]func()),
 		subscriptionLock:          sync.RWMutex{},
 		notifications:             make(chan Notification),
-		esploraUrl:                data.ExplorerURL,
 		stopBoardingEventListener: make(chan struct{}),
 	}
 
@@ -212,6 +206,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		return err
 	}
 
+	s.esploraUrl = config.ExplorerURL
 	s.publicKey = prvKey.PubKey()
 	s.grpcClient = client
 	s.isReady = true
