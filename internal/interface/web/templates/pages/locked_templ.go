@@ -33,7 +33,7 @@ func Unlock() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form hx-post=\"/helpers/forgot\" id=\"forgot\"><button class=\"hidden\" type=\"submit\"></button></form><form hx-post=\"/helpers/unlock\"><div class=\"bg-radial-gradient h-screen fullscreen\"><div class=\"flex flex-col justify-between h-screen justify-between md:h-[600px] md:gap-10 w-80 m-auto p-3\"><div><div class=\"flex flex-col gap-12 items-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form hx-post=\"/helpers/unlock\"><div class=\"bg-radial-gradient h-screen fullscreen\"><div class=\"flex flex-col justify-between h-screen justify-between md:h-[600px] md:gap-10 w-80 m-auto p-3\"><div><div class=\"flex flex-col gap-12 items-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -65,7 +65,7 @@ func Unlock() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span></p></div><p class=\"text-right mt-2 cursor-pointer\" onclick=\"forgotPass()\">Forgot password?</p></div></div><button class=\"bg-white ee text-black mt-10 capitalize\" hx-on:click=\"disableButton(this)\" type=\"submit\">Unlock</button></div></div><script>\n      const forgotPass = () => {\n        document.querySelector(\"#forgot\").querySelector(\"button\").click()\n      }\n    </script></form><script>\n    function resetWallet() {\n      document.getElementById(\"forgot\").querySelector(\"button\").click()\n    }\n  </script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span></p></div><p class=\"text-right mt-2 cursor-pointer\" hx-post=\"/helpers/forgot\">Forgot password?</p></div></div><button class=\"bg-white ee text-black mt-10 capitalize\" hx-on:click=\"disableButton(this)\" type=\"submit\">Unlock</button></div></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

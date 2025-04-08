@@ -86,11 +86,7 @@ func (s *service) disconnectLNDApi(c *gin.Context) {
 }
 
 func (s *service) forgotApi(c *gin.Context) {
-	if err := s.svc.Reset(c); err != nil {
-		toast := components.Toast("Unable to delete previous wallet", true)
-		toastHandler(toast, c)
-		return
-	}
+	s.svc.ResetWallet(c)
 	redirect("/welcome", c)
 }
 
