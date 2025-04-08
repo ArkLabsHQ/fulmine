@@ -93,6 +93,7 @@ func NewService(
 	vtxoRolloverRepo domain.VtxoRolloverRepository,
 	schedulerSvc ports.SchedulerService,
 	lnSvc ports.LnService,
+	esploraUrl string,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
@@ -153,6 +154,7 @@ func NewService(
 		subscriptionLock:          sync.RWMutex{},
 		notifications:             make(chan Notification),
 		stopBoardingEventListener: make(chan struct{}),
+		esploraUrl:                esploraUrl,
 	}
 
 	return svc, nil
@@ -270,7 +272,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 
 	if nextExpiry != nil {
-		if err := s.scheduleNextSettlement(ctx, *nextExpiry, data); err != nil {
+		if err := s.scheduleNextSettlement(*nextExpiry, data); err != nil {
 			log.WithError(err).Info("schedule next claim failed")
 		}
 	}
@@ -419,31 +421,12 @@ func (s *Service) Settle(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	roundTxid, err := s.ArkClient.Settle(ctx)
-	if err == nil {
-		// if settlement was successful, schedule the next one at now+vtxo expiry
-		now := time.Now()
-		data, err := s.GetConfigData(ctx)
-		if err != nil {
-			return "", err
-		}
-		expiry := data.VtxoTreeExpiry.Seconds()
-		nextSettlement := now.Add(time.Duration(expiry) * time.Second)
-		if err := s.scheduleNextSettlement(ctx, nextSettlement, data); err != nil {
-			log.WithError(err).Warn("error scheduling next claims")
-		}
-	}
-	return roundTxid, err
+	return s.ArkClient.Settle(ctx)
 }
 
-func (s *Service) scheduleNextSettlement(ctx context.Context, at time.Time, data *types.Config) error {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return err
-	}
-
+func (s *Service) scheduleNextSettlement(at time.Time, data *types.Config) error {
 	task := func() {
-		log.Infof("running auto claim at %s", time.Now())
-		_, err := s.Settle(ctx)
+		_, err := s.Settle(context.Background())
 		if err != nil {
 			log.WithError(err).Warn("failed to auto claim")
 		}
@@ -457,7 +440,13 @@ func (s *Service) scheduleNextSettlement(ctx context.Context, at time.Time, data
 		at = marketHourStartTime.Add(time.Duration(cycles) * time.Duration(data.MarketHourPeriod) * time.Second)
 	}
 
-	return s.schedulerSvc.ScheduleNextSettlement(at, data, task)
+	roundInterval := time.Duration(data.RoundInterval) * time.Second
+	at = at.Add(-2 * roundInterval) // schedule 2 rounds before the expiry
+
+	fmt.Printf("scheduleNextSettlement %s\n", at.Format(time.RFC3339))
+	fmt.Printf("unix: %d\n", at.Unix())
+
+	return s.schedulerSvc.ScheduleNextSettlement(at, task)
 }
 
 func (s *Service) WhenNextSettlement(ctx context.Context) time.Time {
@@ -1261,6 +1250,14 @@ func (s *Service) ListWatchedAddresses(ctx context.Context) ([]domain.VtxoRollov
 	return s.vtxoRolloverRepo.GetAllTargets(ctx)
 }
 
+func (s *Service) IsLocked(ctx context.Context) bool {
+	if s.ArkClient == nil {
+		return false
+	}
+
+	return s.ArkClient.IsLocked(ctx)
+}
+
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 	if !s.isReady {
 		return fmt.Errorf("service not initialized")
@@ -1375,14 +1372,6 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 				newSet[key] = utxo.ToUtxo(boardingTimelock, []string{})
 			}
 
-			// find spent utxos
-			spentUtxos := make([]types.Utxo, 0)
-			for key, oldUtxo := range currentSet {
-				if _, exists := newSet[key]; !exists {
-					spentUtxos = append(spentUtxos, oldUtxo)
-				}
-			}
-
 			// find new utxos
 			newUtxos := make([]types.Utxo, 0)
 			for key, newUtxo := range newSet {
@@ -1391,23 +1380,10 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 				}
 			}
 
-			log.Infof("boarding event detected: %d utxos spent, %d new utxos", len(spentUtxos), len(newUtxos))
-
-			// if some are spent, it means we had a boarding tx settled
-			if len(spentUtxos) > 0 {
-				nextExpiry, err := s.computeNextExpiry(ctx, cfg)
-				if err != nil {
-					log.WithError(err).Error("failed to compute next expiry")
-					continue
-				}
-
-				if err := s.scheduleNextSettlement(ctx, *nextExpiry, cfg); err != nil {
-					log.WithError(err).Info("schedule next claim failed")
-				}
-				continue
+			if len(newUtxos) > 0 {
+				log.Infof("boarding event detected: %d new utxos", len(newUtxos))
 			}
 
-			// if some are new, it means we have a new boarding tx
 			// if expiry is before the next scheduled settlement, we need to schedule a new one
 			if len(newUtxos) > 0 {
 				nextScheduledSettlement := s.WhenNextSettlement(ctx)
@@ -1422,7 +1398,7 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 				}
 
 				if needSchedule {
-					if err := s.scheduleNextSettlement(ctx, nextScheduledSettlement, cfg); err != nil {
+					if err := s.scheduleNextSettlement(nextScheduledSettlement, cfg); err != nil {
 						log.WithError(err).Info("schedule next claim failed")
 					}
 				}
@@ -1472,6 +1448,8 @@ func (s *Service) handleInternalAddressEventChannel(eventsCh <-chan client.Addre
 			return
 		}
 
+		log.Infof("received internal address event (%d spent vtxos, %d new vtxos)", len(event.SpentVtxos), len(event.NewVtxos))
+
 		// if some vtxos were spent, schedule a settlement to soonest expiry among new vtxos / boarding UTXOs set
 		if len(event.SpentVtxos) > 0 {
 			nextExpiry, err := s.computeNextExpiry(ctx, data)
@@ -1480,7 +1458,7 @@ func (s *Service) handleInternalAddressEventChannel(eventsCh <-chan client.Addre
 				return
 			}
 
-			if err := s.scheduleNextSettlement(ctx, *nextExpiry, data); err != nil {
+			if err := s.scheduleNextSettlement(*nextExpiry, data); err != nil {
 				log.WithError(err).Info("schedule next claim failed")
 			}
 
@@ -1494,6 +1472,7 @@ func (s *Service) handleInternalAddressEventChannel(eventsCh <-chan client.Addre
 			needSchedule := false
 
 			for _, vtxo := range event.NewVtxos {
+				log.Infof("new vtxo: %s, expires at: %s", vtxo.Txid, vtxo.ExpiresAt.Format(time.RFC3339))
 				if nextScheduledSettlement.IsZero() || vtxo.ExpiresAt.Before(nextScheduledSettlement) {
 					nextScheduledSettlement = vtxo.ExpiresAt
 					needSchedule = true
@@ -1501,7 +1480,7 @@ func (s *Service) handleInternalAddressEventChannel(eventsCh <-chan client.Addre
 			}
 
 			if needSchedule {
-				if err := s.scheduleNextSettlement(ctx, nextScheduledSettlement, data); err != nil {
+				if err := s.scheduleNextSettlement(nextScheduledSettlement, data); err != nil {
 					log.WithError(err).Info("schedule next claim failed")
 				}
 			}
