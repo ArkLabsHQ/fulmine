@@ -33,7 +33,7 @@ type service struct {
 	feStopCh  chan struct{}
 }
 
-func NewService(cfg Config, appSvc *application.Service) (*service, error) {
+func NewService(cfg Config, appSvc *application.Service, sentryEnabled bool) (*service, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %s", err)
 	}
@@ -42,8 +42,8 @@ func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 	feStopCh := make(chan struct{}, 1)
 
 	grpcConfig := []grpc.ServerOption{
-		interceptors.UnaryInterceptor(),
-		interceptors.StreamInterceptor(),
+		interceptors.UnaryInterceptor(sentryEnabled),
+		interceptors.StreamInterceptor(sentryEnabled),
 	}
 	if cfg.WithTLS {
 		return nil, fmt.Errorf("tls termination not supported yet")
@@ -111,7 +111,7 @@ func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 		return nil, err
 	}
 
-	feHandler := web.NewService(appSvc, feStopCh)
+	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", feHandler)

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/spf13/viper"
 )
 
@@ -21,6 +22,8 @@ type Config struct {
 	ArkServer  string
 	EsploraURL string
 	CLNDatadir string // for testing purposes only
+	SentryDSN  string
+	SentryEnv  string
 }
 
 var (
@@ -31,6 +34,8 @@ var (
 	LogLevel   = "LOG_LEVEL"
 	ArkServer  = "ARK_SERVER"
 	EsploraURL = "ESPLORA_URL"
+	SentryDSN  = "SENTRY_DSN"
+	SentryEnv  = "SENTRY_ENVIRONMENT"
 
 	// Only for testing purposes
 	CLNDatadir = "CLN_DATADIR"
@@ -41,6 +46,8 @@ var (
 	defaultWithTLS   = false
 	defaultLogLevel  = 4
 	defaultArkServer = ""
+	defaultSentryDSN = ""
+	defaultSentryEnv = "development"
 )
 
 func LoadConfig() (*Config, error) {
@@ -53,12 +60,14 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(WithTLS, defaultWithTLS)
 	viper.SetDefault(LogLevel, defaultLogLevel)
 	viper.SetDefault(ArkServer, defaultArkServer)
+	viper.SetDefault(SentryDSN, defaultSentryDSN)
+	viper.SetDefault(SentryEnv, defaultSentryEnv)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
 	}
 
-	return &Config{
+	config := &Config{
 		Datadir:    viper.GetString(Datadir),
 		GRPCPort:   viper.GetUint32(GRPCPort),
 		HTTPPort:   viper.GetUint32(HTTPPort),
@@ -67,7 +76,35 @@ func LoadConfig() (*Config, error) {
 		ArkServer:  viper.GetString(ArkServer),
 		EsploraURL: viper.GetString(EsploraURL),
 		CLNDatadir: cleanAndExpandPath(viper.GetString(CLNDatadir)),
-	}, nil
+		SentryDSN:  viper.GetString(SentryDSN),
+		SentryEnv:  viper.GetString(SentryEnv),
+	}
+
+	if config.SentryDSN != "" {
+		if err := initSentry(config); err != nil {
+			return nil, fmt.Errorf("error initializing Sentry: %s", err)
+		}
+	}
+
+	return config, nil
+}
+
+func initSentry(config *Config) error {
+	return sentry.Init(sentry.ClientOptions{
+		Dsn:              config.SentryDSN,
+		Environment:      config.SentryEnv,
+		AttachStacktrace: true,
+		ServerName:       GetHostname(),
+	})
+}
+
+// GetHostname returns the hostname of the current machine
+func GetHostname() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return "unknown"
+	}
+	return hostname
 }
 
 func initDatadir() error {
@@ -170,4 +207,8 @@ func cleanAndExpandPath(path string) string {
 	// NOTE: The os.ExpandEnv doesn't work with Windows-style %VARIABLE%,
 	// but the variables can still be expanded via POSIX-style $VARIABLE.
 	return filepath.Clean(os.ExpandEnv(path))
+}
+
+func (c *Config) IsSentryEnabled() bool {
+	return c.SentryDSN != ""
 }

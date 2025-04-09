@@ -58,7 +58,7 @@ type service struct {
 	stopCh chan struct{}
 }
 
-func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
+func NewService(appSvc *application.Service, stopCh chan struct{}, sentryEnabled bool) *service {
 	// Create a new Fiber server.
 	router := gin.Default()
 
@@ -68,8 +68,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 
 	svc := &service{router, appSvc, stopCh}
 
-	// Add Sentry middleware to capture errors
-	svc.Use(SentryMiddleware())
+	svc.Use(SentryMiddleware(sentryEnabled))
 
 	// Handle static files.
 	// svc.Static("/static", "./static")
