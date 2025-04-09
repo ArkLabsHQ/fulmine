@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"net"
 	"net/http"
 
@@ -24,16 +25,17 @@ import (
 )
 
 type service struct {
-	cfg        Config
-	appSvc     *application.Service
-	httpServer *http.Server
-	grpcServer *grpc.Server
+	cfg         Config
+	appSvc      *application.Service
+	httpServer  *http.Server
+	grpcServer  *grpc.Server
+	unlockerSvc ports.Unlocker
 
 	appStopCh chan struct{}
 	feStopCh  chan struct{}
 }
 
-func NewService(cfg Config, appSvc *application.Service) (*service, error) {
+func NewService(cfg Config, appSvc *application.Service, unlockerSvc ports.Unlocker) (*service, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %s", err)
 	}
@@ -129,7 +131,7 @@ func NewService(cfg Config, appSvc *application.Service) (*service, error) {
 		TLSConfig: cfg.tlsConfig(),
 	}
 
-	return &service{cfg, appSvc, httpServer, grpcServer, appStopCh, feStopCh}, nil
+	return &service{cfg, appSvc, httpServer, grpcServer, unlockerSvc, appStopCh, feStopCh}, nil
 }
 
 func (s *service) Start() error {
@@ -150,6 +152,34 @@ func (s *service) Start() error {
 	}
 	log.Infof("started HTTP server at %s", s.cfg.httpAddress())
 
+	if s.unlockerSvc != nil {
+		if err := s.autoUnlock(); err != nil {
+			log.Warnf("failed to auto-unlock: %v", err)
+		}
+	}
+
+	return nil
+}
+
+// autoUnlock attempts to unlock the wallet automatically using the unlocker service
+func (s *service) autoUnlock() error {
+	ctx := context.Background()
+
+	if !s.appSvc.IsReady() {
+		log.Debug("wallet not initialized, skipping auto unlock")
+		return nil
+	}
+
+	password, err := s.unlockerSvc.GetPassword(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get password: %s", err)
+	}
+
+	if err := s.appSvc.UnlockNode(ctx, password); err != nil {
+		return fmt.Errorf("failed to auto unlock: %s", err)
+	}
+
+	log.Info("wallet auto unlocked")
 	return nil
 }
 

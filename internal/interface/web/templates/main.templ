@@ -22,9 +22,9 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
     	<link rel="dns-prefetch" href="//fonts.gstatic.com" />
     	<link rel="preconnect" href="//fonts.googleapis.com" crossorigin />
     	<link rel="preconnect" href="//fonts.gstatic.com" crossorigin />
-    	<link rel="preload" href="/static/fonts/Switzer-Variable.woff2" as="font" type="font/woff2" crossorigin />
-    	<link rel="preload" href="/static/fonts/Switzer-Variable.woff" as="font" type="font/woff" crossorigin />
-    	<link rel="preload" href="/static/fonts/Switzer-Variable.ttf" as="font" type="font/ttf" crossorigin />
+    	<link rel="preload" href="/static/Switzer-Variable.17d61fe9.woff2" as="font" type="font/woff2" crossorigin />
+    	<link rel="preload" href="/static/Switzer-Variable.f14a5147.woff" as="font" type="font/woff" crossorigin />
+    	<link rel="preload" href="/static/Switzer-Variable.398e4d30.ttf" as="font" type="font/ttf" crossorigin />
     	<link rel="manifest" href="/static/manifest.webmanifest" />
     	<link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
     	<link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon" />
@@ -78,23 +78,12 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 			const disableButton = (button) => {
 				button.classList.add("disabled")
 			}
-			
-			const enableButtons = () => {
-				document.querySelectorAll('.disabled').forEach((x) => {
-					x.classList.remove('disabled')
-				})
-			}
 		
 			const fromSatoshis = (sats) => {
 				return Decimal.div(sats, 100_000_000).toNumber()
 			}
 		
-			const handleCancel = (event) => {
-				event.preventDefault()
-				redirect('/')
-			}
-		
-			const hideCopyButtonsIfInsecure = () => {
+			const hideCopyButtonsIfNoClipboard = () => {
 				if (!navigator.clipboard) {
 					document.querySelectorAll('[data-needs="clipboard"]').forEach((el) => {
 						el.classList.add('hidden')
@@ -110,6 +99,10 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				}
 			}
 
+			const openInExplorer = (txid, explorerUrl) => {
+	      window.open(`${explorerUrl}/tx/${txid}`, '_blank') 
+      }
+
 			// pass along query parameter with serverUrl
 			const passAlongQueryParams = () => {
 				const url = new URL(window.location.href)
@@ -121,8 +114,7 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				}
 			}
 		
-			const pasteFromClipboard = (element, event) => {
-				event.preventDefault()
+			const pasteFromClipboard = (element) => {
 				const id = element.dataset.id
 				if (id && navigator.clipboard) {
 					navigator.clipboard.readText().then((data) => {
@@ -187,7 +179,7 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				const unit = document.querySelector('#unit').innerText
 				document.querySelector('#sats').value = sats
 				document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
-				document.querySelector('#amount').dispatchEvent(new Event('change'))
+				document.querySelector('#amount').dispatchEvent(new Event('input'))
 			}
 		
 			const showOptions = () => {
@@ -272,20 +264,15 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				})
 			}
 		
-			document.addEventListener('htmx:load', () => {
-				enableButtons()
+			document.addEventListener('htmx:afterSwap', () => {
 				updateFiatValues()
 				updateCryptoValues()
+				passAlongQueryParams()
 			})
 
-			document.addEventListener('load', () => {
-				passAlongQueryParams()
-				hideCopyButtonsIfInsecure()
+			document.addEventListener('htmx:load', () => {
+				hideCopyButtonsIfNoClipboard()
 				hideScanButtonsIfNoCameraAvailable()
-				// hack, or else select will not have current value selected
-				document.querySelectorAll('select').forEach((x) => {
-					if (x.getAttribute('value')) x.value = x.getAttribute('value')
-				})
 			})
 		
 			// after receiving a toast, delete it after 2 seconds

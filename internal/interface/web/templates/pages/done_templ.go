@@ -12,16 +12,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 )
 
-func OpenX() templ.ComponentScript {
-	return templ.ComponentScript{
-		Name: `__templ_OpenX_6fec`,
-		Function: `function __templ_OpenX_6fec(){window.open('https://x.com/ArkLabsHQ/', '_blank');
-}`,
-		Call:       templ.SafeScript(`__templ_OpenX_6fec`),
-		CallInline: templ.SafeScriptInline(`__templ_OpenX_6fec`),
-	}
-}
-
 func DoneBodyContent() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

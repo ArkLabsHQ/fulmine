@@ -5,25 +5,23 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 )
 
+templ Hr() {
+  <hr class="border border-1 border-white/10 my-8 w-full"/>
+}
+
 templ Separator(text string) {
   <p class="uppercase text-sm text-white/50 my-4">{text}</p>
 }
 
 templ Status(ok bool, goodLabel, badLabel string, pointer bool) {
-  <div 
-    if pointer {
-      class="flex cursor-pointer"
-    } else {
-      class="flex"
-    }
-  >
+  <div class="flex">
     if ok {
-      <p class="flex p-2 rounded-lg bg-green/10 border border-1 border-green/50">
+      <p class="flex px-3 py-1 rounded-full bg-green/10 border border-1 border-green/50">
         <span class="text-green mr-2">&#9679;</span>
         {goodLabel}
       </p>
     } else {
-      <p class="flex p-2 rounded-lg bg-red/10 border border-1 border-red/50">
+      <p class="flex px-3 py-1 rounded-full bg-red/10 border border-1 border-red/50">
         <span class="text-red mr-2">&#9679;</span>
         {badLabel}
       </p>
@@ -32,21 +30,11 @@ templ Status(ok bool, goodLabel, badLabel string, pointer bool) {
 }
 
 templ StatusNode(connected bool) {
-  <div class="mb-4">
-    @Status(connected, "Connected", "Disconnected", false)
-  </div>
+  @Status(connected, "Connected", "Disconnected", false)
 }
 
 templ StatusLock(locked bool) {
-  <div 
-    if locked {
-      onclick="redirect('/unlock')"
-    } else {
-      onclick="redirect('/lock')"
-    }
-  >
-    @Status(!locked, "Unlocked", "Locked", true)
-  </div>
+  @Status(!locked, "Unlocked", "Locked", true)
 }
 
 templ SettingsTab(text, path string, active bool) {
@@ -84,42 +72,29 @@ templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, l
 
 templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) {
   <form hx-post="/helpers/settings" hx-trigger="change">
-    @Separator("Wallet")
-    @StatusLock(locked)
-     <hr class="border border-1 border-white/10 my-8 w-full"/>
     @Separator("Details")
     @components.Label("Bitcoin unit")
-    <select
-      class="border border-1 border-white/20 bg-graybg p-4 rounded-lg text-white/50 w-full"
-      name="unit"
-      value={settings.Unit}
-    >
-      <option value="sat">Satoshi (0.00000001 BTC)</option>
-      <option value="btc">Bitcoin (100.000.000 SATS)</option>
-    </select>
+    @components.SelectDropdown("unit", settings.Unit, [][]string{
+      {"sat", "Satoshi (0.00000001 BTC)"},
+      {"btc", "Bitcoin (100.000.000 SATS)"},
+    })
     @components.Label("Reference currency")
-    <select
-      class="border border-1 border-white/20 bg-graybg p-4 rounded-lg text-white/50 w-full"
-      name="currency"
-      value={settings.Currency}
-    >
-      <option value="usd">USD ($)</option>
-      <option value="eur">EURO (€)</option>
-    </select>
+    @components.SelectDropdown("currency", settings.Currency, [][]string{
+      {"usd", "USD ($)"},
+      {"eur", "EURO (€)"},
+    })
     @components.Label("Server URL")
     @components.InputFake(settings.ServerUrl)
-     <hr class="border border-1 border-white/10 my-8 w-full"/>
+    @Hr()
+    @Separator("Wallet status")
+    @StatusLock(locked)
+    @Hr()
     @Separator("Security")
-    <button class="bg-graybg font-semibold rounded-lg mb-4" onclick="handleBackup(event)">
-      Backup Private Key
-    </button>
+    <a class="button" onclick="redirect('/backup')">Backup Private Key</a>
+    @Hr()
+    @Separator("Sign out")
+    <a class="button" onclick="redirect('/lock')">Sign out</a>
   </form>
-  <script>
-    const handleBackup = (event) => {
-      event.preventDefault()
-      redirect('/backup')
-    }
-  </script>
 }
 
 templ SettingsServerContent(settings domain.Settings) {
@@ -137,7 +112,7 @@ templ SettingsServerContent(settings domain.Settings) {
         @components.ScanWidget("serverlink")
       </div>
     </div>
-    <hr class="border border-1 border-white/10 my-8 w-full"/>
+    @Hr()
     @Separator("Host settings")
     @components.Label("Server Host")
     @components.InputGeneric("serverhost", "", settings.ApiRoot)
@@ -152,7 +127,7 @@ templ SettingsLightningContent(settings domain.Settings, nodeStatus bool) {
   <form hx-post="/helpers/settings" hx-trigger="change">
     @Separator("Status")
     @StatusNode(nodeStatus)
-    <hr class="border border-1 border-white/10 my-8 w-full"/>
+    @Hr()
     @Separator("Connect")
     <p>Enter details manually or scan to connect</p>
     @components.Label("URL")
@@ -163,7 +138,7 @@ templ SettingsLightningContent(settings domain.Settings, nodeStatus bool) {
       </button>
     } else {
       @components.InputWithPaste("lnurl", "", settings.LnUrl)
-      <hr class="border border-1 border-white/10 my-4 w-full"/>
+      @Hr()
       <div class="flex items-start gap-4 max-w-96">
         <p class="mt-1">@components.InfoLightIcon()</p>
         <div>
@@ -171,13 +146,13 @@ templ SettingsLightningContent(settings domain.Settings, nodeStatus bool) {
           <p>How to connect? <a hx-get="/modal/lnconnectinfo" hx-target="#modal" class="visible">View guide</a></p>
         </div>
       </div>
-      <hr class="border border-1 border-white/10 my-4 w-full"/>
+      @Hr()
       @components.LnConnectButtons("lnurl")
     }
   </form>
   <script>
     const input = document.querySelector('#lnurl')
-    const button = document.querySelector('button[name="connect"]')
+    const button = document.querySelector('[name="connect"]')
 		const validateLnUrl = () => {
       if (input.value.length == 0) return
 		  const data = new FormData()

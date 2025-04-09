@@ -1,0 +1,12 @@
+package components
+
+templ SelectDropdown(name, value string, options [][]string) {
+  <select class="border border-white/20 bg-graybg p-4 rounded-lg text-white/50 w-full" name={name} value={value}>
+    for _, option := range options {
+      <option value={option[0]}>{option[1]}</option>
+    }
+  </select>
+  <script>
+    if ({{value}}) document.querySelector('select[name="{{name}}"]').value = {{value}}
+  </script>
+}

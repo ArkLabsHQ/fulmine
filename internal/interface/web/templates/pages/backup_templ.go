@@ -356,7 +356,7 @@ func BackupAckBodyContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div><script>\n    const handleAck = () => {\n      const button = document.querySelector('button[type=\"submit\"]')\n      const boxes = document.querySelectorAll('input[type=\"checkbox\"]')\n      if (!button || !boxes || boxes.length === 0) return\n      button.disabled = !Array.from(boxes).reduce((prev, curr) => prev && curr.checked, true)\n    }\n  </script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div><script>\n    const handleAck = () => {\n      const button = document.querySelector('[name=\"redirect\"]')\n      const boxes = document.querySelectorAll('input[type=\"checkbox\"]')\n      if (!button || !boxes || boxes.length === 0) return\n      button.disabled = !Array.from(boxes).reduce((prev, curr) => prev && curr.checked, true)\n    }\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

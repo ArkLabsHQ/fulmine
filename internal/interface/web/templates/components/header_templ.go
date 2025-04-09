@@ -180,7 +180,7 @@ func HeaderWithActionTemplate(title string, backPath templ.SafeURL, buttons temp
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></div><div id=\"options\" class=\"bg-graybg font-semibold hidden ml-auto w-48 mt-2 p-2 relative rounded-lg z-10\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></div><div id=\"options\" class=\"bg-graybg font-semibold hidden ml-auto w-52 mt-2 relative rounded-lg z-10\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
