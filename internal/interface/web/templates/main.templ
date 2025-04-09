@@ -78,18 +78,12 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 			const disableButton = (button) => {
 				button.classList.add("disabled")
 			}
-			
-			const enableButtons = () => {
-				document.querySelectorAll('.disabled').forEach((x) => {
-					x.classList.remove('disabled')
-				})
-			}
 		
 			const fromSatoshis = (sats) => {
 				return Decimal.div(sats, 100_000_000).toNumber()
 			}
 		
-			const hideCopyButtonsIfInsecure = () => {
+			const hideCopyButtonsIfNoClipboard = () => {
 				if (!navigator.clipboard) {
 					document.querySelectorAll('[data-needs="clipboard"]').forEach((el) => {
 						el.classList.add('hidden')
@@ -271,11 +265,13 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 			}
 		
 			document.addEventListener('htmx:afterSwap', () => {
-				enableButtons()
 				updateFiatValues()
 				updateCryptoValues()
 				passAlongQueryParams()
-				hideCopyButtonsIfInsecure()
+			})
+
+			document.addEventListener('htmx:load', () => {
+				hideCopyButtonsIfNoClipboard()
 				hideScanButtonsIfNoCameraAvailable()
 			})
 		

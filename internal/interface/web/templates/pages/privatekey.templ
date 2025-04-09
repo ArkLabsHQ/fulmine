@@ -65,9 +65,11 @@ templ importWalletPrivateKeyContent() {
 	      		placeholder="abcdef0123456789..."
 						oninput="validatePrivateKey()"
 	      	/>
-	      	<p class="cursor-pointer text-white/50" data-needs="clipboard" onclick="handlePrivateKeyPaste()">
-					  @components.PasteIcon()
-					</p>
+					<a data-needs="clipboard" onclick="handlePrivateKeyPaste()">
+						<p class="cursor-pointer text-white/50">
+							@components.PasteIcon()
+						</p>
+					</a>
 	      </div>
 	  	</div>
 			<button class="bg-orange text-white" disabled id="importButton" type="submit">Insert Private Key</button>

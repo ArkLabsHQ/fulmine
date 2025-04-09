@@ -101,29 +101,30 @@ templ ConnectButton() {
 }
 
 templ CopyButton(payload string) {
-  <p class="button single" data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
-    <span data-kind="copy">@CopyIcon()</span>
-		<span data-kind="done" class="hidden">@CheckMarkIcon()</span>
-  </p>
+	<a data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">"
+		<p class="button single">
+			<span data-kind="copy">@CopyIcon()</span>
+			<span data-kind="done" class="hidden">@CheckMarkIcon()</span>
+		</p>
+	</a>
 }
 
 templ CopyButtonText(payload string) {
-  <p class="button" data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
-    @CopyIcon()
-    <span class="ml-2 buttonText">Copy</span>
-  </p>
+	<a data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
+		<p class="button">
+			@CopyIcon()
+			<span class="ml-2 buttonText">Copy</span>
+		</p>
+	</a>
 }
 
 templ CopyWidget(payload string) {
-  <p
-	  class="cursor-pointer text-white/50"
-		data-needs="clipboard"
-		data-value={payload}
-		onclick="copyToClipboard(this, event)"
-	>
-    <span data-kind="copy">@CopyIcon()</span>
-	  <span data-kind="done" class="hidden">@CheckMarkIcon()</span>
-  </p>
+	<a data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
+		<p class="cursor-pointer text-white/50">
+			<span data-kind="copy">@CopyIcon()</span>
+			<span data-kind="done" class="hidden">@CheckMarkIcon()</span>
+		</p>
+	</a>
 }
 
 templ DisconnectButton() {
@@ -137,9 +138,11 @@ templ DotsButton() {
 }
 
 templ PasteWidget(id string) {
-	<p class="cursor-pointer" data-id={id} data-needs="clipboard" onclick="pasteFromClipboard(this)">
-	  @PasteIcon()
-	</p>    
+	<a data-id={id} data-needs="clipboard" onclick="pasteFromClipboard(this)">
+		<p class="cursor-pointer">
+			@PasteIcon()
+		</p>
+	</a>
 }
 
 templ ScanButton(id string) {
