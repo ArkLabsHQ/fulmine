@@ -8,15 +8,6 @@ templ ReceiveAmount() {
   @InputAmount("")
 }
 
-script updateSats() {
-	const unit = document.querySelector('#unit').innerText
-	const amount = document.querySelector('#amount').value
-	const sats = unit === 'SATS' ? amount : toSatoshis(amount)
-  document.querySelector('#sats').value = sats
-  document.querySelector('#fiat').setAttribute('sats', sats)
-	updateFiatValues()	  
-}
-
 templ InputAmount(max string) {
   @Label("Amount")
   <div class="border border-1 border-white/20 bg-graybg px-4 py-3 flex items-center justify-between rounded-lg">
@@ -27,7 +18,7 @@ templ InputAmount(max string) {
       if (len(max) > 0) {
 	      max={max}
       }
-	    onchange={updateSats()}
+	    oninput="updateSats()"
 			type="number"
 		/>
 		<div class="flex items-center gap-2 ml-2">
@@ -38,6 +29,16 @@ templ InputAmount(max string) {
 	<div class="flex justify-between w-full text-sm text-white/50 mt-2">
 	  <p id="fiat" class="fiatAmount">&nbsp;</p>
 	</div>
+	<script>
+		const updateSats = () => {
+			const unit = document.querySelector('#unit').innerText
+			const amount = document.querySelector('#amount').value
+			const sats = unit === 'SATS' ? amount : toSatoshis(amount)
+			document.querySelector('#sats').value = sats
+			document.querySelector('#fiat').setAttribute('sats', sats)
+			updateFiatValues()	  
+		}
+	</script>
 }
 
 templ InputAddress() {
@@ -50,9 +51,11 @@ templ InputAddress() {
 			onchange="handleAddressChange()"
 			placeholder="ark1ccc..."
 		/>
-		<p class="cursor-pointer text-white/50" data-needs="clipboard" onclick="pasteAddressFromClipboard()">
-		  @PasteIcon()
-		</p>
+		<a data-needs="clipboard" onclick="pasteAddressFromClipboard()">
+			<p class="cursor-pointer text-white/50">
+				@PasteIcon()
+			</p>
+		</a>
 	</div>
 	<script>
 	  const handleAddressChange = () => {
@@ -65,7 +68,7 @@ templ InputAddress() {
 			const unit = document.querySelector('#unit').innerText
 			document.querySelector('#sats').value = sats
 			document.querySelector('#amount').value = unit === 'SATS' ? sats : fromSatoshis(sats)
-			document.querySelector('#amount').dispatchEvent(new Event('change'))
+			document.querySelector('#amount').dispatchEvent(new Event('input'))
 		} 
 	  const pasteAddressFromClipboard = () => {
 			if (navigator.clipboard) {
@@ -99,9 +102,11 @@ templ InputWithPaste(id, placeholder, value string) {
 			placeholder={placeholder}
 			value={value}
 		/>
-		<p class="text-white/50" data-id={id} data-needs="clipboard" onclick="pasteFromClipboard(this, event)">
-		  @PasteIcon()
-		</p>
+		<a data-id={id} data-needs="clipboard" onclick="pasteFromClipboard(this)">
+			<p class="text-white/50">
+				@PasteIcon()
+			</p>
+		</a>
 	</div>
 }
 

@@ -27,7 +27,7 @@ templ HeaderWithActionTemplate(title string, backPath templ.SafeURL, buttons tem
 			<h1 class="text-xl text-center font-semibold">{title}</h1>
 			<div class="flex justify-end" onclick="showOptions()">@DotsButton()</div>
 		</div>
-		<div id="options" class="bg-graybg font-semibold hidden ml-auto w-48 mt-2 p-2 relative rounded-lg z-10">
+		<div id="options" class="bg-graybg font-semibold hidden ml-auto w-52 mt-2 relative rounded-lg z-10">
 		  @buttons
 		</div>
 	</div>
