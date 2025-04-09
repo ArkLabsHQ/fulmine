@@ -51,9 +51,9 @@ func (s *service) ScheduleNextSettlement(at time.Time, settleFunc func()) error 
 	}
 
 	job, err := s.scheduler.Every(delay).WaitForSchedule().LimitRunsTo(1).Do(func() {
+		settleFunc()
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		settleFunc()
 		s.scheduler.Remove(s.job)
 		s.job = nil
 	})

@@ -422,9 +422,6 @@ func (s *Service) scheduleNextSettlement(at time.Time, data *types.Config) error
 	roundInterval := time.Duration(data.RoundInterval) * time.Second
 	at = at.Add(-2 * roundInterval) // schedule 2 rounds before the expiry
 
-	fmt.Printf("scheduleNextSettlement %s\n", at.Format(time.RFC3339))
-	fmt.Printf("unix: %d\n", at.Unix())
-
 	return s.schedulerSvc.ScheduleNextSettlement(at, task)
 }
 
