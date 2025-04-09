@@ -93,7 +93,7 @@ func main() {
 		log.WithError(err).Fatal(err)
 	}
 
-	svc, err := grpcservice.NewService(svcConfig, appSvc)
+	svc, err := grpcservice.NewService(svcConfig, appSvc, cfg.IsSentryEnabled())
 	if err != nil {
 		log.Fatal(err)
 	}

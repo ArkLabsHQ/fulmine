@@ -68,6 +68,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}, sentryEnabled
 
 	svc := &service{router, appSvc, stopCh}
 
+	svc.Use(RecoveryMiddleware(sentryEnabled))
 	svc.Use(SentryMiddleware(sentryEnabled))
 
 	// Handle static files.

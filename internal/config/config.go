@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/getsentry/sentry-go"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -90,12 +91,96 @@ func LoadConfig() (*Config, error) {
 }
 
 func initSentry(config *Config) error {
-	return sentry.Init(sentry.ClientOptions{
+	err := sentry.Init(sentry.ClientOptions{
 		Dsn:              config.SentryDSN,
 		Environment:      config.SentryEnv,
 		AttachStacktrace: true,
 		ServerName:       GetHostname(),
 	})
+	if err != nil {
+		return err
+	}
+
+	setupLogrusHook(config.IsSentryEnabled())
+
+	return nil
+}
+
+func setupLogrusHook(isSentryEnabled bool) {
+	levels := []log.Level{
+		log.PanicLevel,
+		log.FatalLevel,
+		log.ErrorLevel,
+	}
+
+	sentryHook := &sentryHook{
+		levels:          levels,
+		isSentryEnabled: isSentryEnabled,
+	}
+
+	log.AddHook(sentryHook)
+}
+
+type sentryHook struct {
+	levels          []log.Level
+	isSentryEnabled bool
+}
+
+func (h *sentryHook) Levels() []log.Level {
+	return h.levels
+}
+
+func (h *sentryHook) Fire(entry *log.Entry) error {
+	if sentry.CurrentHub().Client() == nil {
+		return nil
+	}
+
+	// Skip if explicitly marked to skip Sentry
+	if skip, ok := entry.Data["skip_sentry"].(bool); ok && skip {
+		return nil
+	}
+
+	event := sentry.NewEvent()
+	event.Level = getSentryLevel(entry.Level)
+	event.Message = entry.Message
+	event.Extra = make(map[string]interface{})
+
+	if len(entry.Data) > 0 {
+		for k, v := range entry.Data {
+			if k == "error" || k == "skip_sentry" {
+				continue
+			}
+			event.Extra[k] = v
+		}
+	}
+
+	if err, ok := entry.Data["error"].(error); ok {
+		event.Exception = []sentry.Exception{{
+			Value:      err.Error(),
+			Type:       fmt.Sprintf("%T", err),
+			Stacktrace: sentry.ExtractStacktrace(err),
+		}}
+	}
+
+	sentry.CaptureEvent(event)
+	return nil
+}
+
+func getSentryLevel(level log.Level) sentry.Level {
+	switch level {
+	case log.PanicLevel, log.FatalLevel:
+		return sentry.LevelFatal
+	case log.ErrorLevel:
+		return sentry.LevelError
+	case log.WarnLevel:
+		return sentry.LevelWarning
+	case log.InfoLevel:
+		return sentry.LevelInfo
+	case log.DebugLevel, log.TraceLevel:
+		return sentry.LevelDebug
+	default:
+		return sentry.LevelError
+	}
 }
 
 // GetHostname returns the hostname of the current machine

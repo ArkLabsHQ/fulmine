@@ -7,7 +7,10 @@ import (
 
 // UnaryInterceptor returns the unary interceptor
 func UnaryInterceptor(sentryEnabled bool) grpc.ServerOption {
-	interceptors := []grpc.UnaryServerInterceptor{unaryLogger}
+	interceptors := []grpc.UnaryServerInterceptor{
+		unaryRecoveryInterceptor(sentryEnabled),
+		unaryLogger,
+	}
 	if sentryEnabled {
 		interceptors = append(interceptors, unarySentryErrorReporter)
 	}
@@ -16,7 +19,10 @@ func UnaryInterceptor(sentryEnabled bool) grpc.ServerOption {
 
 // StreamInterceptor returns the stream interceptor with a logrus log
 func StreamInterceptor(sentryEnabled bool) grpc.ServerOption {
-	interceptors := []grpc.StreamServerInterceptor{streamLogger}
+	interceptors := []grpc.StreamServerInterceptor{
+		streamRecoveryInterceptor(sentryEnabled),
+		streamLogger,
+	}
 	if sentryEnabled {
 		interceptors = append(interceptors, streamSentryErrorReporter)
 	}
