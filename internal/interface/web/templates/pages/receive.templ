@@ -4,25 +4,22 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 )
 
-func lastDigits(value string) string {
-	numDigits := 4
-	if len(value) > numDigits {
-		return value[len(value)-numDigits:]
-	}
-	return value
-}
-
 templ addressLine(title, value string) {
 	<div class="flex justify-between items-center w-80">
 	  <div>
 	    <p class="text-white/50">{title}</p>
 			<div class="flex justify-start items-center">
-	      <p class="overflow-hidden truncate text-clip text-white max-w-52">{value}</p>
-				<p>...{lastDigits(value)}</p>
+	      <p class="overflow-hidden truncate text-white w-32">{value}</p>
+	      <p class="overflow-hidden truncate text-white w-32 rtl">{value}</p>
 			</div>
 		</div>
 		@components.CopyButton(value)
 	</div>
+	<style>
+	  p.rtl {
+	    direction: rtl;
+	  }
+	</style>
 }
 
 templ ReceiveEditContent() {
