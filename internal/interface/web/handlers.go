@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/config"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates"
@@ -16,6 +17,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
+	"github.com/ark-network/ark/common"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/gin-gonic/gin"
@@ -632,14 +634,27 @@ func (s *service) getTx(c *gin.Context) {
 	if len(tx.Txid) == 0 {
 		bodyContent = pages.TxNotFoundContent()
 	} else if tx.Status == "pending" {
-		var nextClaimStr string
-		nextClaim, err := s.svc.WhenNextClaim(c)
-		if err != nil {
-			nextClaimStr = "unknown"
-		} else {
-			nextClaimStr = prettyUnixTimestamp(nextClaim.Unix())
+		var nextSettlementStr string
+		nextSettlement := s.svc.WhenNextSettlement(c)
+		if nextSettlement.IsZero() {
+			// if no next settlement, it means it is about to be scheduled for a boarding tx
+			// fallback to now + boarding timelock to show a time closest to next settlement
+			data, err := s.svc.GetConfigData(c)
+			if err != nil {
+				nextSettlementStr = "unknown"
+			} else {
+				// TODO: use boardingExitDelay https://github.com/ark-network/ark/pull/501
+				boardingTimelock := common.RelativeLocktime{Type: data.UnilateralExitDelay.Type, Value: data.UnilateralExitDelay.Value * 2}
+				closeToBoardingSettlement := time.Now().Add(time.Duration(boardingTimelock.Seconds()) * time.Second)
+				nextSettlement = closeToBoardingSettlement
+			}
 		}
-		bodyContent = pages.TxPendingContent(tx, explorerUrl, nextClaimStr)
+
+		if nextSettlementStr != "unknown" {
+			nextSettlementStr = prettyUnixTimestamp(nextSettlement.Unix())
+		}
+
+		bodyContent = pages.TxPendingContent(tx, explorerUrl, nextSettlementStr)
 	} else {
 		bodyContent = pages.TxBodyContent(tx, explorerUrl)
 	}

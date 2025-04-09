@@ -9,18 +9,26 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
+	envunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/env"
+	fileunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/file"
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Datadir    string
-	GRPCPort   uint32
-	HTTPPort   uint32
-	WithTLS    bool
-	LogLevel   uint32
-	ArkServer  string
-	EsploraURL string
-	CLNDatadir string // for testing purposes only
+	Datadir          string
+	GRPCPort         uint32
+	HTTPPort         uint32
+	WithTLS          bool
+	LogLevel         uint32
+	ArkServer        string
+	EsploraURL       string
+	CLNDatadir       string // for testing purposes only
+	UnlockerType     string
+	UnlockerFilePath string
+	UnlockerPassword string
+
+	unlocker ports.Unlocker
 }
 
 var (
@@ -34,6 +42,11 @@ var (
 
 	// Only for testing purposes
 	CLNDatadir = "CLN_DATADIR"
+
+	// Unlocker configuration
+	UnlockerType     = "UNLOCKER_TYPE"
+	UnlockerFilePath = "UNLOCKER_FILE_PATH"
+	UnlockerPassword = "UNLOCKER_PASSWORD"
 
 	defaultDatadir   = appDatadir("fulmine", false)
 	defaultGRPCPort  = 7000
@@ -58,16 +71,51 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
 	}
 
-	return &Config{
-		Datadir:    viper.GetString(Datadir),
-		GRPCPort:   viper.GetUint32(GRPCPort),
-		HTTPPort:   viper.GetUint32(HTTPPort),
-		WithTLS:    viper.GetBool(WithTLS),
-		LogLevel:   viper.GetUint32(LogLevel),
-		ArkServer:  viper.GetString(ArkServer),
-		EsploraURL: viper.GetString(EsploraURL),
-		CLNDatadir: cleanAndExpandPath(viper.GetString(CLNDatadir)),
-	}, nil
+	config := &Config{
+		Datadir:          viper.GetString(Datadir),
+		GRPCPort:         viper.GetUint32(GRPCPort),
+		HTTPPort:         viper.GetUint32(HTTPPort),
+		WithTLS:          viper.GetBool(WithTLS),
+		LogLevel:         viper.GetUint32(LogLevel),
+		ArkServer:        viper.GetString(ArkServer),
+		EsploraURL:       viper.GetString(EsploraURL),
+		CLNDatadir:       cleanAndExpandPath(viper.GetString(CLNDatadir)),
+		UnlockerType:     viper.GetString(UnlockerType),
+		UnlockerFilePath: viper.GetString(UnlockerFilePath),
+		UnlockerPassword: viper.GetString(UnlockerPassword),
+	}
+
+	if err := config.initUnlockerService(); err != nil {
+		return nil, err
+	}
+
+	return config, nil
+}
+
+func (c *Config) UnlockerService() ports.Unlocker {
+	return c.unlocker
+}
+
+func (c *Config) initUnlockerService() error {
+	if len(c.UnlockerType) <= 0 {
+		return nil
+	}
+
+	var svc ports.Unlocker
+	var err error
+	switch c.UnlockerType {
+	case "file":
+		svc, err = fileunlocker.NewService(c.UnlockerFilePath)
+	case "env":
+		svc, err = envunlocker.NewService(c.UnlockerPassword)
+	default:
+		err = fmt.Errorf("unknown unlocker type")
+	}
+	if err != nil {
+		return err
+	}
+	c.unlocker = svc
+	return nil
 }
 
 func initDatadir() error {

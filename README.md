@@ -72,6 +72,9 @@ The following environment variables can be configured:
 | `FULMINE_GRPC_PORT` | gRPC port for service communication | `7000` |
 | `FULMINE_ARK_SERVER` | URL of the Ark server to connect to | It pre-fills with the default Ark server |
 | `FULMINE_ESPLORA_URL` | URL of the Esplora server to connect to | It pre-fills with the default Esplora server |
+| `FULMINE_UNLOCKER_TYPE` | Type of unlocker to use for auto-unlock (`file` or `env`) | Not set by default (no auto-unlock) |
+| `FULMINE_UNLOCKER_FILE_PATH` | Path to the file containing the wallet password (when using `file` unlocker) | Not set by default |
+| `FULMINE_UNLOCKER_PASSWORD` | Password string to use for unlocking (when using `env` unlocker) | Not set by default |
 
 When using Docker, you can set these variables using the `-e` flag:
 
@@ -82,9 +85,33 @@ docker run -d \
   -e FULMINE_HTTP_PORT=7001 \
   -e FULMINE_ARK_SERVER="https://server.example.com" \
   -e FULMINE_ESPLORA_URL="https://mempool.space/api" \
+  -e FULMINE_UNLOCKER_TYPE="file" \
+  -e FULMINE_UNLOCKER_FILE_PATH="/app/password.txt" \
   -v fulmine-data:/app/data \
+  -v /path/to/password.txt:/app/password.txt \
   ghcr.io/arklabshq/fulmine:latest
 ```
+
+### 🔑 Auto-Unlock Feature
+
+Fulmine supports automatic wallet unlocking on startup, which is useful for unattended operation or when running as a service. Two methods are available:
+
+1. **File-based unlocker**: Reads the wallet password from a file
+   ```
+   FULMINE_UNLOCKER_TYPE=file
+   FULMINE_UNLOCKER_FILE_PATH=/path/to/password/file
+   ```
+
+2. **Environment-based unlocker**: Uses a password directly from an environment variable
+   ```
+   FULMINE_UNLOCKER_TYPE=env
+   FULMINE_UNLOCKER_PASSWORD=your_wallet_password
+   ```
+
+⚠️ **Security Warning**: When using the auto-unlock feature, ensure your password is stored securely:
+- For file-based unlocking, use appropriate file permissions (chmod 600)
+- For environment-based unlocking, be cautious about environment variable visibility
+- Consider using Docker secrets or similar tools in production environments
 
 ## 📚 API Documentation
 
