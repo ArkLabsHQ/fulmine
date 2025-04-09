@@ -52,15 +52,13 @@ type Service struct {
 	BuildInfo BuildInfo
 
 	arksdk.ArkClient
-	storeCfg         store.Config
-	storeRepo        types.Store
-	settingsRepo     domain.SettingsRepository
-	vhtlcRepo        domain.VHTLCRepository
-	vtxoRolloverRepo domain.VtxoRolloverRepository
-	grpcClient       client.TransportClient
-	schedulerSvc     ports.SchedulerService
-	lnSvc            ports.LnService
-	boltzSvc         *boltz.Api
+	storeCfg     store.Config
+	storeRepo    types.Store
+	dbSvc        ports.RepoManager
+	grpcClient   client.TransportClient
+	schedulerSvc ports.SchedulerService
+	lnSvc        ports.LnService
+	boltzSvc     *boltz.Api
 
 	publicKey *secp256k1.PublicKey
 
@@ -88,9 +86,7 @@ func NewService(
 	buildInfo BuildInfo,
 	storeCfg store.Config,
 	storeSvc types.Store,
-	settingsRepo domain.SettingsRepository,
-	vhtlcRepo domain.VHTLCRepository,
-	vtxoRolloverRepo domain.VtxoRolloverRepository,
+	dbSvc ports.RepoManager,
 	schedulerSvc ports.SchedulerService,
 	lnSvc ports.LnService,
 	esploraUrl string,
@@ -109,9 +105,7 @@ func NewService(
 			ArkClient:                 arkClient,
 			storeCfg:                  storeCfg,
 			storeRepo:                 storeSvc,
-			settingsRepo:              settingsRepo,
-			vhtlcRepo:                 vhtlcRepo,
-			vtxoRolloverRepo:          vtxoRolloverRepo,
+			dbSvc:                     dbSvc,
 			grpcClient:                grpcClient,
 			schedulerSvc:              schedulerSvc,
 			lnSvc:                     lnSvc,
@@ -120,14 +114,15 @@ func NewService(
 			subscriptions:             make(map[string]func()),
 			subscriptionLock:          sync.RWMutex{},
 			notifications:             make(chan Notification),
-			esploraUrl:                data.ExplorerURL,
 			stopBoardingEventListener: make(chan struct{}),
+			esploraUrl:                data.ExplorerURL,
 		}
 
 		return svc, nil
 	}
 
 	ctx := context.Background()
+	settingsRepo := dbSvc.Settings()
 	if _, err := settingsRepo.GetSettings(ctx); err != nil {
 		if err := settingsRepo.AddDefaultSettings(ctx); err != nil {
 			return nil, err
@@ -145,8 +140,7 @@ func NewService(
 		ArkClient:                 arkClient,
 		storeCfg:                  storeCfg,
 		storeRepo:                 storeSvc,
-		settingsRepo:              settingsRepo,
-		vhtlcRepo:                 vhtlcRepo,
+		dbSvc:                     dbSvc,
 		grpcClient:                nil,
 		schedulerSvc:              schedulerSvc,
 		lnSvc:                     lnSvc,
@@ -201,7 +195,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		return err
 	}
 
-	if err := s.settingsRepo.UpdateSettings(
+	if err := s.dbSvc.Settings().UpdateSettings(
 		ctx, domain.Settings{ServerUrl: config.ServerUrl, EsploraUrl: config.ExplorerURL},
 	); err != nil {
 		return err
@@ -290,7 +284,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	_, pubkey := btcec.PrivKeyFromBytes(buf)
 	s.publicKey = pubkey
 
-	settings, err := s.settingsRepo.GetSettings(ctx)
+	settings, err := s.dbSvc.Settings().GetSettings(ctx)
 	if err != nil {
 		log.WithError(err).Warn("failed to get settings")
 		return err
@@ -325,23 +319,23 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 }
 
 func (s *Service) ResetWallet(ctx context.Context) error {
-	if err := s.settingsRepo.CleanSettings(ctx); err != nil {
+	if err := s.dbSvc.Settings().CleanSettings(ctx); err != nil {
 		return err
 	}
 	// reset wallet (cleans all repos)
 	s.Reset(ctx)
 	// TODO: Maybe drop?
 	// nolint:all
-	s.settingsRepo.AddDefaultSettings(ctx)
+	s.dbSvc.Settings().AddDefaultSettings(ctx)
 	return nil
 }
 
 func (s *Service) AddDefaultSettings(ctx context.Context) error {
-	return s.settingsRepo.AddDefaultSettings(ctx)
+	return s.dbSvc.Settings().AddDefaultSettings(ctx)
 }
 
 func (s *Service) GetSettings(ctx context.Context) (*domain.Settings, error) {
-	sett, err := s.settingsRepo.GetSettings(ctx)
+	sett, err := s.dbSvc.Settings().GetSettings(ctx)
 	return sett, err
 }
 
@@ -350,7 +344,7 @@ func (s *Service) NewSettings(ctx context.Context, settings domain.Settings) err
 		return err
 	}
 
-	return s.settingsRepo.AddSettings(ctx, settings)
+	return s.dbSvc.Settings().AddSettings(ctx, settings)
 }
 
 func (s *Service) UpdateSettings(ctx context.Context, settings domain.Settings) error {
@@ -358,7 +352,7 @@ func (s *Service) UpdateSettings(ctx context.Context, settings domain.Settings) 
 		return err
 	}
 
-	return s.settingsRepo.UpdateSettings(ctx, settings)
+	return s.dbSvc.Settings().UpdateSettings(ctx, settings)
 }
 
 func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, string, string, error) {
@@ -560,7 +554,7 @@ func (s *Service) GetVHTLC(
 	}
 
 	// store the vhtlc options for future use
-	if err := s.vhtlcRepo.Add(ctx, opts); err != nil {
+	if err := s.dbSvc.VHTLC().Add(ctx, opts); err != nil {
 		return "", nil, err
 	}
 
@@ -574,15 +568,16 @@ func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]c
 
 	// Get VHTLC options based on filter
 	var vhtlcOpts []vhtlc.Opts
+	vhtlcRepo := s.dbSvc.VHTLC()
 	if preimageHashFilter != "" {
-		opt, err := s.vhtlcRepo.Get(ctx, preimageHashFilter)
+		opt, err := vhtlcRepo.Get(ctx, preimageHashFilter)
 		if err != nil {
 			return nil, nil, err
 		}
 		vhtlcOpts = []vhtlc.Opts{*opt}
 	} else {
 		var err error
-		vhtlcOpts, err = s.vhtlcRepo.GetAll(ctx)
+		vhtlcOpts, err = vhtlcRepo.GetAll(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1212,7 +1207,7 @@ func (s *Service) WatchAddressForRollover(ctx context.Context, address, destinat
 		DestinationAddress: destinationAddress,
 	}
 
-	return s.vtxoRolloverRepo.AddTarget(ctx, target)
+	return s.dbSvc.VtxoRollover().AddTarget(ctx, target)
 }
 
 func (s *Service) UnwatchAddress(ctx context.Context, address string) error {
@@ -1224,7 +1219,7 @@ func (s *Service) UnwatchAddress(ctx context.Context, address string) error {
 		return fmt.Errorf("missing address")
 	}
 
-	return s.vtxoRolloverRepo.RemoveTarget(ctx, address)
+	return s.dbSvc.VtxoRollover().DeleteTarget(ctx, address)
 }
 
 func (s *Service) ListWatchedAddresses(ctx context.Context) ([]domain.VtxoRolloverTarget, error) {
@@ -1232,7 +1227,7 @@ func (s *Service) ListWatchedAddresses(ctx context.Context) ([]domain.VtxoRollov
 		return nil, err
 	}
 
-	return s.vtxoRolloverRepo.GetAllTargets(ctx)
+	return s.dbSvc.VtxoRollover().GetAllTargets(ctx)
 }
 
 func (s *Service) IsLocked(ctx context.Context) bool {
