@@ -101,7 +101,7 @@ templ ConnectButton() {
 }
 
 templ CopyButton(payload string) {
-	<a data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">"
+	<a data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
 		<p class="button single">
 			<span data-kind="copy">@CopyIcon()</span>
 			<span data-kind="done" class="hidden">@CheckMarkIcon()</span>
