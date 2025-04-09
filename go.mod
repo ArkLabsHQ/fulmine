@@ -13,8 +13,8 @@ require (
 	github.com/BoltzExchange/boltz-client/v2 v2.4.0
 	github.com/a-h/templ v0.3.857
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/ark-network/ark/common v0.0.0-20250407165547-04b019f83569
-	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250407165547-04b019f83569
+	github.com/ark-network/ark/common v0.0.0-20250408134011-3662e743ed93
+	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250408134011-3662e743ed93
 	github.com/ccoveille/go-safecast v1.2.0
 	github.com/dgraph-io/badger/v4 v4.6.0
 	github.com/gin-gonic/gin v1.10.0
