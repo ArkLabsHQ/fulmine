@@ -280,10 +280,6 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				passAlongQueryParams()
 				hideCopyButtonsIfInsecure()
 				hideScanButtonsIfNoCameraAvailable()
-				// hack, or else select will not have current value selected
-				document.querySelectorAll('select').forEach((x) => {
-					if (x.getAttribute('value')) x.value = x.getAttribute('value')
-				})
 			})
 		
 			// after receiving a toast, delete it after 2 seconds

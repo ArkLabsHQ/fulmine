@@ -74,23 +74,15 @@ templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) 
   <form hx-post="/helpers/settings" hx-trigger="change">
     @Separator("Details")
     @components.Label("Bitcoin unit")
-    <select
-      class="border border-1 border-white/20 bg-graybg p-4 rounded-lg text-white/50 w-full"
-      name="unit"
-      value={settings.Unit}
-    >
-      <option value="sat">Satoshi (0.00000001 BTC)</option>
-      <option value="btc">Bitcoin (100.000.000 SATS)</option>
-    </select>
+    @components.SelectDropdown("unit", settings.Unit, [][]string{
+      {"sat", "Satoshi (0.00000001 BTC)"},
+      {"btc", "Bitcoin (100.000.000 SATS)"},
+    })
     @components.Label("Reference currency")
-    <select
-      class="border border-1 border-white/20 bg-graybg p-4 rounded-lg text-white/50 w-full"
-      name="currency"
-      value={settings.Currency}
-    >
-      <option value="usd">USD ($)</option>
-      <option value="eur">EURO (€)</option>
-    </select>
+    @components.SelectDropdown("currency", settings.Currency, [][]string{
+      {"usd", "USD ($)"},
+      {"eur", "EURO (€)"},
+    })
     @components.Label("Server URL")
     @components.InputFake(settings.ServerUrl)
     @Hr()
