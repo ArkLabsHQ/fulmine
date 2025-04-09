@@ -270,13 +270,10 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				})
 			}
 		
-			document.addEventListener('htmx:load', () => {
+			document.addEventListener('htmx:afterSwap', () => {
 				enableButtons()
 				updateFiatValues()
 				updateCryptoValues()
-			})
-
-			document.addEventListener('load', () => {
 				passAlongQueryParams()
 				hideCopyButtonsIfInsecure()
 				hideScanButtonsIfNoCameraAvailable()
