@@ -1438,8 +1438,10 @@ func (s *Service) handleInternalAddressEventChannel(eventsCh <-chan client.Addre
 				return
 			}
 
-			if err := s.scheduleNextSettlement(*nextExpiry, data); err != nil {
-				log.WithError(err).Info("schedule next claim failed")
+			if nextExpiry != nil {
+				if err := s.scheduleNextSettlement(*nextExpiry, data); err != nil {
+					log.WithError(err).Info("schedule next claim failed")
+				}
 			}
 
 			return
