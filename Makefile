@@ -43,7 +43,9 @@ lint:
 ## run: run in dev mode
 run: clean build-static-assets
 	@echo "Running fulmine in dev mode..."
-	@go run ./cmd/fulmine
+	@export FULMINE_LOG_LEVEL=5; \
+	export FULMINE_WITH_COLLABORATIVE_EXIT=true; \
+	go run ./cmd/fulmine
 
 run-cln: clean build-static-assets
 	@echo "Running fulmine in dev mode with CLN support..."
