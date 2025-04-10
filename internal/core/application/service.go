@@ -371,15 +371,10 @@ func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, 
 	if err != nil {
 		return "", "", "", "", err
 	}
-	bip21Addr := fmt.Sprintf("bitcoin:%s?ark=%s", boardingAddr, offchainAddr)
 
+	bip21Addr := fmt.Sprintf("bitcoin:%s?ark=%s", boardingAddr, offchainAddr)
 	if !s.withCollaborativeExit {
-		bip21Addr := fmt.Sprintf("bitcoin:?ark=%s", offchainAddr)
-		if sats > 0 {
-			btc := float64(sats) / 100000000.0
-			amount := fmt.Sprintf("%.8f", btc)
-			bip21Addr += fmt.Sprintf("&amount=%s", amount)
-		}
+		bip21Addr = fmt.Sprintf("bitcoin:?ark=%s", offchainAddr)
 		boardingAddr = ""
 	}
 
