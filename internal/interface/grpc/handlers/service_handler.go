@@ -14,10 +14,12 @@ import (
 
 type serviceHandler struct {
 	svc *application.Service
+
+	withCollaborativeExit bool
 }
 
-func NewServiceHandler(svc *application.Service) pb.ServiceServer {
-	return &serviceHandler{svc}
+func NewServiceHandler(svc *application.Service, withCollaborativeExit bool) pb.ServiceServer {
+	return &serviceHandler{svc, withCollaborativeExit}
 }
 
 func (h *serviceHandler) GetAddress(
@@ -69,6 +71,10 @@ func (h *serviceHandler) GetInfo(
 func (h *serviceHandler) GetOnboardAddress(
 	ctx context.Context, req *pb.GetOnboardAddressRequest,
 ) (*pb.GetOnboardAddressResponse, error) {
+	if !h.withCollaborativeExit {
+		return nil, status.Error(codes.Unavailable, "operation not allowed")
+	}
+
 	_, _, addr, _, err := h.svc.GetAddress(ctx, 0)
 	if err != nil {
 		return nil, err
@@ -175,6 +181,10 @@ func (h *serviceHandler) SendOffChain(
 func (h *serviceHandler) SendOnChain(
 	ctx context.Context, req *pb.SendOnChainRequest,
 ) (*pb.SendOnChainResponse, error) {
+	if !h.withCollaborativeExit {
+		return nil, status.Error(codes.Unavailable, "operation not allowed")
+	}
+
 	address, err := parseAddress(req.GetAddress())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())

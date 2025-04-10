@@ -62,7 +62,8 @@ type Service struct {
 
 	publicKey *secp256k1.PublicKey
 
-	esploraUrl string
+	withCollaborativeExit bool
+	esploraUrl            string
 
 	isReady bool
 
@@ -90,6 +91,7 @@ func NewService(
 	schedulerSvc ports.SchedulerService,
 	lnSvc ports.LnService,
 	esploraUrl string,
+	withCollaborativeExit bool,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
@@ -116,6 +118,7 @@ func NewService(
 			notifications:             make(chan Notification),
 			stopBoardingEventListener: make(chan struct{}),
 			esploraUrl:                data.ExplorerURL,
+			withCollaborativeExit:     withCollaborativeExit,
 		}
 
 		return svc, nil
@@ -231,10 +234,12 @@ func (s *Service) LockNode(ctx context.Context) error {
 	}
 	s.subscriptions = make(map[string]func())
 
-	// close boarding event listener
-	s.stopBoardingEventListener <- struct{}{}
-	close(s.stopBoardingEventListener)
-	s.stopBoardingEventListener = make(chan struct{})
+	if s.withCollaborativeExit {
+		// close boarding event listener
+		s.stopBoardingEventListener <- struct{}{}
+		close(s.stopBoardingEventListener)
+		s.stopBoardingEventListener = make(chan struct{})
+	}
 
 	// close internal address event listener
 	s.closeInternalListener()
@@ -313,7 +318,9 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 	s.closeInternalListener = closeFn
 	go s.handleInternalAddressEventChannel(eventsCh)
-	go s.subscribeForBoardingEvent(ctx, onchainAddress, data)
+	if s.withCollaborativeExit {
+		go s.subscribeForBoardingEvent(ctx, onchainAddress, data)
+	}
 
 	return nil
 }
@@ -365,6 +372,17 @@ func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, 
 		return "", "", "", "", err
 	}
 	bip21Addr := fmt.Sprintf("bitcoin:%s?ark=%s", boardingAddr, offchainAddr)
+
+	if !s.withCollaborativeExit {
+		bip21Addr := fmt.Sprintf("bitcoin:?ark=%s", offchainAddr)
+		if sats > 0 {
+			btc := float64(sats) / 100000000.0
+			amount := fmt.Sprintf("%.8f", btc)
+			bip21Addr += fmt.Sprintf("&amount=%s", amount)
+		}
+		boardingAddr = ""
+	}
+
 	// add amount if passed
 	if sats > 0 {
 		btc := float64(sats) / 100000000.0

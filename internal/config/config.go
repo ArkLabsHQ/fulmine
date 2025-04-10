@@ -16,29 +16,31 @@ import (
 )
 
 type Config struct {
-	Datadir          string
-	GRPCPort         uint32
-	HTTPPort         uint32
-	WithTLS          bool
-	LogLevel         uint32
-	ArkServer        string
-	EsploraURL       string
-	CLNDatadir       string // for testing purposes only
-	UnlockerType     string
-	UnlockerFilePath string
-	UnlockerPassword string
+	Datadir               string
+	GRPCPort              uint32
+	HTTPPort              uint32
+	WithTLS               bool
+	LogLevel              uint32
+	ArkServer             string
+	EsploraURL            string
+	CLNDatadir            string // for testing purposes only
+	UnlockerType          string
+	UnlockerFilePath      string
+	UnlockerPassword      string
+	WithCollaborativeExit bool
 
 	unlocker ports.Unlocker
 }
 
 var (
-	Datadir    = "DATADIR"
-	GRPCPort   = "GRPC_PORT"
-	HTTPPort   = "HTTP_PORT"
-	WithTLS    = "WITH_TLS"
-	LogLevel   = "LOG_LEVEL"
-	ArkServer  = "ARK_SERVER"
-	EsploraURL = "ESPLORA_URL"
+	Datadir               = "DATADIR"
+	GRPCPort              = "GRPC_PORT"
+	HTTPPort              = "HTTP_PORT"
+	WithTLS               = "WITH_TLS"
+	LogLevel              = "LOG_LEVEL"
+	ArkServer             = "ARK_SERVER"
+	EsploraURL            = "ESPLORA_URL"
+	WithCollaborativeExit = "WITH_COLLABORATIVE_EXIT"
 
 	// Only for testing purposes
 	CLNDatadir = "CLN_DATADIR"
@@ -48,12 +50,13 @@ var (
 	UnlockerFilePath = "UNLOCKER_FILE_PATH"
 	UnlockerPassword = "UNLOCKER_PASSWORD"
 
-	defaultDatadir   = appDatadir("fulmine", false)
-	defaultGRPCPort  = 7000
-	defaultHTTPPort  = 7001
-	defaultWithTLS   = false
-	defaultLogLevel  = 4
-	defaultArkServer = ""
+	defaultDatadir               = appDatadir("fulmine", false)
+	defaultGRPCPort              = 7000
+	defaultHTTPPort              = 7001
+	defaultWithTLS               = false
+	defaultLogLevel              = 4
+	defaultArkServer             = ""
+	defaultWithCollaborativeExit = false
 )
 
 func LoadConfig() (*Config, error) {
@@ -66,23 +69,25 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(WithTLS, defaultWithTLS)
 	viper.SetDefault(LogLevel, defaultLogLevel)
 	viper.SetDefault(ArkServer, defaultArkServer)
+	viper.SetDefault(WithCollaborativeExit, defaultWithCollaborativeExit)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
 	}
 
 	config := &Config{
-		Datadir:          viper.GetString(Datadir),
-		GRPCPort:         viper.GetUint32(GRPCPort),
-		HTTPPort:         viper.GetUint32(HTTPPort),
-		WithTLS:          viper.GetBool(WithTLS),
-		LogLevel:         viper.GetUint32(LogLevel),
-		ArkServer:        viper.GetString(ArkServer),
-		EsploraURL:       viper.GetString(EsploraURL),
-		CLNDatadir:       cleanAndExpandPath(viper.GetString(CLNDatadir)),
-		UnlockerType:     viper.GetString(UnlockerType),
-		UnlockerFilePath: viper.GetString(UnlockerFilePath),
-		UnlockerPassword: viper.GetString(UnlockerPassword),
+		Datadir:               viper.GetString(Datadir),
+		GRPCPort:              viper.GetUint32(GRPCPort),
+		HTTPPort:              viper.GetUint32(HTTPPort),
+		WithTLS:               viper.GetBool(WithTLS),
+		LogLevel:              viper.GetUint32(LogLevel),
+		ArkServer:             viper.GetString(ArkServer),
+		EsploraURL:            viper.GetString(EsploraURL),
+		CLNDatadir:            cleanAndExpandPath(viper.GetString(CLNDatadir)),
+		UnlockerType:          viper.GetString(UnlockerType),
+		UnlockerFilePath:      viper.GetString(UnlockerFilePath),
+		UnlockerPassword:      viper.GetString(UnlockerPassword),
+		WithCollaborativeExit: viper.GetBool(WithCollaborativeExit),
 	}
 
 	if err := config.initUnlockerService(); err != nil {

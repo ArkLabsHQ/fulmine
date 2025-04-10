@@ -392,6 +392,11 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsValidBtcAddress(address) {
+		if !s.withCollaborativeExit {
+			toast := components.Toast("operation not allowed", true)
+			toastHandler(toast, c)
+			return
+		}
 		txId, err = s.svc.CollaborativeExit(c, address, value, false)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)

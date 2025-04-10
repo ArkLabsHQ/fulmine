@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"net"
 	"net/http"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/grpc/handlers"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/grpc/interceptors"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web"
@@ -61,7 +61,7 @@ func NewService(cfg Config, appSvc *application.Service, unlockerSvc ports.Unloc
 	walletHandler := handlers.NewWalletHandler(appSvc)
 	pb.RegisterWalletServiceServer(grpcServer, walletHandler)
 
-	serviceHandler := handlers.NewServiceHandler(appSvc)
+	serviceHandler := handlers.NewServiceHandler(appSvc, cfg.WithCollaborativeExit)
 	pb.RegisterServiceServer(grpcServer, serviceHandler)
 
 	notificationHandler := handlers.NewNotificationHandler(appSvc, appStopCh)
@@ -113,7 +113,7 @@ func NewService(cfg Config, appSvc *application.Service, unlockerSvc ports.Unloc
 		return nil, err
 	}
 
-	feHandler := web.NewService(appSvc, feStopCh)
+	feHandler := web.NewService(appSvc, feStopCh, cfg.WithCollaborativeExit)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", feHandler)

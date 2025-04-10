@@ -41,9 +41,10 @@ func main() {
 	log.Info("starting fulmine...")
 
 	svcConfig := grpcservice.Config{
-		GRPCPort: cfg.GRPCPort,
-		HTTPPort: cfg.HTTPPort,
-		WithTLS:  cfg.WithTLS,
+		GRPCPort:              cfg.GRPCPort,
+		HTTPPort:              cfg.HTTPPort,
+		WithTLS:               cfg.WithTLS,
+		WithCollaborativeExit: cfg.WithCollaborativeExit,
 	}
 
 	storeCfg := store.Config{
@@ -74,7 +75,8 @@ func main() {
 	lnSvc := lnd.NewService()
 
 	appSvc, err := application.NewService(
-		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc, lnSvc, cfg.EsploraURL,
+		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc, lnSvc,
+		cfg.EsploraURL, cfg.WithCollaborativeExit,
 	)
 	if err != nil {
 		log.WithError(err).Fatal(err)
