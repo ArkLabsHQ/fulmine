@@ -101,29 +101,27 @@ func initSentry(config *Config) error {
 		return err
 	}
 
-	setupLogrusHook(config.IsSentryEnabled())
+	setupLogrusHook()
 
 	return nil
 }
 
-func setupLogrusHook(isSentryEnabled bool) {
+// setupLogrusHook configures logrus to send errors to Sentry
+func setupLogrusHook() {
+	// Only capture errors, fatal, and panic levels
 	levels := []log.Level{
 		log.PanicLevel,
 		log.FatalLevel,
 		log.ErrorLevel,
 	}
 
-	sentryHook := &sentryHook{
-		levels:          levels,
-		isSentryEnabled: isSentryEnabled,
-	}
-
-	log.AddHook(sentryHook)
+	log.AddHook(&sentryHook{
+		levels: levels,
+	})
 }
 
 type sentryHook struct {
-	levels          []log.Level
-	isSentryEnabled bool
+	levels []log.Level
 }
 
 func (h *sentryHook) Levels() []log.Level {
@@ -145,13 +143,11 @@ func (h *sentryHook) Fire(entry *log.Entry) error {
 	event.Message = entry.Message
 	event.Extra = make(map[string]interface{})
 
-	if len(entry.Data) > 0 {
-		for k, v := range entry.Data {
-			if k == "error" || k == "skip_sentry" {
-				continue
-			}
-			event.Extra[k] = v
+	for k, v := range entry.Data {
+		if k == "error" || k == "skip_sentry" {
+			continue
 		}
+		event.Extra[k] = v
 	}
 
 	if err, ok := entry.Data["error"].(error); ok {

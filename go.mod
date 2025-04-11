@@ -56,7 +56,8 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/fergusstrange/embedded-postgres v1.28.0 // indirect
-	github.com/getsentry/sentry-go v0.31.1 // indirect
+	github.com/getsentry/sentry-go v0.32.0 // indirect
+	github.com/getsentry/sentry-go/gin v0.32.0 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-macaroon-bakery/macaroonpb v1.0.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.1.0 // indirect
@@ -87,6 +88,7 @@ require (
 	github.com/jackc/pgx/v5 v5.6.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jessevdk/go-flags v1.6.1 // indirect
+	github.com/johnbellone/grpc-middleware-sentry v0.4.0 // indirect
 	github.com/jonboulle/clockwork v0.4.0 // indirect
 	github.com/jrick/logrotate v1.1.2 // indirect
 	github.com/lib/pq v1.10.9 // indirect

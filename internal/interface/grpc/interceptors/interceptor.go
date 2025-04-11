@@ -2,29 +2,45 @@ package interceptors
 
 import (
 	middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_sentry "github.com/johnbellone/grpc-middleware-sentry"
 	"google.golang.org/grpc"
 )
 
-// UnaryInterceptor returns the unary interceptor
+// UnaryInterceptor returns the unary interceptor chain
 func UnaryInterceptor(sentryEnabled bool) grpc.ServerOption {
-	interceptors := []grpc.UnaryServerInterceptor{
-		unaryRecoveryInterceptor(sentryEnabled),
-		unaryLogger,
-	}
+	interceptors := []grpc.UnaryServerInterceptor{unaryLogger}
 	if sentryEnabled {
-		interceptors = append(interceptors, unarySentryErrorReporter)
+		sentryOpts := []grpc_sentry.Option{
+			grpc_sentry.WithRepanicOption(false),   // Don't re-panic after recovery
+			grpc_sentry.WithWaitForDelivery(false), // Don't wait for Sentry to deliver
+		}
+		interceptors = append([]grpc.UnaryServerInterceptor{
+			grpc_sentry.UnaryServerInterceptor(sentryOpts...),
+		}, interceptors...)
+	} else {
+		interceptors = append([]grpc.UnaryServerInterceptor{
+			unaryRecoveryInterceptor(false),
+		}, interceptors...)
 	}
+
 	return grpc.UnaryInterceptor(middleware.ChainUnaryServer(interceptors...))
 }
 
-// StreamInterceptor returns the stream interceptor with a logrus log
+// StreamInterceptor returns the stream interceptor chain
 func StreamInterceptor(sentryEnabled bool) grpc.ServerOption {
-	interceptors := []grpc.StreamServerInterceptor{
-		streamRecoveryInterceptor(sentryEnabled),
-		streamLogger,
-	}
+	interceptors := []grpc.StreamServerInterceptor{streamLogger}
 	if sentryEnabled {
-		interceptors = append(interceptors, streamSentryErrorReporter)
+		sentryOpts := []grpc_sentry.Option{
+			grpc_sentry.WithRepanicOption(false),   // Don't re-panic after recovery
+			grpc_sentry.WithWaitForDelivery(false), // Don't wait for Sentry to deliver
+		}
+		interceptors = append([]grpc.StreamServerInterceptor{
+			grpc_sentry.StreamServerInterceptor(sentryOpts...),
+		}, interceptors...)
+	} else {
+		interceptors = append([]grpc.StreamServerInterceptor{
+			streamRecoveryInterceptor(false),
+		}, interceptors...)
 	}
 
 	return grpc.StreamInterceptor(middleware.ChainStreamServer(interceptors...))
