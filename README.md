@@ -6,6 +6,9 @@
 [![GitHub Stars](https://img.shields.io/github/stars/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/issues)
 
+![fulmine-og-v2](https://github.com/user-attachments/assets/8d59879d-727b-4aa7-8a9f-4d696406c6cf)
+
+
 Fulmine is a Bitcoin wallet daemon that integrates Ark protocol's batched transaction model with Lightning Network infrastructure, enabling routing nodes, service providers and payment hubs to optimize channel liquidity while minimizing on-chain fees, without compromising on self-custody.
 
 ## 🚀 Usage
@@ -37,6 +40,19 @@ To stop the container:
 docker stop fulmine
 ```
 
+To update to the latest version:
+
+```bash
+docker pull ghcr.io/arklabshq/fulmine:latest
+docker stop fulmine && docker rm fulmine
+docker run -d \
+  --name fulmine \
+  -p 7000:7000 \
+  -p 7001:7001 \
+  -v fulmine-data:/app/data \
+  ghcr.io/arklabshq/fulmine:latest
+```
+
 ### 💻 Using the Binary
 
 Alternatively, you can download the latest release from the [releases page](https://github.com/ArkLabsHQ/fulmine/releases) for your platform. After downloading:
@@ -56,6 +72,9 @@ The following environment variables can be configured:
 | `FULMINE_GRPC_PORT` | gRPC port for service communication | `7000` |
 | `FULMINE_ARK_SERVER` | URL of the Ark server to connect to | It pre-fills with the default Ark server |
 | `FULMINE_ESPLORA_URL` | URL of the Esplora server to connect to | It pre-fills with the default Esplora server |
+| `FULMINE_UNLOCKER_TYPE` | Type of unlocker to use for auto-unlock (`file` or `env`) | Not set by default (no auto-unlock) |
+| `FULMINE_UNLOCKER_FILE_PATH` | Path to the file containing the wallet password (when using `file` unlocker) | Not set by default |
+| `FULMINE_UNLOCKER_PASSWORD` | Password string to use for unlocking (when using `env` unlocker) | Not set by default |
 
 When using Docker, you can set these variables using the `-e` flag:
 
@@ -66,9 +85,33 @@ docker run -d \
   -e FULMINE_HTTP_PORT=7001 \
   -e FULMINE_ARK_SERVER="https://server.example.com" \
   -e FULMINE_ESPLORA_URL="https://mempool.space/api" \
+  -e FULMINE_UNLOCKER_TYPE="file" \
+  -e FULMINE_UNLOCKER_FILE_PATH="/app/password.txt" \
   -v fulmine-data:/app/data \
+  -v /path/to/password.txt:/app/password.txt \
   ghcr.io/arklabshq/fulmine:latest
 ```
+
+### 🔑 Auto-Unlock Feature
+
+Fulmine supports automatic wallet unlocking on startup, which is useful for unattended operation or when running as a service. Two methods are available:
+
+1. **File-based unlocker**: Reads the wallet password from a file
+   ```
+   FULMINE_UNLOCKER_TYPE=file
+   FULMINE_UNLOCKER_FILE_PATH=/path/to/password/file
+   ```
+
+2. **Environment-based unlocker**: Uses a password directly from an environment variable
+   ```
+   FULMINE_UNLOCKER_TYPE=env
+   FULMINE_UNLOCKER_PASSWORD=your_wallet_password
+   ```
+
+⚠️ **Security Warning**: When using the auto-unlock feature, ensure your password is stored securely:
+- For file-based unlocking, use appropriate file permissions (chmod 600)
+- For environment-based unlocking, be cautious about environment variable visibility
+- Consider using Docker secrets or similar tools in production environments
 
 ## 📚 API Documentation
 
@@ -165,7 +208,13 @@ fulmine provides three main interfaces:
         -d '{"address": <bitcoin address>, "amount": <in sats>}'
    ```
 
-5. Get transaction history
+5. Settle transactions, Renew VTXOs or swap boarding UTXOs for VTXOs
+
+   ```sh
+   curl -X GET http://localhost:7001/api/v1/settle
+   ```
+
+6. Get transaction history
 
    ```sh
    curl -X GET http://localhost:7001/api/v1/transactions
@@ -190,14 +239,23 @@ Now navigate to [http://localhost:7001/](http://localhost:7001/) to see the dash
 
 ### Testing
 
-Run all tests:
+Run all unit tests:
 ```bash
 make test
 ```
 
-Run VHTLC-specific tests:
+Run VHTLC-specific unit tests:
 ```bash
 make test-vhtlc
+```
+
+Run integration tests:
+```bash
+make build-test-env
+make up-test-env
+make setup-test-env
+make integrationtest
+make down-test-env
 ```
 
 ## 🤝 Contributing

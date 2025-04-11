@@ -218,7 +218,7 @@ func BackupInitialBodyContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.Header("Backup wallet").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Header("Backup wallet", "/settings/general").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -275,7 +275,7 @@ func BackupSecretBodyContent(hex, nsec string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.Header("Backup wallet").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Header("Backup wallet", "/settings/general").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -299,15 +299,15 @@ func BackupSecretBodyContent(hex, nsec string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</p><p>Do not share your Private Key or someone may gain access to your wallet.</p></div></div></div><div class=\"flex flex-col md:flex-row justify-start gap-4 mt-10 mb-2\"><button class=\"bg-orange md:w-auto\" type=\"submit\">Continue</button> <button class=\"bg-graybg md:w-32\" data-needs=\"clipboard\" onclick=\"handleCopy(event)\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</p><p>Do not share your Private Key or someone may gain access to your wallet.</p></div></div></div><div class=\"flex flex-col md:flex-row justify-start gap-4 mt-10 mb-2\"><button class=\"bg-orange md:w-auto\" type=\"submit\">Continue</button>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.CopyIcon().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.CopyButtonText(nsec).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<span id=\"copyText\" class=\"ml-2\">Copy</span></button></div></div></form><script>\n    const handleCopy = (event) => {\n\t\t\tevent.preventDefault()\n\t\t\tcopyToClipboard('#secret')\n\t\t\tdocument.querySelector('#copyText').innerText = 'Copied'\n\t\t\tsetTimeout(() => document.querySelector('#copyText').innerText = 'Copy', 2100)\n\t\t}\n  </script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -340,7 +340,7 @@ func BackupAckBodyContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.Header("Backup wallet").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.Header("Backup wallet", "/settings/general").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -356,7 +356,7 @@ func BackupAckBodyContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div><script>\n    const handleAck = () => {\n      const button = document.querySelector('button[type=\"submit\"]')\n      const boxes = document.querySelectorAll('input[type=\"checkbox\"]')\n      if (!button || !boxes || boxes.length === 0) return\n      button.disabled = !Array.from(boxes).reduce((prev, curr) => prev && curr.checked, true)\n    }\n  </script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div><script>\n    const handleAck = () => {\n      const button = document.querySelector('[name=\"redirect\"]')\n      const boxes = document.querySelectorAll('input[type=\"checkbox\"]')\n      if (!button || !boxes || boxes.length === 0) return\n      button.disabled = !Array.from(boxes).reduce((prev, curr) => prev && curr.checked, true)\n    }\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

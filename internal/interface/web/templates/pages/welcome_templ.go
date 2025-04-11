@@ -12,7 +12,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 )
 
-func LogoWhite() templ.Component {
+func BigLogo() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -37,11 +37,15 @@ func LogoWhite() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.LogoXL().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.LogoWhite().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div><p class=\"leading-5 font-bold text-2xl\">ARK</p><p class=\"leading-5 font-bold text-2xl\">NODE</p></div></div></div>")
+		templ_7745c5c3_Err = components.LogoName().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -70,23 +74,15 @@ func Welcome() templ.Component {
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"bg-radial-gradient h-screen fullscreen\"><div class=\"flex flex-col h-screen justify-between md:h-auto md:gap-10 w-96 max-w-full m-auto p-3\"><div><div class=\"flex flex-col items-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"bg-radial-gradient h-screen fullscreen\"><div class=\"flex flex-col h-screen justify-between md:h-auto md:gap-10 w-96 max-w-full m-auto p-3\"><div class=\"flex flex-col gap-12 items-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = LogoWhite().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = BigLogo().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"font-medium text-center text-3xl p-8\">Start sending and receiving Bitcoin fast and private</p></div><div class=\"flex flex-col gap-5 bg-white/10 p-4 mb-10 rounded-lg w-full\"><div class=\"flex items-center gap-2\"><p>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = components.CheckIcon().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p><p>Faster and less expensive</p></div><div class=\"flex items-center gap-2\"><p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"font-medium text-center text-3xl p-8\">All-in-One Lightning Command Center</p></div><div class=\"flex flex-col gap-5 bg-black/10 p-4 mb-10 rounded-lg w-full\"><div class=\"flex items-center gap-2\"><p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -94,7 +90,7 @@ func Welcome() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p><p>Faster and less expensive</p></div><div class=\"flex items-center gap-2\"><p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</p><p>Non-custodial Lightning swaps</p></div><div class=\"flex items-center gap-2\"><p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -102,7 +98,15 @@ func Welcome() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</p><p>Faster and less expensive</p></div></div></div><div class=\"flex flex-col md:flex-row md:justify-center gap-2 w-full\"><button class=\"md:w-auto bg-white text-black\" onclick=\"redirect(&#39;/new&#39;)\">&#65291; Create new wallet</button> <button class=\"md:w-auto bg-white/20\" onclick=\"redirect(&#39;/import&#39;)\">Import</button></div></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p><p>Seamless node integration</p></div><div class=\"flex items-center gap-2\"><p>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = components.CheckIcon().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</p><p>Batched onchain operations</p></div></div><div class=\"flex flex-col md:flex-row md:justify-center gap-2 w-full\"><button class=\"md:w-auto bg-white text-black\" onclick=\"redirect(&#39;/new&#39;)\">&#65291; Create new wallet</button> <button class=\"md:w-auto bg-white/20\" onclick=\"redirect(&#39;/import&#39;)\">Import</button></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

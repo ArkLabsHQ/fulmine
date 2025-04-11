@@ -17,10 +17,6 @@ func UnaryInterceptor(sentryEnabled bool) grpc.ServerOption {
 		interceptors = append([]grpc.UnaryServerInterceptor{
 			grpc_sentry.UnaryServerInterceptor(sentryOpts...),
 		}, interceptors...)
-	} else {
-		interceptors = append([]grpc.UnaryServerInterceptor{
-			unaryRecoveryInterceptor(false),
-		}, interceptors...)
 	}
 
 	return grpc.UnaryInterceptor(middleware.ChainUnaryServer(interceptors...))
@@ -36,10 +32,6 @@ func StreamInterceptor(sentryEnabled bool) grpc.ServerOption {
 		}
 		interceptors = append([]grpc.StreamServerInterceptor{
 			grpc_sentry.StreamServerInterceptor(sentryOpts...),
-		}, interceptors...)
-	} else {
-		interceptors = append([]grpc.StreamServerInterceptor{
-			streamRecoveryInterceptor(false),
 		}, interceptors...)
 	}
 

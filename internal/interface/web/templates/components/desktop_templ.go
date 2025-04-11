@@ -29,19 +29,23 @@ func DesktopHeader() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"hidden md:flex justify-between items-center p-3 mb-2 bg-desktopbg rounded-lg w-full\"><a href=\"/\"><div class=\"flex items-center text-orange\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"hidden md:flex justify-between items-center p-3 mb-5 bg-desktopbg rounded-lg w-full\"><a href=\"/\"><div class=\"flex gap-2 items-center text-orange\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = Logo().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = LogoOrange().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div><p class=\"leading-4 font-bold\">ARK</p><p class=\"leading-4 font-bold\">NODE</p></div></div></a> <a href=\"/settings/general\">")
+		templ_7745c5c3_Err = LogoNameSmall().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = SettingsIcon().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div></a> <a href=\"/settings/general\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = SettingsButton().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

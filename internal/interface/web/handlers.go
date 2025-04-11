@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/config"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates"
@@ -16,6 +17,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
+	"github.com/ark-network/ark/common"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/gin-gonic/gin"
@@ -109,15 +111,6 @@ func (s *service) events(c *gin.Context) {
 	}
 }
 
-func (s *service) forgot(c *gin.Context) {
-	if err := s.svc.Reset(c); err != nil {
-		toast := components.Toast("Unable to delete previous wallet", true)
-		toastHandler(toast, c)
-		return
-	}
-	c.Redirect(http.StatusFound, "/welcome")
-}
-
 func (s *service) index(c *gin.Context) {
 	bodyContent := pages.Welcome()
 	if s.svc.IsReady() {
@@ -182,12 +175,15 @@ func (s *service) importWalletPrivateKey(c *gin.Context) {
 }
 
 func (s *service) lock(c *gin.Context) {
-	bodyContent := pages.Lock()
-	s.pageViewHandler(bodyContent, c)
+	if err := s.svc.LockNode(c); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+	c.Redirect(http.StatusFound, "/")
 }
 
 func (s *service) unlock(c *gin.Context) {
-	log.Infof("referer %s", c.Request.Referer())
 	bodyContent := pages.Unlock()
 	s.pageViewHandler(bodyContent, c)
 }
@@ -638,14 +634,27 @@ func (s *service) getTx(c *gin.Context) {
 	if len(tx.Txid) == 0 {
 		bodyContent = pages.TxNotFoundContent()
 	} else if tx.Status == "pending" {
-		var nextClaimStr string
-		nextClaim, err := s.svc.WhenNextClaim(c)
-		if err != nil {
-			nextClaimStr = "unknown"
-		} else {
-			nextClaimStr = prettyUnixTimestamp(nextClaim.Unix())
+		var nextSettlementStr string
+		nextSettlement := s.svc.WhenNextSettlement(c)
+		if nextSettlement.IsZero() {
+			// if no next settlement, it means it is about to be scheduled for a boarding tx
+			// fallback to now + boarding timelock to show a time closest to next settlement
+			data, err := s.svc.GetConfigData(c)
+			if err != nil {
+				nextSettlementStr = "unknown"
+			} else {
+				// TODO: use boardingExitDelay https://github.com/ark-network/ark/pull/501
+				boardingTimelock := common.RelativeLocktime{Type: data.UnilateralExitDelay.Type, Value: data.UnilateralExitDelay.Value * 2}
+				closeToBoardingSettlement := time.Now().Add(time.Duration(boardingTimelock.Seconds()) * time.Second)
+				nextSettlement = closeToBoardingSettlement
+			}
 		}
-		bodyContent = pages.TxPendingContent(tx, nextClaimStr)
+
+		if nextSettlementStr != "unknown" {
+			nextSettlementStr = prettyUnixTimestamp(nextSettlement.Unix())
+		}
+
+		bodyContent = pages.TxPendingContent(tx, explorerUrl, nextSettlementStr)
 	} else {
 		bodyContent = pages.TxBodyContent(tx, explorerUrl)
 	}
@@ -794,6 +803,12 @@ func (s *service) pageViewHandler(bodyContent templ.Component, c *gin.Context) {
 	}
 }
 
+func (s *service) scannerModal(c *gin.Context) {
+	id := c.Param("id")
+	scan := modals.Scanner(id)
+	modalHandler(scan, c)
+}
+
 func (s *service) seedInfoModal(c *gin.Context) {
 	seed, err := s.svc.ArkClient.Dump(c)
 	if err != nil {
@@ -835,7 +850,7 @@ func (s *service) claimTx(c *gin.Context) {
 		return
 	}
 
-	if _, err := s.svc.ClaimPending(c); err != nil {
+	if _, err := s.svc.Settle(c); err != nil {
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
 		return
@@ -857,21 +872,15 @@ func (s *service) getHero(c *gin.Context) {
 		return
 	}
 
-	var offchainAddr string
 	var isOnline bool
 
-	if addr, _, err := s.svc.Receive(c); err == nil {
-		offchainAddr = addr
+	spendableBalance, err := s.getSpendableBalance(c)
+	if err == nil {
 		isOnline = true
 	} else {
-		log.WithError(err).Warn("failed to get receiving address")
-	}
-
-	spendableBalance, err := s.getSpendableBalance(c)
-	if err != nil {
 		log.WithError(err).Warn("failed to get spendable balance")
 	}
 
-	partialContent := components.Hero(offchainAddr, spendableBalance, isOnline, s.svc.IsConnectedLN())
+	partialContent := components.Hero(spendableBalance, isOnline, s.svc.IsConnectedLN())
 	partialViewHandler(partialContent, c)
 }

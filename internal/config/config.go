@@ -9,29 +9,37 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
+	envunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/env"
+	fileunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/file"
 	"github.com/getsentry/sentry-go"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Datadir    string
-	GRPCPort   uint32
-	HTTPPort   uint32
-	WithTLS    bool
-	LogLevel   uint32
-	ArkServer  string
-	EsploraURL string
-	CLNDatadir string // for testing purposes only
-	SentryDSN  string
-	SentryEnv  string
+	Datadir          string
+	GRPCPort         uint32
+	HTTPPort         uint32
+	WithTLS          bool
+	LogLevel         uint32
+	ArkServer        string
+	EsploraURL       string
+	CLNDatadir       string // for testing purposes only
+	UnlockerType     string
+	UnlockerFilePath string
+	UnlockerPassword string
+	SentryDSN        string
+	SentryEnv        string
+
+	unlocker ports.Unlocker
 }
 
 var (
 	Datadir    = "DATADIR"
 	GRPCPort   = "GRPC_PORT"
 	HTTPPort   = "HTTP_PORT"
-	WithTLS    = "NO_TLS"
+	WithTLS    = "WITH_TLS"
 	LogLevel   = "LOG_LEVEL"
 	ArkServer  = "ARK_SERVER"
 	EsploraURL = "ESPLORA_URL"
@@ -40,6 +48,11 @@ var (
 
 	// Only for testing purposes
 	CLNDatadir = "CLN_DATADIR"
+
+	// Unlocker configuration
+	UnlockerType     = "UNLOCKER_TYPE"
+	UnlockerFilePath = "UNLOCKER_FILE_PATH"
+	UnlockerPassword = "UNLOCKER_PASSWORD"
 
 	defaultDatadir   = appDatadir("fulmine", false)
 	defaultGRPCPort  = 7000
@@ -69,22 +82,29 @@ func LoadConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		Datadir:    viper.GetString(Datadir),
-		GRPCPort:   viper.GetUint32(GRPCPort),
-		HTTPPort:   viper.GetUint32(HTTPPort),
-		WithTLS:    viper.GetBool(WithTLS),
-		LogLevel:   viper.GetUint32(LogLevel),
-		ArkServer:  viper.GetString(ArkServer),
-		EsploraURL: viper.GetString(EsploraURL),
-		CLNDatadir: cleanAndExpandPath(viper.GetString(CLNDatadir)),
-		SentryDSN:  viper.GetString(SentryDSN),
-		SentryEnv:  viper.GetString(SentryEnv),
+		Datadir:          viper.GetString(Datadir),
+		GRPCPort:         viper.GetUint32(GRPCPort),
+		HTTPPort:         viper.GetUint32(HTTPPort),
+		WithTLS:          viper.GetBool(WithTLS),
+		LogLevel:         viper.GetUint32(LogLevel),
+		ArkServer:        viper.GetString(ArkServer),
+		EsploraURL:       viper.GetString(EsploraURL),
+		CLNDatadir:       cleanAndExpandPath(viper.GetString(CLNDatadir)),
+		SentryDSN:        viper.GetString(SentryDSN),
+		SentryEnv:        viper.GetString(SentryEnv),
+		UnlockerType:     viper.GetString(UnlockerType),
+		UnlockerFilePath: viper.GetString(UnlockerFilePath),
+		UnlockerPassword: viper.GetString(UnlockerPassword),
 	}
 
 	if config.SentryDSN != "" {
 		if err := initSentry(config); err != nil {
 			return nil, fmt.Errorf("error initializing Sentry: %s", err)
 		}
+	}
+
+	if err := config.initUnlockerService(); err != nil {
+		return nil, err
 	}
 
 	return config, nil
@@ -106,13 +126,12 @@ func initSentry(config *Config) error {
 	return nil
 }
 
-// setupLogrusHook configures logrus to send errors to Sentry
 func setupLogrusHook() {
-	// Only capture errors, fatal, and panic levels
 	levels := []log.Level{
 		log.PanicLevel,
 		log.FatalLevel,
 		log.ErrorLevel,
+		log.WarnLevel,
 	}
 
 	log.AddHook(&sentryHook{
@@ -186,6 +205,36 @@ func GetHostname() string {
 		return "unknown"
 	}
 	return hostname
+}
+
+func (c *Config) IsSentryEnabled() bool {
+	return c.SentryDSN != ""
+}
+
+func (c *Config) UnlockerService() ports.Unlocker {
+	return c.unlocker
+}
+
+func (c *Config) initUnlockerService() error {
+	if len(c.UnlockerType) <= 0 {
+		return nil
+	}
+
+	var svc ports.Unlocker
+	var err error
+	switch c.UnlockerType {
+	case "file":
+		svc, err = fileunlocker.NewService(c.UnlockerFilePath)
+	case "env":
+		svc, err = envunlocker.NewService(c.UnlockerPassword)
+	default:
+		err = fmt.Errorf("unknown unlocker type")
+	}
+	if err != nil {
+		return err
+	}
+	c.unlocker = svc
+	return nil
 }
 
 func initDatadir() error {
@@ -288,8 +337,4 @@ func cleanAndExpandPath(path string) string {
 	// NOTE: The os.ExpandEnv doesn't work with Windows-style %VARIABLE%,
 	// but the variables can still be expanded via POSIX-style $VARIABLE.
 	return filepath.Clean(os.ExpandEnv(path))
-}
-
-func (c *Config) IsSentryEnabled() bool {
-	return c.SentryDSN != ""
 }

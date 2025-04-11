@@ -8,9 +8,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// SetupSentryMiddleware configures and adds the Sentry middleware to the Gin engine
+// SetupMiddleware configures and adds the Sentry middleware to the Gin engine
 // This middleware handles error reporting and panic recovery in a single package
-func SetupSentryMiddleware(engine *gin.Engine, enabled bool) {
+func SetupMiddleware(engine *gin.Engine, enabled bool) {
 	if !enabled {
 		engine.Use(gin.Recovery())
 		return
