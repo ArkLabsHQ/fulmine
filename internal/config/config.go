@@ -12,6 +12,8 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	envunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/env"
 	fileunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/file"
+	"github.com/getsentry/sentry-go"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -27,6 +29,8 @@ type Config struct {
 	UnlockerType     string
 	UnlockerFilePath string
 	UnlockerPassword string
+	SentryDSN        string
+	SentryEnv        string
 
 	unlocker ports.Unlocker
 }
@@ -39,6 +43,8 @@ var (
 	LogLevel   = "LOG_LEVEL"
 	ArkServer  = "ARK_SERVER"
 	EsploraURL = "ESPLORA_URL"
+	SentryDSN  = "SENTRY_DSN"
+	SentryEnv  = "SENTRY_ENVIRONMENT"
 
 	// Only for testing purposes
 	CLNDatadir = "CLN_DATADIR"
@@ -54,6 +60,8 @@ var (
 	defaultWithTLS   = false
 	defaultLogLevel  = 4
 	defaultArkServer = ""
+	defaultSentryDSN = ""
+	defaultSentryEnv = "development"
 )
 
 func LoadConfig() (*Config, error) {
@@ -66,6 +74,8 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(WithTLS, defaultWithTLS)
 	viper.SetDefault(LogLevel, defaultLogLevel)
 	viper.SetDefault(ArkServer, defaultArkServer)
+	viper.SetDefault(SentryDSN, defaultSentryDSN)
+	viper.SetDefault(SentryEnv, defaultSentryEnv)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
@@ -80,9 +90,17 @@ func LoadConfig() (*Config, error) {
 		ArkServer:        viper.GetString(ArkServer),
 		EsploraURL:       viper.GetString(EsploraURL),
 		CLNDatadir:       cleanAndExpandPath(viper.GetString(CLNDatadir)),
+		SentryDSN:        viper.GetString(SentryDSN),
+		SentryEnv:        viper.GetString(SentryEnv),
 		UnlockerType:     viper.GetString(UnlockerType),
 		UnlockerFilePath: viper.GetString(UnlockerFilePath),
 		UnlockerPassword: viper.GetString(UnlockerPassword),
+	}
+
+	if config.SentryDSN != "" {
+		if err := initSentry(config); err != nil {
+			return nil, fmt.Errorf("error initializing Sentry: %s", err)
+		}
 	}
 
 	if err := config.initUnlockerService(); err != nil {
@@ -90,6 +108,107 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return config, nil
+}
+
+func initSentry(config *Config) error {
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn:              config.SentryDSN,
+		Environment:      config.SentryEnv,
+		AttachStacktrace: true,
+		ServerName:       GetHostname(),
+	})
+	if err != nil {
+		return err
+	}
+
+	setupLogrusHook()
+
+	return nil
+}
+
+func setupLogrusHook() {
+	levels := []log.Level{
+		log.PanicLevel,
+		log.FatalLevel,
+		log.ErrorLevel,
+		log.WarnLevel,
+	}
+
+	log.AddHook(&sentryHook{
+		levels: levels,
+	})
+}
+
+type sentryHook struct {
+	levels []log.Level
+}
+
+func (h *sentryHook) Levels() []log.Level {
+	return h.levels
+}
+
+func (h *sentryHook) Fire(entry *log.Entry) error {
+	if sentry.CurrentHub().Client() == nil {
+		return nil
+	}
+
+	// Skip if explicitly marked to skip Sentry
+	if skip, ok := entry.Data["skip_sentry"].(bool); ok && skip {
+		return nil
+	}
+
+	event := sentry.NewEvent()
+	event.Level = getSentryLevel(entry.Level)
+	event.Message = entry.Message
+	event.Extra = make(map[string]interface{})
+
+	for k, v := range entry.Data {
+		if k == "error" || k == "skip_sentry" {
+			continue
+		}
+		event.Extra[k] = v
+	}
+
+	if err, ok := entry.Data["error"].(error); ok {
+		event.Exception = []sentry.Exception{{
+			Value:      err.Error(),
+			Type:       fmt.Sprintf("%T", err),
+			Stacktrace: sentry.ExtractStacktrace(err),
+		}}
+	}
+
+	sentry.CaptureEvent(event)
+	return nil
+}
+
+func getSentryLevel(level log.Level) sentry.Level {
+	switch level {
+	case log.PanicLevel, log.FatalLevel:
+		return sentry.LevelFatal
+	case log.ErrorLevel:
+		return sentry.LevelError
+	case log.WarnLevel:
+		return sentry.LevelWarning
+	case log.InfoLevel:
+		return sentry.LevelInfo
+	case log.DebugLevel, log.TraceLevel:
+		return sentry.LevelDebug
+	default:
+		return sentry.LevelError
+	}
+}
+
+// GetHostname returns the hostname of the current machine
+func GetHostname() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return "unknown"
+	}
+	return hostname
+}
+
+func (c *Config) IsSentryEnabled() bool {
+	return c.SentryDSN != ""
 }
 
 func (c *Config) UnlockerService() ports.Unlocker {
