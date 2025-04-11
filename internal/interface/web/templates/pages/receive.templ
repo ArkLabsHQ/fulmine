@@ -48,7 +48,9 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats stri
           <img src={"data:image/png;base64," + encoded} alt="qrcode for receive address" title={bip21}>
 	  		</div>
 				@addressLine("BIP 21", bip21)
-				@addressLine("BTC address", boardingAddr)
+				if boardingAddr != "" {
+					@addressLine("BTC address", boardingAddr)
+				}
 				@addressLine("Ark address", offchainAddr)
 	  	</div>
       <div class="flex flex-col md:flex-row justify-start gap-4 mt-10 mb-2">
