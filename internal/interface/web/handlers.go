@@ -1,9 +1,12 @@
 package web
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +24,7 @@ import (
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/gin-gonic/gin"
+	"github.com/minio/selfupdate"
 	log "github.com/sirupsen/logrus"
 
 	qrcode "github.com/skip2/go-qrcode"
@@ -883,4 +887,70 @@ func (s *service) getHero(c *gin.Context) {
 
 	partialContent := components.Hero(spendableBalance, isOnline, s.svc.IsConnectedLN())
 	partialViewHandler(partialContent, c)
+}
+
+// updateBinary handles the self-update process for the application binary.
+// It uses github.com/minio/selfupdate to perform an in-place update from a GitHub release.
+func (s *service) updateBinary(c *gin.Context) {
+	// Get the current executable path
+	executable, err := os.Executable()
+	if err != nil {
+		log.WithError(err).Error("Failed to get current executable path")
+		c.String(http.StatusInternalServerError, "Error getting executable: %s", err.Error())
+		return
+	}
+
+	// GitHub repository owner and name for the releases
+	// You need to customize these for your actual repository
+	owner := "ArkLabsHQ"
+	repo := "fulmine"
+
+	log.Info("Checking for updates from GitHub...")
+
+	// Create an HTTP client with a timeout
+	client := &http.Client{Timeout: 30 * time.Second}
+
+	// Fetch the latest release from GitHub
+	resp, err := client.Get(fmt.Sprintf("https://github.com/%s/%s/releases/latest/download/fulmine", owner, repo))
+	if err != nil {
+		log.WithError(err).Error("Failed to fetch update")
+		c.String(http.StatusInternalServerError, "Error checking for updates: %s", err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Errorf("Bad response status: %d", resp.StatusCode)
+		c.String(http.StatusInternalServerError, "Error: received %d response from update server", resp.StatusCode)
+		return
+	}
+
+	// Perform the update
+	newVersion, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.WithError(err).Error("Failed to read response body")
+		c.String(http.StatusInternalServerError, "Error reading update data: %s", err.Error())
+		return
+	}
+
+	if len(newVersion) == 0 {
+		c.String(http.StatusInternalServerError, "Error: received empty update file")
+		return
+	}
+
+	// Apply the binary update
+	err = selfupdate.Apply(bytes.NewReader(newVersion), selfupdate.Options{TargetPath: executable})
+	if err != nil {
+		if rerr := selfupdate.RollbackError(err); rerr != nil {
+			log.WithError(err).WithError(rerr).Error("Failed to rollback from bad update")
+			c.String(http.StatusInternalServerError, "Error updating: %v, and failed to rollback: %v", err, rerr)
+			return
+		}
+		log.WithError(err).Error("Failed to update binary")
+		c.String(http.StatusInternalServerError, "Error updating: %s", err.Error())
+		return
+	}
+
+	log.Info("Update successful!")
+	c.String(http.StatusOK, "Update successful! Please restart the application to use the new version.")
 }

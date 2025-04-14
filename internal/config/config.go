@@ -49,8 +49,8 @@ var (
 	UnlockerPassword = "UNLOCKER_PASSWORD"
 
 	defaultDatadir   = appDatadir("fulmine", false)
-	defaultGRPCPort  = 7000
-	defaultHTTPPort  = 7001
+	defaultGRPCPort  = 7010
+	defaultHTTPPort  = 7011
 	defaultWithTLS   = false
 	defaultLogLevel  = 4
 	defaultArkServer = ""

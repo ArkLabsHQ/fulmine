@@ -91,6 +91,10 @@ templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) 
     @Hr()
     @Separator("Security")
     <a class="button" onclick="redirect('/backup')">Backup Private Key</a>
+    <div class="mt-4 flex items-center gap-3">
+      <a class="button" hx-post="/helpers/update" hx-swap="innerHTML" hx-target="#update-message">Update</a>
+      <span id="update-message" class="text-sm text-white/70"></span>
+    </div>
     @Hr()
     @Separator("Sign out")
     <a class="button" onclick="redirect('/lock')">Sign out</a>

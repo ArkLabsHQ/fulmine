@@ -125,6 +125,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	svc.POST("/helpers/privatekey/validate", svc.validatePrivateKeyApi)
 	svc.POST("/helpers/url/validate", svc.validateUrlApi)
 	svc.POST("/helpers/unlock", svc.unlockApi)
+	svc.POST("/helpers/update", svc.updateBinary)
 
 	svc.GET("/helpers/balance", svc.getBalanceApi)
 
