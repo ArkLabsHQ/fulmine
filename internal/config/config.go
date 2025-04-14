@@ -198,15 +198,6 @@ func getSentryLevel(level log.Level) sentry.Level {
 	}
 }
 
-// GetHostname returns the hostname of the current machine
-func GetHostname() string {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return "unknown"
-	}
-	return hostname
-}
-
 func (c *Config) IsSentryEnabled() bool {
 	return c.SentryDSN != ""
 }
@@ -337,4 +328,13 @@ func cleanAndExpandPath(path string) string {
 	// NOTE: The os.ExpandEnv doesn't work with Windows-style %VARIABLE%,
 	// but the variables can still be expanded via POSIX-style $VARIABLE.
 	return filepath.Clean(os.ExpandEnv(path))
+}
+
+// getHostname returns the hostname of the current machine
+func getHostname() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return "unknown"
+	}
+	return hostname
 }

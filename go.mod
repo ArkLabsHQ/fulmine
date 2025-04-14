@@ -17,9 +17,13 @@ require (
 	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250408134011-3662e743ed93
 	github.com/ccoveille/go-safecast v1.2.0
 	github.com/dgraph-io/badger/v4 v4.6.0
+	github.com/getsentry/sentry-go v0.32.0
+	github.com/getsentry/sentry-go/gin v0.32.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1
+	github.com/johnbellone/grpc-middleware-sentry v0.4.0
 	github.com/nbd-wtf/go-nostr v0.38.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
@@ -56,8 +60,6 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/fergusstrange/embedded-postgres v1.28.0 // indirect
-	github.com/getsentry/sentry-go v0.32.0 // indirect
-	github.com/getsentry/sentry-go/gin v0.32.0 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-macaroon-bakery/macaroonpb v1.0.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.1.0 // indirect
@@ -88,7 +90,6 @@ require (
 	github.com/jackc/pgx/v5 v5.6.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jessevdk/go-flags v1.6.1 // indirect
-	github.com/johnbellone/grpc-middleware-sentry v0.4.0 // indirect
 	github.com/jonboulle/clockwork v0.4.0 // indirect
 	github.com/jrick/logrotate v1.1.2 // indirect
 	github.com/lib/pq v1.10.9 // indirect

@@ -69,7 +69,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}, sentryEnabled
 	svc := &service{router, appSvc, stopCh}
 
 	// Configure Sentry for Gin (includes built-in panic recovery)
-	SetupMiddleware(svc.Engine, sentryEnabled)
+	setupMiddleware(svc.Engine, sentryEnabled)
 
 	// Handle static files.
 	// svc.Static("/static", "./static")
