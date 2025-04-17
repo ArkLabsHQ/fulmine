@@ -23,6 +23,8 @@ jobs:
     # Build binaries for all architectures
     - name: Build binaries
       run: make build-all
+      env:
+        SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
 
     # Binary uploads
     - name: Upload binary (Linux, AMD64)
@@ -96,3 +98,4 @@ jobs:
           VERSION=${{ github.event.release.tag_name }}
           COMMIT=${{ github.sha }}
           DATE=${{ steps.build_date.outputs.date }}
+          SENTRY_DSN=${{ secrets.SENTRY_DSN }}

@@ -44,7 +44,7 @@ pushd $PARENT_PATH
 mkdir -p build
 
 # Build the binary with version information
-CGO_ENABLED=0 go build -ldflags="-X 'main.version=$VERSION' -X 'main.commit=$COMMIT' -X 'main.date=$DATE'" -o build/fulmine-$GOOS-$GOARCH cmd/fulmine/main.go
+CGO_ENABLED=0 go build -ldflags="-X 'main.version=$VERSION' -X 'main.commit=$COMMIT' -X 'main.date=$DATE' -X 'main.sentryDsn=$SENTRY_DSN'" -o build/fulmine-$GOOS-$GOARCH cmd/fulmine/main.go
 
 echo "Build successful for $GOOS $GOARCH: build/fulmine-$GOOS-$GOARCH"
 

@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"net"
 	"net/http"
+
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
@@ -35,7 +36,9 @@ type service struct {
 	feStopCh  chan struct{}
 }
 
-func NewService(cfg Config, appSvc *application.Service, unlockerSvc ports.Unlocker) (*service, error) {
+func NewService(
+	cfg Config, appSvc *application.Service, unlockerSvc ports.Unlocker, sentryEnabled bool,
+) (*service, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %s", err)
 	}
@@ -44,8 +47,8 @@ func NewService(cfg Config, appSvc *application.Service, unlockerSvc ports.Unloc
 	feStopCh := make(chan struct{}, 1)
 
 	grpcConfig := []grpc.ServerOption{
-		interceptors.UnaryInterceptor(),
-		interceptors.StreamInterceptor(),
+		interceptors.UnaryInterceptor(sentryEnabled),
+		interceptors.StreamInterceptor(sentryEnabled),
 	}
 	if cfg.WithTLS {
 		return nil, fmt.Errorf("tls termination not supported yet")
@@ -113,7 +116,7 @@ func NewService(cfg Config, appSvc *application.Service, unlockerSvc ports.Unloc
 		return nil, err
 	}
 
-	feHandler := web.NewService(appSvc, feStopCh)
+	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", feHandler)
@@ -131,7 +134,9 @@ func NewService(cfg Config, appSvc *application.Service, unlockerSvc ports.Unloc
 		TLSConfig: cfg.tlsConfig(),
 	}
 
-	return &service{cfg, appSvc, httpServer, grpcServer, unlockerSvc, appStopCh, feStopCh}, nil
+	return &service{
+		cfg, appSvc, httpServer, grpcServer, unlockerSvc, feStopCh, appStopCh,
+	}, nil
 }
 
 func (s *service) Start() error {
