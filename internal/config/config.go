@@ -27,6 +27,7 @@ type Config struct {
 	UnlockerType     string
 	UnlockerFilePath string
 	UnlockerPassword string
+	UpdateURL        string
 
 	unlocker ports.Unlocker
 }
@@ -47,10 +48,11 @@ var (
 	UnlockerType     = "UNLOCKER_TYPE"
 	UnlockerFilePath = "UNLOCKER_FILE_PATH"
 	UnlockerPassword = "UNLOCKER_PASSWORD"
+	UpdateBinURL     = "UPDATE_URL"
 
 	defaultDatadir   = appDatadir("fulmine", false)
-	defaultGRPCPort  = 7000
-	defaultHTTPPort  = 7001
+	defaultGRPCPort  = 7010
+	defaultHTTPPort  = 7011
 	defaultWithTLS   = false
 	defaultLogLevel  = 4
 	defaultArkServer = ""
@@ -83,6 +85,7 @@ func LoadConfig() (*Config, error) {
 		UnlockerType:     viper.GetString(UnlockerType),
 		UnlockerFilePath: viper.GetString(UnlockerFilePath),
 		UnlockerPassword: viper.GetString(UnlockerPassword),
+		UpdateURL:        viper.GetString(UpdateBinURL),
 	}
 
 	if err := config.initUnlockerService(); err != nil {

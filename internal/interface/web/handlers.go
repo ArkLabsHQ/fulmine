@@ -1,9 +1,12 @@
 package web
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +24,7 @@ import (
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/gin-gonic/gin"
+	"github.com/minio/selfupdate"
 	log "github.com/sirupsen/logrus"
 
 	qrcode "github.com/skip2/go-qrcode"
@@ -482,6 +486,15 @@ func (s *service) setPrivateKey(c *gin.Context) {
 	partialViewHandler(bodyContent, c)
 }
 
+// getVersion exposes the running binary version/build info
+func (s *service) getVersion(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"version": s.BuildInfo.Version,
+		"commit": s.BuildInfo.Commit,
+		"date": s.BuildInfo.Date,
+	})
+}
+
 func (s *service) settings(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
@@ -495,8 +508,17 @@ func (s *service) settings(c *gin.Context) {
 	}
 
 	active := c.Param("active")
+	if active == "general" {
+		bodyContent := pages.SettingsGeneralContent(
+			*settings, s.svc.IsConnectedLN(), s.svc.IsLocked(c),
+			s.BuildInfo.Version, s.BuildInfo.Commit, s.BuildInfo.Date, s.UpdateURL,
+		)
+		s.pageViewHandler(bodyContent, c)
+		return
+	}
 	bodyContent := pages.SettingsBodyContent(
 		active, *settings, s.svc.IsConnectedLN(), s.svc.IsLocked(c),
+		s.BuildInfo.Version, s.BuildInfo.Commit, s.BuildInfo.Date, s.UpdateURL,
 	)
 	s.pageViewHandler(bodyContent, c)
 }
@@ -883,4 +905,65 @@ func (s *service) getHero(c *gin.Context) {
 
 	partialContent := components.Hero(spendableBalance, isOnline, s.svc.IsConnectedLN())
 	partialViewHandler(partialContent, c)
+}
+
+// updateBinary handles the self-update process for the application binary.
+// It uses github.com/minio/selfupdate to perform an in-place update from a URL provided by FULMINE_UPDATE_URL.
+func (s *service) updateBinary(c *gin.Context) {
+	if s.UpdateURL == "" {
+		log.Warn("FULMINE_UPDATE_URL not set, update disabled")
+		c.String(http.StatusBadRequest, "Update URL not configured")
+		return
+	}
+	updateURL := s.UpdateURL
+
+	executable, err := os.Executable()
+	if err != nil {
+		log.WithError(err).Error("Failed to get current executable path")
+		c.String(http.StatusInternalServerError, "Error getting executable: %s", err.Error())
+		return
+	}
+
+	log.Infof("Checking for updates from %s...", updateURL)
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(updateURL)
+	if err != nil {
+		log.WithError(err).Error("Failed to fetch update")
+		c.String(http.StatusInternalServerError, "Error checking for updates: %s", err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Errorf("Bad response status: %d", resp.StatusCode)
+		c.String(http.StatusInternalServerError, "Error: received %d response from update server", resp.StatusCode)
+		return
+	}
+
+	newVersion, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.WithError(err).Error("Failed to read response body")
+		c.String(http.StatusInternalServerError, "Error reading update data: %s", err.Error())
+		return
+	}
+
+	if len(newVersion) == 0 {
+		c.String(http.StatusInternalServerError, "Error: received empty update file")
+		return
+	}
+
+	err = selfupdate.Apply(bytes.NewReader(newVersion), selfupdate.Options{TargetPath: executable})
+	if err != nil {
+		if rerr := selfupdate.RollbackError(err); rerr != nil {
+			log.WithError(err).WithError(rerr).Error("Failed to rollback from bad update")
+			c.String(http.StatusInternalServerError, "Error updating: %v, and failed to rollback: %v", err, rerr)
+			return
+		}
+		log.WithError(err).Error("Failed to update binary")
+		c.String(http.StatusInternalServerError, "Error updating: %s", err.Error())
+		return
+	}
+
+	log.Info("Update successful!")
+	c.String(http.StatusOK, "Update successful! Please restart the application to use the new version.")
 }
