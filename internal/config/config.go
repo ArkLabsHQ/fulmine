@@ -107,9 +107,20 @@ func LoadConfig() (*Config, error) {
 }
 
 func initSentry(config *Config) error {
+	sentryDns := "https://o4508966055313408.ingest.de.sentry.io/4509082915176528"
+
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn:              sentryDns,
+		Environment:      "prod",
+		AttachStacktrace: true,
+	})
+	if err != nil {
+		return err
+	}
+
 	sentryLevels := []log.Level{log.ErrorLevel, log.FatalLevel, log.PanicLevel}
 	sentryHook, err := sentrylogrus.New(sentryLevels, sentry.ClientOptions{
-		Dsn:              "https://o4508966055313408.ingest.de.sentry.io/4509082915176528",
+		Dsn:              sentryDns,
 		Debug:            true,
 		AttachStacktrace: true,
 	})
