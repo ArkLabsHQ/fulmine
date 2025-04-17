@@ -19,6 +19,7 @@ require (
 	github.com/dgraph-io/badger/v4 v4.6.0
 	github.com/getsentry/sentry-go v0.32.0
 	github.com/getsentry/sentry-go/gin v0.32.0
+	github.com/getsentry/sentry-go/logrus v0.32.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1
