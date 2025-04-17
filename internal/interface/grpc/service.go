@@ -4,11 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
-	sentrylogrus "github.com/getsentry/sentry-go/logrus"
 	"net"
 	"net/http"
-	"time"
+
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
@@ -32,14 +31,13 @@ type service struct {
 	httpServer  *http.Server
 	grpcServer  *grpc.Server
 	unlockerSvc ports.Unlocker
-	sentryHook  *sentrylogrus.Hook
 
 	appStopCh chan struct{}
 	feStopCh  chan struct{}
 }
 
 func NewService(
-	cfg Config, appSvc *application.Service, unlockerSvc ports.Unlocker, sentryEnabled bool, sentryHook *sentrylogrus.Hook,
+	cfg Config, appSvc *application.Service, unlockerSvc ports.Unlocker, sentryEnabled bool,
 ) (*service, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %s", err)
@@ -136,8 +134,9 @@ func NewService(
 		TLSConfig: cfg.tlsConfig(),
 	}
 
-	return &service{cfg, appSvc, httpServer, grpcServer,
-		unlockerSvc, sentryHook, feStopCh, appStopCh}, nil
+	return &service{
+		cfg, appSvc, httpServer, grpcServer, unlockerSvc, feStopCh, appStopCh,
+	}, nil
 }
 
 func (s *service) Start() error {
@@ -192,8 +191,6 @@ func (s *service) autoUnlock() error {
 func (s *service) Stop() {
 	s.appStopCh <- struct{}{}
 	s.feStopCh <- struct{}{}
-
-	s.sentryHook.Flush(5 * time.Second)
 
 	s.grpcServer.GracefulStop()
 	log.Info("stopped grpc server")

@@ -12,9 +12,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	envunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/env"
 	fileunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/file"
-	"github.com/getsentry/sentry-go"
-	sentrylogrus "github.com/getsentry/sentry-go/logrus"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -31,8 +28,8 @@ type Config struct {
 	UnlockerFilePath string
 	UnlockerPassword string
 	DisableTelemetry bool
-	SentryHook       *sentrylogrus.Hook
-	unlocker         ports.Unlocker
+
+	unlocker ports.Unlocker
 }
 
 var (
@@ -93,49 +90,11 @@ func LoadConfig() (*Config, error) {
 		DisableTelemetry: viper.GetBool(DisableTelemetry),
 	}
 
-	if config.DisableTelemetry {
-		if err := initSentry(config); err != nil {
-			return nil, fmt.Errorf("error initializing Sentry: %s", err)
-		}
-	}
-
 	if err := config.initUnlockerService(); err != nil {
 		return nil, err
 	}
 
 	return config, nil
-}
-
-func initSentry(config *Config) error {
-	sentryDns := "https://o4508966055313408.ingest.de.sentry.io/4509082915176528"
-
-	err := sentry.Init(sentry.ClientOptions{
-		Dsn:              sentryDns,
-		Environment:      "prod",
-		AttachStacktrace: true,
-	})
-	if err != nil {
-		return err
-	}
-
-	sentryLevels := []log.Level{log.ErrorLevel, log.FatalLevel, log.PanicLevel}
-	sentryHook, err := sentrylogrus.New(sentryLevels, sentry.ClientOptions{
-		Dsn:              sentryDns,
-		Debug:            true,
-		AttachStacktrace: true,
-	})
-	if err != nil {
-		return err
-	}
-	config.SentryHook = sentryHook
-
-	log.AddHook(sentryHook)
-
-	return nil
-}
-
-func (c *Config) IsSentryEnabled() bool {
-	return !c.DisableTelemetry
 }
 
 func (c *Config) UnlockerService() ports.Unlocker {
@@ -264,13 +223,4 @@ func cleanAndExpandPath(path string) string {
 	// NOTE: The os.ExpandEnv doesn't work with Windows-style %VARIABLE%,
 	// but the variables can still be expanded via POSIX-style $VARIABLE.
 	return filepath.Clean(os.ExpandEnv(path))
-}
-
-// getHostname returns the hostname of the current machine
-func getHostname() string {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return "unknown"
-	}
-	return hostname
 }
