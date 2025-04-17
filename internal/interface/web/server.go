@@ -54,11 +54,13 @@ func (t *TemplRender) Instance(name string, data interface{}) render.Render {
 
 type service struct {
 	*gin.Engine
-	svc    *application.Service
-	stopCh chan struct{}
+	svc      *application.Service
+	stopCh   chan struct{}
+	BuildInfo application.BuildInfo
+	UpdateURL string
 }
 
-func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
+func NewService(appSvc *application.Service, stopCh chan struct{}, buildInfo application.BuildInfo, updateURL string) *service {
 	// Create a new Fiber server.
 	router := gin.Default()
 
@@ -66,7 +68,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}) *service {
 	router.HTMLRender = &TemplRender{}
 	staticFS, _ := fs.Sub(static, "static")
 
-	svc := &service{router, appSvc, stopCh}
+	svc := &service{router, appSvc, stopCh, buildInfo, updateURL}
 
 	// Handle static files.
 	// svc.Static("/static", "./static")

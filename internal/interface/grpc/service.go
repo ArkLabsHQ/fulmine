@@ -35,7 +35,9 @@ type service struct {
 	feStopCh  chan struct{}
 }
 
-func NewService(cfg Config, appSvc *application.Service, unlockerSvc ports.Unlocker) (*service, error) {
+func NewService(
+	cfg Config, appSvc *application.Service, unlockerSvc ports.Unlocker, buildInfo application.BuildInfo, updateURL string,
+) (*service, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %s", err)
 	}
@@ -113,7 +115,7 @@ func NewService(cfg Config, appSvc *application.Service, unlockerSvc ports.Unloc
 		return nil, err
 	}
 
-	feHandler := web.NewService(appSvc, feStopCh)
+	feHandler := web.NewService(appSvc, feStopCh, buildInfo, updateURL)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", feHandler)

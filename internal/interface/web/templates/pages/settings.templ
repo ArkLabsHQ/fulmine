@@ -1,3 +1,4 @@
+// Checked for accidental assignment (=) in if statements. No assignment found. If you see 'expected boolean expression, found assignment', check for '=' used in if/for/while instead of '=='.
 package pages
 
 import (
@@ -51,14 +52,14 @@ templ SettingsTabs(active string) {
   </div>
 }
 
-templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, locked bool) {
+templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, locked bool, version, commit, buildDate, updateURL string) {
   @components.DesktopHeader()
 	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div>
 	    @components.Header("Settings")
       @SettingsTabs(active)
       if active == "general" {
-        @SettingsGeneralContent(settings, nodeStatus, locked)
+        @SettingsGeneralContent(settings, nodeStatus, locked, version, commit, buildDate, updateURL)
       }
       if active == "server" {
         @SettingsServerContent(settings)
@@ -70,32 +71,70 @@ templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, l
   </div>
 }
 
-templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) {
+templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool, version, commit, buildDate, updateURL string) {
   <form hx-post="/helpers/settings" hx-trigger="change">
     @Separator("Details")
     @components.Label("Bitcoin unit")
-    @components.SelectDropdown("unit", settings.Unit, [][]string{
+    @components.SelectDropdown("unit", settings.Unit, ([][]string{
       {"sat", "Satoshi (0.00000001 BTC)"},
       {"btc", "Bitcoin (100.000.000 SATS)"},
-    })
+    }))
     @components.Label("Reference currency")
-    @components.SelectDropdown("currency", settings.Currency, [][]string{
+    @components.SelectDropdown("currency", settings.Currency, ([][]string{
       {"usd", "USD ($)"},
       {"eur", "EURO (€)"},
-    })
+    }))
     @components.Label("Server URL")
     @components.InputFake(settings.ServerUrl)
     @Hr()
     @Separator("Wallet status")
     @StatusLock(locked)
     @Hr()
-    @Separator("Security")
-    <a class="button" onclick="redirect('/backup')">Backup Private Key</a>
-    <div class="mt-4 flex items-center gap-3">
-      <a class="button" hx-post="/helpers/update" hx-swap="innerHTML" hx-target="#update-message">Update</a>
+    @components.Label("Release Info")
+    <div class="flex flex-col gap-1 mb-2 mt-2">
+      <div class="flex gap-2 items-center">
+        <span class="text-white/60 w-24">Version:</span>
+        <span class="text-white/90 font-mono">{version}</span>
+      </div>
+      <div class="flex gap-2 items-center">
+        <span class="text-white/60 w-24">Commit:</span>
+        <span class="text-white/90 font-mono">{commit}</span>
+      </div>
+      <div class="flex gap-2 items-center mb-2">
+        <span class="text-white/60 w-24">Build Date:</span>
+        <span class="text-white/90 font-mono">{buildDate}</span>
+      </div>
+      <div style="display:block;width:auto;">
+      if updateURL == "" {
+        <a class="button button-inline opacity-50 cursor-not-allowed" id="update-btn" aria-disabled="true" style="pointer-events: none; display:inline-block !important; width:auto !important; min-width:0 !important; max-width:none !important;">Update</a>
+      } else {
+        <a class="button button-inline" id="update-btn" onclick="handleBinaryUpdate(event)" style="display:inline-block !important; width:auto !important; min-width:0 !important; max-width:none !important;">Update</a>
+      }
+      </div>
       <span id="update-message" class="text-sm text-white/70"></span>
     </div>
+    <script>
+      function handleBinaryUpdate(event) {
+        event.preventDefault();
+        const btn = document.getElementById('update-btn');
+        btn.disabled = true;
+        const msg = document.getElementById('update-message');
+        msg.innerText = 'Updating...';
+        fetch('/helpers/update', { method: 'POST' })
+          .then(res => res.text())
+          .then(text => {
+            msg.innerText = text;
+            btn.disabled = false;
+          })
+          .catch(err => {
+            msg.innerText = 'Update failed: ' + err;
+            btn.disabled = false;
+          });
+      }
+    </script>
     @Hr()
+    @Separator("Security")
+    <a class="button" onclick="redirect('/backup')">Backup Private Key</a>
     @Separator("Sign out")
     <a class="button" onclick="redirect('/lock')">Sign out</a>
   </form>

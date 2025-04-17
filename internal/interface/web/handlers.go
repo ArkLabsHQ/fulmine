@@ -486,6 +486,15 @@ func (s *service) setPrivateKey(c *gin.Context) {
 	partialViewHandler(bodyContent, c)
 }
 
+// getVersion exposes the running binary version/build info
+func (s *service) getVersion(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"version": s.BuildInfo.Version,
+		"commit": s.BuildInfo.Commit,
+		"date": s.BuildInfo.Date,
+	})
+}
+
 func (s *service) settings(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
@@ -499,8 +508,17 @@ func (s *service) settings(c *gin.Context) {
 	}
 
 	active := c.Param("active")
+	if active == "general" {
+		bodyContent := pages.SettingsGeneralContent(
+			*settings, s.svc.IsConnectedLN(), s.svc.IsLocked(c),
+			s.BuildInfo.Version, s.BuildInfo.Commit, s.BuildInfo.Date, s.UpdateURL,
+		)
+		s.pageViewHandler(bodyContent, c)
+		return
+	}
 	bodyContent := pages.SettingsBodyContent(
 		active, *settings, s.svc.IsConnectedLN(), s.svc.IsLocked(c),
+		s.BuildInfo.Version, s.BuildInfo.Commit, s.BuildInfo.Date, s.UpdateURL,
 	)
 	s.pageViewHandler(bodyContent, c)
 }
@@ -890,9 +908,15 @@ func (s *service) getHero(c *gin.Context) {
 }
 
 // updateBinary handles the self-update process for the application binary.
-// It uses github.com/minio/selfupdate to perform an in-place update from a GitHub release.
+// It uses github.com/minio/selfupdate to perform an in-place update from a URL provided by FULMINE_UPDATE_URL.
 func (s *service) updateBinary(c *gin.Context) {
-	// Get the current executable path
+	if s.UpdateURL == "" {
+		log.Warn("FULMINE_UPDATE_URL not set, update disabled")
+		c.String(http.StatusBadRequest, "Update URL not configured")
+		return
+	}
+	updateURL := s.UpdateURL
+
 	executable, err := os.Executable()
 	if err != nil {
 		log.WithError(err).Error("Failed to get current executable path")
@@ -900,18 +924,9 @@ func (s *service) updateBinary(c *gin.Context) {
 		return
 	}
 
-	// GitHub repository owner and name for the releases
-	// You need to customize these for your actual repository
-	owner := "ArkLabsHQ"
-	repo := "fulmine"
-
-	log.Info("Checking for updates from GitHub...")
-
-	// Create an HTTP client with a timeout
+	log.Infof("Checking for updates from %s...", updateURL)
 	client := &http.Client{Timeout: 30 * time.Second}
-
-	// Fetch the latest release from GitHub
-	resp, err := client.Get(fmt.Sprintf("https://github.com/%s/%s/releases/latest/download/fulmine", owner, repo))
+	resp, err := client.Get(updateURL)
 	if err != nil {
 		log.WithError(err).Error("Failed to fetch update")
 		c.String(http.StatusInternalServerError, "Error checking for updates: %s", err.Error())
@@ -925,7 +940,6 @@ func (s *service) updateBinary(c *gin.Context) {
 		return
 	}
 
-	// Perform the update
 	newVersion, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.WithError(err).Error("Failed to read response body")
@@ -938,7 +952,6 @@ func (s *service) updateBinary(c *gin.Context) {
 		return
 	}
 
-	// Apply the binary update
 	err = selfupdate.Apply(bytes.NewReader(newVersion), selfupdate.Options{TargetPath: executable})
 	if err != nil {
 		if rerr := selfupdate.RollbackError(err); rerr != nil {

@@ -18,9 +18,9 @@ import (
 
 // nolint:all
 var (
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
+	version = "devsaas"
+	commit  = "nonsasae"
+	date    = "unknownsasa"
 )
 
 const (
@@ -80,7 +80,7 @@ func main() {
 		log.WithError(err).Fatal(err)
 	}
 
-	svc, err := grpcservice.NewService(svcConfig, appSvc, cfg.UnlockerService())
+	svc, err := grpcservice.NewService(svcConfig, appSvc, cfg.UnlockerService(), buildInfo, cfg.UpdateURL)
 	if err != nil {
 		log.Fatal(err)
 	}
