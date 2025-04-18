@@ -37,14 +37,7 @@ templ ReceiveEditContent() {
 }
 
 templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats string) {
-	<div 
-		id="receiveContent" 
-		hx-get={"/receive/watch?address=" + offchainAddr} 
-		hx-trigger="load"
-		hx-target="this"
-		hx-swap="none"
-		hx-on::afterRequest="handleSuccessRedirect(event)"
-	>
+	<div id="receiveContent" data-address={offchainAddr}>
 	  @components.DesktopHeader()
 	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	    @components.Header("Receive")
@@ -65,23 +58,18 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats stri
 	  </div>
 	</div>
 	<script>
-	function handleSuccessRedirect(event) {
-    if (!event.detail.successful) return;
-
-    try {
-      const responseText = event.detail.xhr.responseText;
-      const data = JSON.parse(responseText);
-
-      if (data.sats && data.address) {
-        const nextUrl = `/next-page?sats=${encodeURIComponent(data.sats)}&address=${encodeURIComponent(data.address)}`;
-        window.location.href = nextUrl;
-      } else {
-        console.error('Missing sats or address in response');
-      }
-    } catch (err) {
-      console.error('Failed to parse sats response', err);
-    }
-  }
+	// Make a single check for received funds
+	const address = document.getElementById('receiveContent').dataset.address;
+	fetch(`/receive/watch?address=${encodeURIComponent(address)}`)
+		.then(response => response.json())
+		.then(data => {
+			if (data.sats && data.sats > 0) {
+				window.location.href = `/receive/success?sats=${encodeURIComponent(data.sats)}&address=${encodeURIComponent(data.address)}`;
+			}
+		})
+		.catch(error => {
+			console.error("Error checking for funds:", error);
+		});
 	</script>
 }
 

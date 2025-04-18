@@ -286,7 +286,6 @@ func (s *service) receiveWatch(c *gin.Context) {
 
 	offchainAddr := c.Query("address")
 
-	// Then check for incoming funds
 	vtxos, err := s.svc.NotifyIncomingFunds(c, offchainAddr)
 	if err != nil {
 		toast := components.Toast(err.Error(), true)
@@ -299,8 +298,10 @@ func (s *service) receiveWatch(c *gin.Context) {
 		receivedSats += vtxo.Amount
 	}
 
-	fmt.Println("receivedSats", receivedSats)
-	c.JSON(http.StatusOK, gin.H{"sats": receivedSats, "address": offchainAddr})
+	c.JSON(http.StatusOK, gin.H{
+		"sats":    receivedSats,
+		"address": offchainAddr,
+	})
 }
 
 func (s *service) receiveSuccess(c *gin.Context) {

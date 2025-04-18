@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"net"
 	"net/http"
+
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
@@ -189,6 +190,8 @@ func (s *service) Stop() {
 
 	s.grpcServer.GracefulStop()
 	log.Info("stopped grpc server")
+
+	s.httpServer.Close()
 	// nolint:all
 	s.httpServer.Shutdown(context.Background())
 	log.Info("stopped http server")
