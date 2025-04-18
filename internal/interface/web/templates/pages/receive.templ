@@ -37,10 +37,15 @@ templ ReceiveEditContent() {
 }
 
 templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats string) {
-	<form id="success" hx-post="/receive/success" hx-ext="sse" sse-connect="/events" hx-trigger="sse:TXS_ADDED">
+	<div 
+		id="receiveContent" 
+		hx-get={"/receive/watch?address=" + offchainAddr} 
+		hx-trigger="load"
+		hx-target="this"
+		hx-swap="none"
+		hx-on::afterRequest="handleSuccessRedirect(event)"
+	>
 	  @components.DesktopHeader()
-	  <input class="hidden" id="submitButton" type="submit"/>
-	  <input class="hidden" name="bip21" value={bip21} />
 	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	    @components.Header("Receive")
       <div class="flex flex-col justify-center items-center gap-2 overflow-auto">
@@ -58,22 +63,43 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats stri
 	  		</a>
 	    </div>
 	  </div>
-	</form>
+	</div>
+	<script>
+	function handleSuccessRedirect(event) {
+    if (!event.detail.successful) return;
+
+    try {
+      const responseText = event.detail.xhr.responseText;
+      const data = JSON.parse(responseText);
+
+      if (data.sats && data.address) {
+        const nextUrl = `/next-page?sats=${encodeURIComponent(data.sats)}&address=${encodeURIComponent(data.address)}`;
+        window.location.href = nextUrl;
+      } else {
+        console.error('Missing sats or address in response');
+      }
+    } catch (err) {
+      console.error('Failed to parse sats response', err);
+    }
+  }
+	</script>
 }
 
 templ ReceiveSuccessContent(offchainAddr, sats string) {
-	@components.DesktopHeader()
-	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
-	  <div class="flex flex-col items-center">
-		  @components.Header("Receive")
-	    @SuccessIcon()
-			<p class="mt-8">Received successfully</p>
-			<p class="mt-8 text-3xl cryptoAmount" sats={sats}>{sats} SATS</p>
-			<div class="flex mt-8 w-64 gap-2">
-			  <p class="text-white/50">to</p>
-				<p class="overflow-hidden text-ellipsis whitespace-nowrap" id="recvAddress">{offchainAddr}</p>
-				@components.CopyWidget(offchainAddr)
-			</div>
-		</div>
+	<div id="receiveContent">
+	  @components.DesktopHeader()
+	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+	    <div class="flex flex-col items-center">
+		    @components.Header("Receive")
+	      @SuccessIcon()
+			  <p class="mt-8">Received successfully</p>
+			  <p class="mt-8 text-3xl cryptoAmount" sats={sats}>{sats} SATS</p>
+			  <div class="flex mt-8 w-64 gap-2">
+			    <p class="text-white/50">to</p>
+				  <p class="overflow-hidden text-ellipsis whitespace-nowrap" id="recvAddress">{offchainAddr}</p>
+				  @components.CopyWidget(offchainAddr)
+			  </div>
+		  </div>
+	  </div>
 	</div>
 }

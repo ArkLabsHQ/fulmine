@@ -279,22 +279,36 @@ func (s *service) receiveQrCode(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
-func (s *service) receiveSuccess(c *gin.Context) {
-	bip21 := c.PostForm(("bip21"))
+func (s *service) receiveWatch(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
 
-	txHistory, err := s.svc.GetTransactionHistory(c)
+	offchainAddr := c.Query("address")
+
+	// Then check for incoming funds
+	vtxos, err := s.svc.NotifyIncomingFunds(c, offchainAddr)
 	if err != nil {
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
 		return
 	}
 
-	lastTx := txHistory[0]
-	sats := strconv.Itoa(int(lastTx.Amount))
+	receivedSats := uint64(0)
+	for _, vtxo := range vtxos {
+		receivedSats += vtxo.Amount
+	}
 
-	offchainAddr := utils.GetArkAddress(bip21)
-	partial := pages.ReceiveSuccessContent(offchainAddr, sats)
-	partialViewHandler(partial, c)
+	fmt.Println("receivedSats", receivedSats)
+	c.JSON(http.StatusOK, gin.H{"sats": receivedSats, "address": offchainAddr})
+}
+
+func (s *service) receiveSuccess(c *gin.Context) {
+	offchainAddr := c.Query("address")
+	sats := c.Query("sats")
+
+	bodyContent := pages.ReceiveSuccessContent(offchainAddr, sats)
+	s.pageViewHandler(bodyContent, c)
 }
 
 func (s *service) send(c *gin.Context) {
