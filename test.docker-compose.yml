@@ -16,6 +16,7 @@ services:
       - ARK_NO_MACAROONS=true
       - ARK_DATADIR=/app/data
       - ARK_ALLOW_ZERO_FEES=true
+      - ARK_UNILATERAL_EXIT_DELAY=512
     ports:
       - "7070:7070"
     volumes:
