@@ -9,8 +9,9 @@ func IsBip21(invoice string) bool {
 	if !startsWithBitcoinPrefix(invoice) {
 		return false
 	}
-	address := GetBtcAddress(invoice)
-	return len(address) > 0
+	onchainAddr := GetBtcAddress(invoice)
+	offchainAddr := GetArkAddress(invoice)
+	return len(onchainAddr)+len(offchainAddr) > 0
 }
 
 func GetArkAddress(invoice string) string {
