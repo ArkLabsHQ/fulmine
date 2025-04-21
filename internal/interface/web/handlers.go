@@ -324,8 +324,15 @@ func (s *service) sendPreview(c *gin.Context) {
 		return
 	}
 
-	addr := ""
+	config, err := s.svc.GetConfigData(c)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
 	dest := c.PostForm("address")
+	var addr, onchainAddr, offchainAddr string
 
 	sats, err := strconv.Atoi(c.PostForm("sats"))
 	if err != nil {
@@ -336,26 +343,47 @@ func (s *service) sendPreview(c *gin.Context) {
 
 	if utils.IsValidArkNote(dest) {
 		sats := utils.SatsFromNote(dest)
+
+		if int64(sats) > config.VtxoMaxAmount {
+			toast := components.Toast("Amount too high", true)
+			toastHandler(toast, c)
+			return
+		}
+
 		bodyContent := pages.NotePreviewContent(dest, strconv.Itoa(sats))
 		partialViewHandler(bodyContent, c)
 	}
 
-	feeAmount := 0 // TODO
-	total := sats + feeAmount
-
 	if utils.IsBip21(dest) {
-		offchainAddress := utils.GetArkAddress(dest)
-		if len(offchainAddress) > 0 {
-			addr = offchainAddress
-		} else {
-			onchainAddress := utils.GetBtcAddress(dest)
-			if len(onchainAddress) > 0 {
-				addr = onchainAddress
+		offchainAddr = utils.GetArkAddress(dest)
+		onchainAddr = utils.GetBtcAddress(dest)
+	}
+	if utils.IsValidBtcAddress(dest) {
+		onchainAddr = dest
+	}
+	if utils.IsValidArkAddress(dest) {
+		offchainAddr = dest
+	}
+
+	if len(offchainAddr) > 0 {
+		if int64(sats) > config.VtxoMaxAmount {
+			if len(onchainAddr) > 0 && int64(sats) <= config.UtxoMaxAmount {
+				addr = onchainAddr
+			} else {
+				toast := components.Toast("Amount too high", true)
+				toastHandler(toast, c)
+				return
 			}
+		} else {
+			addr = offchainAddr
 		}
-	} else {
-		if utils.IsValidBtcAddress(dest) || utils.IsValidArkAddress(dest) {
-			addr = dest
+	} else if len(onchainAddr) > 0 {
+		if int64(sats) > config.UtxoMaxAmount {
+			toast := components.Toast("Amount too high", true)
+			toastHandler(toast, c)
+			return
+		} else {
+			addr = onchainAddr
 		}
 	}
 
@@ -364,6 +392,9 @@ func (s *service) sendPreview(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
+
+	feeAmount := 0 // TODO
+	total := sats + feeAmount
 
 	bodyContent := pages.SendPreviewContent(addr, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total))
 	partialViewHandler(bodyContent, c)
