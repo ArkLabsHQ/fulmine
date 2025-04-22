@@ -2,7 +2,22 @@ package components
 
 // button templates
 
-templ cancelButton(label string) {
+templ connectButton() {
+	<button class="button md:w-auto" disabled name="connect" hx-post="/helpers/node/connect">
+	  Connect
+	</button>
+}
+
+templ copyButtonText(payload string) {
+	<a data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
+		<p class="button md:w-auto">
+			@CopyIcon()
+			<span class="ml-2 buttonText">Copy</span>
+		</p>
+	</a>
+}
+
+templ grayButton(label string) {
 	<a class="button md:w-auto" onclick="redirect('/')">
 	  {label}
 	</a>
@@ -44,6 +59,15 @@ templ redirectButton(label string, disabled []bool) {
 			redirect('/')
 		}
 	</script>
+}
+
+templ scanButton(id string) {
+	<a data-needs="camera" hx-get={"/modal/scanner/" + id} hx-target="#modal">
+		<p class="button flex items-center justify-center p-4">
+			@ScanIcon()
+			<span class="ml-2">Scan</span>
+		</p>
+	</a>
 }
 
 templ settleButtonDot() {
@@ -88,16 +112,26 @@ templ rowButtonsContainer(buttons ...templ.Component) {
 	</div>
 }
 
+templ rowButtonsCenteredContainer(buttons ...templ.Component) {
+  <div class="flex flex-col gap-4 mt-16">
+	  for _, button := range buttons {
+		  @button
+	  }
+	</div>
+}
+
 // buttons
 
 templ BackButton() {
 	@iconButton(BackIcon())
 }
 
-templ ConnectButton() {
-	<button class="button md:w-auto" disabled name="connect" hx-post="/helpers/node/connect">
-	  Connect
-	</button>
+templ BackupButton() {
+	<div class="flex">
+		<a class="button md:w-auto" onclick="redirect('/backup')">
+	    Backup your wallet
+	  </a>
+	</div>
 }
 
 templ CopyButton(payload string) {
@@ -109,15 +143,6 @@ templ CopyButton(payload string) {
 	</a>
 }
 
-templ CopyButtonText(payload string) {
-	<a data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
-		<p class="button">
-			@CopyIcon()
-			<span class="ml-2 buttonText">Copy</span>
-		</p>
-	</a>
-}
-
 templ CopyWidget(payload string) {
 	<a data-needs="clipboard" data-value={payload} onclick="copyToClipboard(this, event)">
 		<p class="cursor-pointer text-white/50">
@@ -125,12 +150,6 @@ templ CopyWidget(payload string) {
 			<span data-kind="done" class="hidden">@CheckMarkIcon()</span>
 		</p>
 	</a>
-}
-
-templ DisconnectButton() {
-	<p class="button bg-red/10 text-red font-semibold mt-8" hx-post="/helpers/node/disconnect">
-	  Disconnect
-	</p>
 }
 
 templ DotsButton() {
@@ -145,15 +164,6 @@ templ PasteWidget(id string) {
 	</a>
 }
 
-templ ScanButton(id string) {
-	<a data-needs="camera" hx-get={"/modal/scanner/" + id} hx-target="#modal">
-		<p class="button flex items-center justify-center p-4">
-			@ScanIcon()
-			<span class="ml-2">Scan</span>
-		</p>
-	</a>
-}
-
 templ ScanWidget(id string) {
 	<a data-needs="camera" hx-get={"/modal/scanner/" + id} hx-target="#modal">
     <p class="text-white/50">@CopyIcon()</p>
@@ -164,19 +174,57 @@ templ SettingsButton() {
 	@iconButton(SettingsIcon())
 }
 
+templ SignOutButton() {
+	<div class="flex">
+		<a class="button red md:w-auto" onclick="redirect('/lock')">Sign out</a>
+	</div>
+}
+
 // components (rows or dots)
 
 templ ActionButtons(label string, disabled ...bool) {
 	@rowButtonsContainer(
 		orangeButton(label, disabled),
-		cancelButton("Cancel"),
+		grayButton("Cancel"),
+	)
+}
+
+templ ContinueButton(centered bool, disabled ...bool) {
+	if centered {
+		@rowButtonsCenteredContainer(
+			orangeButton("Continue", disabled),
+		)
+	} else {
+		@rowButtonsContainer(
+			orangeButton("Continue", disabled),
+		)
+	}
+}
+
+templ ContinueCopyButtons(payload string, centered bool) {
+	if centered {
+		@rowButtonsCenteredContainer(
+			orangeButton("Continue", []bool{}),
+			copyButtonText(payload),
+		)
+	} else {
+		@rowButtonsContainer(
+			orangeButton("Continue", []bool{}),
+			copyButtonText(payload),
+		)
+	}
+}
+
+templ CreateWalletButton(disabled ...bool) {
+	@rowButtonsCenteredContainer(
+		orangeButton("Create wallet", disabled),
 	)
 }
 
 templ LnConnectButtons(id string) {
 	@rowButtonsContainer(
-		ConnectButton(),
-		ScanButton(id),
+		connectButton(),
+		scanButton(id),
 	)
 }
 
