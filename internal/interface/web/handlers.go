@@ -622,6 +622,13 @@ func (s *service) swapPreview(c *gin.Context) {
 		return
 	}
 
+	config, err := s.svc.GetConfigData(c)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
 	kind := c.PostForm("kind")
 
 	sats, err := strconv.Atoi(c.PostForm("sats"))
@@ -633,6 +640,12 @@ func (s *service) swapPreview(c *gin.Context) {
 
 	feeAmount := 0 // TODO
 	total := sats + feeAmount
+
+	if int64(total) > config.VtxoMaxAmount {
+		toast := components.Toast("Amount too high", true)
+		toastHandler(toast, c)
+		return
+	}
 
 	bodyContent := pages.SwapPreviewContent(kind, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total))
 	partialViewHandler(bodyContent, c)
