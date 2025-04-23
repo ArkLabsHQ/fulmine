@@ -40,14 +40,6 @@ lint:
 	@echo "Linting code..."
 	@golangci-lint run --fix
 
-## run-regtest: run in dev mode with regtest
-run-bob: clean build-static-assets
-	@echo "Running fulmine in dev mode with regtest..."
-	export FULMINE_GRPC_PORT=7002; \
-	export FULMINE_HTTP_PORT=7003; \
-	export FULMINE_DATADIR="./storage/regtest"; \
-	go run ./cmd/fulmine
-
 ## run: run in dev mode
 run: clean build-static-assets
 	@echo "Running fulmine in dev mode..."
