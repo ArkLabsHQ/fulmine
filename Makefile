@@ -41,7 +41,7 @@ lint:
 	@golangci-lint run --fix
 
 ## run-regtest: run in dev mode with regtest
-run-regtest: clean build-static-assets
+run-bob: clean build-static-assets
 	@echo "Running fulmine in dev mode with regtest..."
 	export FULMINE_GRPC_PORT=7002; \
 	export FULMINE_HTTP_PORT=7003; \
