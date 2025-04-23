@@ -524,7 +524,9 @@ func (s *service) swap(c *gin.Context) {
 }
 
 func (s *service) swapActive(c *gin.Context) {
-	active := c.Param("active")
+	// TODO: make the inbound button clickable when reverse submarine swap is enabled
+	// active := c.Param("active")
+	active := "outbound"
 	var balance string
 	if active == "inbound" {
 		balance = s.getNodeBalance(c)
