@@ -67,12 +67,7 @@ templ BackupSecretBodyContent(hex, nsec string) {
           </div>
         </div>
       </div>
-      <div class="flex flex-col md:flex-row justify-start gap-4 mt-10 mb-2">
-        <button class="bg-orange md:w-auto" type="submit">
-	  		  Continue
-	  		</button>
-        @components.CopyButtonText(nsec)
-	    </div>
+      @components.ContinueCopyButtons(nsec, false)
     </div>
   </form>
 }

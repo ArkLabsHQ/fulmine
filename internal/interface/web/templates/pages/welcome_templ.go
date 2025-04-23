@@ -106,7 +106,7 @@ func Welcome() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</p><p>Batched onchain operations</p></div></div><div class=\"flex flex-col md:flex-row md:justify-center gap-2 w-full\"><button class=\"md:w-auto bg-white text-black\" onclick=\"redirect(&#39;/new&#39;)\">&#65291; Create new wallet</button> <button class=\"md:w-auto bg-white/20\" onclick=\"redirect(&#39;/import&#39;)\">Import</button></div></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</p><p>Batched onchain operations</p></div></div><div class=\"flex flex-col md:flex-row md:justify-center gap-2 w-full\"><button class=\"md:w-auto white\" onclick=\"redirect(&#39;/new&#39;)\">&#65291; Create new wallet</button> <button class=\"md:w-auto bg-white/20\" onclick=\"redirect(&#39;/import&#39;)\">Import</button></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
