@@ -37,9 +37,10 @@ import (
 )
 
 var boltzURLByNetwork = map[string]string{
-	common.Bitcoin.Name:        "https://api.boltz.exchange/v2",
-	common.BitcoinTestNet.Name: "https://api.testnet.boltz.exchange/v2",
-	common.BitcoinRegTest.Name: "https://localhost:9001/v2",
+	common.Bitcoin.Name:          "https://api.boltz.exchange",
+	common.BitcoinTestNet.Name:   "https://api.testnet.boltz.exchange",
+	common.BitcoinMutinyNet.Name: "https://api.boltz.mutinynet.arkade.sh",
+	common.BitcoinRegTest.Name:   "http://localhost:9001",
 }
 
 type BuildInfo struct {
@@ -933,14 +934,14 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		return "", fmt.Errorf("failed to get address: %s", err)
 	}
 
-	_, ph, err := s.GetInvoice(ctx, amount, "", "")
+	_, ph, err := s.GetInvoice(ctx, amount, "increase inbound capacity", "")
 	if err != nil {
 		return "", fmt.Errorf("failed to ger preimage hash: %s", err)
 	}
 
 	myPubkey, _ := hex.DecodeString(pk)
 	preimageHash, _ := hex.DecodeString(ph)
-	fromCurrency := boltz.Currency("LN")
+	fromCurrency := boltz.Currency("BTC")
 	toCurrency := boltz.Currency("ARK")
 
 	// make swap
@@ -948,7 +949,6 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		From:           fromCurrency,
 		To:             toCurrency,
 		InvoiceAmount:  amount,
-		OnchainAmount:  amount,
 		ClaimPublicKey: boltz.HexString(myPubkey),
 		PreimageHash:   boltz.HexString(preimageHash),
 	})
@@ -956,22 +956,10 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		return "", fmt.Errorf("failed to make reverse submarine swap: %v", err)
 	}
 
-	// verify vHTLC
-	senderPubkey, err := parsePubkey(swap.RefundPublicKey)
-	if err != nil {
-		return "", fmt.Errorf("invalid refund pubkey: %v", err)
-	}
-
-	// TODO: fetch refundLocktimeParam, unilateralClaimDelayParam, unilateralRefundDelayParam, unilateralRefundWithoutReceiverDelayParam
-	// from Boltz API response.
-	vhtlcAddress, _, err := s.GetVHTLC(ctx, nil, senderPubkey, preimageHash, nil, nil, nil, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
-	}
-
-	if swap.LockupAddress != vhtlcAddress {
-		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
-	}
+	// TODO: validate the VHTLC address from the arkSwapTree returned by Boltz
+	// if swap.LockupAddress != vhtlcAddress {
+	// 	return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
+	// }
 
 	// pay the invoice
 	preimage, err := s.PayInvoice(ctx, swap.Invoice)
@@ -984,13 +972,24 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		return "", fmt.Errorf("invalid preimage: %v", err)
 	}
 
-	ws := s.boltzSvc.NewWebsocket()
+	// TODO workaround to connect ws endpoint on a different port for regtest
+	wsClient := s.boltzSvc
+	if s.boltzSvc.URL == boltzURLByNetwork[common.BitcoinRegTest.Name] {
+		wsClient = &boltz.Api{URL: "http://localhost:9004"}
+	}
+
+	ws := wsClient.NewWebsocket()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	err = ws.Connect()
 	for err != nil {
 		log.WithError(err).Warn("failed to connect to boltz websocket")
 		time.Sleep(time.Second)
 		log.Debug("reconnecting...")
 		err = ws.Connect()
+		if ctx.Err() != nil {
+			return "", fmt.Errorf("timeout while connecting to websocket: %v", ctx.Err())
+		}
 	}
 
 	err = ws.Subscribe([]string{swap.Id})
@@ -1003,12 +1002,11 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 
 	var txid string
 	for update := range ws.Updates {
-		fmt.Printf("EVENT %+v\n", update)
 		parsedStatus := boltz.ParseEvent(update.Status)
 
 		switch parsedStatus {
 		// TODO: ensure this is the right event to react to for claiming the vhtlc funded by Boltz.
-		case boltz.TransactionMempool:
+		case boltz.InvoiceSettled:
 			txid, err = s.ClaimVHTLC(ctx, decodedPreimage)
 			if err != nil {
 				return "", fmt.Errorf("failed to claim vHTLC: %v", err)
@@ -1036,18 +1034,13 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 	myPubkey, _ := hex.DecodeString(pk)
 
 	// generate invoice where to receive funds
-	invoice, preimageHash, err := s.GetInvoice(ctx, amount, "increase inbound capacity", "")
+	invoice, preimageHash, err := s.GetInvoice(ctx, amount, "increase outbound capacity", "")
 	if err != nil {
 		return "", fmt.Errorf("failed to create invoice: %w", err)
 	}
 
-	decodedPreimageHash, err := hex.DecodeString(preimageHash)
-	if err != nil {
-		return "", fmt.Errorf("invalid preimage hash: %v", err)
-	}
-
 	fromCurrency := boltz.Currency("ARK")
-	toCurrency := boltz.Currency("LN")
+	toCurrency := boltz.Currency("BTC")
 	// make swap
 	swap, err := s.boltzSvc.CreateSwap(boltz.CreateSwapRequest{
 		From:            fromCurrency,
@@ -1059,20 +1052,10 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		return "", fmt.Errorf("failed to make submarine swap: %v", err)
 	}
 
-	// verify vHTLC
-	receiverPubkey, err := parsePubkey(swap.ClaimPublicKey)
-	if err != nil {
-		return "", fmt.Errorf("invalid claim pubkey: %v", err)
-	}
-
-	// TODO fetch refundLocktimeParam, unilateralClaimDelayParam, unilateralRefundDelayParam, unilateralRefundWithoutReceiverDelayParam from Boltz API
-	address, _, err := s.GetVHTLC(ctx, receiverPubkey, nil, decodedPreimageHash, nil, nil, nil, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
-	}
-	if swap.Address != address {
-		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
-	}
+	// TODO: validate the vHTLC address from the arkSwapTree returned by Boltz
+	// if swap.Address != address {
+	// 	return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
+	// }
 
 	// pay to vHTLC address
 	receivers := []arksdk.Receiver{arksdk.NewBitcoinReceiver(swap.Address, amount)}
@@ -1081,13 +1064,24 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
 	}
 
-	ws := s.boltzSvc.NewWebsocket()
+	// TODO workaround to connect ws endpoint on a different port for regtest
+	wsClient := s.boltzSvc
+	if s.boltzSvc.URL == boltzURLByNetwork[common.BitcoinRegTest.Name] {
+		wsClient = &boltz.Api{URL: "http://localhost:9004"}
+	}
+
+	ws := wsClient.NewWebsocket()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	err = ws.Connect()
 	for err != nil {
 		log.WithError(err).Warn("failed to connect to boltz websocket")
 		time.Sleep(time.Second)
 		log.Debug("reconnecting...")
 		err = ws.Connect()
+		if ctx.Err() != nil {
+			return "", fmt.Errorf("timeout while connecting to websocket: %v", ctx.Err())
+		}
 	}
 
 	err = ws.Subscribe([]string{swap.Id})
@@ -1110,7 +1104,7 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 			}
 
 			return "", fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
-		case boltz.InvoiceSettled:
+		case boltz.InvoicePaid, boltz.InvoiceSettled:
 			return txid, nil
 		}
 	}
