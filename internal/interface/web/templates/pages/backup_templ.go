@@ -299,15 +299,15 @@ func BackupSecretBodyContent(hex, nsec string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</p><p>Do not share your Private Key or someone may gain access to your wallet.</p></div></div></div><div class=\"flex flex-col md:flex-row justify-start gap-4 mt-10 mb-2\"><button class=\"bg-orange md:w-auto\" type=\"submit\">Continue</button>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</p><p>Do not share your Private Key or someone may gain access to your wallet.</p></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.CopyButtonText(nsec).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.ContinueCopyButtons(nsec, false).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
