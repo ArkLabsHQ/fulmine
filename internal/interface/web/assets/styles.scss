@@ -132,7 +132,6 @@ button,
   border-radius: 8px;
   border: 1px solid #fbfbfb33;
   cursor: pointer;
-  display: inline-block;
   font-size: 1em;
   font-weight: 600;
   font-family: inherit;
@@ -153,6 +152,12 @@ button,
     background-color: #fc8d4e;
     &:hover {
       background-color: #fc8d4ee0;
+    }
+  }
+  &.red {
+    background-color: #e04d4d;
+    &:hover {
+      background-color: #e04d4de0;
     }
   }
   &.white {
