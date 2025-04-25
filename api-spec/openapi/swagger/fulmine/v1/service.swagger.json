@@ -626,6 +626,38 @@
           "Service"
         ]
       }
+    },
+    "/v1/vhtlc/refundWithoutReceiver": {
+      "post": {
+        "operationId": "Service_RefundVHTLCWithoutReceiver",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RefundVHTLCWithoutReceiverResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RefundVHTLCWithoutReceiverRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
     }
   },
   "definitions": {
@@ -986,6 +1018,22 @@
       "type": "object",
       "properties": {
         "txid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1RefundVHTLCWithoutReceiverRequest": {
+      "type": "object",
+      "properties": {
+        "preimageHash": {
+          "type": "string"
+        }
+      }
+    },
+    "v1RefundVHTLCWithoutReceiverResponse": {
+      "type": "object",
+      "properties": {
+        "redeemTxid": {
           "type": "string"
         }
       }

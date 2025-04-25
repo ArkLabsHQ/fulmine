@@ -17,6 +17,7 @@ import (
 	"github.com/BoltzExchange/boltz-client/v2/pkg/boltz"
 	"github.com/ark-network/ark/common"
 	"github.com/ark-network/ark/common/bitcointree"
+	"github.com/ark-network/ark/common/tree"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
@@ -754,7 +755,7 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 	return txid, nil
 }
 
-func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string) (string, error) {
+func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string, withReceiver bool) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
@@ -786,7 +787,11 @@ func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string) 
 		return "", err
 	}
 
-	refundClosure := vtxoScript.RefundClosure
+	var refundClosure tree.Closure
+	refundClosure = vtxoScript.RefundWithoutReceiverClosure
+	if withReceiver {
+		refundClosure = vtxoScript.RefundClosure
+	}
 	refundWitnessSize := refundClosure.WitnessSize()
 	refundScript, err := refundClosure.Script()
 	if err != nil {
@@ -861,12 +866,14 @@ func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string) 
 		return "", err
 	}
 
-	counterSignedRefundTx, err := s.boltzRefundSwap(swapId, refundTx, signedRefundTx, opts.Receiver)
-	if err != nil {
-		return "", err
+	if withReceiver {
+		signedRefundTx, err = s.boltzRefundSwap(swapId, refundTx, signedRefundTx, opts.Receiver)
+		if err != nil {
+			return "", err
+		}
 	}
 
-	if _, _, err := s.grpcClient.SubmitRedeemTx(ctx, counterSignedRefundTx); err != nil {
+	if _, _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRefundTx); err != nil {
 		return "", err
 	}
 
@@ -1104,7 +1111,8 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		switch parsedStatus {
 		// TODO: ensure these are the right events to react to in case the vhtlc needs to be refunded.
 		case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
-			txid, err := s.RefundVHTLC(context.Background(), swap.Id, preimageHash)
+			withReceiver := true
+			txid, err := s.RefundVHTLC(context.Background(), swap.Id, preimageHash, withReceiver)
 			if err != nil {
 				return "", fmt.Errorf("failed to refund vHTLC: %s", err)
 			}
