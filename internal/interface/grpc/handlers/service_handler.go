@@ -225,16 +225,13 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 }
 
 func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb.RefundVHTLCWithoutReceiverRequest) (*pb.RefundVHTLCWithoutReceiverResponse, error) {
-	preimageHash := req.GetPreimageHash()
-	if len(preimageHash) <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "missing preimage hash")
+	preimageHash, err := parsePreimageHash(req.GetPreimageHash())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if _, err := hex.DecodeString(preimageHash); err != nil {
-		return nil, status.Error(codes.InvalidArgument, "invalid preimage hash")
-	}
-
 	withReceiver := true
 	withoutReceiver := !withReceiver
+
 	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", preimageHash, withoutReceiver)
 	if err != nil {
 		return nil, err
