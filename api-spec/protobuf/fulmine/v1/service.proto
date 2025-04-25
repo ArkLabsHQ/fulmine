@@ -92,7 +92,7 @@ service Service {
   };
   rpc RefundVHTLCWithoutReceiver(RefundVHTLCWithoutReceiverRequest) returns (RefundVHTLCWithoutReceiverResponse) {
     option (google.api.http) = {
-      post: "/v1/vhtlc/refund"
+      post: "/v1/vhtlc/refundWithoutReceiver"
       body: "*"
     };
   }

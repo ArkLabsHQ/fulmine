@@ -627,7 +627,7 @@
         ]
       }
     },
-    "/v1/vhtlc/refund": {
+    "/v1/vhtlc/refundWithoutReceiver": {
       "post": {
         "operationId": "Service_RefundVHTLCWithoutReceiver",
         "responses": {
