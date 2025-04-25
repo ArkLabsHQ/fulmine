@@ -626,6 +626,38 @@
           "Service"
         ]
       }
+    },
+    "/v1/vhtlc/refund": {
+      "post": {
+        "operationId": "Service_RefundVHTLC",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RefundVHTLCResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RefundVHTLCRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
     }
   },
   "definitions": {
@@ -986,6 +1018,22 @@
       "type": "object",
       "properties": {
         "txid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1RefundVHTLCRequest": {
+      "type": "object",
+      "properties": {
+        "preimageHash": {
+          "type": "string"
+        }
+      }
+    },
+    "v1RefundVHTLCResponse": {
+      "type": "object",
+      "properties": {
+        "redeemTxid": {
           "type": "string"
         }
       }
