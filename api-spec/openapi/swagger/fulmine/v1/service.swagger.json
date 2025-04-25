@@ -629,12 +629,12 @@
     },
     "/v1/vhtlc/refund": {
       "post": {
-        "operationId": "Service_RefundVHTLC",
+        "operationId": "Service_RefundVHTLCWithoutReceiver",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1RefundVHTLCResponse"
+              "$ref": "#/definitions/v1RefundVHTLCWithoutReceiverResponse"
             }
           },
           "default": {
@@ -650,7 +650,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1RefundVHTLCRequest"
+              "$ref": "#/definitions/v1RefundVHTLCWithoutReceiverRequest"
             }
           }
         ],
@@ -1022,7 +1022,7 @@
         }
       }
     },
-    "v1RefundVHTLCRequest": {
+    "v1RefundVHTLCWithoutReceiverRequest": {
       "type": "object",
       "properties": {
         "preimageHash": {
@@ -1030,7 +1030,7 @@
         }
       }
     },
-    "v1RefundVHTLCResponse": {
+    "v1RefundVHTLCWithoutReceiverResponse": {
       "type": "object",
       "properties": {
         "redeemTxid": {

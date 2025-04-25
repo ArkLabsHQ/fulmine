@@ -90,7 +90,7 @@ service Service {
       body: "*"
     };
   };
-  rpc RefundVHTLC(RefundVHTLCRequest) returns (RefundVHTLCResponse) {
+  rpc RefundVHTLCWithoutReceiver(RefundVHTLCWithoutReceiverRequest) returns (RefundVHTLCWithoutReceiverResponse) {
     option (google.api.http) = {
       post: "/v1/vhtlc/refund"
       body: "*"
@@ -262,10 +262,10 @@ message ClaimVHTLCResponse {
   string redeem_txid = 1;
 }
 
-message RefundVHTLCRequest {
+message RefundVHTLCWithoutReceiverRequest {
   string preimage_hash = 1;
 }
-message RefundVHTLCResponse {
+message RefundVHTLCWithoutReceiverResponse {
   string redeem_txid = 1;
 }
 
