@@ -108,6 +108,24 @@ func (s *service) GetInvoice(
 	return info.PaymentRequest, preimageHash, nil
 }
 
+func (s *service) DecodeInvoice(ctx context.Context, invoice string) (value uint64, preimageHash []byte, err error) {
+	if !s.IsConnected() {
+		return 0, nil, ErrServiceNotConnected
+	}
+
+	decodeResp, err := s.client.DecodePayReq(getCtx(ctx, s.macaroon), &lnrpc.PayReqString{PayReq: invoice})
+	if err != nil {
+		return 0, nil, err
+	}
+
+	preimageHash, err = hex.DecodeString(decodeResp.PaymentHash)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return uint64(decodeResp.NumSatoshis), preimageHash, nil
+}
+
 func (s *service) IsConnected() bool {
 	return s.client != nil
 }
