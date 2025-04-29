@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/config"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
@@ -13,6 +14,8 @@ import (
 	grpcservice "github.com/ArkLabsHQ/fulmine/internal/interface/grpc"
 	"github.com/ark-network/ark/pkg/client-sdk/store"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
+	"github.com/getsentry/sentry-go"
+	sentrylogrus "github.com/getsentry/sentry-go/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -21,6 +24,8 @@ var (
 	version = "dev"
 	commit  = "none"
 	date    = "unknown"
+
+	sentryDsn = ""
 )
 
 const (
@@ -35,6 +40,35 @@ func main() {
 	}
 
 	log.SetLevel(log.Level(cfg.LogLevel))
+
+	sentryEnabled := !cfg.DisableTelemetry && sentryDsn != ""
+
+	if sentryEnabled {
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:              sentryDsn,
+			Environment:      "prod",
+			AttachStacktrace: true,
+		}); err != nil {
+			log.Fatal(err)
+		}
+
+		sentryLevels := []log.Level{log.ErrorLevel, log.FatalLevel, log.PanicLevel}
+		sentryHook, err := sentrylogrus.New(sentryLevels, sentry.ClientOptions{
+			Dsn:              sentryDsn,
+			Debug:            true,
+			AttachStacktrace: true,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.AddHook(sentryHook)
+
+		defer func() {
+			sentry.Flush(5 * time.Second)
+			sentryHook.Flush(5 * time.Second)
+		}()
+	}
 
 	// Initialize the ARK SDK
 
@@ -81,7 +115,7 @@ func main() {
 		log.WithError(err).Fatal(err)
 	}
 
-	svc, err := grpcservice.NewService(svcConfig, appSvc, cfg.UnlockerService())
+	svc, err := grpcservice.NewService(svcConfig, appSvc, cfg.UnlockerService(), sentryEnabled)
 	if err != nil {
 		log.Fatal(err)
 	}

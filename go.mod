@@ -19,9 +19,14 @@ require (
 	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250408134011-3662e743ed93
 	github.com/ccoveille/go-safecast v1.2.0
 	github.com/dgraph-io/badger/v4 v4.6.0
+	github.com/getsentry/sentry-go v0.32.0
+	github.com/getsentry/sentry-go/gin v0.32.0
+	github.com/getsentry/sentry-go/logrus v0.32.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1
+	github.com/johnbellone/grpc-middleware-sentry v0.4.0
 	github.com/nbd-wtf/go-nostr v0.38.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
