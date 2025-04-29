@@ -177,6 +177,20 @@ func parseTransaction(tx string) (string, error) {
 	return tx, nil
 }
 
+func parsePreimageHash(hash string) (string, error) {
+	if len(hash) <= 0 {
+		return "", fmt.Errorf("missing preimage hash")
+	}
+	buf, err := hex.DecodeString(hash)
+	if err != nil {
+		return "", fmt.Errorf("invalid preimage hash")
+	}
+	if len(buf) != 20 {
+		return "", fmt.Errorf("invalid preimage hash length")
+	}
+	return hash, nil
+}
+
 func toNetworkProto(net string) pb.GetInfoResponse_Network {
 	switch net {
 	case "regtest":

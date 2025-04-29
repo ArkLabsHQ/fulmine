@@ -125,7 +125,7 @@ services:
         macaroonpath = "/home/boltz/.lnd/data/chain/bitcoin/regtest/admin.macaroon"
     volumes:
       - boltz_datadir:/home/boltz/.boltz
-      -  /Users/louis/Library/Application Support/Nigiri/volumes/lnd:/home/boltz/.lnd
+      - lnd_datadir:/home/boltz/.lnd
     entrypoint: sh -c 'echo "$$BOLTZ_CONFIG" > /home/boltz/.boltz/boltz.config && boltzd --datadir /home/boltz/.boltz --configpath /home/boltz/.boltz/boltz.config'
   postgres:
     image: postgres:15.4
@@ -140,17 +140,19 @@ services:
     volumes:
       - postgres_datadir:/var/lib/postgresql/data
   fulmine:
-    image: ghcr.io/arklabshq/fulmine:v0.1.8
+    build:
+      context: .
+      dockerfile: Dockerfile
     environment:
-      - FULMINE_ARK_SERVER=ark:7070
+      - FULMINE_ARK_SERVER=arkd:7070
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
     ports:
-      - 7000:7000
-      - 7001:7001
+      - 7002:7000
+      - 7003:7001
     volumes:
       - bitcoin_fulmine_data:/app/data
     restart: unless-stopped
-    
+
 volumes:
   postgres_datadir:
     name: postgres_datadir
