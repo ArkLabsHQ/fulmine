@@ -11,8 +11,8 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
-	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/boltz"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/cln"
+	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/ark-network/ark/common"
