@@ -25,7 +25,7 @@ var (
 	commit  = "none"
 	date    = "unknown"
 
-	sentryDsn = "https://60baa753cd0dfa3e90603a507bd1d8df@o4508966055313408.ingest.de.sentry.io/4509082915176528"
+	sentryDsn = ""
 )
 
 const (
