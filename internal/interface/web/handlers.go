@@ -290,10 +290,17 @@ func (s *service) receiveSuccess(c *gin.Context) {
 	}
 
 	lastTx := txHistory[0]
+
 	sats := strconv.Itoa(int(lastTx.Amount))
 
-	offchainAddr := utils.GetArkAddress(bip21)
-	partial := pages.ReceiveSuccessContent(offchainAddr, sats)
+	var addr string
+	if len(lastTx.BoardingTxid) > 0 {
+		addr = utils.GetBtcAddress(bip21)
+	} else {
+		addr = utils.GetArkAddress(bip21)
+	}
+
+	partial := pages.ReceiveSuccessContent(addr, sats)
 	partialViewHandler(partial, c)
 }
 
@@ -810,7 +817,7 @@ func (s *service) scannerModal(c *gin.Context) {
 }
 
 func (s *service) seedInfoModal(c *gin.Context) {
-	seed, err := s.svc.ArkClient.Dump(c)
+	seed, err := s.svc.Dump(c)
 	if err != nil {
 		toast := components.Toast("Unable to get seed", true)
 		toastHandler(toast, c)

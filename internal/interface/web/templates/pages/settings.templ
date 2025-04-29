@@ -90,10 +90,10 @@ templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) 
     @StatusLock(locked)
     @Hr()
     @Separator("Security")
-    <a class="button" onclick="redirect('/backup')">Backup Private Key</a>
+    @components.BackupButton()
     @Hr()
     @Separator("Sign out")
-    <a class="button" onclick="redirect('/lock')">Sign out</a>
+    @components.SignOutButton()
   </form>
 }
 

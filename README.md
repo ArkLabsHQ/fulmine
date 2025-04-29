@@ -220,6 +220,17 @@ fulmine provides three main interfaces:
    curl -X GET http://localhost:7001/api/v1/transactions
    ```
 
+7. Refund VHTLC Without Receiver
+   Refunds a VHTLC output without requiring the receiver's cooperation. Useful for reclaiming funds after timeout if the receiver is unavailable.
+
+   ```sh
+   curl -X POST http://localhost:7001/api/v1/vhtlc/refundWithoutReceiver \
+        -H "Content-Type: application/json" \
+        -d '{"preimage_hash": "<hex preimage hash>"}'
+   ```
+   - Replace `<hex preimage hash>` with the actual preimage hash for the VHTLC you wish to refund.
+   - Returns: `{ "redeem_txid": "<txid>" }` on success.
+
 Note: Replace `http://localhost:7001` with the appropriate host and port where your fulmine is running. Also, ensure to replace placeholder values (like `strong password`, `ark_address`, etc.) with actual values when making requests.
 
 For more detailed information about request and response structures, please refer to the proto files in the `api-spec/protobuf/fulmine/v1/` directory.

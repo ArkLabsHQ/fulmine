@@ -23,6 +23,8 @@ type Config struct {
 	LogLevel         uint32
 	ArkServer        string
 	EsploraURL       string
+	BoltzURL         string
+	BoltzWSURL       string
 	CLNDatadir       string // for testing purposes only
 	UnlockerType     string
 	UnlockerFilePath string
@@ -40,6 +42,8 @@ var (
 	LogLevel         = "LOG_LEVEL"
 	ArkServer        = "ARK_SERVER"
 	EsploraURL       = "ESPLORA_URL"
+	BoltzURL         = "BOLTZ_URL"
+	BoltzWSURL       = "BOLTZ_WS_URL"
 	DisableTelemetry = "DISABLE_TELEMETRY"
 
 	// Only for testing purposes
@@ -83,6 +87,8 @@ func LoadConfig() (*Config, error) {
 		LogLevel:         viper.GetUint32(LogLevel),
 		ArkServer:        viper.GetString(ArkServer),
 		EsploraURL:       viper.GetString(EsploraURL),
+		BoltzURL:         viper.GetString(BoltzURL),
+		BoltzWSURL:       viper.GetString(BoltzWSURL),
 		CLNDatadir:       cleanAndExpandPath(viper.GetString(CLNDatadir)),
 		UnlockerType:     viper.GetString(UnlockerType),
 		UnlockerFilePath: viper.GetString(UnlockerFilePath),

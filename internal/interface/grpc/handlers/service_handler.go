@@ -46,12 +46,18 @@ func (h *serviceHandler) GetBalance(
 func (h *serviceHandler) GetInfo(
 	ctx context.Context, req *pb.GetInfoRequest,
 ) (*pb.GetInfoResponse, error) {
+	_, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+
 	response := &pb.GetInfoResponse{
 		BuildInfo: &pb.BuildInfo{
 			Version: h.svc.BuildInfo.Version,
 			Commit:  h.svc.BuildInfo.Commit,
 			Date:    h.svc.BuildInfo.Date,
 		},
+		Pubkey: pubkey,
 	}
 
 	// Try to get network info, but don't fail if wallet is not initialized
@@ -222,6 +228,22 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 	}
 
 	return &pb.ClaimVHTLCResponse{RedeemTxid: redeemTxid}, nil
+}
+
+func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb.RefundVHTLCWithoutReceiverRequest) (*pb.RefundVHTLCWithoutReceiverResponse, error) {
+	preimageHash, err := parsePreimageHash(req.GetPreimageHash())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	withReceiver := true
+	withoutReceiver := !withReceiver
+
+	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", preimageHash, withoutReceiver)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.RefundVHTLCWithoutReceiverResponse{RedeemTxid: redeemTxid}, nil
 }
 
 func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest) (*pb.ListVHTLCResponse, error) {

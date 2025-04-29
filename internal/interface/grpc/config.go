@@ -17,12 +17,14 @@ func (c Config) Validate() error {
 	if err != nil {
 		return fmt.Errorf("invalid grpc port: %s", err)
 	}
+	// nolint:all
 	lis.Close()
 
 	lis, err = net.Listen("tcp", c.httpAddress())
 	if err != nil {
 		return fmt.Errorf("invalid http port: %s", err)
 	}
+	// nolint:all
 	lis.Close()
 
 	if c.WithTLS {
