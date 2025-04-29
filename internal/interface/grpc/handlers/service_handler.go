@@ -46,12 +46,18 @@ func (h *serviceHandler) GetBalance(
 func (h *serviceHandler) GetInfo(
 	ctx context.Context, req *pb.GetInfoRequest,
 ) (*pb.GetInfoResponse, error) {
+	_, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
+	if err != nil {
+		return nil, err
+	}
+
 	response := &pb.GetInfoResponse{
 		BuildInfo: &pb.BuildInfo{
 			Version: h.svc.BuildInfo.Version,
 			Commit:  h.svc.BuildInfo.Commit,
 			Date:    h.svc.BuildInfo.Date,
 		},
+		Pubkey: pubkey,
 	}
 
 	// Try to get network info, but don't fail if wallet is not initialized

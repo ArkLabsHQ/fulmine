@@ -5,6 +5,7 @@ if [[ "$OSTYPE" == "linux-musl"* ]]; then
   volumeDir="/data/.lnd"
   elif [[ "$OSTYPE" == "darwin"* ]]; then
   switch="-i"
+  #volumeDir=./lnd-datadir
   volumeDir=~/Library/Application\ Support/Nigiri/volumes/lnd
 else
   exit "Unknown operating system: $OSTYPE"

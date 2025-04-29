@@ -90,6 +90,7 @@ func (r *vhtlcRepository) Delete(ctx context.Context, preimageHash string) error
 }
 
 func (s *vhtlcRepository) Close() {
+	// nolint:all
 	s.store.Close()
 }
 

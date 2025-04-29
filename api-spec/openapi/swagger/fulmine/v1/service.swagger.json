@@ -879,6 +879,9 @@
         "buildInfo": {
           "$ref": "#/definitions/v1BuildInfo",
           "description": "info about the current version of the ark wallet."
+        },
+        "pubkey": {
+          "type": "string"
         }
       }
     },
