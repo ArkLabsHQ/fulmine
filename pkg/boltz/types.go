@@ -1,5 +1,14 @@
 package boltz
 
+const (
+	CurrencyBtc       Currency = "BTC"
+	CurrencyArk       Currency = "ARK"
+	CurrencyLiquid    Currency = "L-BTC"
+	CurrencyRootstock Currency = "RBTC"
+)
+
+type Currency string
+
 type TimeoutBlockHeights struct {
 	UnilateralClaim                 uint32 `json:"unilateralClaim"`
 	UnilateralRefund                uint32 `json:"unilateralRefund"`
@@ -7,10 +16,10 @@ type TimeoutBlockHeights struct {
 }
 
 type CreateSwapRequest struct {
-	From            string `json:"from"`
-	To              string `json:"to"`
-	RefundPublicKey string `json:"refundPublicKey"`
-	Invoice         string `json:"invoice,omitempty"`
+	From            Currency `json:"from"`
+	To              Currency `json:"to"`
+	RefundPublicKey string   `json:"refundPublicKey"`
+	Invoice         string   `json:"invoice,omitempty"`
 }
 
 type CreateSwapResponse struct {
@@ -25,11 +34,11 @@ type CreateSwapResponse struct {
 }
 
 type CreateReverseSwapRequest struct {
-	From           string `json:"from"`
-	To             string `json:"to"`
-	ClaimPublicKey string `json:"claimPublicKey"`
-	InvoiceAmount  uint64 `json:"invoiceAmount,omitempty"`
-	OnchainAmount  uint64 `json:"onchainAmount,omitempty"`
+	From           Currency `json:"from"`
+	To             Currency `json:"to"`
+	ClaimPublicKey string   `json:"claimPublicKey"`
+	InvoiceAmount  uint64   `json:"invoiceAmount,omitempty"`
+	OnchainAmount  uint64   `json:"onchainAmount,omitempty"`
 }
 
 type CreateReverseSwapResponse struct {

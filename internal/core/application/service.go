@@ -950,13 +950,11 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 	}
 
 	myPubkey, _ := hex.DecodeString(pk)
-	fromCurrency := "BTC"
-	toCurrency := "ARK"
 
 	// make swap
 	swap, err := s.boltzSvc.CreateReverseSwap(boltz.CreateReverseSwapRequest{
-		From:           fromCurrency,
-		To:             toCurrency,
+		From:           boltz.CurrencyBtc,
+		To:             boltz.CurrencyArk,
 		InvoiceAmount:  amount,
 		ClaimPublicKey: hex.EncodeToString(myPubkey),
 	})
@@ -1032,12 +1030,10 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		return "", fmt.Errorf("failed to create invoice: %w", err)
 	}
 
-	fromCurrency := "ARK"
-	toCurrency := "BTC"
 	// make swap
 	swap, err := s.boltzSvc.CreateSwap(boltz.CreateSwapRequest{
-		From:            fromCurrency,
-		To:              toCurrency,
+		From:            boltz.CurrencyArk,
+		To:              boltz.CurrencyBtc,
 		Invoice:         invoice,
 		RefundPublicKey: hex.EncodeToString(myPubkey),
 	})
