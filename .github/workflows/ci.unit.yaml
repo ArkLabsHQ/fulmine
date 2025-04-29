@@ -23,7 +23,7 @@ jobs:
       
       # Run linting with the original working configuration
       - name: check linting
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
           version: v2.1.5
       
