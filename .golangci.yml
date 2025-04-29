@@ -1,6 +1,9 @@
 version: "2"
 run:
   tests: false
+  timeout: 180s
+  concurrency: 4
+  fast: true
 linters:
   exclusions:
     generated: lax

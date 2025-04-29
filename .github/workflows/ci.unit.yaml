@@ -25,7 +25,6 @@ jobs:
       - name: check linting
         uses: golangci/golangci-lint-action@v6
         with:
-          args: '--timeout=180s --concurrency=4 --fast'
           version: v1.61
       
       - name: Get dependencies
