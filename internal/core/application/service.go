@@ -34,6 +34,8 @@ import (
 	"github.com/ccoveille/go-safecast"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	log "github.com/sirupsen/logrus"
+
+	// nolint:staticcheck
 	"golang.org/x/crypto/ripemd160"
 )
 
@@ -1309,7 +1311,7 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 
 	// check for unsettled boarding UTXOs
 	for _, tx := range txs {
-		if len(tx.TransactionKey.BoardingTxid) > 0 && !tx.Settled {
+		if len(tx.BoardingTxid) > 0 && !tx.Settled {
 			// TODO replace by boardingExitDelay https://github.com/ark-network/ark/pull/501
 			boardingExpiry := tx.CreatedAt.Add(time.Duration(data.UnilateralExitDelay.Seconds()*2) * time.Second)
 			if expiry == nil || boardingExpiry.Before(*expiry) {

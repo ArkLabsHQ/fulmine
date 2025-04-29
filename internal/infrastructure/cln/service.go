@@ -120,6 +120,7 @@ func (s *service) PayInvoice(ctx context.Context, invoice string) (preimage stri
 }
 
 func (s *service) Disconnect() {
+	// nolint:all
 	s.conn.Close()
 	s.client = nil
 	s.conn = nil

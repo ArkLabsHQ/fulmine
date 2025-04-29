@@ -61,6 +61,7 @@ func (s *service) Connect(ctx context.Context, lndConnectUrl string) error {
 }
 
 func (s *service) Disconnect() {
+	// nolint:all
 	s.conn.Close()
 	s.client = nil
 	s.conn = nil

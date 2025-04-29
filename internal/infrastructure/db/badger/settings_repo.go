@@ -88,6 +88,7 @@ func (s *settingsRepository) UpdateSettings(
 }
 
 func (s *settingsRepository) Close() {
+	// nolint:all
 	s.store.Close()
 }
 

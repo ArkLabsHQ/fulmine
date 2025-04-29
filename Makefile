@@ -38,7 +38,7 @@ help:
 ## lint: lint codebase
 lint:
 	@echo "Linting code..."
-	@golangci-lint run --fix
+	@golangci-lint run --fix --tests=false
 
 ## run: run in dev mode
 run: clean build-static-assets

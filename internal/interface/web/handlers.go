@@ -817,7 +817,7 @@ func (s *service) scannerModal(c *gin.Context) {
 }
 
 func (s *service) seedInfoModal(c *gin.Context) {
-	seed, err := s.svc.ArkClient.Dump(c)
+	seed, err := s.svc.Dump(c)
 	if err != nil {
 		toast := components.Toast("Unable to get seed", true)
 		toastHandler(toast, c)
