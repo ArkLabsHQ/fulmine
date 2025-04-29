@@ -99,6 +99,15 @@ func (s *service) GetInvoice(
 	return resp.Bolt11, preimageHash, nil
 }
 
+func (s *service) DecodeInvoice(ctx context.Context, invoice string) (value uint64, preimageHash []byte, err error) {
+	decodeResp, err := s.client.Decode(ctx, &clnpb.DecodeRequest{String_: invoice})
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return decodeResp.AmountMsat.Msat / 1000, decodeResp.PaymentHash, nil
+}
+
 func (s *service) PayInvoice(ctx context.Context, invoice string) (preimage string, err error) {
 	res, err := s.client.Pay(ctx, &clnpb.PayRequest{
 		Bolt11: invoice,
@@ -111,6 +120,7 @@ func (s *service) PayInvoice(ctx context.Context, invoice string) (preimage stri
 }
 
 func (s *service) Disconnect() {
+	// nolint:all
 	s.conn.Close()
 	s.client = nil
 	s.conn = nil

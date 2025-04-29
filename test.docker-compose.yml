@@ -33,7 +33,8 @@ services:
     environment:
       - FULMINE_ARK_SERVER=arkd:7070
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
-      - FULMINE_WITH_TLS=false
+      - FULMINE_BOLTZ_URL=http://boltz:9001
+      - FULMINE_BOLTZ_WS_URL=ws://boltz:9004
     ports:
       - "7000:7000"
       - "7001:7001"

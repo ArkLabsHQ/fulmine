@@ -127,5 +127,6 @@ func (s *vtxoRolloverRepository) DeleteTarget(
 }
 
 func (s *vtxoRolloverRepository) Close() {
+	// nolint:all
 	s.store.Close()
 }

@@ -19,27 +19,28 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	Service_GetAddress_FullMethodName              = "/fulmine.v1.Service/GetAddress"
-	Service_GetBalance_FullMethodName              = "/fulmine.v1.Service/GetBalance"
-	Service_GetInfo_FullMethodName                 = "/fulmine.v1.Service/GetInfo"
-	Service_GetOnboardAddress_FullMethodName       = "/fulmine.v1.Service/GetOnboardAddress"
-	Service_GetRoundInfo_FullMethodName            = "/fulmine.v1.Service/GetRoundInfo"
-	Service_GetTransactionHistory_FullMethodName   = "/fulmine.v1.Service/GetTransactionHistory"
-	Service_RedeemNote_FullMethodName              = "/fulmine.v1.Service/RedeemNote"
-	Service_Settle_FullMethodName                  = "/fulmine.v1.Service/Settle"
-	Service_SendOffChain_FullMethodName            = "/fulmine.v1.Service/SendOffChain"
-	Service_SendOnChain_FullMethodName             = "/fulmine.v1.Service/SendOnChain"
-	Service_SignTransaction_FullMethodName         = "/fulmine.v1.Service/SignTransaction"
-	Service_CreateVHTLC_FullMethodName             = "/fulmine.v1.Service/CreateVHTLC"
-	Service_ClaimVHTLC_FullMethodName              = "/fulmine.v1.Service/ClaimVHTLC"
-	Service_ListVHTLC_FullMethodName               = "/fulmine.v1.Service/ListVHTLC"
-	Service_CreateInvoice_FullMethodName           = "/fulmine.v1.Service/CreateInvoice"
-	Service_PayInvoice_FullMethodName              = "/fulmine.v1.Service/PayInvoice"
-	Service_IsInvoiceSettled_FullMethodName        = "/fulmine.v1.Service/IsInvoiceSettled"
-	Service_GetDelegatePublicKey_FullMethodName    = "/fulmine.v1.Service/GetDelegatePublicKey"
-	Service_WatchAddressForRollover_FullMethodName = "/fulmine.v1.Service/WatchAddressForRollover"
-	Service_UnwatchAddress_FullMethodName          = "/fulmine.v1.Service/UnwatchAddress"
-	Service_ListWatchedAddresses_FullMethodName    = "/fulmine.v1.Service/ListWatchedAddresses"
+	Service_GetAddress_FullMethodName                 = "/fulmine.v1.Service/GetAddress"
+	Service_GetBalance_FullMethodName                 = "/fulmine.v1.Service/GetBalance"
+	Service_GetInfo_FullMethodName                    = "/fulmine.v1.Service/GetInfo"
+	Service_GetOnboardAddress_FullMethodName          = "/fulmine.v1.Service/GetOnboardAddress"
+	Service_GetRoundInfo_FullMethodName               = "/fulmine.v1.Service/GetRoundInfo"
+	Service_GetTransactionHistory_FullMethodName      = "/fulmine.v1.Service/GetTransactionHistory"
+	Service_RedeemNote_FullMethodName                 = "/fulmine.v1.Service/RedeemNote"
+	Service_Settle_FullMethodName                     = "/fulmine.v1.Service/Settle"
+	Service_SendOffChain_FullMethodName               = "/fulmine.v1.Service/SendOffChain"
+	Service_SendOnChain_FullMethodName                = "/fulmine.v1.Service/SendOnChain"
+	Service_SignTransaction_FullMethodName            = "/fulmine.v1.Service/SignTransaction"
+	Service_CreateVHTLC_FullMethodName                = "/fulmine.v1.Service/CreateVHTLC"
+	Service_ClaimVHTLC_FullMethodName                 = "/fulmine.v1.Service/ClaimVHTLC"
+	Service_RefundVHTLCWithoutReceiver_FullMethodName = "/fulmine.v1.Service/RefundVHTLCWithoutReceiver"
+	Service_ListVHTLC_FullMethodName                  = "/fulmine.v1.Service/ListVHTLC"
+	Service_CreateInvoice_FullMethodName              = "/fulmine.v1.Service/CreateInvoice"
+	Service_PayInvoice_FullMethodName                 = "/fulmine.v1.Service/PayInvoice"
+	Service_IsInvoiceSettled_FullMethodName           = "/fulmine.v1.Service/IsInvoiceSettled"
+	Service_GetDelegatePublicKey_FullMethodName       = "/fulmine.v1.Service/GetDelegatePublicKey"
+	Service_WatchAddressForRollover_FullMethodName    = "/fulmine.v1.Service/WatchAddressForRollover"
+	Service_UnwatchAddress_FullMethodName             = "/fulmine.v1.Service/UnwatchAddress"
+	Service_ListWatchedAddresses_FullMethodName       = "/fulmine.v1.Service/ListWatchedAddresses"
 )
 
 // ServiceClient is the client API for Service service.
@@ -71,6 +72,7 @@ type ServiceClient interface {
 	CreateVHTLC(ctx context.Context, in *CreateVHTLCRequest, opts ...grpc.CallOption) (*CreateVHTLCResponse, error)
 	// ClaimVHTLC = self send vHTLC -> VTXO
 	ClaimVHTLC(ctx context.Context, in *ClaimVHTLCRequest, opts ...grpc.CallOption) (*ClaimVHTLCResponse, error)
+	RefundVHTLCWithoutReceiver(ctx context.Context, in *RefundVHTLCWithoutReceiverRequest, opts ...grpc.CallOption) (*RefundVHTLCWithoutReceiverResponse, error)
 	// ListVHTLC = list all vhtlc OR filter by preimage_hash
 	ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opts ...grpc.CallOption) (*ListVHTLCResponse, error)
 	CreateInvoice(ctx context.Context, in *CreateInvoiceRequest, opts ...grpc.CallOption) (*CreateInvoiceResponse, error)
@@ -224,6 +226,16 @@ func (c *serviceClient) ClaimVHTLC(ctx context.Context, in *ClaimVHTLCRequest, o
 	return out, nil
 }
 
+func (c *serviceClient) RefundVHTLCWithoutReceiver(ctx context.Context, in *RefundVHTLCWithoutReceiverRequest, opts ...grpc.CallOption) (*RefundVHTLCWithoutReceiverResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RefundVHTLCWithoutReceiverResponse)
+	err := c.cc.Invoke(ctx, Service_RefundVHTLCWithoutReceiver_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *serviceClient) ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opts ...grpc.CallOption) (*ListVHTLCResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListVHTLCResponse)
@@ -333,6 +345,7 @@ type ServiceServer interface {
 	CreateVHTLC(context.Context, *CreateVHTLCRequest) (*CreateVHTLCResponse, error)
 	// ClaimVHTLC = self send vHTLC -> VTXO
 	ClaimVHTLC(context.Context, *ClaimVHTLCRequest) (*ClaimVHTLCResponse, error)
+	RefundVHTLCWithoutReceiver(context.Context, *RefundVHTLCWithoutReceiverRequest) (*RefundVHTLCWithoutReceiverResponse, error)
 	// ListVHTLC = list all vhtlc OR filter by preimage_hash
 	ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error)
 	CreateInvoice(context.Context, *CreateInvoiceRequest) (*CreateInvoiceResponse, error)
@@ -390,6 +403,9 @@ func (UnimplementedServiceServer) CreateVHTLC(context.Context, *CreateVHTLCReque
 }
 func (UnimplementedServiceServer) ClaimVHTLC(context.Context, *ClaimVHTLCRequest) (*ClaimVHTLCResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ClaimVHTLC not implemented")
+}
+func (UnimplementedServiceServer) RefundVHTLCWithoutReceiver(context.Context, *RefundVHTLCWithoutReceiverRequest) (*RefundVHTLCWithoutReceiverResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RefundVHTLCWithoutReceiver not implemented")
 }
 func (UnimplementedServiceServer) ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListVHTLC not implemented")
@@ -661,6 +677,24 @@ func _Service_ClaimVHTLC_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_RefundVHTLCWithoutReceiver_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefundVHTLCWithoutReceiverRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).RefundVHTLCWithoutReceiver(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_RefundVHTLCWithoutReceiver_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).RefundVHTLCWithoutReceiver(ctx, req.(*RefundVHTLCWithoutReceiverRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Service_ListVHTLC_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListVHTLCRequest)
 	if err := dec(in); err != nil {
@@ -863,6 +897,10 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ClaimVHTLC",
 			Handler:    _Service_ClaimVHTLC_Handler,
+		},
+		{
+			MethodName: "RefundVHTLCWithoutReceiver",
+			Handler:    _Service_RefundVHTLCWithoutReceiver_Handler,
 		},
 		{
 			MethodName: "ListVHTLC",
