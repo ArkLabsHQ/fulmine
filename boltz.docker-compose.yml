@@ -1,7 +1,8 @@
 services:
-  lnd:
+  boltz-lnd:
     image: lightninglabs/lnd:v0.18.5-beta
     restart: unless-stopped
+    container_name: boltz-lnd
     command:
       - '--bitcoin.regtest'
       - '--bitcoin.node=bitcoind'
@@ -15,9 +16,7 @@ services:
       - '--db.bolt.auto-compact'
       - '--db.prune-revocation'
       - '--alias=Ark Labs'
-      - '--tlsextradomain=lnd'
-      - '--tlsextradomain=prod-mutinynet-boltzstack-gkqfrq-lnd-1'
-      - '--tlsextradomain=lnd-grpc.mutinynet.arkade.sh'
+      - '--tlsextradomain=boltz-lnd'
       - '--protocol.option-scid-alias'
       - '--protocol.wumbo-channels'
       - '--accept-keysend'
@@ -49,7 +48,7 @@ services:
         loglevel = "debug"
         network = "regtest"
         [ark]
-        host = "fulmine"
+        host = "boltz-fulmine"
         port = 7000
         
         [api]
@@ -75,7 +74,7 @@ services:
         port = 9005
 
         [postgres]
-        host = "postgres"
+        host = "boltz-postgres"
         port = 5432
         database = "boltz"
         username = "postgres"
@@ -119,7 +118,7 @@ services:
         password = "123"
 
         [currencies.lnd]
-        host = "lnd"
+        host = "boltz-lnd"
         port = 10009
         certpath = "/home/boltz/.lnd/tls.cert"
         macaroonpath = "/home/boltz/.lnd/data/chain/bitcoin/regtest/admin.macaroon"
@@ -127,7 +126,7 @@ services:
       - boltz_datadir:/home/boltz/.boltz
       - lnd_datadir:/home/boltz/.lnd
     entrypoint: sh -c 'echo "$$BOLTZ_CONFIG" > /home/boltz/.boltz/boltz.config && boltzd --datadir /home/boltz/.boltz --configpath /home/boltz/.boltz/boltz.config'
-  postgres:
+  boltz-postgres:
     image: postgres:15.4
     restart: unless-stopped
     environment:
@@ -139,7 +138,7 @@ services:
       - '5432'
     volumes:
       - postgres_datadir:/var/lib/postgresql/data
-  fulmine:
+  boltz-fulmine:
     build:
       context: .
       dockerfile: Dockerfile
