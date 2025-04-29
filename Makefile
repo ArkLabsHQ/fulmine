@@ -38,7 +38,7 @@ help:
 ## lint: lint codebase
 lint:
 	@echo "Linting code..."
-	@golangci-lint run --fix
+	@golangci-lint run --fix --tests=false
 
 ## run: run in dev mode
 run: clean build-static-assets
@@ -72,12 +72,12 @@ vet:
 ## proto: compile proto stubs
 proto: proto-lint
 	@echo "Compiling stubs..."
-	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf generate
+	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace bufbuild/buf generate
 
 ## proto-lint: lint protos
 proto-lint:
 	@echo "Linting protos..."
-	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace buf lint --exclude-path ./api-spec/protobuf/cln
+	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace bufbuild/buf lint --exclude-path ./api-spec/protobuf/cln
 
 build-test-env:
 	@echo "Building test environment..."

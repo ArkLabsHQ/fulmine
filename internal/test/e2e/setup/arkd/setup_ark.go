@@ -141,8 +141,8 @@ func setupArkServer() error {
 	}
 
 	boardingAddress := receiveInfo.BoardingAddress
-	log.Info("Funding boarding address:", boardingAddress)
-	_, err = execCommand(fmt.Sprintf("nigiri faucet %s", boardingAddress))
+	log.Info("Funding boarding address: ", boardingAddress)
+	_, err = execCommand(fmt.Sprintf("nigiri faucet %s 0.21", boardingAddress))
 	if err != nil {
 		return err
 	}

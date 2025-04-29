@@ -16,18 +16,12 @@ templ ServerUrlBodyContent(serverUrl, privateKey, password string) {
         <p class="mb-2">Server URL</p>
         @components.InputWithPaste("serverUrl", "", serverUrl)
       </div>
-	  	<button
-			  id="createWallet"
-				class="bg-orange text-white"
-				disabled
-				onclick="disableButton(this)"
-				type="submit"
-			>Create wallet</button>
+	  	@components.CreateWalletButton(true)
     </div>
   </form>
   <script>
 		const input = document.querySelector('#serverUrl')
-		const button = document.querySelector('#createWallet')
+		const button = document.querySelector('button[type=submit]')
 		const validateServerUrl = () => {
       if (input.value.length == 0) return
 		  const data = new FormData()
