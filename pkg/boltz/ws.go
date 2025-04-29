@@ -61,7 +61,7 @@ func (boltz *Api) NewWebsocket() *Websocket {
 	}
 
 	return &Websocket{
-		apiUrl:        boltz.URL,
+		apiUrl:        boltz.WSURL,
 		subscriptions: make(chan bool),
 		dialer:        &dialer,
 		Updates:       make(chan SwapUpdate),

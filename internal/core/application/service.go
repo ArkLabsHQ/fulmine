@@ -65,6 +65,8 @@ type Service struct {
 	publicKey *secp256k1.PublicKey
 
 	esploraUrl string
+	boltzUrl   string
+	boltzWSUrl string
 
 	isReady bool
 
@@ -91,7 +93,7 @@ func NewService(
 	dbSvc ports.RepoManager,
 	schedulerSvc ports.SchedulerService,
 	lnSvc ports.LnService,
-	esploraUrl string,
+	esploraUrl, boltzUrl, boltzWSUrl string,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
@@ -118,6 +120,8 @@ func NewService(
 			notifications:             make(chan Notification),
 			stopBoardingEventListener: make(chan struct{}),
 			esploraUrl:                data.ExplorerURL,
+			boltzUrl:                  boltzUrl,
+			boltzWSUrl:                boltzWSUrl,
 		}
 
 		return svc, nil
@@ -151,6 +155,8 @@ func NewService(
 		notifications:             make(chan Notification),
 		stopBoardingEventListener: make(chan struct{}),
 		esploraUrl:                esploraUrl,
+		boltzUrl:                  boltzUrl,
+		boltzWSUrl:                boltzWSUrl,
 	}
 
 	return svc, nil
@@ -298,8 +304,15 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		if err := s.lnSvc.Connect(ctx, settings.LnUrl); err != nil {
 			log.WithError(err).Warn("failed to connect to ln node")
 		}
-		boltzSvc := &boltz.Api{URL: boltzURLByNetwork[data.Network.Name]}
-		s.boltzSvc = boltzSvc
+		url := s.boltzUrl
+		wsUrl := s.boltzWSUrl
+		if url == "" {
+			url = boltzURLByNetwork[data.Network.Name]
+		}
+		if wsUrl == "" {
+			wsUrl = boltzURLByNetwork[data.Network.Name]
+		}
+		s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 	}
 
 	offchainAddress, onchainAddress, err := s.Receive(ctx)
@@ -436,7 +449,6 @@ func (s *Service) ConnectLN(ctx context.Context, connectUrl string) error {
 	if err != nil {
 		return err
 	}
-	boltzSvc := &boltz.Api{URL: boltzURLByNetwork[data.Network.Name]}
 
 	if strings.HasPrefix(connectUrl, "clnconnect:") {
 		s.lnSvc = cln.NewService()
@@ -445,7 +457,15 @@ func (s *Service) ConnectLN(ctx context.Context, connectUrl string) error {
 		return err
 	}
 
-	s.boltzSvc = boltzSvc
+	url := s.boltzUrl
+	wsUrl := s.boltzWSUrl
+	if url == "" {
+		url = boltzURLByNetwork[data.Network.Name]
+	}
+	if wsUrl == "" {
+		wsUrl = boltzURLByNetwork[data.Network.Name]
+	}
+	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 	return nil
 }
 

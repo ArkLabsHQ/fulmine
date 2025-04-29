@@ -10,6 +10,7 @@ import (
 
 type Api struct {
 	URL    string
+	WSURL  string
 	Client http.Client
 }
 
