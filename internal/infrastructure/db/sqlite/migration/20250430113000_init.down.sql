@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS settings;
+DROP TABLE IF EXISTS vhtlc;
+DROP TABLE IF EXISTS vtxo_rollover;
