@@ -29,20 +29,22 @@ type Config struct {
 	UnlockerType     string
 	UnlockerFilePath string
 	UnlockerPassword string
+	DisableTelemetry bool
 
 	unlocker ports.Unlocker
 }
 
 var (
-	Datadir    = "DATADIR"
-	GRPCPort   = "GRPC_PORT"
-	HTTPPort   = "HTTP_PORT"
-	WithTLS    = "WITH_TLS"
-	LogLevel   = "LOG_LEVEL"
-	ArkServer  = "ARK_SERVER"
-	EsploraURL = "ESPLORA_URL"
-	BoltzURL   = "BOLTZ_URL"
-	BoltzWSURL = "BOLTZ_WS_URL"
+	Datadir          = "DATADIR"
+	GRPCPort         = "GRPC_PORT"
+	HTTPPort         = "HTTP_PORT"
+	WithTLS          = "WITH_TLS"
+	LogLevel         = "LOG_LEVEL"
+	ArkServer        = "ARK_SERVER"
+	EsploraURL       = "ESPLORA_URL"
+	BoltzURL         = "BOLTZ_URL"
+	BoltzWSURL       = "BOLTZ_WS_URL"
+	DisableTelemetry = "DISABLE_TELEMETRY"
 
 	// Only for testing purposes
 	CLNDatadir = "CLN_DATADIR"
@@ -52,12 +54,13 @@ var (
 	UnlockerFilePath = "UNLOCKER_FILE_PATH"
 	UnlockerPassword = "UNLOCKER_PASSWORD"
 
-	defaultDatadir   = appDatadir("fulmine", false)
-	defaultGRPCPort  = 7000
-	defaultHTTPPort  = 7001
-	defaultWithTLS   = false
-	defaultLogLevel  = 4
-	defaultArkServer = ""
+	defaultDatadir          = appDatadir("fulmine", false)
+	defaultGRPCPort         = 7000
+	defaultHTTPPort         = 7001
+	defaultWithTLS          = false
+	defaultLogLevel         = 4
+	defaultArkServer        = ""
+	defaultDisableTelemetry = false
 )
 
 func LoadConfig() (*Config, error) {
@@ -70,6 +73,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(WithTLS, defaultWithTLS)
 	viper.SetDefault(LogLevel, defaultLogLevel)
 	viper.SetDefault(ArkServer, defaultArkServer)
+	viper.SetDefault(DisableTelemetry, defaultDisableTelemetry)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
@@ -89,6 +93,7 @@ func LoadConfig() (*Config, error) {
 		UnlockerType:     viper.GetString(UnlockerType),
 		UnlockerFilePath: viper.GetString(UnlockerFilePath),
 		UnlockerPassword: viper.GetString(UnlockerPassword),
+		DisableTelemetry: viper.GetBool(DisableTelemetry),
 	}
 
 	if err := config.initUnlockerService(); err != nil {

@@ -13,12 +13,13 @@ ARG COMMIT
 ARG DATE
 ARG TARGETOS
 ARG TARGETARCH
+ARG SENTRY_DSN
 
 WORKDIR /app
 COPY . .
 # Copy the built web assets from web-builder
 COPY --from=web-builder /app/internal/interface/web/static ./internal/interface/web/static
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-X 'main.version=${VERSION}' -X 'main.commit=${COMMIT}' -X 'main.date=${DATE}'" -o bin/fulmine cmd/fulmine/main.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-X 'main.version=${VERSION}' -X 'main.commit=${COMMIT}' -X 'main.date=${DATE}' -X 'main.sentryDsn=${SENTRY_DSN}'" -o bin/fulmine cmd/fulmine/main.go
 
 # Final image
 FROM alpine:3.20
