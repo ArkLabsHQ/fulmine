@@ -147,7 +147,8 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				// scan qr code
 				try {
 					const { frontalCamera, QRCanvas, frameLoop, getSize } = qr.dom
-					await navigator.mediaDevices.getUserMedia({ video: true })
+					const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+					for (const track of stream.getTracks()) track.stop()
 					title.innerText = 'Scan QR Code'
 					const canvas = new QRCanvas()
 					const camera = await frontalCamera(video)
