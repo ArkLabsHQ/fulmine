@@ -36,4 +36,14 @@ templ Unlock() {
       </div>
     </div>
   </form>
+  <script>
+    const button = document.querySelector('button[type="submit"]')
+    const input = document.querySelector('input[name="password"]')
+    if (button && input) {
+      button.disabled = !input.value.trim()
+      input.addEventListener('input', () => {
+        button.disabled = !input.value.trim()
+      });
+    }
+  </script>
 }
