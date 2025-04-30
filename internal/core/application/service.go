@@ -330,7 +330,9 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 	s.closeInternalListener = closeFn
 	go s.handleInternalAddressEventChannel(eventsCh)
-	go s.subscribeForBoardingEvent(ctx, onchainAddress, data)
+	if data.UtxoMaxAmount != 0 {
+		go s.subscribeForBoardingEvent(ctx, onchainAddress, data)
+	}
 
 	return nil
 }
