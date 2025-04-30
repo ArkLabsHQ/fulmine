@@ -534,7 +534,7 @@ func (s *service) settings(c *gin.Context) {
 
 	active := c.Param("active")
 	bodyContent := pages.SettingsBodyContent(
-		active, *settings, s.svc.IsConnectedLN(), s.svc.IsLocked(c),
+		active, *settings, s.svc.IsConnectedLN(), s.svc.IsLocked(c), s.svc.BuildInfo.Version,
 	)
 	s.pageViewHandler(bodyContent, c)
 }
