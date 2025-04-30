@@ -87,6 +87,8 @@ func NewService(appSvc *application.Service, stopCh chan struct{}, sentryEnabled
 	svc.GET("/lock", svc.lock)
 	svc.GET("/new", svc.newWalletPrivateKey)
 	svc.GET("/receive", svc.receiveQrCode)
+	svc.GET("/receive/watch", svc.receiveWatch)
+	svc.GET("/receive/success", svc.receiveSuccess)
 	svc.GET("/receive/edit", svc.receiveEdit)
 	svc.GET("/send", svc.send)
 	svc.GET("/settings/:active", svc.settings)
@@ -111,7 +113,6 @@ func NewService(appSvc *application.Service, stopCh chan struct{}, sentryEnabled
 
 	svc.POST("/note/confirm", svc.noteConfirm)
 	svc.POST("/receive/preview", svc.receiveQrCode)
-	svc.POST("/receive/success", svc.receiveSuccess)
 	svc.POST("/send/preview", svc.sendPreview)
 	svc.POST("/send/confirm", svc.sendConfirm)
 	svc.POST("/swap/preview", svc.swapPreview)

@@ -113,7 +113,7 @@ func setupArkServer() error {
 	}
 	arkdAddress = strings.TrimSpace(arkdAddress)
 	log.Info("Funding arkd address: ", arkdAddress)
-	_, err = execCommand(fmt.Sprintf("nigiri faucet %s", arkdAddress))
+	_, err = execCommand(fmt.Sprintf("nigiri faucet %s '%d'", arkdAddress, 2))
 	if err != nil {
 		return err
 	}

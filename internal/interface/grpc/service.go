@@ -194,6 +194,8 @@ func (s *service) Stop() {
 
 	s.grpcServer.GracefulStop()
 	log.Info("stopped grpc server")
+
+	s.httpServer.Close()
 	// nolint:all
 	s.httpServer.Shutdown(context.Background())
 	log.Info("stopped http server")
