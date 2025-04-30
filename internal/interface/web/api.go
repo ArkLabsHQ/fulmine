@@ -112,7 +112,7 @@ func (s *service) updateSettingsApi(c *gin.Context) {
 		toast := components.Toast("Saved")
 		toastHandler(toast, c)
 	}
-	return
+
 }
 
 func (s *service) connectLNDApi(c *gin.Context) {
