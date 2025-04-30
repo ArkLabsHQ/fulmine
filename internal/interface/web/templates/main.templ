@@ -76,7 +76,7 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 			}
 		
 			const disableButton = (button) => {
-				button.classList.add("disabled")
+				setTimeout(() => button.disabled = true, 210)
 			}
 		
 			const fromSatoshis = (sats) => {

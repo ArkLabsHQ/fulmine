@@ -45,14 +45,20 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats stri
 	    @components.Header("Receive")
       <div class="flex flex-col justify-center items-center gap-2">
 	  	  <div class="h-64 mb-8">
-          <img src={"data:image/png;base64," + encoded} alt="qrcode for receive address" title={bip21}>
-	  		</div>
+            <img src={"data:image/png;base64," + encoded} alt="qrcode for receive address" title={bip21}>
+		  </div>
 				<div class="flex flex-col gap-2 w-11/12 max-w-[600px]">
-					@addressLine("BIP 21", bip21)
-					@addressLine("BTC address", boardingAddr)
-					@addressLine("Ark address", offchainAddr)
+					if len(bip21) > 0 {
+						@addressLine("BIP 21", bip21)
+					}
+					if len(boardingAddr) > 0 {
+						@addressLine("BTC address", boardingAddr)
+					}
+					if len(offchainAddr) > 0 {
+						@addressLine("Ark address", offchainAddr)
+					}
 				</div>
-			</div>
+	  	</div>
       <div class="flex flex-col md:flex-row justify-start gap-4 mt-10 mb-2">
 	      <a class="button md:w-auto" onclick="redirect('/receive/edit')">
 	  		  @components.EditIcon()

@@ -94,6 +94,15 @@ func (s *service) forgotApi(c *gin.Context) {
 	redirect("/welcome", c)
 }
 
+func (s *service) validateLnUrlApi(c *gin.Context) {
+	url := c.PostForm("lnurl")
+	valid := utils.IsValidLnUrl(url)
+	data := gin.H{
+		"valid": valid,
+	}
+	c.JSON(http.StatusOK, data)
+}
+
 func (s *service) validateNoteApi(c *gin.Context) {
 	var data gin.H
 	note := c.PostForm("note")
@@ -154,15 +163,6 @@ func (s *service) validatePrivateKeyApi(c *gin.Context) {
 			"valid": false,
 			"error": err.Error(),
 		}
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-func (s *service) validateLnUrlApi(c *gin.Context) {
-	url := c.PostForm("lnurl")
-	valid := utils.IsValidLnUrl(url)
-	data := gin.H{
-		"valid": valid,
 	}
 	c.JSON(http.StatusOK, data)
 }
