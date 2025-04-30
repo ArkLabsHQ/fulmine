@@ -51,14 +51,14 @@ templ SettingsTabs(active string) {
   </div>
 }
 
-templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, locked bool) {
+templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, locked bool, version string) {
   @components.DesktopHeader()
 	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div>
 	    @components.Header("Settings")
       @SettingsTabs(active)
       if active == "general" {
-        @SettingsGeneralContent(settings, nodeStatus, locked)
+        @SettingsGeneralContent(settings, nodeStatus, locked, version)
       }
       if active == "server" {
         @SettingsServerContent(settings)
@@ -70,9 +70,11 @@ templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, l
   </div>
 }
 
-templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool) {
+templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool, version string) {
   <form hx-post="/helpers/settings" hx-trigger="change">
     @Separator("Details")
+    @components.Label("Version")
+    <p class="text-white/50">{version}</p>
     @components.Label("Bitcoin unit")
     @components.SelectDropdown("unit", settings.Unit, [][]string{
       {"sat", "Satoshi (0.00000001 BTC)"},
