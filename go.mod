@@ -15,8 +15,8 @@ require (
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-00010101000000-000000000000
 	github.com/a-h/templ v0.3.857
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/ark-network/ark/common v0.0.0-20250411145914-2a12fbffdc45
-	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250411145914-2a12fbffdc45
+	github.com/ark-network/ark/common v0.0.0-20250430141707-2419ac0f83c4
+	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250430141707-2419ac0f83c4
 	github.com/ccoveille/go-safecast v1.2.0
 	github.com/dgraph-io/badger/v4 v4.6.0
 	github.com/getsentry/sentry-go v0.32.0
@@ -27,7 +27,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1
 	github.com/johnbellone/grpc-middleware-sentry v0.4.0
-	github.com/nbd-wtf/go-nostr v0.38.2
+	github.com/nbd-wtf/go-nostr v0.40.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/spf13/viper v1.19.0
@@ -48,7 +48,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
-	github.com/ark-network/ark/api-spec v0.0.0-20250411145914-2a12fbffdc45 // indirect
+	github.com/ark-network/ark/api-spec v0.0.0-20250430141707-2419ac0f83c4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btclog/v2 v2.0.0-20241017175713-3428138b75c7 // indirect
 	github.com/btcsuite/winsvc v1.0.0 // indirect
