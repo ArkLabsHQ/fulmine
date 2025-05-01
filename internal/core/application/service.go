@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
 	"math"
 	"strings"
 	"sync"
@@ -80,6 +81,8 @@ type Service struct {
 
 	stopBoardingEventListener chan struct{}
 	closeInternalListener     func()
+
+	macaroonSvc macaroon.Service
 }
 
 type Notification struct {
@@ -96,6 +99,7 @@ func NewService(
 	schedulerSvc ports.SchedulerService,
 	lnSvc ports.LnService,
 	esploraUrl, boltzUrl, boltzWSUrl string,
+	macaroonSvc macaroon.Service,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
@@ -124,6 +128,7 @@ func NewService(
 			esploraUrl:                data.ExplorerURL,
 			boltzUrl:                  boltzUrl,
 			boltzWSUrl:                boltzWSUrl,
+			macaroonSvc:               macaroonSvc,
 		}
 
 		return svc, nil
@@ -159,6 +164,7 @@ func NewService(
 		esploraUrl:                esploraUrl,
 		boltzUrl:                  boltzUrl,
 		boltzWSUrl:                boltzWSUrl,
+		macaroonSvc:               macaroonSvc,
 	}
 
 	return svc, nil
@@ -209,6 +215,16 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		ctx, domain.Settings{ServerUrl: config.ServerUrl, EsploraUrl: config.ExplorerURL},
 	); err != nil {
 		return err
+	}
+
+	if s.macaroonSvc != nil {
+		if err := s.macaroonSvc.Unlock(ctx, password); err != nil {
+			return fmt.Errorf("setup: failed to unlock macaroon: %s", err)
+		}
+
+		if err := s.macaroonSvc.Generate(context.Background()); err != nil {
+			return fmt.Errorf("setup: failed to generate macaroon: %s", err)
+		}
 	}
 
 	s.esploraUrl = config.ExplorerURL
@@ -332,6 +348,16 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	go s.handleInternalAddressEventChannel(eventsCh)
 	if data.UtxoMaxAmount != 0 {
 		go s.subscribeForBoardingEvent(ctx, onchainAddress, data)
+	}
+
+	if s.macaroonSvc != nil {
+		if err := s.macaroonSvc.Unlock(ctx, password); err != nil {
+			return fmt.Errorf("setup: failed to unlock macaroon: %s", err)
+		}
+
+		if err := s.macaroonSvc.Generate(context.Background()); err != nil {
+			return fmt.Errorf("setup: failed to generate macaroon: %s", err)
+		}
 	}
 
 	return nil

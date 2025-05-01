@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -31,7 +32,8 @@ type Config struct {
 	UnlockerPassword string
 	DisableTelemetry bool
 
-	unlocker ports.Unlocker
+	unlocker    ports.Unlocker
+	macaroonSvc macaroon.Service
 }
 
 var (
@@ -45,6 +47,7 @@ var (
 	BoltzURL         = "BOLTZ_URL"
 	BoltzWSURL       = "BOLTZ_WS_URL"
 	DisableTelemetry = "DISABLE_TELEMETRY"
+	NoMacaroons      = "NO_MACAROONS"
 
 	// Only for testing purposes
 	CLNDatadir = "CLN_DATADIR"
@@ -61,6 +64,7 @@ var (
 	defaultLogLevel         = 4
 	defaultArkServer        = ""
 	defaultDisableTelemetry = false
+	defaultNoMacaroons      = false
 )
 
 func LoadConfig() (*Config, error) {
@@ -74,6 +78,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(LogLevel, defaultLogLevel)
 	viper.SetDefault(ArkServer, defaultArkServer)
 	viper.SetDefault(DisableTelemetry, defaultDisableTelemetry)
+	viper.SetDefault(NoMacaroons, defaultNoMacaroons)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
@@ -97,6 +102,10 @@ func LoadConfig() (*Config, error) {
 	}
 
 	if err := config.initUnlockerService(); err != nil {
+		return nil, err
+	}
+
+	if err := config.initMacaroonService(); err != nil {
 		return nil, err
 	}
 
@@ -126,6 +135,23 @@ func (c *Config) initUnlockerService() error {
 		return err
 	}
 	c.unlocker = svc
+	return nil
+}
+
+func (c Config) MacaroonSvc() macaroon.Service {
+	return c.macaroonSvc
+}
+
+func (c *Config) initMacaroonService() error {
+	if !viper.GetBool(NoMacaroons) {
+		svc, err := macaroon.NewService(viper.GetString(Datadir))
+		if err != nil {
+			return err
+		}
+
+		c.macaroonSvc = svc
+	}
+
 	return nil
 }
 

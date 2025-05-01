@@ -15,8 +15,11 @@ require (
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-00010101000000-000000000000
 	github.com/a-h/templ v0.3.857
 	github.com/angelofallars/htmx-go v0.5.0
+	github.com/ark-network/ark/api-spec v0.0.0-20250430141707-2419ac0f83c4
 	github.com/ark-network/ark/common v0.0.0-20250430141707-2419ac0f83c4
 	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250430141707-2419ac0f83c4
+	github.com/ark-network/ark/server v0.0.0-20250408105042-bbed73cb2ecb
+	github.com/ark-network/ark/server/pkg/macaroons v0.0.0-20250430141707-2419ac0f83c4
 	github.com/ccoveille/go-safecast v1.2.0
 	github.com/dgraph-io/badger/v4 v4.6.0
 	github.com/getsentry/sentry-go v0.32.0
@@ -39,6 +42,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20250115164207-1a7da9e5054f
 	google.golang.org/grpc v1.69.4
 	google.golang.org/protobuf v1.36.5
+	gopkg.in/macaroon-bakery.v2 v2.3.0
 )
 
 require (
@@ -48,7 +52,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
-	github.com/ark-network/ark/api-spec v0.0.0-20250430141707-2419ac0f83c4 // indirect
+	github.com/ark-network/ark/server/pkg/kvdb v0.0.0-20250430141707-2419ac0f83c4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btclog/v2 v2.0.0-20241017175713-3428138b75c7 // indirect
 	github.com/btcsuite/winsvc v1.0.0 // indirect
@@ -57,7 +61,6 @@ require (
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.1.0 // indirect
-	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/cli v27.1.1+incompatible // indirect
 	github.com/docker/docker v27.1.1+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
@@ -69,7 +72,6 @@ require (
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.4.0 // indirect
-	github.com/gofrs/uuid v4.2.0+incompatible // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang-migrate/migrate/v4 v4.17.1 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -155,7 +157,6 @@ require (
 	golang.org/x/tools v0.29.0 // indirect
 	google.golang.org/genproto v0.0.0-20240812133136-8ffd90a71988 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
-	gopkg.in/macaroon-bakery.v2 v2.3.0 // indirect
 	gopkg.in/macaroon.v2 v2.1.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -250,7 +251,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/sagikazarmark/locafero v0.4.0 // indirect
+	github.com/sagikazarmark/locafero v0.6.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
