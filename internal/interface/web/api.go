@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 	"github.com/ArkLabsHQ/fulmine/utils"
 
@@ -33,32 +32,32 @@ func (s *service) getBalanceApi(c *gin.Context) {
 
 func (s *service) updateSettingsApi(c *gin.Context) {
 	changed := false
-	settings := domain.Settings{}
 
-	if apiroot := c.PostForm("apiroot"); settings.ApiRoot != apiroot {
-		if len(apiroot) > 0 {
+	settings, err := s.svc.GetSettings(c)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	if apiroot := c.PostForm("apiroot"); len(apiroot) > 0 && settings.ApiRoot != apiroot {
+		if utils.IsValidURL(apiroot) {
 			settings.ApiRoot = apiroot
 			changed = true
 		} else {
-			toast := components.Toast("Invalid API Root URL", true)
+			toast := components.Toast("Invalid API root URL", true)
 			toastHandler(toast, c)
 			return
 		}
 	}
 
-	if currency := c.PostForm("currency"); settings.Currency != currency {
-		if len(currency) > 0 {
-			settings.Currency = currency
-			changed = true
-		} else {
-			toast := components.Toast("Invalid Currency", true)
-			toastHandler(toast, c)
-			return
-		}
+	if currency := c.PostForm("currency"); len(currency) > 0 && settings.Currency != currency {
+		settings.Currency = currency
+		changed = true
 	}
 
-	if eventServer := c.PostForm("eventserver"); settings.EventServer != eventServer {
-		if len(eventServer) > 0 {
+	if eventServer := c.PostForm("eventserver"); len(eventServer) > 0 && settings.EventServer != eventServer {
+		if utils.IsValidURL(eventServer) {
 			settings.EventServer = eventServer
 			changed = true
 		} else {
@@ -68,8 +67,8 @@ func (s *service) updateSettingsApi(c *gin.Context) {
 		}
 	}
 
-	if fullNode := c.PostForm("fullnode"); settings.FullNode != fullNode {
-		if len(fullNode) > 0 {
+	if fullNode := c.PostForm("fullnode"); len(fullNode) > 0 && settings.FullNode != fullNode {
+		if utils.IsValidURL(fullNode) {
 			settings.FullNode = fullNode
 			changed = true
 		} else {
@@ -81,7 +80,7 @@ func (s *service) updateSettingsApi(c *gin.Context) {
 
 	// TODO lnconnect
 
-	if lnURL := c.PostForm("lnurl"); settings.LnUrl != lnURL {
+	if lnURL := c.PostForm("lnurl"); len(lnURL) > 0 && settings.LnUrl != lnURL {
 		if utils.IsValidLnUrl(lnURL) {
 			settings.LnUrl = lnURL
 			changed = true
@@ -92,19 +91,13 @@ func (s *service) updateSettingsApi(c *gin.Context) {
 		}
 	}
 
-	if unit := c.PostForm("unit"); settings.Unit != unit {
-		if len(unit) > 0 {
-			settings.Unit = unit
-			changed = true
-		} else {
-			toast := components.Toast("Invalid Unit", true)
-			toastHandler(toast, c)
-			return
-		}
+	if unit := c.PostForm("unit"); len(unit) > 0 && settings.Unit != unit {
+		settings.Unit = unit
+		changed = true
 	}
 
 	if changed {
-		if err := s.svc.UpdateSettings(c, settings); err != nil {
+		if err := s.svc.UpdateSettings(c, *settings); err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
 			return
