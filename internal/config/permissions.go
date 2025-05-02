@@ -1,4 +1,4 @@
-package macaroon
+package config
 
 import (
 	"fmt"
@@ -11,9 +11,17 @@ const (
 	EntityWallet       = "wallet"
 	EntityService      = "service"
 	EntityNotification = "notification"
+
+	userMacaroonFile = "user.macaroon"
 )
 
 const ActionAccess = "access"
+
+var (
+	macFiles = map[string][]bakery.Op{
+		userMacaroonFile: UserPermissions(),
+	}
+)
 
 // UserPermissions grants access to all protected methods for all entities
 func UserPermissions() []bakery.Op {

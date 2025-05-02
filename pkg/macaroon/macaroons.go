@@ -22,12 +22,6 @@ const (
 	userMacaroonFile = "user.macaroon"
 )
 
-var (
-	macFiles = map[string][]bakery.Op{
-		userMacaroonFile: UserPermissions(),
-	}
-)
-
 type Service interface {
 	Unlock(ctx context.Context, password string) error
 	ChangePassword(ctx context.Context, oldPassword, newPassword string) error
@@ -35,7 +29,9 @@ type Service interface {
 	Auth(ctx context.Context, grpcFullMethodName string) error
 }
 
-func NewService(datadir string) (Service, error) {
+func NewService(
+	datadir string, macFiles, whitelistedMethods, allMethods map[string][]bakery.Op,
+) (Service, error) {
 	macDatadir := filepath.Join(datadir, macaroonsFolder)
 	if err := makeDirectoryIfNotExists(macDatadir); err != nil {
 		return nil, err
@@ -63,10 +59,13 @@ func NewService(datadir string) (Service, error) {
 	}
 
 	return &macaroonSvc{
-		datadir:      macDatadir,
-		svc:          svc,
-		unlockedMtx:  &sync.RWMutex{},
-		generatedMtx: &sync.RWMutex{},
+		datadir:            macDatadir,
+		svc:                svc,
+		unlockedMtx:        &sync.RWMutex{},
+		generatedMtx:       &sync.RWMutex{},
+		macFiles:           macFiles,
+		whitelistedMethods: whitelistedMethods,
+		allMethods:         allMethods,
 	}, nil
 }
 
@@ -80,6 +79,10 @@ type macaroonSvc struct {
 
 	generated    bool
 	generatedMtx *sync.RWMutex
+
+	macFiles           map[string][]bakery.Op
+	whitelistedMethods map[string][]bakery.Op
+	allMethods         map[string][]bakery.Op
 }
 
 func (m *macaroonSvc) Unlock(_ context.Context, password string) error {
@@ -123,7 +126,7 @@ func (m *macaroonSvc) Generate(ctx context.Context) error {
 		return nil
 	}
 
-	for macFilename, macPermissions := range macFiles {
+	for macFilename, macPermissions := range m.macFiles {
 		mktMacBytes, err := m.svc.BakeMacaroon(ctx, macPermissions)
 		if err != nil {
 			return err
@@ -144,11 +147,11 @@ func (m *macaroonSvc) Generate(ctx context.Context) error {
 }
 
 func (m *macaroonSvc) Auth(ctx context.Context, grpcFullMethodName string) error {
-	if _, ok := WhitelistedByMethod()[grpcFullMethodName]; ok {
+	if _, ok := m.whitelistedMethods[grpcFullMethodName]; ok {
 		return nil
 	}
 
-	uriPermissions, ok := AllPermissionsByMethod()[grpcFullMethodName]
+	uriPermissions, ok := m.allMethods[grpcFullMethodName]
 	if !ok {
 		return fmt.Errorf("%s: unknown permissions required for method", grpcFullMethodName)
 	}
