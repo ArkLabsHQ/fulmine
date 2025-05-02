@@ -32,41 +32,87 @@ func (s *service) getBalanceApi(c *gin.Context) {
 }
 
 func (s *service) updateSettingsApi(c *gin.Context) {
+	changed := false
 	settings := domain.Settings{}
-	if apiroot := c.PostForm("apiroot"); len(apiroot) > 0 {
-		settings.ApiRoot = apiroot
+
+	if apiroot := c.PostForm("apiroot"); settings.ApiRoot != apiroot {
+		if len(apiroot) > 0 {
+			settings.ApiRoot = apiroot
+			changed = true
+		} else {
+			toast := components.Toast("Invalid API Root URL", true)
+			toastHandler(toast, c)
+			return
+		}
 	}
 
-	if currency := c.PostForm("currency"); len(currency) > 0 {
-		settings.Currency = currency
+	if currency := c.PostForm("currency"); settings.Currency != currency {
+		if len(currency) > 0 {
+			settings.Currency = currency
+			changed = true
+		} else {
+			toast := components.Toast("Invalid Currency", true)
+			toastHandler(toast, c)
+			return
+		}
 	}
 
-	if eventServer := c.PostForm("eventserver"); len(eventServer) > 0 {
-		settings.EventServer = eventServer
+	if eventServer := c.PostForm("eventserver"); settings.EventServer != eventServer {
+		if len(eventServer) > 0 {
+			settings.EventServer = eventServer
+			changed = true
+		} else {
+			toast := components.Toast("Invalid Event Server URL", true)
+			toastHandler(toast, c)
+			return
+		}
 	}
 
-	if fullNode := c.PostForm("fullnode"); len(fullNode) > 0 {
-		settings.FullNode = fullNode
+	if fullNode := c.PostForm("fullnode"); settings.FullNode != fullNode {
+		if len(fullNode) > 0 {
+			settings.FullNode = fullNode
+			changed = true
+		} else {
+			toast := components.Toast("Invalid Full Node URL", true)
+			toastHandler(toast, c)
+			return
+		}
 	}
 
 	// TODO lnconnect
 
-	if lnURL := c.PostForm("lnurl"); utils.IsValidLnUrl(lnURL) {
-		settings.LnUrl = lnURL
+	if lnURL := c.PostForm("lnurl"); settings.LnUrl != lnURL {
+		if utils.IsValidLnUrl(lnURL) {
+			settings.LnUrl = lnURL
+			changed = true
+		} else {
+			toast := components.Toast("Invalid LNURL", true)
+			toastHandler(toast, c)
+			return
+		}
 	}
 
-	if unit := c.PostForm("unit"); len(unit) > 0 {
-		settings.Unit = unit
+	if unit := c.PostForm("unit"); settings.Unit != unit {
+		if len(unit) > 0 {
+			settings.Unit = unit
+			changed = true
+		} else {
+			toast := components.Toast("Invalid Unit", true)
+			toastHandler(toast, c)
+			return
+		}
 	}
 
-	if err := s.svc.UpdateSettings(c, settings); err != nil {
-		toast := components.Toast(err.Error(), true)
+	if changed {
+		if err := s.svc.UpdateSettings(c, settings); err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+		toast := components.Toast("Saved")
 		toastHandler(toast, c)
-		return
 	}
 
-	toast := components.Toast("Saved")
-	toastHandler(toast, c)
 }
 
 func (s *service) connectLNDApi(c *gin.Context) {
