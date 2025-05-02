@@ -347,7 +347,7 @@ func (s *service) sendPreview(c *gin.Context) {
 	if utils.IsValidArkNote(dest) {
 		sats := utils.SatsFromNote(dest)
 
-		if int64(sats) > config.VtxoMaxAmount {
+		if config.VtxoMaxAmount != -1 && int64(sats) > config.VtxoMaxAmount {
 			toast := components.Toast("Amount too high", true)
 			toastHandler(toast, c)
 			return
@@ -369,8 +369,8 @@ func (s *service) sendPreview(c *gin.Context) {
 	}
 
 	if len(offchainAddr) > 0 {
-		if int64(total) > config.VtxoMaxAmount {
-			if len(onchainAddr) > 0 && int64(total) <= config.UtxoMaxAmount {
+		if config.VtxoMaxAmount != -1 && int64(total) > config.VtxoMaxAmount {
+			if len(onchainAddr) > 0 && (config.UtxoMaxAmount == -1 || int64(total) <= config.UtxoMaxAmount) {
 				addr = onchainAddr
 			} else {
 				toast := components.Toast("Amount too high", true)
@@ -381,7 +381,7 @@ func (s *service) sendPreview(c *gin.Context) {
 			addr = offchainAddr
 		}
 	} else if len(onchainAddr) > 0 {
-		if int64(total) > config.UtxoMaxAmount {
+		if config.UtxoMaxAmount != -1 && int64(total) > config.UtxoMaxAmount {
 			toast := components.Toast("Amount too high", true)
 			toastHandler(toast, c)
 			return
@@ -641,7 +641,7 @@ func (s *service) swapPreview(c *gin.Context) {
 	feeAmount := 0 // TODO
 	total := sats + feeAmount
 
-	if int64(total) > config.VtxoMaxAmount {
+	if config.VtxoMaxAmount != -1 && int64(total) > config.VtxoMaxAmount {
 		toast := components.Toast("Amount too high", true)
 		toastHandler(toast, c)
 		return
