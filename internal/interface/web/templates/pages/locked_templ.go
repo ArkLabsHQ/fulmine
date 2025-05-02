@@ -65,7 +65,7 @@ func Unlock() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span></p></div><p class=\"text-right mt-2 cursor-pointer\" hx-post=\"/helpers/forgot\">Forgot password?</p></div></div><button class=\"white\" hx-on:click=\"disableButton(this)\" type=\"submit\">Unlock</button></div></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span></p></div><p class=\"text-right mt-2 cursor-pointer\" hx-post=\"/helpers/forgot\">Forgot password?</p></div></div><button class=\"white\" hx-on:click=\"disableButton(this)\" type=\"submit\">Unlock</button></div></div></form><script>\n    const button = document.querySelector('button[type=\"submit\"]')\n    const input = document.querySelector('input[name=\"password\"]')\n    if (button && input) {\n      button.disabled = !input.value.trim()\n      input.addEventListener('input', () => {\n        button.disabled = !input.value.trim()\n      });\n    }\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
