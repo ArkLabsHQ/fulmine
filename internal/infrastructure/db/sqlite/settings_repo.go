@@ -3,6 +3,7 @@ package sqlitedb
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
@@ -25,7 +26,7 @@ type settingsRepository struct {
 
 func NewSettingsRepository(db *sql.DB) (domain.SettingsRepository, error) {
 	if db == nil {
-		return nil, fmt.Errorf("cannot open settings repository: db is nil")
+		return nil, fmt.Errorf("missing db")
 	}
 	return &settingsRepository{db: db, querier: queries.New(db)}, nil
 }
@@ -39,22 +40,14 @@ func (s *settingsRepository) AddSettings(ctx context.Context, settings domain.Se
 	if err == nil {
 		return fmt.Errorf("settings already exist")
 	}
-	var esplora sql.NullString
-	if settings.EsploraUrl != "" {
-		esplora = sql.NullString{String: settings.EsploraUrl, Valid: true}
-	}
-	var lnurl sql.NullString
-	if settings.LnUrl != "" {
-		lnurl = sql.NullString{String: settings.LnUrl, Valid: true}
-	}
 	return s.querier.UpsertSettings(ctx, queries.UpsertSettingsParams{
 		ApiRoot:     settings.ApiRoot,
 		ServerUrl:   settings.ServerUrl,
-		EsploraUrl:  esplora,
+		EsploraUrl:  sql.NullString{String: settings.EsploraUrl, Valid: true},
 		Currency:    settings.Currency,
 		EventServer: settings.EventServer,
 		FullNode:    settings.FullNode,
-		LnUrl:       lnurl,
+		LnUrl:       sql.NullString{String: settings.LnUrl, Valid: true},
 		Unit:        settings.Unit,
 	})
 }
@@ -62,52 +55,51 @@ func (s *settingsRepository) AddSettings(ctx context.Context, settings domain.Se
 func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain.Settings) error {
 	existing, err := s.GetSettings(ctx)
 	if err != nil {
-		return fmt.Errorf("settings not found")
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("settings not found")
+		}
+		return err
 	}
 
-	merged := *existing
 	if settings.ApiRoot != "" {
-		merged.ApiRoot = settings.ApiRoot
+		existing.ApiRoot = settings.ApiRoot
 	}
 	if settings.ServerUrl != "" {
-		merged.ServerUrl = settings.ServerUrl
+		existing.ServerUrl = settings.ServerUrl
 	}
 	if settings.EsploraUrl != "" {
-		merged.EsploraUrl = settings.EsploraUrl
+		existing.EsploraUrl = settings.EsploraUrl
 	}
 	if settings.Currency != "" {
-		merged.Currency = settings.Currency
+		existing.Currency = settings.Currency
 	}
 	if settings.EventServer != "" {
-		merged.EventServer = settings.EventServer
+		existing.EventServer = settings.EventServer
 	}
 	if settings.FullNode != "" {
-		merged.FullNode = settings.FullNode
+		existing.FullNode = settings.FullNode
 	}
 	if settings.LnUrl != "" {
-		merged.LnUrl = settings.LnUrl
+		existing.LnUrl = settings.LnUrl
 	}
 	if settings.Unit != "" {
-		merged.Unit = settings.Unit
+		existing.Unit = settings.Unit
 	}
-
-	var esplora sql.NullString
-	if merged.EsploraUrl != "" {
-		esplora = sql.NullString{String: merged.EsploraUrl, Valid: true}
+	if settings.EsploraUrl != "" {
+		existing.EsploraUrl = settings.EsploraUrl
 	}
-	var lnurl sql.NullString
-	if merged.LnUrl != "" {
-		lnurl = sql.NullString{String: merged.LnUrl, Valid: true}
+	if settings.LnUrl != "" {
+		existing.LnUrl = settings.LnUrl
 	}
 	return s.querier.UpsertSettings(ctx, queries.UpsertSettingsParams{
-		ApiRoot:     merged.ApiRoot,
-		ServerUrl:   merged.ServerUrl,
-		EsploraUrl:  esplora,
-		Currency:    merged.Currency,
-		EventServer: merged.EventServer,
-		FullNode:    merged.FullNode,
-		LnUrl:       lnurl,
-		Unit:        merged.Unit,
+		ApiRoot:     existing.ApiRoot,
+		ServerUrl:   existing.ServerUrl,
+		EsploraUrl:  sql.NullString{String: existing.EsploraUrl, Valid: true},
+		Currency:    existing.Currency,
+		EventServer: existing.EventServer,
+		FullNode:    existing.FullNode,
+		LnUrl:       sql.NullString{String: existing.LnUrl, Valid: true},
+		Unit:        existing.Unit,
 	})
 }
 
@@ -116,21 +108,16 @@ func (s *settingsRepository) GetSettings(ctx context.Context) (*domain.Settings,
 	if err != nil {
 		return nil, err
 	}
-	settings := &domain.Settings{
+	return &domain.Settings{
 		ApiRoot:     row.ApiRoot,
 		ServerUrl:   row.ServerUrl,
 		Currency:    row.Currency,
 		EventServer: row.EventServer,
 		FullNode:    row.FullNode,
 		Unit:        row.Unit,
-	}
-	if row.EsploraUrl.Valid {
-		settings.EsploraUrl = row.EsploraUrl.String
-	}
-	if row.LnUrl.Valid {
-		settings.LnUrl = row.LnUrl.String
-	}
-	return settings, nil
+		EsploraUrl:  row.EsploraUrl.String,
+		LnUrl:       row.LnUrl.String,
+	}, nil
 }
 
 func (s *settingsRepository) CleanSettings(ctx context.Context) error {
@@ -138,7 +125,12 @@ func (s *settingsRepository) CleanSettings(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("settings not found")
 	}
-	return s.querier.DeleteSettings(ctx)
+	if err := s.querier.DeleteSettings(ctx); err != nil {
+		return err
+	}
+	// nolint:all
+	s.db.ExecContext(ctx, "VACUUM")
+	return nil
 }
 
 func (s *settingsRepository) Close() {
