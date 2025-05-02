@@ -69,9 +69,9 @@ var (
 	defaultLogLevel         = 4
 	defaultArkServer        = ""
 	defaultDisableTelemetry = false
-	supportedDbType         = map[string]string{
-		sqliteDb: "",
-		badgerDb: "",
+	supportedDbType         = map[string]struct{}{
+		sqliteDb: struct{}{},
+		badgerDb: struct{}{},
 	}
 )
 
