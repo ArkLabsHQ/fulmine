@@ -15,8 +15,14 @@ import (
 	"github.com/spf13/viper"
 )
 
+const (
+	sqliteDb = "sqlite"
+	badgerDb = "badger"
+)
+
 type Config struct {
 	Datadir          string
+	DbType           string
 	GRPCPort         uint32
 	HTTPPort         uint32
 	WithTLS          bool
@@ -36,6 +42,7 @@ type Config struct {
 
 var (
 	Datadir          = "DATADIR"
+	DbType           = "DB_TYPE"
 	GRPCPort         = "GRPC_PORT"
 	HTTPPort         = "HTTP_PORT"
 	WithTLS          = "WITH_TLS"
@@ -55,12 +62,17 @@ var (
 	UnlockerPassword = "UNLOCKER_PASSWORD"
 
 	defaultDatadir          = appDatadir("fulmine", false)
+	dbType                  = sqliteDb
 	defaultGRPCPort         = 7000
 	defaultHTTPPort         = 7001
 	defaultWithTLS          = false
 	defaultLogLevel         = 4
 	defaultArkServer        = ""
 	defaultDisableTelemetry = false
+	supportedDbType         = map[string]struct{}{
+		sqliteDb: struct{}{},
+		badgerDb: struct{}{},
+	}
 )
 
 func LoadConfig() (*Config, error) {
@@ -74,13 +86,19 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(LogLevel, defaultLogLevel)
 	viper.SetDefault(ArkServer, defaultArkServer)
 	viper.SetDefault(DisableTelemetry, defaultDisableTelemetry)
+	viper.SetDefault(DbType, dbType)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
 	}
 
+	if _, ok := supportedDbType[viper.GetString(DbType)]; !ok {
+		return nil, fmt.Errorf("unsupported db type: %s", viper.GetString(DbType))
+	}
+
 	config := &Config{
 		Datadir:          viper.GetString(Datadir),
+		DbType:           viper.GetString(DbType),
 		GRPCPort:         viper.GetUint32(GRPCPort),
 		HTTPPort:         viper.GetUint32(HTTPPort),
 		WithTLS:          viper.GetBool(WithTLS),
