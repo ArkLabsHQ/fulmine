@@ -110,10 +110,10 @@ templ SwapBodyContent(currentBalance, nodeBalance string) {
 			const balance = parseInt(document.querySelector('#balance').value)
 			const sats = parseInt(document.querySelector('#sats').value)
 			button.disabled = amount.length === 0 || sats > balance
-			button.innerText = sats > balance ? 'Not enough funds' : 'Preview send'
+			button.innerText = sats > balance ? 'Not enough funds' : 'Preview swap'
 		}
 		document.addEventListener('htmx:load', () => {
-		  document.querySelector('#amount').addEventListener('change', canSwap)
+		  document.querySelector('#amount').addEventListener('keyup', canSwap)
 		})
 	</script>
 }
