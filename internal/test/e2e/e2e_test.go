@@ -4,18 +4,12 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"os"
 	"testing"
 
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ripemd160"
 )
-
-func TestMain(m *testing.M) {
-	os.Setenv("FULMINE_NO_MACAROONS", "true")
-	os.Exit(m.Run())
-}
 
 func TestOnboard(t *testing.T) {
 	onboardAddress, err := getOnboardAddress(1000)
