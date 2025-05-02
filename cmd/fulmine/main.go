@@ -91,8 +91,8 @@ func main() {
 	}
 
 	dbSvc, err := db.NewService(db.ServiceConfig{
-		DbType:   "badger",
-		DbConfig: []any{cfg.Datadir, log.New()},
+		DbType:   cfg.DbType,
+		DbConfig: []any{cfg.Datadir},
 	})
 	if err != nil {
 		log.WithError(err).Fatal("failed to open db")

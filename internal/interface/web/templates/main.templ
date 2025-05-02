@@ -272,6 +272,8 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 			})
 
 			document.addEventListener('htmx:load', () => {
+				updateFiatValues()
+				updateCryptoValues()
 				hideCopyButtonsIfNoClipboard()
 				hideScanButtonsIfNoCameraAvailable()
 			})

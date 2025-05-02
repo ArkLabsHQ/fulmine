@@ -70,6 +70,7 @@ var (
 )
 
 func TestRepoManager(t *testing.T) {
+	dbDir := t.TempDir()
 	tests := []struct {
 		name   string
 		config db.ServiceConfig
@@ -79,6 +80,13 @@ func TestRepoManager(t *testing.T) {
 			config: db.ServiceConfig{
 				DbType:   "badger",
 				DbConfig: []any{"", nil},
+			},
+		},
+		{
+			name: "sqlite",
+			config: db.ServiceConfig{
+				DbType:   "sqlite",
+				DbConfig: []any{dbDir},
 			},
 		},
 	}

@@ -104,3 +104,36 @@ down-test-env:
 integrationtest:
 	@echo "Running e2e tests..."
 	@go test -v -count=1 -race -p=1 ./internal/test/e2e/...
+
+# --- SQLite and SQLC commands ---
+
+# Path to the database directory (change as needed)
+DB_PATH?=./data
+
+## mig_file: creates SQLite migration file (eg. make FILE=init mig_file)
+mig_file:
+	@migrate create -ext sql -dir ./internal/infrastructure/db/sqlite/migration/ $(FILE)
+
+## mig_up: apply up migration
+mig_up:
+	@echo "migration up..."
+	@migrate -database "sqlite://$(DB_PATH)/sqlite.db" -path ./internal/infrastructure/db/sqlite/migration/ up
+
+## mig_down: apply down migration
+mig_down:
+	@echo "migration down..."
+	@migrate -database "sqlite://$(DB_PATH)/sqlite.db" -path ./internal/infrastructure/db/sqlite/migration/ down
+
+## mig_down_yes: apply down migration without prompt
+mig_down_yes:
+	@echo "migration down..."
+	@"yes" | migrate -database "sqlite://$(DB_PATH)/sqlite.db" -path ./internal/infrastructure/db/sqlite/migration/ down
+
+## vet_db: check if mig_up and mig_down are ok
+vet_db: mig_up mig_down_yes
+	@echo "vet db migration scripts..."
+
+## sqlc: generate Go code from SQLC
+sqlc:
+	@echo "gen sql..."
+	cd ./internal/infrastructure/db/sqlite; sqlc generate
