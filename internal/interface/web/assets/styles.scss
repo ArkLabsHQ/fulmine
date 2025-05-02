@@ -144,26 +144,26 @@ button,
   &.small {
     padding: 0.25rem 0.5rem;
   }
-  &:hover {
+  &:hover:not(:disabled) {
     background-color: #fbfbfb1a;
     border-color: #fbfbfb4d;
   }
   &.orange {
     background-color: #fc8d4e;
-    &:hover {
+    &:hover:not(:disabled) {
       background-color: #fc8d4ee0;
     }
   }
   &.red {
     background-color: #e04d4d;
-    &:hover {
+    &:hover:not(:disabled) {
       background-color: #e04d4de0;
     }
   }
   &.white {
     background-color: #ffffff;
     color: #000000;
-    &:hover {
+    &:hover:not(:disabled) {
       background-color: #ffffffe0;
     }
   }
@@ -173,7 +173,7 @@ button,
 .dots .button {
   background-color: transparent;
   border: none;
-  &:hover {
+  &:hover:not(:disabled) {
     background-color: transparent;
     border: none;
   }
