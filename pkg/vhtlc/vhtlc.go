@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/ark-network/ark/common"
-	"github.com/ark-network/ark/common/bitcointree"
 	"github.com/ark-network/ark/common/tree"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -99,7 +98,7 @@ func (o Opts) unilateralRefundWithoutReceiverClosure() *tree.CSVMultisigClosure 
 }
 
 type VHTLCScript struct {
-	bitcointree.TapscriptsVtxoScript
+	tree.TapscriptsVtxoScript
 
 	Sender                                 *secp256k1.PublicKey
 	Receiver                               *secp256k1.PublicKey
@@ -133,18 +132,16 @@ func NewVHTLCScript(opts Opts) (*VHTLCScript, error) {
 	unilateralRefundWithoutReceiverClosure := opts.unilateralRefundWithoutReceiverClosure()
 
 	return &VHTLCScript{
-		TapscriptsVtxoScript: bitcointree.TapscriptsVtxoScript{
-			TapscriptsVtxoScript: tree.TapscriptsVtxoScript{
-				Closures: []tree.Closure{
-					// Collaborative paths
-					claimClosure,
-					refundClosure,
-					refundWithoutReceiverClosure,
-					// Exit paths
-					unilateralClaimClosure,
-					unilateralRefundClosure,
-					unilateralRefundWithoutReceiverClosure,
-				},
+		TapscriptsVtxoScript: tree.TapscriptsVtxoScript{
+			Closures: []tree.Closure{
+				// Collaborative paths
+				claimClosure,
+				refundClosure,
+				refundWithoutReceiverClosure,
+				// Exit paths
+				unilateralClaimClosure,
+				unilateralRefundClosure,
+				unilateralRefundWithoutReceiverClosure,
 			},
 		},
 		Sender:                                 opts.Sender,
