@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
+	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
 	"net"
 	"net/http"
-
-	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
@@ -37,7 +37,11 @@ type service struct {
 }
 
 func NewService(
-	cfg Config, appSvc *application.Service, unlockerSvc ports.Unlocker, sentryEnabled bool,
+	cfg Config,
+	appSvc *application.Service,
+	unlockerSvc ports.Unlocker,
+	sentryEnabled bool,
+	macaroonSvc macaroon.Service,
 ) (*service, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %s", err)
@@ -47,6 +51,8 @@ func NewService(
 	feStopCh := make(chan struct{}, 1)
 
 	grpcConfig := []grpc.ServerOption{
+		interceptors.MacaroonAuthInterceptor(macaroonSvc),
+		interceptors.MacaroonStreamAuthInterceptor(macaroonSvc),
 		interceptors.UnaryInterceptor(sentryEnabled),
 		interceptors.StreamInterceptor(sentryEnabled),
 	}
@@ -135,7 +141,13 @@ func NewService(
 	}
 
 	return &service{
-		cfg, appSvc, httpServer, grpcServer, unlockerSvc, feStopCh, appStopCh,
+		cfg,
+		appSvc,
+		httpServer,
+		grpcServer,
+		unlockerSvc,
+		appStopCh,
+		feStopCh,
 	}, nil
 }
 
