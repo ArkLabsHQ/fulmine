@@ -94,7 +94,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}, sentryEnabled
 	svc.GET("/swap", svc.swap)
 	svc.GET("/swap/:active", svc.swapActive)
 	svc.GET("/tx/:txid", svc.getTx)
-	svc.GET("/txs", svc.getTxs)
+	svc.GET("/txs/:lastId", svc.getTxs)
 	svc.GET("/unlock", svc.unlock)
 	svc.GET("/welcome", svc.welcome)
 
