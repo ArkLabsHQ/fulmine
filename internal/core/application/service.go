@@ -16,7 +16,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/ark-network/ark/common"
-	"github.com/ark-network/ark/common/bitcointree"
 	"github.com/ark-network/ark/common/tree"
 	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	"github.com/ark-network/ark/pkg/client-sdk/client"
@@ -97,7 +96,7 @@ func NewService(
 	lnSvc ports.LnService,
 	esploraUrl, boltzUrl, boltzWSUrl string,
 ) (*Service, error) {
-	if arkClient, err := arksdk.LoadCovenantlessClient(storeSvc); err == nil {
+	if arkClient, err := arksdk.LoadArkClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
 		if err != nil {
 			return nil, err
@@ -136,7 +135,7 @@ func NewService(
 			return nil, err
 		}
 	}
-	arkClient, err := arksdk.NewCovenantlessClient(storeSvc)
+	arkClient, err := arksdk.NewArkClient(storeSvc)
 	if err != nil {
 		// nolint:all
 		settingsRepo.CleanSettings(ctx)
@@ -728,7 +727,7 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		return "", err
 	}
 
-	redeemTx, err := bitcointree.BuildRedeemTx(
+	redeemTx, err := tree.BuildRedeemTx(
 		[]common.VtxoInput{
 			{
 				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
@@ -757,7 +756,7 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		return "", err
 	}
 
-	if err := bitcointree.AddConditionWitness(0, redeemPtx, wire.TxWitness{preimage}); err != nil {
+	if err := tree.AddConditionWitness(0, redeemPtx, wire.TxWitness{preimage}); err != nil {
 		return "", err
 	}
 
@@ -850,7 +849,7 @@ func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string, 
 		return "", err
 	}
 
-	refundTx, err := bitcointree.BuildRedeemTx(
+	refundTx, err := tree.BuildRedeemTx(
 		[]common.VtxoInput{
 			{
 				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
