@@ -33,7 +33,7 @@ func Unlock() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form hx-post=\"/helpers/unlock\"><div class=\"bg-radial-gradient h-screen fullscreen\"><div class=\"flex flex-col justify-between h-screen justify-between md:h-[600px] md:gap-10 w-80 m-auto p-3\"><div><div class=\"flex flex-col gap-12 items-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form hx-post=\"/helpers/unlock\"><div class=\"bg-radial-gradient h-full fullscreen\"><div class=\"flex flex-col justify-between h-screen justify-between md:h-[600px] md:gap-10 w-80 m-auto p-3\"><div><div class=\"flex flex-col gap-12 items-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
