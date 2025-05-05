@@ -30,7 +30,7 @@ var (
 
 const (
 	configStoreType  = types.FileStore
-	appDataStoreType = types.KVStore
+	appDataStoreType = types.SQLStore
 )
 
 func main() {

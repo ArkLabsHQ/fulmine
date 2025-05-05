@@ -1,25 +1,25 @@
 package db
 
 import (
-	"fmt"
-	sqlitedb "github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite"
-	"strings"
-
 	"embed"
 	"errors"
+	"fmt"
+	"path/filepath"
+	"strings"
+
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	badgerdb "github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/badger"
+	sqlitedb "github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/golang-migrate/migrate/v4"
 	sqlitemigrate "github.com/golang-migrate/migrate/v4/database/sqlite"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
-	"path/filepath"
 )
 
 const (
-	sqliteDbFile = "sqlite.db"
+	sqliteDbFile = "fulmine.db"
 )
 
 var (
