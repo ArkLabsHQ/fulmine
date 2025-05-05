@@ -75,6 +75,8 @@ The following environment variables can be configured:
 | `FULMINE_UNLOCKER_TYPE` | Type of unlocker to use for auto-unlock (`file` or `env`) | Not set by default (no auto-unlock) |
 | `FULMINE_UNLOCKER_FILE_PATH` | Path to the file containing the wallet password (when using `file` unlocker) | Not set by default |
 | `FULMINE_UNLOCKER_PASSWORD` | Password string to use for unlocking (when using `env` unlocker) | Not set by default |
+| `FULMINE_BOLTZ_URL` | URL of the custom Boltz backend to connect to for swaps | Not set by default |
+| `FULMINE_BOLTZ_WS_URL` | URL of the custom Boltz WebSocket backend to connect to for swap events | Not set by default |
 
 When using Docker, you can set these variables using the `-e` flag:
 
@@ -168,8 +170,7 @@ fulmine provides three main interfaces:
 
    ```sh
    curl -X POST http://localhost:7001/api/v1/wallet/lock \
-        -H "Content-Type: application/json" \
-        -d '{"password": <strong password>}'
+        -H "Content-Type: application/json"
    ```
 
 5. Get Wallet Status
