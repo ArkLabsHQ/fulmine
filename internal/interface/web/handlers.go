@@ -655,27 +655,43 @@ func (s *service) swapHistory(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
 	}
-
-	swap1 := types.Swap{
-		Amount: "1000",
-		Date:   "May 25, 2025",
-		Hour:   "9:45",
-		Id:     "9283912",
-		Kind:   "reverse",
-	}
-
-	swap2 := types.Swap{
-		Amount: "2100",
-		Date:   "May 27, 2025",
-		Hour:   "16:49",
-		Id:     "9283931",
-		Kind:   "submarine",
-	}
-
-	swapHistory := []types.Swap{swap1, swap2}
-
-	bodyContent := pages.SwapHistoryBodyContent(swapHistory)
+	bodyContent := pages.SwapHistoryBodyContent()
 	s.pageViewHandler(bodyContent, c)
+}
+
+func (s *service) getSwaps(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	swapHistory := s.svc.GetSwapHistory(c)
+
+	lastId := c.Param("lastId")
+	loadMore := false
+	txsPerPage := 2
+
+	if lastId != "0" {
+		for i, swap := range swapHistory {
+			if swap.Id == lastId {
+				firstIndex := i + 1
+				if firstIndex+txsPerPage > len(swapHistory) {
+					swapHistory = swapHistory[i+1:]
+				} else {
+					swapHistory = swapHistory[i+1 : i+1+txsPerPage]
+					loadMore = true
+				}
+				break
+			}
+		}
+	}
+
+	if len(swapHistory) > txsPerPage {
+		swapHistory = swapHistory[:txsPerPage]
+		loadMore = true
+	}
+
+	bodyContent := pages.SwapHistoryListContent(swapHistory, loadMore)
+	partialViewHandler(bodyContent, c)
 }
 
 func (s *service) getTx(c *gin.Context) {

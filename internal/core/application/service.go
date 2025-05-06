@@ -12,6 +12,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/cln"
+	webtypes "github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
@@ -1501,4 +1502,50 @@ func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
 	}
 
 	return pk, nil
+}
+
+func (s *Service) GetSwapHistory(ctx context.Context) []webtypes.Swap {
+	swap1 := webtypes.Swap{
+		Amount: "1000",
+		Date:   "May 25, 2025",
+		Hour:   "9:45",
+		Id:     "9283912",
+		Kind:   "reverse",
+	}
+
+	swap2 := webtypes.Swap{
+		Amount: "2100",
+		Date:   "May 27, 2025",
+		Hour:   "16:49",
+		Id:     "9283931",
+		Kind:   "submarine",
+	}
+
+	swap3 := webtypes.Swap{
+		Amount: "3300",
+		Date:   "May 29, 2025",
+		Hour:   "9:45",
+		Id:     "9283943",
+		Kind:   "reverse",
+	}
+
+	swap4 := webtypes.Swap{
+		Amount: "4200",
+		Date:   "May 30, 2025",
+		Hour:   "16:49",
+		Id:     "9283957",
+		Kind:   "submarine",
+	}
+
+	swap5 := webtypes.Swap{
+		Amount: "4200",
+		Date:   "May 31, 2025",
+		Hour:   "16:49",
+		Id:     "9283999",
+		Kind:   "submarine",
+	}
+
+	swapHistory := []webtypes.Swap{swap1, swap2, swap3, swap4, swap5}
+
+	return swapHistory
 }
