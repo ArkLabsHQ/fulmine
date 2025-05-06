@@ -716,11 +716,37 @@ func (s *service) getTxs(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
 	}
+
+	lastId := c.Param("lastId")
+	loadMore := false
+	txsPerPage := 10
+
 	txHistory, err := s.getTxHistory(c)
 	if err != nil {
 		log.WithError(err).Warn("failed to get tx history")
 	}
-	bodyContent := components.HistoryBodyContent(txHistory)
+
+	if lastId != "0" {
+		for i, tx := range txHistory {
+			if tx.Txid == lastId {
+				firstIndex := i + 1
+				if firstIndex+txsPerPage > len(txHistory) {
+					txHistory = txHistory[i+1:]
+				} else {
+					txHistory = txHistory[i+1 : i+1+txsPerPage]
+					loadMore = true
+				}
+				break
+			}
+		}
+	}
+
+	if len(txHistory) > txsPerPage {
+		txHistory = txHistory[:txsPerPage]
+		loadMore = true
+	}
+
+	bodyContent := components.HistoryBodyContent(txHistory, loadMore)
 	partialViewHandler(bodyContent, c)
 }
 

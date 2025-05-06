@@ -140,12 +140,17 @@ templ HistoryEmpty() {
 	</div>
 }
 
-templ HistoryBodyContent(transactions []types.Transaction) {
+templ HistoryBodyContent(transactions []types.Transaction, loadMore bool) {
 	if len(transactions) == 0 {
     @HistoryEmpty()
 	} else {
 	  for _, tx := range transactions {
 	  	@HistoryLine(tx)
 	  }
+		if loadMore {
+			<div class="flex justify-center" hx-get={"/txs/" + transactions[len(transactions)-1].Txid} hx-swap="outerHTML">
+				<p class="cursor-pointer p-3 text-semibold text-sm text-white/50 hover:text-white/80">Load more</p>
+			</div>
+		}
 	}
 }
