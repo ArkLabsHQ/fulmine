@@ -211,16 +211,24 @@ templ SwapHistoryLine(swap types.Swap) {
 	</div>
 }
 
-templ SwapHistoryBodyContent(swaps []types.Swap) {
+templ SwapHistoryBodyContent() {
 	@components.DesktopHeader()
 	@components.Header("Swap history")
+	<div hx-get="/swaps/0" hx-trigger="load" />
+}
+
+templ SwapHistoryListContent(swaps []types.Swap, loadMore bool) {
 	if len(swaps) == 0 {
-    @components.HistoryEmpty()
+		@components.HistoryEmpty()
 	} else {
-		<hr class="border border-1 border-white/10 w-full"/>
-	  for _, swap := range swaps {
-	  	@SwapHistoryLine(swap)
+		for _, swap := range swaps {
 			<hr class="border border-1 border-white/10 w-full"/>
-	  }
+			@SwapHistoryLine(swap)
+		}
+		if loadMore {
+			<div class="flex justify-center" hx-get={"/swaps/" + swaps[len(swaps)-1].Id} hx-swap="outerHTML">
+				<p class="cursor-pointer p-3 text-semibold text-sm text-white/50 hover:text-white/80">Load more</p>
+			</div>
+		}
 	}
 }
