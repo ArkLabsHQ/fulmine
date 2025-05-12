@@ -5,8 +5,8 @@ import (
 )
 
 templ Unlock() {
-  <form hx-post="/helpers/unlock">
-    <div class="bg-radial-gradient h-full fullscreen">
+  <div class="bg-radial-gradient h-full fullscreen">
+    <form hx-post="/helpers/unlock">
       <div class="flex flex-col justify-between h-screen justify-between md:h-[600px] md:gap-10 w-80 m-auto p-3">
         <div>
           <div class="flex flex-col gap-12 items-center">
@@ -34,8 +34,8 @@ templ Unlock() {
           Unlock
         </button>
       </div>
-    </div>
-  </form>
+    </form>
+  </div>
   <script>
     const button = document.querySelector('button[type="submit"]')
     const input = document.querySelector('input[name="password"]')
