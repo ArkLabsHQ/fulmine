@@ -126,6 +126,8 @@ func NewService(
 		}
 
 		return svc, nil
+	} else if !strings.Contains(err.Error(), "not initialized") {
+		return nil, err
 	}
 
 	ctx := context.Background()
