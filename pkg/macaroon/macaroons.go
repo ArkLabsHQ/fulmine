@@ -121,11 +121,6 @@ func (m *macaroonSvc) Generate(ctx context.Context) error {
 		return nil
 	}
 
-	userMacFile := filepath.Join(m.datadir, userMacaroonFile)
-	if pathExists(userMacFile) {
-		return nil
-	}
-
 	for macFilename, macPermissions := range m.macFiles {
 		mktMacBytes, err := m.svc.BakeMacaroon(ctx, macPermissions)
 		if err != nil {
