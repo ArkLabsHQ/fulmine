@@ -18,8 +18,6 @@ const (
 	macaroonsLocation = "fulmine"
 	macaroonsDbFile   = "macaroons.db"
 	macaroonsFolder   = "macaroons"
-
-	userMacaroonFile = "user.macaroon"
 )
 
 type Service interface {
