@@ -48,6 +48,7 @@ func main() {
 			Dsn:              sentryDsn,
 			Environment:      "prod",
 			AttachStacktrace: true,
+			Release:          version,
 		}); err != nil {
 			log.Fatal(err)
 		}
