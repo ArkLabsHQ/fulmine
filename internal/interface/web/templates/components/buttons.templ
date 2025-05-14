@@ -94,6 +94,15 @@ templ viewTxButtonDot(txid, explorerUrl string) {
 	</script>
 }
 
+templ swapHistoryButton(url string) {
+	<p class="flex gap-3 items-center" onclick="handleOpen()">
+		Swap history
+	</p>
+	<script>
+	  const handleOpen = () => redirect({{url}})
+	</script>
+}
+
 // containers
 
 templ dotsButtonContainer(buttons ...templ.Component) {
@@ -240,6 +249,12 @@ templ SettleButtonsAction(txid, explorerUrl string) {
 	@dotsButtonContainer(
 		viewTxButtonDot(txid, explorerUrl),
 	  settleButtonDot(),
+	)
+}
+
+templ SwapHistoryButton() {
+	@dotsButtonContainer(
+		swapHistoryButton("/swapHistory"),
 	)
 }
 

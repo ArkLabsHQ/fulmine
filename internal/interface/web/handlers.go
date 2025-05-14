@@ -550,7 +550,7 @@ func (s *service) swap(c *gin.Context) {
 		return
 	}
 
-	bodyContent := pages.SwapBodyContent(spendableBalance, s.getNodeBalance(c))
+	bodyContent := pages.SwapBodyContent(spendableBalance, s.getNodeBalance(c), s.svc.IsConnectedLN())
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -958,6 +958,6 @@ func (s *service) getHero(c *gin.Context) {
 		log.WithError(err).Warn("failed to get spendable balance")
 	}
 
-	partialContent := components.Hero(spendableBalance, isOnline, s.svc.IsConnectedLN())
+	partialContent := components.Hero(spendableBalance, isOnline)
 	partialViewHandler(partialContent, c)
 }

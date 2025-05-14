@@ -18,7 +18,7 @@ templ HeroBalance(currentBalance string) {
 	</div>
 }
 
-templ Actions(online, connected bool, currentBalance string) {
+templ Actions(online bool, currentBalance string) {
 	if online {
 	  <div class="grid grid-cols-3 gap-4 md:flex md:flex-row">
 	    <button
@@ -39,9 +39,6 @@ templ Actions(online, connected bool, currentBalance string) {
 			<button
 			  class="white flex items-center justify-center text-black px-2 md:px-4 md:w-auto"
 				hx-on:click="redirect('/swap')"
-				if !connected {
-					disabled
-				}
 			>
 				@SwapIcon() Swap
 			</button>
@@ -51,10 +48,10 @@ templ Actions(online, connected bool, currentBalance string) {
 	}
 }
 
-templ Hero(currentBalance string, online, connected bool) {
+templ Hero(currentBalance string, online bool) {
   <div class="bg-radial-gradient rounded-b-lg md:rounded-t-lg p-3 mb-10">
 	  @HeroHeader()
 	  @HeroBalance(currentBalance)
-	  @Actions(online, connected, currentBalance)
+	  @Actions(online, currentBalance)
 	</div>
 }
