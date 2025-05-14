@@ -29,10 +29,16 @@ github.com/angelofallars/htmx-go v0.5.0/go.mod h1:izXk6A+Jllc3vXs1dUvxUJs/jE0wei
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/ark-network/ark/api-spec v0.0.0-20250503125149-cba48925bcc8 h1:wE+gOXNIJZHMiJJJ+I0ZsIt9Vg8wxkB6RjPpu9LJfLU=
 github.com/ark-network/ark/api-spec v0.0.0-20250503125149-cba48925bcc8/go.mod h1:jfPpBtx57k+mPWID40GORe4KtAx+BtwXgfnG6v/NRQI=
+github.com/ark-network/ark/api-spec v0.0.0-20250513154724-709a730c1943 h1:l+feTakywvZNsrMgPtt2D/bGoIpyKNLA1YZXoTI11ek=
+github.com/ark-network/ark/api-spec v0.0.0-20250513154724-709a730c1943/go.mod h1:jfPpBtx57k+mPWID40GORe4KtAx+BtwXgfnG6v/NRQI=
 github.com/ark-network/ark/common v0.0.0-20250503125149-cba48925bcc8 h1:vRBGROmZS9h/vJ+TSMrzXsifHv1BVY4jub7ICQM0FBY=
 github.com/ark-network/ark/common v0.0.0-20250503125149-cba48925bcc8/go.mod h1:A8c6gJaMt6wTDkZCPY8UpQmFkHBpBwg+zb1RD/wbRq4=
+github.com/ark-network/ark/common v0.0.0-20250513154724-709a730c1943 h1:GhyKuykuSlHVT5KVH8Ia4xKXPhYvVPKhQxGR8DMSSDM=
+github.com/ark-network/ark/common v0.0.0-20250513154724-709a730c1943/go.mod h1:A8c6gJaMt6wTDkZCPY8UpQmFkHBpBwg+zb1RD/wbRq4=
 github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250503125149-cba48925bcc8 h1:QHrI2l0Aer729gI7fls5MkWvZs4/1ifGt1ID8QvnWSs=
 github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250503125149-cba48925bcc8/go.mod h1:dzqTQhVIiIeOyjvxR3jyYZ6v1QfwRiwvWCI6GrbePhU=
+github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250513154724-709a730c1943 h1:umpV/GMTv8aB29HzYVNob97u1GD1+FW9eQnFr8O09nA=
+github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250513154724-709a730c1943/go.mod h1:dzqTQhVIiIeOyjvxR3jyYZ6v1QfwRiwvWCI6GrbePhU=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 h1:DklsrG3dyBCFEj5IhUbnKptjxatkF07cF2ak3yi77so=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=
