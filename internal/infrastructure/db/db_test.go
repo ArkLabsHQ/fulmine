@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"testing"
+	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
@@ -67,6 +68,21 @@ var (
 			},
 		}
 	}()
+
+	testSwap = func() domain.Swap {
+		return domain.Swap{
+			Id:          "test_swap_id",
+			Amount:      1000,
+			Timestamp:   time.Now().Unix(),
+			To:          "test_to",
+			From:        "test_from",
+			Status:      domain.SwapPending,
+			Invoice:     "test_invoice",
+			VhtlcOpts:   &testVHTLC,
+			FundingTxId: "funding_tx_id",
+			RedeemTxId:  "redeem_tx_id",
+		}
+	}()
 )
 
 func TestRepoManager(t *testing.T) {
@@ -100,6 +116,7 @@ func TestRepoManager(t *testing.T) {
 			testSettingsRepository(t, svc)
 			testVHTLCRepository(t, svc)
 			testVtxoRolloverRepository(t, svc)
+			testSwapRepository(t, svc)
 		})
 	}
 }
@@ -125,6 +142,14 @@ func testVtxoRolloverRepository(t *testing.T, svc ports.RepoManager) {
 		testAddVtxoRolloverTarget(t, svc.VtxoRollover())
 		testGetAllVtxoRolloverTargets(t, svc.VtxoRollover())
 		testDeleteVtxoRolloverTarget(t, svc.VtxoRollover())
+	})
+}
+
+func testSwapRepository(t *testing.T, svc ports.RepoManager) {
+	t.Run("swap repository", func(t *testing.T) {
+		testAddSwap(t, svc.Swap())
+		testGetAllSwap(t, svc.Swap())
+		testDeleteSwap(t, svc.Swap())
 	})
 }
 
@@ -332,5 +357,71 @@ func testDeleteVtxoRolloverTarget(t *testing.T, repo domain.VtxoRolloverReposito
 		// Try to remove it again, should not error
 		err = repo.DeleteTarget(ctx, testRolloverTarget.Address)
 		require.NoError(t, err)
+	})
+}
+
+func testAddSwap(t *testing.T, repo domain.SwapRepository) {
+	t.Run("add swap", func(t *testing.T) {
+		swap, err := repo.Get(ctx, testSwap.Id)
+		require.Error(t, err)
+		require.Nil(t, swap)
+
+		err = repo.Add(ctx, testSwap)
+		require.NoError(t, err)
+
+		swap, err = repo.Get(ctx, testSwap.Id)
+		require.NoError(t, err)
+		require.NotNil(t, swap)
+		require.Equal(t, *swap, testSwap)
+
+		err = repo.Add(ctx, testSwap)
+		require.Error(t, err)
+	})
+}
+
+func testGetAllSwap(t *testing.T, repo domain.SwapRepository) {
+	t.Run("get all swaps", func(t *testing.T) {
+		swaps, err := repo.GetAll(ctx)
+		require.NoError(t, err)
+		require.Len(t, swaps, 1)
+
+		// Add another swap
+		secondSwap := testSwap
+		secondSwap.Id = "second_swap_id"
+		secondSwapHtlcOpts := *secondSwap.VhtlcOpts
+		secondSwapHtlcOpts.PreimageHash = []byte("second_preimage_hash")
+		secondSwap.VhtlcOpts = &secondSwapHtlcOpts
+		err = repo.Add(ctx, secondSwap)
+		require.NoError(t, err)
+
+		// Get all swaps
+		swaps, err = repo.GetAll(ctx)
+		require.NoError(t, err)
+		require.Len(t, swaps, 2)
+		require.Subset(t, []domain.Swap{testSwap, secondSwap}, swaps)
+	})
+}
+
+func testDeleteSwap(t *testing.T, repo domain.SwapRepository) {
+	t.Run("delete swap", func(t *testing.T) {
+		err := repo.Delete(ctx, "non_existent_id")
+		require.Error(t, err)
+
+		// Delete existing swaps
+		err = repo.Delete(ctx, testSwap.Id)
+		require.NoError(t, err)
+		secondSwap := testSwap
+		secondSwap.Id = "second_swap_id"
+		err = repo.Delete(ctx, secondSwap.Id)
+		require.NoError(t, err)
+
+		// Verify it was deleted
+		opt, err := repo.Get(ctx, testSwap.Id)
+		require.Error(t, err)
+		require.Nil(t, opt)
+
+		opts, err := repo.GetAll(ctx)
+		require.NoError(t, err)
+		require.Empty(t, opts)
 	})
 }

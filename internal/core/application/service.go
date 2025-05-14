@@ -101,10 +101,12 @@ func NewService(
 		if err != nil {
 			return nil, err
 		}
+
 		grpcClient, err := grpcclient.NewClient(data.ServerUrl)
 		if err != nil {
 			return nil, err
 		}
+
 		svc := &Service{
 			BuildInfo:                 buildInfo,
 			ArkClient:                 arkClient,
@@ -137,6 +139,7 @@ func NewService(
 			return nil, err
 		}
 	}
+
 	arkClient, err := arksdk.NewArkClient(storeSvc)
 	if err != nil {
 		// nolint:all
@@ -490,15 +493,16 @@ func (s *Service) GetVHTLC(
 	unilateralClaimDelayParam *common.RelativeLocktime,
 	unilateralRefundDelayParam *common.RelativeLocktime,
 	unilateralRefundWithoutReceiverDelayParam *common.RelativeLocktime,
-) (string, *vhtlc.VHTLCScript, error) {
+	persistToDb bool,
+) (string, *vhtlc.VHTLCScript, *vhtlc.Opts, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 
 	receiverPubkeySet := receiverPubkey != nil
 	senderPubkeySet := senderPubkey != nil
 	if receiverPubkeySet == senderPubkeySet {
-		return "", nil, fmt.Errorf("only one of receiver and sender pubkey must be set")
+		return "", nil, nil, fmt.Errorf("only one of receiver and sender pubkey must be set")
 	}
 	if !receiverPubkeySet {
 		receiverPubkey = s.publicKey
@@ -509,12 +513,12 @@ func (s *Service) GetVHTLC(
 
 	offchainAddr, _, err := s.Receive(ctx)
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 
 	decodedAddr, err := common.DecodeAddress(offchainAddr)
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 
 	// Default values if not provided
@@ -559,12 +563,12 @@ func (s *Service) GetVHTLC(
 	}
 	vtxoScript, err := vhtlc.NewVHTLCScript(opts)
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 
 	tapKey, _, err := vtxoScript.TapTree()
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 
 	addr := &common.Address{
@@ -574,18 +578,20 @@ func (s *Service) GetVHTLC(
 	}
 	encodedAddr, err := addr.Encode()
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 
 	// store the vhtlc options for future use
-	if err := s.dbSvc.VHTLC().Add(ctx, opts); err != nil {
-		return "", nil, err
+	if persistToDb {
+		if err := s.dbSvc.VHTLC().Add(ctx, opts); err != nil {
+			return "", nil, nil, err
+		}
 	}
 
-	return encodedAddr, vtxoScript, nil
+	return encodedAddr, vtxoScript, &opts, nil
 }
 
-func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]client.Vtxo, []vhtlc.Opts, error) {
+func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string, opts *vhtlc.Opts) ([]client.Vtxo, []vhtlc.Opts, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return nil, nil, err
 	}
@@ -593,7 +599,9 @@ func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]c
 	// Get VHTLC options based on filter
 	var vhtlcOpts []vhtlc.Opts
 	vhtlcRepo := s.dbSvc.VHTLC()
-	if preimageHashFilter != "" {
+	if opts != nil {
+		vhtlcOpts = []vhtlc.Opts{*opts}
+	} else if preimageHashFilter != "" {
 		opt, err := vhtlcRepo.Get(ctx, preimageHashFilter)
 		if err != nil {
 			return nil, nil, err
@@ -650,14 +658,14 @@ func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]c
 	return allVtxos, vhtlcOpts, nil
 }
 
-func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, error) {
+func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte, opts *vhtlc.Opts) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
 
 	preimageHash := hex.EncodeToString(btcutil.Hash160(preimage))
 
-	vtxos, vhtlcOpts, err := s.ListVHTLC(ctx, preimageHash)
+	vtxos, vhtlcOpts, err := s.ListVHTLC(ctx, preimageHash, opts)
 	if err != nil {
 		return "", err
 	}
@@ -667,7 +675,6 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 	}
 
 	vtxo := vtxos[0]
-	opts := vhtlcOpts[0]
 
 	vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
 	if err != nil {
@@ -679,7 +686,7 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		Index: vtxo.VOut,
 	}
 
-	vtxoScript, err := vhtlc.NewVHTLCScript(opts)
+	vtxoScript, err := vhtlc.NewVHTLCScript(vhtlcOpts[0])
 	if err != nil {
 		return "", err
 	}
@@ -762,7 +769,7 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		return "", err
 	}
 
-	txid := redeemPtx.UnsignedTx.TxHash().String()
+	reemdemTxId := redeemPtx.UnsignedTx.TxHash().String()
 
 	redeemTx, err = redeemPtx.B64Encode()
 	if err != nil {
@@ -778,15 +785,15 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		return "", err
 	}
 
-	return txid, nil
+	return reemdemTxId, nil
 }
 
-func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string, withReceiver bool) (string, error) {
+func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string, withReceiver bool, opts *vhtlc.Opts) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
 
-	vtxos, vhtlcOpts, err := s.ListVHTLC(ctx, preimageHash)
+	vtxos, vhtlcOpts, err := s.ListVHTLC(ctx, preimageHash, opts)
 	if err != nil {
 		return "", err
 	}
@@ -796,7 +803,6 @@ func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string, 
 	}
 
 	vtxo := vtxos[0]
-	opts := vhtlcOpts[0]
 
 	vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
 	if err != nil {
@@ -808,7 +814,7 @@ func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string, 
 		Index: vtxo.VOut,
 	}
 
-	vtxoScript, err := vhtlc.NewVHTLCScript(opts)
+	vtxoScript, err := vhtlc.NewVHTLCScript(vhtlcOpts[0])
 	if err != nil {
 		return "", err
 	}
@@ -841,7 +847,7 @@ func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string, 
 		return "", err
 	}
 
-	dest, err := txscript.PayToTaprootScript(opts.Sender)
+	dest, err := txscript.PayToTaprootScript(vhtlcOpts[0].Sender)
 	if err != nil {
 		return "", err
 	}
@@ -1003,7 +1009,7 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 	ripe.Write(preimageHash)
 	preimageHashRipemd160 := ripe.Sum(nil)
 
-	vhtlcAddress, _, err := s.GetVHTLC(
+	vhtlcAddress, _, opts, err := s.GetVHTLC(
 		ctx,
 		nil,
 		senderPubkey,
@@ -1012,6 +1018,7 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
 		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
 		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
+		false,
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
@@ -1032,7 +1039,37 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		return "", fmt.Errorf("invalid preimage: %v", err)
 	}
 
-	return s.ClaimVHTLC(ctx, decodedPreimage)
+	txid, err := s.ClaimVHTLC(ctx, decodedPreimage, opts)
+
+	// Create Swap Data To Store
+	swapData := domain.Swap{
+		Id:         swap.Id,
+		Amount:     amount,
+		Timestamp:  time.Now().Unix(),
+		Invoice:    swap.Invoice,
+		RedeemTxId: txid,
+		To:         boltz.CurrencyArk,
+		From:       boltz.CurrencyBtc,
+		VhtlcOpts:  opts,
+	}
+
+	go func(swap domain.Swap, ctx context.Context, err error) {
+		bgCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+
+		if err != nil {
+			swap.Status = domain.SwapFailed
+		} else {
+			swap.Status = domain.SwapSuccess
+		}
+
+		if dbErr := s.dbSvc.Swap().Add(bgCtx, swap); dbErr != nil {
+			log.Warnf("IncreaseInboundCapacity: failed to store swap data %s: %v", swap.Id, dbErr)
+		}
+	}(swapData, ctx, err)
+
+	return txid, err
+
 }
 
 // ark -> ln (submarine swap)
@@ -1040,6 +1077,24 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
+
+	// channel for all swap‐data updates
+	swapUpdates := make(chan domain.Swap, 1)
+	dbCtx, cancelDB := context.WithCancel(context.Background())
+	defer func() {
+		cancelDB()
+		close(swapUpdates)
+	}()
+
+	go func() {
+		for sd := range swapUpdates {
+			if err := s.dbSvc.Swap().Add(dbCtx, sd); err != nil {
+				log.WithError(err).
+					WithField("swap_id", sd.Id).
+					Error("failed to store swap data")
+			}
+		}
+	}()
 
 	// get our pubkey
 	_, _, _, pk, err := s.GetAddress(ctx, 0)
@@ -1076,7 +1131,7 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		return "", fmt.Errorf("invalid claim pubkey: %v", err)
 	}
 
-	address, _, err := s.GetVHTLC(
+	address, _, opts, err := s.GetVHTLC(
 		ctx,
 		receiverPubkey,
 		nil,
@@ -1085,6 +1140,7 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
 		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
 		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
+		false,
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
@@ -1100,10 +1156,24 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
 	}
 
+	// Store Swap Data
+	swapData := domain.Swap{
+		Id:          swap.Id,
+		Amount:      amount,
+		Timestamp:   time.Now().Unix(),
+		Status:      domain.SwapPending,
+		Invoice:     invoice,
+		FundingTxId: txid,
+		To:          boltz.CurrencyBtc,
+		From:        boltz.CurrencyArk,
+		VhtlcOpts:   opts,
+	}
+	swapUpdates <- swapData
+
 	// TODO workaround to connect ws endpoint on a different port for regtest
 	wsClient := s.boltzSvc
 	if s.boltzSvc.URL == boltzURLByNetwork[common.BitcoinRegTest.Name] {
-		wsClient = &boltz.Api{URL: "http://localhost:9004"}
+		wsClient = &boltz.Api{WSURL: "ws://localhost:9004"}
 	}
 
 	ws := wsClient.NewWebsocket()
@@ -1135,13 +1205,21 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		// TODO: ensure these are the right events to react to in case the vhtlc needs to be refunded.
 		case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
 			withReceiver := true
-			txid, err := s.RefundVHTLC(context.Background(), swap.Id, preimageHash, withReceiver)
+
+			txid, err := s.RefundVHTLC(context.Background(), swap.Id, preimageHash, withReceiver, opts)
 			if err != nil {
 				return "", fmt.Errorf("failed to refund vHTLC: %s", err)
 			}
 
+			swapData.Status = domain.SwapFailed
+			swapData.RedeemTxId = txid
+			swapUpdates <- swapData
+
 			return "", fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
 		case boltz.TransactionClaimed:
+			swapData.Status = domain.SwapSuccess
+			swapUpdates <- swapData
+
 			return txid, nil
 		}
 	}
@@ -1503,4 +1581,8 @@ func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
 	}
 
 	return pk, nil
+}
+
+func (s *Service) GetSwapHistory(ctx context.Context) ([]domain.Swap, error) {
+	return s.dbSvc.Swap().GetAll(ctx)
 }

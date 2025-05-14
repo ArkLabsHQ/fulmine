@@ -37,6 +37,7 @@ type service struct {
 	settingsRepo     domain.SettingsRepository
 	vhtlcRepo        domain.VHTLCRepository
 	vtxoRolloverRepo domain.VtxoRolloverRepository
+	swapRepo         domain.SwapRepository
 }
 
 func NewService(config ServiceConfig) (ports.RepoManager, error) {
@@ -44,6 +45,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		settingsRepo     domain.SettingsRepository
 		vhtlcRepo        domain.VHTLCRepository
 		vtxoRolloverRepo domain.VtxoRolloverRepository
+		swapRepo         domain.SwapRepository
 		err              error
 	)
 
@@ -74,6 +76,10 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		vtxoRolloverRepo, err = badgerdb.NewVtxoRolloverRepository(baseDir, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open vtxo rollover db: %s", err)
+		}
+		swapRepo, err = badgerdb.NewSwapRepository(baseDir, logger)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open swap db: %s", err)
 		}
 	case "sqlite":
 		if len(config.DbConfig) != 1 {
@@ -120,6 +126,11 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open vtxo rollover db: %s", err)
 		}
+		swapRepo, err = sqlitedb.NewSwapRepository(db)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open swap db: %s", err)
+		}
+
 	default:
 		return nil, fmt.Errorf("unsopported db type %s, please select one of %s", config.DbType, allowedTypes)
 	}
@@ -128,6 +139,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		settingsRepo:     settingsRepo,
 		vhtlcRepo:        vhtlcRepo,
 		vtxoRolloverRepo: vtxoRolloverRepo,
+		swapRepo:         swapRepo,
 	}, nil
 }
 
@@ -141,6 +153,10 @@ func (s *service) VHTLC() domain.VHTLCRepository {
 
 func (s *service) VtxoRollover() domain.VtxoRolloverRepository {
 	return s.vtxoRolloverRepo
+}
+
+func (s *service) Swap() domain.SwapRepository {
+	return s.swapRepo
 }
 
 func (s *service) Close() {

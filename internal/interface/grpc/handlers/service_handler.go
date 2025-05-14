@@ -222,7 +222,7 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 		return nil, status.Error(codes.InvalidArgument, "invalid preimage")
 	}
 
-	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes)
+	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,7 @@ func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb
 	withReceiver := true
 	withoutReceiver := !withReceiver
 
-	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", preimageHash, withoutReceiver)
+	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", preimageHash, withoutReceiver, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -247,7 +247,7 @@ func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb
 }
 
 func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest) (*pb.ListVHTLCResponse, error) {
-	vtxos, _, err := h.svc.ListVHTLC(ctx, req.GetPreimageHashFilter())
+	vtxos, _, err := h.svc.ListVHTLC(ctx, req.GetPreimageHashFilter(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +307,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
 	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
 
-	addr, vhtlcScript, err := h.svc.GetVHTLC(
+	addr, vhtlcScript, _, err := h.svc.GetVHTLC(
 		ctx,
 		receiverPubkey,
 		senderPubkey,
@@ -316,10 +316,12 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		unilateralClaimDelay,
 		unilateralRefundDelay,
 		unilateralRefundWithoutReceiverDelay,
+		true,
 	)
 	if err != nil {
 		return nil, err
 	}
+
 	return &pb.CreateVHTLCResponse{
 		Address:                              addr,
 		ClaimPubkey:                          hex.EncodeToString(vhtlcScript.Receiver.SerializeCompressed()[1:]),

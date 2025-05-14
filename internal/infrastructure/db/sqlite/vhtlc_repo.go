@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+
 	"github.com/ark-network/ark/common"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
@@ -27,27 +28,12 @@ func NewVHTLCRepository(db *sql.DB) (domain.VHTLCRepository, error) {
 }
 
 func (r *vhtlcRepository) Add(ctx context.Context, opts vhtlc.Opts) error {
-	preimageHash := hex.EncodeToString(opts.PreimageHash)
-	_, err := r.Get(ctx, preimageHash)
-	if err == nil {
-		return fmt.Errorf("vHTLC with preimage hash %s already exists", preimageHash)
+	optsParams := toOptParams(opts)
+	if _, err := r.Get(ctx, optsParams.PreimageHash); err == nil {
+		return fmt.Errorf("vHTLC with preimage hash %s alllready exists", optsParams.PreimageHash)
 	}
-	sender := hex.EncodeToString(opts.Sender.SerializeCompressed())
-	receiver := hex.EncodeToString(opts.Receiver.SerializeCompressed())
-	server := hex.EncodeToString(opts.Server.SerializeCompressed())
-	return r.querier.InsertVHTLC(ctx, queries.InsertVHTLCParams{
-		PreimageHash:                             preimageHash,
-		Sender:                                   sender,
-		Receiver:                                 receiver,
-		Server:                                   server,
-		RefundLocktime:                           int64(opts.RefundLocktime),
-		UnilateralClaimDelayType:                 int64(opts.UnilateralClaimDelay.Type),
-		UnilateralClaimDelayValue:                int64(opts.UnilateralClaimDelay.Value),
-		UnilateralRefundDelayType:                int64(opts.UnilateralRefundDelay.Type),
-		UnilateralRefundDelayValue:               int64(opts.UnilateralRefundDelay.Value),
-		UnilateralRefundWithoutReceiverDelayType: int64(opts.UnilateralRefundWithoutReceiverDelay.Type),
-		UnilateralRefundWithoutReceiverDelayValue: int64(opts.UnilateralRefundWithoutReceiverDelay.Value),
-	})
+
+	return r.querier.InsertVHTLC(ctx, optsParams)
 }
 
 func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*vhtlc.Opts, error) {
@@ -147,4 +133,25 @@ func toOpts(row queries.Vhtlc) (*vhtlc.Opts, error) {
 		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
 		PreimageHash:                         preimageHashBytes,
 	}, nil
+}
+
+func toOptParams(opts vhtlc.Opts) queries.InsertVHTLCParams {
+	preimageHash := hex.EncodeToString(opts.PreimageHash)
+	sender := hex.EncodeToString(opts.Sender.SerializeCompressed())
+	receiver := hex.EncodeToString(opts.Receiver.SerializeCompressed())
+	server := hex.EncodeToString(opts.Server.SerializeCompressed())
+
+	return queries.InsertVHTLCParams{
+		PreimageHash:                             preimageHash,
+		Sender:                                   sender,
+		Receiver:                                 receiver,
+		Server:                                   server,
+		RefundLocktime:                           int64(opts.RefundLocktime),
+		UnilateralClaimDelayType:                 int64(opts.UnilateralClaimDelay.Type),
+		UnilateralClaimDelayValue:                int64(opts.UnilateralClaimDelay.Value),
+		UnilateralRefundDelayType:                int64(opts.UnilateralRefundDelay.Type),
+		UnilateralRefundDelayValue:               int64(opts.UnilateralRefundDelay.Value),
+		UnilateralRefundWithoutReceiverDelayType: int64(opts.UnilateralRefundWithoutReceiverDelay.Type),
+		UnilateralRefundWithoutReceiverDelayValue: int64(opts.UnilateralRefundWithoutReceiverDelay.Value),
+	}
 }

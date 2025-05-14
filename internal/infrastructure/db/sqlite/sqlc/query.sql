@@ -64,3 +64,28 @@ SELECT * FROM vtxo_rollover;
 
 -- name: DeleteVtxoRollover :exec
 DELETE FROM vtxo_rollover WHERE address = ?;
+
+-- Swap queries
+-- name: CreateSwap :exec
+INSERT INTO swap (
+  id, amount, timestamp, to_currency, from_currency, status, invoice, funding_tx_id, redeem_tx_id, vhtlc_id
+) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+ON CONFLICT(id) DO UPDATE
+  SET status = excluded.status;
+
+-- name: GetSwap :one
+SELECT  sqlc.embed(swap),
+        sqlc.embed(vhtlc)
+FROM swap
+  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash
+WHERE id = ?;
+
+-- name: ListSwaps :many
+SELECT  sqlc.embed(swap),
+        sqlc.embed(vhtlc)
+FROM swap
+  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash 
+ORDER BY timestamp DESC;
+
+-- name: DeleteSwap :exec
+DELETE FROM swap WHERE id = ?;
