@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/config"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/modals"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/pages"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
+	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
@@ -960,4 +962,68 @@ func (s *service) getHero(c *gin.Context) {
 
 	partialContent := components.Hero(spendableBalance, isOnline)
 	partialViewHandler(partialContent, c)
+}
+
+func (s *service) swapHistory(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	bodyContent := pages.SwapHistoryBodyContent()
+	s.pageViewHandler(bodyContent, c)
+}
+
+func (s *service) getSwaps(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	// TODO: Fix the errors later
+	swapHistory, _ := s.svc.GetSwapHistory(c)
+
+	parsedSwapHistory := make([]types.Swap, len(swapHistory))
+
+	selectSwapType := func(swap domain.Swap) string {
+		if swap.To == boltz.CurrencyBtc && swap.From == boltz.CurrencyArk {
+			return "submarine"
+		} else {
+			return "reverse"
+		}
+	}
+
+	for i, swap := range swapHistory {
+		parsedSwapHistory[i] = types.Swap{
+			Amount: strconv.FormatUint(swap.Amount, 10),
+			Date:   prettyUnixTimestamp(swap.Date.Unix()),
+			Hour:   prettyHour(swap.Date.Unix()),
+			Id:     swap.Id,
+			Kind:   selectSwapType(swap),
+		}
+	}
+
+	lastId := c.Param("lastId")
+	loadMore := false
+	txsPerPage := 2
+
+	if lastId != "0" {
+		for i, swap := range parsedSwapHistory {
+			if swap.Id == lastId {
+				firstIndex := i + 1
+				if firstIndex+txsPerPage > len(parsedSwapHistory) {
+					parsedSwapHistory = parsedSwapHistory[i+1:]
+				} else {
+					parsedSwapHistory = parsedSwapHistory[i+1 : i+1+txsPerPage]
+					loadMore = true
+				}
+				break
+			}
+		}
+	}
+
+	if len(parsedSwapHistory) > txsPerPage {
+		parsedSwapHistory = parsedSwapHistory[:txsPerPage]
+		loadMore = true
+	}
+
+	bodyContent := pages.SwapHistoryListContent(parsedSwapHistory, loadMore)
+	partialViewHandler(bodyContent, c)
 }

@@ -1504,3 +1504,11 @@ func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
 
 	return pk, nil
 }
+
+func (s *Service) GetSwapHistory(ctx context.Context) ([]domain.Swap, error) {
+	swapHistory, err := s.dbSvc.Swap().GetAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get swap history: %w", err)
+	}
+	return swapHistory, nil
+}

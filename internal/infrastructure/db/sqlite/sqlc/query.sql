@@ -64,3 +64,18 @@ SELECT * FROM vtxo_rollover;
 
 -- name: DeleteVtxoRollover :exec
 DELETE FROM vtxo_rollover WHERE address = ?;
+
+-- Swap queries
+-- name: CreateSwap :exec
+INSERT INTO swaps (
+  id, amount, date, "to", "from", is_pending, invoice, vhltc_id
+) VALUES ( ?, ?, ?, ?, ?, ?, ?, ? );
+
+-- name: GetSwap :one
+SELECT * FROM swaps WHERE id = ?;
+
+-- name: ListSwaps :many
+SELECT * FROM swaps ORDER BY date DESC;
+
+-- name: DeleteSwap :exec
+DELETE FROM swaps WHERE id = ?;

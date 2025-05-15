@@ -181,6 +181,58 @@ templ SwapMovementComponent(kind, sats string) {
 	</div>
 }
 
+
+templ SwapHistoryLine(swap types.Swap) {
+	<div class="flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10" >
+	  <div class="flex items-center gap-4">
+			<div class="flex items-center gap-2">
+				if swap.Kind == "reverse" {
+					@components.ArkIcon()
+					@components.ArrowRight()
+					@components.LightningIcon()
+				} else {
+					@components.LightningIcon()
+					@components.ArrowRight()
+					@components.ArkIcon()
+				}
+			</div>
+			<div class="flex flex-col">
+				<p class="text-white">{swap.Date}</p>
+				<p class="text-sm text-white/50">{swap.Hour}</p>
+			</div>
+		</div>
+		<div class="flex items-center gap-4">
+			<p class="text-white/50">ID #{swap.Id}</p>
+			<div class="flex flex-col w-32 text-right">
+				<p class="cryptoAmount" sats={swap.Amount}>{swap.Amount} SATS</p>
+				<p class="text-sm text-white/50 fiatAmount" sats={swap.Amount}>&nbsp;</p>
+			</div>
+		</div>
+	</div>
+}
+
+templ SwapHistoryBodyContent() {
+	@components.DesktopHeader()
+	@components.Header("Swap history")
+	<div hx-get="/swaps/0" hx-trigger="load" />
+}
+
+templ SwapHistoryListContent(swaps []types.Swap, loadMore bool) {
+	if len(swaps) == 0 {
+		@components.HistoryEmpty()
+	} else {
+		for _, swap := range swaps {
+			<hr class="border border-1 border-white/10 w-full"/>
+			@SwapHistoryLine(swap)
+		}
+		if loadMore {
+			<div class="flex justify-center" hx-get={"/swaps/" + swaps[len(swaps)-1].Id} hx-swap="outerHTML">
+				<p class="cursor-pointer p-3 text-semibold text-sm text-white/50 hover:text-white/80">Load more</p>
+			</div>
+		}
+	}
+}
+
 templ SwapInputAmountComponent(kind, maxBalance string) {
 	<input class="hidden" id="swapKind" name="kind" value={kind} />
 	<input class="hidden" id="balance" value={maxBalance} />
