@@ -726,14 +726,17 @@ func (s *service) getTxs(c *gin.Context) {
 		log.WithError(err).Warn("failed to get tx history")
 	}
 
-	if lastId != "0" {
+	if lastId == "0" {
+		if len(txHistory) > txsPerPage {
+			txHistory = txHistory[:txsPerPage]
+			loadMore = true
+		}
+	} else {
 		for i, tx := range txHistory {
 			if tx.Txid == lastId {
-				firstIndex := i + 1
-				if firstIndex+txsPerPage > len(txHistory) {
-					txHistory = txHistory[i+1:]
-				} else {
-					txHistory = txHistory[i+1 : i+1+txsPerPage]
+				txsOnList := i + 1
+				if txsOnList+txsPerPage < len(txHistory) {
+					txHistory = txHistory[:txsOnList+txsPerPage]
 					loadMore = true
 				}
 				break
@@ -741,12 +744,12 @@ func (s *service) getTxs(c *gin.Context) {
 		}
 	}
 
-	if len(txHistory) > txsPerPage {
-		txHistory = txHistory[:txsPerPage]
-		loadMore = true
+	lastTxId := "0"
+	if len(txHistory) > 0 {
+		lastTxId = txHistory[len(txHistory)-1].Txid
 	}
 
-	bodyContent := components.HistoryBodyContent(txHistory, loadMore)
+	bodyContent := components.HistoryBodyContent(txHistory, lastTxId, loadMore)
 	partialViewHandler(bodyContent, c)
 }
 

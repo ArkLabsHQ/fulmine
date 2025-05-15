@@ -29,7 +29,7 @@ func IndexBodyContent() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div hx-ext=\"sse\" sse-connect=\"/events\"><div hx-get=\"/hero\" hx-trigger=\"load, sse:TXS_ADDED, sse:TXS_CONFIRMED, sse:TXS_REPLACED\"></div><div hx-get=\"/txs/0\" hx-trigger=\"load, sse:TXS_ADDED, sse:TXS_CONFIRMED, sse:TXS_REPLACED\"></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div hx-ext=\"sse\" sse-connect=\"/events\"><div hx-get=\"/hero\" hx-trigger=\"load, sse:TXS_ADDED, sse:TXS_CONFIRMED, sse:TXS_REPLACED\"></div><div hx-get=\"/txs/0\" hx-trigger=\"load, sse:TXS_ADDED, sse:TXS_CONFIRMED, sse:TXS_REPLACED\" hx-swap=\"outerHTML\"></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
