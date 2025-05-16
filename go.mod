@@ -17,6 +17,8 @@ require (
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/ark-network/ark/common v0.0.0-20250513154724-709a730c1943
 	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250513154724-709a730c1943
+	github.com/ark-network/ark/server/pkg/kvdb v0.0.0-20250430141707-2419ac0f83c4
+	github.com/ark-network/ark/server/pkg/macaroons v0.0.0-20250430141707-2419ac0f83c4
 	github.com/ccoveille/go-safecast v1.2.0
 	github.com/dgraph-io/badger/v4 v4.6.0
 	github.com/getsentry/sentry-go v0.32.0
@@ -40,6 +42,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20250115164207-1a7da9e5054f
 	google.golang.org/grpc v1.69.4
 	google.golang.org/protobuf v1.36.5
+	gopkg.in/macaroon-bakery.v2 v2.3.0
 	modernc.org/sqlite v1.33.1
 )
 
@@ -156,7 +159,6 @@ require (
 	golang.org/x/tools v0.29.0 // indirect
 	google.golang.org/genproto v0.0.0-20240812133136-8ffd90a71988 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
-	gopkg.in/macaroon-bakery.v2 v2.3.0 // indirect
 	gopkg.in/macaroon.v2 v2.1.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -250,7 +252,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/sagikazarmark/locafero v0.4.0 // indirect
+	github.com/sagikazarmark/locafero v0.6.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect

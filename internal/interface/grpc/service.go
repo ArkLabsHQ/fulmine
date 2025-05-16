@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
+	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
 	"net"
 	"net/http"
-
-	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
@@ -31,13 +31,18 @@ type service struct {
 	httpServer  *http.Server
 	grpcServer  *grpc.Server
 	unlockerSvc ports.Unlocker
-
-	appStopCh chan struct{}
-	feStopCh  chan struct{}
+	appStopCh   chan struct{}
+	feStopCh    chan struct{}
+	onUnlock    func(ctx context.Context, password string) error
 }
 
 func NewService(
-	cfg Config, appSvc *application.Service, unlockerSvc ports.Unlocker, sentryEnabled bool,
+	cfg Config,
+	appSvc *application.Service,
+	unlockerSvc ports.Unlocker,
+	sentryEnabled bool,
+	macaroonSvc macaroon.Service,
+	arkServer string,
 ) (*service, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %s", err)
@@ -47,6 +52,8 @@ func NewService(
 	feStopCh := make(chan struct{}, 1)
 
 	grpcConfig := []grpc.ServerOption{
+		interceptors.MacaroonAuthInterceptor(macaroonSvc),
+		interceptors.MacaroonStreamAuthInterceptor(macaroonSvc),
 		interceptors.UnaryInterceptor(sentryEnabled),
 		interceptors.StreamInterceptor(sentryEnabled),
 	}
@@ -61,7 +68,15 @@ func NewService(
 
 	grpcServer := grpc.NewServer(grpcConfig...)
 
-	walletHandler := handlers.NewWalletHandler(appSvc)
+	onSetup := func(ctx context.Context, password string) error {
+		return unlockAndGenerateMacaroon(ctx, macaroonSvc, password)
+	}
+
+	onUnlock := func(ctx context.Context, password string) error {
+		return unlockAndGenerateMacaroon(ctx, macaroonSvc, password)
+	}
+
+	walletHandler := handlers.NewWalletHandler(appSvc, onSetup, onUnlock)
 	pb.RegisterWalletServiceServer(grpcServer, walletHandler)
 
 	serviceHandler := handlers.NewServiceHandler(appSvc)
@@ -116,7 +131,7 @@ func NewService(
 		return nil, err
 	}
 
-	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled)
+	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled, arkServer, onSetup, onUnlock)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", feHandler)
@@ -135,8 +150,29 @@ func NewService(
 	}
 
 	return &service{
-		cfg, appSvc, httpServer, grpcServer, unlockerSvc, feStopCh, appStopCh,
+		cfg,
+		appSvc,
+		httpServer,
+		grpcServer,
+		unlockerSvc,
+		appStopCh,
+		feStopCh,
+		onUnlock,
 	}, nil
+}
+
+func unlockAndGenerateMacaroon(ctx context.Context, svc macaroon.Service, password string) error {
+	if svc != nil {
+		if err := svc.Unlock(ctx, password); err != nil {
+			return fmt.Errorf("setup: failed to unlock macaroon: %s", err)
+		}
+
+		if err := svc.Generate(context.Background()); err != nil {
+			return fmt.Errorf("setup: failed to generate macaroon: %s", err)
+		}
+	}
+
+	return nil
 }
 
 func (s *service) Start() error {
@@ -182,6 +218,10 @@ func (s *service) autoUnlock() error {
 
 	if err := s.appSvc.UnlockNode(ctx, password); err != nil {
 		return fmt.Errorf("failed to auto unlock: %s", err)
+	}
+
+	if err := s.onUnlock(ctx, password); err != nil {
+		return fmt.Errorf("failed to unlock: %s", err)
 	}
 
 	log.Info("wallet auto unlocked")

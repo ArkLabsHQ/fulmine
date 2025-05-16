@@ -12,11 +12,16 @@ import (
 )
 
 type walletHandler struct {
-	svc *application.Service
+	svc               *application.Service
+	onUnlock, onSetup func(ctx context.Context, password string) error
 }
 
-func NewWalletHandler(appSvc *application.Service) pb.WalletServiceServer {
-	return &walletHandler{appSvc}
+func NewWalletHandler(
+	appSvc *application.Service,
+	onSetup func(ctx context.Context, password string) error,
+	onUnlock func(ctx context.Context, password string) error,
+) pb.WalletServiceServer {
+	return &walletHandler{svc: appSvc, onUnlock: onUnlock, onSetup: onSetup}
 }
 
 func (h *walletHandler) GenSeed(
@@ -50,6 +55,10 @@ func (h *walletHandler) CreateWallet(
 	if err := h.svc.Setup(ctx, serverUrl, password, privateKey); err != nil {
 		return nil, err
 	}
+	if err := h.onSetup(ctx, password); err != nil {
+		return nil, err
+	}
+
 	return &pb.CreateWalletResponse{}, nil
 }
 
@@ -62,6 +71,9 @@ func (h *walletHandler) Unlock(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	if err := h.svc.UnlockNode(ctx, password); err != nil {
+		return nil, err
+	}
+	if err := h.onUnlock(ctx, password); err != nil {
 		return nil, err
 	}
 	return &pb.UnlockResponse{}, nil
