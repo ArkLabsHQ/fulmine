@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -98,13 +99,19 @@ func NewService(
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadArkClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
+		log.Info("hit here 0")
+
 		if err != nil {
 			return nil, err
 		}
+
+		println("hit here 1")
 		grpcClient, err := grpcclient.NewClient(data.ServerUrl)
 		if err != nil {
 			return nil, err
 		}
+		println("hit here 2")
+
 		svc := &Service{
 			BuildInfo:                 buildInfo,
 			ArkClient:                 arkClient,
@@ -127,8 +134,10 @@ func NewService(
 
 		return svc, nil
 	} else if !strings.Contains(err.Error(), "not initialized") {
+		log.Info("failed to load ark client")
 		return nil, err
 	}
+	println("hit here 3")
 
 	ctx := context.Background()
 	settingsRepo := dbSvc.Settings()
@@ -137,6 +146,8 @@ func NewService(
 			return nil, err
 		}
 	}
+	println("hit here 4")
+
 	arkClient, err := arksdk.NewArkClient(storeSvc)
 	if err != nil {
 		// nolint:all
@@ -669,9 +680,10 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 	vtxo := vtxos[0]
 	opts := vhtlcOpts[0]
 
-	vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
+	vHtlcTxId := vtxo.Txid
+	vtxoTxHash, err := chainhash.NewHashFromStr(vHtlcTxId)
 	if err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
 	vtxoOutpoint := &wire.OutPoint{
@@ -681,52 +693,52 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 
 	vtxoScript, err := vhtlc.NewVHTLCScript(opts)
 	if err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
 	claimClosure := vtxoScript.ClaimClosure
 	claimWitnessSize := claimClosure.WitnessSize(len(preimage))
 	claimScript, err := claimClosure.Script()
 	if err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
 	_, tapTree, err := vtxoScript.TapTree()
 	if err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
 	claimLeafProof, err := tapTree.GetTaprootMerkleProof(
 		txscript.NewBaseTapLeaf(claimScript).TapHash(),
 	)
 	if err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
 	ctrlBlock, err := txscript.ParseControlBlock(claimLeafProof.ControlBlock)
 	if err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
 	// self send output
 	_, myAddr, _, _, err := s.GetAddress(ctx, 0)
 	if err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
 	decodedAddr, err := common.DecodeAddress(myAddr)
 	if err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
 	pkScript, err := common.P2TRScript(decodedAddr.VtxoTapKey)
 	if err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
 	amount, err := safecast.ToInt64(vtxo.Amount)
 	if err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
 	redeemTx, err := tree.BuildRedeemTx(
@@ -750,35 +762,35 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 		},
 	)
 	if err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
 	redeemPtx, err := psbt.NewFromRawBytes(strings.NewReader(redeemTx), true)
 	if err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
 	if err := tree.AddConditionWitness(0, redeemPtx, wire.TxWitness{preimage}); err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
-	txid := redeemPtx.UnsignedTx.TxHash().String()
+	reemdemTxId := redeemPtx.UnsignedTx.TxHash().String()
 
 	redeemTx, err = redeemPtx.B64Encode()
 	if err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
 	signedRedeemTx, err := s.SignTransaction(ctx, redeemTx)
 	if err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
 	if _, _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRedeemTx); err != nil {
-		return "", err
+		return vHtlcTxId, err
 	}
 
-	return txid, nil
+	return reemdemTxId, nil
 }
 
 func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string, withReceiver bool) (string, error) {
@@ -1032,7 +1044,38 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		return "", fmt.Errorf("invalid preimage: %v", err)
 	}
 
-	return s.ClaimVHTLC(ctx, decodedPreimage)
+	txid, err := s.ClaimVHTLC(ctx, decodedPreimage)
+
+	// Create Swap Data To Store
+	swapId := hex.EncodeToString(sha256.New().Sum([]byte(swap.Invoice)))
+	swapData := domain.Swap{
+		Id:      swapId,
+		Amount:  amount,
+		Date:    time.Now(),
+		Status:  domain.SwapPending,
+		Invoice: swap.Invoice,
+		VHltcId: txid,
+		To:      boltz.CurrencyBtc,
+		From:    boltz.CurrencyArk,
+	}
+
+	if err != nil {
+		swapData.Status = domain.SwapFailed
+		err = s.dbSvc.Swap().Add(ctx, swapData)
+		if err != nil {
+			return "", fmt.Errorf("failed to store swap data: %v", err)
+		}
+		return "", fmt.Errorf("failed to claim vHTLC: %v", err)
+	}
+
+	swapData.Status = domain.SwapSuccess
+	err = s.dbSvc.Swap().Add(ctx, swapData)
+	if err != nil {
+		return "", fmt.Errorf("failed to store swap data: %v", err)
+	}
+
+	return txid, nil
+
 }
 
 // ark -> ln (submarine swap)
@@ -1100,6 +1143,23 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
 	}
 
+	// Store Swap Data
+	swapId := hex.EncodeToString(sha256.New().Sum([]byte(invoice)))
+	swapData := domain.Swap{
+		Id:      swapId,
+		Amount:  amount,
+		Date:    time.Now(),
+		Status:  domain.SwapPending,
+		Invoice: invoice,
+		VHltcId: txid,
+		To:      boltz.CurrencyBtc,
+		From:    boltz.CurrencyArk,
+	}
+	err = s.dbSvc.Swap().Add(ctx, swapData)
+	if err != nil {
+		return "", fmt.Errorf("failed to store swap data: %v", err)
+	}
+
 	// TODO workaround to connect ws endpoint on a different port for regtest
 	wsClient := s.boltzSvc
 	if s.boltzSvc.URL == boltzURLByNetwork[common.BitcoinRegTest.Name] {
@@ -1135,6 +1195,12 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		// TODO: ensure these are the right events to react to in case the vhtlc needs to be refunded.
 		case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
 			withReceiver := true
+			swapData.Status = domain.SwapFailed
+			err = s.dbSvc.Swap().Add(ctx, swapData)
+			if err != nil {
+				return "", fmt.Errorf("failed to store swap data: %v", err)
+			}
+
 			txid, err := s.RefundVHTLC(context.Background(), swap.Id, preimageHash, withReceiver)
 			if err != nil {
 				return "", fmt.Errorf("failed to refund vHTLC: %s", err)
@@ -1142,6 +1208,12 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 
 			return "", fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
 		case boltz.TransactionClaimed:
+			swapData.Status = domain.SwapSuccess
+			err = s.dbSvc.Swap().Add(ctx, swapData)
+			if err != nil {
+				return "", fmt.Errorf("failed to store swap data: %v", err)
+			}
+
 			return txid, nil
 		}
 	}

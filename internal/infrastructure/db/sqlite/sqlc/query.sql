@@ -68,8 +68,11 @@ DELETE FROM vtxo_rollover WHERE address = ?;
 -- Swap queries
 -- name: CreateSwap :exec
 INSERT INTO swaps (
-  id, amount, date, "to", "from", is_pending, invoice, vhltc_id
-) VALUES ( ?, ?, ?, ?, ?, ?, ?, ? );
+  id, amount, date, "to", "from", status, invoice, vhltc_id
+) VALUES ( ?, ?, ?, ?, ?, ?, ?, ? )
+ON CONFLICT(id) DO UPDATE
+  SET status = excluded.status;
+
 
 -- name: GetSwap :one
 SELECT * FROM swaps WHERE id = ?;

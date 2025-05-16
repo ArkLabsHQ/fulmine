@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS swaps (
     date        TEXT    NOT NULL,
     "to"        TEXT    NOT NULL,
     "from"      TEXT    NOT NULL,
-    is_pending  INTEGER NOT NULL DEFAULT 0,  -- 0 = false, 1 = true
+    status INTEGER NOT NULL CHECK(status IN(0,1,2)),
     invoice     TEXT NOT NULL,
     vhltc_id    TEXT NOT NULL
 );

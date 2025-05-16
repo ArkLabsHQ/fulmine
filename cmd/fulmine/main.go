@@ -113,12 +113,12 @@ func main() {
 		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL,
 	)
 	if err != nil {
-		log.WithError(err).Fatal(err)
+		log.WithError(err).Fatal("failed to create application service")
 	}
 
 	svc, err := grpcservice.NewService(svcConfig, appSvc, cfg.UnlockerService(), sentryEnabled)
 	if err != nil {
-		log.Fatal(err)
+		log.WithError(err).Fatal("failed to create grpc service")
 	}
 
 	log.RegisterExitHandler(svc.Stop)

@@ -12,19 +12,21 @@ import (
 
 const createSwap = `-- name: CreateSwap :exec
 INSERT INTO swaps (
-  id, amount, date, "to", "from", is_pending, invoice, vhltc_id
+  id, amount, date, "to", "from", status, invoice, vhltc_id
 ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ? )
+ON CONFLICT(id) DO UPDATE
+  SET status = excluded.status
 `
 
 type CreateSwapParams struct {
-	ID        string
-	Amount    int64
-	Date      string
-	To        string
-	From      string
-	IsPending int64
-	Invoice   string
-	VhltcID   string
+	ID      string
+	Amount  int64
+	Date    string
+	To      string
+	From    string
+	Status  int64
+	Invoice string
+	VhltcID string
 }
 
 // Swap queries
@@ -35,7 +37,7 @@ func (q *Queries) CreateSwap(ctx context.Context, arg CreateSwapParams) error {
 		arg.Date,
 		arg.To,
 		arg.From,
-		arg.IsPending,
+		arg.Status,
 		arg.Invoice,
 		arg.VhltcID,
 	)
@@ -110,7 +112,7 @@ func (q *Queries) GetSettings(ctx context.Context) (GetSettingsRow, error) {
 }
 
 const getSwap = `-- name: GetSwap :one
-SELECT id, amount, date, "to", "from", is_pending, invoice, vhltc_id FROM swaps WHERE id = ?
+SELECT id, amount, date, "to", "from", status, invoice, vhltc_id FROM swaps WHERE id = ?
 `
 
 func (q *Queries) GetSwap(ctx context.Context, id string) (Swap, error) {
@@ -122,7 +124,7 @@ func (q *Queries) GetSwap(ctx context.Context, id string) (Swap, error) {
 		&i.Date,
 		&i.To,
 		&i.From,
-		&i.IsPending,
+		&i.Status,
 		&i.Invoice,
 		&i.VhltcID,
 	)
@@ -217,7 +219,7 @@ func (q *Queries) InsertVHTLC(ctx context.Context, arg InsertVHTLCParams) error 
 }
 
 const listSwaps = `-- name: ListSwaps :many
-SELECT id, amount, date, "to", "from", is_pending, invoice, vhltc_id FROM swaps ORDER BY date DESC
+SELECT id, amount, date, "to", "from", status, invoice, vhltc_id FROM swaps ORDER BY date DESC
 `
 
 func (q *Queries) ListSwaps(ctx context.Context) ([]Swap, error) {
@@ -235,7 +237,7 @@ func (q *Queries) ListSwaps(ctx context.Context) ([]Swap, error) {
 			&i.Date,
 			&i.To,
 			&i.From,
-			&i.IsPending,
+			&i.Status,
 			&i.Invoice,
 			&i.VhltcID,
 		); err != nil {

@@ -31,22 +31,22 @@ func NewSwapRepository(db *sql.DB) (domain.SwapRepository, error) {
 func (r *swapRepository) Add(ctx context.Context, swap domain.Swap) error {
 
 	return r.querier.CreateSwap(ctx, queries.CreateSwapParams{
-		ID:        swap.Id,
-		Amount:    int64(swap.Amount),
-		Date:      swap.Date.Format(time.DateTime),
-		To:        string(swap.To),
-		From:      string(swap.From),
-		IsPending: map[bool]int64{false: 0, true: 1}[swap.IsPending],
-		Invoice:   swap.Invoice,
-		VhltcID:   swap.VHltcId,
+		ID:      swap.Id,
+		Amount:  int64(swap.Amount),
+		Date:    swap.Date.Format(time.DateTime),
+		To:      string(swap.To),
+		From:    string(swap.From),
+		Status:  int64(swap.Status),
+		Invoice: swap.Invoice,
+		VhltcID: swap.VHltcId,
 	})
 }
 
-func (r *swapRepository) Get(ctx context.Context, invoice string) (*domain.Swap, error) {
-	row, err := r.querier.GetSwap(ctx, invoice)
+func (r *swapRepository) Get(ctx context.Context, swapId string) (*domain.Swap, error) {
+	row, err := r.querier.GetSwap(ctx, swapId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("swap for the Id: %s, not found", invoice)
+			return nil, fmt.Errorf("swap for the Id: %s, not found", swapId)
 		}
 		return nil, err
 	}
@@ -70,8 +70,8 @@ func (r *swapRepository) GetAll(ctx context.Context) ([]domain.Swap, error) {
 	return results, nil
 }
 
-func (r *swapRepository) Delete(ctx context.Context, invoice string) error {
-	return r.querier.DeleteSwap(ctx, invoice)
+func (r *swapRepository) Delete(ctx context.Context, swapId string) error {
+	return r.querier.DeleteSwap(ctx, swapId)
 }
 
 func (r *swapRepository) Close() {
@@ -85,13 +85,13 @@ func toSwap(row queries.Swap) (*domain.Swap, error) {
 	}
 
 	return &domain.Swap{
-		Id:        row.ID,
-		Amount:    uint64(row.Amount),
-		Date:      date,
-		To:        boltz.Currency(row.To),
-		From:      boltz.Currency(row.From),
-		IsPending: row.IsPending == 1,
-		Invoice:   row.Invoice,
-		VHltcId:   row.VhltcID,
+		Id:      row.ID,
+		Amount:  uint64(row.Amount),
+		Date:    date,
+		To:      boltz.Currency(row.To),
+		From:    boltz.Currency(row.From),
+		Status:  domain.SwapStatus(row.Status),
+		Invoice: row.Invoice,
+		VHltcId: row.VhltcID,
 	}, nil
 }

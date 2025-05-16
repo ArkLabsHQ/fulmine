@@ -21,14 +21,14 @@ type Setting struct {
 }
 
 type Swap struct {
-	ID        string
-	Amount    int64
-	Date      string
-	To        string
-	From      string
-	IsPending int64
-	Invoice   string
-	VhltcID   string
+	ID      string
+	Amount  int64
+	Date    string
+	To      string
+	From    string
+	Status  int64
+	Invoice string
+	VhltcID string
 }
 
 type Vhtlc struct {
