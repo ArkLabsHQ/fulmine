@@ -30,7 +30,7 @@ var (
 
 const (
 	configStoreType  = types.FileStore
-	appDataStoreType = types.KVStore
+	appDataStoreType = types.SQLStore
 )
 
 func main() {
@@ -48,6 +48,7 @@ func main() {
 			Dsn:              sentryDsn,
 			Environment:      "prod",
 			AttachStacktrace: true,
+			Release:          version,
 		}); err != nil {
 			log.Fatal(err)
 		}

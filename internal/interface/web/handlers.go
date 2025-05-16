@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ArkLabsHQ/fulmine/internal/config"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/modals"
@@ -347,7 +346,7 @@ func (s *service) sendPreview(c *gin.Context) {
 	if utils.IsValidArkNote(dest) {
 		sats := utils.SatsFromNote(dest)
 
-		if int64(sats) > config.VtxoMaxAmount {
+		if config.VtxoMaxAmount != -1 && int64(sats) > config.VtxoMaxAmount {
 			toast := components.Toast("Amount too high", true)
 			toastHandler(toast, c)
 			return
@@ -369,8 +368,8 @@ func (s *service) sendPreview(c *gin.Context) {
 	}
 
 	if len(offchainAddr) > 0 {
-		if int64(total) > config.VtxoMaxAmount {
-			if len(onchainAddr) > 0 && int64(total) <= config.UtxoMaxAmount {
+		if config.VtxoMaxAmount != -1 && int64(total) > config.VtxoMaxAmount {
+			if len(onchainAddr) > 0 && (config.UtxoMaxAmount == -1 || int64(total) <= config.UtxoMaxAmount) {
 				addr = onchainAddr
 			} else {
 				toast := components.Toast("Amount too high", true)
@@ -381,7 +380,7 @@ func (s *service) sendPreview(c *gin.Context) {
 			addr = offchainAddr
 		}
 	} else if len(onchainAddr) > 0 {
-		if int64(total) > config.UtxoMaxAmount {
+		if config.UtxoMaxAmount != -1 && int64(total) > config.UtxoMaxAmount {
 			toast := components.Toast("Amount too high", true)
 			toastHandler(toast, c)
 			return
@@ -634,7 +633,7 @@ func (s *service) swapPreview(c *gin.Context) {
 	feeAmount := 0 // TODO
 	total := sats + feeAmount
 
-	if int64(total) > config.VtxoMaxAmount {
+	if config.VtxoMaxAmount != -1 && int64(total) > config.VtxoMaxAmount {
 		toast := components.Toast("Amount too high", true)
 		toastHandler(toast, c)
 		return
@@ -709,11 +708,37 @@ func (s *service) getTxs(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
 	}
+
+	lastId := c.Param("lastId")
+	loadMore := false
+	txsPerPage := 10
+
 	txHistory, err := s.getTxHistory(c)
 	if err != nil {
 		log.WithError(err).Warn("failed to get tx history")
 	}
-	bodyContent := components.HistoryBodyContent(txHistory)
+
+	if lastId != "0" {
+		for i, tx := range txHistory {
+			if tx.Txid == lastId {
+				firstIndex := i + 1
+				if firstIndex+txsPerPage > len(txHistory) {
+					txHistory = txHistory[i+1:]
+				} else {
+					txHistory = txHistory[i+1 : i+1+txsPerPage]
+					loadMore = true
+				}
+				break
+			}
+		}
+	}
+
+	if len(txHistory) > txsPerPage {
+		txHistory = txHistory[:txsPerPage]
+		loadMore = true
+	}
+
+	bodyContent := components.HistoryBodyContent(txHistory, loadMore)
 	partialViewHandler(bodyContent, c)
 }
 
