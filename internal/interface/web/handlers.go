@@ -474,13 +474,6 @@ func (s *service) setMnemonic(c *gin.Context) {
 }
 
 func (s *service) setPassword(c *gin.Context) {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		toast := components.Toast("Invalid config", true)
-		toastHandler(toast, c)
-		return
-	}
-
 	// validate passwords
 	password := c.PostForm("password")
 	pconfirm := c.PostForm("pconfirm")
@@ -497,8 +490,8 @@ func (s *service) setPassword(c *gin.Context) {
 	// 2. from env variable (aka cfg.ArkServer)
 	// 3. user inserts on form
 	serverUrl := c.PostForm("urlOnQuery")
-	if serverUrl == "" && cfg.ArkServer != "" {
-		serverUrl = cfg.ArkServer
+	if serverUrl == "" {
+		serverUrl = s.arkServer
 	}
 
 	bodyContent := pages.ServerUrlBodyContent(serverUrl, privateKey, password)

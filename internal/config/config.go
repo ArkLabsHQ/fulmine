@@ -76,7 +76,7 @@ var (
 		sqliteDb: struct{}{},
 		badgerDb: struct{}{},
 	}
-	defaultNoMacaroons      = false
+	defaultNoMacaroons = false
 )
 
 func LoadConfig() (*Config, error) {
@@ -161,6 +161,10 @@ func (c Config) MacaroonSvc() macaroon.Service {
 }
 
 func (c *Config) initMacaroonService() error {
+	if c.macaroonSvc != nil {
+		return nil
+	}
+
 	if !viper.GetBool(NoMacaroons) {
 		svc, err := macaroon.NewService(
 			viper.GetString(Datadir), macFiles, WhitelistedByMethod(), AllPermissionsByMethod(),

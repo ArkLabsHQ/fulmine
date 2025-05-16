@@ -115,7 +115,9 @@ func main() {
 		log.WithError(err).Fatal(err)
 	}
 
-	svc, err := grpcservice.NewService(svcConfig, appSvc, cfg.UnlockerService(), sentryEnabled, cfg.MacaroonSvc())
+	svc, err := grpcservice.NewService(
+		svcConfig, appSvc, cfg.UnlockerService(), sentryEnabled, cfg.MacaroonSvc(), cfg.ArkServer,
+	)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -42,6 +42,7 @@ func NewService(
 	unlockerSvc ports.Unlocker,
 	sentryEnabled bool,
 	macaroonSvc macaroon.Service,
+	arkServer string,
 ) (*service, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %s", err)
@@ -122,7 +123,7 @@ func NewService(
 		return nil, err
 	}
 
-	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled)
+	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled, arkServer)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", feHandler)
