@@ -229,5 +229,11 @@ func (s *service) unlockApi(c *gin.Context) {
 		return
 	}
 
+	if err := s.onUnlock(c, password); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
 	redirect("/", c)
 }

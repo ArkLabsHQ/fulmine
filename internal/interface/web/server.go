@@ -57,10 +57,17 @@ type service struct {
 	svc       *application.Service
 	stopCh    chan struct{}
 	arkServer string
+	onSetup   func(ctx context.Context, password string) error
+	onUnlock  func(ctx context.Context, password string) error
 }
 
 func NewService(
-	appSvc *application.Service, stopCh chan struct{}, sentryEnabled bool, arkServer string,
+	appSvc *application.Service,
+	stopCh chan struct{},
+	sentryEnabled bool,
+	arkServer string,
+	onSetup func(ctx context.Context, password string) error,
+	onUnlock func(ctx context.Context, password string) error,
 ) *service {
 	// Create a new Fiber server.
 	router := gin.Default()
@@ -69,7 +76,14 @@ func NewService(
 	router.HTMLRender = &TemplRender{}
 	staticFS, _ := fs.Sub(static, "static")
 
-	svc := &service{Engine: router, svc: appSvc, stopCh: stopCh, arkServer: arkServer}
+	svc := &service{
+		Engine:    router,
+		svc:       appSvc,
+		stopCh:    stopCh,
+		arkServer: arkServer,
+		onSetup:   onSetup,
+		onUnlock:  onUnlock,
+	}
 
 	// Configure Sentry for Gin (includes built-in panic recovery)
 	setupMiddleware(svc.Engine, sentryEnabled)

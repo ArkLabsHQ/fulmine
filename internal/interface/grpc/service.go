@@ -31,9 +31,9 @@ type service struct {
 	httpServer  *http.Server
 	grpcServer  *grpc.Server
 	unlockerSvc ports.Unlocker
-
-	appStopCh chan struct{}
-	feStopCh  chan struct{}
+	appStopCh   chan struct{}
+	feStopCh    chan struct{}
+	onUnlock    func(ctx context.Context, password string) error
 }
 
 func NewService(
@@ -68,7 +68,15 @@ func NewService(
 
 	grpcServer := grpc.NewServer(grpcConfig...)
 
-	walletHandler := handlers.NewWalletHandler(appSvc)
+	onSetup := func(ctx context.Context, password string) error {
+		return unlockAndGenerateMacaroon(ctx, macaroonSvc, password)
+	}
+
+	onUnlock := func(ctx context.Context, password string) error {
+		return unlockAndGenerateMacaroon(ctx, macaroonSvc, password)
+	}
+
+	walletHandler := handlers.NewWalletHandler(appSvc, onSetup, onUnlock)
 	pb.RegisterWalletServiceServer(grpcServer, walletHandler)
 
 	serviceHandler := handlers.NewServiceHandler(appSvc)
@@ -123,7 +131,7 @@ func NewService(
 		return nil, err
 	}
 
-	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled, arkServer)
+	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled, arkServer, onSetup, onUnlock)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", feHandler)
@@ -149,7 +157,22 @@ func NewService(
 		unlockerSvc,
 		appStopCh,
 		feStopCh,
+		onUnlock,
 	}, nil
+}
+
+func unlockAndGenerateMacaroon(ctx context.Context, svc macaroon.Service, password string) error {
+	if svc != nil {
+		if err := svc.Unlock(ctx, password); err != nil {
+			return fmt.Errorf("setup: failed to unlock macaroon: %s", err)
+		}
+
+		if err := svc.Generate(context.Background()); err != nil {
+			return fmt.Errorf("setup: failed to generate macaroon: %s", err)
+		}
+	}
+
+	return nil
 }
 
 func (s *service) Start() error {
@@ -195,6 +218,10 @@ func (s *service) autoUnlock() error {
 
 	if err := s.appSvc.UnlockNode(ctx, password); err != nil {
 		return fmt.Errorf("failed to auto unlock: %s", err)
+	}
+
+	if err := s.onUnlock(ctx, password); err != nil {
+		return fmt.Errorf("failed to unlock: %s", err)
 	}
 
 	log.Info("wallet auto unlocked")

@@ -165,6 +165,14 @@ func (s *service) initialize(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
+
+	if err := s.onSetup(c, password); err != nil {
+		log.WithError(err).Warn("failed to initialize")
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
 	redirect("/done", c)
 }
 

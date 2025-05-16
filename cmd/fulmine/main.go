@@ -110,7 +110,7 @@ func main() {
 
 	appSvc, err := application.NewService(
 		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc, lnSvc,
-		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.MacaroonSvc(),
+		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL,
 	)
 	if err != nil {
 		log.WithError(err).Fatal(err)
