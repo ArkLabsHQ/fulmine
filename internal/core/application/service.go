@@ -1545,11 +1545,15 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, preimage []byt
 		for update := range ws.Updates {
 			parsedStatus := boltz.ParseEvent(update.Status)
 
+			confirmed := false
 			switch parsedStatus {
 			case boltz.TransactionConfirmed:
-				break
+				confirmed = true
 			case boltz.InvoiceFailedToPay, boltz.TransactionFailed, boltz.TransactionLockupFailed:
-				return "", fmt.Errorf("something went wrong: %s", parsedStatus)
+				return "", fmt.Errorf("something went wrong: %s", update.Status)
+			}
+			if confirmed {
+				break
 			}
 		}
 	} else {
