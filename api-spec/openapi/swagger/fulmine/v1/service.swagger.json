@@ -199,12 +199,12 @@
     },
     "/v1/invoice": {
       "post": {
-        "operationId": "Service_CreateInvoice",
+        "operationId": "Service_GetInvoice",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1CreateInvoiceResponse"
+              "$ref": "#/definitions/v1GetInvoiceResponse"
             }
           },
           "default": {
@@ -220,7 +220,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1CreateInvoiceRequest"
+              "$ref": "#/definitions/v1GetInvoiceRequest"
             }
           }
         ],
@@ -738,32 +738,6 @@
         }
       }
     },
-    "v1CreateInvoiceRequest": {
-      "type": "object",
-      "properties": {
-        "amount": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "memo": {
-          "type": "string"
-        },
-        "preimage": {
-          "type": "string"
-        }
-      }
-    },
-    "v1CreateInvoiceResponse": {
-      "type": "object",
-      "properties": {
-        "invoice": {
-          "type": "string"
-        },
-        "preimageHash": {
-          "type": "string"
-        }
-      }
-    },
     "v1CreateVHTLCRequest": {
       "type": "object",
       "properties": {
@@ -881,6 +855,23 @@
           "description": "info about the current version of the ark wallet."
         },
         "pubkey": {
+          "type": "string"
+        }
+      }
+    },
+    "v1GetInvoiceRequest": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1GetInvoiceResponse": {
+      "type": "object",
+      "properties": {
+        "invoice": {
           "type": "string"
         }
       }
@@ -1004,7 +995,7 @@
     "v1PayInvoiceResponse": {
       "type": "object",
       "properties": {
-        "preimage": {
+        "txid": {
           "type": "string"
         }
       }

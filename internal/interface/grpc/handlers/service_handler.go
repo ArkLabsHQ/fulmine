@@ -333,24 +333,21 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	}, nil
 }
 
-func (h *serviceHandler) CreateInvoice(
-	ctx context.Context, req *pb.CreateInvoiceRequest,
-) (*pb.CreateInvoiceResponse, error) {
+func (h *serviceHandler) GetInvoice(
+	ctx context.Context, req *pb.GetInvoiceRequest,
+) (*pb.GetInvoiceResponse, error) {
 	amount, err := parseAmount(req.GetAmount())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	memo := req.GetMemo()
-	preimage := req.GetPreimage()
 
-	invoice, preimageHash, err := h.svc.GetInvoice(ctx, amount, memo, preimage)
+	invoice, err := h.svc.GetInvoice(ctx, amount)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.CreateInvoiceResponse{
-		Invoice:      invoice,
-		PreimageHash: preimageHash,
+	return &pb.GetInvoiceResponse{
+		Invoice: invoice,
 	}, nil
 }
 
@@ -362,12 +359,12 @@ func (h *serviceHandler) PayInvoice(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	preimage, err := h.svc.PayInvoice(ctx, invoice)
+	txid, err := h.svc.PayInvoice(ctx, invoice)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.PayInvoiceResponse{Preimage: preimage}, nil
+	return &pb.PayInvoiceResponse{Txid: txid}, nil
 }
 
 func (h *serviceHandler) IsInvoiceSettled(
