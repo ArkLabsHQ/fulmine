@@ -968,6 +968,29 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		return "", err
 	}
 
+	invoice, err := s.GetReverseSwapInvoice(ctx, amount)
+	if err != nil {
+		return "", fmt.Errorf("failed to create reverse swap invoice: %v", err)
+	}
+
+	preimage, err := s.PayInvoice(ctx, invoice)
+	if err != nil {
+		return "", fmt.Errorf("failed to pay invoice: %v", err)
+	}
+
+	decodedPreimage, err := hex.DecodeString(preimage)
+	if err != nil {
+		return "", fmt.Errorf("invalid preimage: %v", err)
+	}
+
+	return s.ClaimVHTLC(ctx, decodedPreimage)
+}
+
+func (s *Service) GetReverseSwapInvoice(ctx context.Context, amount uint64) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
 	// get our pubkey
 	_, _, _, pk, err := s.GetAddress(ctx, 0)
 	if err != nil {
@@ -1021,22 +1044,24 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
-	// pay the invoice
-	preimage, err := s.PayInvoice(ctx, swap.Invoice)
-	if err != nil {
-		return "", fmt.Errorf("failed to pay invoice: %v", err)
-	}
-
-	decodedPreimage, err := hex.DecodeString(preimage)
-	if err != nil {
-		return "", fmt.Errorf("invalid preimage: %v", err)
-	}
-
-	return s.ClaimVHTLC(ctx, decodedPreimage)
+	return swap.Invoice, nil
 }
 
 // ark -> ln (submarine swap)
 func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	// generate invoice where to receive funds
+	invoice, preimageHash, err := s.GetInvoice(ctx, amount, "increase outbound capacity", "")
+	if err != nil {
+		return "", fmt.Errorf("failed to create invoice: %w", err)
+	}
+	return s.MakeSubmarineSwap(ctx, amount, invoice, preimageHash)
+}
+
+func (s *Service) MakeSubmarineSwap(ctx context.Context, amount uint64, invoice, preimageHash string) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
@@ -1048,12 +1073,6 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 	}
 
 	myPubkey, _ := hex.DecodeString(pk)
-
-	// generate invoice where to receive funds
-	invoice, preimageHash, err := s.GetInvoice(ctx, amount, "increase outbound capacity", "")
-	if err != nil {
-		return "", fmt.Errorf("failed to create invoice: %w", err)
-	}
 
 	// make swap
 	swap, err := s.boltzSvc.CreateSwap(boltz.CreateSwapRequest{
