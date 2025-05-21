@@ -332,7 +332,7 @@ func (s *service) sendPreview(c *gin.Context) {
 	}
 
 	dest := c.PostForm("address")
-	var addr, onchainAddr, offchainAddr string
+	var addr, invoice, onchainAddr, offchainAddr string
 
 	sats, err := strconv.Atoi(c.PostForm("sats"))
 	if err != nil {
@@ -367,6 +367,9 @@ func (s *service) sendPreview(c *gin.Context) {
 	if utils.IsValidArkAddress(dest) {
 		offchainAddr = dest
 	}
+	if utils.IsValidInvoice(dest) {
+		invoice = dest
+	}
 
 	if len(offchainAddr) > 0 {
 		if config.VtxoMaxAmount != -1 && int64(total) > config.VtxoMaxAmount {
@@ -379,6 +382,18 @@ func (s *service) sendPreview(c *gin.Context) {
 			}
 		} else {
 			addr = offchainAddr
+		}
+	} else if len(invoice) > 0 {
+		if config.VtxoMaxAmount != -1 && int64(total) > config.VtxoMaxAmount {
+			if len(onchainAddr) > 0 && (config.UtxoMaxAmount == -1 || int64(total) <= config.UtxoMaxAmount) {
+				addr = onchainAddr
+			} else {
+				toast := components.Toast("Amount too high", true)
+				toastHandler(toast, c)
+				return
+			}
+		} else {
+			addr = invoice
 		}
 	} else if len(onchainAddr) > 0 {
 		if config.UtxoMaxAmount != -1 && int64(total) > config.UtxoMaxAmount {
@@ -431,6 +446,15 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	if utils.IsValidBtcAddress(address) {
 		txId, err = s.svc.CollaborativeExit(c, address, value, false)
+		if err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+	}
+
+	if utils.IsValidInvoice(address) {
+		txId, err = s.svc.PayInvoice(c, address)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)

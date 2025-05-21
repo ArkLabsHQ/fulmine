@@ -1330,8 +1330,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64, invoice stri
 
 	var preimageHash []byte
 	if len(invoice) > 0 && amount == 0 {
-		// TODO: DO NOT make use of the lnsvc here
-		amount, preimageHash, err = s.lnSvc.DecodeInvoice(ctx, invoice)
+		amount, preimageHash, err = utils.DecodeInvoice(invoice)
 		if err != nil {
 			return "", fmt.Errorf("failed to decode invoice: %v", err)
 		}
@@ -1477,7 +1476,7 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, preimage []byt
 	}
 
 	// TODO: verify amount
-	_, gotPreimageHash, err := s.lnSvc.DecodeInvoice(ctx, swap.Invoice)
+	_, gotPreimageHash, err := utils.DecodeInvoice(swap.Invoice)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode invoice: %v", err)
 	}
