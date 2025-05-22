@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/crypto/ripemd160"
-
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ark-network/ark/common"
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -134,7 +132,5 @@ func generatePreimage(t *testing.T) []byte {
 // Helper function to calculate hash160 of a preimage
 func calculatePreimageHash(preimage []byte) []byte {
 	sha := sha256.Sum256(preimage)
-	rmd := ripemd160.New()
-	rmd.Write(sha[:])
-	return rmd.Sum(nil) // RIPEMD160(SHA256(preimage))
+	return sha[:]
 }

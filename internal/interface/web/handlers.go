@@ -262,7 +262,8 @@ func (s *service) receiveQrCode(c *gin.Context) {
 			return
 		}
 	}
-	bip21, offchainAddr, boardingAddr, _, err := s.svc.GetAddress(c, sats)
+	fmt.Printf("receiveQrCode sats: %d\n", sats)
+	bip21, offchainAddr, boardingAddr, invoice, _, err := s.svc.GetAddress(c, sats)
 	if err != nil {
 		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -275,7 +276,7 @@ func (s *service) receiveQrCode(c *gin.Context) {
 	}
 	encoded := base64.StdEncoding.EncodeToString(png)
 
-	bodyContent := pages.ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, fmt.Sprintf("%d", sats))
+	bodyContent := pages.ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, fmt.Sprintf("%d", sats))
 	s.pageViewHandler(bodyContent, c)
 }
 

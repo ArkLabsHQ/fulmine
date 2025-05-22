@@ -23,7 +23,7 @@ func NewServiceHandler(svc *application.Service) pb.ServiceServer {
 func (h *serviceHandler) GetAddress(
 	ctx context.Context, req *pb.GetAddressRequest,
 ) (*pb.GetAddressResponse, error) {
-	bip21Addr, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
+	bip21Addr, _, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (h *serviceHandler) GetBalance(
 func (h *serviceHandler) GetInfo(
 	ctx context.Context, req *pb.GetInfoRequest,
 ) (*pb.GetInfoResponse, error) {
-	_, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
+	_, _, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (h *serviceHandler) GetInfo(
 func (h *serviceHandler) GetOnboardAddress(
 	ctx context.Context, req *pb.GetOnboardAddressRequest,
 ) (*pb.GetOnboardAddressResponse, error) {
-	_, _, addr, _, err := h.svc.GetAddress(ctx, 0)
+	_, _, addr, _, _, err := h.svc.GetAddress(ctx, 0)
 	if err != nil {
 		return nil, err
 	}

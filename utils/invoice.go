@@ -1,14 +1,23 @@
 package utils
 
-import decodepay "github.com/nbd-wtf/ln-decodepay"
+import (
+	"encoding/hex"
+
+	decodepay "github.com/nbd-wtf/ln-decodepay"
+)
 
 func DecodeInvoice(invoice string) (uint64, []byte, error) {
 	bolt11, err := decodepay.Decodepay(invoice)
 	if err != nil {
-		return 0, []byte{}, err
+		return 0, nil, err
 	}
+
 	amount := uint64(bolt11.MSatoshi / 1000)
-	preimageHash := []byte(bolt11.PaymentHash)
+	preimageHash, err := hex.DecodeString(bolt11.PaymentHash)
+	if err != nil {
+		return 0, nil, err
+	}
+
 	return amount, preimageHash, nil
 }
 

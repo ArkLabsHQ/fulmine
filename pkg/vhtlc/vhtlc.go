@@ -8,10 +8,11 @@ import (
 	"github.com/ark-network/ark/common/tree"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"golang.org/x/crypto/ripemd160"
 )
 
 const (
-	hash160Len = 20
+	hash256Len = 32
 )
 
 type Opts struct {
@@ -30,8 +31,8 @@ func (o Opts) validate() error {
 		return errors.New("sender, receiver, and server are required")
 	}
 
-	if len(o.PreimageHash) != hash160Len {
-		return errors.New("preimage hash must be 20 bytes")
+	if len(o.PreimageHash) != hash256Len {
+		return errors.New("preimage hash must be 32 bytes")
 	}
 
 	return nil
@@ -158,9 +159,13 @@ func NewVHTLCScript(opts Opts) (*VHTLCScript, error) {
 }
 
 func makePreimageConditionScript(preimageHash []byte) ([]byte, error) {
+	rmd := ripemd160.New()
+	rmd.Write(preimageHash[:])
+	hash := rmd.Sum(nil)
+
 	return txscript.NewScriptBuilder().
 		AddOp(txscript.OP_HASH160).
-		AddData(preimageHash).
+		AddData(hash).
 		AddOp(txscript.OP_EQUAL).
 		Script()
 }
