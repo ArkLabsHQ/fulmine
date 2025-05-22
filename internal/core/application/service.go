@@ -1,7 +1,6 @@
 package application
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -395,7 +394,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			log.WithError(err).Error("failed to connect to LN node")
 			return err
 		}
-
 	}
 
 	url := s.boltzUrl
@@ -793,6 +791,11 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
+	_, _, _, _, pk, err := s.GetAddress(ctx, 0)
+	if err != nil {
+		return "", err
+	}
+	pubkey, _ := hex.DecodeString(pk)
 
 	preimage := make([]byte, 32)
 	if _, err := rand.Read(preimage); err != nil {
@@ -1225,6 +1228,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 	// nolint
 	preimageHash, _ = hex.DecodeString(preimageHashStr)
 
+	fmt.Printf("boltzScv %+v\n", s.boltzSvc)
 	// Create the swap
 	swap, err := s.boltzSvc.CreateSwap(boltz.CreateSwapRequest{
 		From:            boltz.CurrencyArk,
@@ -1628,10 +1632,16 @@ func (s *Service) waitAndClaimVHTLC(
 			time.Sleep(time.Second)
 			log.Debug("reconnecting...")
 			err = ws.Connect()
-			if ctx.Err() != nil {
-				return "", fmt.Errorf("timeout while connecting to websocket: %v", ctx.Err())
+			for err != nil {
+				log.WithError(err).Warn("failed to connect to boltz websocket")
+				time.Sleep(time.Second)
+				log.Debug("reconnecting...")
+				err = ws.Connect()
+				if ctx.Err() != nil {
+					log.Warnf("timeout while connecting to websocket: %v", ctx.Err())
+					return
+				}
 			}
-		}
 
 		err = ws.Subscribe([]string{swapId})
 		for err != nil {
