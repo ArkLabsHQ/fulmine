@@ -9,6 +9,7 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcwallet/waddrmgr"
+	"golang.org/x/crypto/ripemd160"
 )
 
 const (
@@ -203,9 +204,13 @@ func NewVHTLCScript(opts Opts) (*VHTLCScript, error) {
 }
 
 func makePreimageConditionScript(preimageHash []byte) ([]byte, error) {
+	rmd := ripemd160.New()
+	rmd.Write(preimageHash[:])
+	hash := rmd.Sum(nil)
+
 	return txscript.NewScriptBuilder().
 		AddOp(txscript.OP_HASH160).
-		AddData(preimageHash).
+		AddData(hash).
 		AddOp(txscript.OP_EQUAL).
 		Script()
 }
