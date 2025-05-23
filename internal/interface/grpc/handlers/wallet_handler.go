@@ -16,7 +16,7 @@ type walletHandler struct {
 }
 
 func NewWalletHandler(appSvc *application.Service) pb.WalletServiceServer {
-	return &walletHandler{appSvc}
+	return &walletHandler{svc: appSvc}
 }
 
 func (h *walletHandler) GenSeed(
@@ -50,6 +50,7 @@ func (h *walletHandler) CreateWallet(
 	if err := h.svc.Setup(ctx, serverUrl, password, privateKey); err != nil {
 		return nil, err
 	}
+
 	return &pb.CreateWalletResponse{}, nil
 }
 
