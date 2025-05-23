@@ -38,6 +38,12 @@ import (
 	"golang.org/x/crypto/ripemd160"
 )
 
+const (
+	WalletInit   = "init"
+	WalletUnlock = "unlock"
+	WalletReset  = "reset"
+)
+
 var boltzURLByNetwork = map[string]string{
 	common.Bitcoin.Name:          "https://api.boltz.exchange",
 	common.BitcoinTestNet.Name:   "https://api.testnet.boltz.exchange",
@@ -49,6 +55,11 @@ type BuildInfo struct {
 	Version string
 	Commit  string
 	Date    string
+}
+
+type WalletUpdate struct {
+	Type     string
+	Password string
 }
 
 type Service struct {
@@ -73,6 +84,8 @@ type Service struct {
 
 	subscriptions    map[string]func() // tracks subscribed addresses (address -> closeFn)
 	subscriptionLock sync.RWMutex
+
+	walletUpdates chan WalletUpdate
 
 	// Notification channels
 	notifications chan Notification
@@ -123,6 +136,7 @@ func NewService(
 			esploraUrl:                data.ExplorerURL,
 			boltzUrl:                  boltzUrl,
 			boltzWSUrl:                boltzWSUrl,
+			walletUpdates:             make(chan WalletUpdate),
 		}
 
 		return svc, nil
@@ -160,6 +174,7 @@ func NewService(
 		esploraUrl:                esploraUrl,
 		boltzUrl:                  boltzUrl,
 		boltzWSUrl:                boltzWSUrl,
+		walletUpdates:             make(chan WalletUpdate),
 	}
 
 	return svc, nil
@@ -167,6 +182,10 @@ func NewService(
 
 func (s *Service) IsReady() bool {
 	return s.isReady
+}
+
+func (s *Service) GetWalletUpdates() <-chan WalletUpdate {
+	return s.walletUpdates
 }
 
 func (s *Service) SetupFromMnemonic(ctx context.Context, serverUrl, password, mnemonic string) error {
@@ -216,6 +235,11 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	s.publicKey = prvKey.PubKey()
 	s.grpcClient = client
 	s.isReady = true
+
+	go func() {
+		s.walletUpdates <- WalletUpdate{Type: WalletInit, Password: password}
+	}()
+
 	return nil
 }
 
@@ -250,6 +274,10 @@ func (s *Service) LockNode(ctx context.Context) error {
 	// close internal address event listener
 	s.closeInternalListener()
 	s.closeInternalListener = nil
+
+	go func() {
+		s.walletUpdates <- WalletUpdate{Type: "lock"}
+	}()
 
 	return nil
 }
@@ -335,6 +363,10 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		go s.subscribeForBoardingEvent(ctx, onchainAddress, data)
 	}
 
+	go func() {
+		s.walletUpdates <- WalletUpdate{Type: WalletUnlock, Password: password}
+	}()
+
 	return nil
 }
 
@@ -347,6 +379,10 @@ func (s *Service) ResetWallet(ctx context.Context) error {
 	// TODO: Maybe drop?
 	// nolint:all
 	s.dbSvc.Settings().AddDefaultSettings(ctx)
+
+	go func() {
+		s.walletUpdates <- WalletUpdate{Type: WalletReset}
+	}()
 	return nil
 }
 

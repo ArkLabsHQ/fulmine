@@ -6,11 +6,10 @@ import (
 	"io/fs"
 	"net/http"
 
+	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	"github.com/a-h/templ"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
-
-	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 )
 
 //go:embed static/*
@@ -57,8 +56,6 @@ type service struct {
 	svc       *application.Service
 	stopCh    chan struct{}
 	arkServer string
-	onSetup   func(ctx context.Context, password string) error
-	onUnlock  func(ctx context.Context, password string) error
 }
 
 func NewService(
@@ -66,8 +63,6 @@ func NewService(
 	stopCh chan struct{},
 	sentryEnabled bool,
 	arkServer string,
-	onSetup func(ctx context.Context, password string) error,
-	onUnlock func(ctx context.Context, password string) error,
 ) *service {
 	// Create a new Fiber server.
 	router := gin.Default()
@@ -81,8 +76,6 @@ func NewService(
 		svc:       appSvc,
 		stopCh:    stopCh,
 		arkServer: arkServer,
-		onSetup:   onSetup,
-		onUnlock:  onUnlock,
 	}
 
 	// Configure Sentry for Gin (includes built-in panic recovery)

@@ -6,7 +6,6 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 	"github.com/ArkLabsHQ/fulmine/utils"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -224,12 +223,6 @@ func (s *service) unlockApi(c *gin.Context) {
 	}
 
 	if err := s.svc.UnlockNode(c, password); err != nil {
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
-	}
-
-	if err := s.onUnlock(c, password); err != nil {
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
 		return

@@ -4,16 +4,16 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
-	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
 	"net"
 	"net/http"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/grpc/handlers"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/grpc/interceptors"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web"
+	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/http2"
@@ -31,9 +31,9 @@ type service struct {
 	httpServer  *http.Server
 	grpcServer  *grpc.Server
 	unlockerSvc ports.Unlocker
+	macaroonSvc macaroon.Service
 	appStopCh   chan struct{}
 	feStopCh    chan struct{}
-	onUnlock    func(ctx context.Context, password string) error
 }
 
 func NewService(
@@ -68,15 +68,7 @@ func NewService(
 
 	grpcServer := grpc.NewServer(grpcConfig...)
 
-	onSetup := func(ctx context.Context, password string) error {
-		return unlockAndGenerateMacaroon(ctx, macaroonSvc, password)
-	}
-
-	onUnlock := func(ctx context.Context, password string) error {
-		return unlockAndGenerateMacaroon(ctx, macaroonSvc, password)
-	}
-
-	walletHandler := handlers.NewWalletHandler(appSvc, onSetup, onUnlock)
+	walletHandler := handlers.NewWalletHandler(appSvc)
 	pb.RegisterWalletServiceServer(grpcServer, walletHandler)
 
 	serviceHandler := handlers.NewServiceHandler(appSvc)
@@ -102,7 +94,16 @@ func NewService(
 		return nil, err
 	}
 
+	authHeaderMatcher := func(key string) (string, bool) {
+		switch key {
+		case "X-Macaroon":
+			return "macaroon", true
+		default:
+			return key, false
+		}
+	}
 	gwmux := runtime.NewServeMux(
+		runtime.WithIncomingHeaderMatcher(authHeaderMatcher),
 		runtime.WithHealthzEndpoint(grpchealth.NewHealthClient(conn)),
 		runtime.WithMarshalerOption("application/json+pretty", &runtime.JSONPb{
 			MarshalOptions: protojson.MarshalOptions{
@@ -131,7 +132,7 @@ func NewService(
 		return nil, err
 	}
 
-	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled, arkServer, onSetup, onUnlock)
+	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled, arkServer)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", feHandler)
@@ -149,30 +150,20 @@ func NewService(
 		TLSConfig: cfg.tlsConfig(),
 	}
 
-	return &service{
+	svc := &service{
 		cfg,
 		appSvc,
 		httpServer,
 		grpcServer,
 		unlockerSvc,
+		macaroonSvc,
 		appStopCh,
 		feStopCh,
-		onUnlock,
-	}, nil
-}
-
-func unlockAndGenerateMacaroon(ctx context.Context, svc macaroon.Service, password string) error {
-	if svc != nil {
-		if err := svc.Unlock(ctx, password); err != nil {
-			return fmt.Errorf("setup: failed to unlock macaroon: %s", err)
-		}
-
-		if err := svc.Generate(context.Background()); err != nil {
-			return fmt.Errorf("setup: failed to generate macaroon: %s", err)
-		}
 	}
 
-	return nil
+	go svc.listenToWalletUpdates()
+
+	return svc, nil
 }
 
 func (s *service) Start() error {
@@ -220,10 +211,6 @@ func (s *service) autoUnlock() error {
 		return fmt.Errorf("failed to auto unlock: %s", err)
 	}
 
-	if err := s.onUnlock(ctx, password); err != nil {
-		return fmt.Errorf("failed to unlock: %s", err)
-	}
-
 	log.Info("wallet auto unlocked")
 	return nil
 }
@@ -237,4 +224,23 @@ func (s *service) Stop() {
 	// nolint:all
 	s.httpServer.Shutdown(context.Background())
 	log.Info("stopped http server")
+}
+
+func (s *service) listenToWalletUpdates() {
+	ctx := context.Background()
+	for update := range s.appSvc.GetWalletUpdates() {
+		switch update.Type {
+		case application.WalletInit, application.WalletUnlock:
+			if err := s.macaroonSvc.Unlock(ctx, update.Password); err != nil {
+				log.WithError(err).Fatal("failed to setup macaroon service")
+			}
+			if err := s.macaroonSvc.Generate(ctx); err != nil {
+				log.WithError(err).Fatal("failed to generate macaroons")
+			}
+		case application.WalletReset:
+			if err := s.macaroonSvc.Reset(ctx); err != nil {
+				log.WithError(err).Fatal("failed to reset macaroon service")
+			}
+		}
+	}
 }

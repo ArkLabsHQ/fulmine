@@ -21,7 +21,6 @@ import (
 	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-
 	qrcode "github.com/skip2/go-qrcode"
 )
 
@@ -160,13 +159,6 @@ func (s *service) initialize(c *gin.Context) {
 	}
 
 	if err := s.svc.Setup(c, serverUrl, password, privateKey); err != nil {
-		log.WithError(err).Warn("failed to initialize")
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
-	}
-
-	if err := s.onSetup(c, password); err != nil {
 		log.WithError(err).Warn("failed to initialize")
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
