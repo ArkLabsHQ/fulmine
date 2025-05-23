@@ -2,8 +2,8 @@ package config
 
 import (
 	"fmt"
-	fulminev1 "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 
+	fulminev1 "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 )
 
@@ -12,19 +12,19 @@ const (
 	EntityService      = "service"
 	EntityNotification = "notification"
 
-	userMacaroonFile = "user.macaroon"
-)
+	ActionAccess = "access"
 
-const ActionAccess = "access"
+	adminMacaroonFile = "admin.macaroon"
+)
 
 var (
 	macFiles = map[string][]bakery.Op{
-		userMacaroonFile: UserPermissions(),
+		adminMacaroonFile: AdminPermissions(),
 	}
 )
 
-// UserPermissions grants access to all protected methods for all entities
-func UserPermissions() []bakery.Op {
+// AdminPermissions grants access to all protected methods for all entities
+func AdminPermissions() []bakery.Op {
 	return []bakery.Op{
 		{Entity: EntityWallet, Action: ActionAccess},
 		{Entity: EntityService, Action: ActionAccess},

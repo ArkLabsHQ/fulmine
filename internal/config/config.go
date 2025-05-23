@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	envunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/env"
 	fileunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/file"
+	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
 	"github.com/spf13/viper"
 )
 
@@ -73,8 +73,8 @@ var (
 	defaultArkServer        = ""
 	defaultDisableTelemetry = false
 	supportedDbType         = map[string]struct{}{
-		sqliteDb: struct{}{},
-		badgerDb: struct{}{},
+		sqliteDb: {},
+		badgerDb: {},
 	}
 	defaultNoMacaroons = false
 )
