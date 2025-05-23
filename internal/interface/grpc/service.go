@@ -161,7 +161,9 @@ func NewService(
 		feStopCh,
 	}
 
-	go svc.listenToWalletUpdates()
+	if macaroonSvc != nil {
+		go svc.listenToWalletUpdates()
+	}
 
 	return svc, nil
 }
