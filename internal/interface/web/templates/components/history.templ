@@ -140,17 +140,24 @@ templ HistoryEmpty() {
 	</div>
 }
 
-templ HistoryBodyContent(transactions []types.Transaction, loadMore bool) {
-	if len(transactions) == 0 {
-    @HistoryEmpty()
-	} else {
-	  for _, tx := range transactions {
-	  	@HistoryLine(tx)
-	  }
-		if loadMore {
-			<div class="flex justify-center" hx-get={"/txs/" + transactions[len(transactions)-1].Txid} hx-swap="outerHTML">
-				<p class="cursor-pointer p-3 text-semibold text-sm text-white/50 hover:text-white/80">Load more</p>
-			</div>
+templ HistoryBodyContent(transactions []types.Transaction, lastTxId string, loadMore bool) {
+	<div
+	  id="txs"
+		hx-get={"/txs/" + lastTxId}
+		hx-trigger="sse:TXS_ADDED, sse:TXS_CONFIRMED, sse:TXS_REPLACED"
+		hx-swap="outerHTML"
+	>
+		if len(transactions) == 0 {
+			@HistoryEmpty()
+		} else {
+			for _, tx := range transactions {
+				@HistoryLine(tx)
+			}
+			if loadMore {
+				<div class="flex justify-center" hx-get={"/txs/" + lastTxId} hx-target="#txs">
+					<p class="cursor-pointer p-3 text-semibold text-sm text-white/50 hover:text-white/80">Load more</p>
+				</div>
+			}
 		}
-	}
+	</div>
 }
