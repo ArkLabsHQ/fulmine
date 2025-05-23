@@ -3,14 +3,14 @@ package macaroon
 import (
 	"context"
 	"fmt"
-	"github.com/ark-network/ark/server/pkg/kvdb"
-	log "github.com/sirupsen/logrus"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/ark-network/ark/server/pkg/kvdb"
 	"github.com/ark-network/ark/server/pkg/macaroons"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 )
 
@@ -25,27 +25,27 @@ type Service interface {
 	ChangePassword(ctx context.Context, oldPassword, newPassword string) error
 	Generate(ctx context.Context) error
 	Auth(ctx context.Context, grpcFullMethodName string) error
+	Reset(ctx context.Context) error
+}
+
+type macaroonSvc struct {
+	datadir string
+
+	svc *macaroons.Service
+
+	unlocked    bool
+	unlockedMtx *sync.RWMutex
+
+	macFiles           map[string][]bakery.Op
+	whitelistedMethods map[string][]bakery.Op
+	allMethods         map[string][]bakery.Op
 }
 
 func NewService(
 	datadir string, macFiles, whitelistedMethods, allMethods map[string][]bakery.Op,
 ) (Service, error) {
 	macDatadir := filepath.Join(datadir, macaroonsFolder)
-	if err := makeDirectoryIfNotExists(macDatadir); err != nil {
-		return nil, err
-	}
-
-	macaroonDB, err := kvdb.Create(
-		kvdb.BoltBackendName,
-		filepath.Join(macDatadir, macaroonsDbFile),
-		true,
-		kvdb.DefaultDBTimeout,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	keyStore, err := macaroons.NewRootKeyStorage(macaroonDB)
+	keyStore, err := initKeyStore(macDatadir)
 	if err != nil {
 		return nil, err
 	}
@@ -60,27 +60,10 @@ func NewService(
 		datadir:            macDatadir,
 		svc:                svc,
 		unlockedMtx:        &sync.RWMutex{},
-		generatedMtx:       &sync.RWMutex{},
 		macFiles:           macFiles,
 		whitelistedMethods: whitelistedMethods,
 		allMethods:         allMethods,
 	}, nil
-}
-
-type macaroonSvc struct {
-	datadir string
-
-	svc *macaroons.Service
-
-	unlocked    bool
-	unlockedMtx *sync.RWMutex
-
-	generated    bool
-	generatedMtx *sync.RWMutex
-
-	macFiles           map[string][]bakery.Op
-	whitelistedMethods map[string][]bakery.Op
-	allMethods         map[string][]bakery.Op
 }
 
 func (m *macaroonSvc) Unlock(_ context.Context, password string) error {
@@ -100,7 +83,7 @@ func (m *macaroonSvc) Unlock(_ context.Context, password string) error {
 
 func (m *macaroonSvc) ChangePassword(_ context.Context, oldPassword, newPassword string) error {
 	if !m.isUnlocked() {
-		return fmt.Errorf("macaroon service is not unlocked")
+		return fmt.Errorf("macaroon service is locked")
 	}
 
 	oldPwd := []byte(oldPassword)
@@ -115,26 +98,26 @@ func (m *macaroonSvc) ChangePassword(_ context.Context, oldPassword, newPassword
 }
 
 func (m *macaroonSvc) Generate(ctx context.Context) error {
-	if m.isGenerated() {
-		return nil
-	}
-
+	generated := false
 	for macFilename, macPermissions := range m.macFiles {
-		mktMacBytes, err := m.svc.BakeMacaroon(ctx, macPermissions)
-		if err != nil {
-			return err
-		}
 		macFile := filepath.Join(m.datadir, macFilename)
-		perms := fs.FileMode(0644)
-		if err := os.WriteFile(macFile, mktMacBytes, perms); err != nil {
-			os.Remove(macFile)
-			return err
+		if fileNotExists(macFile) {
+			mktMacBytes, err := m.svc.BakeMacaroon(ctx, macPermissions)
+			if err != nil {
+				return err
+			}
+			perms := fs.FileMode(0644)
+			if err := os.WriteFile(macFile, mktMacBytes, perms); err != nil {
+				os.Remove(macFile)
+				return err
+			}
+			generated = true
 		}
-
-		m.setGenerated()
 	}
 
-	log.Debugf("macaroons generated at %s", m.datadir)
+	if generated {
+		log.Debugf("macaroons generated at %s", m.datadir)
+	}
 
 	return nil
 }
@@ -156,6 +139,28 @@ func (m *macaroonSvc) Auth(ctx context.Context, grpcFullMethodName string) error
 	return validator.ValidateMacaroon(ctx, uriPermissions, grpcFullMethodName)
 }
 
+func (s *macaroonSvc) Reset(ctx context.Context) error {
+	if err := os.RemoveAll(s.datadir); err != nil {
+		return err
+	}
+
+	keyStore, err := initKeyStore(s.datadir)
+	if err != nil {
+		return err
+	}
+
+	svc, err := macaroons.NewService(
+		keyStore, macaroonsLocation, false, macaroons.IPLockChecker,
+	)
+	if err != nil {
+		return err
+	}
+
+	s.unlocked = false
+	s.svc = svc
+	return nil
+}
+
 func (m *macaroonSvc) isUnlocked() bool {
 	m.unlockedMtx.RLock()
 	defer m.unlockedMtx.RUnlock()
@@ -168,18 +173,6 @@ func (m *macaroonSvc) setUnlocked() {
 	m.unlocked = true
 }
 
-func (m *macaroonSvc) isGenerated() bool {
-	m.generatedMtx.RLock()
-	defer m.generatedMtx.RUnlock()
-	return m.generated
-}
-
-func (m *macaroonSvc) setGenerated() {
-	m.generatedMtx.Lock()
-	defer m.generatedMtx.Unlock()
-	m.generated = true
-}
-
 func makeDirectoryIfNotExists(path string) error {
 	if pathExists(path) {
 		return nil
@@ -190,4 +183,27 @@ func makeDirectoryIfNotExists(path string) error {
 func pathExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+func fileNotExists(path string) bool {
+	_, err := os.Stat(path)
+	return os.IsNotExist(err)
+}
+
+func initKeyStore(datadir string) (*macaroons.RootKeyStorage, error) {
+	if err := makeDirectoryIfNotExists(datadir); err != nil {
+		return nil, err
+	}
+
+	macaroonDB, err := kvdb.Create(
+		kvdb.BoltBackendName,
+		filepath.Join(datadir, macaroonsDbFile),
+		true,
+		kvdb.DefaultDBTimeout,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return macaroons.NewRootKeyStorage(macaroonDB)
 }
