@@ -1491,7 +1491,6 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, preimage, myPu
 	if err != nil {
 		return "", fmt.Errorf("failed to decode invoice: %v", err)
 	}
-
 	if invoiceAmount != amount {
 		return "", fmt.Errorf("invalid invoice amount: expected %d, got %d", amount, invoiceAmount)
 	}
