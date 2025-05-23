@@ -67,7 +67,7 @@ func TestVHTLC(t *testing.T) {
 			sig.Serialize(),
 			preimage,
 			claimScript,
-			[]byte{0x01}, // dummy control block
+			{0x01}, // dummy control block
 		}
 
 		require.Len(t, witness, 4, "Claim witness should have 4 elements")
@@ -100,7 +100,7 @@ func TestVHTLC(t *testing.T) {
 			receiverSig.Serialize(),
 			serverSig.Serialize(),
 			refundScript,
-			[]byte{0x01}, // dummy control block
+			{0x01}, // dummy control block
 		}
 
 		require.Len(t, witness, 5, "Refund witness should have 5 elements")
