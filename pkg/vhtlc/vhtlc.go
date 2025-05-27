@@ -8,11 +8,10 @@ import (
 	"github.com/ark-network/ark/common/tree"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
-	"golang.org/x/crypto/ripemd160"
 )
 
 const (
-	hash256Len = 32
+	hash256Len = 20
 )
 
 type Opts struct {
@@ -159,13 +158,9 @@ func NewVHTLCScript(opts Opts) (*VHTLCScript, error) {
 }
 
 func makePreimageConditionScript(preimageHash []byte) ([]byte, error) {
-	rmd := ripemd160.New()
-	rmd.Write(preimageHash[:])
-	hash := rmd.Sum(nil)
-
 	return txscript.NewScriptBuilder().
 		AddOp(txscript.OP_HASH160).
-		AddData(hash).
+		AddData(preimageHash).
 		AddOp(txscript.OP_EQUAL).
 		Script()
 }

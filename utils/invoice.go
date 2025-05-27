@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/hex"
 
+	"github.com/lightningnetwork/lnd/input"
 	decodepay "github.com/nbd-wtf/ln-decodepay"
 )
 
@@ -18,7 +19,7 @@ func DecodeInvoice(invoice string) (uint64, []byte, error) {
 		return 0, nil, err
 	}
 
-	return amount, preimageHash, nil
+	return amount, input.Ripemd160H(preimageHash), nil
 }
 
 func SatsFromInvoice(invoice string) int {
