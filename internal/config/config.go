@@ -12,6 +12,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	envunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/env"
 	fileunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/file"
+	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
 	"github.com/spf13/viper"
 )
 
@@ -37,7 +38,8 @@ type Config struct {
 	UnlockerPassword string
 	DisableTelemetry bool
 
-	unlocker ports.Unlocker
+	unlocker    ports.Unlocker
+	macaroonSvc macaroon.Service
 }
 
 var (
@@ -52,6 +54,7 @@ var (
 	BoltzURL         = "BOLTZ_URL"
 	BoltzWSURL       = "BOLTZ_WS_URL"
 	DisableTelemetry = "DISABLE_TELEMETRY"
+	NoMacaroons      = "NO_MACAROONS"
 
 	// Only for testing purposes
 	CLNDatadir = "CLN_DATADIR"
@@ -70,9 +73,10 @@ var (
 	defaultArkServer        = ""
 	defaultDisableTelemetry = false
 	supportedDbType         = map[string]struct{}{
-		sqliteDb: struct{}{},
-		badgerDb: struct{}{},
+		sqliteDb: {},
+		badgerDb: {},
 	}
+	defaultNoMacaroons = false
 )
 
 func LoadConfig() (*Config, error) {
@@ -87,6 +91,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(ArkServer, defaultArkServer)
 	viper.SetDefault(DisableTelemetry, defaultDisableTelemetry)
 	viper.SetDefault(DbType, dbType)
+	viper.SetDefault(NoMacaroons, defaultNoMacaroons)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
@@ -118,6 +123,10 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
+	if err := config.initMacaroonService(); err != nil {
+		return nil, err
+	}
+
 	return config, nil
 }
 
@@ -144,6 +153,29 @@ func (c *Config) initUnlockerService() error {
 		return err
 	}
 	c.unlocker = svc
+	return nil
+}
+
+func (c Config) MacaroonSvc() macaroon.Service {
+	return c.macaroonSvc
+}
+
+func (c *Config) initMacaroonService() error {
+	if c.macaroonSvc != nil {
+		return nil
+	}
+
+	if !viper.GetBool(NoMacaroons) {
+		svc, err := macaroon.NewService(
+			viper.GetString(Datadir), macFiles, WhitelistedByMethod(), AllPermissionsByMethod(),
+		)
+		if err != nil {
+			return err
+		}
+
+		c.macaroonSvc = svc
+	}
+
 	return nil
 }
 

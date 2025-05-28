@@ -116,7 +116,9 @@ func main() {
 		log.WithError(err).Fatal("failed to init application service")
 	}
 
-	svc, err := grpcservice.NewService(svcConfig, appSvc, cfg.UnlockerService(), sentryEnabled)
+	svc, err := grpcservice.NewService(
+		svcConfig, appSvc, cfg.UnlockerService(), sentryEnabled, cfg.MacaroonSvc(), cfg.ArkServer,
+	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init interface service")
 	}

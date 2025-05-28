@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ArkLabsHQ/fulmine/internal/config"
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
@@ -25,7 +24,6 @@ import (
 	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-
 	qrcode "github.com/skip2/go-qrcode"
 )
 
@@ -169,6 +167,7 @@ func (s *service) initialize(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
+
 	redirect("/done", c)
 }
 
@@ -477,13 +476,6 @@ func (s *service) setMnemonic(c *gin.Context) {
 }
 
 func (s *service) setPassword(c *gin.Context) {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		toast := components.Toast("Invalid config", true)
-		toastHandler(toast, c)
-		return
-	}
-
 	// validate passwords
 	password := c.PostForm("password")
 	pconfirm := c.PostForm("pconfirm")
@@ -500,8 +492,8 @@ func (s *service) setPassword(c *gin.Context) {
 	// 2. from env variable (aka cfg.ArkServer)
 	// 3. user inserts on form
 	serverUrl := c.PostForm("urlOnQuery")
-	if serverUrl == "" && cfg.ArkServer != "" {
-		serverUrl = cfg.ArkServer
+	if serverUrl == "" {
+		serverUrl = s.arkServer
 	}
 
 	bodyContent := pages.ServerUrlBodyContent(serverUrl, privateKey, password)
@@ -683,7 +675,7 @@ func (s *service) getTransfer(c *gin.Context, transfer types.Transfer, explorerU
 }
 
 // TODO: Ensure the correct Content are being displayed
-func (s *service) getSwap(c *gin.Context, swap types.Swap, vhtlc *types.Transfer, redeem *types.Transfer) templ.Component {
+func (s *service) getSwap(swap types.Swap, vhtlc *types.Transfer, redeem *types.Transfer) templ.Component {
 	return pages.SwapContent(swap, vhtlc, redeem)
 }
 
@@ -728,7 +720,7 @@ func (s *service) getTx(c *gin.Context) {
 	} else if tx.Kind == "transfer" {
 		bodyContent = s.getTransfer(c, *tx.Transfer, explorerUrl)
 	} else {
-		bodyContent = s.getSwap(c, *tx.Swap, tx.VHTLCTransfer, tx.RedeemTransfer)
+		bodyContent = s.getSwap(*tx.Swap, tx.VHTLCTransfer, tx.RedeemTransfer)
 	}
 	s.pageViewHandler(bodyContent, c)
 }

@@ -6,7 +6,6 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 	"github.com/ArkLabsHQ/fulmine/utils"
-
 	"github.com/gin-gonic/gin"
 )
 
