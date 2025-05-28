@@ -6,11 +6,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/ark-network/ark/common"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
+	"github.com/ark-network/ark/common"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
@@ -27,27 +27,18 @@ func NewVHTLCRepository(db *sql.DB) (domain.VHTLCRepository, error) {
 }
 
 func (r *vhtlcRepository) Add(ctx context.Context, opts vhtlc.Opts) error {
-	preimageHash := hex.EncodeToString(opts.PreimageHash)
-	_, err := r.Get(ctx, preimageHash)
-	if err == nil {
-		return fmt.Errorf("vHTLC with preimage hash %s already exists", preimageHash)
+	optsParams := toOptParams(opts)
+	if _, err := r.Get(ctx, optsParams.PreimageHash); err == nil {
+		return fmt.Errorf("vHTLC with preimage hash %s alllready exists", optsParams.PreimageHash)
 	}
-	sender := hex.EncodeToString(opts.Sender.SerializeCompressed())
-	receiver := hex.EncodeToString(opts.Receiver.SerializeCompressed())
-	server := hex.EncodeToString(opts.Server.SerializeCompressed())
-	return r.querier.InsertVHTLC(ctx, queries.InsertVHTLCParams{
-		PreimageHash:                             preimageHash,
-		Sender:                                   sender,
-		Receiver:                                 receiver,
-		Server:                                   server,
-		RefundLocktime:                           int64(opts.RefundLocktime),
-		UnilateralClaimDelayType:                 int64(opts.UnilateralClaimDelay.Type),
-		UnilateralClaimDelayValue:                int64(opts.UnilateralClaimDelay.Value),
-		UnilateralRefundDelayType:                int64(opts.UnilateralRefundDelay.Type),
-		UnilateralRefundDelayValue:               int64(opts.UnilateralRefundDelay.Value),
-		UnilateralRefundWithoutReceiverDelayType: int64(opts.UnilateralRefundWithoutReceiverDelay.Type),
-		UnilateralRefundWithoutReceiverDelayValue: int64(opts.UnilateralRefundWithoutReceiverDelay.Value),
-	})
+
+	if err := r.querier.InsertVHTLC(ctx, optsParams); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("vHTLC with preimage hash %s already exists", optsParams.PreimageHash)
+		}
+		return err
+	}
+	return nil
 }
 
 func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*vhtlc.Opts, error) {
@@ -76,14 +67,6 @@ func (r *vhtlcRepository) GetAll(ctx context.Context) ([]vhtlc.Opts, error) {
 		out = append(out, *opt)
 	}
 	return out, nil
-}
-
-func (r *vhtlcRepository) Delete(ctx context.Context, preimageHash string) error {
-	_, err := r.Get(ctx, preimageHash)
-	if err != nil {
-		return fmt.Errorf("vHTLC with preimage hash %s not found", preimageHash)
-	}
-	return r.querier.DeleteVHTLC(ctx, preimageHash)
 }
 
 func (r *vhtlcRepository) Close() {
@@ -147,4 +130,25 @@ func toOpts(row queries.Vhtlc) (*vhtlc.Opts, error) {
 		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
 		PreimageHash:                         preimageHashBytes,
 	}, nil
+}
+
+func toOptParams(opts vhtlc.Opts) queries.InsertVHTLCParams {
+	preimageHash := hex.EncodeToString(opts.PreimageHash)
+	sender := hex.EncodeToString(opts.Sender.SerializeCompressed())
+	receiver := hex.EncodeToString(opts.Receiver.SerializeCompressed())
+	server := hex.EncodeToString(opts.Server.SerializeCompressed())
+
+	return queries.InsertVHTLCParams{
+		PreimageHash:                             preimageHash,
+		Sender:                                   sender,
+		Receiver:                                 receiver,
+		Server:                                   server,
+		RefundLocktime:                           int64(opts.RefundLocktime),
+		UnilateralClaimDelayType:                 int64(opts.UnilateralClaimDelay.Type),
+		UnilateralClaimDelayValue:                int64(opts.UnilateralClaimDelay.Value),
+		UnilateralRefundDelayType:                int64(opts.UnilateralRefundDelay.Type),
+		UnilateralRefundDelayValue:               int64(opts.UnilateralRefundDelay.Value),
+		UnilateralRefundWithoutReceiverDelayType: int64(opts.UnilateralRefundWithoutReceiverDelay.Type),
+		UnilateralRefundWithoutReceiverDelayValue: int64(opts.UnilateralRefundWithoutReceiverDelay.Value),
+	}
 }

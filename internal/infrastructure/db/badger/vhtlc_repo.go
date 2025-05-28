@@ -3,6 +3,7 @@ package badgerdb
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -32,7 +33,7 @@ func NewVHTLCRepository(baseDir string, logger badger.Logger) (domain.VHTLCRepos
 
 // GetAll retrieves all VHTLC options from the database
 func (r *vhtlcRepository) GetAll(ctx context.Context) ([]vhtlc.Opts, error) {
-	var opts []data
+	var opts []vhtlcData
 	err := r.store.Find(&opts, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all vHTLC options: %w", err)
@@ -51,9 +52,9 @@ func (r *vhtlcRepository) GetAll(ctx context.Context) ([]vhtlc.Opts, error) {
 
 // Get retrieves a specific VHTLC option by preimage hash
 func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*vhtlc.Opts, error) {
-	var dataOpts data
+	var dataOpts vhtlcData
 	err := r.store.Get(preimageHash, &dataOpts)
-	if err == badgerhold.ErrNotFound {
+	if errors.Is(err, badgerhold.ErrNotFound) {
 		return nil, fmt.Errorf("vHTLC with preimage hash %s not found", preimageHash)
 	}
 	if err != nil {
@@ -70,7 +71,7 @@ func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*vhtlc.
 
 // Add stores a new VHTLC option in the database
 func (r *vhtlcRepository) Add(ctx context.Context, opts vhtlc.Opts) error {
-	data := data{
+	data := vhtlcData{
 		PreimageHash:                         hex.EncodeToString(opts.PreimageHash),
 		Sender:                               hex.EncodeToString(opts.Sender.SerializeCompressed()),
 		Receiver:                             hex.EncodeToString(opts.Receiver.SerializeCompressed()),
@@ -81,12 +82,18 @@ func (r *vhtlcRepository) Add(ctx context.Context, opts vhtlc.Opts) error {
 		UnilateralRefundWithoutReceiverDelay: opts.UnilateralRefundWithoutReceiverDelay,
 	}
 
-	return r.store.Insert(data.PreimageHash, data)
+	if err := r.store.Insert(data.PreimageHash, data); err != nil {
+		if errors.Is(err, badgerhold.ErrKeyExists) {
+			return fmt.Errorf("vHTLC with preimage hash %s already exists", data.PreimageHash)
+		}
+		return err
+	}
+	return nil
 }
 
 // Delete removes a VHTLC option from the database
 func (r *vhtlcRepository) Delete(ctx context.Context, preimageHash string) error {
-	return r.store.Delete(preimageHash, data{})
+	return r.store.Delete(preimageHash, vhtlcData{})
 }
 
 func (s *vhtlcRepository) Close() {
@@ -94,7 +101,7 @@ func (s *vhtlcRepository) Close() {
 	s.store.Close()
 }
 
-type data struct {
+type vhtlcData struct {
 	PreimageHash                         string
 	Sender                               string
 	Receiver                             string
@@ -105,7 +112,7 @@ type data struct {
 	UnilateralRefundWithoutReceiverDelay common.RelativeLocktime
 }
 
-func (d *data) toOpts() (*vhtlc.Opts, error) {
+func (d *vhtlcData) toOpts() (*vhtlc.Opts, error) {
 	senderBytes, err := hex.DecodeString(d.Sender)
 	if err != nil {
 		return nil, err

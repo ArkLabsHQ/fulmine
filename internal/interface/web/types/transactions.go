@@ -8,14 +8,19 @@ type PoolTxs struct {
 }
 
 type Transaction struct {
-	Amount     string `json:"amount"`
-	CreatedAt  string `json:"createdAt"`
-	Day        string `json:"day"`
-	ExpiresAt  string `json:"expiresAt"`
-	Explorable bool   `json:"explorable"`
-	Hour       string `json:"hour"`
-	Kind       string `json:"kind"`
-	Status     string `json:"status"`
-	Txid       string `json:"txid"`
-	UnixDate   int64  `json:"unixdate"`
+	// Kind can be "swap" or "transfer"
+	Kind string `json:"kind"`
+
+	Id string `json:"id"`
+
+	DateCreated int64 `json:"dateCreated"`
+
+	// Exactly one of these will be non-nil:
+	Swap     *Swap     `json:"swap,omitempty"`
+	Transfer *Transfer `json:"transfer,omitempty"`
+
+	// If Swap is Outbound, this is the Sent VHTLC
+	VHTLCTransfer *Transfer `json:"vhtlc,omitempty"`
+	// If Swap is Inbound, this is the Redeem Tx, else this is Txn of reclaim Failed Outbound Swap
+	RedeemTransfer *Transfer `json:"redeemTransfer,omitempty"`
 }

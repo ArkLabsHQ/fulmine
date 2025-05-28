@@ -83,7 +83,7 @@ templ WaitingTxIcon() {
 	</div>
 }
 
-templ Tx(tx types.Transaction, explorerUrl string) {
+templ Transfer(tx types.Transfer, explorerUrl string) {
   <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div>
       @HeaderWithAction("Transaction details", ViewTxButtonDot(tx.Txid, explorerUrl))

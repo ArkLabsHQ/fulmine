@@ -73,45 +73,82 @@ templ WaitingIcon() {
 	</div>
 }
 
-templ HistoryLine(tx types.Transaction) {
-	<div txid={tx.Txid} onclick="showTx(this)">
-	  <div class="flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10" >
-	  	<div class="flex w-64">
-	  	  @ShowTxIcon(tx.Kind, tx.Status)
-				if tx.UnixDate != 0 {
-	  	    <p class="leading-4">{tx.Day}<br /><span class="text-white/50">{tx.Hour}</span></p>
+templ TransferHistoryLine(tx types.Transfer) {
+	<div class="flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10" >
+		  	<div class="flex w-64">
+		  	  @ShowTxIcon(tx.Kind, tx.Status)
+					if tx.UnixDate != 0 {
+		  	    <p class="leading-4">{tx.Day}<br /><span class="text-white/50">{tx.Hour}</span></p>
+					}
+		  	</div>
+				if tx.Status == "pending" {
+					<div class="flex items-center">
+					  <p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
+					</div>
 				}
-	  	</div>
-			if tx.Status == "pending" {
-				<div class="flex items-center">
-				  <p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
-				</div>
-			}
-			if tx.Status == "failed" {
-				<div class="flex items-center">
-				  <p class="bg-red/20 px-2 py-1 rounded-md text-sm text-red">Failed</p>
-				</div>
-			}
-			if tx.Status == "unconfirmed" {
-				<div class="flex items-center">
-				  <p class="bg-white/20 px-2 py-1 rounded-md text-sm text-white">Unconfirmed</p>
-				</div>
-			}
-	  	<div class="flex w-64">
-	  	  <p class="leading-4 text-end w-full">
-	  		  <span class={
-						templ.KV("text-red", tx.Status != "pending" && tx.Kind == "sent"),
-						templ.KV("text-green", tx.Status != "pending" && tx.Kind == "received"),
-						templ.KV("text-yellow", tx.Status == "pending"),
-						templ.KV("text-white", tx.Status == "unconfirmed"),
-					}>
-	  			  <span class="cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</span>
-	  			</span>
-	  			<br />
-	  		  <span class="text-white/50 fiatAmount" sats={tx.Amount}>&nbsp;</span>
-	  		</p>
-	  	</div>
-	  </div>
+				if tx.Status == "failed" {
+					<div class="flex items-center">
+					  <p class="bg-red/20 px-2 py-1 rounded-md text-sm text-red">Failed</p>
+					</div>
+				}
+				if tx.Status == "unconfirmed" {
+					<div class="flex items-center">
+					  <p class="bg-white/20 px-2 py-1 rounded-md text-sm text-white">Unconfirmed</p>
+					</div>
+				}
+		  	<div class="flex w-64">
+		  	  <p class="leading-4 text-end w-full">
+		  		  <span class={
+							templ.KV("text-red", tx.Status != "pending" && tx.Kind == "sent"),
+							templ.KV("text-green", tx.Status != "pending" && tx.Kind == "received"),
+							templ.KV("text-yellow", tx.Status == "pending"),
+							templ.KV("text-white", tx.Status == "unconfirmed"),
+						}>
+		  			  <span class="cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</span>
+		  			</span>
+		  			<br />
+		  		  <span class="text-white/50 fiatAmount" sats={tx.Amount}>&nbsp;</span>
+		  		</p>
+		</div>
+	</div>
+}
+
+templ SwapHistoryLine(swap types.Swap) {
+	<div class="flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10" >
+	  <div class="flex items-center gap-4">
+			<div class="flex items-center gap-2">
+				if swap.Kind == "submarine" {
+					@ArkIcon()
+					@ArrowRight()
+					@LightningIcon()
+				} else {
+					@LightningIcon()
+					@ArrowRight()
+					@ArkIcon()
+				}
+			</div>
+			<div class="flex flex-col">
+				<p class="text-white">{swap.Date}</p>
+				<p class="text-sm text-white/50">{swap.Hour}</p>
+			</div>
+		</div>
+		<div class="flex items-center gap-4">
+			<div class="flex flex-col w-32 text-right">
+				<p class="cryptoAmount" sats={swap.Amount}>{swap.Amount} SATS</p>
+				<p class="text-sm text-white/50 fiatAmount" sats={swap.Amount}>&nbsp;</p>
+			</div>
+		</div>
+	</div>
+}
+
+
+templ HistoryLine(tx types.Transaction) {
+	<div txid={tx.Id} onclick="showTx(this)">
+	  	if tx.Kind == "swap" {
+			@SwapHistoryLine(*tx.Swap)
+		} else {
+			@TransferHistoryLine(*tx.Transfer)
+		}
 	</div>
 }
 
@@ -140,10 +177,10 @@ templ HistoryEmpty() {
 	</div>
 }
 
-templ HistoryBodyContent(transactions []types.Transaction, lastTxId string, loadMore bool) {
+templ HistoryBodyContent(transactions []types.Transaction, lastId string, loadMore bool) {
 	<div
 	  id="txs"
-		hx-get={"/txs/" + lastTxId}
+		hx-get={"/txs/" + lastId}
 		hx-trigger="sse:TXS_ADDED, sse:TXS_CONFIRMED, sse:TXS_REPLACED"
 		hx-swap="outerHTML"
 	>
@@ -154,7 +191,7 @@ templ HistoryBodyContent(transactions []types.Transaction, lastTxId string, load
 				@HistoryLine(tx)
 			}
 			if loadMore {
-				<div class="flex justify-center" hx-get={"/txs/" + lastTxId} hx-target="#txs">
+				<div class="flex justify-center" hx-get={"/txs/" + lastId} hx-target="#txs">
 					<p class="cursor-pointer p-3 text-semibold text-sm text-white/50 hover:text-white/80">Load more</p>
 				</div>
 			}

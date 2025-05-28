@@ -1,11 +1,13 @@
 package sqlitedb
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
 	_ "modernc.org/sqlite"
 )
 
@@ -31,4 +33,42 @@ func OpenDb(dbPath string) (*sql.DB, error) {
 	db.SetMaxOpenConns(1) // prevent concurrent writes
 
 	return db, nil
+}
+
+func execTx(
+	ctx context.Context,
+	db *sql.DB,
+	txBody func(*queries.Queries) error,
+) (err error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %w", err)
+	}
+
+	querier := queries.New(db)
+
+	defer func() {
+		if p := recover(); p != nil {
+			rollbackErr := tx.Rollback()
+			if rollbackErr != nil {
+				err = fmt.Errorf("panic: %v, rollback error: %w", p, rollbackErr)
+			}
+			panic(p) // Re-throw after rollback
+		} else if err != nil {
+			rollbackErr := tx.Rollback()
+			if rollbackErr != nil {
+				err = fmt.Errorf("original error: %v, rollback error: %w", err, rollbackErr)
+			}
+		}
+	}()
+
+	if err = txBody(querier.WithTx(tx)); err != nil {
+		return fmt.Errorf("failed to execute transaction: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
