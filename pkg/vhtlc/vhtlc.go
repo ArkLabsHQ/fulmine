@@ -6,6 +6,8 @@ import (
 
 	"github.com/ark-network/ark/common"
 	"github.com/ark-network/ark/common/tree"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
@@ -181,4 +183,23 @@ func (v *VHTLCScript) GetRevealedTapscripts() []string {
 		}
 	}
 	return scripts
+}
+
+func (v *VHTLCScript) Address(hrp string, serverPubkey *btcec.PublicKey) (string, error) {
+	tapKey, _, err := v.TapTree()
+	if err != nil {
+		return "", err
+	}
+	schnorrKey, err := schnorr.ParsePubKey(serverPubkey.SerializeCompressed())
+	if err != nil {
+		return "", err
+	}
+
+	addr := &common.Address{
+		HRP:        hrp,
+		Server:     schnorrKey,
+		VtxoTapKey: tapKey,
+	}
+
+	return addr.Encode()
 }

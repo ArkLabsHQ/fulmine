@@ -597,22 +597,15 @@ func (s *Service) GetVHTLC(
 		UnilateralRefundDelay:                unilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
 	}
-	vtxoScript, err := vhtlc.NewVHTLCScript(opts)
+	vHTLC, err := vhtlc.NewVHTLCScript(opts)
 	if err != nil {
 		return "", nil, nil, err
 	}
 
-	tapKey, _, err := vtxoScript.TapTree()
-	if err != nil {
-		return "", nil, nil, err
-	}
+	// nolint
+	cfg, _ := s.GetConfigData(ctx)
 
-	addr := &common.Address{
-		HRP:        decodedAddr.HRP,
-		Server:     decodedAddr.Server,
-		VtxoTapKey: tapKey,
-	}
-	encodedAddr, err := addr.Encode()
+	encodedAddr, err := vHTLC.Address(cfg.Network.Addr, cfg.ServerPubKey)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -624,10 +617,10 @@ func (s *Service) GetVHTLC(
 		}
 	}
 
-	return encodedAddr, vtxoScript, &opts, nil
+	return encodedAddr, vHTLC, &opts, nil
 }
 
-func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string, opts *vhtlc.Opts) ([]client.Vtxo, []vhtlc.Opts, error) {
+func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]client.Vtxo, []vhtlc.Opts, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return nil, nil, err
 	}
@@ -635,9 +628,8 @@ func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string, opts
 	// Get VHTLC options based on filter
 	var vhtlcOpts []vhtlc.Opts
 	vhtlcRepo := s.dbSvc.VHTLC()
-	if opts != nil {
-		vhtlcOpts = []vhtlc.Opts{*opts}
-	} else if preimageHashFilter != "" {
+
+	if preimageHashFilter != "" {
 		opt, err := vhtlcRepo.Get(ctx, preimageHashFilter)
 		if err != nil {
 			return nil, nil, err
@@ -651,301 +643,39 @@ func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string, opts
 		}
 	}
 
-	offchainAddr, _, err := s.Receive(ctx)
+	vtxos, err := s.getVHTLCFunds(ctx, vhtlcOpts)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	decodedAddr, err := common.DecodeAddress(offchainAddr)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var allVtxos []client.Vtxo
-	for _, opt := range vhtlcOpts {
-		vtxoScript, err := vhtlc.NewVHTLCScript(opt)
-		if err != nil {
-			return nil, nil, err
-		}
-		tapKey, _, err := vtxoScript.TapTree()
-		if err != nil {
-			return nil, nil, err
-		}
-
-		addr := &common.Address{
-			HRP:        decodedAddr.HRP,
-			Server:     decodedAddr.Server,
-			VtxoTapKey: tapKey,
-		}
-
-		addrStr, err := addr.Encode()
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// Get vtxos for this address
-		vtxos, _, err := s.grpcClient.ListVtxos(ctx, addrStr)
-		if err != nil {
-			return nil, nil, err
-		}
-		allVtxos = append(allVtxos, vtxos...)
-	}
-
-	return allVtxos, vhtlcOpts, nil
+	return vtxos, vhtlcOpts, nil
 }
 
-func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte, opts *vhtlc.Opts) (string, error) {
+func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
 
 	preimageHash := hex.EncodeToString(btcutil.Hash160(preimage))
-
-	vtxos, vhtlcOpts, err := s.ListVHTLC(ctx, preimageHash, opts)
+	vhtlcOpts, err := s.dbSvc.VHTLC().Get(ctx, preimageHash)
 	if err != nil {
 		return "", err
 	}
 
-	if len(vtxos) == 0 {
-		return "", fmt.Errorf("no vhtlc found")
-	}
-
-	vtxo := vtxos[0]
-
-	vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
-	if err != nil {
-		return "", err
-	}
-
-	vtxoOutpoint := &wire.OutPoint{
-		Hash:  *vtxoTxHash,
-		Index: vtxo.VOut,
-	}
-
-	vtxoScript, err := vhtlc.NewVHTLCScript(vhtlcOpts[0])
-	if err != nil {
-		return "", err
-	}
-
-	claimClosure := vtxoScript.ClaimClosure
-	claimWitnessSize := claimClosure.WitnessSize(len(preimage))
-	claimScript, err := claimClosure.Script()
-	if err != nil {
-		return "", err
-	}
-
-	_, tapTree, err := vtxoScript.TapTree()
-	if err != nil {
-		return "", err
-	}
-
-	claimLeafProof, err := tapTree.GetTaprootMerkleProof(
-		txscript.NewBaseTapLeaf(claimScript).TapHash(),
-	)
-	if err != nil {
-		return "", err
-	}
-
-	ctrlBlock, err := txscript.ParseControlBlock(claimLeafProof.ControlBlock)
-	if err != nil {
-		return "", err
-	}
-
-	// self send output
-	_, myAddr, _, _, err := s.GetAddress(ctx, 0)
-	if err != nil {
-		return "", err
-	}
-
-	decodedAddr, err := common.DecodeAddress(myAddr)
-	if err != nil {
-		return "", err
-	}
-
-	pkScript, err := common.P2TRScript(decodedAddr.VtxoTapKey)
-	if err != nil {
-		return "", err
-	}
-
-	amount, err := safecast.ToInt64(vtxo.Amount)
-	if err != nil {
-		return "", err
-	}
-
-	redeemTx, err := tree.BuildRedeemTx(
-		[]common.VtxoInput{
-			{
-				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
-				Outpoint:           vtxoOutpoint,
-				Amount:             amount,
-				WitnessSize:        claimWitnessSize,
-				Tapscript: &waddrmgr.Tapscript{
-					ControlBlock:   ctrlBlock,
-					RevealedScript: claimScript,
-				},
-			},
-		},
-		[]*wire.TxOut{
-			{
-				Value:    amount,
-				PkScript: pkScript,
-			},
-		},
-	)
-	if err != nil {
-		return "", err
-	}
-
-	redeemPtx, err := psbt.NewFromRawBytes(strings.NewReader(redeemTx), true)
-	if err != nil {
-		return "", err
-	}
-
-	if err := tree.AddConditionWitness(0, redeemPtx, wire.TxWitness{preimage}); err != nil {
-		return "", err
-	}
-
-	reemdemTxId := redeemPtx.UnsignedTx.TxHash().String()
-
-	redeemTx, err = redeemPtx.B64Encode()
-	if err != nil {
-		return "", err
-	}
-
-	signedRedeemTx, err := s.SignTransaction(ctx, redeemTx)
-	if err != nil {
-		return "", err
-	}
-
-	if _, _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRedeemTx); err != nil {
-		return "", err
-	}
-
-	return reemdemTxId, nil
+	return s.claimVHTLC(ctx, preimage, *vhtlcOpts)
 }
 
-func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string, withReceiver bool, opts *vhtlc.Opts) (string, error) {
+func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string, withReceiver bool) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
 
-	vtxos, vhtlcOpts, err := s.ListVHTLC(ctx, preimageHash, opts)
+	vhtlcOpts, err := s.dbSvc.VHTLC().Get(ctx, preimageHash)
 	if err != nil {
 		return "", err
 	}
 
-	if len(vtxos) == 0 {
-		return "", fmt.Errorf("no vhtlc found")
-	}
-
-	vtxo := vtxos[0]
-
-	vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
-	if err != nil {
-		return "", err
-	}
-
-	vtxoOutpoint := &wire.OutPoint{
-		Hash:  *vtxoTxHash,
-		Index: vtxo.VOut,
-	}
-
-	vtxoScript, err := vhtlc.NewVHTLCScript(vhtlcOpts[0])
-	if err != nil {
-		return "", err
-	}
-
-	var refundClosure tree.Closure
-	refundClosure = vtxoScript.RefundWithoutReceiverClosure
-	if withReceiver {
-		refundClosure = vtxoScript.RefundClosure
-	}
-	refundWitnessSize := refundClosure.WitnessSize()
-	refundScript, err := refundClosure.Script()
-	if err != nil {
-		return "", err
-	}
-
-	_, tapTree, err := vtxoScript.TapTree()
-	if err != nil {
-		return "", err
-	}
-
-	refundLeafProof, err := tapTree.GetTaprootMerkleProof(
-		txscript.NewBaseTapLeaf(refundScript).TapHash(),
-	)
-	if err != nil {
-		return "", err
-	}
-
-	ctrlBlock, err := txscript.ParseControlBlock(refundLeafProof.ControlBlock)
-	if err != nil {
-		return "", err
-	}
-
-	dest, err := txscript.PayToTaprootScript(vhtlcOpts[0].Sender)
-	if err != nil {
-		return "", err
-	}
-
-	amount, err := safecast.ToInt64(vtxo.Amount)
-	if err != nil {
-		return "", err
-	}
-
-	refundTx, err := tree.BuildRedeemTx(
-		[]common.VtxoInput{
-			{
-				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
-				Outpoint:           vtxoOutpoint,
-				Amount:             amount,
-				WitnessSize:        refundWitnessSize,
-				Tapscript: &waddrmgr.Tapscript{
-					ControlBlock:   ctrlBlock,
-					RevealedScript: refundScript,
-				},
-			},
-		},
-		[]*wire.TxOut{
-			{
-				Value:    amount,
-				PkScript: dest,
-			},
-		},
-	)
-	if err != nil {
-		return "", err
-	}
-
-	refundPtx, err := psbt.NewFromRawBytes(strings.NewReader(refundTx), true)
-	if err != nil {
-		return "", err
-	}
-
-	txid := refundPtx.UnsignedTx.TxHash().String()
-
-	refundTx, err = refundPtx.B64Encode()
-	if err != nil {
-		return "", err
-	}
-
-	signedRefundTx, err := s.SignTransaction(ctx, refundTx)
-	if err != nil {
-		return "", err
-	}
-
-	if withReceiver {
-		signedRefundTx, err = s.boltzRefundSwap(swapId, signedRefundTx)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	if _, _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRefundTx); err != nil {
-		return "", err
-	}
-
-	return txid, nil
+	return s.refundVHTLC(ctx, swapId, withReceiver, *vhtlcOpts)
 }
 
 func (s *Service) GetInvoice(ctx context.Context, amount uint64, memo, preimage string) (string, string, error) {
@@ -1075,34 +805,27 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		return "", fmt.Errorf("invalid preimage: %v", err)
 	}
 
-	txid, err := s.ClaimVHTLC(ctx, decodedPreimage, opts)
-
-	// Create Swap Data To Store
-	swapData := domain.Swap{
-		Id:         swap.Id,
-		Amount:     amount,
-		Timestamp:  time.Now().Unix(),
-		Invoice:    swap.Invoice,
-		RedeemTxId: txid,
-		To:         boltz.CurrencyArk,
-		From:       boltz.CurrencyBtc,
-		VhtlcOpts:  opts,
+	txid, err := s.claimVHTLC(ctx, decodedPreimage, *opts)
+	if err != nil {
+		return "", fmt.Errorf("failed to claim vHTLC: %v", err)
 	}
 
-	go func(swap domain.Swap, ctx context.Context, err error) {
-		bgCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-
-		if err != nil {
-			swap.Status = domain.SwapFailed
-		} else {
-			swap.Status = domain.SwapSuccess
+	go func() {
+		if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+			Id:         swap.Id,
+			Amount:     amount,
+			Timestamp:  time.Now().Unix(),
+			Invoice:    swap.Invoice,
+			To:         boltz.CurrencyArk,
+			From:       boltz.CurrencyBtc,
+			Status:     domain.SwapSuccess,
+			VhtlcOpts:  *opts,
+			RedeemTxId: txid,
+		}); err != nil {
+			log.WithError(err).Fatal("failed to store swap")
 		}
-
-		if dbErr := s.dbSvc.Swap().Add(bgCtx, swap); dbErr != nil {
-			log.Warnf("IncreaseInboundCapacity: failed to store swap data %s: %v", swap.Id, dbErr)
-		}
-	}(swapData, ctx, err)
+		log.Debugf("added new swap %s", swap.Id)
+	}()
 
 	return txid, err
 
@@ -1113,24 +836,6 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
-
-	// channel for all swap‐data updates
-	swapUpdates := make(chan domain.Swap, 1)
-	dbCtx, cancelDB := context.WithCancel(context.Background())
-	defer func() {
-		cancelDB()
-		close(swapUpdates)
-	}()
-
-	go func() {
-		for sd := range swapUpdates {
-			if err := s.dbSvc.Swap().Add(dbCtx, sd); err != nil {
-				log.WithError(err).
-					WithField("swap_id", sd.Id).
-					Error("failed to store swap data")
-			}
-		}
-	}()
 
 	// get our pubkey
 	_, _, _, pk, err := s.GetAddress(ctx, 0)
@@ -1192,20 +897,6 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
 	}
 
-	// Store Swap Data
-	swapData := domain.Swap{
-		Id:          swap.Id,
-		Amount:      amount,
-		Timestamp:   time.Now().Unix(),
-		Status:      domain.SwapPending,
-		Invoice:     invoice,
-		FundingTxId: txid,
-		To:          boltz.CurrencyBtc,
-		From:        boltz.CurrencyArk,
-		VhtlcOpts:   opts,
-	}
-	swapUpdates <- swapData
-
 	// TODO workaround to connect ws endpoint on a different port for regtest
 	wsClient := s.boltzSvc
 	if s.boltzSvc.URL == boltzURLByNetwork[common.BitcoinRegTest.Name] {
@@ -1242,19 +933,47 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
 			withReceiver := true
 
-			txid, err := s.RefundVHTLC(context.Background(), swap.Id, preimageHash, withReceiver, opts)
+			refundTxid, err := s.refundVHTLC(context.Background(), swap.Id, withReceiver, *opts)
 			if err != nil {
 				return "", fmt.Errorf("failed to refund vHTLC: %s", err)
 			}
 
-			swapData.Status = domain.SwapFailed
-			swapData.RedeemTxId = txid
-			swapUpdates <- swapData
+			go func() {
+				if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+					Id:          swap.Id,
+					Amount:      amount,
+					Timestamp:   time.Now().Unix(),
+					Status:      domain.SwapFailed,
+					Invoice:     invoice,
+					FundingTxId: txid,
+					RedeemTxId:  refundTxid,
+					To:          boltz.CurrencyBtc,
+					From:        boltz.CurrencyArk,
+					VhtlcOpts:   *opts,
+				}); err != nil {
+					log.WithError(err).Fatal("failed to store swap")
+				}
+				log.Debugf("added new refunded swap %s", swap.Id)
+			}()
 
 			return "", fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
 		case boltz.TransactionClaimed:
-			swapData.Status = domain.SwapSuccess
-			swapUpdates <- swapData
+			go func() {
+				if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+					Id:          swap.Id,
+					Amount:      amount,
+					Timestamp:   time.Now().Unix(),
+					Status:      domain.SwapSuccess,
+					Invoice:     invoice,
+					FundingTxId: txid,
+					To:          boltz.CurrencyBtc,
+					From:        boltz.CurrencyArk,
+					VhtlcOpts:   *opts,
+				}); err != nil {
+					log.WithError(err).Fatal("failed to store swap")
+				}
+				log.Debugf("added new swap %s", swap.Id)
+			}()
 
 			return txid, nil
 		}
@@ -1599,6 +1318,273 @@ func (s *Service) handleInternalAddressEventChannel(eventsCh <-chan client.Addre
 			}
 		}
 	}
+}
+
+func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]client.Vtxo, error) {
+	cfg, err := s.GetConfigData(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var allVtxos []client.Vtxo
+	for _, opt := range vhtlcOpts {
+		vHTLC, err := vhtlc.NewVHTLCScript(opt)
+		if err != nil {
+			return nil, err
+		}
+
+		addrStr, err := vHTLC.Address(cfg.Network.Addr, cfg.ServerPubKey)
+		if err != nil {
+			return nil, err
+		}
+
+		// Get vtxos for this address
+		vtxos, _, err := s.grpcClient.ListVtxos(ctx, addrStr)
+		if err != nil {
+			return nil, err
+		}
+		allVtxos = append(allVtxos, vtxos...)
+	}
+
+	return allVtxos, nil
+}
+
+func (s *Service) claimVHTLC(
+	ctx context.Context, preimage []byte, vhtlcOpts vhtlc.Opts,
+) (string, error) {
+	vtxos, err := s.getVHTLCFunds(ctx, []vhtlc.Opts{vhtlcOpts})
+	if err != nil {
+		return "", err
+	}
+	vtxo := &vtxos[0]
+
+	vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
+	if err != nil {
+		return "", err
+	}
+
+	vtxoOutpoint := &wire.OutPoint{
+		Hash:  *vtxoTxHash,
+		Index: vtxo.VOut,
+	}
+
+	vtxoScript, err := vhtlc.NewVHTLCScript(vhtlcOpts)
+	if err != nil {
+		return "", err
+	}
+
+	claimClosure := vtxoScript.ClaimClosure
+	claimWitnessSize := claimClosure.WitnessSize(len(preimage))
+	claimScript, err := claimClosure.Script()
+	if err != nil {
+		return "", err
+	}
+
+	_, tapTree, err := vtxoScript.TapTree()
+	if err != nil {
+		return "", err
+	}
+
+	claimLeafProof, err := tapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(claimScript).TapHash(),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	ctrlBlock, err := txscript.ParseControlBlock(claimLeafProof.ControlBlock)
+	if err != nil {
+		return "", err
+	}
+
+	// self send output
+	_, myAddr, _, _, err := s.GetAddress(ctx, 0)
+	if err != nil {
+		return "", err
+	}
+
+	decodedAddr, err := common.DecodeAddress(myAddr)
+	if err != nil {
+		return "", err
+	}
+
+	pkScript, err := common.P2TRScript(decodedAddr.VtxoTapKey)
+	if err != nil {
+		return "", err
+	}
+
+	amount, err := safecast.ToInt64(vtxo.Amount)
+	if err != nil {
+		return "", err
+	}
+
+	redeemTx, err := tree.BuildRedeemTx(
+		[]common.VtxoInput{
+			{
+				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
+				Outpoint:           vtxoOutpoint,
+				Amount:             amount,
+				WitnessSize:        claimWitnessSize,
+				Tapscript: &waddrmgr.Tapscript{
+					ControlBlock:   ctrlBlock,
+					RevealedScript: claimScript,
+				},
+			},
+		},
+		[]*wire.TxOut{
+			{
+				Value:    amount,
+				PkScript: pkScript,
+			},
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	redeemPtx, err := psbt.NewFromRawBytes(strings.NewReader(redeemTx), true)
+	if err != nil {
+		return "", err
+	}
+
+	if err := tree.AddConditionWitness(0, redeemPtx, wire.TxWitness{preimage}); err != nil {
+		return "", err
+	}
+
+	reemdemTxId := redeemPtx.UnsignedTx.TxHash().String()
+
+	redeemTx, err = redeemPtx.B64Encode()
+	if err != nil {
+		return "", err
+	}
+
+	signedRedeemTx, err := s.SignTransaction(ctx, redeemTx)
+	if err != nil {
+		return "", err
+	}
+
+	if _, _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRedeemTx); err != nil {
+		return "", err
+	}
+
+	return reemdemTxId, nil
+}
+
+func (s *Service) refundVHTLC(
+	ctx context.Context, swapId string, withReceiver bool, vhtlcOpts vhtlc.Opts,
+) (string, error) {
+	vtxos, err := s.getVHTLCFunds(ctx, []vhtlc.Opts{vhtlcOpts})
+	if err != nil {
+		return "", err
+	}
+	vtxo := vtxos[0]
+
+	vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
+	if err != nil {
+		return "", err
+	}
+
+	vtxoOutpoint := &wire.OutPoint{
+		Hash:  *vtxoTxHash,
+		Index: vtxo.VOut,
+	}
+
+	vtxoScript, err := vhtlc.NewVHTLCScript(vhtlcOpts)
+	if err != nil {
+		return "", err
+	}
+
+	var refundClosure tree.Closure
+	refundClosure = vtxoScript.RefundWithoutReceiverClosure
+	if withReceiver {
+		refundClosure = vtxoScript.RefundClosure
+	}
+	refundWitnessSize := refundClosure.WitnessSize()
+	refundScript, err := refundClosure.Script()
+	if err != nil {
+		return "", err
+	}
+
+	_, tapTree, err := vtxoScript.TapTree()
+	if err != nil {
+		return "", err
+	}
+
+	refundLeafProof, err := tapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(refundScript).TapHash(),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	ctrlBlock, err := txscript.ParseControlBlock(refundLeafProof.ControlBlock)
+	if err != nil {
+		return "", err
+	}
+
+	dest, err := txscript.PayToTaprootScript(vhtlcOpts.Sender)
+	if err != nil {
+		return "", err
+	}
+
+	amount, err := safecast.ToInt64(vtxo.Amount)
+	if err != nil {
+		return "", err
+	}
+
+	refundTx, err := tree.BuildRedeemTx(
+		[]common.VtxoInput{
+			{
+				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
+				Outpoint:           vtxoOutpoint,
+				Amount:             amount,
+				WitnessSize:        refundWitnessSize,
+				Tapscript: &waddrmgr.Tapscript{
+					ControlBlock:   ctrlBlock,
+					RevealedScript: refundScript,
+				},
+			},
+		},
+		[]*wire.TxOut{
+			{
+				Value:    amount,
+				PkScript: dest,
+			},
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	refundPtx, err := psbt.NewFromRawBytes(strings.NewReader(refundTx), true)
+	if err != nil {
+		return "", err
+	}
+
+	txid := refundPtx.UnsignedTx.TxHash().String()
+
+	refundTx, err = refundPtx.B64Encode()
+	if err != nil {
+		return "", err
+	}
+
+	signedRefundTx, err := s.SignTransaction(ctx, refundTx)
+	if err != nil {
+		return "", err
+	}
+
+	if withReceiver {
+		signedRefundTx, err = s.boltzRefundSwap(swapId, signedRefundTx)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if _, _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRefundTx); err != nil {
+		return "", err
+	}
+
+	return txid, nil
 }
 
 func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
