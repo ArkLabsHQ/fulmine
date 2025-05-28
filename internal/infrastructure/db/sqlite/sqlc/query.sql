@@ -16,7 +16,7 @@ ON CONFLICT(id) DO UPDATE SET
 DELETE FROM settings;
 
 -- name: GetSettings :one
-SELECT api_root, server_url, esplora_url, currency, event_server, full_node, ln_url, unit FROM settings WHERE id = 1;
+SELECT * FROM settings WHERE id = 1;
 
 -- VHTLC queries
 -- name: InsertVHTLC :exec
@@ -25,29 +25,13 @@ INSERT INTO vhtlc (
     unilateral_claim_delay_type, unilateral_claim_delay_value,
     unilateral_refund_delay_type, unilateral_refund_delay_value,
     unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(preimage_hash) DO UPDATE SET
-    sender = excluded.sender,
-    receiver = excluded.receiver,
-    server = excluded.server,
-    refund_locktime = excluded.refund_locktime,
-    unilateral_claim_delay_type = excluded.unilateral_claim_delay_type,
-    unilateral_claim_delay_value = excluded.unilateral_claim_delay_value,
-    unilateral_refund_delay_type = excluded.unilateral_refund_delay_type,
-    unilateral_refund_delay_value = excluded.unilateral_refund_delay_value,
-    unilateral_refund_without_receiver_delay_type = excluded.unilateral_refund_without_receiver_delay_type,
-    unilateral_refund_without_receiver_delay_value = excluded.unilateral_refund_without_receiver_delay_value;
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetVHTLC :one
-SELECT *
-FROM vhtlc WHERE preimage_hash = ?;
+SELECT * FROM vhtlc WHERE preimage_hash = ?;
 
 -- name: ListVHTLC :many
-SELECT *
-FROM vhtlc;
-
--- name: DeleteVHTLC :exec
-DELETE FROM vhtlc WHERE preimage_hash = ?;
+SELECT * FROM vhtlc;
 
 -- VtxoRollover queries
 -- name: UpsertVtxoRollover :exec
@@ -69,9 +53,7 @@ DELETE FROM vtxo_rollover WHERE address = ?;
 -- name: CreateSwap :exec
 INSERT INTO swap (
   id, amount, timestamp, to_currency, from_currency, status, invoice, funding_tx_id, redeem_tx_id, vhtlc_id
-) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
-ON CONFLICT(id) DO UPDATE
-  SET status = excluded.status;
+) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );
 
 -- name: GetSwap :one
 SELECT  sqlc.embed(swap),
@@ -81,11 +63,6 @@ FROM swap
 WHERE id = ?;
 
 -- name: ListSwaps :many
-SELECT  sqlc.embed(swap),
-        sqlc.embed(vhtlc)
+SELECT  sqlc.embed(swap), sqlc.embed(vhtlc)
 FROM swap
-  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash 
-ORDER BY timestamp DESC;
-
--- name: DeleteSwap :exec
-DELETE FROM swap WHERE id = ?;
+  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash;

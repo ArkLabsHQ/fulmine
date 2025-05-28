@@ -3,6 +3,7 @@ package badgerdb
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -36,7 +37,7 @@ func (r *swapRepository) GetAll(ctx context.Context) ([]domain.Swap, error) {
 	var swapDataList []swapData
 	err := r.store.Find(&swapDataList, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get all Swaps: %w", err)
+		return nil, fmt.Errorf("failed to get all swaps: %w", err)
 	}
 
 	var swaps []domain.Swap
@@ -46,7 +47,7 @@ func (r *swapRepository) GetAll(ctx context.Context) ([]domain.Swap, error) {
 			return nil, fmt.Errorf("failed to convert data to swap: %w", err)
 		}
 
-		swaps = append(swaps, swap)
+		swaps = append(swaps, *swap)
 	}
 	return swaps, nil
 }
@@ -54,11 +55,11 @@ func (r *swapRepository) GetAll(ctx context.Context) ([]domain.Swap, error) {
 func (r *swapRepository) Get(ctx context.Context, swapId string) (*domain.Swap, error) {
 	var swapData swapData
 	err := r.store.Get(swapId, &swapData)
-	if err == badgerhold.ErrNotFound {
-		return nil, fmt.Errorf("swap with swapId %s not found", swapId)
+	if errors.Is(err, badgerhold.ErrNotFound) {
+		return nil, fmt.Errorf("swap %s not found", swapId)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Swap: %w", err)
+		return nil, fmt.Errorf("failed to get swap: %w", err)
 	}
 
 	swap, err := swapData.toSwap()
@@ -66,19 +67,20 @@ func (r *swapRepository) Get(ctx context.Context, swapId string) (*domain.Swap, 
 		return nil, fmt.Errorf("failed to convert data to swap: %w", err)
 	}
 
-	return &swap, nil
+	return swap, nil
 }
 
 // Add stores a new Swap in the database
 func (r *swapRepository) Add(ctx context.Context, swap domain.Swap) error {
 	swapData := toSwapData(swap)
 
-	return r.store.Insert(swap.Id, swapData)
-}
-
-// Delete removes a Swap from the database
-func (r *swapRepository) Delete(ctx context.Context, swapId string) error {
-	return r.store.Delete(swapId, swapData{})
+	if err := r.store.Insert(swap.Id, swapData); err != nil {
+		if errors.Is(err, badgerhold.ErrKeyExists) {
+			return fmt.Errorf("swap %s already exists", swap.Id)
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *swapRepository) Close() {
@@ -127,14 +129,13 @@ func toSwapData(swap domain.Swap) swapData {
 	}
 }
 
-func (s *swapData) toSwap() (domain.Swap, error) {
-
+func (s *swapData) toSwap() (*domain.Swap, error) {
 	vhtlcOps, err := s.VhtlcOpts.toOpts()
 	if err != nil {
-		return domain.Swap{}, fmt.Errorf("failed to convert vhtlc data to opts: %w", err)
+		return nil, err
 	}
 
-	return domain.Swap{
+	return &domain.Swap{
 		Id:          s.Id,
 		Amount:      s.Amount,
 		Timestamp:   s.Timestamp,
@@ -142,7 +143,7 @@ func (s *swapData) toSwap() (domain.Swap, error) {
 		From:        s.From,
 		Status:      s.Status,
 		Invoice:     s.Invoice,
-		VhtlcOpts:   vhtlcOps,
+		VhtlcOpts:   *vhtlcOps,
 		FundingTxId: s.FundingTxId,
 		RedeemTxId:  s.RedeemTxId,
 	}, nil

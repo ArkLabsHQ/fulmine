@@ -9,6 +9,8 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 type swapRepository struct {
@@ -29,15 +31,16 @@ func NewSwapRepository(db *sql.DB) (domain.SwapRepository, error) {
 
 func (r *swapRepository) Add(ctx context.Context, swap domain.Swap) error {
 	txBody := func(querierWithTx *queries.Queries) error {
-		optsParams := toOptParams(*swap.VhtlcOpts)
+		optsParams := toOptParams(swap.VhtlcOpts)
 		preimageHash := optsParams.PreimageHash
 
-		if _, err := querierWithTx.GetVHTLC(ctx, preimageHash); err == nil {
-			return fmt.Errorf("vHTLC with preimage hash %s already exists", preimageHash)
-		}
-
 		if err := querierWithTx.InsertVHTLC(ctx, optsParams); err != nil {
-			return fmt.Errorf("failed to insert vhtlc: %w", err)
+			if sqlErr, ok := err.(*sqlite.Error); ok {
+				if sqlErr.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
+					return fmt.Errorf("vHTLC with preimage hash %s already exists", optsParams.PreimageHash)
+				}
+			}
+			return fmt.Errorf("failed to insert vhtlc: %s", err)
 		}
 
 		if err := querierWithTx.CreateSwap(ctx, queries.CreateSwapParams{
@@ -52,7 +55,7 @@ func (r *swapRepository) Add(ctx context.Context, swap domain.Swap) error {
 			RedeemTxID:   swap.RedeemTxId,
 			VhtlcID:      preimageHash,
 		}); err != nil {
-			return fmt.Errorf("failed to insert swap: %w", err)
+			return fmt.Errorf("failed to insert swap: %s", err)
 		}
 		return nil
 	}
@@ -64,7 +67,7 @@ func (r *swapRepository) Get(ctx context.Context, swapId string) (*domain.Swap, 
 	row, err := r.querier.GetSwap(ctx, swapId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("swap for the Id: %s, not found", swapId)
+			return nil, fmt.Errorf("swap %s not found", swapId)
 		}
 		return nil, err
 	}
@@ -88,20 +91,12 @@ func (r *swapRepository) GetAll(ctx context.Context) ([]domain.Swap, error) {
 	return results, nil
 }
 
-func (r *swapRepository) Delete(ctx context.Context, swapId string) error {
-	_, err := r.Get(ctx, swapId)
-	if err != nil {
-		return fmt.Errorf("swap with Id %s not found", swapId)
-	}
-	return r.querier.DeleteSwap(ctx, swapId)
-}
-
 func (r *swapRepository) Close() {
-	_ = r.db.Close()
+	// nolint
+	r.db.Close()
 }
 
 func toSwap(swap queries.Swap, vhtlc queries.Vhtlc) (*domain.Swap, error) {
-
 	vhtlcOpts, err := toOpts(vhtlc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode vhtlc opts: %w", err)
@@ -117,6 +112,6 @@ func toSwap(swap queries.Swap, vhtlc queries.Vhtlc) (*domain.Swap, error) {
 		Invoice:     swap.Invoice,
 		FundingTxId: swap.FundingTxID,
 		RedeemTxId:  swap.RedeemTxID,
-		VhtlcOpts:   vhtlcOpts,
+		VhtlcOpts:   *vhtlcOpts,
 	}, nil
 }

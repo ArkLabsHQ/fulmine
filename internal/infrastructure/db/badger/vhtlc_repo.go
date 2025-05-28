@@ -3,6 +3,7 @@ package badgerdb
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -53,7 +54,7 @@ func (r *vhtlcRepository) GetAll(ctx context.Context) ([]vhtlc.Opts, error) {
 func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*vhtlc.Opts, error) {
 	var dataOpts vhtlcData
 	err := r.store.Get(preimageHash, &dataOpts)
-	if err == badgerhold.ErrNotFound {
+	if errors.Is(err, badgerhold.ErrNotFound) {
 		return nil, fmt.Errorf("vHTLC with preimage hash %s not found", preimageHash)
 	}
 	if err != nil {
@@ -81,7 +82,13 @@ func (r *vhtlcRepository) Add(ctx context.Context, opts vhtlc.Opts) error {
 		UnilateralRefundWithoutReceiverDelay: opts.UnilateralRefundWithoutReceiverDelay,
 	}
 
-	return r.store.Insert(data.PreimageHash, data)
+	if err := r.store.Insert(data.PreimageHash, data); err != nil {
+		if errors.Is(err, badgerhold.ErrKeyExists) {
+			return fmt.Errorf("vHTLC with preimage hash %s already exists", data.PreimageHash)
+		}
+		return err
+	}
+	return nil
 }
 
 // Delete removes a VHTLC option from the database

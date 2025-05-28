@@ -14,8 +14,6 @@ const createSwap = `-- name: CreateSwap :exec
 INSERT INTO swap (
   id, amount, timestamp, to_currency, from_currency, status, invoice, funding_tx_id, redeem_tx_id, vhtlc_id
 ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
-ON CONFLICT(id) DO UPDATE
-  SET status = excluded.status
 `
 
 type CreateSwapParams struct {
@@ -57,24 +55,6 @@ func (q *Queries) DeleteSettings(ctx context.Context) error {
 	return err
 }
 
-const deleteSwap = `-- name: DeleteSwap :exec
-DELETE FROM swap WHERE id = ?
-`
-
-func (q *Queries) DeleteSwap(ctx context.Context, id string) error {
-	_, err := q.db.ExecContext(ctx, deleteSwap, id)
-	return err
-}
-
-const deleteVHTLC = `-- name: DeleteVHTLC :exec
-DELETE FROM vhtlc WHERE preimage_hash = ?
-`
-
-func (q *Queries) DeleteVHTLC(ctx context.Context, preimageHash string) error {
-	_, err := q.db.ExecContext(ctx, deleteVHTLC, preimageHash)
-	return err
-}
-
 const deleteVtxoRollover = `-- name: DeleteVtxoRollover :exec
 DELETE FROM vtxo_rollover WHERE address = ?
 `
@@ -85,24 +65,14 @@ func (q *Queries) DeleteVtxoRollover(ctx context.Context, address string) error 
 }
 
 const getSettings = `-- name: GetSettings :one
-SELECT api_root, server_url, esplora_url, currency, event_server, full_node, ln_url, unit FROM settings WHERE id = 1
+SELECT id, api_root, server_url, esplora_url, currency, event_server, full_node, ln_url, unit FROM settings WHERE id = 1
 `
 
-type GetSettingsRow struct {
-	ApiRoot     string
-	ServerUrl   string
-	EsploraUrl  sql.NullString
-	Currency    string
-	EventServer string
-	FullNode    string
-	LnUrl       sql.NullString
-	Unit        string
-}
-
-func (q *Queries) GetSettings(ctx context.Context) (GetSettingsRow, error) {
+func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 	row := q.db.QueryRowContext(ctx, getSettings)
-	var i GetSettingsRow
+	var i Setting
 	err := row.Scan(
+		&i.ID,
 		&i.ApiRoot,
 		&i.ServerUrl,
 		&i.EsploraUrl,
@@ -158,8 +128,7 @@ func (q *Queries) GetSwap(ctx context.Context, id string) (GetSwapRow, error) {
 }
 
 const getVHTLC = `-- name: GetVHTLC :one
-SELECT preimage_hash, sender, receiver, server, refund_locktime, unilateral_claim_delay_type, unilateral_claim_delay_value, unilateral_refund_delay_type, unilateral_refund_delay_value, unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value
-FROM vhtlc WHERE preimage_hash = ?
+SELECT preimage_hash, sender, receiver, server, refund_locktime, unilateral_claim_delay_type, unilateral_claim_delay_value, unilateral_refund_delay_type, unilateral_refund_delay_value, unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value FROM vhtlc WHERE preimage_hash = ?
 `
 
 func (q *Queries) GetVHTLC(ctx context.Context, preimageHash string) (Vhtlc, error) {
@@ -199,17 +168,6 @@ INSERT INTO vhtlc (
     unilateral_refund_delay_type, unilateral_refund_delay_value,
     unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(preimage_hash) DO UPDATE SET
-    sender = excluded.sender,
-    receiver = excluded.receiver,
-    server = excluded.server,
-    refund_locktime = excluded.refund_locktime,
-    unilateral_claim_delay_type = excluded.unilateral_claim_delay_type,
-    unilateral_claim_delay_value = excluded.unilateral_claim_delay_value,
-    unilateral_refund_delay_type = excluded.unilateral_refund_delay_type,
-    unilateral_refund_delay_value = excluded.unilateral_refund_delay_value,
-    unilateral_refund_without_receiver_delay_type = excluded.unilateral_refund_without_receiver_delay_type,
-    unilateral_refund_without_receiver_delay_value = excluded.unilateral_refund_without_receiver_delay_value
 `
 
 type InsertVHTLCParams struct {
@@ -245,11 +203,9 @@ func (q *Queries) InsertVHTLC(ctx context.Context, arg InsertVHTLCParams) error 
 }
 
 const listSwaps = `-- name: ListSwaps :many
-SELECT  swap.id, swap.amount, swap.timestamp, swap.to_currency, swap.from_currency, swap.status, swap.invoice, swap.funding_tx_id, swap.redeem_tx_id, swap.vhtlc_id,
-        vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value
+SELECT  swap.id, swap.amount, swap.timestamp, swap.to_currency, swap.from_currency, swap.status, swap.invoice, swap.funding_tx_id, swap.redeem_tx_id, swap.vhtlc_id, vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value
 FROM swap
-  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash 
-ORDER BY timestamp DESC
+  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash
 `
 
 type ListSwapsRow struct {
@@ -303,8 +259,7 @@ func (q *Queries) ListSwaps(ctx context.Context) ([]ListSwapsRow, error) {
 }
 
 const listVHTLC = `-- name: ListVHTLC :many
-SELECT preimage_hash, sender, receiver, server, refund_locktime, unilateral_claim_delay_type, unilateral_claim_delay_value, unilateral_refund_delay_type, unilateral_refund_delay_value, unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value
-FROM vhtlc
+SELECT preimage_hash, sender, receiver, server, refund_locktime, unilateral_claim_delay_type, unilateral_claim_delay_value, unilateral_refund_delay_type, unilateral_refund_delay_value, unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value FROM vhtlc
 `
 
 func (q *Queries) ListVHTLC(ctx context.Context) ([]Vhtlc, error) {

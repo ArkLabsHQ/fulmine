@@ -23,7 +23,7 @@ type Swap struct {
 	From        boltz.Currency
 	Status      SwapStatus
 	Invoice     string
-	VhtlcOpts   *vhtlc.Opts
+	VhtlcOpts   vhtlc.Opts
 	FundingTxId string // the txid of the virtual tx that funded the vhtlc
 	RedeemTxId  string // the txid of the virtual tx that redeemed the funds, by either "claiming" or "refunding"
 }
@@ -33,6 +33,5 @@ type SwapRepository interface {
 	GetAll(ctx context.Context) ([]Swap, error)
 	Get(ctx context.Context, swapId string) (*Swap, error)
 	Add(ctx context.Context, swap Swap) error
-	Delete(ctx context.Context, swapId string) error
 	Close()
 }

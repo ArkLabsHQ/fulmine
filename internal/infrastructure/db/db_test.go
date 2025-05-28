@@ -13,6 +13,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ark-network/ark/common"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,49 +41,10 @@ var (
 		DestinationAddress: "other_destination_address",
 	}
 
-	testVHTLC = func() vhtlc.Opts {
-		randBytes := make([]byte, 20)
-		_, _ = rand.Read(randBytes)
+	testVHTLC = makeVHTLC()
 
-		serverKey, _ := secp256k1.GeneratePrivateKey()
-		senderKey, _ := secp256k1.GeneratePrivateKey()
-		receiverKey, _ := secp256k1.GeneratePrivateKey()
-
-		return vhtlc.Opts{
-			PreimageHash:   randBytes,
-			Sender:         senderKey.PubKey(),
-			Receiver:       receiverKey.PubKey(),
-			Server:         serverKey.PubKey(),
-			RefundLocktime: common.AbsoluteLocktime(100 * 600),
-			UnilateralClaimDelay: common.RelativeLocktime{
-				Type:  common.LocktimeTypeBlock,
-				Value: 300,
-			},
-			UnilateralRefundDelay: common.RelativeLocktime{
-				Type:  common.LocktimeTypeBlock,
-				Value: 400,
-			},
-			UnilateralRefundWithoutReceiverDelay: common.RelativeLocktime{
-				Type:  common.LocktimeTypeBlock,
-				Value: 500,
-			},
-		}
-	}()
-
-	testSwap = func() domain.Swap {
-		return domain.Swap{
-			Id:          "test_swap_id",
-			Amount:      1000,
-			Timestamp:   time.Now().Unix(),
-			To:          "test_to",
-			From:        "test_from",
-			Status:      domain.SwapPending,
-			Invoice:     "test_invoice",
-			VhtlcOpts:   &testVHTLC,
-			FundingTxId: "funding_tx_id",
-			RedeemTxId:  "redeem_tx_id",
-		}
-	}()
+	testSwap   = makeSwap()
+	secondSwap = makeSwap()
 )
 
 func TestRepoManager(t *testing.T) {
@@ -133,7 +95,6 @@ func testVHTLCRepository(t *testing.T, svc ports.RepoManager) {
 	t.Run("vHTLC repository", func(t *testing.T) {
 		testAddVHTLC(t, svc.VHTLC())
 		testGetAllVHTLC(t, svc.VHTLC())
-		testDeleteVHTLC(t, svc.VHTLC())
 	})
 }
 
@@ -149,7 +110,6 @@ func testSwapRepository(t *testing.T, svc ports.RepoManager) {
 	t.Run("swap repository", func(t *testing.T) {
 		testAddSwap(t, svc.Swap())
 		testGetAllSwap(t, svc.Swap())
-		testDeleteSwap(t, svc.Swap())
 	})
 }
 
@@ -243,6 +203,9 @@ func testAddVHTLC(t *testing.T, repo domain.VHTLCRepository) {
 		err = repo.Add(ctx, testVHTLC)
 		require.NoError(t, err)
 
+		err = repo.Add(ctx, testVHTLC)
+		require.Error(t, err)
+
 		opt, err = repo.Get(ctx, hex.EncodeToString(testVHTLC.PreimageHash))
 		require.NoError(t, err)
 		require.NotNil(t, opt)
@@ -270,30 +233,6 @@ func testGetAllVHTLC(t *testing.T, repo domain.VHTLCRepository) {
 		require.NoError(t, err)
 		require.Len(t, opts, 2)
 		require.Subset(t, []vhtlc.Opts{testVHTLC, secondVHTLC}, opts)
-	})
-}
-
-func testDeleteVHTLC(t *testing.T, repo domain.VHTLCRepository) {
-	t.Run("delete vHTLC", func(t *testing.T) {
-		err := repo.Delete(ctx, "non_existent_hash")
-		require.Error(t, err)
-
-		// Delete existing vHTLCs
-		err = repo.Delete(ctx, hex.EncodeToString(testVHTLC.PreimageHash))
-		require.NoError(t, err)
-		secondVHTLC := testVHTLC
-		secondVHTLC.PreimageHash = []byte("second_preimage_hash")
-		err = repo.Delete(ctx, hex.EncodeToString(secondVHTLC.PreimageHash))
-		require.NoError(t, err)
-
-		// Verify it was deleted
-		opt, err := repo.Get(ctx, hex.EncodeToString(testVHTLC.PreimageHash))
-		require.Error(t, err)
-		require.Nil(t, opt)
-
-		opts, err := repo.GetAll(ctx)
-		require.NoError(t, err)
-		require.Empty(t, opts)
 	})
 }
 
@@ -369,6 +308,9 @@ func testAddSwap(t *testing.T, repo domain.SwapRepository) {
 		err = repo.Add(ctx, testSwap)
 		require.NoError(t, err)
 
+		err = repo.Add(ctx, testSwap)
+		require.Error(t, err)
+
 		swap, err = repo.Get(ctx, testSwap.Id)
 		require.NoError(t, err)
 		require.NotNil(t, swap)
@@ -386,11 +328,7 @@ func testGetAllSwap(t *testing.T, repo domain.SwapRepository) {
 		require.Len(t, swaps, 1)
 
 		// Add another swap
-		secondSwap := testSwap
-		secondSwap.Id = "second_swap_id"
-		secondSwapHtlcOpts := *secondSwap.VhtlcOpts
-		secondSwapHtlcOpts.PreimageHash = []byte("second_preimage_hash")
-		secondSwap.VhtlcOpts = &secondSwapHtlcOpts
+
 		err = repo.Add(ctx, secondSwap)
 		require.NoError(t, err)
 
@@ -402,26 +340,46 @@ func testGetAllSwap(t *testing.T, repo domain.SwapRepository) {
 	})
 }
 
-func testDeleteSwap(t *testing.T, repo domain.SwapRepository) {
-	t.Run("delete swap", func(t *testing.T) {
-		err := repo.Delete(ctx, "non_existent_id")
-		require.Error(t, err)
+func makeVHTLC() vhtlc.Opts {
+	randBytes := make([]byte, 20)
+	_, _ = rand.Read(randBytes)
 
-		// Delete existing swaps
-		err = repo.Delete(ctx, testSwap.Id)
-		require.NoError(t, err)
-		secondSwap := testSwap
-		secondSwap.Id = "second_swap_id"
-		err = repo.Delete(ctx, secondSwap.Id)
-		require.NoError(t, err)
+	serverKey, _ := secp256k1.GeneratePrivateKey()
+	senderKey, _ := secp256k1.GeneratePrivateKey()
+	receiverKey, _ := secp256k1.GeneratePrivateKey()
 
-		// Verify it was deleted
-		opt, err := repo.Get(ctx, testSwap.Id)
-		require.Error(t, err)
-		require.Nil(t, opt)
+	return vhtlc.Opts{
+		PreimageHash:   randBytes,
+		Sender:         senderKey.PubKey(),
+		Receiver:       receiverKey.PubKey(),
+		Server:         serverKey.PubKey(),
+		RefundLocktime: common.AbsoluteLocktime(100 * 600),
+		UnilateralClaimDelay: common.RelativeLocktime{
+			Type:  common.LocktimeTypeBlock,
+			Value: 300,
+		},
+		UnilateralRefundDelay: common.RelativeLocktime{
+			Type:  common.LocktimeTypeBlock,
+			Value: 400,
+		},
+		UnilateralRefundWithoutReceiverDelay: common.RelativeLocktime{
+			Type:  common.LocktimeTypeBlock,
+			Value: 500,
+		},
+	}
+}
 
-		opts, err := repo.GetAll(ctx)
-		require.NoError(t, err)
-		require.Empty(t, opts)
-	})
+func makeSwap() domain.Swap {
+	return domain.Swap{
+		Id:          uuid.New().String(),
+		Amount:      1000,
+		Timestamp:   time.Now().Unix(),
+		To:          "test_to",
+		From:        "test_from",
+		Status:      domain.SwapSuccess,
+		Invoice:     "test_invoice",
+		VhtlcOpts:   makeVHTLC(),
+		FundingTxId: "funding_tx_id",
+		RedeemTxId:  "redeem_tx_id",
+	}
 }
