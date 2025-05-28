@@ -4,16 +4,18 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/ArkLabsHQ/fulmine/internal/config"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/modals"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/pages"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
+	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
@@ -22,7 +24,6 @@ import (
 	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-
 	qrcode "github.com/skip2/go-qrcode"
 )
 
@@ -166,6 +167,7 @@ func (s *service) initialize(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
+
 	redirect("/done", c)
 }
 
@@ -499,13 +501,6 @@ func (s *service) setMnemonic(c *gin.Context) {
 }
 
 func (s *service) setPassword(c *gin.Context) {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		toast := components.Toast("Invalid config", true)
-		toastHandler(toast, c)
-		return
-	}
-
 	// validate passwords
 	password := c.PostForm("password")
 	pconfirm := c.PostForm("pconfirm")
@@ -522,8 +517,8 @@ func (s *service) setPassword(c *gin.Context) {
 	// 2. from env variable (aka cfg.ArkServer)
 	// 3. user inserts on form
 	serverUrl := c.PostForm("urlOnQuery")
-	if serverUrl == "" && cfg.ArkServer != "" {
-		serverUrl = cfg.ArkServer
+	if serverUrl == "" {
+		serverUrl = s.arkServer
 	}
 
 	bodyContent := pages.ServerUrlBodyContent(serverUrl, privateKey, password)
@@ -575,7 +570,7 @@ func (s *service) swap(c *gin.Context) {
 		return
 	}
 
-	bodyContent := pages.SwapBodyContent(spendableBalance, s.getNodeBalance(c))
+	bodyContent := pages.SwapBodyContent(spendableBalance, s.getNodeBalance(c), s.svc.IsConnectedLN())
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -676,40 +671,8 @@ func (s *service) swapPreview(c *gin.Context) {
 	partialViewHandler(bodyContent, c)
 }
 
-func (s *service) getTx(c *gin.Context) {
-	if s.redirectedBecauseWalletIsLocked(c) {
-		return
-	}
-
-	txHistory, err := s.getTxHistory(c)
-	if err != nil {
-		// nolint:all
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-
-	txid := c.Param("txid")
-	var tx types.Transaction
-	for _, transaction := range txHistory {
-		if transaction.Txid == txid {
-			tx = transaction
-			break
-		}
-	}
-
-	data, err := s.svc.GetConfigData(c)
-	if err != nil {
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
-	}
-
-	explorerUrl := getExplorerUrl(data.Network.Name)
-
-	var bodyContent templ.Component
-	if len(tx.Txid) == 0 {
-		bodyContent = pages.TxNotFoundContent()
-	} else if tx.Status == "pending" {
+func (s *service) getTransfer(c *gin.Context, transfer types.Transfer, explorerUrl string) templ.Component {
+	if transfer.Status == "pending" {
 		var nextSettlementStr string
 		nextSettlement := s.svc.WhenNextSettlement(c)
 		if nextSettlement.IsZero() {
@@ -730,9 +693,59 @@ func (s *service) getTx(c *gin.Context) {
 			nextSettlementStr = prettyUnixTimestamp(nextSettlement.Unix())
 		}
 
-		bodyContent = pages.TxPendingContent(tx, explorerUrl, nextSettlementStr)
+		return pages.TransferTxPendingContent(transfer, explorerUrl, nextSettlementStr)
 	} else {
-		bodyContent = pages.TxBodyContent(tx, explorerUrl)
+		return pages.TransferTxBodyContent(transfer, explorerUrl)
+	}
+}
+
+// TODO: Ensure the correct Content are being displayed
+func (s *service) getSwap(swap types.Swap, vhtlc *types.Transfer, redeem *types.Transfer) templ.Component {
+	return pages.SwapContent(swap, vhtlc, redeem)
+}
+
+func (s *service) getTx(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	txHistory, err := s.getTxHistory(c)
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	data, err := s.svc.GetConfigData(c)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+	explorerUrl := getExplorerUrl(data.Network.Name)
+
+	txid := c.Param("txid")
+	var tx types.Transaction
+	for _, transaction := range txHistory {
+		if transaction.Id == txid {
+			tx = transaction
+			break
+		}
+		// Display the redeem transfer for swap transactions Providing option to redeem
+		if transaction.Kind == "swap" && transaction.RedeemTransfer != nil && transaction.RedeemTransfer.Txid == txid {
+			bodyContent := s.getTransfer(c, *transaction.RedeemTransfer, explorerUrl)
+			s.pageViewHandler(bodyContent, c)
+			return
+		}
+	}
+
+	var bodyContent templ.Component
+	if len(tx.Id) == 0 {
+		bodyContent = pages.TxNotFoundContent()
+	} else if tx.Kind == "transfer" {
+		bodyContent = s.getTransfer(c, *tx.Transfer, explorerUrl)
+	} else {
+		bodyContent = s.getSwap(*tx.Swap, tx.VHTLCTransfer, tx.RedeemTransfer)
 	}
 	s.pageViewHandler(bodyContent, c)
 }
@@ -751,14 +764,17 @@ func (s *service) getTxs(c *gin.Context) {
 		log.WithError(err).Warn("failed to get tx history")
 	}
 
-	if lastId != "0" {
+	if lastId == "0" {
+		if len(txHistory) > txsPerPage {
+			txHistory = txHistory[:txsPerPage]
+			loadMore = true
+		}
+	} else {
 		for i, tx := range txHistory {
-			if tx.Txid == lastId {
-				firstIndex := i + 1
-				if firstIndex+txsPerPage > len(txHistory) {
-					txHistory = txHistory[i+1:]
-				} else {
-					txHistory = txHistory[i+1 : i+1+txsPerPage]
+			if tx.Id == lastId {
+				txsOnList := i + 1
+				if txsOnList+txsPerPage < len(txHistory) {
+					txHistory = txHistory[:txsOnList+txsPerPage]
 					loadMore = true
 				}
 				break
@@ -766,12 +782,12 @@ func (s *service) getTxs(c *gin.Context) {
 		}
 	}
 
-	if len(txHistory) > txsPerPage {
-		txHistory = txHistory[:txsPerPage]
-		loadMore = true
+	lastId = "0"
+	if len(txHistory) > 0 {
+		lastId = txHistory[len(txHistory)-1].Id
 	}
 
-	bodyContent := components.HistoryBodyContent(txHistory, loadMore)
+	bodyContent := components.HistoryBodyContent(txHistory, lastId, loadMore)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -811,7 +827,7 @@ func (s *service) getNodeBalance(c *gin.Context) string {
 
 func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction, err error) {
 	// get tx history from Server
-	history, err := s.svc.GetTransactionHistory(c)
+	transferTxns, err := s.svc.GetTransactionHistory(c)
 	if err != nil {
 		return nil, err
 	}
@@ -819,52 +835,81 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 	if err != nil {
 		return nil, err
 	}
-	// transform each sdktypes.Transaction to types.Transaction
-	for _, tx := range history {
-		// amount
-		amount := strconv.FormatUint(tx.Amount, 10)
-		if tx.Type == sdktypes.TxSent {
-			amount = "-" + amount
-		}
-		// date of creation
-		dateCreated := tx.CreatedAt.Unix()
-		// TODO: use tx.ExpiresAt when it will be available
-		expiresAt := tx.CreatedAt.Unix() + int64(data.VtxoTreeExpiry.Value)
-		// status of tx
-		status := "pending"
-		if tx.Settled {
-			status = "success"
-		}
-		if tx.CreatedAt.IsZero() {
-			status = "unconfirmed"
-			dateCreated = 0
-		}
-		// get one txid to identify tx
-		txid := tx.RoundTxid
-		explorable := true
-		if len(txid) == 0 {
-			txid = tx.RedeemTxid
-			explorable = false
-		}
-		if len(txid) == 0 {
-			txid = tx.BoardingTxid
-			explorable = true
-		}
-		// add to slice of transactions
-		transactions = append(transactions, types.Transaction{
-			Amount:     amount,
-			CreatedAt:  prettyUnixTimestamp(dateCreated),
-			Day:        prettyDay(dateCreated),
-			ExpiresAt:  prettyUnixTimestamp(expiresAt),
-			Explorable: explorable,
-			Hour:       prettyHour(dateCreated),
-			Kind:       strings.ToLower(string(tx.Type)),
-			Txid:       txid,
-			Status:     status,
-			UnixDate:   dateCreated,
-		})
+	// TODO: use tx.ExpiresAt when it will be available
+	treeExpiryValue := int64(data.VtxoTreeExpiry.Value)
+
+	// Get Swap Transaction
+	swapTxs, err := s.svc.GetSwapHistory(c)
+	if err != nil {
+		return nil, err
 	}
-	return
+
+	history := make([]types.Transaction, 0, len(transferTxns)+len(swapTxs))
+
+	// add swaps to history
+	for _, swap := range swapTxs {
+		transformedSwap := toSwap(swap)
+		swapTxn := types.Transaction{
+			Kind:        "swap",
+			Swap:        &transformedSwap,
+			Id:          swap.Id,
+			DateCreated: swap.Timestamp,
+		}
+
+		if transformedSwap.Kind == "submarine" {
+			updatedTransfers, sendTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
+				return swap.FundingTxId != "" && swap.FundingTxId == t.RedeemTxid
+			})
+
+			if ok {
+				transferTxns = updatedTransfers
+				modifiedSendTransfer := toTransfer(sendTransfer, treeExpiryValue)
+				swapTxn.VHTLCTransfer = &modifiedSendTransfer
+			}
+
+			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
+				return swap.RedeemTxId != "" && swap.RedeemTxId == t.RedeemTxid
+			})
+			if ok {
+				transferTxns = updatedTransfers
+				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
+				swapTxn.RedeemTransfer = &modifiedReceiveTransfer
+			}
+
+		} else {
+			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
+				return swap.RedeemTxId != "" && swap.RedeemTxId == t.RedeemTxid
+			})
+
+			if ok {
+				transferTxns = updatedTransfers
+				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
+				swapTxn.RedeemTransfer = &modifiedReceiveTransfer
+			}
+		}
+
+		history = append(history, swapTxn)
+
+	}
+
+	// transform remaining transaction types
+	for _, tx := range transferTxns {
+
+		modifiedTansfer := toTransfer(tx, treeExpiryValue)
+		transaction := types.Transaction{
+			Kind:        "transfer",
+			Transfer:    &modifiedTansfer,
+			Id:          modifiedTansfer.Txid,
+			DateCreated: tx.CreatedAt.Unix(),
+		}
+		history = append(history, transaction)
+
+	}
+
+	sort.SliceStable(history, func(i, j int) bool {
+		return history[i].DateCreated > history[j].DateCreated
+	})
+	return history, nil
 }
 
 func (s *service) redirectedBecauseWalletIsLocked(c *gin.Context) bool {
@@ -930,7 +975,7 @@ func (s *service) claimTx(c *gin.Context) {
 		return
 	}
 
-	txHistory, err := s.getTxHistory(c)
+	transferTxns, err := s.svc.GetTransactionHistory(c)
 	if err != nil {
 		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
@@ -938,10 +983,11 @@ func (s *service) claimTx(c *gin.Context) {
 	}
 
 	txid := c.Param("txid")
-	var tx types.Transaction
-	for _, transaction := range txHistory {
-		if transaction.Txid == txid {
-			tx = transaction
+	var tx types.Transfer
+	for _, transaction := range transferTxns {
+		transfer := toTransfer(transaction, int64(data.VtxoTreeExpiry.Value))
+		if transfer.Txid == txid {
+			tx = transfer
 			break
 		}
 	}
@@ -960,7 +1006,7 @@ func (s *service) claimTx(c *gin.Context) {
 
 	tx.Status = "success"
 
-	partial := components.Tx(tx, getExplorerUrl(data.Network.Name))
+	partial := components.Transfer(tx, getExplorerUrl(data.Network.Name))
 	partialViewHandler(partial, c)
 }
 
@@ -983,6 +1029,146 @@ func (s *service) getHero(c *gin.Context) {
 		log.WithError(err).Warn("failed to get spendable balance")
 	}
 
-	partialContent := components.Hero(spendableBalance, isOnline, s.svc.IsConnectedLN())
+	partialContent := components.Hero(spendableBalance, isOnline)
 	partialViewHandler(partialContent, c)
+}
+
+func (s *service) swapHistory(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	bodyContent := pages.SwapHistoryBodyContent()
+	s.pageViewHandler(bodyContent, c)
+}
+
+func (s *service) getSwaps(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	// TODO: Fix the errors later
+	swapHistory, _ := s.svc.GetSwapHistory(c)
+
+	parsedSwapHistory := make([]types.Swap, len(swapHistory))
+
+	for i, swap := range swapHistory {
+		parsedSwapHistory[i] = toSwap(swap)
+	}
+
+	lastId := c.Param("lastId")
+	loadMore := false
+	txsPerPage := 2
+
+	if lastId != "0" {
+		for i, swap := range parsedSwapHistory {
+			if swap.Id == lastId {
+				firstIndex := i + 1
+				if firstIndex+txsPerPage > len(parsedSwapHistory) {
+					parsedSwapHistory = parsedSwapHistory[i+1:]
+				} else {
+					parsedSwapHistory = parsedSwapHistory[i+1 : i+1+txsPerPage]
+					loadMore = true
+				}
+				break
+			}
+		}
+	}
+
+	if len(parsedSwapHistory) > txsPerPage {
+		parsedSwapHistory = parsedSwapHistory[:txsPerPage]
+		loadMore = true
+	}
+
+	bodyContent := pages.SwapHistoryListContent(parsedSwapHistory, loadMore)
+	partialViewHandler(bodyContent, c)
+}
+
+// RemoveFind drops the first element in slice for which match(v) is true.
+// It returns the updated slice, the removed element, and true.
+// If nothing matches, it returns the original slice, the zero value, and false.
+func RemoveFind[T any](slice []T, match func(T) bool) ([]T, T, bool) {
+	var zero T
+	for i, v := range slice {
+		if match(v) {
+			// remove element at i
+			slice = append(slice[:i], slice[i+1:]...)
+			return slice, v, true
+		}
+	}
+	return slice, zero, false
+}
+
+func toSwap(swap domain.Swap) types.Swap {
+	selectSwapType := func(swap domain.Swap) string {
+		if swap.To == boltz.CurrencyBtc && swap.From == boltz.CurrencyArk {
+			return "submarine"
+		} else {
+			return "reverse"
+		}
+	}
+
+	selectSwapStatus := func(swap domain.Swap) string {
+		switch swap.Status {
+		case domain.SwapSuccess:
+			return "success"
+		case domain.SwapPending:
+			return "pending"
+		default:
+			return "failure"
+		}
+	}
+
+	return types.Swap{
+		Amount: strconv.FormatUint(swap.Amount, 10),
+		Date:   prettyDay(swap.Timestamp),
+		Hour:   prettyHour(swap.Timestamp),
+		Id:     swap.Id,
+		Kind:   selectSwapType(swap),
+		Status: selectSwapStatus(swap),
+	}
+}
+
+func toTransfer(tx sdktypes.Transaction, treeExpiryValue int64) types.Transfer {
+	// amount
+	amount := strconv.FormatUint(tx.Amount, 10)
+	if tx.Type == sdktypes.TxSent {
+		amount = "-" + amount
+	}
+	// date of creation
+	dateCreated := tx.CreatedAt.Unix()
+	// TODO: use tx.ExpiresAt when it will be available
+	expiresAt := tx.CreatedAt.Unix() + treeExpiryValue
+	// status of tx
+	status := "pending"
+	if tx.Settled {
+		status = "success"
+	}
+	if tx.CreatedAt.IsZero() {
+		status = "unconfirmed"
+		dateCreated = 0
+	}
+	// get one txid to identify tx
+	txid := tx.RoundTxid
+	explorable := true
+	if len(txid) == 0 {
+		txid = tx.RedeemTxid
+		explorable = false
+	}
+	if len(txid) == 0 {
+		txid = tx.BoardingTxid
+		explorable = true
+	}
+
+	return types.Transfer{
+		Amount:     amount,
+		CreatedAt:  prettyUnixTimestamp(dateCreated),
+		Day:        prettyDay(dateCreated),
+		ExpiresAt:  prettyUnixTimestamp(expiresAt),
+		Explorable: explorable,
+		Hour:       prettyHour(dateCreated),
+		Kind:       strings.ToLower(string(tx.Type)),
+		Txid:       txid,
+		Status:     status,
+		UnixDate:   dateCreated,
+	}
 }

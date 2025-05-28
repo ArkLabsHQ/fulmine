@@ -10,6 +10,7 @@ import (
 	"github.com/ark-network/ark/common"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
+	"github.com/lightningnetwork/lnd/input"
 	"github.com/stretchr/testify/require"
 )
 
@@ -132,5 +133,5 @@ func generatePreimage(t *testing.T) []byte {
 // Helper function to calculate hash160 of a preimage
 func calculatePreimageHash(preimage []byte) []byte {
 	sha := sha256.Sum256(preimage)
-	return sha[:]
+	return input.Ripemd160H(sha[:]) // RIPEMD160(SHA256(preimage))
 }

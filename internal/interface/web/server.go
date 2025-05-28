@@ -6,11 +6,10 @@ import (
 	"io/fs"
 	"net/http"
 
+	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	"github.com/a-h/templ"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
-
-	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 )
 
 //go:embed static/*
@@ -54,11 +53,17 @@ func (t *TemplRender) Instance(name string, data interface{}) render.Render {
 
 type service struct {
 	*gin.Engine
-	svc    *application.Service
-	stopCh chan struct{}
+	svc       *application.Service
+	stopCh    chan struct{}
+	arkServer string
 }
 
-func NewService(appSvc *application.Service, stopCh chan struct{}, sentryEnabled bool) *service {
+func NewService(
+	appSvc *application.Service,
+	stopCh chan struct{},
+	sentryEnabled bool,
+	arkServer string,
+) *service {
 	// Create a new Fiber server.
 	router := gin.Default()
 
@@ -66,7 +71,12 @@ func NewService(appSvc *application.Service, stopCh chan struct{}, sentryEnabled
 	router.HTMLRender = &TemplRender{}
 	staticFS, _ := fs.Sub(static, "static")
 
-	svc := &service{router, appSvc, stopCh}
+	svc := &service{
+		Engine:    router,
+		svc:       appSvc,
+		stopCh:    stopCh,
+		arkServer: arkServer,
+	}
 
 	// Configure Sentry for Gin (includes built-in panic recovery)
 	setupMiddleware(svc.Engine, sentryEnabled)
@@ -82,6 +92,7 @@ func NewService(appSvc *application.Service, stopCh chan struct{}, sentryEnabled
 	svc.GET("/backup/ack", svc.backupAck)
 	svc.GET("/backup/tab/:active", svc.backupTabActive)
 	svc.GET("/done", svc.done)
+	svc.GET("/events", svc.events)
 	svc.GET("/hero", svc.getHero)
 	svc.GET("/import", svc.importWalletPrivateKey)
 	svc.GET("/lock", svc.lock)
@@ -90,9 +101,10 @@ func NewService(appSvc *application.Service, stopCh chan struct{}, sentryEnabled
 	svc.GET("/receive/edit", svc.receiveEdit)
 	svc.GET("/send", svc.send)
 	svc.GET("/settings/:active", svc.settings)
-	svc.GET("/events", svc.events)
 	svc.GET("/swap", svc.swap)
 	svc.GET("/swap/:active", svc.swapActive)
+	svc.GET("/swapHistory/", svc.swapHistory)
+	svc.GET("/swaps/:lastId", svc.getSwaps)
 	svc.GET("/tx/:txid", svc.getTx)
 	svc.GET("/txs/:lastId", svc.getTxs)
 	svc.GET("/unlock", svc.unlock)

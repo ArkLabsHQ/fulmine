@@ -192,6 +192,7 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 			// redirect user to tx page
 			const showTx = (el) => {
 				const txid = el.getAttribute("txid")
+				console.log(txid)
 				if (txid) redirect(`/tx/${txid}`)
 			}
 		
@@ -282,8 +283,6 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 			document.body.addEventListener("toast", (e) => {
 				setTimeout(() => document.querySelector("#toast").innerHTML = "", toastTimeout)
 			})
-  
-  
 		</script>
   </html>
 }

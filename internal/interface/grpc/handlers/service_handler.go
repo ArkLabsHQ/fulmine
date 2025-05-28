@@ -307,7 +307,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
 	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
 
-	addr, vhtlcScript, err := h.svc.GetVHTLC(
+	addr, vhtlcScript, _, err := h.svc.GetVHTLC(
 		ctx,
 		receiverPubkey,
 		senderPubkey,
@@ -320,6 +320,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	if err != nil {
 		return nil, err
 	}
+
 	return &pb.CreateVHTLCResponse{
 		Address:                              addr,
 		ClaimPubkey:                          hex.EncodeToString(vhtlcScript.Receiver.SerializeCompressed()[1:]),

@@ -113,12 +113,14 @@ func main() {
 		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL,
 	)
 	if err != nil {
-		log.WithError(err).Fatal(err)
+		log.WithError(err).Fatal("failed to init application service")
 	}
 
-	svc, err := grpcservice.NewService(svcConfig, appSvc, cfg.UnlockerService(), sentryEnabled)
+	svc, err := grpcservice.NewService(
+		svcConfig, appSvc, cfg.UnlockerService(), sentryEnabled, cfg.MacaroonSvc(), cfg.ArkServer,
+	)
 	if err != nil {
-		log.Fatal(err)
+		log.WithError(err).Fatal("failed to init interface service")
 	}
 
 	log.RegisterExitHandler(svc.Stop)

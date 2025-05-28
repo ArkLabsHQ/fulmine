@@ -2,16 +2,17 @@ package vhtlc
 
 import (
 	"encoding/hex"
-	"errors"
+	"fmt"
 
 	"github.com/ark-network/ark/common"
 	"github.com/ark-network/ark/common/tree"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
 const (
-	hash256Len = 20
+	hash160Len = 20
 )
 
 type Opts struct {
@@ -27,11 +28,11 @@ type Opts struct {
 
 func (o Opts) validate() error {
 	if o.Sender == nil || o.Receiver == nil || o.Server == nil {
-		return errors.New("sender, receiver, and server are required")
+		return fmt.Errorf("sender, receiver, and server are required")
 	}
 
-	if len(o.PreimageHash) != hash256Len {
-		return errors.New("preimage hash must be 32 bytes")
+	if len(o.PreimageHash) != hash160Len {
+		return fmt.Errorf("preimage hash must be %d bytes", hash160Len)
 	}
 
 	return nil
@@ -181,4 +182,19 @@ func (v *VHTLCScript) GetRevealedTapscripts() []string {
 		}
 	}
 	return scripts
+}
+
+func (v *VHTLCScript) Address(hrp string, serverPubkey *btcec.PublicKey) (string, error) {
+	tapKey, _, err := v.TapTree()
+	if err != nil {
+		return "", err
+	}
+
+	addr := &common.Address{
+		HRP:        hrp,
+		Server:     serverPubkey,
+		VtxoTapKey: tapKey,
+	}
+
+	return addr.Encode()
 }

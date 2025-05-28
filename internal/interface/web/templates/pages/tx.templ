@@ -5,12 +5,13 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
 )
 
-templ TxBodyContent(tx types.Transaction, explorerUrl string) {
+templ TransferTxBodyContent(tx types.Transfer, explorerUrl string) {
   @components.DesktopHeader()
-	@components.Tx(tx, explorerUrl)
+	@components.Transfer(tx, explorerUrl)
 }
 
-templ TxPendingContent(tx types.Transaction, explorerUrl string, nextClaim string) {
+
+templ TransferTxPendingContent(tx types.Transfer, explorerUrl string, nextClaim string) {
   @components.DesktopHeader()
   <form hx-post={"/helpers/claim/" + tx.Txid}>
     <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
@@ -30,6 +31,52 @@ templ TxPendingContent(tx types.Transaction, explorerUrl string, nextClaim strin
       </div>
     </div>
   </form>
+}
+
+//TODO: add flesh to the SwapContent
+templ SwapContent(tx types.Swap, vhtlc *types.Transfer, redeem *types.Transfer) {
+  @components.DesktopHeader()
+  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+     <div class="flex flex-col items-center">
+		  @components.Header("Swap")
+      if tx.Status == "success" {
+	      @SuccessIcon()
+      } else {
+        @components.FailureTxIcon()
+      }
+			<div class="flex flex-col items-center gap-2 text-3xl text-white/50">
+	      <div class="flex items-center gap-4">
+		      if tx.Kind == "submarine" {
+	          <p>@components.ArkBalanceIcon()</p>
+		    	} else {
+		    		<p>@components.LnBalanceIcon()</p>
+		    	}
+          <p class="cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
+		    </div>
+		    @ArrowDownIcon()
+		    <div class="flex items-center gap-4">
+	        if tx.Kind == "submarine" {
+		    		<p>@components.LnBalanceIcon()</p>
+		    	} else {
+	          <p>@components.ArkBalanceIcon()</p>
+		    	}
+          <p class="cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
+		    </div>
+	    </div>
+      // Add Associating VHTLC Transfers
+      <hr class="border border-1 border-white/10 w-full"/>
+      if tx.Kind == "submarine" && vhtlc != nil {
+        @components.TransferHistoryLine(*vhtlc)  
+        if tx.Status == "failure" && redeem != nil {
+          <hr class="border border-1 border-white/10 w-full"/>
+          <div txid={redeem.Txid} onclick="showTx(this)">@components.TransferHistoryLine(*redeem)</div>
+        }
+      } else if tx.Kind == "reverse" && redeem != nil {
+        <div txid={redeem.Txid} onclick="showTx(this)">@components.TransferHistoryLine(*redeem)</div>
+      }
+      
+		</div>
+  </div>
 }
 
 templ TxNotFoundContent() {

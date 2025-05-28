@@ -2,6 +2,7 @@ package pages
 
 import (
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
 )
 
 templ ArrowDownIcon() {
@@ -51,48 +52,54 @@ templ SwapPartialContent(active, balance string) {
 	</div>
 }
 
-templ SwapBodyContent(currentBalance, nodeBalance string) {
+templ SwapBodyContent(currentBalance, nodeBalance string, isLnConnected bool) {
   @components.DesktopHeader()
 	<div id="swapBody">
     <form hx-post="/swap/preview" hx-target="#swapBody" hx-target="outerHTML">
 	    <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 				<div>
-	        @components.Header("Swap")
-	        <div class="flex justify-between items-center">
-	          <div class="flex items-center gap-4">
-	            <p>@components.ArkBalanceIcon()</p>
-	        		<div>
-	        		  <p class="text-sm text-white/50">Available</p>
-	        			<p class="cryptoAmount" sats={currentBalance}>{currentBalance} SATS</p>
-	        		</div>
-	        	</div>
-            <p
-						  class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer"
-							onclick="setMax(this)"
-							sats={currentBalance}
-							kind="outbound">
-							MAX
-						</p>
-	        </div>
-	        <div class="flex justify-between items-center mt-6">
-	          <div class="flex items-center gap-4">
-	            <p>@components.LnBalanceIcon()</p>
-	        		<div>
-	        		  <p class="text-sm text-white/50">Lightning node balance</p>
-	        			<p class="cryptoAmount" sats={nodeBalance}>{nodeBalance} SATS</p>
-	        		</div>
-	        	</div>
-            <p
-						  class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer"
-							onclick="setMax(this)"
-							sats={nodeBalance}
-							kind="inbound">
-							MAX
-						</p>
-	        </div>
-					@SwapPartialContent("inbound", nodeBalance)
-	    	</div>
-	    	@components.ActionButtons("Preview swap", true)
+					@components.HeaderWithAction("Swap", components.SwapHistoryButton())
+					if !isLnConnected {
+					  <p>LN Node is disconnected</p>
+				  } else {
+						<div class="flex justify-between items-center">
+							<div class="flex items-center gap-4">
+								<p>@components.ArkBalanceIcon()</p>
+								<div>
+									<p class="text-sm text-white/50">Available</p>
+									<p class="cryptoAmount" sats={currentBalance}>{currentBalance} SATS</p>
+								</div>
+							</div>
+							<p
+								class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer"
+								onclick="setMax(this)"
+								sats={currentBalance}
+								kind="outbound">
+								MAX
+							</p>
+						</div>
+						<div class="flex justify-between items-center mt-6">
+							<div class="flex items-center gap-4">
+								<p>@components.LnBalanceIcon()</p>
+								<div>
+									<p class="text-sm text-white/50">Lightning node balance</p>
+									<p class="cryptoAmount" sats={nodeBalance}>{nodeBalance} SATS</p>
+								</div>
+							</div>
+							<p
+								class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer"
+								onclick="setMax(this)"
+								sats={nodeBalance}
+								kind="inbound">
+								MAX
+							</p>
+						</div>
+						@SwapPartialContent("inbound", nodeBalance)
+				  }
+				</div>
+				if isLnConnected {
+	    	  @components.ActionButtons("Preview swap", true)
+				}
 	    </div>
 	  </form>
 	</div>
@@ -173,6 +180,30 @@ templ SwapMovementComponent(kind, sats string) {
       <p class="cryptoAmount" sats={sats}>{sats} SATS</p>
 		</div>
 	</div>
+}
+
+
+
+templ SwapHistoryBodyContent() {
+	@components.DesktopHeader()
+	@components.Header("Swap history")
+	<div hx-get="/swaps/0" hx-trigger="load" />
+}
+
+templ SwapHistoryListContent(swaps []types.Swap, loadMore bool) {
+	if len(swaps) == 0 {
+		@components.HistoryEmpty()
+	} else {
+		for _, swap := range swaps {
+			<hr class="border border-1 border-white/10 w-full"/>
+			@components.SwapHistoryLine(swap)
+		}
+		if loadMore {
+			<div class="flex justify-center" hx-get={"/swaps/" + swaps[len(swaps)-1].Id} hx-swap="outerHTML">
+				<p class="cursor-pointer p-3 text-semibold text-sm text-white/50 hover:text-white/80">Load more</p>
+			</div>
+		}
+	}
 }
 
 templ SwapInputAmountComponent(kind, maxBalance string) {
