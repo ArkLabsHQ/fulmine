@@ -6,11 +6,11 @@ ARG TARGETARCH
 
 WORKDIR /app
 
-RUN git clone https://github.com/ark-network/ark.git
+RUN git clone https://github.com/arkade-os/arkd.git
 
 # ENV GOPROXY=https://goproxy.io,direct
-RUN cd ark/server && CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-X 'main.Version=${VERSION}'" -o ../../bin/arkd ./cmd/arkd
-RUN cd ark/client && CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-X 'main.Version=${VERSION}'" -o ../../bin/ark .
+RUN cd arkd/server && CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-X 'main.Version=${VERSION}'" -o ../../bin/arkd ./cmd/arkd
+RUN cd arkd/client && CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-X 'main.Version=${VERSION}'" -o ../../bin/ark .
 
 # Second image, running the arkd executable
 FROM alpine:3.20
