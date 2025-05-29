@@ -555,7 +555,7 @@ func (s *Service) GetVHTLC(
 	}
 
 	go func() {
-		if err := s.dbSvc.VHTLC().Add(ctx, *opts); err != nil {
+		if err := s.dbSvc.VHTLC().Add(context.Background(), *opts); err != nil {
 			log.WithError(err).Fatal("failed to add vhtlc")
 		}
 
