@@ -46,6 +46,13 @@ var boltzURLByNetwork = map[string]string{
 	common.BitcoinRegTest.Name:   "http://localhost:9001",
 }
 
+var boltzWSURLByNetwork = map[string]string{
+	common.Bitcoin.Name:          "https://api.boltz.exchange",
+	common.BitcoinTestNet.Name:   "https://api.testnet.boltz.exchange",
+	common.BitcoinMutinyNet.Name: "https://api.boltz.mutinynet.arkade.sh",
+	common.BitcoinRegTest.Name:   "http://localhost:9004",
+}
+
 type BuildInfo struct {
 	Version string
 	Commit  string
@@ -219,7 +226,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		url = boltzURLByNetwork[config.Network.Name]
 	}
 	if wsUrl == "" {
-		wsUrl = boltzURLByNetwork[config.Network.Name]
+		wsUrl = boltzWSURLByNetwork[config.Network.Name]
 	}
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 
@@ -326,7 +333,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		url = boltzURLByNetwork[data.Network.Name]
 	}
 	if wsUrl == "" {
-		wsUrl = boltzURLByNetwork[data.Network.Name]
+		wsUrl = boltzWSURLByNetwork[data.Network.Name]
 	}
 	fmt.Printf("boltz url: %s and wsUrl: %s\n", url, wsUrl)
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
@@ -1417,13 +1424,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64, invoice stri
 		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
 	}
 
-	// Workaround to connect ws endpoint on a different port for regtest
-	wsClient := s.boltzSvc
-	if s.boltzSvc.URL == boltzURLByNetwork[common.BitcoinRegTest.Name] {
-		wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
-	}
-
-	ws := wsClient.NewWebsocket()
+	ws := s.boltzSvc.NewWebsocket()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	err = ws.Connect()
@@ -1535,13 +1536,7 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, preimage, myPu
 		go func() {
 			// Wait until invoice is paid then proceed with claiming the VHTLC
 
-			// Workaround to connect ws endpoint on a different port for regtest
-			wsClient := s.boltzSvc
-			if s.boltzSvc.URL == boltzURLByNetwork[common.BitcoinRegTest.Name] {
-				wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
-			}
-
-			ws := wsClient.NewWebsocket()
+			ws := s.boltzSvc.NewWebsocket()
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			err = ws.Connect()
