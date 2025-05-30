@@ -62,6 +62,13 @@ var boltzURLByNetwork = map[string]string{
 	arklib.BitcoinRegTest.Name:   "http://localhost:9001",
 }
 
+var boltzWSURLByNetwork = map[string]string{
+	common.Bitcoin.Name:          "https://api.boltz.exchange",
+	common.BitcoinTestNet.Name:   "https://api.testnet.boltz.exchange",
+	common.BitcoinMutinyNet.Name: "https://api.boltz.mutinynet.arkade.sh",
+	common.BitcoinRegTest.Name:   "http://localhost:9004",
+}
+
 type BuildInfo struct {
 	Version string
 	Commit  string
@@ -296,7 +303,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		url = boltzURLByNetwork[config.Network.Name]
 	}
 	if wsUrl == "" {
-		wsUrl = boltzURLByNetwork[config.Network.Name]
+		wsUrl = boltzWSURLByNetwork[config.Network.Name]
 	}
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 
