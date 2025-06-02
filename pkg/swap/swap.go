@@ -33,11 +33,11 @@ type SwapHandler struct {
 	onchainPublicKey *secp256k1.PublicKey
 }
 
-func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.TransportClient, onchainPublicKey *secp256k1.PublicKey, boltzUrl string, boltzWsUrl string) *SwapHandler {
+func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.TransportClient, boltzSvc *boltz.Api, onchainPublicKey *secp256k1.PublicKey) *SwapHandler {
 	return &SwapHandler{
 		arkClient:        arkClient,
 		transportClient:  transportClient,
-		boltzSvc:         &boltz.Api{URL: boltzUrl, WSURL: boltzWsUrl},
+		boltzSvc:         boltzSvc,
 		onchainPublicKey: onchainPublicKey,
 	}
 }

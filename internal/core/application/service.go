@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -16,6 +15,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/cln"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
+	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/ark-network/ark/common"
@@ -1099,10 +1099,7 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (string, error)
 		return "", err
 	}
 
-	preimage := make([]byte, 32)
-	if _, err := rand.Read(preimage); err != nil {
-		return "", fmt.Errorf("failed to generate preimage: %w", err)
-	}
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.boltzSvc, s.publicKey)
 
 	_, _, _, _, pk, err := s.GetAddress(ctx, 0)
 	if err != nil {
@@ -1110,7 +1107,7 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (string, error)
 	}
 	pubkey, _ := hex.DecodeString(pk)
 
-	return s.reverseSwap(ctx, amount, preimage, pubkey)
+	return swapHandler.GetInvoice(ctx, amount, pubkey)
 }
 
 func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error) {
@@ -1118,13 +1115,15 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error
 		return "", err
 	}
 
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.boltzSvc, s.publicKey)
+
 	_, _, _, _, pk, err := s.GetAddress(ctx, 0)
 	if err != nil {
 		return "", err
 	}
 	pubkey, _ := hex.DecodeString(pk)
 
-	return s.submarineSwap(ctx, 0, invoice, pubkey)
+	return swapHandler.PayInvoice(ctx, invoice, pubkey)
 }
 
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
