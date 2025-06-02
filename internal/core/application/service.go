@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -17,6 +16,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/cln"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/lnd"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
+	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
@@ -929,10 +929,7 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (string, error)
 		return "", err
 	}
 
-	preimage := make([]byte, 32)
-	if _, err := rand.Read(preimage); err != nil {
-		return "", fmt.Errorf("failed to generate preimage: %w", err)
-	}
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.boltzSvc, s.publicKey)
 
 	return s.reverseSwapWithPreimage(ctx, amount, preimage, s.publicKey.SerializeCompressed())
 }
@@ -941,6 +938,8 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
+
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.boltzSvc, s.publicKey)
 
 	_, _, _, _, pk, err := s.GetAddress(ctx, 0)
 	if err != nil {
