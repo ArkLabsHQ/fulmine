@@ -6,6 +6,8 @@ replace github.com/ArkLabsHQ/fulmine/pkg/vhtlc => ./pkg/vhtlc
 
 replace github.com/ArkLabsHQ/fulmine/pkg/boltz => ./pkg/boltz
 
+replace github.com/ArkLabsHQ/fulmine/pkg/swap => ./pkg/swap
+
 replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-display v1.30.0-hex-display
 
 require (
@@ -175,6 +177,7 @@ require (
 )
 
 require (
+	github.com/ArkLabsHQ/fulmine/pkg/swap v0.0.0-00010101000000-000000000000
 	github.com/FactomProject/basen v0.0.0-20150613233007-fe3947df716e // indirect
 	github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec // indirect
 	github.com/aead/siphash v1.0.1 // indirect
