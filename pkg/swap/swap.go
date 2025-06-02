@@ -95,7 +95,7 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, amount uint64, invoice 
 		return "", fmt.Errorf("invalid claim pubkey: %v", err)
 	}
 
-	address, opts, err := h.GetVHTLC(
+	address, opts, err := h.getVHTLC(
 		ctx,
 		receiverPubkey,
 		nil,
@@ -165,7 +165,7 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, amount uint64, invoice 
 	return "", fmt.Errorf("something went wrong")
 }
 
-func (h *SwapHandler) GetVHTLC(
+func (h *SwapHandler) getVHTLC(
 	ctx context.Context,
 	receiverPubkey, senderPubkey *secp256k1.PublicKey,
 	preimageHash []byte,
@@ -261,7 +261,7 @@ func (h *SwapHandler) GetVHTLC(
 }
 
 func (h *SwapHandler) RefundVHTLC(ctx context.Context, swapId, preimageHash string, withReceiver bool, vhtlcAddress string, vhtlcOpt vhtlc.Opts) (string, error) {
-	vtxos, err := h.ListVHTLC(ctx, vhtlcAddress)
+	vtxos, err := h.listVHTLC(ctx, vhtlcAddress)
 	if err != nil {
 		return "", err
 	}
@@ -435,7 +435,7 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage, 
 		return "", fmt.Errorf("invalid invoice amount: expected %d, got %d", amount, invoiceAmount)
 	}
 
-	vhtlcAddress, vhtlcOpts, err := h.GetVHTLC(
+	vhtlcAddress, vhtlcOpts, err := h.getVHTLC(
 		ctx,
 		nil,
 		senderPubkey,
@@ -493,7 +493,7 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage, 
 			}
 			if confirmed {
 				fmt.Println("claiming VHTLC with preimage")
-				fmt.Println(h.ClaimVHTLC(ctx, preimage, vhtlcAddress, *vhtlcOpts))
+				fmt.Println(h.claimVHTLC(ctx, preimage, vhtlcAddress, *vhtlcOpts))
 				break
 			}
 		}
@@ -502,9 +502,9 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage, 
 	return swap.Invoice, nil
 }
 
-func (h *SwapHandler) ClaimVHTLC(ctx context.Context, preimage []byte, vhtlcAddress string, vhtlcOpts vhtlc.Opts) (string, error) {
+func (h *SwapHandler) claimVHTLC(ctx context.Context, preimage []byte, vhtlcAddress string, vhtlcOpts vhtlc.Opts) (string, error) {
 
-	vtxos, err := h.ListVHTLC(ctx, vhtlcAddress)
+	vtxos, err := h.listVHTLC(ctx, vhtlcAddress)
 	if err != nil {
 		return "", err
 	}
@@ -628,7 +628,7 @@ func (h *SwapHandler) ClaimVHTLC(ctx context.Context, preimage []byte, vhtlcAddr
 	return txid, nil
 }
 
-func (h *SwapHandler) ListVHTLC(ctx context.Context, vhtlcAddress string) ([]client.Vtxo, error) {
+func (h *SwapHandler) listVHTLC(ctx context.Context, vhtlcAddress string) ([]client.Vtxo, error) {
 
 	// Get vtxos for this address
 	vtxos, _, err := h.transportClient.ListVtxos(ctx, vhtlcAddress)
