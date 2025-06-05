@@ -40,27 +40,51 @@ templ SendBodyContent(currentBalance string) {
 	  </form>
 	</div>
 	<script>
-	  const validateArkNote = (note) => {
+	  const updateUI = ({ sats, buttonLabel }) => {
+			const button = document.querySelector('button[type="submit"]')
+			button.disabled = false
+			button.innerText = buttonLabel
+			document.querySelector('#sats').value = sats
+			const unit = document.querySelector('#unit').innerText
+			const amount = unit === 'SATS' ? sats : fromSatoshis(sats)
+			document.querySelector('#amount').value = amount
+		}
+
+	  const validateArkNote = async (note) => {
       const data = new FormData()
 			data.set('note', note)
-			fetch('/helpers/note/validate', {
-				method: 'POST',
-        body: data,
-			}).then((res) => {
-				if (res.ok) {
-					res.json().then(({ error, sats, valid }) => {
-						const button = document.querySelector('button[type="submit"]')
-						if (button && valid) {
-							button.disabled = false
-							button.innerText = 'Redeem note'
-							document.querySelector('#sats').value = sats
-							const unit = document.querySelector('#unit').innerText
-							const amount = unit === 'SATS' ? sats : fromSatoshis(sats)
-			        document.querySelector('#amount').value = amount
-						}
-					})
-				}
-		  })
+			const res = await fetch('/helpers/note/validate', { method: 'POST', body: data })
+			if (res.ok) {
+				const { sats, valid } = await res.json()
+				if (valid) updateUI({ sats, buttonLabel: 'Redeem note' })
+				return valid
+			}
+			return false
+		}
+		
+
+		const validateIsBip21 = async (bip21) => {
+      const data = new FormData()
+			data.set('bip21', bip21)
+			const res = await fetch('/helpers/bip21/validate', { method: 'POST', body: data })
+			if (res.ok) {
+				const { sats, valid } = await res.json()
+				if (valid) updateUI({ sats, buttonLabel: 'Send' })
+				return valid
+			}
+			return false
+		}
+
+	  const validateInvoice = async (invoice) => {
+      const data = new FormData()
+			data.set('invoice', invoice)
+			const res = await fetch('/helpers/invoice/validate', { method: 'POST', body: data })
+			if (res.ok) {
+				const { sats, valid } = await res.json()
+				if (valid) updateUI({ sats, buttonLabel: 'Send to lightning' })
+				return valid
+			}
+			return false
 		}
 
 	  const canSend = () => {
@@ -71,7 +95,15 @@ templ SendBodyContent(currentBalance string) {
 			const sats = parseInt(document.querySelector('#sats').value)
 			button.disabled = address.length === 0 || amount.length === 0 || !sats || sats > balance
 			button.innerText = sats > balance ? 'Not enough funds' : 'Preview send'
-			if (address) validateArkNote(address)
+			if (address) {
+				const disableInputAmount =
+					validateArkNote(address) &&
+					validateInvoice(address) &&
+					validateIsBip21(address)
+				document.querySelector('#amount').disabled = disableInputAmount
+			} else {
+				document.querySelector('#amount').disabled = false
+			}
 		}
 
 	  document.querySelector('#address').addEventListener('input', canSend)

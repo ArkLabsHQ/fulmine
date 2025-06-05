@@ -23,7 +23,7 @@ func NewServiceHandler(svc *application.Service) pb.ServiceServer {
 func (h *serviceHandler) GetAddress(
 	ctx context.Context, req *pb.GetAddressRequest,
 ) (*pb.GetAddressResponse, error) {
-	bip21Addr, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
+	bip21Addr, _, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (h *serviceHandler) GetBalance(
 func (h *serviceHandler) GetInfo(
 	ctx context.Context, req *pb.GetInfoRequest,
 ) (*pb.GetInfoResponse, error) {
-	_, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
+	_, _, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (h *serviceHandler) GetInfo(
 func (h *serviceHandler) GetOnboardAddress(
 	ctx context.Context, req *pb.GetOnboardAddressRequest,
 ) (*pb.GetOnboardAddressResponse, error) {
-	_, _, addr, _, err := h.svc.GetAddress(ctx, 0)
+	_, _, addr, _, _, err := h.svc.GetAddress(ctx, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +316,6 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		unilateralClaimDelay,
 		unilateralRefundDelay,
 		unilateralRefundWithoutReceiverDelay,
-		true,
 	)
 	if err != nil {
 		return nil, err
@@ -335,24 +334,21 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	}, nil
 }
 
-func (h *serviceHandler) CreateInvoice(
-	ctx context.Context, req *pb.CreateInvoiceRequest,
-) (*pb.CreateInvoiceResponse, error) {
+func (h *serviceHandler) GetInvoice(
+	ctx context.Context, req *pb.GetInvoiceRequest,
+) (*pb.GetInvoiceResponse, error) {
 	amount, err := parseAmount(req.GetAmount())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	memo := req.GetMemo()
-	preimage := req.GetPreimage()
 
-	invoice, preimageHash, err := h.svc.GetInvoice(ctx, amount, memo, preimage)
+	invoice, err := h.svc.GetInvoice(ctx, amount)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.CreateInvoiceResponse{
-		Invoice:      invoice,
-		PreimageHash: preimageHash,
+	return &pb.GetInvoiceResponse{
+		Invoice: invoice,
 	}, nil
 }
 
@@ -364,12 +360,12 @@ func (h *serviceHandler) PayInvoice(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	preimage, err := h.svc.PayInvoice(ctx, invoice)
+	txid, err := h.svc.PayInvoice(ctx, invoice)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.PayInvoiceResponse{Preimage: preimage}, nil
+	return &pb.PayInvoiceResponse{Txid: txid}, nil
 }
 
 func (h *serviceHandler) IsInvoiceSettled(

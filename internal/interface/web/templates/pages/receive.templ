@@ -31,12 +31,12 @@ templ ReceiveEditContent() {
 	  document.querySelector('#amount').addEventListener('input', () => {
 			const amount = document.querySelector('#amount').value
 			const button = document.querySelector('button[type="submit"]')
-			button.disabled = !amount || !amount > 0
+			button.disabled = !amount || !(amount > 0)
 		})
 	</script>
 }
 
-templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats string) {
+templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, sats string) {
 	<form id="success" hx-post="/receive/success" hx-ext="sse" sse-connect="/events" hx-trigger="sse:TXS_ADDED">
 	  @components.DesktopHeader()
 	  <input class="hidden" id="submitButton" type="submit"/>
@@ -57,12 +57,15 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, encoded, sats stri
 					if len(offchainAddr) > 0 {
 						@addressLine("Ark address", offchainAddr)
 					}
+					if len(invoice) > 0 {
+						@addressLine("Lightning invoice", invoice)
+					}
 				</div>
 	  	</div>
       <div class="flex flex-col md:flex-row justify-start gap-4 mt-10 mb-2">
 	      <a class="button md:w-auto" onclick="redirect('/receive/edit')">
 	  		  @components.EditIcon()
-	  			<span class="ml-2">Edit</span>
+	  			<span class="ml-2">Add amount</span>
 	  		</a>
 	    </div>
 	  </div>

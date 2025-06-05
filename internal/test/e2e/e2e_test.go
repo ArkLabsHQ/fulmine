@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/ArkLabsHQ/fulmine/utils"
+	"github.com/lightningnetwork/lnd/input"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/ripemd160"
 )
 
 func TestOnboard(t *testing.T) {
@@ -102,10 +102,7 @@ func TestVHTLC(t *testing.T) {
 	_, err := rand.Read(preimage)
 	require.NoError(t, err)
 	sha256Hash := sha256.Sum256(preimage)
-	ripemd160Hasher := ripemd160.New()
-	ripemd160Hasher.Write(sha256Hash[:])
-	hash160hash := ripemd160Hasher.Sum(nil)
-	preimageHash := hex.EncodeToString(hash160hash)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
 	// hardcoded wallet's pubkey, here sender = receiver in order to test the claim RPC
 	receiverPubkey := "02cdd6cf3ae57f1bafef11048c3bc1164e106cfd4b0d538bfb2d936866a2f19202"
 
