@@ -54,6 +54,18 @@ type CreateReverseSwapResponse struct {
 	Error string `json:"error"`
 }
 
+type RevealPreimageRequest struct {
+	Id       string `json:"id"`
+	Preimage string `json:"preimage"`
+}
+
+type RevealPreimageResponse struct {
+	Id          string `json:"id"`
+	Transaction string `json:"transaction"`
+
+	Error string `json:"error"`
+}
+
 type RefundSwapRequest struct {
 	Transaction string `json:"transaction"`
 }
