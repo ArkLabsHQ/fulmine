@@ -1619,7 +1619,7 @@ func (s *Service) claimVHTLCByRefund(
 	ctx context.Context, refundTx string,
 ) (string, error) {
 	if refundTx == "" {
-		return "", fmt.Errorf("missing signed tx in boltz response")
+		return "", fmt.Errorf("missing signed tx from boltz")
 	}
 
 	refundPtx, err := psbt.NewFromRawBytes(strings.NewReader(refundTx), true)
