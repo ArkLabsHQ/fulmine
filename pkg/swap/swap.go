@@ -27,18 +27,18 @@ import (
 )
 
 type SwapHandler struct {
-	arkClient        arksdk.ArkClient
-	transportClient  client.TransportClient
-	boltzSvc         *boltz.Api
-	onchainPublicKey *secp256k1.PublicKey
+	arkClient       arksdk.ArkClient
+	transportClient client.TransportClient
+	boltzSvc        *boltz.Api
 }
 
-func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.TransportClient, boltzSvc *boltz.Api, onchainPublicKey *secp256k1.PublicKey) *SwapHandler {
+func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.TransportClient, boltzUrl, boltzWSUrl string, onchainPublicKey *secp256k1.PublicKey) *SwapHandler {
+	boltzSvc := &boltz.Api{URL: boltzUrl, WSURL: boltzWSUrl}
+
 	return &SwapHandler{
-		arkClient:        arkClient,
-		transportClient:  transportClient,
-		boltzSvc:         boltzSvc,
-		onchainPublicKey: onchainPublicKey,
+		arkClient:       arkClient,
+		transportClient: transportClient,
+		boltzSvc:        boltzSvc,
 	}
 }
 
@@ -95,10 +95,15 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, amount uint64, invoice 
 		return "", fmt.Errorf("invalid claim pubkey: %v", err)
 	}
 
+	senderPubkey, err := secp256k1.ParsePubKey(pubkey)
+	if err != nil {
+		return "", fmt.Errorf("invalid sender pubkey: %v", err)
+	}
+
 	address, opts, err := h.getVHTLC(
 		ctx,
 		receiverPubkey,
-		nil,
+		senderPubkey,
 		preimageHash,
 		nil,
 		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
@@ -174,18 +179,6 @@ func (h *SwapHandler) getVHTLC(
 	unilateralRefundDelayParam *common.RelativeLocktime,
 	unilateralRefundWithoutReceiverDelayParam *common.RelativeLocktime,
 ) (string, *vhtlc.Opts, error) {
-
-	receiverPubkeySet := receiverPubkey != nil
-	senderPubkeySet := senderPubkey != nil
-	if receiverPubkeySet == senderPubkeySet {
-		return "", nil, fmt.Errorf("only one of receiver and sender pubkey must be set")
-	}
-	if !receiverPubkeySet {
-		receiverPubkey = h.onchainPublicKey
-	}
-	if !senderPubkeySet {
-		senderPubkey = h.onchainPublicKey
-	}
 
 	offchainAddr, _, err := h.arkClient.Receive(ctx)
 	if err != nil {
@@ -435,9 +428,14 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage, 
 		return "", fmt.Errorf("invalid invoice amount: expected %d, got %d", amount, invoiceAmount)
 	}
 
+	receiverPubkey, err := secp256k1.ParsePubKey(myPubkey)
+	if err != nil {
+		return "", fmt.Errorf("invalid receiver pubkey: %v", err)
+	}
+
 	vhtlcAddress, vhtlcOpts, err := h.getVHTLC(
 		ctx,
-		nil,
+		receiverPubkey,
 		senderPubkey,
 		gotPreimageHash,
 		nil,
