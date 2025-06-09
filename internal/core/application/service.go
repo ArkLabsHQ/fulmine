@@ -360,7 +360,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if wsUrl == "" {
 		wsUrl = boltzURLByNetwork[data.Network.Name]
 	}
-	fmt.Printf("boltz url: %s and wsUrl: %s\n", url, wsUrl)
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 
 	offchainAddress, onchainAddress, err := s.Receive(ctx)
@@ -1345,12 +1344,19 @@ func (s *Service) reverseSwapWithPreimage(ctx context.Context, amount uint64, pr
 				confirmed = true
 			case boltz.InvoiceFailedToPay, boltz.TransactionFailed, boltz.TransactionLockupFailed:
 				log.Warnf("something went wrong: %s", update.Status)
-				s.claimVHTLC(ctx, preimage, *vhtlcOpts)
+				if _, err := s.claimVHTLC(ctx, preimage, *vhtlcOpts); err != nil {
+					log.Warnf("failed to claim vhtlc: %s", err)
+				}
 				return
 			}
 			if confirmed {
 				log.Infof("claiming VHTLC with preimage")
-				s.claimVHTLCByRefund(ctx, refundTxResponse.Transaction)
+				if _, err := s.claimVHTLCByRefund(ctx, refundTxResponse.Transaction); err != nil {
+					log.WithError(err).Debug("something went wrong, falling back to claim alone...")
+					if _, err := s.claimVHTLC(ctx, preimage, *vhtlcOpts); err != nil {
+						log.Warnf("failed to claim vhtlc: %s", err)
+					}
+				}
 				break
 			}
 		}
@@ -1612,6 +1618,9 @@ func (s *Service) claimVHTLC(
 func (s *Service) claimVHTLCByRefund(
 	ctx context.Context, refundTx string,
 ) (string, error) {
+	if refundTx == "" {
+		return "", fmt.Errorf("missing signed tx in boltz response")
+	}
 
 	refundPtx, err := psbt.NewFromRawBytes(strings.NewReader(refundTx), true)
 	if err != nil {
