@@ -6,12 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/crypto/ripemd160"
-
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ark-network/ark/common"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
+	"github.com/lightningnetwork/lnd/input"
 	"github.com/stretchr/testify/require"
 )
 
@@ -69,7 +68,7 @@ func TestVHTLC(t *testing.T) {
 			sig.Serialize(),
 			preimage,
 			claimScript,
-			[]byte{0x01}, // dummy control block
+			{0x01}, // dummy control block
 		}
 
 		require.Len(t, witness, 4, "Claim witness should have 4 elements")
@@ -102,7 +101,7 @@ func TestVHTLC(t *testing.T) {
 			receiverSig.Serialize(),
 			serverSig.Serialize(),
 			refundScript,
-			[]byte{0x01}, // dummy control block
+			{0x01}, // dummy control block
 		}
 
 		require.Len(t, witness, 5, "Refund witness should have 5 elements")
@@ -134,7 +133,5 @@ func generatePreimage(t *testing.T) []byte {
 // Helper function to calculate hash160 of a preimage
 func calculatePreimageHash(preimage []byte) []byte {
 	sha := sha256.Sum256(preimage)
-	rmd := ripemd160.New()
-	rmd.Write(sha[:])
-	return rmd.Sum(nil) // RIPEMD160(SHA256(preimage))
+	return input.Ripemd160H(sha[:]) // RIPEMD160(SHA256(preimage))
 }

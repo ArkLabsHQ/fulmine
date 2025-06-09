@@ -51,6 +51,20 @@ func (boltz *Api) RefundSubmarine(swapId string, request RefundSwapRequest) (*Re
 	return resp, nil
 }
 
+func (boltz *Api) RevealPreimage(swapId string, preimage string) (*RevealPreimageResponse, error) {
+	url := fmt.Sprintf("/swap/reverse/%s/reveal/ark", swapId)
+	request := RevealPreimageRequest{Preimage: preimage}
+	resp, err := sendPostRequest[RevealPreimageResponse](boltz, url, request)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Error != "" {
+		return nil, fmt.Errorf("%s", resp.Error)
+	}
+
+	return resp, nil
+}
+
 func sendPostRequest[T any](boltz *Api, endpoint string, requestBody interface{}) (*T, error) {
 	rawBody, err := json.Marshal(requestBody)
 	if err != nil {

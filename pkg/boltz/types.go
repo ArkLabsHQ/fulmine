@@ -39,6 +39,7 @@ type CreateReverseSwapRequest struct {
 	ClaimPublicKey string   `json:"claimPublicKey"`
 	InvoiceAmount  uint64   `json:"invoiceAmount,omitempty"`
 	OnchainAmount  uint64   `json:"onchainAmount,omitempty"`
+	PreimageHash   string   `json:"preimageHash,omitempty"`
 }
 
 type CreateReverseSwapResponse struct {
@@ -49,6 +50,18 @@ type CreateReverseSwapResponse struct {
 	Invoice             string              `json:"invoice"`
 	InvoiceAmount       uint64              `json:"invoiceAmount,omitempty"`
 	OnchainAmount       uint64              `json:"onchainAmount"`
+
+	Error string `json:"error"`
+}
+
+type RevealPreimageRequest struct {
+	Id       string `json:"id"`
+	Preimage string `json:"preimage"`
+}
+
+type RevealPreimageResponse struct {
+	Id          string `json:"id"`
+	Transaction string `json:"transaction"`
 
 	Error string `json:"error"`
 }
