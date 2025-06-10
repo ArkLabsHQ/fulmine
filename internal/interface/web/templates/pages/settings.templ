@@ -178,7 +178,7 @@ templ SettingsLightningContent(settings domain.Settings, nodeStatus bool) {
 		}
     if (input && button) {
 			validateLnUrl()
-		  input.addEventListener('change', validateLnUrl)
+		  input.addEventListener('input', validateLnUrl)
 		}
   </script>
 }
