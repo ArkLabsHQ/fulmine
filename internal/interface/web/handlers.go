@@ -1058,6 +1058,13 @@ func (s *service) getSwaps(c *gin.Context) {
 		loadMore = true
 	}
 
+	// return empty component if there are no more swaps
+	if len(parsedSwapHistory) == 0 && lastId != "0" {
+		bodyContent := templ.Component(nil)
+		partialViewHandler(bodyContent, c)
+		return
+	}
+
 	bodyContent := pages.SwapHistoryListContent(parsedSwapHistory, loadMore)
 	partialViewHandler(bodyContent, c)
 }
