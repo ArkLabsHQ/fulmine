@@ -1036,7 +1036,7 @@ func (s *service) getSwaps(c *gin.Context) {
 
 	lastId := c.Param("lastId")
 	loadMore := false
-	txsPerPage := 2
+	txsPerPage := 10
 
 	if lastId != "0" {
 		for i, swap := range parsedSwapHistory {
