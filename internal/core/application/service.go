@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -1606,5 +1607,16 @@ func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
 }
 
 func (s *Service) GetSwapHistory(ctx context.Context) ([]domain.Swap, error) {
-	return s.dbSvc.Swap().GetAll(ctx)
+	all, err := s.dbSvc.Swap().GetAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get swap history: %w", err)
+	}
+	if len(all) == 0 {
+		return all, nil
+	}
+	// sort swaps by timestamp descending
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].Timestamp > all[j].Timestamp
+	})
+	return all, nil
 }
