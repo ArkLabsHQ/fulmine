@@ -109,7 +109,7 @@ templ SwapBodyContent(currentBalance, nodeBalance string, isLnConnected bool) {
 			const sats = el.getAttribute('sats')
 			if (!kind || !sats) return
 			document.querySelector(`#${kind}`).click()
-			setTimeout(() => setMaxValue(sats), 1000)
+			setTimeout(() => setMaxValue(sats), 100)
 		}
 		const canSwap = () => {
 			const amount = document.querySelector('#amount').value
@@ -120,7 +120,7 @@ templ SwapBodyContent(currentBalance, nodeBalance string, isLnConnected bool) {
 			button.innerText = sats > balance ? 'Not enough funds' : 'Preview swap'
 		}
 		document.addEventListener('htmx:load', () => {
-		  document.querySelector('#amount').addEventListener('keyup', canSwap)
+		  document.querySelector('#amount').addEventListener('input', canSwap)
 		})
 	</script>
 }
