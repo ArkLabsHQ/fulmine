@@ -1021,8 +1021,12 @@ func (s *service) getSwaps(c *gin.Context) {
 		return
 	}
 
-	// TODO: Fix the errors later
-	swapHistory, _ := s.svc.GetSwapHistory(c)
+	swapHistory, err := s.svc.GetSwapHistory(c)
+	if err != nil {
+		toast := components.Toast("Unable to get swaps list", true)
+		toastHandler(toast, c)
+		return
+	}
 
 	parsedSwapHistory := make([]types.Swap, len(swapHistory))
 
