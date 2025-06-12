@@ -21,6 +21,8 @@ import (
 	"github.com/ark-network/ark/pkg/client-sdk/client"
 	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
 	"github.com/ark-network/ark/pkg/client-sdk/explorer"
+	indexer "github.com/ark-network/ark/pkg/client-sdk/indexer"
+	indexerTransport "github.com/ark-network/ark/pkg/client-sdk/indexer/grpc"
 	"github.com/ark-network/ark/pkg/client-sdk/store"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -66,13 +68,14 @@ type Service struct {
 	BuildInfo BuildInfo
 
 	arksdk.ArkClient
-	storeCfg     store.Config
-	storeRepo    types.Store
-	dbSvc        ports.RepoManager
-	grpcClient   client.TransportClient
-	schedulerSvc ports.SchedulerService
-	lnSvc        ports.LnService
-	boltzSvc     *boltz.Api
+	storeCfg      store.Config
+	storeRepo     types.Store
+	dbSvc         ports.RepoManager
+	grpcClient    client.TransportClient
+	indexerClient indexer.Indexer
+	schedulerSvc  ports.SchedulerService
+	lnSvc         ports.LnService
+	boltzSvc      *boltz.Api
 
 	publicKey *secp256k1.PublicKey
 
@@ -82,7 +85,8 @@ type Service struct {
 
 	isReady bool
 
-	subscriptions    map[string]func() // tracks subscribed addresses (address -> closeFn)
+	subscriptions    map[string]struct{} // tracks subscribed addresses
+	subscriptionId   string
 	subscriptionLock sync.RWMutex
 
 	walletUpdates chan WalletUpdate
@@ -92,12 +96,13 @@ type Service struct {
 
 	stopBoardingEventListener chan struct{}
 	closeInternalListener     func()
+	closeAddressEventListener func()
 }
 
 type Notification struct {
-	Address    string
-	NewVtxos   []client.Vtxo
-	SpentVtxos []client.Vtxo
+	Scripts    []string
+	NewVtxos   []indexer.Vtxo
+	SpentVtxos []indexer.Vtxo
 }
 
 func NewService(
@@ -120,6 +125,11 @@ func NewService(
 			return nil, err
 		}
 
+		indexerClient, err := indexerTransport.NewClient(data.ServerUrl)
+		if err != nil {
+			return nil, err
+		}
+
 		svc := &Service{
 			BuildInfo:                 buildInfo,
 			ArkClient:                 arkClient,
@@ -127,11 +137,12 @@ func NewService(
 			storeRepo:                 storeSvc,
 			dbSvc:                     dbSvc,
 			grpcClient:                grpcClient,
+			indexerClient:             indexerClient,
 			schedulerSvc:              schedulerSvc,
 			lnSvc:                     lnSvc,
 			publicKey:                 nil,
 			isReady:                   true,
-			subscriptions:             make(map[string]func()),
+			subscriptions:             make(map[string]struct{}),
 			subscriptionLock:          sync.RWMutex{},
 			notifications:             make(chan Notification),
 			stopBoardingEventListener: make(chan struct{}),
@@ -170,7 +181,7 @@ func NewService(
 		grpcClient:                nil,
 		schedulerSvc:              schedulerSvc,
 		lnSvc:                     lnSvc,
-		subscriptions:             make(map[string]func()),
+		subscriptions:             make(map[string]struct{}),
 		subscriptionLock:          sync.RWMutex{},
 		notifications:             make(chan Notification),
 		stopBoardingEventListener: make(chan struct{}),
@@ -264,10 +275,8 @@ func (s *Service) LockNode(ctx context.Context) error {
 
 	log.Infof("closing %d address subscriptions", len(s.subscriptions))
 
-	for _, closeFn := range s.subscriptions {
-		closeFn()
-	}
-	s.subscriptions = make(map[string]func())
+	// close address subscriptions stream
+	s.closeAddressEventListener()
 
 	// close boarding event listener
 	s.stopBoardingEventListener <- struct{}{}
@@ -366,6 +375,16 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		go s.subscribeForBoardingEvent(ctx, onchainAddress, data)
 	}
 
+	// Fetch Address Events, if subscribed
+	if s.subscriptionId != "" {
+		subCh, closeFn, err := s.indexerClient.GetSubscription(ctx, s.subscriptionId)
+		if err != nil {
+			log.WithError(err).Error("failed to get subscription events")
+			return err
+		}
+		s.closeAddressEventListener = closeFn
+		go s.handleAddressEventChannel(subCh)
+	}
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: WalletUnlock, Password: password}
 	}()
@@ -990,23 +1009,42 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 	s.subscriptionLock.Lock()
 	defer s.subscriptionLock.Unlock()
 
-	// open an AddressEvent stream for each address
-	// register the close function to close the stream
-	// and handle the events in a separate goroutine
+	addressScripts := make([]string, 0, len(addresses))
 	for _, addr := range addresses {
-		_, ok := s.subscriptions[addr]
-		if ok {
+		if addr == "" {
+			return fmt.Errorf("empty address provided")
+		}
+
+		if _, ok := s.subscriptions[addr]; ok {
 			log.Warnf("address %s already subscribed, skipping", addr)
 			continue
 		}
 
-		eventsCh, closeFn, err := s.grpcClient.SubscribeForAddress(context.Background(), addr)
+		// TODO: Figure out what the hell script
+		s.subscriptions[addr] = struct{}{}
+		addressScripts = append(addressScripts, addr)
+	}
+
+	if s.subscriptionId == "" {
+		subscriptionId, err := s.indexerClient.SubscribeForScripts(ctx, "", addressScripts)
 		if err != nil {
-			return fmt.Errorf("failed to subscribe for address %s: %w", addr, err)
+			return fmt.Errorf("failed to subscribe for address scripts: %w", err)
 		}
 
-		s.subscriptions[addr] = closeFn
-		go s.handleAddressEventChannel(eventsCh, addr)
+		subscriptionChannel, closeFn, err := s.indexerClient.GetSubscription(ctx, s.subscriptionId)
+		if err != nil {
+			return fmt.Errorf("failed to get subscription for address scripts: %w", err)
+		}
+
+		go s.handleAddressEventChannel(subscriptionChannel)
+		s.subscriptionId = subscriptionId
+		s.closeAddressEventListener = closeFn
+
+	} else {
+		_, err := s.indexerClient.SubscribeForScripts(ctx, s.subscriptionId, addressScripts)
+		if err != nil {
+			return fmt.Errorf("failed to update subscription for address scripts: %w", err)
+		}
 	}
 
 	return nil
@@ -1020,14 +1058,22 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 	s.subscriptionLock.Lock()
 	defer s.subscriptionLock.Unlock()
 
+	addressScripts := make([]string, 0, len(addresses))
+
 	for _, addr := range addresses {
-		closeFn, ok := s.subscriptions[addr]
+		_, ok := s.subscriptions[addr]
 		if !ok {
 			continue
 		}
-		closeFn()
-		delete(s.subscriptions, addr)
+
+		addressScripts = append(addressScripts, addr)
 	}
+
+	err := s.indexerClient.UnsubscribeForScripts(ctx, s.subscriptionId, addressScripts)
+	if err != nil {
+		return fmt.Errorf("failed to unsubscribe for address scripts: %w", err)
+	}
+
 	return nil
 }
 
@@ -1241,19 +1287,19 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 }
 
 // handleAddressEventChannel is used to forward address events to the notifications channel
-func (s *Service) handleAddressEventChannel(eventsCh <-chan client.AddressEvent, addr string) {
+func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent) {
 	for event := range eventsCh {
 		if event.Err != nil {
 			log.WithError(event.Err).Error("AddressEvent subscription error")
 			continue
 		}
 
-		log.Infof("received address event for %s (%d spent vtxos, %d new vtxos)", addr, len(event.SpentVtxos), len(event.NewVtxos))
+		log.Infof("received address event(%d spent vtxos, %d new vtxos)", len(event.SpentVtxos), len(event.NewVtxos))
 
 		// non-blocking forward to notifications channel
 		go func() {
 			s.notifications <- Notification{
-				Address:    addr,
+				Scripts:    event.Scripts,
 				NewVtxos:   event.NewVtxos,
 				SpentVtxos: event.SpentVtxos,
 			}
