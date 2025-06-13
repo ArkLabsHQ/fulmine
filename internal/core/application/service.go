@@ -1020,9 +1020,14 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 			continue
 		}
 
-		// TODO: Figure out what the hell script
+		decoded_address, err := common.DecodeAddress(addr)
+		if err != nil {
+			return fmt.Errorf("failed to decode address %s: %w", addr, err)
+		}
+		serialised_script := hex.EncodeToString(decoded_address.VtxoTapKey.SerializeCompressed())
+
 		s.subscriptions[addr] = struct{}{}
-		addressScripts = append(addressScripts, addr)
+		addressScripts = append(addressScripts, serialised_script)
 	}
 
 	if s.subscriptionId == "" {
@@ -1065,8 +1070,13 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 		if !ok {
 			continue
 		}
+		decoded_address, err := common.DecodeAddress(addr)
+		if err != nil {
+			return fmt.Errorf("failed to decode address %s: %w", addr, err)
+		}
+		serialised_script := hex.EncodeToString(decoded_address.VtxoTapKey.SerializeCompressed())
 
-		addressScripts = append(addressScripts, addr)
+		addressScripts = append(addressScripts, serialised_script)
 	}
 
 	err := s.indexerClient.UnsubscribeForScripts(ctx, s.subscriptionId, addressScripts)

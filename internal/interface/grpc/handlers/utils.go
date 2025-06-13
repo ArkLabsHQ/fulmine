@@ -281,7 +281,7 @@ func toVtxosProto(vtxos []indexer.Vtxo) []*pb.Vtxo {
 		list = append(list, &pb.Vtxo{
 			Outpoint: toInputProto(vtxo.Outpoint),
 			Receiver: &pb.Output{
-				Pubkey: vtxo.PubKey,
+				Pubkey: vtxo.Script,
 				Amount: vtxo.Amount,
 			},
 			SpentBy:   vtxo.SpentBy,
