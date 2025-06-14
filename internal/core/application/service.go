@@ -26,6 +26,7 @@ import (
 	"github.com/ark-network/ark/pkg/client-sdk/store"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -1024,10 +1025,14 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 		if err != nil {
 			return fmt.Errorf("failed to decode address %s: %w", addr, err)
 		}
-		serialised_script := hex.EncodeToString(decoded_address.VtxoTapKey.SerializeCompressed())
+		serialised_script := hex.EncodeToString(schnorr.SerializePubKey(decoded_address.VtxoTapKey))
 
 		s.subscriptions[addr] = struct{}{}
 		addressScripts = append(addressScripts, serialised_script)
+	}
+
+	if len(addressScripts) == 0 {
+		return nil
 	}
 
 	if s.subscriptionId == "" {
@@ -1036,7 +1041,7 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 			return fmt.Errorf("failed to subscribe for address scripts: %w", err)
 		}
 
-		subscriptionChannel, closeFn, err := s.indexerClient.GetSubscription(ctx, s.subscriptionId)
+		subscriptionChannel, closeFn, err := s.indexerClient.GetSubscription(ctx, subscriptionId)
 		if err != nil {
 			return fmt.Errorf("failed to get subscription for address scripts: %w", err)
 		}
@@ -1074,8 +1079,7 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 		if err != nil {
 			return fmt.Errorf("failed to decode address %s: %w", addr, err)
 		}
-		serialised_script := hex.EncodeToString(decoded_address.VtxoTapKey.SerializeCompressed())
-
+		serialised_script := hex.EncodeToString(schnorr.SerializePubKey(decoded_address.VtxoTapKey))
 		addressScripts = append(addressScripts, serialised_script)
 	}
 
@@ -1298,6 +1302,7 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 
 // handleAddressEventChannel is used to forward address events to the notifications channel
 func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent) {
+	log.Infof("starting address event handler")
 	for event := range eventsCh {
 		if event.Err != nil {
 			log.WithError(event.Err).Error("AddressEvent subscription error")
@@ -1307,13 +1312,13 @@ func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent
 		log.Infof("received address event(%d spent vtxos, %d new vtxos)", len(event.SpentVtxos), len(event.NewVtxos))
 
 		// non-blocking forward to notifications channel
-		go func() {
+		go func(evt *indexer.ScriptEvent) {
 			s.notifications <- Notification{
 				Scripts:    event.Scripts,
 				NewVtxos:   event.NewVtxos,
 				SpentVtxos: event.SpentVtxos,
 			}
-		}()
+		}(event)
 	}
 }
 
