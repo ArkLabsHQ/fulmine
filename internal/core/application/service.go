@@ -1109,6 +1109,10 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 		return fmt.Errorf("failed to unsubscribe for address scripts: %w", err)
 	}
 
+	for _, script := range addressScripts {
+		delete(s.subscribedScripts, script)
+	}
+
 	return nil
 }
 
