@@ -78,4 +78,4 @@ ON CONFLICT(id) DO UPDATE SET
 SELECT * FROM subscribed_script WHERE id = 1;
 
 -- name: DeleteSubscribedScript :exec
-DELETE FROM subscribed_script WHERE id = ?;
+DELETE FROM subscribed_script WHERE id = 1;
