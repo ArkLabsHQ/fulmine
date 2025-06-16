@@ -86,9 +86,8 @@ type Service struct {
 
 	isReady bool
 
-	subscribedScripts map[string]struct{} // tracks subscribed addresses
-	subscriptionId    string
-	subscriptionLock  sync.RWMutex
+	subscriptionId   string
+	subscriptionLock sync.RWMutex
 
 	walletUpdates chan WalletUpdate
 
@@ -143,7 +142,6 @@ func NewService(
 			lnSvc:                     lnSvc,
 			publicKey:                 nil,
 			isReady:                   true,
-			subscribedScripts:         make(map[string]struct{}),
 			subscriptionLock:          sync.RWMutex{},
 			notifications:             make(chan Notification),
 			stopBoardingEventListener: make(chan struct{}),
@@ -182,7 +180,6 @@ func NewService(
 		grpcClient:                nil,
 		schedulerSvc:              schedulerSvc,
 		lnSvc:                     lnSvc,
-		subscribedScripts:         make(map[string]struct{}),
 		subscriptionLock:          sync.RWMutex{},
 		notifications:             make(chan Notification),
 		stopBoardingEventListener: make(chan struct{}),
@@ -223,6 +220,8 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		return err
 	}
 
+	indexerClient, err := indexerTransport.NewClient(serverUrl)
+
 	if err := s.Init(ctx, arksdk.InitArgs{
 		WalletType:          arksdk.SingleKeyWallet,
 		ClientType:          arksdk.GrpcClient,
@@ -249,6 +248,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	s.esploraUrl = config.ExplorerURL
 	s.publicKey = prvKey.PubKey()
 	s.grpcClient = client
+	s.indexerClient = indexerClient
 	s.isReady = true
 
 	go func() {
@@ -376,18 +376,20 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 
 	// resubscribe to previously subscribed scripts
-	if len(s.subscribedScripts) > 0 {
-		subscribedScripts := make([]string, 0, len(s.subscribedScripts))
-		for script := range s.subscribedScripts {
-			subscribedScripts = append(subscribedScripts, script)
-		}
-		err := s.subscribeForScripts(context.Background(), subscribedScripts)
+	scriptsToSubscribe, err := s.dbSvc.SubscribedScript().Get(ctx)
+	if err != nil {
+		log.WithError(err).Error("failed to get subscribed scripts")
+		return err
+	}
+
+	if len(scriptsToSubscribe) > 0 {
+		err := s.subscribeForScripts(context.Background(), scriptsToSubscribe)
 		if err != nil {
 			log.WithError(err).Error("failed to resubscribe for scripts")
 			return err
 		}
-
 	}
+
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: WalletUnlock, Password: password}
 	}()
@@ -1042,6 +1044,15 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 	s.subscriptionLock.Lock()
 	defer s.subscriptionLock.Unlock()
 
+	subscribedScripts, err := s.dbSvc.SubscribedScript().Get(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get subscribed scripts from db: %w", err)
+	}
+	subscribedScriptsMap := make(map[string]struct{}, len(subscribedScripts))
+	for _, script := range subscribedScripts {
+		subscribedScriptsMap[script] = struct{}{}
+	}
+
 	addressScripts := make([]string, 0, len(addresses))
 	for _, addr := range addresses {
 		if addr == "" {
@@ -1054,7 +1065,7 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 		}
 		serialised_script := hex.EncodeToString(schnorr.SerializePubKey(decoded_address.VtxoTapKey))
 
-		if _, ok := s.subscribedScripts[serialised_script]; ok {
+		if _, ok := subscribedScriptsMap[serialised_script]; ok {
 			log.Warnf("address %s already subscribed, skipping", addr)
 			continue
 		}
@@ -1066,14 +1077,15 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 		return nil
 	}
 
-	err := s.subscribeForScripts(context.Background(), addressScripts)
+	err = s.subscribeForScripts(context.Background(), addressScripts)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe for address scripts: %w", err)
 	}
 
-	// insert scripts
-	for _, script := range addressScripts {
-		s.subscribedScripts[script] = struct{}{}
+	// store in db
+	err = s.dbSvc.SubscribedScript().Add(ctx, addressScripts)
+	if err != nil {
+		return fmt.Errorf("failed to store subscribed scripts in db: %w", err)
 	}
 
 	return nil
@@ -1089,6 +1101,15 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 
 	addressScripts := make([]string, 0, len(addresses))
 
+	subscribedScripts, err := s.dbSvc.SubscribedScript().Get(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get subscribed scripts from db: %w", err)
+	}
+	subscribedScriptsMap := make(map[string]struct{}, len(subscribedScripts))
+	for _, script := range subscribedScripts {
+		subscribedScriptsMap[script] = struct{}{}
+	}
+
 	for _, addr := range addresses {
 		decoded_address, err := common.DecodeAddress(addr)
 		if err != nil {
@@ -1096,7 +1117,7 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 		}
 		serialised_script := hex.EncodeToString(schnorr.SerializePubKey(decoded_address.VtxoTapKey))
 
-		_, ok := s.subscribedScripts[serialised_script]
+		_, ok := subscribedScriptsMap[serialised_script]
 		if !ok {
 			continue
 		}
@@ -1104,14 +1125,18 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 		addressScripts = append(addressScripts, serialised_script)
 	}
 
-	err := s.indexerClient.UnsubscribeForScripts(ctx, s.subscriptionId, addressScripts)
+	err = s.indexerClient.UnsubscribeForScripts(ctx, s.subscriptionId, addressScripts)
 	if err != nil {
 		return fmt.Errorf("failed to unsubscribe for address scripts: %w", err)
 	}
 
-	for _, script := range addressScripts {
-		delete(s.subscribedScripts, script)
+	// remove scripts from db
+	count, err := s.dbSvc.SubscribedScript().Delete(ctx, addressScripts)
+	if err != nil {
+		return fmt.Errorf("failed to remove subscribed scripts from db: %w", err)
 	}
+
+	log.Infof("unsubscribed from %d address scripts", count)
 
 	return nil
 }

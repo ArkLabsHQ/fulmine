@@ -55,6 +55,15 @@ func (q *Queries) DeleteSettings(ctx context.Context) error {
 	return err
 }
 
+const deleteSubscribedScript = `-- name: DeleteSubscribedScript :exec
+DELETE FROM subscribed_script WHERE id = ?
+`
+
+func (q *Queries) DeleteSubscribedScript(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteSubscribedScript, id)
+	return err
+}
+
 const deleteVtxoRollover = `-- name: DeleteVtxoRollover :exec
 DELETE FROM vtxo_rollover WHERE address = ?
 `
@@ -82,6 +91,17 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.LnUrl,
 		&i.Unit,
 	)
+	return i, err
+}
+
+const getSubscribedScript = `-- name: GetSubscribedScript :one
+SELECT id, scripts FROM subscribed_script WHERE id = 1
+`
+
+func (q *Queries) GetSubscribedScript(ctx context.Context) (SubscribedScript, error) {
+	row := q.db.QueryRowContext(ctx, getSubscribedScript)
+	var i SubscribedScript
+	err := row.Scan(&i.ID, &i.Scripts)
 	return i, err
 }
 
@@ -159,6 +179,19 @@ func (q *Queries) GetVtxoRollover(ctx context.Context, address string) (VtxoRoll
 	var i VtxoRollover
 	err := row.Scan(&i.Address, &i.TaprootTree, &i.DestinationAddress)
 	return i, err
+}
+
+const insertSubscribedScript = `-- name: InsertSubscribedScript :exec
+INSERT INTO subscribed_script (id, scripts)
+VALUES (1, ?)
+ON CONFLICT(id) DO UPDATE SET
+    scripts = excluded.scripts
+`
+
+// SubscribedScript queries
+func (q *Queries) InsertSubscribedScript(ctx context.Context, scripts string) error {
+	_, err := q.db.ExecContext(ctx, insertSubscribedScript, scripts)
+	return err
 }
 
 const insertVHTLC = `-- name: InsertVHTLC :exec
