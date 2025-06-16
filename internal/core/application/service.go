@@ -86,9 +86,9 @@ type Service struct {
 
 	isReady bool
 
-	subscriptions    map[string]struct{} // tracks subscribed addresses
-	subscriptionId   string
-	subscriptionLock sync.RWMutex
+	subscribedScripts map[string]struct{} // tracks subscribed addresses
+	subscriptionId    string
+	subscriptionLock  sync.RWMutex
 
 	walletUpdates chan WalletUpdate
 
@@ -143,7 +143,7 @@ func NewService(
 			lnSvc:                     lnSvc,
 			publicKey:                 nil,
 			isReady:                   true,
-			subscriptions:             make(map[string]struct{}),
+			subscribedScripts:         make(map[string]struct{}),
 			subscriptionLock:          sync.RWMutex{},
 			notifications:             make(chan Notification),
 			stopBoardingEventListener: make(chan struct{}),
@@ -182,7 +182,7 @@ func NewService(
 		grpcClient:                nil,
 		schedulerSvc:              schedulerSvc,
 		lnSvc:                     lnSvc,
-		subscriptions:             make(map[string]struct{}),
+		subscribedScripts:         make(map[string]struct{}),
 		subscriptionLock:          sync.RWMutex{},
 		notifications:             make(chan Notification),
 		stopBoardingEventListener: make(chan struct{}),
@@ -274,10 +274,9 @@ func (s *Service) LockNode(ctx context.Context) error {
 	s.subscriptionLock.Lock()
 	defer s.subscriptionLock.Unlock()
 
-	log.Infof("closing %d address subscriptions", len(s.subscriptions))
-
 	// close address subscriptions stream
 	s.closeAddressEventListener()
+	s.closeAddressEventListener = nil
 
 	// close boarding event listener
 	s.stopBoardingEventListener <- struct{}{}
@@ -376,15 +375,18 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		go s.subscribeForBoardingEvent(ctx, onchainAddress, data)
 	}
 
-	// Fetch Address Events, if subscribed
-	if s.subscriptionId != "" {
-		subCh, closeFn, err := s.indexerClient.GetSubscription(ctx, s.subscriptionId)
+	// resubscribe to previously subscribed scripts
+	if len(s.subscribedScripts) > 0 {
+		subscribedScripts := make([]string, 0, len(s.subscribedScripts))
+		for script := range s.subscribedScripts {
+			subscribedScripts = append(subscribedScripts, script)
+		}
+		err := s.subscribeForScripts(context.Background(), subscribedScripts)
 		if err != nil {
-			log.WithError(err).Error("failed to get subscription events")
+			log.WithError(err).Error("failed to resubscribe for scripts")
 			return err
 		}
-		s.closeAddressEventListener = closeFn
-		go s.handleAddressEventChannel(subCh)
+
 	}
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: WalletUnlock, Password: password}
@@ -1002,6 +1004,36 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 	return "", fmt.Errorf("something went wrong")
 }
 
+func (s *Service) subscribeForScripts(ctx context.Context, scripts []string) error {
+	if s.subscriptionId == "" {
+		subscriptionId, err := s.indexerClient.SubscribeForScripts(ctx, "", scripts)
+		if err != nil {
+			return fmt.Errorf("failed to subscribe for scripts: %w", err)
+		}
+
+		subscriptionChannel, closeFn, err := s.indexerClient.GetSubscription(ctx, subscriptionId)
+		if err != nil {
+			return fmt.Errorf("failed to get subscription for scripts: %w", err)
+		}
+
+		go s.handleAddressEventChannel(subscriptionChannel)
+		s.subscriptionId = subscriptionId
+		s.closeAddressEventListener = func() {
+			s.subscriptionId = ""
+			closeFn()
+		}
+
+	} else {
+		_, err := s.indexerClient.SubscribeForScripts(ctx, s.subscriptionId, scripts)
+		if err != nil {
+			log.Println("failed to update subscription for scripts:", err)
+			return fmt.Errorf("failed to update subscription for scripts: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string) error {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return err
@@ -1016,18 +1048,17 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 			return fmt.Errorf("empty address provided")
 		}
 
-		if _, ok := s.subscriptions[addr]; ok {
-			log.Warnf("address %s already subscribed, skipping", addr)
-			continue
-		}
-
 		decoded_address, err := common.DecodeAddress(addr)
 		if err != nil {
 			return fmt.Errorf("failed to decode address %s: %w", addr, err)
 		}
 		serialised_script := hex.EncodeToString(schnorr.SerializePubKey(decoded_address.VtxoTapKey))
 
-		s.subscriptions[addr] = struct{}{}
+		if _, ok := s.subscribedScripts[serialised_script]; ok {
+			log.Warnf("address %s already subscribed, skipping", addr)
+			continue
+		}
+
 		addressScripts = append(addressScripts, serialised_script)
 	}
 
@@ -1035,26 +1066,14 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 		return nil
 	}
 
-	if s.subscriptionId == "" {
-		subscriptionId, err := s.indexerClient.SubscribeForScripts(ctx, "", addressScripts)
-		if err != nil {
-			return fmt.Errorf("failed to subscribe for address scripts: %w", err)
-		}
+	err := s.subscribeForScripts(context.Background(), addressScripts)
+	if err != nil {
+		return fmt.Errorf("failed to subscribe for address scripts: %w", err)
+	}
 
-		subscriptionChannel, closeFn, err := s.indexerClient.GetSubscription(ctx, subscriptionId)
-		if err != nil {
-			return fmt.Errorf("failed to get subscription for address scripts: %w", err)
-		}
-
-		go s.handleAddressEventChannel(subscriptionChannel)
-		s.subscriptionId = subscriptionId
-		s.closeAddressEventListener = closeFn
-
-	} else {
-		_, err := s.indexerClient.SubscribeForScripts(ctx, s.subscriptionId, addressScripts)
-		if err != nil {
-			return fmt.Errorf("failed to update subscription for address scripts: %w", err)
-		}
+	// insert scripts
+	for _, script := range addressScripts {
+		s.subscribedScripts[script] = struct{}{}
 	}
 
 	return nil
@@ -1071,15 +1090,17 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 	addressScripts := make([]string, 0, len(addresses))
 
 	for _, addr := range addresses {
-		_, ok := s.subscriptions[addr]
-		if !ok {
-			continue
-		}
 		decoded_address, err := common.DecodeAddress(addr)
 		if err != nil {
 			return fmt.Errorf("failed to decode address %s: %w", addr, err)
 		}
 		serialised_script := hex.EncodeToString(schnorr.SerializePubKey(decoded_address.VtxoTapKey))
+
+		_, ok := s.subscribedScripts[serialised_script]
+		if !ok {
+			continue
+		}
+
 		addressScripts = append(addressScripts, serialised_script)
 	}
 
@@ -1304,6 +1325,11 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent) {
 	log.Infof("starting address event handler")
 	for event := range eventsCh {
+		if event == nil {
+			log.Warn("Received nil event from event channel")
+			continue
+		}
+
 		if event.Err != nil {
 			log.WithError(event.Err).Error("AddressEvent subscription error")
 			continue
@@ -1320,6 +1346,7 @@ func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent
 			}
 		}(event)
 	}
+	log.Info("ending goroutiene for address event handler")
 }
 
 // handleInternalAddressEventChannel is used to handle address events from the internal address event channel
