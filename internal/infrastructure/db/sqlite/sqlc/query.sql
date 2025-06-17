@@ -70,9 +70,7 @@ FROM swap
 -- SubscribedScript queries
 -- name: InsertSubscribedScript :exec
 INSERT INTO subscribed_script (script)
-VALUES (?)
-ON CONFLICT(script) DO UPDATE SET
-    script = excluded.script;
+VALUES (?);
 
 -- name: GetSubscribedScript :one
 SELECT * FROM subscribed_script WHERE script = ?;

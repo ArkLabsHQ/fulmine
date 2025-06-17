@@ -3,7 +3,9 @@ package sqlitedb
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 
@@ -31,7 +33,10 @@ func (r *subscribedScriptRepository) Add(ctx context.Context, scripts []string) 
 	txBody := func(querierWithTx *queries.Queries) error {
 		for _, script := range scripts {
 			err := querierWithTx.InsertSubscribedScript(ctx, script)
-
+			if err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed") {
+				// If the script already exists, we can skip it
+				continue
+			}
 			if err != nil {
 				return fmt.Errorf("failed to insert script %s: %w", script, err)
 			}
@@ -64,7 +69,14 @@ func (r *subscribedScriptRepository) Delete(ctx context.Context, scripts []strin
 	count = 0
 	txBody := func(querierWithTx *queries.Queries) error {
 		for _, script := range scripts {
-			err := querierWithTx.DeleteSubscribedScript(ctx, script)
+			// Check if the script exists before trying to delete it
+			_, err := querierWithTx.GetSubscribedScript(ctx, script)
+			if errors.Is(err, sql.ErrNoRows) {
+				// If the script does not exist, we can skip it
+				continue
+			}
+
+			err = querierWithTx.DeleteSubscribedScript(ctx, script)
 
 			if err != nil {
 				return fmt.Errorf("failed to delete script %s: %w", script, err)

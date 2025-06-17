@@ -183,8 +183,6 @@ func (q *Queries) GetVtxoRollover(ctx context.Context, address string) (VtxoRoll
 const insertSubscribedScript = `-- name: InsertSubscribedScript :exec
 INSERT INTO subscribed_script (script)
 VALUES (?)
-ON CONFLICT(script) DO UPDATE SET
-    script = excluded.script
 `
 
 // SubscribedScript queries
