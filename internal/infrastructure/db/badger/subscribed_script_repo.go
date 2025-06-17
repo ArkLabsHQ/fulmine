@@ -57,9 +57,9 @@ func (r *subscribedScriptRepository) Get(ctx context.Context) ([]string, error) 
 		return nil, fmt.Errorf("failed to get all subscribed scripts: %w", err)
 	}
 
-	scripts := make([]string, len(currentScripts))
-	for i, script := range currentScripts {
-		scripts[i] = script.Script
+	scripts := make([]string, 0, len(currentScripts))
+	for _, script := range currentScripts {
+		scripts = append(scripts, script.Script)
 	}
 
 	return scripts, nil

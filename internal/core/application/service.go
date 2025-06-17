@@ -1095,7 +1095,10 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 	if err != nil {
 		return fmt.Errorf("failed to store subscribed scripts in db: %w", err)
 	}
-	log.Infof("subscribed to %d address scripts", count)
+
+	if count > 0 {
+		log.Infof("subscribed to %d address scripts", count)
+	}
 
 	return nil
 }

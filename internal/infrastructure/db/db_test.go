@@ -368,6 +368,10 @@ func testAddSubscribedScripts(t *testing.T, repo domain.SubscribedScriptReposito
 		require.NoError(t, err)
 		require.ElementsMatch(t, testSubscribedScripts, scripts)
 
+		count, err = repo.Add(ctx, testSubscribedScripts)
+		require.NoError(t, err)
+		require.Equal(t, 0, count)
+
 	})
 }
 
@@ -398,6 +402,10 @@ func testDeleteSubscribedScripts(t *testing.T, repo domain.SubscribedScriptRepos
 		scripts, err = repo.Get(ctx)
 		require.NoError(t, err)
 		require.ElementsMatch(t, testSubscribedScripts, scripts)
+
+		count, err = repo.Delete(ctx, test2SubscribedScripts)
+		require.NoError(t, err)
+		require.Equal(t, 0, count)
 	})
 
 }
