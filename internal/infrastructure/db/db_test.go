@@ -123,7 +123,6 @@ func testSwapRepository(t *testing.T, svc ports.RepoManager) {
 func testSubscribedScriptRepository(t *testing.T, svc ports.RepoManager) {
 	t.Run("subscribed script repository", func(t *testing.T) {
 		testAddSubscribedScripts(t, svc.SubscribedScript())
-		testGetSubscribedScripts(t, svc.SubscribedScript())
 		testDeleteSubscribedScripts(t, svc.SubscribedScript())
 	})
 }
@@ -357,21 +356,18 @@ func testGetAllSwap(t *testing.T, repo domain.SwapRepository) {
 
 func testAddSubscribedScripts(t *testing.T, repo domain.SubscribedScriptRepository) {
 	t.Run("add subscribed scripts", func(t *testing.T) {
-		err := repo.Add(ctx, testSubscribedScripts)
-		require.NoError(t, err)
-
 		scripts, err := repo.Get(ctx)
+		require.NoError(t, err)
+		require.Empty(t, scripts)
+
+		count, err := repo.Add(ctx, testSubscribedScripts)
+		require.NoError(t, err)
+		require.Equal(t, len(testSubscribedScripts), count)
+
+		scripts, err = repo.Get(ctx)
 		require.NoError(t, err)
 		require.ElementsMatch(t, testSubscribedScripts, scripts)
 
-	})
-}
-
-func testGetSubscribedScripts(t *testing.T, repo domain.SubscribedScriptRepository) {
-	t.Run("get subscribed scripts", func(t *testing.T) {
-		scripts, err := repo.Get(ctx)
-		require.NoError(t, err)
-		require.ElementsMatch(t, testSubscribedScripts, scripts)
 	})
 }
 
@@ -386,16 +382,18 @@ func testDeleteSubscribedScripts(t *testing.T, repo domain.SubscribedScriptRepos
 			"script5",
 			"script6",
 		}
-		err = repo.Add(ctx, test2SubscribedScripts)
+		count, err := repo.Add(ctx, test2SubscribedScripts)
 		require.NoError(t, err)
+		require.Equal(t, len(test2SubscribedScripts), count)
+
 		scripts, err = repo.Get(ctx)
 		require.NoError(t, err)
 
 		require.ElementsMatch(t, append(testSubscribedScripts, test2SubscribedScripts...), scripts)
 
-		count, err := repo.Delete(ctx, test2SubscribedScripts)
+		count, err = repo.Delete(ctx, test2SubscribedScripts)
 		require.NoError(t, err)
-		require.Equal(t, 3, count)
+		require.Equal(t, len(test2SubscribedScripts), count)
 
 		scripts, err = repo.Get(ctx)
 		require.NoError(t, err)

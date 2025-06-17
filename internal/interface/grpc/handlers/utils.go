@@ -269,7 +269,7 @@ func toSwapTreeProto(tree *vhtlc.VHTLCScript) *pb.TaprootTree {
 func toNotificationProto(n application.Notification) *pb.Notification {
 	// TODO: Convert Addresses to Scripts
 	return &pb.Notification{
-		Address:    "",
+		Addresses:  n.Addrs,
 		NewVtxos:   toVtxosProto(n.NewVtxos),
 		SpentVtxos: toVtxosProto(n.SpentVtxos),
 	}

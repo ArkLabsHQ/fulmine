@@ -69,13 +69,16 @@ FROM swap
 
 -- SubscribedScript queries
 -- name: InsertSubscribedScript :exec
-INSERT INTO subscribed_script (id, scripts)
-VALUES (1, ?)
-ON CONFLICT(id) DO UPDATE SET
-    scripts = excluded.scripts;
+INSERT INTO subscribed_script (script)
+VALUES (?)
+ON CONFLICT(script) DO UPDATE SET
+    script = excluded.script;
 
 -- name: GetSubscribedScript :one
-SELECT * FROM subscribed_script WHERE id = 1;
+SELECT * FROM subscribed_script WHERE script = ?;
+
+-- name: ListSubscribedScript :many
+SELECT * FROM subscribed_script;
 
 -- name: DeleteSubscribedScript :exec
-DELETE FROM subscribed_script WHERE id = 1;
+DELETE FROM subscribed_script WHERE script = ?;

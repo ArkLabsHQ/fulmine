@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 
@@ -27,26 +26,30 @@ func NewSubscribedScriptRepository(db *sql.DB) (domain.SubscribedScriptRepositor
 	}, nil
 }
 
-func (r *subscribedScriptRepository) Add(ctx context.Context, scripts []string) error {
-	row, err := r.querier.GetSubscribedScript(ctx)
+func (r *subscribedScriptRepository) Add(ctx context.Context, scripts []string) (count int, err error) {
+	count = 0
+	txBody := func(querierWithTx *queries.Queries) error {
+		for _, script := range scripts {
+			err := querierWithTx.InsertSubscribedScript(ctx, script)
 
-	if err != nil && err != sql.ErrNoRows {
-		return fmt.Errorf("failed to get subscribed scripts: %w", err)
+			if err != nil {
+				return fmt.Errorf("failed to insert script %s: %w", script, err)
+			}
+			count++
+		}
+		return nil
 	}
 
-	var decodedScripts []string
-	if row.Scripts != "" {
-		decodedScripts = strings.Split(row.Scripts, ",")
-	} else {
-		decodedScripts = []string{}
+	err = execTx(ctx, r.db, txBody)
+	if err != nil {
+		return 0, fmt.Errorf("failed to execute transaction: %w", err)
 	}
-	aggregatedScripts := append(decodedScripts, scripts...)
-	encodedScript := strings.Join(aggregatedScripts, ",")
-	return r.querier.InsertSubscribedScript(ctx, encodedScript)
+
+	return count, nil
 }
 
 func (r *subscribedScriptRepository) Get(ctx context.Context) ([]string, error) {
-	row, err := r.querier.GetSubscribedScript(ctx)
+	rows, err := r.querier.ListSubscribedScript(ctx)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return []string{}, nil
@@ -54,35 +57,26 @@ func (r *subscribedScriptRepository) Get(ctx context.Context) ([]string, error) 
 		return nil, err
 	}
 
-	decodedScripts := strings.Split(row.Scripts, ",")
-	return decodedScripts, nil
+	return rows, nil
 }
 
 func (r *subscribedScriptRepository) Delete(ctx context.Context, scripts []string) (count int, err error) {
-	row, err := r.querier.GetSubscribedScript(ctx)
-	if err != nil {
-		return 0, err
-	}
-	decodedScripts := strings.Split(row.Scripts, ",")
+	count = 0
+	txBody := func(querierWithTx *queries.Queries) error {
+		for _, script := range scripts {
+			err := querierWithTx.DeleteSubscribedScript(ctx, script)
 
-	scriptSet := make(map[string]struct{})
-	for _, script := range scripts {
-		scriptSet[script] = struct{}{}
-	}
-
-	updatedScripts := []string{}
-	for _, script := range decodedScripts {
-		if _, exists := scriptSet[script]; !exists {
-			updatedScripts = append(updatedScripts, script)
-		} else {
+			if err != nil {
+				return fmt.Errorf("failed to delete script %s: %w", script, err)
+			}
 			count++
 		}
+		return nil
 	}
 
-	encodedScripts := strings.Join(updatedScripts, ",")
-	err = r.querier.InsertSubscribedScript(ctx, encodedScripts)
+	err = execTx(ctx, r.db, txBody)
 	if err != nil {
-		return 0, fmt.Errorf("failed to update subscribed scripts: %w", err)
+		return 0, fmt.Errorf("failed to execute transaction: %w", err)
 	}
 
 	return count, nil

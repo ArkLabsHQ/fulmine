@@ -56,11 +56,11 @@ func (q *Queries) DeleteSettings(ctx context.Context) error {
 }
 
 const deleteSubscribedScript = `-- name: DeleteSubscribedScript :exec
-DELETE FROM subscribed_script WHERE id = ?
+DELETE FROM subscribed_script WHERE script = ?
 `
 
-func (q *Queries) DeleteSubscribedScript(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, deleteSubscribedScript, id)
+func (q *Queries) DeleteSubscribedScript(ctx context.Context, script string) error {
+	_, err := q.db.ExecContext(ctx, deleteSubscribedScript, script)
 	return err
 }
 
@@ -95,14 +95,13 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 }
 
 const getSubscribedScript = `-- name: GetSubscribedScript :one
-SELECT id, scripts FROM subscribed_script WHERE id = 1
+SELECT script FROM subscribed_script WHERE script = ?
 `
 
-func (q *Queries) GetSubscribedScript(ctx context.Context) (SubscribedScript, error) {
-	row := q.db.QueryRowContext(ctx, getSubscribedScript)
-	var i SubscribedScript
-	err := row.Scan(&i.ID, &i.Scripts)
-	return i, err
+func (q *Queries) GetSubscribedScript(ctx context.Context, script string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getSubscribedScript, script)
+	err := row.Scan(&script)
+	return script, err
 }
 
 const getSwap = `-- name: GetSwap :one
@@ -182,15 +181,15 @@ func (q *Queries) GetVtxoRollover(ctx context.Context, address string) (VtxoRoll
 }
 
 const insertSubscribedScript = `-- name: InsertSubscribedScript :exec
-INSERT INTO subscribed_script (id, scripts)
-VALUES (1, ?)
-ON CONFLICT(id) DO UPDATE SET
-    scripts = excluded.scripts
+INSERT INTO subscribed_script (script)
+VALUES (?)
+ON CONFLICT(script) DO UPDATE SET
+    script = excluded.script
 `
 
 // SubscribedScript queries
-func (q *Queries) InsertSubscribedScript(ctx context.Context, scripts string) error {
-	_, err := q.db.ExecContext(ctx, insertSubscribedScript, scripts)
+func (q *Queries) InsertSubscribedScript(ctx context.Context, script string) error {
+	_, err := q.db.ExecContext(ctx, insertSubscribedScript, script)
 	return err
 }
 
@@ -233,6 +232,33 @@ func (q *Queries) InsertVHTLC(ctx context.Context, arg InsertVHTLCParams) error 
 		arg.UnilateralRefundWithoutReceiverDelayValue,
 	)
 	return err
+}
+
+const listSubscribedScript = `-- name: ListSubscribedScript :many
+SELECT script FROM subscribed_script
+`
+
+func (q *Queries) ListSubscribedScript(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listSubscribedScript)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var script string
+		if err := rows.Scan(&script); err != nil {
+			return nil, err
+		}
+		items = append(items, script)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listSwaps = `-- name: ListSwaps :many

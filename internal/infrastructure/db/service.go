@@ -179,4 +179,6 @@ func (s *service) Close() {
 	s.settingsRepo.Close()
 	s.vhtlcRepo.Close()
 	s.vtxoRolloverRepo.Close()
+	s.swapRepo.Close()
+	s.subscribedScriptRepo.Close()
 }

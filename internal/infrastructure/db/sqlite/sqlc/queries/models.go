@@ -21,8 +21,7 @@ type Setting struct {
 }
 
 type SubscribedScript struct {
-	ID      int64
-	Scripts string
+	Script string
 }
 
 type Swap struct {

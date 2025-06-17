@@ -2,6 +2,7 @@ package badgerdb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -15,12 +16,12 @@ const (
 	subscribedScriptDir = "subscribed_scripts"
 )
 
-type subscribedScriptRepository struct {
-	store *badgerhold.Store
+type SubscribedScript struct {
+	Script string
 }
 
-type SubscribedScripts struct {
-	Scripts []string `json:"scripts"`
+type subscribedScriptRepository struct {
+	store *badgerhold.Store
 }
 
 func NewSubscribedScriptRepository(baseDir string, logger badger.Logger) (domain.SubscribedScriptRepository, error) {
@@ -35,64 +36,44 @@ func NewSubscribedScriptRepository(baseDir string, logger badger.Logger) (domain
 	return &subscribedScriptRepository{store}, nil
 }
 
-func (r *subscribedScriptRepository) Add(ctx context.Context, scripts []string) error {
-	var currentScripts SubscribedScripts
-	err := r.store.Get(subscribedScriptKey, &currentScripts)
-	if err != nil && err != badgerhold.ErrNotFound {
-		return fmt.Errorf("failed to get subscribed scripts: %w", err)
+func (r *subscribedScriptRepository) Add(ctx context.Context, scripts []string) (count int, err error) {
+	count = 0
+	for _, script := range scripts {
+		err := r.store.Insert(script, SubscribedScript{Script: script})
+		if errors.Is(err, badgerhold.ErrKeyExists) {
+			continue
+		} else if err != nil {
+			return count, fmt.Errorf("failed to insert script %s: %w", script, err)
+		}
+		count++
 	}
 
-	aggregatedScripts := SubscribedScripts{
-		Scripts: append(currentScripts.Scripts, scripts...),
-	}
-
-	err = r.store.Insert(subscribedScriptKey, aggregatedScripts)
-	if err != nil && err == badgerhold.ErrKeyExists {
-		// If the key already exists, we can update it
-		err = r.store.Update(subscribedScriptKey, aggregatedScripts)
-		return err
-	}
-
-	return err
+	return count, nil
 }
 func (r *subscribedScriptRepository) Get(ctx context.Context) ([]string, error) {
-	var currentScripts SubscribedScripts
-
-	err := r.store.Get(subscribedScriptKey, &currentScripts)
-	if err != nil && err != badgerhold.ErrNotFound {
-		return nil, fmt.Errorf("failed to get subscribed scripts: %w", err)
+	var currentScripts []SubscribedScript
+	err := r.store.Find(&currentScripts, nil)
+	if err != nil && !errors.Is(err, badgerhold.ErrNotFound) {
+		return nil, fmt.Errorf("failed to get all subscribed scripts: %w", err)
 	}
 
-	return currentScripts.Scripts, nil
+	scripts := make([]string, len(currentScripts))
+	for i, script := range currentScripts {
+		scripts[i] = script.Script
+	}
+
+	return scripts, nil
 }
 func (r *subscribedScriptRepository) Delete(ctx context.Context, scripts []string) (count int, err error) {
-	var currentScripts SubscribedScripts
-	err = r.store.Get(subscribedScriptKey, &currentScripts)
-
-	if err != nil && err != badgerhold.ErrNotFound {
-		return 0, fmt.Errorf("failed to get subscribed scripts: %w", err)
-	}
-
-	scriptSet := make(map[string]struct{})
 	for _, script := range scripts {
-		scriptSet[script] = struct{}{}
-	}
-
-	var updatedScripts []string
-	for _, script := range currentScripts.Scripts {
-		if _, exists := scriptSet[script]; !exists {
-			updatedScripts = append(updatedScripts, script)
-		} else {
-			count++
+		err = r.store.Delete(script, SubscribedScript{})
+		if errors.Is(err, badgerhold.ErrNotFound) {
+			continue
 		}
-
-	}
-
-	err = r.store.Update(subscribedScriptKey, SubscribedScripts{
-		Scripts: updatedScripts,
-	})
-	if err != nil {
-		return 0, fmt.Errorf("failed to update subscribed scripts: %w", err)
+		if err != nil {
+			return count, fmt.Errorf("failed to delete script %s: %w", script, err)
+		}
+		count++
 	}
 	return count, nil
 }

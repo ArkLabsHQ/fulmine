@@ -100,7 +100,7 @@ type Service struct {
 }
 
 type Notification struct {
-	Scripts    []string
+	Addrs      []string
 	NewVtxos   []indexer.Vtxo
 	SpentVtxos []indexer.Vtxo
 }
@@ -1021,7 +1021,11 @@ func (s *Service) subscribeForScripts(ctx context.Context, scripts []string) err
 			return fmt.Errorf("failed to get subscription for scripts: %w", err)
 		}
 
-		go s.handleAddressEventChannel(subscriptionChannel)
+		config, err := s.GetConfigData(context.Background())
+		if err != nil {
+			return fmt.Errorf("failed to get config data: %w", err)
+		}
+		go s.handleAddressEventChannel(subscriptionChannel, config)
 		s.subscriptionId = subscriptionId
 		s.closeAddressEventListener = func() {
 			s.subscriptionId = ""
@@ -1031,10 +1035,11 @@ func (s *Service) subscribeForScripts(ctx context.Context, scripts []string) err
 	} else {
 		_, err := s.indexerClient.SubscribeForScripts(ctx, s.subscriptionId, scripts)
 		if err != nil {
-			log.Println("failed to update subscription for scripts:", err)
 			return fmt.Errorf("failed to update subscription for scripts: %w", err)
 		}
 	}
+
+	log.Debugf("restored watching %d scripts", len(scripts))
 
 	return nil
 }
@@ -1086,10 +1091,11 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 	}
 
 	// store in db
-	err = s.dbSvc.SubscribedScript().Add(ctx, addressScripts)
+	count, err := s.dbSvc.SubscribedScript().Add(ctx, addressScripts)
 	if err != nil {
 		return fmt.Errorf("failed to store subscribed scripts in db: %w", err)
 	}
+	log.Infof("subscribed to %d address scripts", count)
 
 	return nil
 }
@@ -1354,7 +1360,7 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 }
 
 // handleAddressEventChannel is used to forward address events to the notifications channel
-func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent) {
+func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent, config *types.Config) {
 	log.Infof("starting address event handler")
 	for event := range eventsCh {
 		if event == nil {
@@ -1369,16 +1375,43 @@ func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent
 
 		log.Infof("received address event(%d spent vtxos, %d new vtxos)", len(event.SpentVtxos), len(event.NewVtxos))
 
+		// convert scripts to addresses
+		addresses := make([]string, 0, len(event.Scripts))
+		for _, script := range event.Scripts {
+			decodedPubKey, err := hex.DecodeString(script)
+			if err != nil {
+				log.WithError(err).Errorf("failed to decode script %s", script)
+				continue
+			}
+			vtxoTapPubkey, err := schnorr.ParsePubKey(decodedPubKey)
+			if err != nil {
+				log.WithError(err).Errorf("failed to parse pubkey %s", script)
+				continue
+			}
+
+			vtxoAddress := common.Address{
+				VtxoTapKey: vtxoTapPubkey,
+				Server:     config.ServerPubKey,
+				HRP:        config.Network.Addr,
+			}
+
+			encodedAddress, err := vtxoAddress.Encode()
+			if err != nil {
+				log.WithError(err).Errorf("failed to encode address %s", script)
+				continue
+			}
+			addresses = append(addresses, encodedAddress)
+
+		}
 		// non-blocking forward to notifications channel
 		go func(evt *indexer.ScriptEvent) {
 			s.notifications <- Notification{
-				Scripts:    event.Scripts,
+				Addrs:      addresses,
 				NewVtxos:   event.NewVtxos,
 				SpentVtxos: event.SpentVtxos,
 			}
 		}(event)
 	}
-	log.Info("ending goroutiene for address event handler")
 }
 
 // handleInternalAddressEventChannel is used to handle address events from the internal address event channel
