@@ -55,6 +55,15 @@ func (q *Queries) DeleteSettings(ctx context.Context) error {
 	return err
 }
 
+const deleteSubscribedScript = `-- name: DeleteSubscribedScript :exec
+DELETE FROM subscribed_script WHERE script = ?
+`
+
+func (q *Queries) DeleteSubscribedScript(ctx context.Context, script string) error {
+	_, err := q.db.ExecContext(ctx, deleteSubscribedScript, script)
+	return err
+}
+
 const deleteVtxoRollover = `-- name: DeleteVtxoRollover :exec
 DELETE FROM vtxo_rollover WHERE address = ?
 `
@@ -83,6 +92,16 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.Unit,
 	)
 	return i, err
+}
+
+const getSubscribedScript = `-- name: GetSubscribedScript :one
+SELECT script FROM subscribed_script WHERE script = ?
+`
+
+func (q *Queries) GetSubscribedScript(ctx context.Context, script string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getSubscribedScript, script)
+	err := row.Scan(&script)
+	return script, err
 }
 
 const getSwap = `-- name: GetSwap :one
@@ -161,6 +180,17 @@ func (q *Queries) GetVtxoRollover(ctx context.Context, address string) (VtxoRoll
 	return i, err
 }
 
+const insertSubscribedScript = `-- name: InsertSubscribedScript :exec
+INSERT INTO subscribed_script (script)
+VALUES (?)
+`
+
+// SubscribedScript queries
+func (q *Queries) InsertSubscribedScript(ctx context.Context, script string) error {
+	_, err := q.db.ExecContext(ctx, insertSubscribedScript, script)
+	return err
+}
+
 const insertVHTLC = `-- name: InsertVHTLC :exec
 INSERT INTO vhtlc (
     preimage_hash, sender, receiver, server, refund_locktime,
@@ -200,6 +230,33 @@ func (q *Queries) InsertVHTLC(ctx context.Context, arg InsertVHTLCParams) error 
 		arg.UnilateralRefundWithoutReceiverDelayValue,
 	)
 	return err
+}
+
+const listSubscribedScript = `-- name: ListSubscribedScript :many
+SELECT script FROM subscribed_script
+`
+
+func (q *Queries) ListSubscribedScript(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listSubscribedScript)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var script string
+		if err := rows.Scan(&script); err != nil {
+			return nil, err
+		}
+		items = append(items, script)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listSwaps = `-- name: ListSwaps :many
