@@ -114,6 +114,12 @@ service Service {
       body: "*"
     };
   }
+  rpc PayOffer(PayOfferRequest) returns (PayOfferResponse) {
+    option (google.api.http) = {
+      post: "/v1/offer/pay"
+      body: "*"
+    };
+  }
   rpc IsInvoiceSettled(IsInvoiceSettledRequest) returns (IsInvoiceSettledResponse) {
     option (google.api.http) = {
       get: "/v1/invoice/status"
@@ -290,7 +296,16 @@ message GetInvoiceResponse {
 message PayInvoiceRequest {
   string invoice = 1;
 }
+
+message PayOfferRequest {
+  string offer = 1;
+}
+
 message PayInvoiceResponse {
+  string txid = 1;
+}
+
+message PayOfferResponse {
   string txid = 1;
 }
 

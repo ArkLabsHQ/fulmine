@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/btcsuite/btcutil/bech32"
+	"github.com/btcsuite/btcd/btcutil/bech32"
 	"github.com/lightningnetwork/lnd/tlv"
 )
 
@@ -18,7 +18,7 @@ type OfferData struct {
 
 func Decode(offer string) (*OfferData, error) {
 	// --- 1) Bech32 decode to get raw TLV payload ---
-	hrp, data, err := bech32.Decode(offer)
+	hrp, data, err := bech32.DecodeNoLimit(offer)
 	if err != nil {
 		return nil, fmt.Errorf("bech32.Decode: %w", err)
 	}

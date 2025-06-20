@@ -36,6 +36,7 @@ const (
 	Service_ListVHTLC_FullMethodName                  = "/fulmine.v1.Service/ListVHTLC"
 	Service_GetInvoice_FullMethodName                 = "/fulmine.v1.Service/GetInvoice"
 	Service_PayInvoice_FullMethodName                 = "/fulmine.v1.Service/PayInvoice"
+	Service_PayOffer_FullMethodName                   = "/fulmine.v1.Service/PayOffer"
 	Service_IsInvoiceSettled_FullMethodName           = "/fulmine.v1.Service/IsInvoiceSettled"
 	Service_GetDelegatePublicKey_FullMethodName       = "/fulmine.v1.Service/GetDelegatePublicKey"
 	Service_WatchAddressForRollover_FullMethodName    = "/fulmine.v1.Service/WatchAddressForRollover"
@@ -77,6 +78,7 @@ type ServiceClient interface {
 	ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opts ...grpc.CallOption) (*ListVHTLCResponse, error)
 	GetInvoice(ctx context.Context, in *GetInvoiceRequest, opts ...grpc.CallOption) (*GetInvoiceResponse, error)
 	PayInvoice(ctx context.Context, in *PayInvoiceRequest, opts ...grpc.CallOption) (*PayInvoiceResponse, error)
+	PayOffer(ctx context.Context, in *PayOfferRequest, opts ...grpc.CallOption) (*PayOfferResponse, error)
 	IsInvoiceSettled(ctx context.Context, in *IsInvoiceSettledRequest, opts ...grpc.CallOption) (*IsInvoiceSettledResponse, error)
 	// GetDelegatePublicKey retrieves the Fulmine's public key to be included in VTXO scripts.
 	GetDelegatePublicKey(ctx context.Context, in *GetDelegatePublicKeyRequest, opts ...grpc.CallOption) (*GetDelegatePublicKeyResponse, error)
@@ -266,6 +268,16 @@ func (c *serviceClient) PayInvoice(ctx context.Context, in *PayInvoiceRequest, o
 	return out, nil
 }
 
+func (c *serviceClient) PayOffer(ctx context.Context, in *PayOfferRequest, opts ...grpc.CallOption) (*PayOfferResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PayOfferResponse)
+	err := c.cc.Invoke(ctx, Service_PayOffer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *serviceClient) IsInvoiceSettled(ctx context.Context, in *IsInvoiceSettledRequest, opts ...grpc.CallOption) (*IsInvoiceSettledResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(IsInvoiceSettledResponse)
@@ -350,6 +362,7 @@ type ServiceServer interface {
 	ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error)
 	GetInvoice(context.Context, *GetInvoiceRequest) (*GetInvoiceResponse, error)
 	PayInvoice(context.Context, *PayInvoiceRequest) (*PayInvoiceResponse, error)
+	PayOffer(context.Context, *PayOfferRequest) (*PayOfferResponse, error)
 	IsInvoiceSettled(context.Context, *IsInvoiceSettledRequest) (*IsInvoiceSettledResponse, error)
 	// GetDelegatePublicKey retrieves the Fulmine's public key to be included in VTXO scripts.
 	GetDelegatePublicKey(context.Context, *GetDelegatePublicKeyRequest) (*GetDelegatePublicKeyResponse, error)
@@ -415,6 +428,9 @@ func (UnimplementedServiceServer) GetInvoice(context.Context, *GetInvoiceRequest
 }
 func (UnimplementedServiceServer) PayInvoice(context.Context, *PayInvoiceRequest) (*PayInvoiceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PayInvoice not implemented")
+}
+func (UnimplementedServiceServer) PayOffer(context.Context, *PayOfferRequest) (*PayOfferResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PayOffer not implemented")
 }
 func (UnimplementedServiceServer) IsInvoiceSettled(context.Context, *IsInvoiceSettledRequest) (*IsInvoiceSettledResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method IsInvoiceSettled not implemented")
@@ -749,6 +765,24 @@ func _Service_PayInvoice_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_PayOffer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PayOfferRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).PayOffer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_PayOffer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).PayOffer(ctx, req.(*PayOfferRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Service_IsInvoiceSettled_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(IsInvoiceSettledRequest)
 	if err := dec(in); err != nil {
@@ -913,6 +947,10 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PayInvoice",
 			Handler:    _Service_PayInvoice_Handler,
+		},
+		{
+			MethodName: "PayOffer",
+			Handler:    _Service_PayOffer_Handler,
 		},
 		{
 			MethodName: "IsInvoiceSettled",

@@ -51,22 +51,27 @@ func (h *SwapHandler) PayInvoice(ctx context.Context, invoice string, pubkey []b
 
 func (h *SwapHandler) PayOffer(ctx context.Context, offer string, pubkey []byte) (string, error) {
 	// Decode the offer to get the amount
-	decodedOffer, err := Decode(offer)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode offer: %v", err)
-	}
-	amount := decodedOffer.AmountMillisat
+	// decodedOffer, err := Decode(offer)
+	// if err != nil {
+	// 	return "", fmt.Errorf("failed to decode offer: %v", err)
+	// }
+	// amount := decodedOffer.AmountMillisat
+	amount := 10_000_000 // millisat
 	if amount == 0 {
 		return "", fmt.Errorf("offer amount is 0")
 	}
-	// Convert millisatoshis to satoshis
+	// TODO: Make Robust, Convert millisatoshis to satoshis
 	amount /= 1000
 
 	response, err := h.boltzSvc.FetchBolt12Invoice(boltz.FetchBolt12InvoiceRequest{
 		Offer:  offer,
-		Amount: amount,
+		Amount: uint64(amount),
 		Note:   "Ark Payment",
 	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch invoice: %v", err)
+	}
 
 	if response.Error != "" {
 		return "", fmt.Errorf("failed to fetch invoice: %s", response.Error)
