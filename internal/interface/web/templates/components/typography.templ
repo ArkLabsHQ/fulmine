@@ -3,3 +3,12 @@ package components
 templ Label(text string) {
   <p class="font-semibold mb-2 mt-4">{text}</p>
 }
+
+templ Error(line1 string, line2 string) {
+  <div class="border border-1 border-red/20 bg-errorbg capitalize text-center text-red px-2 py-1 rounded-md mx-auto">
+    <p>{line1}</p>
+    if len(line2) > 0 {
+      <p class="mt-1">{line2}</p>
+    }
+  </div>
+}
