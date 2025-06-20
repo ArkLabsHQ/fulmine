@@ -163,9 +163,8 @@ func (s *service) initialize(c *gin.Context) {
 
 	if err := s.svc.Setup(c, serverUrl, password, privateKey); err != nil {
 		log.WithError(err).Warn("failed to initialize")
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
+		errorContent := components.Error("Server not found", "Please try again")
+		partialViewHandler(errorContent, c)
 	}
 
 	redirect("/done", c)
