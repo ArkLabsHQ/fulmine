@@ -63,6 +63,10 @@ lncli connect `nigiri lnd getinfo | jq -r .identity_pubkey`@lnd:9735
 lncli listpeers | jq .peers | jq length
 nigiri lnd listpeers | jq .peers | jq length
 ```
+/lightning-cli
+lightning-cli --network=regtest connect 038f3cfc5232f568fec1d8457262aa78740416fb8ab575c6a2bf6b921854e1014e cln 9935
+
+lightning-cli --network=regtest newaddr bech32
 
 Open and fund channel between the LND instances:
 
