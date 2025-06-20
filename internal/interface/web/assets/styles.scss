@@ -205,6 +205,12 @@ label {
   );
 }
 
+.bg-orange-image {
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-image: url('/static/orange-bg.png');
+}
+
 .showOnRequest,
 .htmx-request .hideOnRequest {
   display: none;
