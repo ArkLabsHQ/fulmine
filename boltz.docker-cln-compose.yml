@@ -1,0 +1,170 @@
+services:
+  boltz-cln:
+    build: 
+      context: .
+      dockerfile: cln.Dockerfile
+    restart: unless-stopped
+    container_name: boltz-cln
+    command:
+      - --bind-addr=0.0.0.0:9735
+      - --bitcoin-rpcconnect=bitcoin:18443
+      - --bitcoin-rpcpassword=123 
+      - --bitcoin-rpcuser=admin1
+      - --log-level=debug
+      - --network=regtest
+      - --large-channels
+      - --grpc-host=0.0.0.0
+      - --grpc-port=9736
+      - --plugin=/root/hold
+      - --plugin=/root/clnurl
+      - --clnurl-host=0.0.0.0
+      - --ignore-fee-limits=false
+      - --min-emergency-msat=1000000
+      
+    volumes:
+      - cln_datadir:/root/.lightning/regtest
+      - /home/joshua/.nigiri/volumes/bitcoin:/etc/bitcoin
+    ports:
+      - '9936:9735' # p2p
+      - '9836:9736' # grpc
+  boltz:
+    restart: unless-stopped
+    image: boltz/boltz:ark
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+      - '9004:9004'
+    expose:
+      - '9001'
+      - '9006'
+    environment:
+      BOLTZ_CONFIG: |
+        loglevel = "debug"
+        network = "regtest"
+        [ark]
+        host = "boltz-fulmine"
+        port = 7000
+        
+        [api]
+        host = "0.0.0.0"
+        port = 9001
+        cors = "*"
+
+        [grpc]
+        host = "0.0.0.0"
+        port = 9000
+
+        [sidecar]
+        [sidecar.grpc]
+        host = "0.0.0.0"
+        port = 9003
+
+        [sidecar.ws]
+        host = "0.0.0.0"
+        port = 9004
+
+        [sidecar.api]
+        host = "0.0.0.0"
+        port = 9005
+
+        [postgres]
+        host = "boltz-postgres"
+        port = 5432
+        database = "boltz"
+        username = "postgres"
+        password = "postgres"
+
+        [swap]
+        deferredClaimSymbols = [ "BTC" ]
+
+        [[pairs]]
+        base = "ARK"
+        quote = "BTC"
+        rate = 1
+        fee = 0.4
+        swapInFee = 0.01
+        invoiceExpiry = 361
+        maxSwapAmount = 4294967
+        minSwapAmount = 1000
+
+        [pairs.timeoutDelta]
+        reverse = 1440
+        chain=1440
+        swapMinimal = 1440
+        swapMaximal = 2880
+        swapTaproot = 10080
+
+        [[currencies]]
+        symbol = "BTC"
+        network = "bitcoinRegtest"
+        minWalletBalance = 10000000
+        minLocalBalance = 10000000
+        minRemoteBalance = 10000000
+        maxSwapAmount = 4294967
+        minSwapAmount = 50000
+        maxZeroConfAmount = 100000
+
+        [currencies.chain]
+        host = "bitcoin"
+        port = 18443
+        user = "admin1"
+        password = "123"
+
+        [currencies.cln]
+        host = "boltz-cln"
+        port = 9736
+        rootCertPath = "/home/boltz/.cln/ca.pem"
+        privateKeyPath = "/home/boltz/.cln/client-key.pem"
+        certChainPath = "/home/boltz/.cln/client.pem"
+
+        [currencies.cln.hold]
+        host = "boltz-cln"
+        port = 9292
+        rootCertPath = "/home/boltz/.cln/hold/ca.pem"
+        privateKeyPath = "/home/boltz/.cln/hold/client-key.pem"
+        certChainPath = "/home/boltz/.cln/hold/client.pem"
+    volumes:
+      - boltz_cln_datadir:/home/boltz/.boltz
+      - cln_datadir:/home/boltz/.cln
+    entrypoint: sh -c 'echo "$$BOLTZ_CONFIG" > /home/boltz/.boltz/boltz.config && boltzd --datadir /home/boltz/.boltz --configpath /home/boltz/.boltz/boltz.config'
+  boltz-postgres:
+    image: postgres:15.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: boltz
+      POSTGRES_HOST_AUTH_METHOD: trust
+    expose:
+      - '5432'
+    volumes:
+      - postgres_cln_datadir:/var/lib/postgresql/data
+  boltz-fulmine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - FULMINE_ARK_SERVER=arkd:7070
+      - FULMINE_ESPLORA_URL=http://chopsticks:3000
+    ports:
+      - 7002:7000
+      - 7003:7001
+    volumes:
+      - bitcoin_cln_fulmine_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  postgres_cln_datadir:
+    name: postgres_cln_datadir
+  boltz_cln_datadir:
+    name: boltz_cln_datadir
+  bitcoin_cln_fulmine_data:
+    name: bitcoin_cln_fulmine_data
+  cln_datadir:
+    name: cln_datadir
+
+
+networks:
+  default:
+    name: nigiri
+    external: true

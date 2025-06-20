@@ -324,6 +324,38 @@
         ]
       }
     },
+    "/v1/offer/pay": {
+      "post": {
+        "operationId": "Service_PayOffer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PayOfferResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1PayOfferRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/onboard": {
       "post": {
         "summary": "GetOnboardAddress returns onchain address and invoice for requested amount",
@@ -989,6 +1021,22 @@
       }
     },
     "v1PayInvoiceResponse": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1PayOfferRequest": {
+      "type": "object",
+      "properties": {
+        "offer": {
+          "type": "string"
+        }
+      }
+    },
+    "v1PayOfferResponse": {
       "type": "object",
       "properties": {
         "txid": {

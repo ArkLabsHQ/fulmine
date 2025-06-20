@@ -119,7 +119,7 @@ func (x RelativeLocktime_LocktimeType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RelativeLocktime_LocktimeType.Descriptor instead.
 func (RelativeLocktime_LocktimeType) EnumDescriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{38, 0}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{40, 0}
 }
 
 type GetAddressRequest struct {
@@ -1814,6 +1814,53 @@ func (x *PayInvoiceRequest) GetInvoice() string {
 	return ""
 }
 
+type PayOfferRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Offer string `protobuf:"bytes,1,opt,name=offer,proto3" json:"offer,omitempty"`
+}
+
+func (x *PayOfferRequest) Reset() {
+	*x = PayOfferRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_fulmine_v1_service_proto_msgTypes[33]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PayOfferRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PayOfferRequest) ProtoMessage() {}
+
+func (x *PayOfferRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fulmine_v1_service_proto_msgTypes[33]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PayOfferRequest.ProtoReflect.Descriptor instead.
+func (*PayOfferRequest) Descriptor() ([]byte, []int) {
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *PayOfferRequest) GetOffer() string {
+	if x != nil {
+		return x.Offer
+	}
+	return ""
+}
+
 type PayInvoiceResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1825,7 +1872,7 @@ type PayInvoiceResponse struct {
 func (x *PayInvoiceResponse) Reset() {
 	*x = PayInvoiceResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[33]
+		mi := &file_fulmine_v1_service_proto_msgTypes[34]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1838,7 +1885,7 @@ func (x *PayInvoiceResponse) String() string {
 func (*PayInvoiceResponse) ProtoMessage() {}
 
 func (x *PayInvoiceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[33]
+	mi := &file_fulmine_v1_service_proto_msgTypes[34]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1851,10 +1898,57 @@ func (x *PayInvoiceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PayInvoiceResponse.ProtoReflect.Descriptor instead.
 func (*PayInvoiceResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{33}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *PayInvoiceResponse) GetTxid() string {
+	if x != nil {
+		return x.Txid
+	}
+	return ""
+}
+
+type PayOfferResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Txid string `protobuf:"bytes,1,opt,name=txid,proto3" json:"txid,omitempty"`
+}
+
+func (x *PayOfferResponse) Reset() {
+	*x = PayOfferResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_fulmine_v1_service_proto_msgTypes[35]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *PayOfferResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PayOfferResponse) ProtoMessage() {}
+
+func (x *PayOfferResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_fulmine_v1_service_proto_msgTypes[35]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PayOfferResponse.ProtoReflect.Descriptor instead.
+func (*PayOfferResponse) Descriptor() ([]byte, []int) {
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *PayOfferResponse) GetTxid() string {
 	if x != nil {
 		return x.Txid
 	}
@@ -1877,7 +1971,7 @@ type TaprootTree struct {
 func (x *TaprootTree) Reset() {
 	*x = TaprootTree{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[34]
+		mi := &file_fulmine_v1_service_proto_msgTypes[36]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1890,7 +1984,7 @@ func (x *TaprootTree) String() string {
 func (*TaprootTree) ProtoMessage() {}
 
 func (x *TaprootTree) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[34]
+	mi := &file_fulmine_v1_service_proto_msgTypes[36]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1903,7 +1997,7 @@ func (x *TaprootTree) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaprootTree.ProtoReflect.Descriptor instead.
 func (*TaprootTree) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{34}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *TaprootTree) GetClaimLeaf() *TaprootLeaf {
@@ -1960,7 +2054,7 @@ type TaprootLeaf struct {
 func (x *TaprootLeaf) Reset() {
 	*x = TaprootLeaf{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[35]
+		mi := &file_fulmine_v1_service_proto_msgTypes[37]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1973,7 +2067,7 @@ func (x *TaprootLeaf) String() string {
 func (*TaprootLeaf) ProtoMessage() {}
 
 func (x *TaprootLeaf) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[35]
+	mi := &file_fulmine_v1_service_proto_msgTypes[37]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1986,7 +2080,7 @@ func (x *TaprootLeaf) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaprootLeaf.ProtoReflect.Descriptor instead.
 func (*TaprootLeaf) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{35}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *TaprootLeaf) GetVersion() int32 {
@@ -2014,7 +2108,7 @@ type IsInvoiceSettledRequest struct {
 func (x *IsInvoiceSettledRequest) Reset() {
 	*x = IsInvoiceSettledRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[36]
+		mi := &file_fulmine_v1_service_proto_msgTypes[38]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2027,7 +2121,7 @@ func (x *IsInvoiceSettledRequest) String() string {
 func (*IsInvoiceSettledRequest) ProtoMessage() {}
 
 func (x *IsInvoiceSettledRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[36]
+	mi := &file_fulmine_v1_service_proto_msgTypes[38]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2040,7 +2134,7 @@ func (x *IsInvoiceSettledRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IsInvoiceSettledRequest.ProtoReflect.Descriptor instead.
 func (*IsInvoiceSettledRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{36}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *IsInvoiceSettledRequest) GetInvoice() string {
@@ -2061,7 +2155,7 @@ type IsInvoiceSettledResponse struct {
 func (x *IsInvoiceSettledResponse) Reset() {
 	*x = IsInvoiceSettledResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[37]
+		mi := &file_fulmine_v1_service_proto_msgTypes[39]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2074,7 +2168,7 @@ func (x *IsInvoiceSettledResponse) String() string {
 func (*IsInvoiceSettledResponse) ProtoMessage() {}
 
 func (x *IsInvoiceSettledResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[37]
+	mi := &file_fulmine_v1_service_proto_msgTypes[39]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2087,7 +2181,7 @@ func (x *IsInvoiceSettledResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IsInvoiceSettledResponse.ProtoReflect.Descriptor instead.
 func (*IsInvoiceSettledResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{37}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *IsInvoiceSettledResponse) GetSettled() bool {
@@ -2110,7 +2204,7 @@ type RelativeLocktime struct {
 func (x *RelativeLocktime) Reset() {
 	*x = RelativeLocktime{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[38]
+		mi := &file_fulmine_v1_service_proto_msgTypes[40]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2123,7 +2217,7 @@ func (x *RelativeLocktime) String() string {
 func (*RelativeLocktime) ProtoMessage() {}
 
 func (x *RelativeLocktime) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[38]
+	mi := &file_fulmine_v1_service_proto_msgTypes[40]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2136,7 +2230,7 @@ func (x *RelativeLocktime) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RelativeLocktime.ProtoReflect.Descriptor instead.
 func (*RelativeLocktime) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{38}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *RelativeLocktime) GetType() RelativeLocktime_LocktimeType {
@@ -2163,7 +2257,7 @@ type GetDelegatePublicKeyRequest struct {
 func (x *GetDelegatePublicKeyRequest) Reset() {
 	*x = GetDelegatePublicKeyRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[39]
+		mi := &file_fulmine_v1_service_proto_msgTypes[41]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2176,7 +2270,7 @@ func (x *GetDelegatePublicKeyRequest) String() string {
 func (*GetDelegatePublicKeyRequest) ProtoMessage() {}
 
 func (x *GetDelegatePublicKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[39]
+	mi := &file_fulmine_v1_service_proto_msgTypes[41]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2189,7 +2283,7 @@ func (x *GetDelegatePublicKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDelegatePublicKeyRequest.ProtoReflect.Descriptor instead.
 func (*GetDelegatePublicKeyRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{39}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{41}
 }
 
 // Response containing the delegate public key.
@@ -2205,7 +2299,7 @@ type GetDelegatePublicKeyResponse struct {
 func (x *GetDelegatePublicKeyResponse) Reset() {
 	*x = GetDelegatePublicKeyResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[40]
+		mi := &file_fulmine_v1_service_proto_msgTypes[42]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2218,7 +2312,7 @@ func (x *GetDelegatePublicKeyResponse) String() string {
 func (*GetDelegatePublicKeyResponse) ProtoMessage() {}
 
 func (x *GetDelegatePublicKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[40]
+	mi := &file_fulmine_v1_service_proto_msgTypes[42]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2231,7 +2325,7 @@ func (x *GetDelegatePublicKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDelegatePublicKeyResponse.ProtoReflect.Descriptor instead.
 func (*GetDelegatePublicKeyResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{40}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *GetDelegatePublicKeyResponse) GetPublicKey() string {
@@ -2252,7 +2346,7 @@ type WatchAddressForRolloverRequest struct {
 func (x *WatchAddressForRolloverRequest) Reset() {
 	*x = WatchAddressForRolloverRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[41]
+		mi := &file_fulmine_v1_service_proto_msgTypes[43]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2265,7 +2359,7 @@ func (x *WatchAddressForRolloverRequest) String() string {
 func (*WatchAddressForRolloverRequest) ProtoMessage() {}
 
 func (x *WatchAddressForRolloverRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[41]
+	mi := &file_fulmine_v1_service_proto_msgTypes[43]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2278,7 +2372,7 @@ func (x *WatchAddressForRolloverRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchAddressForRolloverRequest.ProtoReflect.Descriptor instead.
 func (*WatchAddressForRolloverRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{41}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *WatchAddressForRolloverRequest) GetRolloverAddress() *RolloverAddress {
@@ -2297,7 +2391,7 @@ type WatchAddressForRolloverResponse struct {
 func (x *WatchAddressForRolloverResponse) Reset() {
 	*x = WatchAddressForRolloverResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[42]
+		mi := &file_fulmine_v1_service_proto_msgTypes[44]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2310,7 +2404,7 @@ func (x *WatchAddressForRolloverResponse) String() string {
 func (*WatchAddressForRolloverResponse) ProtoMessage() {}
 
 func (x *WatchAddressForRolloverResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[42]
+	mi := &file_fulmine_v1_service_proto_msgTypes[44]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2323,7 +2417,7 @@ func (x *WatchAddressForRolloverResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchAddressForRolloverResponse.ProtoReflect.Descriptor instead.
 func (*WatchAddressForRolloverResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{42}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{44}
 }
 
 type UnwatchAddressRequest struct {
@@ -2337,7 +2431,7 @@ type UnwatchAddressRequest struct {
 func (x *UnwatchAddressRequest) Reset() {
 	*x = UnwatchAddressRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[43]
+		mi := &file_fulmine_v1_service_proto_msgTypes[45]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2350,7 +2444,7 @@ func (x *UnwatchAddressRequest) String() string {
 func (*UnwatchAddressRequest) ProtoMessage() {}
 
 func (x *UnwatchAddressRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[43]
+	mi := &file_fulmine_v1_service_proto_msgTypes[45]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2363,7 +2457,7 @@ func (x *UnwatchAddressRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnwatchAddressRequest.ProtoReflect.Descriptor instead.
 func (*UnwatchAddressRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{43}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *UnwatchAddressRequest) GetAddress() string {
@@ -2382,7 +2476,7 @@ type UnwatchAddressResponse struct {
 func (x *UnwatchAddressResponse) Reset() {
 	*x = UnwatchAddressResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[44]
+		mi := &file_fulmine_v1_service_proto_msgTypes[46]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2395,7 +2489,7 @@ func (x *UnwatchAddressResponse) String() string {
 func (*UnwatchAddressResponse) ProtoMessage() {}
 
 func (x *UnwatchAddressResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[44]
+	mi := &file_fulmine_v1_service_proto_msgTypes[46]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2408,7 +2502,7 @@ func (x *UnwatchAddressResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnwatchAddressResponse.ProtoReflect.Descriptor instead.
 func (*UnwatchAddressResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{44}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{46}
 }
 
 type ListWatchedAddressesRequest struct {
@@ -2420,7 +2514,7 @@ type ListWatchedAddressesRequest struct {
 func (x *ListWatchedAddressesRequest) Reset() {
 	*x = ListWatchedAddressesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[45]
+		mi := &file_fulmine_v1_service_proto_msgTypes[47]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2433,7 +2527,7 @@ func (x *ListWatchedAddressesRequest) String() string {
 func (*ListWatchedAddressesRequest) ProtoMessage() {}
 
 func (x *ListWatchedAddressesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[45]
+	mi := &file_fulmine_v1_service_proto_msgTypes[47]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2446,7 +2540,7 @@ func (x *ListWatchedAddressesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWatchedAddressesRequest.ProtoReflect.Descriptor instead.
 func (*ListWatchedAddressesRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{45}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{47}
 }
 
 type ListWatchedAddressesResponse struct {
@@ -2460,7 +2554,7 @@ type ListWatchedAddressesResponse struct {
 func (x *ListWatchedAddressesResponse) Reset() {
 	*x = ListWatchedAddressesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[46]
+		mi := &file_fulmine_v1_service_proto_msgTypes[48]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2473,7 +2567,7 @@ func (x *ListWatchedAddressesResponse) String() string {
 func (*ListWatchedAddressesResponse) ProtoMessage() {}
 
 func (x *ListWatchedAddressesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[46]
+	mi := &file_fulmine_v1_service_proto_msgTypes[48]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2486,7 +2580,7 @@ func (x *ListWatchedAddressesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWatchedAddressesResponse.ProtoReflect.Descriptor instead.
 func (*ListWatchedAddressesResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{46}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ListWatchedAddressesResponse) GetAddresses() []*RolloverAddress {
@@ -2509,7 +2603,7 @@ type RolloverAddress struct {
 func (x *RolloverAddress) Reset() {
 	*x = RolloverAddress{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[47]
+		mi := &file_fulmine_v1_service_proto_msgTypes[49]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2522,7 +2616,7 @@ func (x *RolloverAddress) String() string {
 func (*RolloverAddress) ProtoMessage() {}
 
 func (x *RolloverAddress) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[47]
+	mi := &file_fulmine_v1_service_proto_msgTypes[49]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2535,7 +2629,7 @@ func (x *RolloverAddress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RolloverAddress.ProtoReflect.Descriptor instead.
 func (*RolloverAddress) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{47}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *RolloverAddress) GetAddress() string {
@@ -2570,7 +2664,7 @@ type Tapscripts struct {
 func (x *Tapscripts) Reset() {
 	*x = Tapscripts{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[48]
+		mi := &file_fulmine_v1_service_proto_msgTypes[50]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2583,7 +2677,7 @@ func (x *Tapscripts) String() string {
 func (*Tapscripts) ProtoMessage() {}
 
 func (x *Tapscripts) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[48]
+	mi := &file_fulmine_v1_service_proto_msgTypes[50]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2596,7 +2690,7 @@ func (x *Tapscripts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Tapscripts.ProtoReflect.Descriptor instead.
 func (*Tapscripts) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{48}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *Tapscripts) GetScripts() []string {
@@ -3071,7 +3165,7 @@ func file_fulmine_v1_service_proto_rawDescGZIP() []byte {
 }
 
 var file_fulmine_v1_service_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_fulmine_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
+var file_fulmine_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 51)
 var file_fulmine_v1_service_proto_goTypes = []interface{}{
 	(GetInfoResponse_Network)(0),               // 0: fulmine.v1.GetInfoResponse.Network
 	(RelativeLocktime_LocktimeType)(0),         // 1: fulmine.v1.RelativeLocktime.LocktimeType
@@ -3108,47 +3202,49 @@ var file_fulmine_v1_service_proto_goTypes = []interface{}{
 	(*GetInvoiceRequest)(nil),                  // 32: fulmine.v1.GetInvoiceRequest
 	(*GetInvoiceResponse)(nil),                 // 33: fulmine.v1.GetInvoiceResponse
 	(*PayInvoiceRequest)(nil),                  // 34: fulmine.v1.PayInvoiceRequest
-	(*PayInvoiceResponse)(nil),                 // 35: fulmine.v1.PayInvoiceResponse
-	(*TaprootTree)(nil),                        // 36: fulmine.v1.TaprootTree
-	(*TaprootLeaf)(nil),                        // 37: fulmine.v1.TaprootLeaf
-	(*IsInvoiceSettledRequest)(nil),            // 38: fulmine.v1.IsInvoiceSettledRequest
-	(*IsInvoiceSettledResponse)(nil),           // 39: fulmine.v1.IsInvoiceSettledResponse
-	(*RelativeLocktime)(nil),                   // 40: fulmine.v1.RelativeLocktime
-	(*GetDelegatePublicKeyRequest)(nil),        // 41: fulmine.v1.GetDelegatePublicKeyRequest
-	(*GetDelegatePublicKeyResponse)(nil),       // 42: fulmine.v1.GetDelegatePublicKeyResponse
-	(*WatchAddressForRolloverRequest)(nil),     // 43: fulmine.v1.WatchAddressForRolloverRequest
-	(*WatchAddressForRolloverResponse)(nil),    // 44: fulmine.v1.WatchAddressForRolloverResponse
-	(*UnwatchAddressRequest)(nil),              // 45: fulmine.v1.UnwatchAddressRequest
-	(*UnwatchAddressResponse)(nil),             // 46: fulmine.v1.UnwatchAddressResponse
-	(*ListWatchedAddressesRequest)(nil),        // 47: fulmine.v1.ListWatchedAddressesRequest
-	(*ListWatchedAddressesResponse)(nil),       // 48: fulmine.v1.ListWatchedAddressesResponse
-	(*RolloverAddress)(nil),                    // 49: fulmine.v1.RolloverAddress
-	(*Tapscripts)(nil),                         // 50: fulmine.v1.Tapscripts
-	(*BuildInfo)(nil),                          // 51: fulmine.v1.BuildInfo
-	(*Round)(nil),                              // 52: fulmine.v1.Round
-	(*TransactionInfo)(nil),                    // 53: fulmine.v1.TransactionInfo
-	(*Vtxo)(nil),                               // 54: fulmine.v1.Vtxo
+	(*PayOfferRequest)(nil),                    // 35: fulmine.v1.PayOfferRequest
+	(*PayInvoiceResponse)(nil),                 // 36: fulmine.v1.PayInvoiceResponse
+	(*PayOfferResponse)(nil),                   // 37: fulmine.v1.PayOfferResponse
+	(*TaprootTree)(nil),                        // 38: fulmine.v1.TaprootTree
+	(*TaprootLeaf)(nil),                        // 39: fulmine.v1.TaprootLeaf
+	(*IsInvoiceSettledRequest)(nil),            // 40: fulmine.v1.IsInvoiceSettledRequest
+	(*IsInvoiceSettledResponse)(nil),           // 41: fulmine.v1.IsInvoiceSettledResponse
+	(*RelativeLocktime)(nil),                   // 42: fulmine.v1.RelativeLocktime
+	(*GetDelegatePublicKeyRequest)(nil),        // 43: fulmine.v1.GetDelegatePublicKeyRequest
+	(*GetDelegatePublicKeyResponse)(nil),       // 44: fulmine.v1.GetDelegatePublicKeyResponse
+	(*WatchAddressForRolloverRequest)(nil),     // 45: fulmine.v1.WatchAddressForRolloverRequest
+	(*WatchAddressForRolloverResponse)(nil),    // 46: fulmine.v1.WatchAddressForRolloverResponse
+	(*UnwatchAddressRequest)(nil),              // 47: fulmine.v1.UnwatchAddressRequest
+	(*UnwatchAddressResponse)(nil),             // 48: fulmine.v1.UnwatchAddressResponse
+	(*ListWatchedAddressesRequest)(nil),        // 49: fulmine.v1.ListWatchedAddressesRequest
+	(*ListWatchedAddressesResponse)(nil),       // 50: fulmine.v1.ListWatchedAddressesResponse
+	(*RolloverAddress)(nil),                    // 51: fulmine.v1.RolloverAddress
+	(*Tapscripts)(nil),                         // 52: fulmine.v1.Tapscripts
+	(*BuildInfo)(nil),                          // 53: fulmine.v1.BuildInfo
+	(*Round)(nil),                              // 54: fulmine.v1.Round
+	(*TransactionInfo)(nil),                    // 55: fulmine.v1.TransactionInfo
+	(*Vtxo)(nil),                               // 56: fulmine.v1.Vtxo
 }
 var file_fulmine_v1_service_proto_depIdxs = []int32{
 	0,  // 0: fulmine.v1.GetInfoResponse.network:type_name -> fulmine.v1.GetInfoResponse.Network
-	51, // 1: fulmine.v1.GetInfoResponse.build_info:type_name -> fulmine.v1.BuildInfo
-	52, // 2: fulmine.v1.GetRoundInfoResponse.round:type_name -> fulmine.v1.Round
-	53, // 3: fulmine.v1.GetTransactionHistoryResponse.transactions:type_name -> fulmine.v1.TransactionInfo
-	40, // 4: fulmine.v1.CreateVHTLCRequest.unilateral_claim_delay:type_name -> fulmine.v1.RelativeLocktime
-	40, // 5: fulmine.v1.CreateVHTLCRequest.unilateral_refund_delay:type_name -> fulmine.v1.RelativeLocktime
-	40, // 6: fulmine.v1.CreateVHTLCRequest.unilateral_refund_without_receiver_delay:type_name -> fulmine.v1.RelativeLocktime
-	36, // 7: fulmine.v1.CreateVHTLCResponse.swap_tree:type_name -> fulmine.v1.TaprootTree
-	54, // 8: fulmine.v1.ListVHTLCResponse.vhtlcs:type_name -> fulmine.v1.Vtxo
-	37, // 9: fulmine.v1.TaprootTree.claim_leaf:type_name -> fulmine.v1.TaprootLeaf
-	37, // 10: fulmine.v1.TaprootTree.refund_leaf:type_name -> fulmine.v1.TaprootLeaf
-	37, // 11: fulmine.v1.TaprootTree.refund_without_boltz_leaf:type_name -> fulmine.v1.TaprootLeaf
-	37, // 12: fulmine.v1.TaprootTree.unilateral_claim_leaf:type_name -> fulmine.v1.TaprootLeaf
-	37, // 13: fulmine.v1.TaprootTree.unilateral_refund_leaf:type_name -> fulmine.v1.TaprootLeaf
-	37, // 14: fulmine.v1.TaprootTree.unilateral_refund_without_boltz_leaf:type_name -> fulmine.v1.TaprootLeaf
+	53, // 1: fulmine.v1.GetInfoResponse.build_info:type_name -> fulmine.v1.BuildInfo
+	54, // 2: fulmine.v1.GetRoundInfoResponse.round:type_name -> fulmine.v1.Round
+	55, // 3: fulmine.v1.GetTransactionHistoryResponse.transactions:type_name -> fulmine.v1.TransactionInfo
+	42, // 4: fulmine.v1.CreateVHTLCRequest.unilateral_claim_delay:type_name -> fulmine.v1.RelativeLocktime
+	42, // 5: fulmine.v1.CreateVHTLCRequest.unilateral_refund_delay:type_name -> fulmine.v1.RelativeLocktime
+	42, // 6: fulmine.v1.CreateVHTLCRequest.unilateral_refund_without_receiver_delay:type_name -> fulmine.v1.RelativeLocktime
+	38, // 7: fulmine.v1.CreateVHTLCResponse.swap_tree:type_name -> fulmine.v1.TaprootTree
+	56, // 8: fulmine.v1.ListVHTLCResponse.vhtlcs:type_name -> fulmine.v1.Vtxo
+	39, // 9: fulmine.v1.TaprootTree.claim_leaf:type_name -> fulmine.v1.TaprootLeaf
+	39, // 10: fulmine.v1.TaprootTree.refund_leaf:type_name -> fulmine.v1.TaprootLeaf
+	39, // 11: fulmine.v1.TaprootTree.refund_without_boltz_leaf:type_name -> fulmine.v1.TaprootLeaf
+	39, // 12: fulmine.v1.TaprootTree.unilateral_claim_leaf:type_name -> fulmine.v1.TaprootLeaf
+	39, // 13: fulmine.v1.TaprootTree.unilateral_refund_leaf:type_name -> fulmine.v1.TaprootLeaf
+	39, // 14: fulmine.v1.TaprootTree.unilateral_refund_without_boltz_leaf:type_name -> fulmine.v1.TaprootLeaf
 	1,  // 15: fulmine.v1.RelativeLocktime.type:type_name -> fulmine.v1.RelativeLocktime.LocktimeType
-	49, // 16: fulmine.v1.WatchAddressForRolloverRequest.rollover_address:type_name -> fulmine.v1.RolloverAddress
-	49, // 17: fulmine.v1.ListWatchedAddressesResponse.addresses:type_name -> fulmine.v1.RolloverAddress
-	50, // 18: fulmine.v1.RolloverAddress.taproot_tree:type_name -> fulmine.v1.Tapscripts
+	51, // 16: fulmine.v1.WatchAddressForRolloverRequest.rollover_address:type_name -> fulmine.v1.RolloverAddress
+	51, // 17: fulmine.v1.ListWatchedAddressesResponse.addresses:type_name -> fulmine.v1.RolloverAddress
+	52, // 18: fulmine.v1.RolloverAddress.taproot_tree:type_name -> fulmine.v1.Tapscripts
 	2,  // 19: fulmine.v1.Service.GetAddress:input_type -> fulmine.v1.GetAddressRequest
 	4,  // 20: fulmine.v1.Service.GetBalance:input_type -> fulmine.v1.GetBalanceRequest
 	6,  // 21: fulmine.v1.Service.GetInfo:input_type -> fulmine.v1.GetInfoRequest
@@ -3166,35 +3262,37 @@ var file_fulmine_v1_service_proto_depIdxs = []int32{
 	30, // 33: fulmine.v1.Service.ListVHTLC:input_type -> fulmine.v1.ListVHTLCRequest
 	32, // 34: fulmine.v1.Service.GetInvoice:input_type -> fulmine.v1.GetInvoiceRequest
 	34, // 35: fulmine.v1.Service.PayInvoice:input_type -> fulmine.v1.PayInvoiceRequest
-	38, // 36: fulmine.v1.Service.IsInvoiceSettled:input_type -> fulmine.v1.IsInvoiceSettledRequest
-	41, // 37: fulmine.v1.Service.GetDelegatePublicKey:input_type -> fulmine.v1.GetDelegatePublicKeyRequest
-	43, // 38: fulmine.v1.Service.WatchAddressForRollover:input_type -> fulmine.v1.WatchAddressForRolloverRequest
-	45, // 39: fulmine.v1.Service.UnwatchAddress:input_type -> fulmine.v1.UnwatchAddressRequest
-	47, // 40: fulmine.v1.Service.ListWatchedAddresses:input_type -> fulmine.v1.ListWatchedAddressesRequest
-	3,  // 41: fulmine.v1.Service.GetAddress:output_type -> fulmine.v1.GetAddressResponse
-	5,  // 42: fulmine.v1.Service.GetBalance:output_type -> fulmine.v1.GetBalanceResponse
-	7,  // 43: fulmine.v1.Service.GetInfo:output_type -> fulmine.v1.GetInfoResponse
-	9,  // 44: fulmine.v1.Service.GetOnboardAddress:output_type -> fulmine.v1.GetOnboardAddressResponse
-	11, // 45: fulmine.v1.Service.GetRoundInfo:output_type -> fulmine.v1.GetRoundInfoResponse
-	13, // 46: fulmine.v1.Service.GetTransactionHistory:output_type -> fulmine.v1.GetTransactionHistoryResponse
-	15, // 47: fulmine.v1.Service.RedeemNote:output_type -> fulmine.v1.RedeemNoteResponse
-	17, // 48: fulmine.v1.Service.Settle:output_type -> fulmine.v1.SettleResponse
-	19, // 49: fulmine.v1.Service.SendOffChain:output_type -> fulmine.v1.SendOffChainResponse
-	21, // 50: fulmine.v1.Service.SendOnChain:output_type -> fulmine.v1.SendOnChainResponse
-	23, // 51: fulmine.v1.Service.SignTransaction:output_type -> fulmine.v1.SignTransactionResponse
-	25, // 52: fulmine.v1.Service.CreateVHTLC:output_type -> fulmine.v1.CreateVHTLCResponse
-	27, // 53: fulmine.v1.Service.ClaimVHTLC:output_type -> fulmine.v1.ClaimVHTLCResponse
-	29, // 54: fulmine.v1.Service.RefundVHTLCWithoutReceiver:output_type -> fulmine.v1.RefundVHTLCWithoutReceiverResponse
-	31, // 55: fulmine.v1.Service.ListVHTLC:output_type -> fulmine.v1.ListVHTLCResponse
-	33, // 56: fulmine.v1.Service.GetInvoice:output_type -> fulmine.v1.GetInvoiceResponse
-	35, // 57: fulmine.v1.Service.PayInvoice:output_type -> fulmine.v1.PayInvoiceResponse
-	39, // 58: fulmine.v1.Service.IsInvoiceSettled:output_type -> fulmine.v1.IsInvoiceSettledResponse
-	42, // 59: fulmine.v1.Service.GetDelegatePublicKey:output_type -> fulmine.v1.GetDelegatePublicKeyResponse
-	44, // 60: fulmine.v1.Service.WatchAddressForRollover:output_type -> fulmine.v1.WatchAddressForRolloverResponse
-	46, // 61: fulmine.v1.Service.UnwatchAddress:output_type -> fulmine.v1.UnwatchAddressResponse
-	48, // 62: fulmine.v1.Service.ListWatchedAddresses:output_type -> fulmine.v1.ListWatchedAddressesResponse
-	41, // [41:63] is the sub-list for method output_type
-	19, // [19:41] is the sub-list for method input_type
+	35, // 36: fulmine.v1.Service.PayOffer:input_type -> fulmine.v1.PayOfferRequest
+	40, // 37: fulmine.v1.Service.IsInvoiceSettled:input_type -> fulmine.v1.IsInvoiceSettledRequest
+	43, // 38: fulmine.v1.Service.GetDelegatePublicKey:input_type -> fulmine.v1.GetDelegatePublicKeyRequest
+	45, // 39: fulmine.v1.Service.WatchAddressForRollover:input_type -> fulmine.v1.WatchAddressForRolloverRequest
+	47, // 40: fulmine.v1.Service.UnwatchAddress:input_type -> fulmine.v1.UnwatchAddressRequest
+	49, // 41: fulmine.v1.Service.ListWatchedAddresses:input_type -> fulmine.v1.ListWatchedAddressesRequest
+	3,  // 42: fulmine.v1.Service.GetAddress:output_type -> fulmine.v1.GetAddressResponse
+	5,  // 43: fulmine.v1.Service.GetBalance:output_type -> fulmine.v1.GetBalanceResponse
+	7,  // 44: fulmine.v1.Service.GetInfo:output_type -> fulmine.v1.GetInfoResponse
+	9,  // 45: fulmine.v1.Service.GetOnboardAddress:output_type -> fulmine.v1.GetOnboardAddressResponse
+	11, // 46: fulmine.v1.Service.GetRoundInfo:output_type -> fulmine.v1.GetRoundInfoResponse
+	13, // 47: fulmine.v1.Service.GetTransactionHistory:output_type -> fulmine.v1.GetTransactionHistoryResponse
+	15, // 48: fulmine.v1.Service.RedeemNote:output_type -> fulmine.v1.RedeemNoteResponse
+	17, // 49: fulmine.v1.Service.Settle:output_type -> fulmine.v1.SettleResponse
+	19, // 50: fulmine.v1.Service.SendOffChain:output_type -> fulmine.v1.SendOffChainResponse
+	21, // 51: fulmine.v1.Service.SendOnChain:output_type -> fulmine.v1.SendOnChainResponse
+	23, // 52: fulmine.v1.Service.SignTransaction:output_type -> fulmine.v1.SignTransactionResponse
+	25, // 53: fulmine.v1.Service.CreateVHTLC:output_type -> fulmine.v1.CreateVHTLCResponse
+	27, // 54: fulmine.v1.Service.ClaimVHTLC:output_type -> fulmine.v1.ClaimVHTLCResponse
+	29, // 55: fulmine.v1.Service.RefundVHTLCWithoutReceiver:output_type -> fulmine.v1.RefundVHTLCWithoutReceiverResponse
+	31, // 56: fulmine.v1.Service.ListVHTLC:output_type -> fulmine.v1.ListVHTLCResponse
+	33, // 57: fulmine.v1.Service.GetInvoice:output_type -> fulmine.v1.GetInvoiceResponse
+	36, // 58: fulmine.v1.Service.PayInvoice:output_type -> fulmine.v1.PayInvoiceResponse
+	37, // 59: fulmine.v1.Service.PayOffer:output_type -> fulmine.v1.PayOfferResponse
+	41, // 60: fulmine.v1.Service.IsInvoiceSettled:output_type -> fulmine.v1.IsInvoiceSettledResponse
+	44, // 61: fulmine.v1.Service.GetDelegatePublicKey:output_type -> fulmine.v1.GetDelegatePublicKeyResponse
+	46, // 62: fulmine.v1.Service.WatchAddressForRollover:output_type -> fulmine.v1.WatchAddressForRolloverResponse
+	48, // 63: fulmine.v1.Service.UnwatchAddress:output_type -> fulmine.v1.UnwatchAddressResponse
+	50, // 64: fulmine.v1.Service.ListWatchedAddresses:output_type -> fulmine.v1.ListWatchedAddressesResponse
+	42, // [42:65] is the sub-list for method output_type
+	19, // [19:42] is the sub-list for method input_type
 	19, // [19:19] is the sub-list for extension type_name
 	19, // [19:19] is the sub-list for extension extendee
 	0,  // [0:19] is the sub-list for field type_name
@@ -3604,7 +3702,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[33].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PayInvoiceResponse); i {
+			switch v := v.(*PayOfferRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3616,7 +3714,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[34].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TaprootTree); i {
+			switch v := v.(*PayInvoiceResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3628,7 +3726,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[35].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TaprootLeaf); i {
+			switch v := v.(*PayOfferResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3640,7 +3738,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[36].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*IsInvoiceSettledRequest); i {
+			switch v := v.(*TaprootTree); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3652,7 +3750,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[37].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*IsInvoiceSettledResponse); i {
+			switch v := v.(*TaprootLeaf); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3664,7 +3762,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[38].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RelativeLocktime); i {
+			switch v := v.(*IsInvoiceSettledRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3676,7 +3774,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[39].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetDelegatePublicKeyRequest); i {
+			switch v := v.(*IsInvoiceSettledResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3688,7 +3786,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[40].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetDelegatePublicKeyResponse); i {
+			switch v := v.(*RelativeLocktime); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3700,7 +3798,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[41].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*WatchAddressForRolloverRequest); i {
+			switch v := v.(*GetDelegatePublicKeyRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3712,7 +3810,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[42].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*WatchAddressForRolloverResponse); i {
+			switch v := v.(*GetDelegatePublicKeyResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3724,7 +3822,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[43].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UnwatchAddressRequest); i {
+			switch v := v.(*WatchAddressForRolloverRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3736,7 +3834,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[44].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*UnwatchAddressResponse); i {
+			switch v := v.(*WatchAddressForRolloverResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3748,7 +3846,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[45].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListWatchedAddressesRequest); i {
+			switch v := v.(*UnwatchAddressRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3760,7 +3858,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[46].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListWatchedAddressesResponse); i {
+			switch v := v.(*UnwatchAddressResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3772,7 +3870,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[47].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RolloverAddress); i {
+			switch v := v.(*ListWatchedAddressesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3784,6 +3882,30 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[48].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ListWatchedAddressesResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_fulmine_v1_service_proto_msgTypes[49].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*RolloverAddress); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_fulmine_v1_service_proto_msgTypes[50].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Tapscripts); i {
 			case 0:
 				return &v.state
@@ -3802,7 +3924,7 @@ func file_fulmine_v1_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_fulmine_v1_service_proto_rawDesc,
 			NumEnums:      2,
-			NumMessages:   49,
+			NumMessages:   51,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

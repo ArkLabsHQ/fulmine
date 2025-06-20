@@ -366,6 +366,22 @@ func (h *serviceHandler) PayInvoice(
 	return &pb.PayInvoiceResponse{Txid: txid}, nil
 }
 
+func (h *serviceHandler) PayOffer(
+	ctx context.Context, req *pb.PayOfferRequest,
+) (*pb.PayOfferResponse, error) {
+	offer, err := parseOffer(req.GetOffer())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	txid, err := h.svc.PayOffer(ctx, offer)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.PayOfferResponse{Txid: txid}, nil
+}
+
 func (h *serviceHandler) IsInvoiceSettled(
 	ctx context.Context, req *pb.IsInvoiceSettledRequest,
 ) (*pb.IsInvoiceSettledResponse, error) {

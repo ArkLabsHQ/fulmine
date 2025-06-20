@@ -37,7 +37,7 @@ func (boltz *Api) CreateReverseSwap(request CreateReverseSwapRequest) (*CreateRe
 }
 
 func (boltz *Api) FetchBolt12Invoice(request FetchBolt12InvoiceRequest) (*FetchBolt12InvoiceResponse, error) {
-	resp, err := sendPostRequest[FetchBolt12InvoiceResponse](boltz, "/lightning/btc/bolt12/fetch", request)
+	resp, err := sendPostRequest[FetchBolt12InvoiceResponse](boltz, "/lightning/BTC/bolt12/fetch", request)
 	if err != nil {
 		return nil, err
 	}
