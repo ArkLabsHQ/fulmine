@@ -271,6 +271,7 @@ func (s *Service) LockNode(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	s.schedulerSvc.Stop()
 	log.Info("scheduler stopped")
 
@@ -279,8 +280,10 @@ func (s *Service) LockNode(ctx context.Context) error {
 	defer s.subscriptionLock.Unlock()
 
 	// close address subscriptions stream
-	s.closeAddressEventListener()
-	s.closeAddressEventListener = nil
+	if s.closeAddressEventListener != nil {
+		s.closeAddressEventListener()
+		s.closeAddressEventListener = nil
+	}
 
 	// close boarding event listener
 	s.stopBoardingEventListener <- struct{}{}
