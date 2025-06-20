@@ -177,6 +177,9 @@ func (s *service) importWalletPrivateKey(c *gin.Context) {
 }
 
 func (s *service) lock(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
 	if err := s.svc.LockNode(c); err != nil {
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
