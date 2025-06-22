@@ -28,6 +28,14 @@ var (
 		FullNode:    "fullnode",
 		LnUrl:       "lndconnect",
 		Unit:        "unit",
+		ConnectionOpts: &domain.ConnectionOpts{
+			LndMacaroonPath:   "lnd_macaroon_path",
+			TlsCertPath:       "tls_cert_path",
+			ClnRootCertPath:   "cln_root_cert_path",
+			ClnPrivateKeyPath: "cln_private_key_path",
+			ClnCertChainPath:  "cln_cert_chain_path",
+			Host:              "host",
+		},
 	}
 
 	testRolloverTarget = domain.VtxoRolloverTarget{
@@ -150,8 +158,18 @@ func testAddSettings(t *testing.T, repo domain.SettingsRepository) {
 
 func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 	t.Run("update settings", func(t *testing.T) {
+		newConnectionOpts := domain.ConnectionOpts{
+			LndMacaroonPath:   "updated_lnd_macaroon_path",
+			TlsCertPath:       "updated_tls_cert_path",
+			ClnRootCertPath:   "updated_cln_root_cert_path",
+			ClnPrivateKeyPath: "updated_cln_private_key_path",
+			ClnCertChainPath:  "updated_cln_cert_chain_path",
+			Host:              "updated_host",
+		}
+
 		newSettings := domain.Settings{
-			ApiRoot: "updated apiroot",
+			ApiRoot:        "updated apiroot",
+			ConnectionOpts: &newConnectionOpts,
 		}
 
 		err := repo.UpdateSettings(ctx, newSettings)
@@ -162,6 +180,7 @@ func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 
 		expectedSettings := testSettings
 		expectedSettings.ApiRoot = newSettings.ApiRoot
+		expectedSettings.ConnectionOpts = &newConnectionOpts
 
 		err = repo.UpdateSettings(ctx, newSettings)
 		require.NoError(t, err)
@@ -185,7 +204,6 @@ func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 		settings, err = repo.GetSettings(ctx)
 		require.NoError(t, err)
 		require.NotNil(t, settings)
-		require.Equal(t, expectedSettings, *settings)
 		require.Equal(t, expectedSettings, *settings)
 	})
 }

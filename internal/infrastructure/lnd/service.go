@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/lightningnetwork/lnd/input"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 var (
@@ -58,6 +60,45 @@ func (s *service) Connect(ctx context.Context, lndConnectUrl string) error {
 	log.Infof("connected to LND version %s with pubkey %s", info.GetVersion(), info.GetIdentityPubkey())
 
 	return nil
+}
+
+func (s *service) ConnectWithOpts(ctx context.Context, opts *domain.ConnectionOpts) error {
+	tlsCert, macaroon, err := parseLndTLSAndMacaroon(opts.TlsCertPath, opts.LndMacaroonPath)
+	if err != nil {
+		return err
+	}
+
+	// check credentials (only cert, not macaroon)
+	creds := credentials.NewClientTLSFromCert(tlsCert, "")
+	conn, err := grpc.NewClient(opts.Host, grpc.WithTransportCredentials(creds))
+	if err != nil {
+		return err
+	}
+
+	client := lnrpc.NewLightningClient(conn)
+
+	ctx = getCtx(ctx, macaroon)
+	info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	if err != nil {
+		return fmt.Errorf("unable to get info: %v", err)
+	}
+
+	if len(info.GetVersion()) == 0 {
+		return fmt.Errorf("something went wrong, version is empty")
+	}
+
+	if len(info.GetIdentityPubkey()) == 0 {
+		return fmt.Errorf("something went wrong, pubkey is empty")
+	}
+
+	s.client = client
+	s.conn = conn
+	s.macaroon = macaroon
+
+	log.Infof("connected to LND version %s with pubkey %s", info.GetVersion(), info.GetIdentityPubkey())
+
+	return nil
+
 }
 
 func (s *service) Disconnect() {

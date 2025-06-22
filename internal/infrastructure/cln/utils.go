@@ -1,8 +1,14 @@
 package cln
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
 	"net/url"
+	"os"
 	"strings"
+
+	"google.golang.org/grpc/credentials"
 )
 
 func decodeClnConnectUrl(clnConnectUrl string) (rootCert, privateKey, certChain, host string, err error) {
@@ -22,6 +28,40 @@ func decodeClnConnectUrl(clnConnectUrl string) (rootCert, privateKey, certChain,
 	privateKey = "-----BEGIN PRIVATE KEY-----\n" + privateKey + "\n-----END PRIVATE KEY-----"
 
 	return
+}
+
+func parseClnPath(rootCertPath, certChainPath, privateKeyPath string) (cred credentials.TransportCredentials, err error) {
+	rootCertBytes, err := os.ReadFile(rootCertPath)
+	if err != nil {
+		return nil, err
+	}
+	certChainBytes, err := os.ReadFile(certChainPath)
+	if err != nil {
+		return nil, err
+	}
+	privateKeyBytes, err := os.ReadFile(privateKeyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	caPool := x509.NewCertPool()
+	if !caPool.AppendCertsFromPEM(rootCertBytes) {
+		return nil, fmt.Errorf("could not parse root certificate")
+	}
+
+	cert, err := tls.X509KeyPair(certChainBytes, privateKeyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("error with X509KeyPair, %s", err)
+	}
+
+	creds := credentials.NewTLS(&tls.Config{
+		ServerName:   "cln",
+		RootCAs:      caPool,
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+	})
+
+	return creds, nil
 }
 
 // padBase64 adds '=' characters to the end of the input

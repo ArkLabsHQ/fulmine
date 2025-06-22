@@ -5,8 +5,11 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -81,4 +84,35 @@ func toBase64(input string) string {
 	input = strings.ReplaceAll(input, "-", "+")
 	input = strings.ReplaceAll(input, "_", "/")
 	return input
+}
+
+// parseLndTLSAndMacaroon
+func parseLndTLSAndMacaroon(tlsPath, macPath string) (cp *x509.CertPool, macaroon string, err error) {
+
+	// ReadFile returns the file’s contents as a []byte
+	tlsBytes, err := os.ReadFile(tlsPath)
+	if err != nil {
+		return nil, "", err
+	}
+
+	block, _ := pem.Decode(tlsBytes)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return nil, "", errors.New("failed to decode PEM block " +
+			"containing tls certificate")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, "", err
+	}
+	pool := x509.NewCertPool()
+	pool.AddCert(cert)
+
+	macBytes, err := os.ReadFile(macPath)
+	if err != nil {
+		return nil, "", err
+	}
+
+	macHex := hex.EncodeToString(macBytes)
+
+	return pool, macHex, nil
 }

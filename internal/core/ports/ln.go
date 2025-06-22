@@ -1,9 +1,14 @@
 package ports
 
-import "context"
+import (
+	"context"
+
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
+)
 
 type LnService interface {
 	Connect(ctx context.Context, lndConnectUrl string) error
+	ConnectWithOpts(ctx context.Context, opts *domain.ConnectionOpts) error
 	IsConnected() bool
 	GetInfo(ctx context.Context) (version string, pubkey string, err error)
 	GetInvoice(ctx context.Context, value uint64, note, preimage string) (invoice string, preimageHash string, err error)

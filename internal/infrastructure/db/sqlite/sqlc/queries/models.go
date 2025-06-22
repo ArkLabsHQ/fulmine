@@ -9,15 +9,16 @@ import (
 )
 
 type Setting struct {
-	ID          int64
-	ApiRoot     string
-	ServerUrl   string
-	EsploraUrl  sql.NullString
-	Currency    string
-	EventServer string
-	FullNode    string
-	LnUrl       sql.NullString
-	Unit        string
+	ID               int64
+	ApiRoot          string
+	ServerUrl        string
+	EsploraUrl       sql.NullString
+	Currency         string
+	EventServer      string
+	FullNode         string
+	LnUrl            sql.NullString
+	Unit             string
+	LnConnectionOpts sql.NullString
 }
 
 type SubscribedScript struct {

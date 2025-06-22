@@ -9,6 +9,7 @@ import (
 	"time"
 
 	clnpb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/cln"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/lightningnetwork/lnd/input"
 	"google.golang.org/grpc"
@@ -52,6 +53,21 @@ func (s *service) Connect(ctx context.Context, clnConnectUrl string) error {
 		return err
 	}
 
+	s.conn = conn
+	s.client = clnpb.NewNodeClient(conn)
+
+	return nil
+}
+
+func (s *service) ConnectWithOpts(ctx context.Context, opts *domain.ConnectionOpts) error {
+	cred, err := parseClnPath(opts.TlsCertPath, opts.ClnCertChainPath, opts.ClnCertChainPath)
+	if err != nil {
+		return fmt.Errorf("error parsing cln path: %w", err)
+	}
+	conn, err := grpc.NewClient(opts.Host, grpc.WithTransportCredentials(cred))
+	if err != nil {
+		return fmt.Errorf("error creating grpc client: %w", err)
+	}
 	s.conn = conn
 	s.client = clnpb.NewNodeClient(conn)
 

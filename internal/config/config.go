@@ -37,6 +37,9 @@ type Config struct {
 	UnlockerFilePath string
 	UnlockerPassword string
 	DisableTelemetry bool
+	MacaroonPath     string
+	TlsPath          string
+	LNDUrl           string
 
 	unlocker    ports.Unlocker
 	macaroonSvc macaroon.Service
@@ -55,6 +58,9 @@ var (
 	BoltzWSURL       = "BOLTZ_WS_URL"
 	DisableTelemetry = "DISABLE_TELEMETRY"
 	NoMacaroons      = "NO_MACAROONS"
+	MacaroonPath     = "LND_MACAROON_PATH"
+	TlsPath          = "LN_TLS_PATH"
+	LNDUrl           = "LND_URL"
 
 	// Only for testing purposes
 	CLNDatadir = "CLN_DATADIR"
@@ -76,7 +82,10 @@ var (
 		sqliteDb: {},
 		badgerDb: {},
 	}
-	defaultNoMacaroons = false
+	defaultNoMacaroons  = false
+	defaultMacaroonPath = ""
+	defaultTlsPath      = ""
+	defaultLndUrl       = ""
 )
 
 func LoadConfig() (*Config, error) {
@@ -92,6 +101,9 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(DisableTelemetry, defaultDisableTelemetry)
 	viper.SetDefault(DbType, dbType)
 	viper.SetDefault(NoMacaroons, defaultNoMacaroons)
+	viper.SetDefault(MacaroonPath, defaultMacaroonPath)
+	viper.SetDefault(TlsPath, defaultTlsPath)
+	viper.SetDefault(LNDUrl, defaultLndUrl)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
@@ -113,6 +125,9 @@ func LoadConfig() (*Config, error) {
 		BoltzURL:         viper.GetString(BoltzURL),
 		BoltzWSURL:       viper.GetString(BoltzWSURL),
 		CLNDatadir:       cleanAndExpandPath(viper.GetString(CLNDatadir)),
+		MacaroonPath:     cleanAndExpandPath(viper.GetString(MacaroonPath)),
+		TlsPath:          cleanAndExpandPath(viper.GetString(TlsPath)),
+		LNDUrl:           viper.GetString(LNDUrl),
 		UnlockerType:     viper.GetString(UnlockerType),
 		UnlockerFilePath: viper.GetString(UnlockerFilePath),
 		UnlockerPassword: viper.GetString(UnlockerPassword),

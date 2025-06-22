@@ -36,12 +36,16 @@ services:
       - FULMINE_BOLTZ_URL=http://boltz:9001
       - FULMINE_BOLTZ_WS_URL=ws://boltz:9004
       - FULMINE_NO_MACAROONS=true
+      - FULMINE_LND_MACAROON_PATH=/app/data/lnd/data/chain/bitcoin/regtest/admin.macaroon
+      - FULMINE_LN_TLS_PATH=/app/data/lnd/tls.cert
+      - FULMINE_LND_URL=lnd:10009
     ports:
       - "7000:7000"
       - "7001:7001"
     volumes:
       - type: tmpfs
         target: /app/data
+      - ~/.nigiri/volumes/lnd:/app/data/lnd
 
 networks:
   default:

@@ -8,8 +8,8 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/internal/config"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db"
-	lnd "github.com/ArkLabsHQ/fulmine/internal/infrastructure/lnd"
 	scheduler "github.com/ArkLabsHQ/fulmine/internal/infrastructure/scheduler/gocron"
 	grpcservice "github.com/ArkLabsHQ/fulmine/internal/interface/grpc"
 	"github.com/ark-network/ark/pkg/client-sdk/store"
@@ -106,11 +106,23 @@ func main() {
 	}
 
 	schedulerSvc := scheduler.NewScheduler()
-	lnSvc := lnd.NewService()
+
+	var connectionOpts domain.ConnectionOpts
+
+	// Input the macaroons path and TLS path from the config if present
+	if cfg.LNDUrl != "" && cfg.MacaroonPath != "" && cfg.TlsPath != "" {
+		connectionOpts = domain.ConnectionOpts{
+			Host:            cfg.LNDUrl,
+			LndMacaroonPath: cfg.MacaroonPath,
+			TlsCertPath:     cfg.TlsPath,
+		}
+	}
+
+	// Todo: (Joshua) - Also Integrate CLN
 
 	appSvc, err := application.NewService(
-		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc, lnSvc,
-		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL,
+		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc,
+		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, &connectionOpts,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init application service")
