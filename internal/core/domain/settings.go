@@ -4,7 +4,7 @@ import (
 	"context"
 )
 
-type ConnectionOpts struct {
+type LnConnectionOpts struct {
 	LndMacaroonPath   string `json:"lnd_macaroon_path"`
 	TlsCertPath       string `json:"tls_cert_path"`
 	ClnRootCertPath   string `json:"cln_root_cert_path"`
@@ -22,7 +22,7 @@ type Settings struct {
 	FullNode       string
 	LnUrl          string
 	Unit           string
-	ConnectionOpts *ConnectionOpts
+	ConnectionOpts *LnConnectionOpts
 }
 
 type SettingsRepository interface {

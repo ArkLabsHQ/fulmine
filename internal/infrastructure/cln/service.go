@@ -59,7 +59,7 @@ func (s *service) Connect(ctx context.Context, clnConnectUrl string) error {
 	return nil
 }
 
-func (s *service) ConnectWithOpts(ctx context.Context, opts *domain.ConnectionOpts) error {
+func (s *service) ConnectWithOpts(ctx context.Context, opts *domain.LnConnectionOpts) error {
 	cred, err := parseClnPath(opts.TlsCertPath, opts.ClnCertChainPath, opts.ClnCertChainPath)
 	if err != nil {
 		return fmt.Errorf("error parsing cln path: %w", err)

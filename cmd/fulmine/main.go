@@ -107,22 +107,31 @@ func main() {
 
 	schedulerSvc := scheduler.NewScheduler()
 
-	var connectionOpts domain.ConnectionOpts
+	var lnConnectionOpts domain.LnConnectionOpts
 
-	// Input the macaroons path and TLS path from the config if present
-	if cfg.LNDUrl != "" && cfg.MacaroonPath != "" && cfg.TlsPath != "" {
-		connectionOpts = domain.ConnectionOpts{
-			Host:            cfg.LNDUrl,
-			LndMacaroonPath: cfg.MacaroonPath,
-			TlsCertPath:     cfg.TlsPath,
+	// If PreConfiguration is provided
+	if cfg.TlsPath != "" {
+		if cfg.LndUrl != "" && cfg.LndMacaroonPath != "" {
+			lnConnectionOpts = domain.LnConnectionOpts{
+				Host:            cfg.LndUrl,
+				LndMacaroonPath: cfg.LndMacaroonPath,
+				TlsCertPath:     cfg.TlsPath,
+			}
+		} else if cfg.ClnUrl != "" && cfg.ClnCertChainPath != "" && cfg.ClnPrivateKeyPath != "" {
+			lnConnectionOpts = domain.LnConnectionOpts{
+				Host:              cfg.ClnUrl,
+				ClnCertChainPath:  cfg.ClnCertChainPath,
+				ClnPrivateKeyPath: cfg.ClnPrivateKeyPath,
+				TlsCertPath:       cfg.TlsPath,
+			}
+		} else {
+			log.Warn("Incomplete LN Configuration")
 		}
 	}
 
-	// Todo: (Joshua) - Also Integrate CLN
-
 	appSvc, err := application.NewService(
 		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc,
-		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, &connectionOpts,
+		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, &lnConnectionOpts,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init application service")

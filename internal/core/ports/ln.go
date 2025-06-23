@@ -8,7 +8,7 @@ import (
 
 type LnService interface {
 	Connect(ctx context.Context, lndConnectUrl string) error
-	ConnectWithOpts(ctx context.Context, opts *domain.ConnectionOpts) error
+	ConnectWithOpts(ctx context.Context, opts *domain.LnConnectionOpts) error
 	IsConnected() bool
 	GetInfo(ctx context.Context) (version string, pubkey string, err error)
 	GetInvoice(ctx context.Context, value uint64, note, preimage string) (invoice string, preimageHash string, err error)

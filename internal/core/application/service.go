@@ -116,7 +116,7 @@ func NewService(
 	dbSvc ports.RepoManager,
 	schedulerSvc ports.SchedulerService,
 	esploraUrl, boltzUrl, boltzWSUrl string,
-	connectionOpts *domain.ConnectionOpts,
+	connectionOpts *domain.LnConnectionOpts,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadArkClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())

@@ -28,7 +28,7 @@ var (
 		FullNode:    "fullnode",
 		LnUrl:       "lndconnect",
 		Unit:        "unit",
-		ConnectionOpts: &domain.ConnectionOpts{
+		ConnectionOpts: &domain.LnConnectionOpts{
 			LndMacaroonPath:   "lnd_macaroon_path",
 			TlsCertPath:       "tls_cert_path",
 			ClnRootCertPath:   "cln_root_cert_path",
@@ -158,7 +158,7 @@ func testAddSettings(t *testing.T, repo domain.SettingsRepository) {
 
 func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 	t.Run("update settings", func(t *testing.T) {
-		newConnectionOpts := domain.ConnectionOpts{
+		newConnectionOpts := domain.LnConnectionOpts{
 			LndMacaroonPath:   "updated_lnd_macaroon_path",
 			TlsCertPath:       "updated_tls_cert_path",
 			ClnRootCertPath:   "updated_cln_root_cert_path",

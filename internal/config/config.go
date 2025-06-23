@@ -22,45 +22,51 @@ const (
 )
 
 type Config struct {
-	Datadir          string
-	DbType           string
-	GRPCPort         uint32
-	HTTPPort         uint32
-	WithTLS          bool
-	LogLevel         uint32
-	ArkServer        string
-	EsploraURL       string
-	BoltzURL         string
-	BoltzWSURL       string
-	CLNDatadir       string // for testing purposes only
-	UnlockerType     string
-	UnlockerFilePath string
-	UnlockerPassword string
-	DisableTelemetry bool
-	MacaroonPath     string
-	TlsPath          string
-	LNDUrl           string
+	Datadir           string
+	DbType            string
+	GRPCPort          uint32
+	HTTPPort          uint32
+	WithTLS           bool
+	LogLevel          uint32
+	ArkServer         string
+	EsploraURL        string
+	BoltzURL          string
+	BoltzWSURL        string
+	CLNDatadir        string // for testing purposes only
+	UnlockerType      string
+	UnlockerFilePath  string
+	UnlockerPassword  string
+	DisableTelemetry  bool
+	LndMacaroonPath   string
+	TlsPath           string
+	LndUrl            string
+	ClnUrl            string
+	ClnCertChainPath  string
+	ClnPrivateKeyPath string
 
 	unlocker    ports.Unlocker
 	macaroonSvc macaroon.Service
 }
 
 var (
-	Datadir          = "DATADIR"
-	DbType           = "DB_TYPE"
-	GRPCPort         = "GRPC_PORT"
-	HTTPPort         = "HTTP_PORT"
-	WithTLS          = "WITH_TLS"
-	LogLevel         = "LOG_LEVEL"
-	ArkServer        = "ARK_SERVER"
-	EsploraURL       = "ESPLORA_URL"
-	BoltzURL         = "BOLTZ_URL"
-	BoltzWSURL       = "BOLTZ_WS_URL"
-	DisableTelemetry = "DISABLE_TELEMETRY"
-	NoMacaroons      = "NO_MACAROONS"
-	MacaroonPath     = "LND_MACAROON_PATH"
-	TlsPath          = "LN_TLS_PATH"
-	LNDUrl           = "LND_URL"
+	Datadir           = "DATADIR"
+	DbType            = "DB_TYPE"
+	GRPCPort          = "GRPC_PORT"
+	HTTPPort          = "HTTP_PORT"
+	WithTLS           = "WITH_TLS"
+	LogLevel          = "LOG_LEVEL"
+	ArkServer         = "ARK_SERVER"
+	EsploraURL        = "ESPLORA_URL"
+	BoltzURL          = "BOLTZ_URL"
+	BoltzWSURL        = "BOLTZ_WS_URL"
+	DisableTelemetry  = "DISABLE_TELEMETRY"
+	NoMacaroons       = "NO_MACAROONS"
+	LndMacaroonPath   = "LND_MACAROON_PATH"
+	TlsPath           = "LN_TLS_PATH"
+	LndUrl            = "LND_URL"
+	ClnUrl            = "CLN_URL"
+	ClnCertChainPath  = "CLN_CERT_CHAIN_PATH"
+	ClnPrivateKeyPath = "CLN_PRIVATE_KEY_PATH"
 
 	// Only for testing purposes
 	CLNDatadir = "CLN_DATADIR"
@@ -82,10 +88,13 @@ var (
 		sqliteDb: {},
 		badgerDb: {},
 	}
-	defaultNoMacaroons  = false
-	defaultMacaroonPath = ""
-	defaultTlsPath      = ""
-	defaultLndUrl       = ""
+	defaultNoMacaroons       = false
+	defaultMacaroonPath      = ""
+	defaultTlsPath           = ""
+	defaultLndUrl            = ""
+	defaultClnUrl            = ""
+	defaultClnCertChainPath  = ""
+	defaultClnPrivateKeyPath = ""
 )
 
 func LoadConfig() (*Config, error) {
@@ -101,9 +110,12 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(DisableTelemetry, defaultDisableTelemetry)
 	viper.SetDefault(DbType, dbType)
 	viper.SetDefault(NoMacaroons, defaultNoMacaroons)
-	viper.SetDefault(MacaroonPath, defaultMacaroonPath)
+	viper.SetDefault(LndMacaroonPath, defaultMacaroonPath)
 	viper.SetDefault(TlsPath, defaultTlsPath)
-	viper.SetDefault(LNDUrl, defaultLndUrl)
+	viper.SetDefault(LndUrl, defaultLndUrl)
+	viper.SetDefault(ClnUrl, defaultClnUrl)
+	viper.SetDefault(ClnCertChainPath, defaultClnCertChainPath)
+	viper.SetDefault(ClnPrivateKeyPath, defaultClnPrivateKeyPath)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
@@ -114,24 +126,27 @@ func LoadConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		Datadir:          viper.GetString(Datadir),
-		DbType:           viper.GetString(DbType),
-		GRPCPort:         viper.GetUint32(GRPCPort),
-		HTTPPort:         viper.GetUint32(HTTPPort),
-		WithTLS:          viper.GetBool(WithTLS),
-		LogLevel:         viper.GetUint32(LogLevel),
-		ArkServer:        viper.GetString(ArkServer),
-		EsploraURL:       viper.GetString(EsploraURL),
-		BoltzURL:         viper.GetString(BoltzURL),
-		BoltzWSURL:       viper.GetString(BoltzWSURL),
-		CLNDatadir:       cleanAndExpandPath(viper.GetString(CLNDatadir)),
-		MacaroonPath:     cleanAndExpandPath(viper.GetString(MacaroonPath)),
-		TlsPath:          cleanAndExpandPath(viper.GetString(TlsPath)),
-		LNDUrl:           viper.GetString(LNDUrl),
-		UnlockerType:     viper.GetString(UnlockerType),
-		UnlockerFilePath: viper.GetString(UnlockerFilePath),
-		UnlockerPassword: viper.GetString(UnlockerPassword),
-		DisableTelemetry: viper.GetBool(DisableTelemetry),
+		Datadir:           viper.GetString(Datadir),
+		DbType:            viper.GetString(DbType),
+		GRPCPort:          viper.GetUint32(GRPCPort),
+		HTTPPort:          viper.GetUint32(HTTPPort),
+		WithTLS:           viper.GetBool(WithTLS),
+		LogLevel:          viper.GetUint32(LogLevel),
+		ArkServer:         viper.GetString(ArkServer),
+		EsploraURL:        viper.GetString(EsploraURL),
+		BoltzURL:          viper.GetString(BoltzURL),
+		BoltzWSURL:        viper.GetString(BoltzWSURL),
+		CLNDatadir:        cleanAndExpandPath(viper.GetString(CLNDatadir)),
+		LndMacaroonPath:   cleanAndExpandPath(viper.GetString(LndMacaroonPath)),
+		TlsPath:           cleanAndExpandPath(viper.GetString(TlsPath)),
+		ClnCertChainPath:  cleanAndExpandPath(viper.GetString(ClnCertChainPath)),
+		ClnPrivateKeyPath: cleanAndExpandPath(viper.GetString(ClnPrivateKeyPath)),
+		LndUrl:            viper.GetString(LndUrl),
+		ClnUrl:            viper.GetString(ClnUrl),
+		UnlockerType:      viper.GetString(UnlockerType),
+		UnlockerFilePath:  viper.GetString(UnlockerFilePath),
+		UnlockerPassword:  viper.GetString(UnlockerPassword),
+		DisableTelemetry:  viper.GetBool(DisableTelemetry),
 	}
 
 	if err := config.initUnlockerService(); err != nil {

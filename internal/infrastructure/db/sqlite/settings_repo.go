@@ -145,7 +145,7 @@ func (s *settingsRepository) GetSettings(ctx context.Context) (*domain.Settings,
 		return nil, err
 	}
 
-	var lnConnectionOpts domain.ConnectionOpts
+	var lnConnectionOpts domain.LnConnectionOpts
 
 	if row.LnConnectionOpts.Valid {
 		if err := json.Unmarshal([]byte(row.LnConnectionOpts.String), &lnConnectionOpts); err != nil {

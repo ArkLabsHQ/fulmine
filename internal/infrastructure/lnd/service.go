@@ -62,7 +62,7 @@ func (s *service) Connect(ctx context.Context, lndConnectUrl string) error {
 	return nil
 }
 
-func (s *service) ConnectWithOpts(ctx context.Context, opts *domain.ConnectionOpts) error {
+func (s *service) ConnectWithOpts(ctx context.Context, opts *domain.LnConnectionOpts) error {
 	tlsCert, macaroon, err := parseLndTLSAndMacaroon(opts.TlsCertPath, opts.LndMacaroonPath)
 	if err != nil {
 		return err
