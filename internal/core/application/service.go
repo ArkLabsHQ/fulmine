@@ -1,8 +1,12 @@
 package application
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -36,10 +40,8 @@ import (
 	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/ccoveille/go-safecast"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/lightningnetwork/lnd/input"
 	log "github.com/sirupsen/logrus"
-
-	// nolint:staticcheck
-	"golang.org/x/crypto/ripemd160"
 )
 
 const (
@@ -249,6 +251,16 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		return err
 	}
 
+	url := s.boltzUrl
+	wsUrl := s.boltzWSUrl
+	if url == "" {
+		url = boltzURLByNetwork[config.Network.Name]
+	}
+	if wsUrl == "" {
+		wsUrl = boltzURLByNetwork[config.Network.Name]
+	}
+	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
+
 	s.esploraUrl = config.ExplorerURL
 	s.publicKey = prvKey.PubKey()
 	s.grpcClient = client
@@ -354,16 +366,17 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		if err := s.lnSvc.Connect(ctx, settings.LnUrl); err != nil {
 			log.WithError(err).Warn("failed to connect to ln node")
 		}
-		url := s.boltzUrl
-		wsUrl := s.boltzWSUrl
-		if url == "" {
-			url = boltzURLByNetwork[data.Network.Name]
-		}
-		if wsUrl == "" {
-			wsUrl = boltzURLByNetwork[data.Network.Name]
-		}
-		s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 	}
+
+	url := s.boltzUrl
+	wsUrl := s.boltzWSUrl
+	if url == "" {
+		url = boltzURLByNetwork[data.Network.Name]
+	}
+	if wsUrl == "" {
+		wsUrl = boltzURLByNetwork[data.Network.Name]
+	}
+	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 
 	offchainAddress, onchainAddress, err := s.Receive(ctx)
 	if err != nil {
@@ -445,16 +458,29 @@ func (s *Service) UpdateSettings(ctx context.Context, settings domain.Settings) 
 	return s.dbSvc.Settings().UpdateSettings(ctx, settings)
 }
 
-func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, string, string, error) {
+func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, string, string, string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", "", "", "", err
+		return "", "", "", "", "", err
 	}
+
+	var invoice string
+	fmt.Printf("get address with %d sat and %t\n", sats, sats > 1000)
 
 	offchainAddr, boardingAddr, err := s.Receive(ctx)
 	if err != nil {
-		return "", "", "", "", err
+		return "", "", "", "", "", err
 	}
+
 	bip21Addr := fmt.Sprintf("bitcoin:%s?ark=%s", boardingAddr, offchainAddr)
+
+	if sats > 1000 {
+		invoice, err = s.GetInvoice(ctx, sats)
+		fmt.Printf("invoice: %s and err: %s\n", invoice, err)
+		if err == nil && len(invoice) > 0 {
+			bip21Addr += fmt.Sprintf("&lightning=%s", invoice)
+		}
+	}
+
 	// add amount if passed
 	if sats > 0 {
 		btc := float64(sats) / 100000000.0
@@ -462,7 +488,7 @@ func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, 
 		bip21Addr += fmt.Sprintf("&amount=%s", amount)
 	}
 	pubkey := hex.EncodeToString(s.publicKey.SerializeCompressed())
-	return bip21Addr, offchainAddr, boardingAddr, pubkey, nil
+	return bip21Addr, offchainAddr, boardingAddr, invoice, pubkey, nil
 }
 
 func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
@@ -520,27 +546,12 @@ func (s *Service) WhenNextSettlement(ctx context.Context) time.Time {
 }
 
 func (s *Service) ConnectLN(ctx context.Context, connectUrl string) error {
-	data, err := s.GetConfigData(ctx)
-	if err != nil {
-		return err
-	}
-
 	if strings.HasPrefix(connectUrl, "clnconnect:") {
 		s.lnSvc = cln.NewService()
 	}
 	if err := s.lnSvc.Connect(ctx, connectUrl); err != nil {
 		return err
 	}
-
-	url := s.boltzUrl
-	wsUrl := s.boltzWSUrl
-	if url == "" {
-		url = boltzURLByNetwork[data.Network.Name]
-	}
-	if wsUrl == "" {
-		wsUrl = boltzURLByNetwork[data.Network.Name]
-	}
-	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 	return nil
 }
 
@@ -560,95 +571,29 @@ func (s *Service) GetVHTLC(
 	unilateralClaimDelayParam *common.RelativeLocktime,
 	unilateralRefundDelayParam *common.RelativeLocktime,
 	unilateralRefundWithoutReceiverDelayParam *common.RelativeLocktime,
-	persistToDb bool,
 ) (string, *vhtlc.VHTLCScript, *vhtlc.Opts, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", nil, nil, err
 	}
 
-	receiverPubkeySet := receiverPubkey != nil
-	senderPubkeySet := senderPubkey != nil
-	if receiverPubkeySet == senderPubkeySet {
-		return "", nil, nil, fmt.Errorf("only one of receiver and sender pubkey must be set")
-	}
-	if !receiverPubkeySet {
-		receiverPubkey = s.publicKey
-	}
-	if !senderPubkeySet {
-		senderPubkey = s.publicKey
-	}
-
-	offchainAddr, _, err := s.Receive(ctx)
+	addr, script, opts, err := s.getVHTLC(
+		ctx, receiverPubkey, senderPubkey, preimageHash,
+		refundLocktimeParam, unilateralClaimDelayParam, unilateralRefundDelayParam,
+		unilateralRefundWithoutReceiverDelayParam,
+	)
 	if err != nil {
 		return "", nil, nil, err
 	}
 
-	decodedAddr, err := common.DecodeAddress(offchainAddr)
-	if err != nil {
-		return "", nil, nil, err
-	}
-
-	// Default values if not provided
-	refundLocktime := common.AbsoluteLocktime(80 * 600) // 80 blocks
-	if refundLocktimeParam != nil {
-		refundLocktime = *refundLocktimeParam
-	}
-
-	unilateralClaimDelay := common.RelativeLocktime{
-		Type:  common.LocktimeTypeSecond,
-		Value: 512, //60 * 12, // 12 hours
-	}
-	if unilateralClaimDelayParam != nil {
-		unilateralClaimDelay = *unilateralClaimDelayParam
-	}
-
-	unilateralRefundDelay := common.RelativeLocktime{
-		Type:  common.LocktimeTypeSecond,
-		Value: 1024, //60 * 24, // 24 hours
-	}
-	if unilateralRefundDelayParam != nil {
-		unilateralRefundDelay = *unilateralRefundDelayParam
-	}
-
-	unilateralRefundWithoutReceiverDelay := common.RelativeLocktime{
-		Type:  common.LocktimeTypeBlock,
-		Value: 224, // 224 blocks
-	}
-	if unilateralRefundWithoutReceiverDelayParam != nil {
-		unilateralRefundWithoutReceiverDelay = *unilateralRefundWithoutReceiverDelayParam
-	}
-
-	opts := vhtlc.Opts{
-		Sender:                               senderPubkey,
-		Receiver:                             receiverPubkey,
-		Server:                               decodedAddr.Server,
-		PreimageHash:                         preimageHash,
-		RefundLocktime:                       refundLocktime,
-		UnilateralClaimDelay:                 unilateralClaimDelay,
-		UnilateralRefundDelay:                unilateralRefundDelay,
-		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
-	}
-	vHTLC, err := vhtlc.NewVHTLCScript(opts)
-	if err != nil {
-		return "", nil, nil, err
-	}
-
-	// nolint
-	cfg, _ := s.GetConfigData(ctx)
-
-	encodedAddr, err := vHTLC.Address(cfg.Network.Addr, cfg.ServerPubKey)
-	if err != nil {
-		return "", nil, nil, err
-	}
-
-	// store the vhtlc options for future use
-	if persistToDb {
-		if err := s.dbSvc.VHTLC().Add(ctx, opts); err != nil {
-			return "", nil, nil, err
+	go func() {
+		if err := s.dbSvc.VHTLC().Add(context.Background(), *opts); err != nil {
+			log.WithError(err).Fatal("failed to add vhtlc")
 		}
-	}
 
-	return encodedAddr, vHTLC, &opts, nil
+		log.Debugf("added new vhtlc %x", preimageHash)
+	}()
+
+	return addr, script, opts, nil
 }
 
 func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]client.Vtxo, []vhtlc.Opts, error) {
@@ -709,38 +654,6 @@ func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string, 
 	return s.refundVHTLC(ctx, swapId, withReceiver, *vhtlcOpts)
 }
 
-func (s *Service) GetInvoice(ctx context.Context, amount uint64, memo, preimage string) (string, string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", "", err
-	}
-
-	if !s.lnSvc.IsConnected() {
-		return "", "", fmt.Errorf("not connected to LN")
-	}
-
-	return s.lnSvc.GetInvoice(ctx, amount, memo, preimage)
-}
-
-func (s *Service) DecodeInvoice(ctx context.Context, invoice string) (uint64, []byte, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return 0, nil, err
-	}
-
-	return s.lnSvc.DecodeInvoice(ctx, invoice)
-}
-
-func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
-	}
-
-	if !s.lnSvc.IsConnected() {
-		return "", fmt.Errorf("not connected to LN")
-	}
-
-	return s.lnSvc.PayInvoice(ctx, invoice)
-}
-
 func (s *Service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return false, err
@@ -770,96 +683,13 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
-
-	// get our pubkey
-	_, _, _, pk, err := s.GetAddress(ctx, 0)
+	_, _, _, _, pk, err := s.GetAddress(ctx, 0)
 	if err != nil {
-		return "", fmt.Errorf("failed to get address: %s", err)
+		return "", err
 	}
+	pubkey, _ := hex.DecodeString(pk)
 
-	myPubkey, _ := hex.DecodeString(pk)
-
-	// make swap
-	swap, err := s.boltzSvc.CreateReverseSwap(boltz.CreateReverseSwapRequest{
-		From:           boltz.CurrencyBtc,
-		To:             boltz.CurrencyArk,
-		InvoiceAmount:  amount,
-		ClaimPublicKey: hex.EncodeToString(myPubkey),
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to make reverse submarine swap: %v", err)
-	}
-
-	// verify vHTLC
-	senderPubkey, err := parsePubkey(swap.RefundPublicKey)
-	if err != nil {
-		return "", fmt.Errorf("invalid refund pubkey: %v", err)
-	}
-
-	// TODO: verify amount
-	_, preimageHash, err := s.DecodeInvoice(ctx, swap.Invoice)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode invoice: %v", err)
-	}
-
-	ripe := ripemd160.New()
-	ripe.Write(preimageHash)
-	preimageHashRipemd160 := ripe.Sum(nil)
-
-	vhtlcAddress, _, opts, err := s.GetVHTLC(
-		ctx,
-		nil,
-		senderPubkey,
-		preimageHashRipemd160,
-		nil,
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
-		false,
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
-	}
-
-	if swap.LockupAddress != vhtlcAddress {
-		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
-	}
-
-	// pay the invoice
-	preimage, err := s.PayInvoice(ctx, swap.Invoice)
-	if err != nil {
-		return "", fmt.Errorf("failed to pay invoice: %v", err)
-	}
-
-	decodedPreimage, err := hex.DecodeString(preimage)
-	if err != nil {
-		return "", fmt.Errorf("invalid preimage: %v", err)
-	}
-
-	txid, err := s.claimVHTLC(ctx, decodedPreimage, *opts)
-	if err != nil {
-		return "", fmt.Errorf("failed to claim vHTLC: %v", err)
-	}
-
-	go func() {
-		if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
-			Id:         swap.Id,
-			Amount:     amount,
-			Timestamp:  time.Now().Unix(),
-			Invoice:    swap.Invoice,
-			To:         boltz.CurrencyArk,
-			From:       boltz.CurrencyBtc,
-			Status:     domain.SwapSuccess,
-			VhtlcOpts:  *opts,
-			RedeemTxId: txid,
-		}); err != nil {
-			log.WithError(err).Fatal("failed to store swap")
-		}
-		log.Debugf("added new swap %s", swap.Id)
-	}()
-
-	return txid, err
-
+	return s.reverseSwap(ctx, amount, pubkey)
 }
 
 // ark -> ln (submarine swap)
@@ -868,149 +698,13 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 		return "", err
 	}
 
-	// get our pubkey
-	_, _, _, pk, err := s.GetAddress(ctx, 0)
+	_, _, _, _, pk, err := s.GetAddress(ctx, 0)
 	if err != nil {
-		return "", fmt.Errorf("failed to get address: %v", err)
+		return "", err
 	}
+	pubkey, _ := hex.DecodeString(pk)
 
-	myPubkey, _ := hex.DecodeString(pk)
-
-	// generate invoice where to receive funds
-	invoice, preimageHash, err := s.GetInvoice(ctx, amount, "increase outbound capacity", "")
-	if err != nil {
-		return "", fmt.Errorf("failed to create invoice: %w", err)
-	}
-
-	// make swap
-	swap, err := s.boltzSvc.CreateSwap(boltz.CreateSwapRequest{
-		From:            boltz.CurrencyArk,
-		To:              boltz.CurrencyBtc,
-		Invoice:         invoice,
-		RefundPublicKey: hex.EncodeToString(myPubkey),
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to make submarine swap: %v", err)
-	}
-
-	preimageHashBytes, err := hex.DecodeString(preimageHash)
-	if err != nil {
-		return "", fmt.Errorf("invalid preimage hash: %v", err)
-	}
-
-	receiverPubkey, err := parsePubkey(swap.ClaimPublicKey)
-	if err != nil {
-		return "", fmt.Errorf("invalid claim pubkey: %v", err)
-	}
-
-	address, _, opts, err := s.GetVHTLC(
-		ctx,
-		receiverPubkey,
-		nil,
-		preimageHashBytes,
-		nil,
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
-		false,
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
-	}
-	if swap.Address != address {
-		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
-	}
-
-	// pay to vHTLC address
-	receivers := []arksdk.Receiver{arksdk.NewBitcoinReceiver(swap.Address, amount)}
-	txid, err := s.SendOffChain(ctx, false, receivers, true)
-	if err != nil {
-		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
-	}
-
-	// TODO workaround to connect ws endpoint on a different port for regtest
-	wsClient := s.boltzSvc
-	if s.boltzSvc.URL == boltzURLByNetwork[common.BitcoinRegTest.Name] {
-		wsClient = &boltz.Api{WSURL: "ws://localhost:9004"}
-	}
-
-	ws := wsClient.NewWebsocket()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	err = ws.Connect()
-	for err != nil {
-		log.WithError(err).Warn("failed to connect to boltz websocket")
-		time.Sleep(time.Second)
-		log.Debug("reconnecting...")
-		err = ws.Connect()
-		if ctx.Err() != nil {
-			return "", fmt.Errorf("timeout while connecting to websocket: %v", ctx.Err())
-		}
-	}
-
-	err = ws.Subscribe([]string{swap.Id})
-	for err != nil {
-		log.WithError(err).Warn("failed to subscribe for swap events")
-		time.Sleep(time.Second)
-		log.Debug("retrying...")
-		err = ws.Subscribe([]string{swap.Id})
-	}
-
-	for update := range ws.Updates {
-		parsedStatus := boltz.ParseEvent(update.Status)
-
-		switch parsedStatus {
-		// TODO: ensure these are the right events to react to in case the vhtlc needs to be refunded.
-		case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
-			withReceiver := true
-
-			refundTxid, err := s.refundVHTLC(context.Background(), swap.Id, withReceiver, *opts)
-			if err != nil {
-				return "", fmt.Errorf("failed to refund vHTLC: %s", err)
-			}
-
-			go func() {
-				if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
-					Id:          swap.Id,
-					Amount:      amount,
-					Timestamp:   time.Now().Unix(),
-					Status:      domain.SwapFailed,
-					Invoice:     invoice,
-					FundingTxId: txid,
-					RedeemTxId:  refundTxid,
-					To:          boltz.CurrencyBtc,
-					From:        boltz.CurrencyArk,
-					VhtlcOpts:   *opts,
-				}); err != nil {
-					log.WithError(err).Fatal("failed to store swap")
-				}
-				log.Debugf("added new refunded swap %s", swap.Id)
-			}()
-
-			return "", fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
-		case boltz.TransactionClaimed:
-			go func() {
-				if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
-					Id:          swap.Id,
-					Amount:      amount,
-					Timestamp:   time.Now().Unix(),
-					Status:      domain.SwapSuccess,
-					Invoice:     invoice,
-					FundingTxId: txid,
-					To:          boltz.CurrencyBtc,
-					From:        boltz.CurrencyArk,
-					VhtlcOpts:   *opts,
-				}); err != nil {
-					log.WithError(err).Fatal("failed to store swap")
-				}
-				log.Debugf("added new swap %s", swap.Id)
-			}()
-
-			return txid, nil
-		}
-	}
-
-	return "", fmt.Errorf("something went wrong")
+	return s.submarineSwap(ctx, amount, "", pubkey)
 }
 
 func (s *Service) subscribeForScripts(ctx context.Context, scripts []string) error {
@@ -1223,6 +917,39 @@ func (s *Service) IsLocked(ctx context.Context) bool {
 	}
 
 	return s.ArkClient.IsLocked(ctx)
+}
+
+func (s *Service) GetInvoice(ctx context.Context, amount uint64) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	preimage := make([]byte, 32)
+	if _, err := rand.Read(preimage); err != nil {
+		return "", fmt.Errorf("failed to generate preimage: %w", err)
+	}
+
+	_, _, _, _, pk, err := s.GetAddress(ctx, 0)
+	if err != nil {
+		return "", err
+	}
+	pubkey, _ := hex.DecodeString(pk)
+
+	return s.reverseSwapWithPreimage(ctx, amount, preimage, pubkey)
+}
+
+func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	_, _, _, _, pk, err := s.GetAddress(ctx, 0)
+	if err != nil {
+		return "", err
+	}
+	pubkey, _ := hex.DecodeString(pk)
+
+	return s.submarineSwap(ctx, 0, invoice, pubkey)
 }
 
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
@@ -1480,6 +1207,424 @@ func (s *Service) handleInternalAddressEventChannel(eventsCh <-chan client.Addre
 	}
 }
 
+// swap takes care of interacting with the Boltz server to make a submarine swap.
+// The function can be used by passing either an amount or an invoice. The args are mutually exclusive.
+// When passing an amount, the invoice is generated by us, otherwise it means its generated by
+// somebody else. In any case, we fund the VHTLC and make sure that it succeeds before returning,
+// otherwise the VHTLC is refunded if necessary.
+func (s *Service) submarineSwap(ctx context.Context, amount uint64, invoice string, pubkey []byte) (string, error) {
+	if amount > 0 && invoice != "" {
+		return "", errors.New("amount and invoice cannot be specified at the same time")
+	}
+
+	// Get our pubkey
+	_, _, _, _, pk, err := s.GetAddress(ctx, 0)
+	if err != nil {
+		return "", fmt.Errorf("failed to get address: %v", err)
+	}
+	myPubkey, _ := hex.DecodeString(pk)
+
+	var preimageHash []byte
+	if len(invoice) > 0 && amount == 0 {
+		amount, preimageHash, err = utils.DecodeInvoice(invoice)
+		fmt.Printf("amount: %d, preimageHash: %x\n", amount, preimageHash)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode invoice: %v", err)
+		}
+	} else {
+		// Get invoice from the connected LN service
+		inv, preimageHashStr, err := s.getInvoiceLN(ctx, amount, "increase outbound capacity", "")
+		if err != nil {
+			return "", fmt.Errorf("failed to create invoice: %w", err)
+		}
+		invoice = inv
+		// nolint
+		preimageHash, _ = hex.DecodeString(preimageHashStr)
+	}
+
+	fmt.Printf("boltzScv %+v\n", s.boltzSvc)
+	// Create the swap
+	swap, err := s.boltzSvc.CreateSwap(boltz.CreateSwapRequest{
+		From:            boltz.CurrencyArk,
+		To:              boltz.CurrencyBtc,
+		Invoice:         invoice,
+		RefundPublicKey: hex.EncodeToString(myPubkey),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to make submarine swap: %v", err)
+	}
+
+	receiverPubkey, err := parsePubkey(swap.ClaimPublicKey)
+	if err != nil {
+		return "", fmt.Errorf("invalid claim pubkey: %v", err)
+	}
+
+	address, _, _, err := s.getVHTLC(
+		ctx,
+		receiverPubkey,
+		nil,
+		preimageHash,
+		nil,
+		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
+		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
+		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
+	}
+	if swap.Address != address {
+		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
+	}
+
+	// Fund the VHTLC
+	receivers := []arksdk.Receiver{arksdk.NewBitcoinReceiver(swap.Address, amount)}
+	txid, err := s.SendOffChain(ctx, false, receivers, true)
+	if err != nil {
+		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
+	}
+
+	// Workaround to connect ws endpoint on a different port for regtest
+	wsClient := s.boltzSvc
+	if s.boltzSvc.URL == boltzURLByNetwork[common.BitcoinRegTest.Name] {
+		wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
+	}
+
+	ws := wsClient.NewWebsocket()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err = ws.Connect()
+	for err != nil {
+		log.WithError(err).Warn("failed to connect to boltz websocket")
+		time.Sleep(time.Second)
+		log.Debug("reconnecting...")
+		err = ws.Connect()
+		if ctx.Err() != nil {
+			return "", fmt.Errorf("timeout while connecting to websocket: %v", ctx.Err())
+		}
+	}
+
+	err = ws.Subscribe([]string{swap.Id})
+	for err != nil {
+		log.WithError(err).Warn("failed to subscribe for swap events")
+		time.Sleep(time.Second)
+		log.Debug("retrying...")
+		err = ws.Subscribe([]string{swap.Id})
+	}
+
+	for update := range ws.Updates {
+		parsedStatus := boltz.ParseEvent(update.Status)
+
+		switch parsedStatus {
+		case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
+			// Refund the VHTLC if the swap fails
+			withReceiver := true
+			txid, err := s.RefundVHTLC(
+				context.Background(), swap.Id, hex.EncodeToString(preimageHash), withReceiver,
+			)
+			if err != nil {
+				return "", fmt.Errorf("failed to refund vHTLC: %s", err)
+			}
+
+			return "", fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
+		case boltz.TransactionClaimed, boltz.InvoiceSet:
+			// Nothing left to do, return the VHTLC funding txid
+			return txid, nil
+		}
+	}
+
+	return "", fmt.Errorf("something went wrong")
+}
+
+// reverseSwap takes care of interacting with the Boltz server to make a reverse submarine swap.
+// Passing a preimage to this function means that the invoice generated by Boltz is expected
+// to be paid by somebody else, and therefore the swap status is watched before claiming the funds
+// locked in the VHTLC.
+// When the preimage is empty, the invoice returned by Boltz is expected to be paid by us, the preimage
+// is revealed and the funds locked in the VHTLC can be claimed without checking the swap status.
+func (s *Service) reverseSwap(ctx context.Context, amount uint64, myPubkey []byte) (string, error) {
+	// make swap
+	swap, err := s.boltzSvc.CreateReverseSwap(boltz.CreateReverseSwapRequest{
+		From:           boltz.CurrencyBtc,
+		To:             boltz.CurrencyArk,
+		InvoiceAmount:  amount,
+		ClaimPublicKey: hex.EncodeToString(myPubkey),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to make reverse submarine swap: %v", err)
+	}
+
+	// verify vHTLC
+	senderPubkey, err := parsePubkey(swap.RefundPublicKey)
+	if err != nil {
+		return "", fmt.Errorf("invalid refund pubkey: %v", err)
+	}
+
+	// verify preimage hash and invoice amount
+	invoiceAmount, gotPreimageHash, err := utils.DecodeInvoice(swap.Invoice)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode invoice: %v", err)
+	}
+
+	if invoiceAmount != amount {
+		return "", fmt.Errorf("invalid invoice amount: expected %d, got %d", amount, invoiceAmount)
+	}
+
+	vhtlcAddress, _, _, err := s.getVHTLC(
+		ctx,
+		nil,
+		senderPubkey,
+		gotPreimageHash,
+		nil,
+		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
+		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
+		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
+	}
+
+	if swap.LockupAddress != vhtlcAddress {
+		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
+	}
+
+	// Pay the invoice to reveal the preimage
+	preimageStr, err := s.payInvoiceLN(ctx, swap.Invoice)
+	if err != nil {
+		return "", fmt.Errorf("failed to pay invoice: %v", err)
+	}
+	preimage, err := hex.DecodeString(preimageStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid preimage: %v", err)
+	}
+
+	// Claim the funds locked in the VHTLC with the revealed preimage
+	return s.ClaimVHTLC(ctx, preimage)
+}
+
+func (s *Service) reverseSwapWithPreimage(ctx context.Context, amount uint64, preimage, myPubkey []byte) (string, error) {
+	var preimageHash []byte
+	buf := sha256.Sum256(preimage)
+	preimageHash = input.Ripemd160H(buf[:])
+
+	// make swap
+	swap, err := s.boltzSvc.CreateReverseSwap(boltz.CreateReverseSwapRequest{
+		From:           boltz.CurrencyBtc,
+		To:             boltz.CurrencyArk,
+		InvoiceAmount:  amount,
+		ClaimPublicKey: hex.EncodeToString(myPubkey),
+		PreimageHash:   hex.EncodeToString(preimageHash),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to make reverse submarine swap: %v", err)
+	}
+
+	// verify vHTLC
+	senderPubkey, err := parsePubkey(swap.RefundPublicKey)
+	if err != nil {
+		return "", fmt.Errorf("invalid refund pubkey: %v", err)
+	}
+
+	// verify preimage hash and invoice amount
+	invoiceAmount, gotPreimageHash, err := utils.DecodeInvoice(swap.Invoice)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode invoice: %v", err)
+	}
+
+	if !bytes.Equal(preimageHash, gotPreimageHash) {
+		return "", fmt.Errorf("invalid preimage hash: expected %x, got %x", preimageHash, gotPreimageHash)
+	}
+	if invoiceAmount != amount {
+		return "", fmt.Errorf("invalid invoice amount: expected %d, got %d", amount, invoiceAmount)
+	}
+
+	vhtlcAddress, _, vhtlcOpts, err := s.getVHTLC(
+		ctx,
+		nil,
+		senderPubkey,
+		gotPreimageHash,
+		nil,
+		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
+		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
+		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
+	}
+
+	if swap.LockupAddress != vhtlcAddress {
+		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
+	}
+
+	// Reavel the preimage to Boltz, Boltz should return a signed refund transaction
+	// that can be used to claim the VHTLC
+	refundTxResponse, err := s.boltzSvc.RevealPreimage(swap.Id, hex.EncodeToString(preimage))
+	if err != nil {
+		return "", fmt.Errorf("failed to reveal preimage: %v", err)
+	}
+
+	go func() {
+		// Wait until invoice is paid then proceed with claiming the VHTLC
+
+		// Workaround to connect ws endpoint on a different port for regtest
+		wsClient := s.boltzSvc
+		if s.boltzSvc.URL == boltzURLByNetwork[common.BitcoinRegTest.Name] {
+			wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
+		}
+
+		ws := wsClient.NewWebsocket()
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		err = ws.Connect()
+		for err != nil {
+			log.WithError(err).Warn("failed to connect to boltz websocket")
+			time.Sleep(time.Second)
+			log.Debug("reconnecting...")
+			err = ws.Connect()
+			if ctx.Err() != nil {
+				log.Warnf("timeout while connecting to websocket: %v", ctx.Err())
+				return
+			}
+		}
+
+		err = ws.Subscribe([]string{swap.Id})
+		for err != nil {
+			log.WithError(err).Warn("failed to subscribe for swap events")
+			time.Sleep(time.Second)
+			log.Debug("retrying...")
+			err = ws.Subscribe([]string{swap.Id})
+		}
+
+		for update := range ws.Updates {
+			log.Infof("WS update: %+v\n", update)
+			parsedStatus := boltz.ParseEvent(update.Status)
+
+			confirmed := false
+			switch parsedStatus {
+			case boltz.InvoiceSettled:
+				confirmed = true
+			case boltz.InvoiceFailedToPay, boltz.TransactionFailed, boltz.TransactionLockupFailed:
+				log.Warnf("something went wrong: %s", update.Status)
+				if _, err := s.claimVHTLC(ctx, preimage, *vhtlcOpts); err != nil {
+					log.Warnf("failed to claim vhtlc: %s", err)
+				}
+				return
+			}
+			if confirmed {
+				log.Infof("claiming VHTLC with preimage")
+				if _, err := s.claimVHTLCByRefund(ctx, refundTxResponse.Transaction); err != nil {
+					log.WithError(err).Debug("something went wrong, falling back to claim alone...")
+					if _, err := s.claimVHTLC(ctx, preimage, *vhtlcOpts); err != nil {
+						log.Warnf("failed to claim vhtlc: %s", err)
+					}
+				}
+				break
+			}
+		}
+	}()
+	return swap.Invoice, nil
+}
+
+func (s *Service) getInvoiceLN(ctx context.Context, amount uint64, memo, preimage string) (string, string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", "", err
+	}
+
+	if !s.lnSvc.IsConnected() {
+		return "", "", fmt.Errorf("not connected to LN")
+	}
+
+	return s.lnSvc.GetInvoice(ctx, amount, memo, preimage)
+}
+
+func (s *Service) payInvoiceLN(ctx context.Context, invoice string) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	if !s.lnSvc.IsConnected() {
+		return "", fmt.Errorf("not connected to LN")
+	}
+
+	return s.lnSvc.PayInvoice(ctx, invoice)
+}
+
+func (s *Service) getVHTLC(
+	ctx context.Context,
+	receiverPubkey, senderPubkey *secp256k1.PublicKey,
+	preimageHash []byte,
+	refundLocktimeParam *common.AbsoluteLocktime,
+	unilateralClaimDelayParam *common.RelativeLocktime,
+	unilateralRefundDelayParam *common.RelativeLocktime,
+	unilateralRefundWithoutReceiverDelayParam *common.RelativeLocktime,
+) (string, *vhtlc.VHTLCScript, *vhtlc.Opts, error) {
+	receiverPubkeySet := receiverPubkey != nil
+	senderPubkeySet := senderPubkey != nil
+	if receiverPubkeySet == senderPubkeySet {
+		return "", nil, nil, fmt.Errorf("only one of receiver and sender pubkey must be set")
+	}
+	if !receiverPubkeySet {
+		receiverPubkey = s.publicKey
+	}
+	if !senderPubkeySet {
+		senderPubkey = s.publicKey
+	}
+
+	// nolint
+	cfg, _ := s.GetConfigData(ctx)
+
+	// Default values if not provided
+	refundLocktime := common.AbsoluteLocktime(80 * 600) // 80 blocks
+	if refundLocktimeParam != nil {
+		refundLocktime = *refundLocktimeParam
+	}
+
+	unilateralClaimDelay := common.RelativeLocktime{
+		Type:  common.LocktimeTypeSecond,
+		Value: 512, //60 * 12, // 12 hours
+	}
+	if unilateralClaimDelayParam != nil {
+		unilateralClaimDelay = *unilateralClaimDelayParam
+	}
+
+	unilateralRefundDelay := common.RelativeLocktime{
+		Type:  common.LocktimeTypeSecond,
+		Value: 1024, //60 * 24, // 24 hours
+	}
+	if unilateralRefundDelayParam != nil {
+		unilateralRefundDelay = *unilateralRefundDelayParam
+	}
+
+	unilateralRefundWithoutReceiverDelay := common.RelativeLocktime{
+		Type:  common.LocktimeTypeBlock,
+		Value: 224, // 224 blocks
+	}
+	if unilateralRefundWithoutReceiverDelayParam != nil {
+		unilateralRefundWithoutReceiverDelay = *unilateralRefundWithoutReceiverDelayParam
+	}
+
+	opts := vhtlc.Opts{
+		Sender:                               senderPubkey,
+		Receiver:                             receiverPubkey,
+		Server:                               cfg.ServerPubKey,
+		PreimageHash:                         preimageHash,
+		RefundLocktime:                       refundLocktime,
+		UnilateralClaimDelay:                 unilateralClaimDelay,
+		UnilateralRefundDelay:                unilateralRefundDelay,
+		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
+	}
+	vHTLC, err := vhtlc.NewVHTLCScript(opts)
+	if err != nil {
+		return "", nil, nil, err
+	}
+
+	encodedAddr, err := vHTLC.Address(cfg.Network.Addr, cfg.ServerPubKey)
+	if err != nil {
+		return "", nil, nil, err
+	}
+
+	return encodedAddr, vHTLC, &opts, nil
+}
+
 func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]client.Vtxo, error) {
 	cfg, err := s.GetConfigData(ctx)
 	if err != nil {
@@ -1558,7 +1703,7 @@ func (s *Service) claimVHTLC(
 	}
 
 	// self send output
-	_, myAddr, _, _, err := s.GetAddress(ctx, 0)
+	_, myAddr, _, _, _, err := s.GetAddress(ctx, 0)
 	if err != nil {
 		return "", err
 	}
@@ -1628,6 +1773,37 @@ func (s *Service) claimVHTLC(
 	}
 
 	return reemdemTxId, nil
+}
+
+func (s *Service) claimVHTLCByRefund(
+	ctx context.Context, refundTx string,
+) (string, error) {
+	if refundTx == "" {
+		return "", fmt.Errorf("missing signed tx from boltz")
+	}
+
+	refundPtx, err := psbt.NewFromRawBytes(strings.NewReader(refundTx), true)
+	if err != nil {
+		return "", err
+	}
+
+	refundTxId := refundPtx.UnsignedTx.TxHash().String()
+
+	refundTx, err = refundPtx.B64Encode()
+	if err != nil {
+		return "", err
+	}
+
+	signedRedeemTx, err := s.SignTransaction(ctx, refundTx)
+	if err != nil {
+		return "", err
+	}
+
+	if _, _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRedeemTx); err != nil {
+		return "", err
+	}
+
+	return refundTxId, nil
 }
 
 func (s *Service) refundVHTLC(

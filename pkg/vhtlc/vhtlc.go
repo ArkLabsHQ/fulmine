@@ -2,7 +2,7 @@ package vhtlc
 
 import (
 	"encoding/hex"
-	"errors"
+	"fmt"
 
 	"github.com/ark-network/ark/common"
 	"github.com/ark-network/ark/common/tree"
@@ -28,11 +28,11 @@ type Opts struct {
 
 func (o Opts) validate() error {
 	if o.Sender == nil || o.Receiver == nil || o.Server == nil {
-		return errors.New("sender, receiver, and server are required")
+		return fmt.Errorf("sender, receiver, and server are required")
 	}
 
 	if len(o.PreimageHash) != hash160Len {
-		return errors.New("preimage hash must be 20 bytes")
+		return fmt.Errorf("preimage hash must be %d bytes", hash160Len)
 	}
 
 	return nil

@@ -132,6 +132,42 @@ func (s *service) forgotApi(c *gin.Context) {
 	redirect("/welcome", c)
 }
 
+func (s *service) validateBip21Api(c *gin.Context) {
+	var data gin.H
+	bip21 := c.PostForm("bip21")
+	sats := utils.SatsFromBip21(bip21)
+	if sats > 0 {
+		data = gin.H{
+			"sats":  sats,
+			"valid": true,
+		}
+	} else {
+		data = gin.H{
+			"valid": false,
+			"error": "invalid invoice",
+		}
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func (s *service) validateInvoiceApi(c *gin.Context) {
+	var data gin.H
+	invoice := c.PostForm("invoice")
+	sats := utils.SatsFromInvoice(invoice)
+	if sats > 0 {
+		data = gin.H{
+			"sats":  sats,
+			"valid": true,
+		}
+	} else {
+		data = gin.H{
+			"valid": false,
+			"error": "invalid invoice",
+		}
+	}
+	c.JSON(http.StatusOK, data)
+}
+
 func (s *service) validateLnUrlApi(c *gin.Context) {
 	url := c.PostForm("lnurl")
 	valid := utils.IsValidLnUrl(url)

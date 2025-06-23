@@ -129,17 +129,19 @@ func NewService(
 	svc.POST("/swap/preview", svc.swapPreview)
 	svc.POST("/swap/confirm", svc.swapConfirm)
 
+	svc.POST("/helpers/bip21/validate", svc.validateBip21Api)
 	svc.POST("/helpers/claim/:txid", svc.claimTx)
 	svc.POST("/helpers/forgot", svc.forgotApi)
+	svc.POST("/helpers/invoice/validate", svc.validateInvoiceApi)
 	svc.POST("/helpers/lnurl/validate", svc.validateLnUrlApi)
-	svc.POST("/helpers/settings", svc.updateSettingsApi)
 	svc.POST("/helpers/node/connect", svc.connectLNDApi)
 	svc.POST("/helpers/node/disconnect", svc.disconnectLNDApi)
 	svc.POST("/helpers/note/validate", svc.validateNoteApi)
 	svc.POST("/helpers/mnemonic/validate", svc.validateMnemonicApi)
 	svc.POST("/helpers/privatekey/validate", svc.validatePrivateKeyApi)
-	svc.POST("/helpers/url/validate", svc.validateUrlApi)
+	svc.POST("/helpers/settings", svc.updateSettingsApi)
 	svc.POST("/helpers/unlock", svc.unlockApi)
+	svc.POST("/helpers/url/validate", svc.validateUrlApi)
 
 	svc.GET("/helpers/balance", svc.getBalanceApi)
 

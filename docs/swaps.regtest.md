@@ -60,8 +60,8 @@ Connect the LND instances:
 ```sh
 lncli connect `nigiri lnd getinfo | jq -r .identity_pubkey`@lnd:9735
 # Check the list of peers contains exactly one peer on both sides
-lncli listpeers
-nigiri lnd listpeers
+lncli listpeers | jq .peers | jq length
+nigiri lnd listpeers | jq .peers | jq length
 ```
 
 Open and fund channel between the LND instances:
