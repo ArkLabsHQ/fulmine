@@ -177,6 +177,9 @@ func (s *service) importWalletPrivateKey(c *gin.Context) {
 }
 
 func (s *service) lock(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
 	if err := s.svc.LockNode(c); err != nil {
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
@@ -1046,8 +1049,12 @@ func (s *service) getSwaps(c *gin.Context) {
 		return
 	}
 
-	// TODO: Fix the errors later
-	swapHistory, _ := s.svc.GetSwapHistory(c)
+	swapHistory, err := s.svc.GetSwapHistory(c)
+	if err != nil {
+		toast := components.Toast("Unable to get swaps list", true)
+		toastHandler(toast, c)
+		return
+	}
 
 	parsedSwapHistory := make([]types.Swap, len(swapHistory))
 
@@ -1057,7 +1064,7 @@ func (s *service) getSwaps(c *gin.Context) {
 
 	lastId := c.Param("lastId")
 	loadMore := false
-	txsPerPage := 2
+	txsPerPage := 10
 
 	if lastId != "0" {
 		for i, swap := range parsedSwapHistory {
@@ -1077,6 +1084,13 @@ func (s *service) getSwaps(c *gin.Context) {
 	if len(parsedSwapHistory) > txsPerPage {
 		parsedSwapHistory = parsedSwapHistory[:txsPerPage]
 		loadMore = true
+	}
+
+	// return empty component if there are no more swaps
+	if len(parsedSwapHistory) == 0 && lastId != "0" {
+		bodyContent := templ.Component(nil)
+		partialViewHandler(bodyContent, c)
+		return
 	}
 
 	bodyContent := pages.SwapHistoryListContent(parsedSwapHistory, loadMore)

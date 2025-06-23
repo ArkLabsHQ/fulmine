@@ -2,6 +2,7 @@ package interceptors
 
 import (
 	"context"
+
 	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
 	"google.golang.org/grpc"
 )
