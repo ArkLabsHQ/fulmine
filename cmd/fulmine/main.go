@@ -8,7 +8,6 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/internal/config"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
-	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db"
 	scheduler "github.com/ArkLabsHQ/fulmine/internal/infrastructure/scheduler/gocron"
 	grpcservice "github.com/ArkLabsHQ/fulmine/internal/interface/grpc"
@@ -107,31 +106,9 @@ func main() {
 
 	schedulerSvc := scheduler.NewScheduler()
 
-	var lnConnectionOpts domain.LnConnectionOpts
-
-	// If PreConfiguration is provided
-	if cfg.TlsPath != "" {
-		if cfg.LndUrl != "" && cfg.LndMacaroonPath != "" {
-			lnConnectionOpts = domain.LnConnectionOpts{
-				Host:            cfg.LndUrl,
-				LndMacaroonPath: cfg.LndMacaroonPath,
-				TlsCertPath:     cfg.TlsPath,
-			}
-		} else if cfg.ClnUrl != "" && cfg.ClnCertChainPath != "" && cfg.ClnPrivateKeyPath != "" {
-			lnConnectionOpts = domain.LnConnectionOpts{
-				Host:              cfg.ClnUrl,
-				ClnCertChainPath:  cfg.ClnCertChainPath,
-				ClnPrivateKeyPath: cfg.ClnPrivateKeyPath,
-				TlsCertPath:       cfg.TlsPath,
-			}
-		} else {
-			log.Warn("Incomplete LN Configuration")
-		}
-	}
-
 	appSvc, err := application.NewService(
 		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc,
-		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, &lnConnectionOpts,
+		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.LnConnectionOpts,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init application service")

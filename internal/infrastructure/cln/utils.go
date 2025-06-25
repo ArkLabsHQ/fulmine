@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"google.golang.org/grpc/credentials"
@@ -30,7 +31,12 @@ func decodeClnConnectUrl(clnConnectUrl string) (rootCert, privateKey, certChain,
 	return
 }
 
-func parseClnPath(rootCertPath, certChainPath, privateKeyPath string) (cred credentials.TransportCredentials, err error) {
+func deriveClnCred(dataDir, network string) (cred credentials.TransportCredentials, err error) {
+	dataDir = filepath.Join(dataDir, network)
+	rootCertPath := filepath.Join(dataDir, "ca.pem")           // root certificate
+	certChainPath := filepath.Join(dataDir, "client.pem")      // client certificate chain
+	privateKeyPath := filepath.Join(dataDir, "client-key.pem") // client private key
+
 	rootCertBytes, err := os.ReadFile(rootCertPath)
 	if err != nil {
 		return nil, err

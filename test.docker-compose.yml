@@ -36,13 +36,9 @@ services:
       - FULMINE_BOLTZ_URL=http://boltz:9001
       - FULMINE_BOLTZ_WS_URL=ws://boltz:9004
       - FULMINE_NO_MACAROONS=true
-      - FULMINE_LND_MACAROON_PATH=/app/data/lnd/data/chain/bitcoin/regtest/admin.macaroon
-      - FULMINE_LN_TLS_PATH=/app/data/lnd/tls.cert
+      - FULMINE_LND_DATADIR=/app/data/lnd
       - FULMINE_LND_URL=lnd:10009
-      - FULMINE_CLND_URL=cln:9737
-      - FULMINE_CLN_CERT_CHAIN_PATH=
-      - FULMINE_CLN_CERT_CHAIN_PATH=
-      - FULMINE_CLN_PRIVATE_KEY_PATH=
+      
     ports:
       - "7000:7000"
       - "7001:7001"

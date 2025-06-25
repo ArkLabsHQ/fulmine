@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -87,9 +88,9 @@ func toBase64(input string) string {
 }
 
 // parseLndTLSAndMacaroon
-func parseLndTLSAndMacaroon(tlsPath, macPath string) (cp *x509.CertPool, macaroon string, err error) {
+func parseLndTLSAndMacaroon(dataDir string, network string) (cp *x509.CertPool, macaroon string, err error) {
+	tlsPath := filepath.Join(dataDir, "tls.cert")
 
-	// ReadFile returns the file’s contents as a []byte
 	tlsBytes, err := os.ReadFile(tlsPath)
 	if err != nil {
 		return nil, "", err
@@ -107,6 +108,9 @@ func parseLndTLSAndMacaroon(tlsPath, macPath string) (cp *x509.CertPool, macaroo
 	pool := x509.NewCertPool()
 	pool.AddCert(cert)
 
+	lndNetwork := deriveLndNetwork(network)
+	macPath := filepath.Join(dataDir, "data", "chain", "bitcoin", lndNetwork, "admin.macaroon")
+
 	macBytes, err := os.ReadFile(macPath)
 	if err != nil {
 		return nil, "", err
@@ -115,4 +119,23 @@ func parseLndTLSAndMacaroon(tlsPath, macPath string) (cp *x509.CertPool, macaroo
 	macHex := hex.EncodeToString(macBytes)
 
 	return pool, macHex, nil
+}
+
+func deriveLndNetwork(network string) string {
+	switch network {
+	case "bitcoin":
+		return "mainnet"
+	case "testnet":
+		return "testnet"
+	case "testnet4":
+		return "testnet"
+	case "signet":
+		return "signet"
+	case "regtest":
+		return "regtest"
+	case "mutinynet":
+		return "signet"
+	default:
+		return "regtest"
+	}
 }

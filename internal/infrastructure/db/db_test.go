@@ -29,12 +29,9 @@ var (
 		LnUrl:       "lndconnect",
 		Unit:        "unit",
 		ConnectionOpts: &domain.LnConnectionOpts{
-			LndMacaroonPath:   "lnd_macaroon_path",
-			TlsCertPath:       "tls_cert_path",
-			ClnRootCertPath:   "cln_root_cert_path",
-			ClnPrivateKeyPath: "cln_private_key_path",
-			ClnCertChainPath:  "cln_cert_chain_path",
-			Host:              "host",
+			LnDatadir:      "lnd_dir",
+			ConnectionType: domain.LND_CONNECTION,
+			LnUrl:          "lnd",
 		},
 	}
 
@@ -159,12 +156,9 @@ func testAddSettings(t *testing.T, repo domain.SettingsRepository) {
 func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 	t.Run("update settings", func(t *testing.T) {
 		newConnectionOpts := domain.LnConnectionOpts{
-			LndMacaroonPath:   "updated_lnd_macaroon_path",
-			TlsCertPath:       "updated_tls_cert_path",
-			ClnRootCertPath:   "updated_cln_root_cert_path",
-			ClnPrivateKeyPath: "updated_cln_private_key_path",
-			ClnCertChainPath:  "updated_cln_cert_chain_path",
-			Host:              "updated_host",
+			LnDatadir:      "cln_dir",
+			ConnectionType: domain.CLN_CONNECTION,
+			LnUrl:          "cln",
 		}
 
 		newSettings := domain.Settings{

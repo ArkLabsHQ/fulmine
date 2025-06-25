@@ -3,7 +3,6 @@ package sqlitedb
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -42,32 +41,32 @@ func (s *settingsRepository) AddSettings(ctx context.Context, settings domain.Se
 		return fmt.Errorf("settings already exist")
 	}
 
-	lnConnectionOpts := sql.NullString{Valid: false}
+	lnConnectionNode := sql.NullInt64{Valid: false}
+	lnConnectionDatadir := sql.NullString{Valid: false}
+	lnConnectionUrl := sql.NullString{Valid: false}
 	if settings.ConnectionOpts != nil {
-		encodedOpts, err := json.Marshal(settings.ConnectionOpts)
-		if err != nil {
-			return fmt.Errorf("failed to encode connection options: %w", err)
-		}
-
-		lnConnectionOpts = sql.NullString{String: string(encodedOpts), Valid: true}
-
+		lnConnectionNode = sql.NullInt64{Int64: int64(settings.ConnectionOpts.ConnectionType), Valid: true}
+		lnConnectionDatadir = sql.NullString{String: settings.ConnectionOpts.LnDatadir, Valid: true}
+		lnConnectionUrl = sql.NullString{String: settings.ConnectionOpts.LnUrl, Valid: true}
 	}
 
 	return s.querier.UpsertSettings(ctx, queries.UpsertSettingsParams{
-		ApiRoot:          settings.ApiRoot,
-		ServerUrl:        settings.ServerUrl,
-		EsploraUrl:       sql.NullString{String: settings.EsploraUrl, Valid: true},
-		Currency:         settings.Currency,
-		EventServer:      settings.EventServer,
-		FullNode:         settings.FullNode,
-		LnUrl:            sql.NullString{String: settings.LnUrl, Valid: true},
-		Unit:             settings.Unit,
-		LnConnectionOpts: lnConnectionOpts,
+		ApiRoot:             settings.ApiRoot,
+		ServerUrl:           settings.ServerUrl,
+		EsploraUrl:          sql.NullString{String: settings.EsploraUrl, Valid: true},
+		Currency:            settings.Currency,
+		EventServer:         settings.EventServer,
+		FullNode:            settings.FullNode,
+		LnUrl:               sql.NullString{String: settings.LnUrl, Valid: true},
+		Unit:                settings.Unit,
+		LnConnectionUrl:     lnConnectionUrl,
+		LnConnectionDatadir: lnConnectionDatadir,
+		LnConnectionNode:    lnConnectionNode,
 	})
 }
 
 func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain.Settings) error {
-	existing, err := s.GetSettings(ctx)
+	existing, err := s.querier.GetSettings(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("settings not found")
@@ -81,9 +80,7 @@ func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain
 	if settings.ServerUrl != "" {
 		existing.ServerUrl = settings.ServerUrl
 	}
-	if settings.EsploraUrl != "" {
-		existing.EsploraUrl = settings.EsploraUrl
-	}
+
 	if settings.Currency != "" {
 		existing.Currency = settings.Currency
 	}
@@ -94,48 +91,33 @@ func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain
 		existing.FullNode = settings.FullNode
 	}
 	if settings.LnUrl != "" {
-		existing.LnUrl = settings.LnUrl
+		existing.LnUrl = sql.NullString{String: settings.LnUrl, Valid: true}
 	}
 	if settings.Unit != "" {
 		existing.Unit = settings.Unit
 	}
 	if settings.EsploraUrl != "" {
-		existing.EsploraUrl = settings.EsploraUrl
+		existing.EsploraUrl = sql.NullString{String: settings.EsploraUrl, Valid: true}
 	}
-	if settings.LnUrl != "" {
-		existing.LnUrl = settings.LnUrl
-	}
-
-	lnConnectionOpts := sql.NullString{Valid: false}
 
 	if settings.ConnectionOpts != nil {
-		existing.ConnectionOpts = settings.ConnectionOpts
-
-		encodedOpts, err := json.Marshal(settings.ConnectionOpts)
-		if err != nil {
-			return fmt.Errorf("failed to encode connection options: %w", err)
-		}
-
-		lnConnectionOpts = sql.NullString{String: string(encodedOpts), Valid: true}
-
-	} else if existing.ConnectionOpts != nil {
-		encodedOpts, err := json.Marshal(existing.ConnectionOpts)
-		if err != nil {
-			return fmt.Errorf("failed to encode existing connection options: %w", err)
-		}
-		lnConnectionOpts = sql.NullString{String: string(encodedOpts), Valid: true}
+		existing.LnConnectionNode = sql.NullInt64{Int64: int64(settings.ConnectionOpts.ConnectionType), Valid: true}
+		existing.LnConnectionDatadir = sql.NullString{String: settings.ConnectionOpts.LnDatadir, Valid: true}
+		existing.LnConnectionUrl = sql.NullString{String: settings.ConnectionOpts.LnUrl, Valid: true}
 	}
 
 	return s.querier.UpsertSettings(ctx, queries.UpsertSettingsParams{
-		ApiRoot:          existing.ApiRoot,
-		ServerUrl:        existing.ServerUrl,
-		EsploraUrl:       sql.NullString{String: existing.EsploraUrl, Valid: true},
-		Currency:         existing.Currency,
-		EventServer:      existing.EventServer,
-		FullNode:         existing.FullNode,
-		LnUrl:            sql.NullString{String: existing.LnUrl, Valid: true},
-		Unit:             existing.Unit,
-		LnConnectionOpts: lnConnectionOpts,
+		ApiRoot:             existing.ApiRoot,
+		ServerUrl:           existing.ServerUrl,
+		EsploraUrl:          existing.EsploraUrl,
+		Currency:            existing.Currency,
+		EventServer:         existing.EventServer,
+		FullNode:            existing.FullNode,
+		LnUrl:               existing.LnUrl,
+		Unit:                existing.Unit,
+		LnConnectionUrl:     existing.LnConnectionUrl,
+		LnConnectionDatadir: existing.LnConnectionDatadir,
+		LnConnectionNode:    existing.LnConnectionNode,
 	})
 }
 
@@ -145,11 +127,13 @@ func (s *settingsRepository) GetSettings(ctx context.Context) (*domain.Settings,
 		return nil, err
 	}
 
-	var lnConnectionOpts domain.LnConnectionOpts
+	var lnConnectionOpts *domain.LnConnectionOpts
 
-	if row.LnConnectionOpts.Valid {
-		if err := json.Unmarshal([]byte(row.LnConnectionOpts.String), &lnConnectionOpts); err != nil {
-			return nil, fmt.Errorf("failed to decode connection options: %w", err)
+	if row.LnConnectionNode.Valid {
+		lnConnectionOpts = &domain.LnConnectionOpts{
+			ConnectionType: domain.ConnectionType(row.LnConnectionNode.Int64),
+			LnDatadir:      row.LnConnectionDatadir.String,
+			LnUrl:          row.LnConnectionUrl.String,
 		}
 	}
 
@@ -162,7 +146,7 @@ func (s *settingsRepository) GetSettings(ctx context.Context) (*domain.Settings,
 		Unit:           row.Unit,
 		EsploraUrl:     row.EsploraUrl.String,
 		LnUrl:          row.LnUrl.String,
-		ConnectionOpts: &lnConnectionOpts,
+		ConnectionOpts: lnConnectionOpts,
 	}, nil
 }
 

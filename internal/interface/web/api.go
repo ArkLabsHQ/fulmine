@@ -109,6 +109,13 @@ func (s *service) updateSettingsApi(c *gin.Context) {
 
 func (s *service) connectLNDApi(c *gin.Context) {
 	url := c.PostForm("lnurl")
+
+	if s.svc.IsPreConfiguredLN() {
+		toast := components.Toast("LN connection is pre-configured", true)
+		toastHandler(toast, c)
+		return
+	}
+
 	err := s.svc.ConnectLN(c.Request.Context(), url)
 	if err != nil {
 		toast := components.Toast(err.Error(), true)
@@ -119,6 +126,12 @@ func (s *service) connectLNDApi(c *gin.Context) {
 }
 
 func (s *service) disconnectLNDApi(c *gin.Context) {
+	if s.svc.IsPreConfiguredLN() {
+		toast := components.Toast("LN connection is pre-configured", true)
+		toastHandler(toast, c)
+		return
+	}
+
 	s.svc.DisconnectLN()
 	reload(c)
 }

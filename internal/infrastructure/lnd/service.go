@@ -62,15 +62,14 @@ func (s *service) Connect(ctx context.Context, lndConnectUrl string) error {
 	return nil
 }
 
-func (s *service) ConnectWithOpts(ctx context.Context, opts *domain.LnConnectionOpts) error {
-	tlsCert, macaroon, err := parseLndTLSAndMacaroon(opts.TlsCertPath, opts.LndMacaroonPath)
+func (s *service) ConnectWithOpts(ctx context.Context, opts *domain.LnConnectionOpts, network string) error {
+	tlsCert, macaroon, err := parseLndTLSAndMacaroon(opts.LnDatadir, network)
 	if err != nil {
 		return err
 	}
 
-	// check credentials (only cert, not macaroon)
 	creds := credentials.NewClientTLSFromCert(tlsCert, "")
-	conn, err := grpc.NewClient(opts.Host, grpc.WithTransportCredentials(creds))
+	conn, err := grpc.NewClient(opts.LnUrl, grpc.WithTransportCredentials(creds))
 	if err != nil {
 		return err
 	}

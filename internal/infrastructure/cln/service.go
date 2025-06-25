@@ -59,12 +59,12 @@ func (s *service) Connect(ctx context.Context, clnConnectUrl string) error {
 	return nil
 }
 
-func (s *service) ConnectWithOpts(ctx context.Context, opts *domain.LnConnectionOpts) error {
-	cred, err := parseClnPath(opts.TlsCertPath, opts.ClnCertChainPath, opts.ClnCertChainPath)
+func (s *service) ConnectWithOpts(ctx context.Context, opts *domain.LnConnectionOpts, network string) error {
+	cred, err := deriveClnCred(opts.LnDatadir, network)
 	if err != nil {
 		return fmt.Errorf("error parsing cln path: %w", err)
 	}
-	conn, err := grpc.NewClient(opts.Host, grpc.WithTransportCredentials(cred))
+	conn, err := grpc.NewClient(opts.LnUrl, grpc.WithTransportCredentials(cred))
 	if err != nil {
 		return fmt.Errorf("error creating grpc client: %w", err)
 	}

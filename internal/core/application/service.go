@@ -393,13 +393,13 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	} else {
 		if settings.ConnectionOpts != nil {
 
-			if settings.ConnectionOpts.LndMacaroonPath != "" {
+			if settings.ConnectionOpts.ConnectionType == domain.LND_CONNECTION {
 				s.lnSvc = lnd.NewService()
 			} else {
 				s.lnSvc = cln.NewService()
 			}
 
-			if err := s.lnSvc.ConnectWithOpts(ctx, settings.ConnectionOpts); err != nil {
+			if err := s.lnSvc.ConnectWithOpts(ctx, settings.ConnectionOpts, data.Network.Name); err != nil {
 				log.WithError(err).Warn("failed to connect to ln node with opts")
 			}
 		}
