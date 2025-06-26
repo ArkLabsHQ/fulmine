@@ -654,7 +654,7 @@ func (s *Service) connectLN(ctx context.Context, lnOpts *domain.LnConnectionOpts
 }
 
 func (s *Service) IsPreConfiguredLN() bool {
-	settings, err := s.dbSvc.Settings().GetSettings(context.TODO())
+	settings, err := s.dbSvc.Settings().GetSettings(context.Background())
 	if err != nil {
 		return false
 	}
