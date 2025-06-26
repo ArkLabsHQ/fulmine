@@ -18,15 +18,14 @@ type LnConnectionOpts struct {
 }
 
 type Settings struct {
-	ApiRoot        string
-	ServerUrl      string
-	EsploraUrl     string
-	Currency       string
-	EventServer    string
-	FullNode       string
-	LnUrl          string
-	Unit           string
-	ConnectionOpts *LnConnectionOpts
+	ApiRoot          string
+	ServerUrl        string
+	EsploraUrl       string
+	Currency         string
+	EventServer      string
+	FullNode         string
+	Unit             string
+	LnConnectionOpts *LnConnectionOpts
 }
 
 type SettingsRepository interface {

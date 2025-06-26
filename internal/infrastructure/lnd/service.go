@@ -12,7 +12,6 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 var (
@@ -20,58 +19,31 @@ var (
 )
 
 type service struct {
-	client   lnrpc.LightningClient
-	conn     *grpc.ClientConn
-	macaroon string
+	client       lnrpc.LightningClient
+	conn         *grpc.ClientConn
+	lnConnectUrl string
+	macaroon     string
 }
 
 func NewService() ports.LnService {
-	return &service{nil, nil, ""}
+	return &service{nil, nil, "", ""}
 }
 
-func (s *service) Connect(ctx context.Context, lndConnectUrl string) error {
-	if len(lndConnectUrl) == 0 {
-		return fmt.Errorf("empty lnurl")
+func (s *service) Connect(ctx context.Context, opts *domain.LnConnectionOpts, network string) (err error) {
+	var conn *grpc.ClientConn
+	var macaroon string
+	var lnConnectUrl string
+
+	if strings.HasPrefix(opts.LnUrl, "lndconnect:") {
+		conn, macaroon, err = deriveLndConnFromUrl(opts.LnUrl)
+		lnConnectUrl = opts.LnUrl
+
+	} else {
+		conn, macaroon, lnConnectUrl, err = deriveLndConnFromPath(opts.LnDatadir, opts.LnUrl, network)
 	}
 
-	client, conn, macaroon, err := getClient(lndConnectUrl)
 	if err != nil {
-		return fmt.Errorf("unable to get client: %v", err)
-	}
-
-	ctx = getCtx(ctx, macaroon)
-	info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
-	if err != nil {
-		return fmt.Errorf("unable to get info: %v", err)
-	}
-
-	if len(info.GetVersion()) == 0 {
-		return fmt.Errorf("something went wrong, version is empty")
-	}
-
-	if len(info.GetIdentityPubkey()) == 0 {
-		return fmt.Errorf("something went wrong, pubkey is empty")
-	}
-
-	s.client = client
-	s.conn = conn
-	s.macaroon = macaroon
-
-	log.Infof("connected to LND version %s with pubkey %s", info.GetVersion(), info.GetIdentityPubkey())
-
-	return nil
-}
-
-func (s *service) ConnectWithOpts(ctx context.Context, opts *domain.LnConnectionOpts, network string) error {
-	tlsCert, macaroon, err := parseLndTLSAndMacaroon(opts.LnDatadir, network)
-	if err != nil {
-		return err
-	}
-
-	creds := credentials.NewClientTLSFromCert(tlsCert, "")
-	conn, err := grpc.NewClient(opts.LnUrl, grpc.WithTransportCredentials(creds))
-	if err != nil {
-		return err
+		return fmt.Errorf("error deriving lnd connection: %w", err)
 	}
 
 	client := lnrpc.NewLightningClient(conn)
@@ -93,11 +65,11 @@ func (s *service) ConnectWithOpts(ctx context.Context, opts *domain.LnConnection
 	s.client = client
 	s.conn = conn
 	s.macaroon = macaroon
+	s.lnConnectUrl = lnConnectUrl
 
 	log.Infof("connected to LND version %s with pubkey %s", info.GetVersion(), info.GetIdentityPubkey())
 
 	return nil
-
 }
 
 func (s *service) Disconnect() {
@@ -120,6 +92,10 @@ func (s *service) GetInfo(ctx context.Context) (version, pubkey string, err erro
 	}
 
 	return info.Version, info.IdentityPubkey, nil
+}
+
+func (s *service) GetLnConnectUrl() string {
+	return s.lnConnectUrl
 }
 
 func (s *service) GetInvoice(

@@ -77,19 +77,6 @@ func (s *service) updateSettingsApi(c *gin.Context) {
 		}
 	}
 
-	// TODO lnconnect
-
-	if lnURL := c.PostForm("lnurl"); len(lnURL) > 0 && settings.LnUrl != lnURL {
-		if utils.IsValidLnUrl(lnURL) {
-			settings.LnUrl = lnURL
-			changed = true
-		} else {
-			toast := components.Toast("Invalid LNURL", true)
-			toastHandler(toast, c)
-			return
-		}
-	}
-
 	if unit := c.PostForm("unit"); len(unit) > 0 && settings.Unit != unit {
 		settings.Unit = unit
 		changed = true
@@ -111,9 +98,7 @@ func (s *service) connectLNDApi(c *gin.Context) {
 	url := c.PostForm("lnurl")
 
 	if s.svc.IsPreConfiguredLN() {
-		toast := components.Toast("LN connection is pre-configured", true)
-		toastHandler(toast, c)
-		return
+		url = ""
 	}
 
 	err := s.svc.ConnectLN(c.Request.Context(), url)
@@ -126,12 +111,6 @@ func (s *service) connectLNDApi(c *gin.Context) {
 }
 
 func (s *service) disconnectLNDApi(c *gin.Context) {
-	if s.svc.IsPreConfiguredLN() {
-		toast := components.Toast("LN connection is pre-configured", true)
-		toastHandler(toast, c)
-		return
-	}
-
 	s.svc.DisconnectLN()
 	reload(c)
 }

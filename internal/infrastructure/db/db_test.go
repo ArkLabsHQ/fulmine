@@ -26,9 +26,8 @@ var (
 		Currency:    "cur",
 		EventServer: "eventserver",
 		FullNode:    "fullnode",
-		LnUrl:       "lndconnect",
 		Unit:        "unit",
-		ConnectionOpts: &domain.LnConnectionOpts{
+		LnConnectionOpts: &domain.LnConnectionOpts{
 			LnDatadir:      "lnd_dir",
 			ConnectionType: domain.LND_CONNECTION,
 			LnUrl:          "lnd",
@@ -162,8 +161,8 @@ func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 		}
 
 		newSettings := domain.Settings{
-			ApiRoot:        "updated apiroot",
-			ConnectionOpts: &newConnectionOpts,
+			ApiRoot:          "updated apiroot",
+			LnConnectionOpts: &newConnectionOpts,
 		}
 
 		err := repo.UpdateSettings(ctx, newSettings)
@@ -174,7 +173,7 @@ func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 
 		expectedSettings := testSettings
 		expectedSettings.ApiRoot = newSettings.ApiRoot
-		expectedSettings.ConnectionOpts = &newConnectionOpts
+		expectedSettings.LnConnectionOpts = &newConnectionOpts
 
 		err = repo.UpdateSettings(ctx, newSettings)
 		require.NoError(t, err)

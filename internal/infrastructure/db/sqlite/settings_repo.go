@@ -44,10 +44,10 @@ func (s *settingsRepository) AddSettings(ctx context.Context, settings domain.Se
 	lnConnectionNode := sql.NullInt64{Valid: false}
 	lnConnectionDatadir := sql.NullString{Valid: false}
 	lnConnectionUrl := sql.NullString{Valid: false}
-	if settings.ConnectionOpts != nil {
-		lnConnectionNode = sql.NullInt64{Int64: int64(settings.ConnectionOpts.ConnectionType), Valid: true}
-		lnConnectionDatadir = sql.NullString{String: settings.ConnectionOpts.LnDatadir, Valid: true}
-		lnConnectionUrl = sql.NullString{String: settings.ConnectionOpts.LnUrl, Valid: true}
+	if settings.LnConnectionOpts != nil {
+		lnConnectionNode = sql.NullInt64{Int64: int64(settings.LnConnectionOpts.ConnectionType), Valid: true}
+		lnConnectionDatadir = sql.NullString{String: settings.LnConnectionOpts.LnDatadir, Valid: true}
+		lnConnectionUrl = sql.NullString{String: settings.LnConnectionOpts.LnUrl, Valid: true}
 	}
 
 	return s.querier.UpsertSettings(ctx, queries.UpsertSettingsParams{
@@ -57,11 +57,10 @@ func (s *settingsRepository) AddSettings(ctx context.Context, settings domain.Se
 		Currency:            settings.Currency,
 		EventServer:         settings.EventServer,
 		FullNode:            settings.FullNode,
-		LnUrl:               sql.NullString{String: settings.LnUrl, Valid: true},
 		Unit:                settings.Unit,
 		LnConnectionUrl:     lnConnectionUrl,
 		LnConnectionDatadir: lnConnectionDatadir,
-		LnConnectionNode:    lnConnectionNode,
+		LnConnectionType:    lnConnectionNode,
 	})
 }
 
@@ -90,9 +89,7 @@ func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain
 	if settings.FullNode != "" {
 		existing.FullNode = settings.FullNode
 	}
-	if settings.LnUrl != "" {
-		existing.LnUrl = sql.NullString{String: settings.LnUrl, Valid: true}
-	}
+
 	if settings.Unit != "" {
 		existing.Unit = settings.Unit
 	}
@@ -100,10 +97,10 @@ func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain
 		existing.EsploraUrl = sql.NullString{String: settings.EsploraUrl, Valid: true}
 	}
 
-	if settings.ConnectionOpts != nil {
-		existing.LnConnectionNode = sql.NullInt64{Int64: int64(settings.ConnectionOpts.ConnectionType), Valid: true}
-		existing.LnConnectionDatadir = sql.NullString{String: settings.ConnectionOpts.LnDatadir, Valid: true}
-		existing.LnConnectionUrl = sql.NullString{String: settings.ConnectionOpts.LnUrl, Valid: true}
+	if settings.LnConnectionOpts != nil {
+		existing.LnConnectionType = sql.NullInt64{Int64: int64(settings.LnConnectionOpts.ConnectionType), Valid: true}
+		existing.LnConnectionDatadir = sql.NullString{String: settings.LnConnectionOpts.LnDatadir, Valid: true}
+		existing.LnConnectionUrl = sql.NullString{String: settings.LnConnectionOpts.LnUrl, Valid: true}
 	}
 
 	return s.querier.UpsertSettings(ctx, queries.UpsertSettingsParams{
@@ -113,11 +110,10 @@ func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain
 		Currency:            existing.Currency,
 		EventServer:         existing.EventServer,
 		FullNode:            existing.FullNode,
-		LnUrl:               existing.LnUrl,
 		Unit:                existing.Unit,
 		LnConnectionUrl:     existing.LnConnectionUrl,
 		LnConnectionDatadir: existing.LnConnectionDatadir,
-		LnConnectionNode:    existing.LnConnectionNode,
+		LnConnectionType:    existing.LnConnectionType,
 	})
 }
 
@@ -129,24 +125,23 @@ func (s *settingsRepository) GetSettings(ctx context.Context) (*domain.Settings,
 
 	var lnConnectionOpts *domain.LnConnectionOpts
 
-	if row.LnConnectionNode.Valid {
+	if row.LnConnectionType.Valid {
 		lnConnectionOpts = &domain.LnConnectionOpts{
-			ConnectionType: domain.ConnectionType(row.LnConnectionNode.Int64),
+			ConnectionType: domain.ConnectionType(row.LnConnectionType.Int64),
 			LnDatadir:      row.LnConnectionDatadir.String,
 			LnUrl:          row.LnConnectionUrl.String,
 		}
 	}
 
 	return &domain.Settings{
-		ApiRoot:        row.ApiRoot,
-		ServerUrl:      row.ServerUrl,
-		Currency:       row.Currency,
-		EventServer:    row.EventServer,
-		FullNode:       row.FullNode,
-		Unit:           row.Unit,
-		EsploraUrl:     row.EsploraUrl.String,
-		LnUrl:          row.LnUrl.String,
-		ConnectionOpts: lnConnectionOpts,
+		ApiRoot:          row.ApiRoot,
+		ServerUrl:        row.ServerUrl,
+		Currency:         row.Currency,
+		EventServer:      row.EventServer,
+		FullNode:         row.FullNode,
+		Unit:             row.Unit,
+		EsploraUrl:       row.EsploraUrl.String,
+		LnConnectionOpts: lnConnectionOpts,
 	}, nil
 }
 

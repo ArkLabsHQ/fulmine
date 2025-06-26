@@ -334,7 +334,7 @@ func SettingsTabs(active string) templ.Component {
 	})
 }
 
-func SettingsBodyContent(active string, settings domain.Settings, nodeStatus, isPreconfigured, locked bool, version string) templ.Component {
+func SettingsBodyContent(active string, settings domain.Settings, lnUrl string, nodeStatus, isPreconfigured, locked bool, version string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -384,7 +384,7 @@ func SettingsBodyContent(active string, settings domain.Settings, nodeStatus, is
 			}
 		}
 		if active == "lightning" {
-			templ_7745c5c3_Err = SettingsLightningContent(settings, nodeStatus, isPreconfigured).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = SettingsLightningContent(lnUrl, nodeStatus, isPreconfigured).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -623,7 +623,7 @@ func SettingsServerContent(settings domain.Settings) templ.Component {
 	})
 }
 
-func SettingsLightningContent(settings domain.Settings, nodeStatus bool, isPreconfigured bool) templ.Component {
+func SettingsLightningContent(lnUrl string, nodeStatus bool, isPreconfigured bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -665,16 +665,19 @@ func SettingsLightningContent(settings domain.Settings, nodeStatus bool, isPreco
 			return templ_7745c5c3_Err
 		}
 		if isPreconfigured {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<p class=\"text-white/50 mb-4\">You are using a preconfigured Lightning node</p>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<p>Enter details manually or scan to connect</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<p>You are using a preconfigured Lightning node</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			templ_7745c5c3_Err = components.Label("URL").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = components.InputFake(lnUrl).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -683,16 +686,12 @@ func SettingsLightningContent(settings domain.Settings, nodeStatus bool, isPreco
 				return templ_7745c5c3_Err
 			}
 			if nodeStatus {
-				templ_7745c5c3_Err = components.InputFake(settings.LnUrl).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, " <button class=\"bg-red/10 text-red font-semibold rounded-lg mt-8\" hx-post=\"/helpers/node/disconnect\">Disconnect</button>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<button class=\"bg-red/10 text-red font-semibold rounded-lg mt-8\" hx-post=\"/helpers/node/disconnect\">Disconnect</button>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = components.InputWithPaste("lnurl", "", settings.LnUrl).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = Hr().Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -700,11 +699,47 @@ func SettingsLightningContent(settings domain.Settings, nodeStatus bool, isPreco
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+				templ_7745c5c3_Err = components.LnConnectButtons("lnurl", isPreconfigured).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<p>Enter details manually or scan to connect</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = components.Label("URL").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if nodeStatus {
+				templ_7745c5c3_Err = components.InputFake(lnUrl).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, " <button class=\"bg-red/10 text-red font-semibold rounded-lg mt-8\" hx-post=\"/helpers/node/disconnect\">Disconnect</button>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = components.InputWithPaste("lnurl", "", lnUrl).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, " ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 				templ_7745c5c3_Err = Hr().Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, " <div class=\"flex items-start gap-4 max-w-96\"><p class=\"mt-1\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, " <div class=\"flex items-start gap-4 max-w-96\"><p class=\"mt-1\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -712,7 +747,7 @@ func SettingsLightningContent(settings domain.Settings, nodeStatus bool, isPreco
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "</p><div><p class=\"mb-2\">Connect to you own LN node to rebalance your channels with low fees and faster settlements</p><p>How to connect? <a hx-get=\"/modal/lnconnectinfo\" hx-target=\"#modal\" class=\"visible\">View guide</a></p></div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</p><div><p class=\"mb-2\">Connect to you own LN node to rebalance your channels with low fees and faster settlements</p><p>How to connect? <a hx-get=\"/modal/lnconnectinfo\" hx-target=\"#modal\" class=\"visible\">View guide</a></p></div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -720,17 +755,17 @@ func SettingsLightningContent(settings domain.Settings, nodeStatus bool, isPreco
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, " ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, " ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.LnConnectButtons("lnurl").Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = components.LnConnectButtons("lnurl", isPreconfigured).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "</form><script>\n    const input = document.querySelector('#lnurl')\n    const button = document.querySelector('[name=\"connect\"]')\n\t\tconst validateLnUrl = () => {\n      if (input.value.length == 0) return\n\t\t  const data = new FormData()\n\t\t  data.set('lnurl', input.value)\n\t\t  fetch('/helpers/lnurl/validate', {\n\t\t  \tmethod: 'POST',\n        body: data,\n\t\t  }).then((res) => {\n\t\t  \tif (res.ok) {\n\t\t  \t\tres.json().then(({ valid }) => {\n\t\t  \t\t\tif (valid) {\n\t\t  \t\t\t\tbutton.disabled = false\n\t\t  \t\t\t\tbutton.innerText = 'Connect'\n\t\t  \t\t\t} else {\n\t\t  \t\t\t\tbutton.disabled = true\n\t\t  \t\t\t\tbutton.innerText = 'Invalid URL'\n\t\t  \t\t\t}\n\t\t  \t\t})\n\t\t  \t}\n\t\t  })\n\t\t}\n    if (input && button) {\n\t\t\tvalidateLnUrl()\n\t\t  input.addEventListener('input', validateLnUrl)\n\t\t}\n  </script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</form><script>\n    const input = document.querySelector('#lnurl')\n    const button = document.querySelector('[name=\"connect\"]')\n\t\tconst validateLnUrl = () => {\n      if (input.value.length == 0) return\n\t\t  const data = new FormData()\n\t\t  data.set('lnurl', input.value)\n\t\t  fetch('/helpers/lnurl/validate', {\n\t\t  \tmethod: 'POST',\n        body: data,\n\t\t  }).then((res) => {\n\t\t  \tif (res.ok) {\n\t\t  \t\tres.json().then(({ valid }) => {\n\t\t  \t\t\tif (valid) {\n\t\t  \t\t\t\tbutton.disabled = false\n\t\t  \t\t\t\tbutton.innerText = 'Connect'\n\t\t  \t\t\t} else {\n\t\t  \t\t\t\tbutton.disabled = true\n\t\t  \t\t\t\tbutton.innerText = 'Invalid URL'\n\t\t  \t\t\t}\n\t\t  \t\t})\n\t\t  \t}\n\t\t  })\n\t\t}\n    if (input && button) {\n\t\t\tvalidateLnUrl()\n\t\t  input.addEventListener('input', validateLnUrl)\n\t\t}\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

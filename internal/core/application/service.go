@@ -136,7 +136,7 @@ func NewService(
 
 		if connectionOpts != nil {
 			err := dbSvc.Settings().UpdateSettings(context.Background(), domain.Settings{
-				ConnectionOpts: connectionOpts,
+				LnConnectionOpts: connectionOpts,
 			})
 
 			if err != nil {
@@ -187,7 +187,7 @@ func NewService(
 
 	if connectionOpts != nil {
 		err := dbSvc.Settings().UpdateSettings(ctx, domain.Settings{
-			ConnectionOpts: connectionOpts,
+			LnConnectionOpts: connectionOpts,
 		})
 
 		if err != nil {
@@ -379,30 +379,17 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		log.WithError(err).Warn("failed to get settings")
 		return err
 	}
-	if len(settings.LnUrl) > 0 {
-		if strings.HasPrefix(settings.LnUrl, "clnconnect:") {
-			s.lnSvc = cln.NewService()
-		} else {
-			s.lnSvc = lnd.NewService()
+
+	if settings.LnConnectionOpts != nil {
+		if err = s.connectLN(ctx, settings.LnConnectionOpts); err != nil {
+			log.WithError(err).Warn("failed to connect to LN node")
+			return err
 		}
 
-		if err := s.lnSvc.Connect(ctx, settings.LnUrl); err != nil {
-			log.WithError(err).Warn("failed to connect to ln node")
-		}
-
-	} else {
-		if settings.ConnectionOpts != nil {
-
-			if settings.ConnectionOpts.ConnectionType == domain.LND_CONNECTION {
-				s.lnSvc = lnd.NewService()
-			} else {
-				s.lnSvc = cln.NewService()
-			}
-
-			if err := s.lnSvc.ConnectWithOpts(ctx, settings.ConnectionOpts, data.Network.Name); err != nil {
-				log.WithError(err).Warn("failed to connect to ln node with opts")
-			}
-		}
+	}
+	if err != nil {
+		log.WithError(err).Warn("failed to connect to LN node")
+		return err
 	}
 
 	url := s.boltzUrl
@@ -582,13 +569,48 @@ func (s *Service) WhenNextSettlement(ctx context.Context) time.Time {
 	return s.schedulerSvc.WhenNextSettlement()
 }
 
-func (s *Service) ConnectLN(ctx context.Context, connectUrl string) error {
-	if strings.HasPrefix(connectUrl, "clnconnect:") {
-		s.lnSvc = cln.NewService()
+func (s *Service) ConnectLN(ctx context.Context, lnUrl string) error {
+	if len(lnUrl) == 0 {
+		settings, err := s.dbSvc.Settings().GetSettings(ctx)
+		if err != nil {
+			log.WithError(err).Warn("failed to get settings")
+			return err
+		}
+
+		if settings.LnConnectionOpts == nil {
+			return fmt.Errorf("no LN connection options found, please provide a valid LN URL")
+		}
+
+		return s.connectLN(ctx, settings.LnConnectionOpts)
 	}
-	if err := s.lnSvc.Connect(ctx, connectUrl); err != nil {
-		return err
+
+	if s.IsPreConfiguredLN() {
+		return fmt.Errorf("cannot change LN URL, it is already pre-configured")
 	}
+
+	lnConnectionType := domain.CLN_CONNECTION
+	if strings.Contains(lnUrl, "lndconnect:") {
+		lnConnectionType = domain.LND_CONNECTION
+	}
+
+	lnConnctionOpts := &domain.LnConnectionOpts{
+		LnUrl:          lnUrl,
+		LnDatadir:      "",
+		ConnectionType: lnConnectionType,
+	}
+
+	err := s.connectLN(ctx, lnConnctionOpts)
+	if err != nil {
+		return fmt.Errorf("failed to connect to LN node: %w", err)
+	}
+
+	err = s.dbSvc.Settings().UpdateSettings(ctx, domain.Settings{
+		LnConnectionOpts: lnConnctionOpts,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update LN connection options: %w", err)
+	}
+
 	return nil
 }
 
@@ -597,7 +619,38 @@ func (s *Service) DisconnectLN() {
 }
 
 func (s *Service) IsConnectedLN() bool {
+	if s.lnSvc == nil {
+		return false
+	}
 	return s.lnSvc.IsConnected()
+}
+
+func (s *Service) GetLnConnectUrl() string {
+	if s.lnSvc == nil {
+		return ""
+	}
+	return s.lnSvc.GetLnConnectUrl()
+}
+
+func (s *Service) connectLN(ctx context.Context, lnOpts *domain.LnConnectionOpts) error {
+	data, err := s.GetConfigData(ctx)
+	if err != nil {
+		return err
+	}
+
+	connectionOpts := lnOpts
+	if connectionOpts.ConnectionType == domain.CLN_CONNECTION {
+		s.lnSvc = cln.NewService()
+	} else {
+		s.lnSvc = lnd.NewService()
+	}
+
+	if err := s.lnSvc.Connect(ctx, connectionOpts, data.Network.Name); err != nil {
+		log.WithError(err).Warn("failed to connect to ln node")
+	}
+
+	return nil
+
 }
 
 func (s *Service) IsPreConfiguredLN() bool {
@@ -606,7 +659,9 @@ func (s *Service) IsPreConfiguredLN() bool {
 		return false
 	}
 
-	return settings.ConnectionOpts != nil
+	lnOpts := settings.LnConnectionOpts
+
+	return lnOpts != nil && lnOpts.LnDatadir != ""
 }
 
 func (s *Service) GetVHTLC(

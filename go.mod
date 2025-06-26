@@ -13,7 +13,7 @@ replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-d
 require (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-00010101000000-000000000000
-	github.com/a-h/templ v0.3.898
+	github.com/a-h/templ v0.3.906
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/ark-network/ark/common v0.0.0-20250606113434-241d3e1ec7cb
 	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250606113434-241d3e1ec7cb

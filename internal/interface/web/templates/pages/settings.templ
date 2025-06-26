@@ -51,7 +51,7 @@ templ SettingsTabs(active string) {
   </div>
 }
 
-templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, isPreconfigured, locked bool, version string) {
+templ SettingsBodyContent(active string, settings domain.Settings, lnUrl string, nodeStatus, isPreconfigured, locked bool, version string) {
   @components.DesktopHeader()
 	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div>
@@ -64,7 +64,7 @@ templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, i
         @SettingsServerContent(settings)
       }
       if active == "lightning" {
-        @SettingsLightningContent(settings, nodeStatus, isPreconfigured)
+        @SettingsLightningContent(lnUrl, nodeStatus, isPreconfigured)
       }
     </div>
   </div>
@@ -125,24 +125,35 @@ templ SettingsServerContent(settings domain.Settings) {
   </form>
 }
 
-templ SettingsLightningContent(settings domain.Settings, nodeStatus bool, isPreconfigured bool) {
+templ SettingsLightningContent(lnUrl string, nodeStatus bool, isPreconfigured bool) {
   <form hx-post="/helpers/settings" hx-trigger="change">
     @Separator("Status")
     @StatusNode(nodeStatus)
     @Hr()
     @Separator("Connect")
     if isPreconfigured {
-      <p class="text-white/50 mb-4">You are using a preconfigured Lightning node</p>
-    } else {
-      <p>Enter details manually or scan to connect</p>
+      <p>You are using a preconfigured Lightning node</p>
       @components.Label("URL")
+      @components.InputFake(lnUrl)
       if nodeStatus {
-        @components.InputFake(settings.LnUrl)
         <button class="bg-red/10 text-red font-semibold rounded-lg mt-8" hx-post="/helpers/node/disconnect">
           Disconnect
         </button>
       } else {
-        @components.InputWithPaste("lnurl", "", settings.LnUrl)
+        @Hr()
+        @components.LnConnectButtons("lnurl", isPreconfigured)
+      }
+        
+    } else {
+      <p>Enter details manually or scan to connect</p>
+      @components.Label("URL")
+      if nodeStatus {
+        @components.InputFake(lnUrl)
+        <button class="bg-red/10 text-red font-semibold rounded-lg mt-8" hx-post="/helpers/node/disconnect">
+          Disconnect
+        </button>
+      } else {
+        @components.InputWithPaste("lnurl", "", lnUrl)
         @Hr()
         <div class="flex items-start gap-4 max-w-96">
           <p class="mt-1">@components.InfoLightIcon()</p>
@@ -152,7 +163,7 @@ templ SettingsLightningContent(settings domain.Settings, nodeStatus bool, isPrec
           </div>
         </div>
         @Hr()
-        @components.LnConnectButtons("lnurl")
+        @components.LnConnectButtons("lnurl", isPreconfigured)
       }
     }
 

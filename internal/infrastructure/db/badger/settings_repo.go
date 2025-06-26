@@ -78,14 +78,12 @@ func (s *settingsRepository) UpdateSettings(
 	if len(newSettings.FullNode) > 0 {
 		settings.FullNode = newSettings.FullNode
 	}
-	if len(newSettings.LnUrl) > 0 {
-		settings.LnUrl = newSettings.LnUrl
-	}
+
 	if len(newSettings.Unit) > 0 {
 		settings.Unit = newSettings.Unit
 	}
-	if newSettings.ConnectionOpts != nil {
-		settings.ConnectionOpts = newSettings.ConnectionOpts
+	if newSettings.LnConnectionOpts != nil {
+		settings.LnConnectionOpts = newSettings.LnConnectionOpts
 	}
 
 	return s.updateSettings(ctx, *settings)

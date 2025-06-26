@@ -16,11 +16,10 @@ type Setting struct {
 	Currency            string
 	EventServer         string
 	FullNode            string
-	LnUrl               sql.NullString
-	Unit                string
 	LnConnectionUrl     sql.NullString
+	Unit                string
 	LnConnectionDatadir sql.NullString
-	LnConnectionNode    sql.NullInt64
+	LnConnectionType    sql.NullInt64
 }
 
 type SubscribedScript struct {

@@ -1,7 +1,7 @@
 -- Settings queries
 -- name: UpsertSettings :exec
-INSERT INTO settings (id, api_root, server_url, esplora_url, currency, event_server, full_node, ln_url, unit, ln_connection_url, ln_connection_datadir, ln_connection_node)
-VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO settings (id, api_root, server_url, esplora_url, currency, event_server, full_node, unit, ln_connection_url, ln_connection_datadir, ln_connection_type)
+VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     api_root = excluded.api_root,
     server_url = excluded.server_url,
@@ -9,11 +9,10 @@ ON CONFLICT(id) DO UPDATE SET
     currency = excluded.currency,
     event_server = excluded.event_server,
     full_node = excluded.full_node,
-    ln_url = excluded.ln_url,
     unit = excluded.unit,
     ln_connection_url = excluded.ln_connection_url,
     ln_connection_datadir = excluded.ln_connection_datadir,
-    ln_connection_node = excluded.ln_connection_node;
+    ln_connection_type = excluded.ln_connection_type;
 
 -- name: DeleteSettings :exec
 DELETE FROM settings;
