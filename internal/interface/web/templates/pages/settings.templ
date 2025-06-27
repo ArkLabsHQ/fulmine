@@ -51,7 +51,7 @@ templ SettingsTabs(active string) {
   </div>
 }
 
-templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, locked bool, version string) {
+templ SettingsBodyContent(active string, settings domain.Settings, lnUrl string, nodeStatus, isPreconfigured, locked bool, version string) {
   @components.DesktopHeader()
 	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div>
@@ -64,7 +64,7 @@ templ SettingsBodyContent(active string, settings domain.Settings, nodeStatus, l
         @SettingsServerContent(settings)
       }
       if active == "lightning" {
-        @SettingsLightningContent(settings, nodeStatus)
+        @SettingsLightningContent(lnUrl, nodeStatus, isPreconfigured)
       }
     </div>
   </div>
@@ -125,32 +125,48 @@ templ SettingsServerContent(settings domain.Settings) {
   </form>
 }
 
-templ SettingsLightningContent(settings domain.Settings, nodeStatus bool) {
-  <form hx-post="/helpers/settings" hx-trigger="change">
+templ SettingsLightningContent(lnUrl string, nodeStatus bool, isPreconfigured bool) {
+  <form >
     @Separator("Status")
     @StatusNode(nodeStatus)
     @Hr()
     @Separator("Connect")
-    <p>Enter details manually or scan to connect</p>
-    @components.Label("URL")
-    if nodeStatus {
-      @components.InputFake(settings.LnUrl)
-      <button class="bg-red/10 text-red font-semibold rounded-lg mt-8" hx-post="/helpers/node/disconnect">
-        Disconnect
-      </button>
+    if isPreconfigured {
+      <p>You are using a preconfigured Lightning node</p>
+      @components.Label("URL")
+      @components.InputFake(lnUrl)
+      if nodeStatus {
+        <button class="bg-red/10 text-red font-semibold rounded-lg mt-8" hx-post="/helpers/node/disconnect">
+          Disconnect
+        </button>
+      } else {
+        @Hr()
+        @components.LnConnectButtons("lnurlpre", isPreconfigured)
+      }
+        
     } else {
-      @components.InputWithPaste("lnurl", "", settings.LnUrl)
-      @Hr()
-      <div class="flex items-start gap-4 max-w-96">
-        <p class="mt-1">@components.InfoLightIcon()</p>
-        <div>
-          <p class="mb-2">Connect to you own LN node to rebalance your channels with low fees and faster settlements</p>
-          <p>How to connect? <a hx-get="/modal/lnconnectinfo" hx-target="#modal" class="visible">View guide</a></p>
+      <p>Enter details manually or scan to connect</p>
+      @components.Label("URL")
+      if nodeStatus {
+        @components.InputFake(lnUrl)
+        <button class="bg-red/10 text-red font-semibold rounded-lg mt-8" hx-post="/helpers/node/disconnect">
+          Disconnect
+        </button>
+      } else {
+        @components.InputWithPaste("lnurl", "", lnUrl)
+        @Hr()
+        <div class="flex items-start gap-4 max-w-96">
+          <p class="mt-1">@components.InfoLightIcon()</p>
+          <div>
+            <p class="mb-2">Connect to you own LN node to rebalance your channels with low fees and faster settlements</p>
+            <p>How to connect? <a hx-get="/modal/lnconnectinfo" hx-target="#modal" class="visible">View guide</a></p>
+          </div>
         </div>
-      </div>
-      @Hr()
-      @components.LnConnectButtons("lnurl")
+        @Hr()
+        @components.LnConnectButtons("lnurl", isPreconfigured)
+      }
     }
+
   </form>
   <script>
     const input = document.querySelector('#lnurl')

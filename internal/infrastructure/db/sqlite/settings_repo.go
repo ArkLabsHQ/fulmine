@@ -40,6 +40,16 @@ func (s *settingsRepository) AddSettings(ctx context.Context, settings domain.Se
 	if err == nil {
 		return fmt.Errorf("settings already exist")
 	}
+
+	lnType := sql.NullInt64{Valid: false}
+	lnDatadir := sql.NullString{Valid: false}
+	lnUrl := sql.NullString{Valid: false}
+	if settings.LnConnectionOpts != nil {
+		lnType = sql.NullInt64{Int64: int64(settings.LnConnectionOpts.ConnectionType), Valid: true}
+		lnDatadir = sql.NullString{String: settings.LnConnectionOpts.LnDatadir, Valid: true}
+		lnUrl = sql.NullString{String: settings.LnConnectionOpts.LnUrl, Valid: true}
+	}
+
 	return s.querier.UpsertSettings(ctx, queries.UpsertSettingsParams{
 		ApiRoot:     settings.ApiRoot,
 		ServerUrl:   settings.ServerUrl,
@@ -47,13 +57,15 @@ func (s *settingsRepository) AddSettings(ctx context.Context, settings domain.Se
 		Currency:    settings.Currency,
 		EventServer: settings.EventServer,
 		FullNode:    settings.FullNode,
-		LnUrl:       sql.NullString{String: settings.LnUrl, Valid: true},
 		Unit:        settings.Unit,
+		LnUrl:       lnUrl,
+		LnDatadir:   lnDatadir,
+		LnType:      lnType,
 	})
 }
 
 func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain.Settings) error {
-	existing, err := s.GetSettings(ctx)
+	existing, err := s.querier.GetSettings(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("settings not found")
@@ -67,9 +79,7 @@ func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain
 	if settings.ServerUrl != "" {
 		existing.ServerUrl = settings.ServerUrl
 	}
-	if settings.EsploraUrl != "" {
-		existing.EsploraUrl = settings.EsploraUrl
-	}
+
 	if settings.Currency != "" {
 		existing.Currency = settings.Currency
 	}
@@ -79,27 +89,31 @@ func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain
 	if settings.FullNode != "" {
 		existing.FullNode = settings.FullNode
 	}
-	if settings.LnUrl != "" {
-		existing.LnUrl = settings.LnUrl
-	}
+
 	if settings.Unit != "" {
 		existing.Unit = settings.Unit
 	}
 	if settings.EsploraUrl != "" {
-		existing.EsploraUrl = settings.EsploraUrl
+		existing.EsploraUrl = sql.NullString{String: settings.EsploraUrl, Valid: true}
 	}
-	if settings.LnUrl != "" {
-		existing.LnUrl = settings.LnUrl
+
+	if settings.LnConnectionOpts != nil {
+		existing.LnType = sql.NullInt64{Int64: int64(settings.LnConnectionOpts.ConnectionType), Valid: true}
+		existing.LnDatadir = sql.NullString{String: settings.LnConnectionOpts.LnDatadir, Valid: true}
+		existing.LnUrl = sql.NullString{String: settings.LnConnectionOpts.LnUrl, Valid: true}
 	}
+
 	return s.querier.UpsertSettings(ctx, queries.UpsertSettingsParams{
 		ApiRoot:     existing.ApiRoot,
 		ServerUrl:   existing.ServerUrl,
-		EsploraUrl:  sql.NullString{String: existing.EsploraUrl, Valid: true},
+		EsploraUrl:  existing.EsploraUrl,
 		Currency:    existing.Currency,
 		EventServer: existing.EventServer,
 		FullNode:    existing.FullNode,
-		LnUrl:       sql.NullString{String: existing.LnUrl, Valid: true},
 		Unit:        existing.Unit,
+		LnUrl:       existing.LnUrl,
+		LnDatadir:   existing.LnDatadir,
+		LnType:      existing.LnType,
 	})
 }
 
@@ -108,15 +122,26 @@ func (s *settingsRepository) GetSettings(ctx context.Context) (*domain.Settings,
 	if err != nil {
 		return nil, err
 	}
+
+	var lnConnectionOpts *domain.LnConnectionOpts
+
+	if row.LnType.Valid {
+		lnConnectionOpts = &domain.LnConnectionOpts{
+			ConnectionType: domain.ConnectionType(row.LnType.Int64),
+			LnDatadir:      row.LnDatadir.String,
+			LnUrl:          row.LnUrl.String,
+		}
+	}
+
 	return &domain.Settings{
-		ApiRoot:     row.ApiRoot,
-		ServerUrl:   row.ServerUrl,
-		Currency:    row.Currency,
-		EventServer: row.EventServer,
-		FullNode:    row.FullNode,
-		Unit:        row.Unit,
-		EsploraUrl:  row.EsploraUrl.String,
-		LnUrl:       row.LnUrl.String,
+		ApiRoot:          row.ApiRoot,
+		ServerUrl:        row.ServerUrl,
+		Currency:         row.Currency,
+		EventServer:      row.EventServer,
+		FullNode:         row.FullNode,
+		Unit:             row.Unit,
+		EsploraUrl:       row.EsploraUrl.String,
+		LnConnectionOpts: lnConnectionOpts,
 	}, nil
 }
 

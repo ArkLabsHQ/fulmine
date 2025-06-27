@@ -74,7 +74,7 @@ func (q *Queries) DeleteVtxoRollover(ctx context.Context, address string) error 
 }
 
 const getSettings = `-- name: GetSettings :one
-SELECT id, api_root, server_url, esplora_url, currency, event_server, full_node, ln_url, unit FROM settings WHERE id = 1
+SELECT id, api_root, server_url, esplora_url, currency, event_server, full_node, ln_url, unit, ln_datadir, ln_type FROM settings WHERE id = 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -90,6 +90,8 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.FullNode,
 		&i.LnUrl,
 		&i.Unit,
+		&i.LnDatadir,
+		&i.LnType,
 	)
 	return i, err
 }
@@ -382,8 +384,8 @@ func (q *Queries) ListVtxoRollover(ctx context.Context) ([]VtxoRollover, error) 
 }
 
 const upsertSettings = `-- name: UpsertSettings :exec
-INSERT INTO settings (id, api_root, server_url, esplora_url, currency, event_server, full_node, ln_url, unit)
-VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO settings (id, api_root, server_url, esplora_url, currency, event_server, full_node, unit, ln_url, ln_datadir, ln_type)
+VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     api_root = excluded.api_root,
     server_url = excluded.server_url,
@@ -391,8 +393,10 @@ ON CONFLICT(id) DO UPDATE SET
     currency = excluded.currency,
     event_server = excluded.event_server,
     full_node = excluded.full_node,
+    unit = excluded.unit,
     ln_url = excluded.ln_url,
-    unit = excluded.unit
+    ln_datadir = excluded.ln_datadir,
+    ln_type = excluded.ln_type
 `
 
 type UpsertSettingsParams struct {
@@ -402,8 +406,10 @@ type UpsertSettingsParams struct {
 	Currency    string
 	EventServer string
 	FullNode    string
-	LnUrl       sql.NullString
 	Unit        string
+	LnUrl       sql.NullString
+	LnDatadir   sql.NullString
+	LnType      sql.NullInt64
 }
 
 // Settings queries
@@ -415,8 +421,10 @@ func (q *Queries) UpsertSettings(ctx context.Context, arg UpsertSettingsParams) 
 		arg.Currency,
 		arg.EventServer,
 		arg.FullNode,
-		arg.LnUrl,
 		arg.Unit,
+		arg.LnUrl,
+		arg.LnDatadir,
+		arg.LnType,
 	)
 	return err
 }

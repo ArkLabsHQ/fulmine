@@ -17,6 +17,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/cln"
+	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/lnd"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
@@ -114,8 +115,8 @@ func NewService(
 	storeSvc types.Store,
 	dbSvc ports.RepoManager,
 	schedulerSvc ports.SchedulerService,
-	lnSvc ports.LnService,
 	esploraUrl, boltzUrl, boltzWSUrl string,
+	connectionOpts *domain.LnConnectionOpts,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadArkClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
@@ -133,6 +134,16 @@ func NewService(
 			return nil, err
 		}
 
+		if connectionOpts != nil {
+			err := dbSvc.Settings().UpdateSettings(context.Background(), domain.Settings{
+				LnConnectionOpts: connectionOpts,
+			})
+
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		svc := &Service{
 			BuildInfo:                 buildInfo,
 			ArkClient:                 arkClient,
@@ -142,7 +153,6 @@ func NewService(
 			grpcClient:                grpcClient,
 			indexerClient:             indexerClient,
 			schedulerSvc:              schedulerSvc,
-			lnSvc:                     lnSvc,
 			publicKey:                 nil,
 			isReady:                   true,
 			subscriptionLock:          sync.RWMutex{},
@@ -165,6 +175,7 @@ func NewService(
 		if err := settingsRepo.AddDefaultSettings(ctx); err != nil {
 			return nil, err
 		}
+
 	}
 
 	arkClient, err := arksdk.NewArkClient(storeSvc)
@@ -172,6 +183,16 @@ func NewService(
 		// nolint:all
 		settingsRepo.CleanSettings(ctx)
 		return nil, err
+	}
+
+	if connectionOpts != nil {
+		err := dbSvc.Settings().UpdateSettings(ctx, domain.Settings{
+			LnConnectionOpts: connectionOpts,
+		})
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	svc := &Service{
@@ -182,7 +203,6 @@ func NewService(
 		dbSvc:                     dbSvc,
 		grpcClient:                nil,
 		schedulerSvc:              schedulerSvc,
-		lnSvc:                     lnSvc,
 		subscriptionLock:          sync.RWMutex{},
 		notifications:             make(chan Notification),
 		stopBoardingEventListener: make(chan struct{}),
@@ -359,13 +379,12 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		log.WithError(err).Warn("failed to get settings")
 		return err
 	}
-	if len(settings.LnUrl) > 0 {
-		if strings.HasPrefix(settings.LnUrl, "clnconnect:") {
-			s.lnSvc = cln.NewService()
+
+	if settings.LnConnectionOpts != nil {
+		if err = s.connectLN(ctx, settings.LnConnectionOpts); err != nil {
+			log.WithError(err).Warn("failed to connect to LN node")
 		}
-		if err := s.lnSvc.Connect(ctx, settings.LnUrl); err != nil {
-			log.WithError(err).Warn("failed to connect to ln node")
-		}
+
 	}
 
 	url := s.boltzUrl
@@ -545,13 +564,48 @@ func (s *Service) WhenNextSettlement(ctx context.Context) time.Time {
 	return s.schedulerSvc.WhenNextSettlement()
 }
 
-func (s *Service) ConnectLN(ctx context.Context, connectUrl string) error {
-	if strings.HasPrefix(connectUrl, "clnconnect:") {
-		s.lnSvc = cln.NewService()
+func (s *Service) ConnectLN(ctx context.Context, lnUrl string) error {
+	if len(lnUrl) == 0 {
+		settings, err := s.dbSvc.Settings().GetSettings(ctx)
+		if err != nil {
+			log.WithError(err).Warn("failed to get settings")
+			return err
+		}
+
+		if settings.LnConnectionOpts == nil {
+			return fmt.Errorf("no LN connection options found, please provide a valid LN Connect URL")
+		}
+
+		return s.connectLN(ctx, settings.LnConnectionOpts)
 	}
-	if err := s.lnSvc.Connect(ctx, connectUrl); err != nil {
-		return err
+
+	if s.IsPreConfiguredLN() {
+		return fmt.Errorf("cannot change LN URL, it is already pre-configured")
 	}
+
+	lnConnectionType := domain.CLN_CONNECTION
+	if strings.Contains(lnUrl, "lndconnect:") {
+		lnConnectionType = domain.LND_CONNECTION
+	}
+
+	lnConnctionOpts := &domain.LnConnectionOpts{
+		LnUrl:          lnUrl,
+		LnDatadir:      "",
+		ConnectionType: lnConnectionType,
+	}
+
+	err := s.connectLN(ctx, lnConnctionOpts)
+	if err != nil {
+		return fmt.Errorf("failed to connect to LN node: %w", err)
+	}
+
+	err = s.dbSvc.Settings().UpdateSettings(ctx, domain.Settings{
+		LnConnectionOpts: lnConnctionOpts,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update LN connection options: %w", err)
+	}
+
 	return nil
 }
 
@@ -560,7 +614,49 @@ func (s *Service) DisconnectLN() {
 }
 
 func (s *Service) IsConnectedLN() bool {
+	if s.lnSvc == nil {
+		return false
+	}
 	return s.lnSvc.IsConnected()
+}
+
+func (s *Service) GetLnConnectUrl() string {
+	if s.lnSvc == nil {
+		return ""
+	}
+	return s.lnSvc.GetLnConnectUrl()
+}
+
+func (s *Service) connectLN(ctx context.Context, lnOpts *domain.LnConnectionOpts) error {
+	data, err := s.GetConfigData(ctx)
+	if err != nil {
+		return err
+	}
+
+	connectionOpts := lnOpts
+	if connectionOpts.ConnectionType == domain.CLN_CONNECTION {
+		s.lnSvc = cln.NewService()
+	} else {
+		s.lnSvc = lnd.NewService()
+	}
+
+	if err := s.lnSvc.Connect(ctx, connectionOpts, data.Network.Name); err != nil {
+		log.WithError(err).Warn("failed to connect to ln node")
+	}
+
+	return nil
+
+}
+
+func (s *Service) IsPreConfiguredLN() bool {
+	settings, err := s.dbSvc.Settings().GetSettings(context.Background())
+	if err != nil {
+		return false
+	}
+
+	lnOpts := settings.LnConnectionOpts
+
+	return lnOpts != nil && lnOpts.LnDatadir != ""
 }
 
 func (s *Service) GetVHTLC(

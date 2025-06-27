@@ -1,7 +1,7 @@
 -- Settings queries
 -- name: UpsertSettings :exec
-INSERT INTO settings (id, api_root, server_url, esplora_url, currency, event_server, full_node, ln_url, unit)
-VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO settings (id, api_root, server_url, esplora_url, currency, event_server, full_node, unit, ln_url, ln_datadir, ln_type)
+VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     api_root = excluded.api_root,
     server_url = excluded.server_url,
@@ -9,8 +9,10 @@ ON CONFLICT(id) DO UPDATE SET
     currency = excluded.currency,
     event_server = excluded.event_server,
     full_node = excluded.full_node,
+    unit = excluded.unit,
     ln_url = excluded.ln_url,
-    unit = excluded.unit;
+    ln_datadir = excluded.ln_datadir,
+    ln_type = excluded.ln_type;
 
 -- name: DeleteSettings :exec
 DELETE FROM settings;
