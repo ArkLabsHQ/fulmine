@@ -41,26 +41,26 @@ func (s *settingsRepository) AddSettings(ctx context.Context, settings domain.Se
 		return fmt.Errorf("settings already exist")
 	}
 
-	lnConnectionNode := sql.NullInt64{Valid: false}
-	lnConnectionDatadir := sql.NullString{Valid: false}
-	lnConnectionUrl := sql.NullString{Valid: false}
+	lnType := sql.NullInt64{Valid: false}
+	lnDatadir := sql.NullString{Valid: false}
+	lnUrl := sql.NullString{Valid: false}
 	if settings.LnConnectionOpts != nil {
-		lnConnectionNode = sql.NullInt64{Int64: int64(settings.LnConnectionOpts.ConnectionType), Valid: true}
-		lnConnectionDatadir = sql.NullString{String: settings.LnConnectionOpts.LnDatadir, Valid: true}
-		lnConnectionUrl = sql.NullString{String: settings.LnConnectionOpts.LnUrl, Valid: true}
+		lnType = sql.NullInt64{Int64: int64(settings.LnConnectionOpts.ConnectionType), Valid: true}
+		lnDatadir = sql.NullString{String: settings.LnConnectionOpts.LnDatadir, Valid: true}
+		lnUrl = sql.NullString{String: settings.LnConnectionOpts.LnUrl, Valid: true}
 	}
 
 	return s.querier.UpsertSettings(ctx, queries.UpsertSettingsParams{
-		ApiRoot:             settings.ApiRoot,
-		ServerUrl:           settings.ServerUrl,
-		EsploraUrl:          sql.NullString{String: settings.EsploraUrl, Valid: true},
-		Currency:            settings.Currency,
-		EventServer:         settings.EventServer,
-		FullNode:            settings.FullNode,
-		Unit:                settings.Unit,
-		LnConnectionUrl:     lnConnectionUrl,
-		LnConnectionDatadir: lnConnectionDatadir,
-		LnConnectionType:    lnConnectionNode,
+		ApiRoot:     settings.ApiRoot,
+		ServerUrl:   settings.ServerUrl,
+		EsploraUrl:  sql.NullString{String: settings.EsploraUrl, Valid: true},
+		Currency:    settings.Currency,
+		EventServer: settings.EventServer,
+		FullNode:    settings.FullNode,
+		Unit:        settings.Unit,
+		LnUrl:       lnUrl,
+		LnDatadir:   lnDatadir,
+		LnType:      lnType,
 	})
 }
 
@@ -98,22 +98,22 @@ func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain
 	}
 
 	if settings.LnConnectionOpts != nil {
-		existing.LnConnectionType = sql.NullInt64{Int64: int64(settings.LnConnectionOpts.ConnectionType), Valid: true}
-		existing.LnConnectionDatadir = sql.NullString{String: settings.LnConnectionOpts.LnDatadir, Valid: true}
-		existing.LnConnectionUrl = sql.NullString{String: settings.LnConnectionOpts.LnUrl, Valid: true}
+		existing.LnType = sql.NullInt64{Int64: int64(settings.LnConnectionOpts.ConnectionType), Valid: true}
+		existing.LnDatadir = sql.NullString{String: settings.LnConnectionOpts.LnDatadir, Valid: true}
+		existing.LnUrl = sql.NullString{String: settings.LnConnectionOpts.LnUrl, Valid: true}
 	}
 
 	return s.querier.UpsertSettings(ctx, queries.UpsertSettingsParams{
-		ApiRoot:             existing.ApiRoot,
-		ServerUrl:           existing.ServerUrl,
-		EsploraUrl:          existing.EsploraUrl,
-		Currency:            existing.Currency,
-		EventServer:         existing.EventServer,
-		FullNode:            existing.FullNode,
-		Unit:                existing.Unit,
-		LnConnectionUrl:     existing.LnConnectionUrl,
-		LnConnectionDatadir: existing.LnConnectionDatadir,
-		LnConnectionType:    existing.LnConnectionType,
+		ApiRoot:     existing.ApiRoot,
+		ServerUrl:   existing.ServerUrl,
+		EsploraUrl:  existing.EsploraUrl,
+		Currency:    existing.Currency,
+		EventServer: existing.EventServer,
+		FullNode:    existing.FullNode,
+		Unit:        existing.Unit,
+		LnUrl:       existing.LnUrl,
+		LnDatadir:   existing.LnDatadir,
+		LnType:      existing.LnType,
 	})
 }
 
@@ -125,11 +125,11 @@ func (s *settingsRepository) GetSettings(ctx context.Context) (*domain.Settings,
 
 	var lnConnectionOpts *domain.LnConnectionOpts
 
-	if row.LnConnectionType.Valid {
+	if row.LnType.Valid {
 		lnConnectionOpts = &domain.LnConnectionOpts{
-			ConnectionType: domain.ConnectionType(row.LnConnectionType.Int64),
-			LnDatadir:      row.LnConnectionDatadir.String,
-			LnUrl:          row.LnConnectionUrl.String,
+			ConnectionType: domain.ConnectionType(row.LnType.Int64),
+			LnDatadir:      row.LnDatadir.String,
+			LnUrl:          row.LnUrl.String,
 		}
 	}
 

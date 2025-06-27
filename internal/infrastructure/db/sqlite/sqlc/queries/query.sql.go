@@ -74,7 +74,7 @@ func (q *Queries) DeleteVtxoRollover(ctx context.Context, address string) error 
 }
 
 const getSettings = `-- name: GetSettings :one
-SELECT id, api_root, server_url, esplora_url, currency, event_server, full_node, ln_connection_url, unit, ln_connection_datadir, ln_connection_type FROM settings WHERE id = 1
+SELECT id, api_root, server_url, esplora_url, currency, event_server, full_node, ln_url, unit, ln_datadir, ln_type FROM settings WHERE id = 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -88,10 +88,10 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.Currency,
 		&i.EventServer,
 		&i.FullNode,
-		&i.LnConnectionUrl,
+		&i.LnUrl,
 		&i.Unit,
-		&i.LnConnectionDatadir,
-		&i.LnConnectionType,
+		&i.LnDatadir,
+		&i.LnType,
 	)
 	return i, err
 }
@@ -384,7 +384,7 @@ func (q *Queries) ListVtxoRollover(ctx context.Context) ([]VtxoRollover, error) 
 }
 
 const upsertSettings = `-- name: UpsertSettings :exec
-INSERT INTO settings (id, api_root, server_url, esplora_url, currency, event_server, full_node, unit, ln_connection_url, ln_connection_datadir, ln_connection_type)
+INSERT INTO settings (id, api_root, server_url, esplora_url, currency, event_server, full_node, unit, ln_url, ln_datadir, ln_type)
 VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     api_root = excluded.api_root,
@@ -394,22 +394,22 @@ ON CONFLICT(id) DO UPDATE SET
     event_server = excluded.event_server,
     full_node = excluded.full_node,
     unit = excluded.unit,
-    ln_connection_url = excluded.ln_connection_url,
-    ln_connection_datadir = excluded.ln_connection_datadir,
-    ln_connection_type = excluded.ln_connection_type
+    ln_url = excluded.ln_url,
+    ln_datadir = excluded.ln_datadir,
+    ln_type = excluded.ln_type
 `
 
 type UpsertSettingsParams struct {
-	ApiRoot             string
-	ServerUrl           string
-	EsploraUrl          sql.NullString
-	Currency            string
-	EventServer         string
-	FullNode            string
-	Unit                string
-	LnConnectionUrl     sql.NullString
-	LnConnectionDatadir sql.NullString
-	LnConnectionType    sql.NullInt64
+	ApiRoot     string
+	ServerUrl   string
+	EsploraUrl  sql.NullString
+	Currency    string
+	EventServer string
+	FullNode    string
+	Unit        string
+	LnUrl       sql.NullString
+	LnDatadir   sql.NullString
+	LnType      sql.NullInt64
 }
 
 // Settings queries
@@ -422,9 +422,9 @@ func (q *Queries) UpsertSettings(ctx context.Context, arg UpsertSettingsParams) 
 		arg.EventServer,
 		arg.FullNode,
 		arg.Unit,
-		arg.LnConnectionUrl,
-		arg.LnConnectionDatadir,
-		arg.LnConnectionType,
+		arg.LnUrl,
+		arg.LnDatadir,
+		arg.LnType,
 	)
 	return err
 }

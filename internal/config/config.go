@@ -14,6 +14,7 @@ import (
 	envunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/env"
 	fileunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/file"
 	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
+	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/spf13/viper"
 )
 
@@ -119,24 +120,12 @@ func LoadConfig() (*Config, error) {
 	lndUrl := viper.GetString(LndUrl)
 	clnUrl := viper.GetString(ClnUrl)
 
-	if lndUrl != "" && clnUrl != "" {
-		return nil, fmt.Errorf("cannot use both LND and CLN connections at the same time")
-	}
-
 	lndDatadir := cleanAndExpandPath(viper.GetString(LndDatadir))
 	clnDatadir := cleanAndExpandPath(viper.GetString(ClnDatadir))
 
-	if lndUrl != "" && lndDatadir != "" {
-		lnConnectionOpts = &domain.LnConnectionOpts{
-			LnUrl:          lndUrl,
-			LnDatadir:      lndDatadir,
-			ConnectionType: domain.LND_CONNECTION,
-		}
-	} else if clnUrl != "" || clnDatadir != "" {
-		lnConnectionOpts = &domain.LnConnectionOpts{
-			LnUrl:          clnUrl,
-			ConnectionType: domain.CLN_CONNECTION,
-		}
+	lnConnectionOpts, err := deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir)
+	if err != nil {
+		return nil, fmt.Errorf("error deriving lightning connection config: %w", err)
 	}
 
 	config := &Config{
@@ -318,4 +307,50 @@ func cleanAndExpandPath(path string) string {
 	// NOTE: The os.ExpandEnv doesn't work with Windows-style %VARIABLE%,
 	// but the variables can still be expanded via POSIX-style $VARIABLE.
 	return filepath.Clean(os.ExpandEnv(path))
+}
+
+func deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir string) (*domain.LnConnectionOpts, error) {
+	var lnConnectionOpts *domain.LnConnectionOpts
+
+	if lndUrl != "" && clnUrl != "" {
+		return nil, fmt.Errorf("cannot set both LND and CLN URLs at the same time")
+	}
+
+	if lndDatadir != "" && clnDatadir != "" {
+		return nil, fmt.Errorf("cannot set both LND and CLN datadirs at the same time")
+	}
+
+	if lndUrl != "" {
+		if err := utils.ValidateURL(lndUrl); err != nil {
+			return nil, fmt.Errorf("invalid LND URL: %v", err)
+		}
+
+		if lndDatadir != "" {
+			lnConnectionOpts = &domain.LnConnectionOpts{
+				LnUrl:          lndUrl,
+				LnDatadir:      lndDatadir,
+				ConnectionType: domain.LND_CONNECTION,
+			}
+		} else {
+			return nil, fmt.Errorf("LND URL provided without LND datadir")
+		}
+
+	} else if clnUrl != "" {
+		if err := utils.ValidateURL(clnUrl); err != nil {
+			return nil, fmt.Errorf("invalid CLN URL: %v", err)
+		}
+
+		if clnDatadir != "" {
+			lnConnectionOpts = &domain.LnConnectionOpts{
+				LnUrl:          clnUrl,
+				LnDatadir:      clnDatadir,
+				ConnectionType: domain.CLN_CONNECTION,
+			}
+		} else {
+			return nil, fmt.Errorf("CLN URL provided without CLN datadir")
+		}
+	}
+
+	return lnConnectionOpts, nil
+
 }

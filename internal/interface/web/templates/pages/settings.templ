@@ -126,7 +126,7 @@ templ SettingsServerContent(settings domain.Settings) {
 }
 
 templ SettingsLightningContent(lnUrl string, nodeStatus bool, isPreconfigured bool) {
-  <form hx-post="/helpers/settings" hx-trigger="change">
+  <form >
     @Separator("Status")
     @StatusNode(nodeStatus)
     @Hr()
@@ -141,7 +141,7 @@ templ SettingsLightningContent(lnUrl string, nodeStatus bool, isPreconfigured bo
         </button>
       } else {
         @Hr()
-        @components.LnConnectButtons("lnurl", isPreconfigured)
+        @components.LnConnectButtons("lnurlpre", isPreconfigured)
       }
         
     } else {

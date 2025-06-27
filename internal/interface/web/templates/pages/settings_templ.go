@@ -644,7 +644,7 @@ func SettingsLightningContent(lnUrl string, nodeStatus bool, isPreconfigured boo
 			templ_7745c5c3_Var20 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<form hx-post=\"/helpers/settings\" hx-trigger=\"change\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -699,7 +699,7 @@ func SettingsLightningContent(lnUrl string, nodeStatus bool, isPreconfigured boo
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = components.LnConnectButtons("lnurl", isPreconfigured).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = components.LnConnectButtons("lnurlpre", isPreconfigured).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

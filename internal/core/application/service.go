@@ -383,13 +383,8 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if settings.LnConnectionOpts != nil {
 		if err = s.connectLN(ctx, settings.LnConnectionOpts); err != nil {
 			log.WithError(err).Warn("failed to connect to LN node")
-			return err
 		}
 
-	}
-	if err != nil {
-		log.WithError(err).Warn("failed to connect to LN node")
-		return err
 	}
 
 	url := s.boltzUrl
@@ -578,7 +573,7 @@ func (s *Service) ConnectLN(ctx context.Context, lnUrl string) error {
 		}
 
 		if settings.LnConnectionOpts == nil {
-			return fmt.Errorf("no LN connection options found, please provide a valid LN URL")
+			return fmt.Errorf("no LN connection options found, please provide a valid LN Connect URL")
 		}
 
 		return s.connectLN(ctx, settings.LnConnectionOpts)
