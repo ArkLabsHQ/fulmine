@@ -15,8 +15,8 @@ require (
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-00010101000000-000000000000
 	github.com/a-h/templ v0.3.898
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/ark-network/ark/common v0.0.0-20250606113434-241d3e1ec7cb
-	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250606113434-241d3e1ec7cb
+	github.com/ark-network/ark/common v0.0.0-20250627141956-783ba19512f0
+	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250627141956-783ba19512f0
 	github.com/ark-network/ark/server/pkg/kvdb v0.0.0-20250430141707-2419ac0f83c4
 	github.com/ark-network/ark/server/pkg/macaroons v0.0.0-20250430141707-2419ac0f83c4
 	github.com/ccoveille/go-safecast v1.2.0
@@ -42,7 +42,7 @@ require (
 	golang.org/x/net v0.39.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250115164207-1a7da9e5054f
 	google.golang.org/grpc v1.69.4
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.6
 	gopkg.in/macaroon-bakery.v2 v2.3.0
 	modernc.org/sqlite v1.33.1
 )

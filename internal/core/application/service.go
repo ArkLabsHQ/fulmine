@@ -89,8 +89,9 @@ type Service struct {
 
 	isReady bool
 
-	subscriptionId   string
-	subscriptionLock sync.RWMutex
+	subscriptionId         string
+	internalSubscriptionId string
+	subscriptionLock       sync.RWMutex
 
 	walletUpdates chan WalletUpdate
 
@@ -104,8 +105,8 @@ type Service struct {
 
 type Notification struct {
 	Addrs      []string
-	NewVtxos   []indexer.Vtxo
-	SpentVtxos []indexer.Vtxo
+	NewVtxos   []types.Vtxo
+	SpentVtxos []types.Vtxo
 }
 
 func NewService(
@@ -325,18 +326,18 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	s.schedulerSvc.Start()
 	log.Info("scheduler started")
 
-	data, err := s.GetConfigData(ctx)
+	arkConfig, err := s.GetConfigData(ctx)
 	if err != nil {
 		return err
 	}
 
-	nextExpiry, err := s.computeNextExpiry(ctx, data)
+	nextExpiry, err := s.computeNextExpiry(ctx, arkConfig)
 	if err != nil {
 		log.WithError(err).Error("failed to compute next expiry")
 	}
 
 	if nextExpiry != nil {
-		if err := s.scheduleNextSettlement(*nextExpiry, data); err != nil {
+		if err := s.scheduleNextSettlement(*nextExpiry, arkConfig); err != nil {
 			log.WithError(err).Info("schedule next claim failed")
 		}
 	}
@@ -371,28 +372,36 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	url := s.boltzUrl
 	wsUrl := s.boltzWSUrl
 	if url == "" {
-		url = boltzURLByNetwork[data.Network.Name]
+		url = boltzURLByNetwork[arkConfig.Network.Name]
 	}
 	if wsUrl == "" {
-		wsUrl = boltzURLByNetwork[data.Network.Name]
+		wsUrl = boltzURLByNetwork[arkConfig.Network.Name]
 	}
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 
-	offchainAddress, onchainAddress, err := s.Receive(ctx)
+	_, offchainAddress, boardingAddr, err := s.Receive(ctx)
 	if err != nil {
 		log.WithError(err).Error("failed to get addresses")
 		return err
 	}
 
-	eventsCh, closeFn, err := s.grpcClient.SubscribeForAddress(context.Background(), offchainAddress)
+	decodedAddress, err := common.DecodeAddressV0(offchainAddress)
 	if err != nil {
-		log.WithError(err).Error("failed to subscribe for offchain address")
-		return err
+		return fmt.Errorf("failed to decode offchain address %s: %w", offchainAddress, err)
 	}
-	s.closeInternalListener = closeFn
-	go s.handleInternalAddressEventChannel(eventsCh)
-	if data.UtxoMaxAmount != 0 {
-		go s.subscribeForBoardingEvent(ctx, onchainAddress, data)
+	offchainPubkey := hex.EncodeToString(schnorr.SerializePubKey(decodedAddress.VtxoTapKey))
+
+	s.subscribeForScripts(context.Background(), "", []string{offchainPubkey}, func(eventsCh <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
+		go s.handleInternalAddressEventChannel(eventsCh)
+		s.internalSubscriptionId = subId
+		s.closeInternalListener = func() {
+			s.internalSubscriptionId = ""
+			closeFn()
+		}
+	})
+
+	if arkConfig.UtxoMaxAmount != 0 {
+		go s.subscribeForBoardingEvent(ctx, boardingAddr, arkConfig)
 	}
 
 	// resubscribe to previously subscribed scripts
@@ -402,12 +411,20 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 
-	if len(scriptsToSubscribe) > 0 {
-		err := s.subscribeForScripts(context.Background(), scriptsToSubscribe)
-		if err != nil {
-			log.WithError(err).Error("failed to resubscribe for scripts")
-			return err
+	scriptsToSubscribe = append(scriptsToSubscribe, offchainPubkey)
+
+	err = s.subscribeForScripts(context.Background(), "", scriptsToSubscribe, func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
+		go s.handleAddressEventChannel(stream, arkConfig)
+		s.subscriptionId = subId
+		s.closeAddressEventListener = func() {
+			s.subscriptionId = ""
+			closeFn()
 		}
+	})
+
+	if err != nil {
+		log.WithError(err).Error("failed to resubscribe for scripts")
+		return err
 	}
 
 	go func() {
@@ -466,7 +483,7 @@ func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, 
 	var invoice string
 	fmt.Printf("get address with %d sat and %t\n", sats, sats > 1000)
 
-	offchainAddr, boardingAddr, err := s.Receive(ctx)
+	_, offchainAddr, boardingAddr, err := s.Receive(ctx)
 	if err != nil {
 		return "", "", "", "", "", err
 	}
@@ -507,8 +524,8 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 	return balance.OffchainBalance.Total + onchainBalance, nil
 }
 
-func (s *Service) GetRound(ctx context.Context, roundId string) (*client.Round, error) {
-	return s.grpcClient.GetRoundByID(ctx, roundId)
+func (s *Service) GetRound(ctx context.Context, roundId string) (*indexer.CommitmentTx, error) {
+	return s.indexerClient.GetCommitmentTx(ctx, roundId)
 }
 
 func (s *Service) Settle(ctx context.Context) (string, error) {
@@ -596,7 +613,7 @@ func (s *Service) GetVHTLC(
 	return addr, script, opts, nil
 }
 
-func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]client.Vtxo, []vhtlc.Opts, error) {
+func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]types.Vtxo, []vhtlc.Opts, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return nil, nil, err
 	}
@@ -707,37 +724,21 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 	return s.submarineSwap(ctx, amount, "", pubkey)
 }
 
-func (s *Service) subscribeForScripts(ctx context.Context, scripts []string) error {
-	if s.subscriptionId == "" {
-		subscriptionId, err := s.indexerClient.SubscribeForScripts(ctx, "", scripts)
-		if err != nil {
-			return fmt.Errorf("failed to subscribe for scripts: %w", err)
-		}
+func (s *Service) subscribeForScripts(ctx context.Context, subscriptionId string, scripts []string, extraFunc func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string)) error {
+	subscriptionId, err := s.indexerClient.SubscribeForScripts(ctx, subscriptionId, scripts)
+	if err != nil {
+		return fmt.Errorf("failed to subscribe for scripts: %w", err)
+	}
 
-		subscriptionChannel, closeFn, err := s.indexerClient.GetSubscription(ctx, subscriptionId)
+	if extraFunc != nil {
+		subscriptionChannel, closeFn, err := s.indexerClient.GetSubscription(ctx, s.subscriptionId)
 		if err != nil {
 			return fmt.Errorf("failed to get subscription for scripts: %w", err)
 		}
 
-		config, err := s.GetConfigData(context.Background())
-		if err != nil {
-			return fmt.Errorf("failed to get config data: %w", err)
-		}
-		go s.handleAddressEventChannel(subscriptionChannel, config)
-		s.subscriptionId = subscriptionId
-		s.closeAddressEventListener = func() {
-			s.subscriptionId = ""
-			closeFn()
-		}
+		extraFunc(subscriptionChannel, closeFn, subscriptionId)
 
-	} else {
-		_, err := s.indexerClient.SubscribeForScripts(ctx, s.subscriptionId, scripts)
-		if err != nil {
-			return fmt.Errorf("failed to update subscription for scripts: %w", err)
-		}
 	}
-
-	log.Debugf("restored watching %d scripts", len(scripts))
 
 	return nil
 }
@@ -765,7 +766,7 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 			return fmt.Errorf("empty address provided")
 		}
 
-		decoded_address, err := common.DecodeAddress(addr)
+		decoded_address, err := common.DecodeAddressV0(addr)
 		if err != nil {
 			return fmt.Errorf("failed to decode address %s: %w", addr, err)
 		}
@@ -783,7 +784,8 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 		return nil
 	}
 
-	err = s.subscribeForScripts(context.Background(), addressScripts)
+	err = s.subscribeForScripts(ctx, s.subscriptionId, addressScripts, nil)
+
 	if err != nil {
 		return fmt.Errorf("failed to subscribe for address scripts: %w", err)
 	}
@@ -821,7 +823,7 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 	}
 
 	for _, addr := range addresses {
-		decoded_address, err := common.DecodeAddress(addr)
+		decoded_address, err := common.DecodeAddressV0(addr)
 		if err != nil {
 			return fmt.Errorf("failed to decode address %s: %w", addr, err)
 		}
@@ -1129,7 +1131,7 @@ func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent
 				HRP:        config.Network.Addr,
 			}
 
-			encodedAddress, err := vtxoAddress.Encode()
+			encodedAddress, err := vtxoAddress.EncodeV0()
 			if err != nil {
 				log.WithError(err).Errorf("failed to encode address %s", script)
 				continue
@@ -1150,7 +1152,7 @@ func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent
 
 // handleInternalAddressEventChannel is used to handle address events from the internal address event channel
 // it is used to schedule next settlement when a VTXO is spent or created
-func (s *Service) handleInternalAddressEventChannel(eventsCh <-chan client.AddressEvent) {
+func (s *Service) handleInternalAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent) {
 	for event := range eventsCh {
 		if event.Err != nil {
 			log.WithError(event.Err).Error("AddressEvent subscription error")
@@ -1277,8 +1279,8 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64, invoice stri
 	}
 
 	// Fund the VHTLC
-	receivers := []arksdk.Receiver{arksdk.NewBitcoinReceiver(swap.Address, amount)}
-	txid, err := s.SendOffChain(ctx, false, receivers, true)
+	receivers := []types.Receiver{{To: swap.Address, Amount: amount}}
+	txid, err := s.SendOffChain(ctx, false, receivers)
 	if err != nil {
 		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
 	}
@@ -1625,13 +1627,13 @@ func (s *Service) getVHTLC(
 	return encodedAddr, vHTLC, &opts, nil
 }
 
-func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]client.Vtxo, error) {
+func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]types.Vtxo, error) {
 	cfg, err := s.GetConfigData(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var allVtxos []client.Vtxo
+	var allVtxos []types.Vtxo
 	for _, opt := range vhtlcOpts {
 		vHTLC, err := vhtlc.NewVHTLCScript(opt)
 		if err != nil {
@@ -1644,11 +1646,13 @@ func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]
 		}
 
 		// Get vtxos for this address
-		vtxos, _, err := s.grpcClient.ListVtxos(ctx, addrStr)
+		vtxosRequest := indexer.GetVtxosRequestOption{}
+		vtxosRequest.WithAddresses([]string{addrStr})
+		VtxosResponse, err := s.indexerClient.GetVtxos(ctx, vtxosRequest)
 		if err != nil {
 			return nil, err
 		}
-		allVtxos = append(allVtxos, vtxos...)
+		allVtxos = append(allVtxos, VtxosResponse.Vtxos...)
 	}
 
 	return allVtxos, nil
@@ -1679,7 +1683,6 @@ func (s *Service) claimVHTLC(
 	}
 
 	claimClosure := vtxoScript.ClaimClosure
-	claimWitnessSize := claimClosure.WitnessSize(len(preimage))
 	claimScript, err := claimClosure.Script()
 	if err != nil {
 		return "", err
@@ -1708,7 +1711,7 @@ func (s *Service) claimVHTLC(
 		return "", err
 	}
 
-	decodedAddr, err := common.DecodeAddress(myAddr)
+	decodedAddr, err := common.DecodeAddressV0(myAddr)
 	if err != nil {
 		return "", err
 	}
@@ -1723,13 +1726,24 @@ func (s *Service) claimVHTLC(
 		return "", err
 	}
 
-	redeemTx, err := tree.BuildRedeemTx(
+	data, err := s.GetConfigData(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get config data: %w", err)
+	}
+
+	checkpointExitScript := &tree.CSVMultisigClosure{
+		Locktime: data.UnilateralExitDelay,
+		MultisigClosure: tree.MultisigClosure{
+			PubKeys: []*secp256k1.PublicKey{data.ServerPubKey},
+		},
+	}
+
+	redeemTx, checkpoints, err := tree.BuildOffchainTx(
 		[]common.VtxoInput{
 			{
 				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
 				Outpoint:           vtxoOutpoint,
 				Amount:             amount,
-				WitnessSize:        claimWitnessSize,
 				Tapscript: &waddrmgr.Tapscript{
 					ControlBlock:   ctrlBlock,
 					RevealedScript: claimScript,
@@ -1742,33 +1756,39 @@ func (s *Service) claimVHTLC(
 				PkScript: pkScript,
 			},
 		},
+		checkpointExitScript,
 	)
 	if err != nil {
 		return "", err
 	}
 
-	redeemPtx, err := psbt.NewFromRawBytes(strings.NewReader(redeemTx), true)
+	if err := tree.AddConditionWitness(0, redeemTx, wire.TxWitness{preimage}); err != nil {
+		return "", err
+	}
+
+	// Finalise the transaction
+	checkpointTxs := make([]string, 0, len(checkpoints))
+	for _, ptx := range checkpoints {
+		tx, err := ptx.B64Encode()
+		if err != nil {
+			return "", err
+		}
+		checkpointTxs = append(checkpointTxs, tx)
+	}
+
+	reemdemTxId := redeemTx.UnsignedTx.TxHash().String()
+
+	reedemTxStr, err := redeemTx.B64Encode()
 	if err != nil {
 		return "", err
 	}
 
-	if err := tree.AddConditionWitness(0, redeemPtx, wire.TxWitness{preimage}); err != nil {
-		return "", err
-	}
-
-	reemdemTxId := redeemPtx.UnsignedTx.TxHash().String()
-
-	redeemTx, err = redeemPtx.B64Encode()
+	signedRedeemTx, err := s.SignTransaction(ctx, reedemTxStr)
 	if err != nil {
 		return "", err
 	}
 
-	signedRedeemTx, err := s.SignTransaction(ctx, redeemTx)
-	if err != nil {
-		return "", err
-	}
-
-	if _, _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRedeemTx); err != nil {
+	if _, _, _, err := s.grpcClient.SubmitTx(ctx, signedRedeemTx, checkpointTxs); err != nil {
 		return "", err
 	}
 
@@ -1799,7 +1819,7 @@ func (s *Service) claimVHTLCByRefund(
 		return "", err
 	}
 
-	if _, _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRedeemTx); err != nil {
+	if _, _, _, err := s.grpcClient.SubmitTx(ctx, signedRedeemTx, nil); err != nil {
 		return "", err
 	}
 
@@ -1809,6 +1829,11 @@ func (s *Service) claimVHTLCByRefund(
 func (s *Service) refundVHTLC(
 	ctx context.Context, swapId string, withReceiver bool, vhtlcOpts vhtlc.Opts,
 ) (string, error) {
+	cfg, err := s.GetConfigData(ctx)
+	if err != nil {
+		return "", err
+	}
+
 	vtxos, err := s.getVHTLCFunds(ctx, []vhtlc.Opts{vhtlcOpts})
 	if err != nil {
 		return "", err
@@ -1835,7 +1860,6 @@ func (s *Service) refundVHTLC(
 	if withReceiver {
 		refundClosure = vtxoScript.RefundClosure
 	}
-	refundWitnessSize := refundClosure.WitnessSize()
 	refundScript, err := refundClosure.Script()
 	if err != nil {
 		return "", err
@@ -1868,13 +1892,19 @@ func (s *Service) refundVHTLC(
 		return "", err
 	}
 
-	refundTx, err := tree.BuildRedeemTx(
+	checkpointExitScript := &tree.CSVMultisigClosure{
+		Locktime: cfg.UnilateralExitDelay,
+		MultisigClosure: tree.MultisigClosure{
+			PubKeys: []*secp256k1.PublicKey{cfg.ServerPubKey},
+		},
+	}
+
+	refundTx, checkpointPtxs, err := tree.BuildOffchainTx(
 		[]common.VtxoInput{
 			{
 				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
 				Outpoint:           vtxoOutpoint,
 				Amount:             amount,
-				WitnessSize:        refundWitnessSize,
 				Tapscript: &waddrmgr.Tapscript{
 					ControlBlock:   ctrlBlock,
 					RevealedScript: refundScript,
@@ -1887,24 +1917,20 @@ func (s *Service) refundVHTLC(
 				PkScript: dest,
 			},
 		},
+		checkpointExitScript,
 	)
 	if err != nil {
 		return "", err
 	}
 
-	refundPtx, err := psbt.NewFromRawBytes(strings.NewReader(refundTx), true)
+	txid := refundTx.UnsignedTx.TxHash().String()
+
+	refundTxStr, err := refundTx.B64Encode()
 	if err != nil {
 		return "", err
 	}
 
-	txid := refundPtx.UnsignedTx.TxHash().String()
-
-	refundTx, err = refundPtx.B64Encode()
-	if err != nil {
-		return "", err
-	}
-
-	signedRefundTx, err := s.SignTransaction(ctx, refundTx)
+	signedRefundTx, err := s.SignTransaction(ctx, refundTxStr)
 	if err != nil {
 		return "", err
 	}
@@ -1916,7 +1942,16 @@ func (s *Service) refundVHTLC(
 		}
 	}
 
-	if _, _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRefundTx); err != nil {
+	checkpointTxs := make([]string, 0, len(checkpointPtxs))
+	for _, ptx := range checkpointPtxs {
+		tx, err := ptx.B64Encode()
+		if err != nil {
+			return "", err
+		}
+		checkpointTxs = append(checkpointTxs, tx)
+	}
+
+	if _, _, _, err := s.grpcClient.SubmitTx(ctx, signedRefundTx, checkpointTxs); err != nil {
 		return "", err
 	}
 

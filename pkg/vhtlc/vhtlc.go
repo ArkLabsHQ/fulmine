@@ -196,5 +196,5 @@ func (v *VHTLCScript) Address(hrp string, serverPubkey *btcec.PublicKey) (string
 		VtxoTapKey: tapKey,
 	}
 
-	return addr.Encode()
+	return addr.EncodeV0()
 }
