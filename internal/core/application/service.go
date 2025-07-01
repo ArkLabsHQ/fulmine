@@ -326,18 +326,18 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	s.schedulerSvc.Start()
 	log.Info("scheduler started")
 
-	data, err := s.GetConfigData(ctx)
+	arkConfig, err := s.GetConfigData(ctx)
 	if err != nil {
 		return err
 	}
 
-	nextExpiry, err := s.computeNextExpiry(ctx, data)
+	nextExpiry, err := s.computeNextExpiry(ctx, arkConfig)
 	if err != nil {
 		log.WithError(err).Error("failed to compute next expiry")
 	}
 
 	if nextExpiry != nil {
-		if err := s.scheduleNextSettlement(*nextExpiry, data); err != nil {
+		if err := s.scheduleNextSettlement(*nextExpiry, arkConfig); err != nil {
 			log.WithError(err).Info("schedule next claim failed")
 		}
 	}
@@ -372,10 +372,10 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	url := s.boltzUrl
 	wsUrl := s.boltzWSUrl
 	if url == "" {
-		url = boltzURLByNetwork[data.Network.Name]
+		url = boltzURLByNetwork[arkConfig.Network.Name]
 	}
 	if wsUrl == "" {
-		wsUrl = boltzURLByNetwork[data.Network.Name]
+		wsUrl = boltzURLByNetwork[arkConfig.Network.Name]
 	}
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 
@@ -385,25 +385,23 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 
-	decoded_address, err := common.DecodeAddressV0(offchainAddress)
+	decodedAddress, err := common.DecodeAddressV0(offchainAddress)
 	if err != nil {
 		return fmt.Errorf("failed to decode offchain address %s: %w", offchainAddress, err)
 	}
-	serialised_script := hex.EncodeToString(schnorr.SerializePubKey(decoded_address.VtxoTapKey))
+	offchainPubkey := hex.EncodeToString(schnorr.SerializePubKey(decodedAddress.VtxoTapKey))
 
-	s.subscribeForScripts(context.Background(), "", []string{serialised_script}, func(eventsCh <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
+	s.subscribeForScripts(context.Background(), "", []string{offchainPubkey}, func(eventsCh <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
 		go s.handleInternalAddressEventChannel(eventsCh)
-		s.closeInternalListener = closeFn
 		s.internalSubscriptionId = subId
+		s.closeInternalListener = func() {
+			s.internalSubscriptionId = ""
+			closeFn()
+		}
 	})
 
-	if err != nil {
-		log.WithError(err).Error("failed to subscribe for offchain address")
-		return err
-	}
-
-	if data.UtxoMaxAmount != 0 {
-		go s.subscribeForBoardingEvent(ctx, boardingAddr, data)
+	if arkConfig.UtxoMaxAmount != 0 {
+		go s.subscribeForBoardingEvent(ctx, boardingAddr, arkConfig)
 	}
 
 	// resubscribe to previously subscribed scripts
@@ -413,20 +411,20 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 
-	if len(scriptsToSubscribe) > 0 {
-		err := s.subscribeForScripts(context.Background(), "", scriptsToSubscribe, func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
-			go s.handleAddressEventChannel(stream, data)
-			s.subscriptionId = subId
-			s.closeAddressEventListener = func() {
-				s.subscriptionId = ""
-				closeFn()
-			}
-		})
+	scriptsToSubscribe = append(scriptsToSubscribe, offchainPubkey)
 
-		if err != nil {
-			log.WithError(err).Error("failed to resubscribe for scripts")
-			return err
+	err = s.subscribeForScripts(context.Background(), "", scriptsToSubscribe, func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
+		go s.handleAddressEventChannel(stream, arkConfig)
+		s.subscriptionId = subId
+		s.closeAddressEventListener = func() {
+			s.subscriptionId = ""
+			closeFn()
 		}
+	})
+
+	if err != nil {
+		log.WithError(err).Error("failed to resubscribe for scripts")
+		return err
 	}
 
 	go func() {
@@ -727,7 +725,7 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 }
 
 func (s *Service) subscribeForScripts(ctx context.Context, subscriptionId string, scripts []string, extraFunc func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string)) error {
-	subscriptionId, err := s.indexerClient.SubscribeForScripts(ctx, s.subscriptionId, scripts)
+	subscriptionId, err := s.indexerClient.SubscribeForScripts(ctx, subscriptionId, scripts)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe for scripts: %w", err)
 	}
@@ -745,7 +743,7 @@ func (s *Service) subscribeForScripts(ctx context.Context, subscriptionId string
 	return nil
 }
 
-func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string, extraFunc func(stream <-chan *indexer.ScriptEvent, closeFn func()) error) error {
+func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string) error {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return err
 	}
@@ -787,6 +785,7 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string,
 	}
 
 	err = s.subscribeForScripts(ctx, s.subscriptionId, addressScripts, nil)
+
 	if err != nil {
 		return fmt.Errorf("failed to subscribe for address scripts: %w", err)
 	}
