@@ -10,7 +10,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/ark-network/ark/common"
-	"github.com/ark-network/ark/common/tree"
 	"github.com/ark-network/ark/pkg/client-sdk/indexer"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -204,22 +203,6 @@ func toNetworkProto(net string) pb.GetInfoResponse_Network {
 	}
 }
 
-func toTreeProto(tree tree.TxTree) *pb.Tree {
-	levels := make([]*pb.TreeLevel, 0, len(tree))
-	for _, treeLevel := range tree {
-		nodes := make([]*pb.Node, 0, len(treeLevel))
-		for _, node := range treeLevel {
-			nodes = append(nodes, &pb.Node{
-				Txid:       node.Txid,
-				Tx:         node.Tx,
-				ParentTxid: node.ParentTxid,
-			})
-		}
-		levels = append(levels, &pb.TreeLevel{Nodes: nodes})
-	}
-	return &pb.Tree{Levels: levels}
-}
-
 func toTxTypeProto(txType types.TxType) pb.TxType {
 	switch txType {
 	case types.TxSent:
@@ -275,18 +258,21 @@ func toNotificationProto(n application.Notification) *pb.Notification {
 	}
 }
 
-func toVtxosProto(vtxos []indexer.Vtxo) []*pb.Vtxo {
+func toVtxosProto(vtxos []types.Vtxo) []*pb.Vtxo {
 	list := make([]*pb.Vtxo, 0, len(vtxos))
 	for _, vtxo := range vtxos {
 		list = append(list, &pb.Vtxo{
-			Outpoint: toInputProto(vtxo.Outpoint),
+			Outpoint: &pb.Input{
+				Txid: vtxo.Txid,
+				Vout: vtxo.VOut,
+			},
 			Receiver: &pb.Output{
 				Pubkey: vtxo.Script,
 				Amount: vtxo.Amount,
 			},
-			SpentBy:   vtxo.SpentBy,
-			RoundTxid: vtxo.CommitmentTxid,
-			ExpireAt:  vtxo.ExpiresAt,
+			SpentBy:       vtxo.SpentBy,
+			CommitedTxids: vtxo.CommitmentTxids,
+			ExpireAt:      vtxo.ExpiresAt.Unix(),
 		})
 	}
 	return list
