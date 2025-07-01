@@ -10,7 +10,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/ark-network/ark/common"
-	"github.com/ark-network/ark/pkg/client-sdk/indexer"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -103,13 +102,6 @@ func parseNote(n string) (string, error) {
 		return "", fmt.Errorf("invalid note")
 	}
 	return n, nil
-}
-
-func parseRoundId(id string) (string, error) {
-	if len(id) <= 0 {
-		return "", fmt.Errorf("missing round id")
-	}
-	return id, nil
 }
 
 func parseInvoice(invoice string) (string, error) {
@@ -276,11 +268,4 @@ func toVtxosProto(vtxos []types.Vtxo) []*pb.Vtxo {
 		})
 	}
 	return list
-}
-
-func toInputProto(outpoint indexer.Outpoint) *pb.Input {
-	return &pb.Input{
-		Txid: outpoint.Txid,
-		Vout: outpoint.VOut,
-	}
 }
