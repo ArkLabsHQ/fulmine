@@ -391,7 +391,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 	offchainPubkey := hex.EncodeToString(schnorr.SerializePubKey(decodedAddress.VtxoTapKey))
 
-	s.subscribeForScripts(context.Background(), "", []string{offchainPubkey}, func(eventsCh <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
+	err = s.subscribeForScripts(context.Background(), "", []string{offchainPubkey}, func(eventsCh <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
 		go s.handleInternalAddressEventChannel(eventsCh)
 		s.internalSubscriptionId = subId
 		s.closeInternalListener = func() {
@@ -399,6 +399,11 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			closeFn()
 		}
 	})
+
+	if err != nil {
+		log.WithError(err).Error("failed to subscribe internal address events")
+		return err
+	}
 
 	if arkConfig.UtxoMaxAmount != 0 {
 		go s.subscribeForBoardingEvent(ctx, boardingAddr, arkConfig)
@@ -1647,7 +1652,11 @@ func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]
 
 		// Get vtxos for this address
 		vtxosRequest := indexer.GetVtxosRequestOption{}
-		vtxosRequest.WithAddresses([]string{addrStr})
+		err = vtxosRequest.WithAddresses([]string{addrStr})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create vtxos request: %w", err)
+		}
+
 		VtxosResponse, err := s.indexerClient.GetVtxos(ctx, vtxosRequest)
 		if err != nil {
 			return nil, err
