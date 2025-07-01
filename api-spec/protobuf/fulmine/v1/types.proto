@@ -55,7 +55,7 @@ message Round {
 message TransactionInfo {
   string date = 1;
   uint64 amount = 2;
-  string round_txid = 3;
+  string commitment_txid = 3;
   string redeem_txid = 4;
   string boarding_txid = 5;
   TxType type = 6; 
@@ -73,7 +73,7 @@ message TreeLevel {
 message Vtxo {
   Input outpoint = 1;
   Output receiver = 2;
-  string round_txid = 3;
+  repeated string commited_txids = 3;
   string spent_by = 4;
   int64 expire_at = 5;
 }

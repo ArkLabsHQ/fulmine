@@ -1216,7 +1216,7 @@
           "type": "string",
           "format": "uint64"
         },
-        "roundTxid": {
+        "commitmentTxid": {
           "type": "string"
         },
         "redeemTxid": {
@@ -1287,8 +1287,11 @@
         "receiver": {
           "$ref": "#/definitions/v1Output"
         },
-        "roundTxid": {
-          "type": "string"
+        "commitedTxids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "spentBy": {
           "type": "string"

@@ -20,7 +20,6 @@ import (
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	"github.com/ark-network/ark/common"
-	arksdk "github.com/ark-network/ark/pkg/client-sdk"
 	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
@@ -436,12 +435,10 @@ func (s *service) sendConfirm(c *gin.Context) {
 		return
 	}
 
-	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(address, value),
-	}
+	receivers := []sdktypes.Receiver{{To: address, Amount: value}}
 
 	if utils.IsValidArkAddress(address) {
-		txId, err = s.svc.SendOffChain(c, false, receivers, true)
+		txId, err = s.svc.SendOffChain(c, false, receivers)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
@@ -860,7 +857,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 		if transformedSwap.Kind == "submarine" {
 			updatedTransfers, sendTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return swap.FundingTxId != "" && swap.FundingTxId == t.RedeemTxid
+				return swap.FundingTxId != "" && swap.FundingTxId == t.ArkTxid
 			})
 
 			if ok {
@@ -870,7 +867,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			}
 
 			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return swap.RedeemTxId != "" && swap.RedeemTxId == t.RedeemTxid
+				return swap.RedeemTxId != "" && swap.RedeemTxId == t.ArkTxid
 			})
 			if ok {
 				transferTxns = updatedTransfers
@@ -880,7 +877,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 		} else {
 			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return swap.RedeemTxId != "" && swap.RedeemTxId == t.RedeemTxid
+				return swap.RedeemTxId != "" && swap.RedeemTxId == t.ArkTxid
 			})
 
 			if ok {
@@ -1161,15 +1158,11 @@ func toTransfer(tx sdktypes.Transaction, treeExpiryValue int64) types.Transfer {
 		dateCreated = 0
 	}
 	// get one txid to identify tx
-	txid := tx.RoundTxid
+	txid := tx.ArkTxid
 	explorable := true
 	if len(txid) == 0 {
-		txid = tx.RedeemTxid
-		explorable = false
-	}
-	if len(txid) == 0 {
 		txid = tx.BoardingTxid
-		explorable = true
+		explorable = false
 	}
 
 	return types.Transfer{

@@ -3,11 +3,12 @@ package handlers
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
-	arksdk "github.com/ark-network/ark/pkg/client-sdk"
+	arktypes "github.com/ark-network/ark/pkg/client-sdk/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -85,29 +86,7 @@ func (h *serviceHandler) GetOnboardAddress(
 func (h *serviceHandler) GetRoundInfo(
 	ctx context.Context, req *pb.GetRoundInfoRequest,
 ) (*pb.GetRoundInfoResponse, error) {
-	roundId, err := parseRoundId(req.GetRoundId())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-
-	round, err := h.svc.GetRound(ctx, roundId)
-	if err != nil {
-		return nil, err
-	}
-	endedAt := int64(0)
-	if round.EndedAt != nil {
-		endedAt = round.EndedAt.Unix()
-	}
-	return &pb.GetRoundInfoResponse{
-		Round: &pb.Round{
-			Id:             round.ID,
-			Start:          round.StartedAt.Unix(),
-			End:            endedAt,
-			RoundTx:        round.Tx,
-			CongestionTree: toTreeProto(round.Tree),
-			ForfeitTxs:     round.ForfeitTxs,
-		},
-	}, nil
+	return nil, fmt.Errorf("not implemented")
 }
 
 func (h *serviceHandler) GetTransactionHistory(
@@ -120,13 +99,13 @@ func (h *serviceHandler) GetTransactionHistory(
 	txs := make([]*pb.TransactionInfo, 0, len(txHistory))
 	for _, tx := range txHistory {
 		txs = append(txs, &pb.TransactionInfo{
-			Date:         tx.CreatedAt.Format(time.RFC3339),
-			Amount:       tx.Amount,
-			RoundTxid:    tx.RoundTxid,
-			RedeemTxid:   tx.RedeemTxid,
-			BoardingTxid: tx.BoardingTxid,
-			Type:         toTxTypeProto(tx.Type),
-			Settled:      tx.Settled,
+			Date:           tx.CreatedAt.Format(time.RFC3339),
+			Amount:         tx.Amount,
+			CommitmentTxid: tx.CommitmentTxid,
+			RedeemTxid:     tx.ArkTxid,
+			BoardingTxid:   tx.BoardingTxid,
+			Type:           toTxTypeProto(tx.Type),
+			Settled:        tx.Settled,
 		})
 	}
 
@@ -168,14 +147,13 @@ func (h *serviceHandler) SendOffChain(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(address, amount),
-	}
-	roundId, err := h.svc.SendOffChain(ctx, false, receivers, true)
+	receivers := []arktypes.Receiver{{To: address, Amount: amount}}
+
+	arkTxId, err := h.svc.SendOffChain(ctx, false, receivers)
 	if err != nil {
 		return nil, err
 	}
-	return &pb.SendOffChainResponse{Txid: roundId}, nil
+	return &pb.SendOffChainResponse{Txid: arkTxId}, nil
 }
 
 func (h *serviceHandler) SendOnChain(
@@ -254,18 +232,19 @@ func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest
 
 	vhtlcs := make([]*pb.Vtxo, 0, len(vtxos))
 	for _, vtxo := range vtxos {
+
 		vhtlcs = append(vhtlcs, &pb.Vtxo{
 			Outpoint: &pb.Input{
 				Txid: vtxo.Txid,
 				Vout: vtxo.VOut,
 			},
 			Receiver: &pb.Output{
-				Pubkey: vtxo.PubKey,
+				Pubkey: vtxo.Script,
 				Amount: vtxo.Amount,
 			},
-			SpentBy:   vtxo.SpentBy,
-			RoundTxid: vtxo.RoundTxid,
-			ExpireAt:  vtxo.ExpiresAt.Unix(),
+			SpentBy:       vtxo.SpentBy,
+			CommitedTxids: vtxo.CommitmentTxids,
+			ExpireAt:      vtxo.ExpiresAt.Unix(),
 		})
 	}
 

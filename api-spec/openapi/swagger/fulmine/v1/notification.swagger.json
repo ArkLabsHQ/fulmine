@@ -306,8 +306,11 @@
         "receiver": {
           "$ref": "#/definitions/v1Output"
         },
-        "roundTxid": {
-          "type": "string"
+        "commitedTxids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "spentBy": {
           "type": "string"
