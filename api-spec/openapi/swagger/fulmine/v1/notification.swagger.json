@@ -306,7 +306,7 @@
         "receiver": {
           "$ref": "#/definitions/v1Output"
         },
-        "commitedTxids": {
+        "commitmentTxids": {
           "type": "array",
           "items": {
             "type": "string"

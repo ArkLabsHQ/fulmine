@@ -1,10 +1,10 @@
 package types
 
-import "github.com/ark-network/ark/pkg/client-sdk/types"
+import sdkTypes "github.com/ark-network/ark/pkg/client-sdk/types"
 
 type PoolTxs struct {
-	DateCreated int64        `json:"dateCreated"`
-	Vtxos       []types.Vtxo `json:"vtxos"`
+	DateCreated int64           `json:"dateCreated"`
+	Vtxos       []sdkTypes.Vtxo `json:"vtxos"`
 }
 
 type Transaction struct {

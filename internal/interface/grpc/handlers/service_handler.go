@@ -242,9 +242,9 @@ func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest
 				Pubkey: vtxo.Script,
 				Amount: vtxo.Amount,
 			},
-			SpentBy:       vtxo.SpentBy,
-			CommitedTxids: vtxo.CommitmentTxids,
-			ExpireAt:      vtxo.ExpiresAt.Unix(),
+			SpentBy:         vtxo.SpentBy,
+			CommitmentTxids: vtxo.CommitmentTxids,
+			ExpireAt:        vtxo.ExpiresAt.Unix(),
 		})
 	}
 

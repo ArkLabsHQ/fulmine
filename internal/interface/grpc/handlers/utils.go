@@ -262,9 +262,9 @@ func toVtxosProto(vtxos []types.Vtxo) []*pb.Vtxo {
 				Pubkey: vtxo.Script,
 				Amount: vtxo.Amount,
 			},
-			SpentBy:       vtxo.SpentBy,
-			CommitedTxids: vtxo.CommitmentTxids,
-			ExpireAt:      vtxo.ExpiresAt.Unix(),
+			SpentBy:         vtxo.SpentBy,
+			CommitmentTxids: vtxo.CommitmentTxids,
+			ExpireAt:        vtxo.ExpiresAt.Unix(),
 		})
 	}
 	return list

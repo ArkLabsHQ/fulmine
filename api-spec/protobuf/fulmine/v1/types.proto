@@ -73,7 +73,7 @@ message TreeLevel {
 message Vtxo {
   Input outpoint = 1;
   Output receiver = 2;
-  repeated string commited_txids = 3;
+  repeated string commitment_txids = 3;
   string spent_by = 4;
   int64 expire_at = 5;
 }
