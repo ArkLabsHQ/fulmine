@@ -66,3 +66,17 @@ WHERE id = ?;
 SELECT  sqlc.embed(swap), sqlc.embed(vhtlc)
 FROM swap
   LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash;
+
+-- SubscribedScript queries
+-- name: InsertSubscribedScript :exec
+INSERT INTO subscribed_script (script)
+VALUES (?);
+
+-- name: GetSubscribedScript :one
+SELECT * FROM subscribed_script WHERE script = ?;
+
+-- name: ListSubscribedScript :many
+SELECT * FROM subscribed_script;
+
+-- name: DeleteSubscribedScript :exec
+DELETE FROM subscribed_script WHERE script = ?;

@@ -205,8 +205,11 @@
     "v1Notification": {
       "type": "object",
       "properties": {
-        "address": {
-          "type": "string"
+        "addresses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "newVtxos": {
           "type": "array",

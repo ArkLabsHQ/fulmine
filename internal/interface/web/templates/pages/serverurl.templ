@@ -45,7 +45,7 @@ templ ServerUrlBodyContent(serverUrl, privateKey, password string) {
 		}
 		if (input && button) {
 			validateServerUrl()
-		  input.addEventListener('change', validateServerUrl)
+		  input.addEventListener('input', validateServerUrl)
 		}
   </script>
 }

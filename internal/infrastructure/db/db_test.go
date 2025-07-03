@@ -45,6 +45,12 @@ var (
 
 	testSwap   = makeSwap()
 	secondSwap = makeSwap()
+
+	testSubscribedScripts = []string{
+		"script1",
+		"script2",
+		"script3",
+	}
 )
 
 func TestRepoManager(t *testing.T) {
@@ -79,6 +85,7 @@ func TestRepoManager(t *testing.T) {
 			testVHTLCRepository(t, svc)
 			testVtxoRolloverRepository(t, svc)
 			testSwapRepository(t, svc)
+			testSubscribedScriptRepository(t, svc)
 		})
 	}
 }
@@ -110,6 +117,13 @@ func testSwapRepository(t *testing.T, svc ports.RepoManager) {
 	t.Run("swap repository", func(t *testing.T) {
 		testAddSwap(t, svc.Swap())
 		testGetAllSwap(t, svc.Swap())
+	})
+}
+
+func testSubscribedScriptRepository(t *testing.T, svc ports.RepoManager) {
+	t.Run("subscribed script repository", func(t *testing.T) {
+		testAddSubscribedScripts(t, svc.SubscribedScript())
+		testDeleteSubscribedScripts(t, svc.SubscribedScript())
 	})
 }
 
@@ -338,6 +352,62 @@ func testGetAllSwap(t *testing.T, repo domain.SwapRepository) {
 		require.Len(t, swaps, 2)
 		require.Subset(t, []domain.Swap{testSwap, secondSwap}, swaps)
 	})
+}
+
+func testAddSubscribedScripts(t *testing.T, repo domain.SubscribedScriptRepository) {
+	t.Run("add subscribed scripts", func(t *testing.T) {
+		scripts, err := repo.Get(ctx)
+		require.NoError(t, err)
+		require.Empty(t, scripts)
+
+		count, err := repo.Add(ctx, testSubscribedScripts)
+		require.NoError(t, err)
+		require.Equal(t, len(testSubscribedScripts), count)
+
+		scripts, err = repo.Get(ctx)
+		require.NoError(t, err)
+		require.ElementsMatch(t, testSubscribedScripts, scripts)
+
+		count, err = repo.Add(ctx, testSubscribedScripts)
+		require.NoError(t, err)
+		require.Equal(t, 0, count)
+
+	})
+}
+
+func testDeleteSubscribedScripts(t *testing.T, repo domain.SubscribedScriptRepository) {
+	t.Run("delete subscribed scripts", func(t *testing.T) {
+		scripts, err := repo.Get(ctx)
+		require.NoError(t, err)
+		require.ElementsMatch(t, testSubscribedScripts, scripts)
+
+		test2SubscribedScripts := []string{
+			"script4",
+			"script5",
+			"script6",
+		}
+		count, err := repo.Add(ctx, test2SubscribedScripts)
+		require.NoError(t, err)
+		require.Equal(t, len(test2SubscribedScripts), count)
+
+		scripts, err = repo.Get(ctx)
+		require.NoError(t, err)
+
+		require.ElementsMatch(t, append(testSubscribedScripts, test2SubscribedScripts...), scripts)
+
+		count, err = repo.Delete(ctx, test2SubscribedScripts)
+		require.NoError(t, err)
+		require.Equal(t, len(test2SubscribedScripts), count)
+
+		scripts, err = repo.Get(ctx)
+		require.NoError(t, err)
+		require.ElementsMatch(t, testSubscribedScripts, scripts)
+
+		count, err = repo.Delete(ctx, test2SubscribedScripts)
+		require.NoError(t, err)
+		require.Equal(t, 0, count)
+	})
+
 }
 
 func makeVHTLC() vhtlc.Opts {

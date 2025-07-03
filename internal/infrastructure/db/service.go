@@ -34,19 +34,21 @@ type ServiceConfig struct {
 }
 
 type service struct {
-	settingsRepo     domain.SettingsRepository
-	vhtlcRepo        domain.VHTLCRepository
-	vtxoRolloverRepo domain.VtxoRolloverRepository
-	swapRepo         domain.SwapRepository
+	settingsRepo         domain.SettingsRepository
+	vhtlcRepo            domain.VHTLCRepository
+	vtxoRolloverRepo     domain.VtxoRolloverRepository
+	swapRepo             domain.SwapRepository
+	subscribedScriptRepo domain.SubscribedScriptRepository
 }
 
 func NewService(config ServiceConfig) (ports.RepoManager, error) {
 	var (
-		settingsRepo     domain.SettingsRepository
-		vhtlcRepo        domain.VHTLCRepository
-		vtxoRolloverRepo domain.VtxoRolloverRepository
-		swapRepo         domain.SwapRepository
-		err              error
+		settingsRepo         domain.SettingsRepository
+		vhtlcRepo            domain.VHTLCRepository
+		vtxoRolloverRepo     domain.VtxoRolloverRepository
+		swapRepo             domain.SwapRepository
+		subscribedScriptRepo domain.SubscribedScriptRepository
+		err                  error
 	)
 
 	switch config.DbType {
@@ -81,6 +83,11 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open swap db: %s", err)
 		}
+		subscribedScriptRepo, err = badgerdb.NewSubscribedScriptRepository(baseDir, logger)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open subscribed script db: %s", err)
+		}
+
 	case "sqlite":
 		if len(config.DbConfig) != 1 {
 			return nil, fmt.Errorf("sqlite db config must have 1 element, got %d", len(config.DbConfig))
@@ -130,16 +137,21 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open swap db: %s", err)
 		}
+		subscribedScriptRepo, err = sqlitedb.NewSubscribedScriptRepository(db)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open subscribed script db: %s", err)
+		}
 
 	default:
 		return nil, fmt.Errorf("unsopported db type %s, please select one of %s", config.DbType, allowedTypes)
 	}
 
 	return &service{
-		settingsRepo:     settingsRepo,
-		vhtlcRepo:        vhtlcRepo,
-		vtxoRolloverRepo: vtxoRolloverRepo,
-		swapRepo:         swapRepo,
+		settingsRepo:         settingsRepo,
+		vhtlcRepo:            vhtlcRepo,
+		vtxoRolloverRepo:     vtxoRolloverRepo,
+		swapRepo:             swapRepo,
+		subscribedScriptRepo: subscribedScriptRepo,
 	}, nil
 }
 
@@ -159,8 +171,14 @@ func (s *service) Swap() domain.SwapRepository {
 	return s.swapRepo
 }
 
+func (s *service) SubscribedScript() domain.SubscribedScriptRepository {
+	return s.subscribedScriptRepo
+}
+
 func (s *service) Close() {
 	s.settingsRepo.Close()
 	s.vhtlcRepo.Close()
 	s.vtxoRolloverRepo.Close()
+	s.swapRepo.Close()
+	s.subscribedScriptRepo.Close()
 }

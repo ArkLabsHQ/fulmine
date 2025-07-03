@@ -11,7 +11,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/ark-network/ark/common"
 	"github.com/ark-network/ark/common/tree"
-	"github.com/ark-network/ark/pkg/client-sdk/client"
+	"github.com/ark-network/ark/pkg/client-sdk/indexer"
 	"github.com/ark-network/ark/pkg/client-sdk/types"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -267,31 +267,32 @@ func toSwapTreeProto(tree *vhtlc.VHTLCScript) *pb.TaprootTree {
 }
 
 func toNotificationProto(n application.Notification) *pb.Notification {
+	// TODO: Convert Addresses to Scripts
 	return &pb.Notification{
-		Address:    n.Address,
+		Addresses:  n.Addrs,
 		NewVtxos:   toVtxosProto(n.NewVtxos),
 		SpentVtxos: toVtxosProto(n.SpentVtxos),
 	}
 }
 
-func toVtxosProto(vtxos []client.Vtxo) []*pb.Vtxo {
+func toVtxosProto(vtxos []indexer.Vtxo) []*pb.Vtxo {
 	list := make([]*pb.Vtxo, 0, len(vtxos))
 	for _, vtxo := range vtxos {
 		list = append(list, &pb.Vtxo{
 			Outpoint: toInputProto(vtxo.Outpoint),
 			Receiver: &pb.Output{
-				Pubkey: vtxo.PubKey,
+				Pubkey: vtxo.Script,
 				Amount: vtxo.Amount,
 			},
 			SpentBy:   vtxo.SpentBy,
-			RoundTxid: vtxo.RoundTxid,
-			ExpireAt:  vtxo.ExpiresAt.Unix(),
+			RoundTxid: vtxo.CommitmentTxid,
+			ExpireAt:  vtxo.ExpiresAt,
 		})
 	}
 	return list
 }
 
-func toInputProto(outpoint client.Outpoint) *pb.Input {
+func toInputProto(outpoint indexer.Outpoint) *pb.Input {
 	return &pb.Input{
 		Txid: outpoint.Txid,
 		Vout: outpoint.VOut,

@@ -20,6 +20,10 @@ type Setting struct {
 	Unit        string
 }
 
+type SubscribedScript struct {
+	Script string
+}
+
 type Swap struct {
 	ID           string
 	Amount       int64
