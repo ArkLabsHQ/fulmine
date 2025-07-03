@@ -1412,7 +1412,7 @@ func (s *Service) reverseSwapWithPreimage(ctx context.Context, amount uint64, pr
 		To:             boltz.CurrencyArk,
 		InvoiceAmount:  amount,
 		ClaimPublicKey: hex.EncodeToString(myPubkey),
-		PreimageHash:   hex.EncodeToString(preimageHash),
+		PreimageHash:   hex.EncodeToString(buf[:]),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to make reverse submarine swap: %v", err)
@@ -1455,13 +1455,6 @@ func (s *Service) reverseSwapWithPreimage(ctx context.Context, amount uint64, pr
 		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
-	// Reavel the preimage to Boltz, Boltz should return a signed refund transaction
-	// that can be used to claim the VHTLC
-	refundTxResponse, err := s.boltzSvc.RevealPreimage(swap.Id, hex.EncodeToString(preimage))
-	if err != nil {
-		return "", fmt.Errorf("failed to reveal preimage: %v", err)
-	}
-
 	go func() {
 		// Wait until invoice is paid then proceed with claiming the VHTLC
 
@@ -1500,22 +1493,16 @@ func (s *Service) reverseSwapWithPreimage(ctx context.Context, amount uint64, pr
 
 			confirmed := false
 			switch parsedStatus {
-			case boltz.InvoiceSettled:
+			case boltz.TransactionMempool:
 				confirmed = true
 			case boltz.InvoiceFailedToPay, boltz.TransactionFailed, boltz.TransactionLockupFailed:
-				log.Warnf("something went wrong: %s", update.Status)
-				if _, err := s.claimVHTLC(ctx, preimage, *vhtlcOpts); err != nil {
-					log.Warnf("failed to claim vhtlc: %s", err)
-				}
+				log.Warnf("failed to receive payment: %s", update.Status)
 				return
 			}
 			if confirmed {
 				log.Infof("claiming VHTLC with preimage")
-				if _, err := s.claimVHTLCByRefund(ctx, refundTxResponse.Transaction); err != nil {
-					log.WithError(err).Debug("something went wrong, falling back to claim alone...")
-					if _, err := s.claimVHTLC(ctx, preimage, *vhtlcOpts); err != nil {
-						log.Warnf("failed to claim vhtlc: %s", err)
-					}
+				if _, err := s.claimVHTLC(context.Background(), preimage, *vhtlcOpts); err != nil {
+					log.Warnf("failed to claim vhtlc: %s", err)
 				}
 				break
 			}
@@ -1773,37 +1760,6 @@ func (s *Service) claimVHTLC(
 	}
 
 	return reemdemTxId, nil
-}
-
-func (s *Service) claimVHTLCByRefund(
-	ctx context.Context, refundTx string,
-) (string, error) {
-	if refundTx == "" {
-		return "", fmt.Errorf("missing signed tx from boltz")
-	}
-
-	refundPtx, err := psbt.NewFromRawBytes(strings.NewReader(refundTx), true)
-	if err != nil {
-		return "", err
-	}
-
-	refundTxId := refundPtx.UnsignedTx.TxHash().String()
-
-	refundTx, err = refundPtx.B64Encode()
-	if err != nil {
-		return "", err
-	}
-
-	signedRedeemTx, err := s.SignTransaction(ctx, refundTx)
-	if err != nil {
-		return "", err
-	}
-
-	if _, _, err := s.grpcClient.SubmitRedeemTx(ctx, signedRedeemTx); err != nil {
-		return "", err
-	}
-
-	return refundTxId, nil
 }
 
 func (s *Service) refundVHTLC(
