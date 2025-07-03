@@ -1,8 +1,13 @@
 services:
   boltz-lnd:
-    image: lightninglabs/lnd:v0.18.5-beta
+    image: lightninglabs/lnd:v0.19.1-beta
     restart: unless-stopped
     container_name: boltz-lnd
+    healthcheck:
+      test: ["CMD", "lncli", "--rpcserver=localhost:10009", "--macaroonpath=/root/.lnd/data/chain/bitcoin/regtest/admin.macaroon", "--tlscertpath=/root/.lnd/tls.cert", "getinfo"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     command:
       - '--bitcoin.regtest'
       - '--bitcoin.node=bitcoind'
@@ -43,6 +48,13 @@ services:
       - '9004:9004'
     expose:
       - '9001'
+    depends_on:
+      boltz-postgres:
+        condition: service_healthy
+      boltz-fulmine:
+        condition: service_healthy
+      boltz-lnd:
+        condition: service_healthy
     environment:
       BOLTZ_CONFIG: |
         loglevel = "debug"
@@ -129,6 +141,11 @@ services:
   boltz-postgres:
     image: postgres:15.4
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -142,8 +159,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    healthcheck:
+      test: ["CMD-SHELL", "! curl -s http://localhost:7001/api/v1/info | jq -e .code > /dev/null"]
+      interval: 30s
+      timeout: 3s
+      retries: 30
     environment:
-      - FULMINE_ARK_SERVER=arkd:7070
+      - FULMINE_ARK_SERVER=http://arkd:7070
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
       - FULMINE_NO_MACAROONS=true
     ports:

@@ -24,6 +24,8 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-X 'm
 # Final image
 FROM alpine:3.20
 
+RUN apk add --no-cache curl jq
+
 WORKDIR /app
 
 COPY --from=go-builder /app/bin/* /app
