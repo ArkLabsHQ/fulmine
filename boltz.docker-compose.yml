@@ -1,6 +1,6 @@
 services:
   boltz-lnd:
-    image: lightninglabs/lnd:v0.18.5-beta
+    image: lightninglabs/lnd:v0.19.1-beta
     restart: unless-stopped
     container_name: boltz-lnd
     command:
@@ -143,7 +143,7 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      - FULMINE_ARK_SERVER=arkd:7070
+      - FULMINE_ARK_SERVER=http://arkd:7070
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
       - FULMINE_NO_MACAROONS=true
     ports:
