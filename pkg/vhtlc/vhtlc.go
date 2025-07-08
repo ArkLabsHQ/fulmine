@@ -192,7 +192,7 @@ func (v *VHTLCScript) Address(hrp string, serverPubkey *btcec.PublicKey) (string
 
 	addr := &common.Address{
 		HRP:        hrp,
-		Server:     serverPubkey,
+		Signer:     serverPubkey,
 		VtxoTapKey: tapKey,
 	}
 

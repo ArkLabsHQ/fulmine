@@ -5,7 +5,7 @@ go 1.23.1
 replace github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.3
 
 require (
-	github.com/ark-network/ark/common v0.0.0-20250627141956-783ba19512f0
+	github.com/ark-network/ark/common v0.0.0-20250702115148-7e78caf133ed
 	github.com/btcsuite/btcd v0.24.3-0.20240921052913-67b8efd3ba53
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
