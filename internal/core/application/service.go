@@ -1127,7 +1127,7 @@ func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent
 
 			vtxoAddress := common.Address{
 				VtxoTapKey: vtxoTapPubkey,
-				Server:     config.ServerPubKey,
+				Signer:     config.ServerPubKey,
 				HRP:        config.Network.Addr,
 			}
 

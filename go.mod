@@ -15,10 +15,10 @@ require (
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-00010101000000-000000000000
 	github.com/a-h/templ v0.3.898
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/ark-network/ark/common v0.0.0-20250627141956-783ba19512f0
+	github.com/ark-network/ark/common v0.0.0-20250702115148-7e78caf133ed
 	github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250627141956-783ba19512f0
-	github.com/ark-network/ark/server/pkg/kvdb v0.0.0-20250430141707-2419ac0f83c4
-	github.com/ark-network/ark/server/pkg/macaroons v0.0.0-20250430141707-2419ac0f83c4
+	github.com/ark-network/ark/server/pkg/kvdb v0.0.0-20250627141956-783ba19512f0
+	github.com/ark-network/ark/server/pkg/macaroons v0.0.0-20250627141956-783ba19512f0
 	github.com/ccoveille/go-safecast v1.2.0
 	github.com/dgraph-io/badger/v4 v4.6.0
 	github.com/getsentry/sentry-go v0.32.0
