@@ -1766,7 +1766,6 @@ func (s *Service) claimVHTLC(
 		return "", err
 	}
 
-	// Finalise the transaction
 	checkpointTxs := make([]string, 0, len(checkpoints))
 	for _, ptx := range checkpoints {
 		tx, err := ptx.B64Encode()
@@ -1788,8 +1787,25 @@ func (s *Service) claimVHTLC(
 		return "", err
 	}
 
-	if _, _, _, err := s.grpcClient.SubmitTx(ctx, signedRedeemTx, checkpointTxs); err != nil {
+	arkTxid, _, signedCheckpoints, err := s.grpcClient.SubmitTx(ctx, signedRedeemTx, checkpointTxs)
+
+	if err != nil {
 		return "", err
+	}
+
+	finalCheckpoints := make([]string, 0, len(signedCheckpoints))
+	for _, ptx := range signedCheckpoints {
+		signedCheckpoint, err := s.SignTransaction(ctx, ptx)
+		if err != nil {
+			return "", fmt.Errorf("failed to sign checkpoint transaction: %w", err)
+		}
+		finalCheckpoints = append(finalCheckpoints, signedCheckpoint)
+
+	}
+
+	err = s.grpcClient.FinalizeTx(ctx, arkTxid, finalCheckpoints)
+	if err != nil {
+		return "", fmt.Errorf("failed to finalize redeem transaction: %w", err)
 	}
 
 	return reemdemTxId, nil
@@ -1951,8 +1967,29 @@ func (s *Service) refundVHTLC(
 		checkpointTxs = append(checkpointTxs, tx)
 	}
 
-	if _, _, _, err := s.grpcClient.SubmitTx(ctx, signedRefundTx, checkpointTxs); err != nil {
+	arkTxid, _, signedCheckpoints, err := s.grpcClient.SubmitTx(ctx, signedRefundTx, checkpointTxs)
+
+	if err != nil {
 		return "", err
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	finalCheckpoints := make([]string, 0, len(signedCheckpoints))
+	for _, ptx := range signedCheckpoints {
+		signedCheckpoint, err := s.SignTransaction(ctx, ptx)
+		if err != nil {
+			return "", fmt.Errorf("failed to sign checkpoint transaction: %w", err)
+		}
+		finalCheckpoints = append(finalCheckpoints, signedCheckpoint)
+
+	}
+
+	err = s.grpcClient.FinalizeTx(ctx, arkTxid, finalCheckpoints)
+	if err != nil {
+		return "", fmt.Errorf("failed to finalize redeem transaction: %w", err)
 	}
 
 	return txid, nil
