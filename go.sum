@@ -1,4 +1,4 @@
-scloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
+cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 dario.cat/mergo v1.0.1 h1:Ra4+bf83h2ztPIQYNP99R6m+Y7KfnARDfID+a+vLl4s=
 dario.cat/mergo v1.0.1/go.mod h1:uNxQE+84aUszobStD9th8a29P2fMDhsBdgRYvZOxGmk=
@@ -27,10 +27,8 @@ github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBA
 github.com/angelofallars/htmx-go v0.5.0 h1:L7M48cCH7nX8cV5wRYn04pN6AE4qNdh86iTbuKxhnIo=
 github.com/angelofallars/htmx-go v0.5.0/go.mod h1:izXk6A+Jllc3vXs1dUvxUJs/jE0weiEC07ZPlCVi4cc=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
-github.com/ark-network/ark v0.6.4-0.20250627141956-783ba19512f0 h1:dEowyyDOsge0lGRvW9kkPcASR1RhMeMpo03UbWlZUDM=
-github.com/ark-network/ark v0.6.4-0.20250627141956-783ba19512f0/go.mod h1:XNDAtcphgPq4Pxv9IIVhYR0AAV1rwOqkVp3/YGIG7zw=
-github.com/ark-network/ark/api-spec v0.0.0-20250606113434-241d3e1ec7cb h1:Urb1A0edvpi86mVyYc3S1zOxAiaJBSed3LSTOeCijYE=
-github.com/ark-network/ark/api-spec v0.0.0-20250606113434-241d3e1ec7cb/go.mod h1:jfPpBtx57k+mPWID40GORe4KtAx+BtwXgfnG6v/NRQI=
+github.com/ark-network/ark/api-spec v0.0.0-20250627141956-783ba19512f0 h1:e9WSrjHms/gH8FSY5oaGWOjQ9VCEd4dVEXSqotqB1EA=
+github.com/ark-network/ark/api-spec v0.0.0-20250627141956-783ba19512f0/go.mod h1:yDc4SMfpOeDYrB/NPKcNQS8p5JgSGVGcGom1ZZmcEVM=
 github.com/ark-network/ark/common v0.0.0-20250702115148-7e78caf133ed h1:OILoTSsBuy//rmdsQAWDtvf5bg2ctTDX5jtyJIjOA7s=
 github.com/ark-network/ark/common v0.0.0-20250702115148-7e78caf133ed/go.mod h1:lKsvdQKzOf34eJTErF/CiL+Q3dDLmOLTJT4Eq73L/QQ=
 github.com/ark-network/ark/pkg/client-sdk v0.0.0-20250627141956-783ba19512f0 h1:QAWsQ5ZdEie9KpX5lASqrdR3vZ8tim/lhZ1t2xts2BE=
