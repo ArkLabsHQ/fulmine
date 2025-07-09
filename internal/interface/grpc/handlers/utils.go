@@ -11,7 +11,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
-	"github.com/arkade-os/go-sdk/indexer"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -204,20 +203,52 @@ func toNetworkProto(net string) pb.GetInfoResponse_Network {
 	}
 }
 
-func toTreeProto(tree tree.TxTree) *pb.Tree {
-	levels := make([]*pb.TreeLevel, 0, len(tree))
-	for _, treeLevel := range tree {
-		nodes := make([]*pb.Node, 0, len(treeLevel))
-		for _, node := range treeLevel {
-			nodes = append(nodes, &pb.Node{
-				Txid:       node.Txid,
-				Tx:         node.Tx,
-				ParentTxid: node.ParentTxid,
-			})
-		}
-		levels = append(levels, &pb.TreeLevel{Nodes: nodes})
+func toTreeProto(root tree.TxTree) (*pb.Tree, error) {
+	type queueItem struct {
+		node       *tree.TxTree
+		parentTxid string
 	}
-	return &pb.Tree{Levels: levels}
+
+	var levels []*pb.TreeLevel
+	currentLevel := []queueItem{}
+
+	// Start with top-level children, all children of `tree` have the root as parent
+	for _, child := range root.Children {
+		currentLevel = append(currentLevel, queueItem{
+			node:       child,
+			parentTxid: "",
+		})
+	}
+
+	for len(currentLevel) > 0 {
+		var nodes []*pb.Node
+		var nextLevel []queueItem
+
+		for _, item := range currentLevel {
+			serializedTx, err := item.node.Root.B64Encode()
+			if err != nil {
+				return nil, err
+			}
+
+			nodes = append(nodes, &pb.Node{
+				Txid:       item.node.Root.UnsignedTx.TxID(),
+				Tx:         serializedTx,
+				ParentTxid: item.parentTxid,
+			})
+
+			for _, child := range item.node.Children {
+				nextLevel = append(nextLevel, queueItem{
+					node:       child,
+					parentTxid: item.node.Root.UnsignedTx.TxID(),
+				})
+			}
+		}
+
+		levels = append(levels, &pb.TreeLevel{Nodes: nodes})
+		currentLevel = nextLevel
+	}
+
+	return &pb.Tree{Levels: levels}, nil
 }
 
 func toTxTypeProto(txType types.TxType) pb.TxType {
@@ -275,7 +306,7 @@ func toNotificationProto(n application.Notification) *pb.Notification {
 	}
 }
 
-func toVtxosProto(vtxos []indexer.Vtxo) []*pb.Vtxo {
+func toVtxosProto(vtxos []types.Vtxo) []*pb.Vtxo {
 	list := make([]*pb.Vtxo, 0, len(vtxos))
 	for _, vtxo := range vtxos {
 		list = append(list, &pb.Vtxo{
@@ -284,15 +315,16 @@ func toVtxosProto(vtxos []indexer.Vtxo) []*pb.Vtxo {
 				Pubkey: vtxo.Script,
 				Amount: vtxo.Amount,
 			},
-			SpentBy:   vtxo.SpentBy,
-			RoundTxid: vtxo.CommitmentTxid,
-			ExpireAt:  vtxo.ExpiresAt,
+			SpentBy:         vtxo.SpentBy,
+			ExpireAt:        vtxo.ExpiresAt.Unix(),
+			CommitmentTxids: vtxo.CommitmentTxids,
+			ArkTxid:         vtxo.ArkTxid,
 		})
 	}
 	return list
 }
 
-func toInputProto(outpoint indexer.Outpoint) *pb.Input {
+func toInputProto(outpoint types.Outpoint) *pb.Input {
 	return &pb.Input{
 		Txid: outpoint.Txid,
 		Vout: outpoint.VOut,

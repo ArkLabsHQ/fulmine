@@ -958,20 +958,6 @@
         }
       }
     },
-    "v1Node": {
-      "type": "object",
-      "properties": {
-        "txid": {
-          "type": "string"
-        },
-        "tx": {
-          "type": "string"
-        },
-        "parentTxid": {
-          "type": "string"
-        }
-      }
-    },
     "v1Output": {
       "type": "object",
       "properties": {
@@ -1075,24 +1061,6 @@
         "end": {
           "type": "string",
           "format": "int64"
-        },
-        "roundTx": {
-          "type": "string"
-        },
-        "congestionTree": {
-          "$ref": "#/definitions/v1Tree"
-        },
-        "forfeitTxs": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "connectors": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       }
     },
@@ -1216,10 +1184,10 @@
           "type": "string",
           "format": "uint64"
         },
-        "roundTxid": {
+        "commitmentTxid": {
           "type": "string"
         },
-        "redeemTxid": {
+        "arkTxid": {
           "type": "string"
         },
         "boardingTxid": {
@@ -1230,30 +1198,6 @@
         },
         "settled": {
           "type": "boolean"
-        }
-      }
-    },
-    "v1Tree": {
-      "type": "object",
-      "properties": {
-        "levels": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1TreeLevel"
-          }
-        }
-      }
-    },
-    "v1TreeLevel": {
-      "type": "object",
-      "properties": {
-        "nodes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1Node"
-          }
         }
       }
     },
@@ -1287,8 +1231,14 @@
         "receiver": {
           "$ref": "#/definitions/v1Output"
         },
-        "roundTxid": {
+        "arkTxid": {
           "type": "string"
+        },
+        "commitmentTxids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "spentBy": {
           "type": "string"

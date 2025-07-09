@@ -46,17 +46,13 @@ message Round {
   string id = 1;
   int64 start = 2;
   int64 end = 3;
-  string round_tx = 4;
-  Tree congestion_tree = 5;
-  repeated string forfeit_txs = 6;
-  repeated string connectors = 7;
 }
 
 message TransactionInfo {
   string date = 1;
   uint64 amount = 2;
-  string round_txid = 3;
-  string redeem_txid = 4;
+  string commitment_txid = 3;
+  string ark_txid = 4;
   string boarding_txid = 5;
   TxType type = 6; 
   bool settled = 7;
@@ -66,6 +62,16 @@ message Tree {
   repeated TreeLevel levels = 1;
 }
 
+
+message Batch {
+  string id = 1;
+  string txid = 2;
+  string ark_txid = 3;
+  repeated Input inputs = 4;
+  repeated Output outputs = 5;
+  Fees fees = 6;
+}
+
 message TreeLevel {
   repeated Node nodes = 1;
 }
@@ -73,9 +79,10 @@ message TreeLevel {
 message Vtxo {
   Input outpoint = 1;
   Output receiver = 2;
-  string round_txid = 3;
-  string spent_by = 4;
-  int64 expire_at = 5;
+  string ark_txid = 3;
+  repeated string commitment_txids = 4;
+  string spent_by = 5;
+  int64 expire_at = 6;
 }
 
 message Notification {
