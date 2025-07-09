@@ -29,6 +29,8 @@ github.com/angelofallars/htmx-go v0.5.0/go.mod h1:izXk6A+Jllc3vXs1dUvxUJs/jE0wei
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/arkade-os/arkd/pkg/ark-lib v0.0.0-20250708155328-721172a83dba h1:lBg7yeTZoaClwv30sLfur3bzn1/NPuUbz/xoQnbhLiI=
 github.com/arkade-os/arkd/pkg/ark-lib v0.0.0-20250708155328-721172a83dba/go.mod h1:HbVpJ+RYvfCfMvzKyhEau+CVRqH0fz034dzTKb5RXgA=
+github.com/arkade-os/arkd/pkg/ark-lib v0.7.0 h1:rpsy59+oiu6Y2Z4A5eYsj7nw6BGzftZ2v4rAjHanmQM=
+github.com/arkade-os/arkd/pkg/ark-lib v0.7.0/go.mod h1:HbVpJ+RYvfCfMvzKyhEau+CVRqH0fz034dzTKb5RXgA=
 github.com/arkade-os/arkd/pkg/kvdb v0.0.0-20250708155328-721172a83dba h1:Z9bwToMPGqlQMcgYR3jXNVzxs7fRubFxP3vWT6w4gLI=
 github.com/arkade-os/arkd/pkg/kvdb v0.0.0-20250708155328-721172a83dba/go.mod h1:8SEm4dAIcGtnGqZ8+QRk58Z1VjIIctl6bZJLQwaOePo=
 github.com/arkade-os/arkd/pkg/macaroons v0.0.0-20250708155328-721172a83dba h1:LBDM/ej98oZIBlZuEFNX74XKg+1cRu5hbx7+kuDjO20=
