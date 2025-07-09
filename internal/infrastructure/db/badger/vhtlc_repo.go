@@ -9,7 +9,7 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
-	"github.com/ark-network/ark/common"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/timshannon/badgerhold/v4"
@@ -106,10 +106,10 @@ type vhtlcData struct {
 	Sender                               string
 	Receiver                             string
 	Server                               string
-	RefundLocktime                       common.AbsoluteLocktime
-	UnilateralClaimDelay                 common.RelativeLocktime
-	UnilateralRefundDelay                common.RelativeLocktime
-	UnilateralRefundWithoutReceiverDelay common.RelativeLocktime
+	RefundLocktime                       arklib.AbsoluteLocktime
+	UnilateralClaimDelay                 arklib.RelativeLocktime
+	UnilateralRefundDelay                arklib.RelativeLocktime
+	UnilateralRefundWithoutReceiverDelay arklib.RelativeLocktime
 }
 
 func (d *vhtlcData) toOpts() (*vhtlc.Opts, error) {

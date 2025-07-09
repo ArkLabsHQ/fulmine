@@ -20,16 +20,18 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
-	"github.com/ark-network/ark/common"
-	"github.com/ark-network/ark/common/tree"
-	arksdk "github.com/ark-network/ark/pkg/client-sdk"
-	"github.com/ark-network/ark/pkg/client-sdk/client"
-	grpcclient "github.com/ark-network/ark/pkg/client-sdk/client/grpc"
-	"github.com/ark-network/ark/pkg/client-sdk/explorer"
-	indexer "github.com/ark-network/ark/pkg/client-sdk/indexer"
-	indexerTransport "github.com/ark-network/ark/pkg/client-sdk/indexer/grpc"
-	"github.com/ark-network/ark/pkg/client-sdk/store"
-	"github.com/ark-network/ark/pkg/client-sdk/types"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/arkade-os/arkd/pkg/ark-lib/offchain"
+	"github.com/arkade-os/arkd/pkg/ark-lib/script"
+	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
+	arksdk "github.com/arkade-os/go-sdk"
+	"github.com/arkade-os/go-sdk/client"
+	grpcclient "github.com/arkade-os/go-sdk/client/grpc"
+	"github.com/arkade-os/go-sdk/explorer"
+	indexer "github.com/arkade-os/go-sdk/indexer"
+	indexerTransport "github.com/arkade-os/go-sdk/indexer/grpc"
+	"github.com/arkade-os/go-sdk/store"
+	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
@@ -51,10 +53,10 @@ const (
 )
 
 var boltzURLByNetwork = map[string]string{
-	common.Bitcoin.Name:          "https://api.boltz.exchange",
-	common.BitcoinTestNet.Name:   "https://api.testnet.boltz.exchange",
-	common.BitcoinMutinyNet.Name: "https://api.boltz.mutinynet.arkade.sh",
-	common.BitcoinRegTest.Name:   "http://localhost:9001",
+	arklib.Bitcoin.Name:          "https://api.boltz.exchange",
+	arklib.BitcoinTestNet.Name:   "https://api.testnet.boltz.exchange",
+	arklib.BitcoinMutinyNet.Name: "https://api.boltz.mutinynet.arkade.sh",
+	arklib.BitcoinRegTest.Name:   "http://localhost:9001",
 }
 
 type BuildInfo struct {
@@ -385,7 +387,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 
-	decodedAddress, err := common.DecodeAddressV0(offchainAddress)
+	decodedAddress, err := arklib.DecodeAddressV0(offchainAddress)
 	if err != nil {
 		return fmt.Errorf("failed to decode offchain address %s: %w", offchainAddress, err)
 	}
@@ -584,10 +586,10 @@ func (s *Service) GetVHTLC(
 	ctx context.Context,
 	receiverPubkey, senderPubkey *secp256k1.PublicKey,
 	preimageHash []byte,
-	refundLocktimeParam *common.AbsoluteLocktime,
-	unilateralClaimDelayParam *common.RelativeLocktime,
-	unilateralRefundDelayParam *common.RelativeLocktime,
-	unilateralRefundWithoutReceiverDelayParam *common.RelativeLocktime,
+	refundLocktimeParam *arklib.AbsoluteLocktime,
+	unilateralClaimDelayParam *arklib.RelativeLocktime,
+	unilateralRefundDelayParam *arklib.RelativeLocktime,
+	unilateralRefundWithoutReceiverDelayParam *arklib.RelativeLocktime,
 ) (string, *vhtlc.VHTLCScript, *vhtlc.Opts, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", nil, nil, err
@@ -766,7 +768,7 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 			return fmt.Errorf("empty address provided")
 		}
 
-		decoded_address, err := common.DecodeAddressV0(addr)
+		decoded_address, err := arklib.DecodeAddressV0(addr)
 		if err != nil {
 			return fmt.Errorf("failed to decode address %s: %w", addr, err)
 		}
@@ -823,7 +825,7 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 	}
 
 	for _, addr := range addresses {
-		decoded_address, err := common.DecodeAddressV0(addr)
+		decoded_address, err := arklib.DecodeAddressV0(addr)
 		if err != nil {
 			return fmt.Errorf("failed to decode address %s: %w", addr, err)
 		}
@@ -1021,7 +1023,7 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 	defer ticker.Stop()
 
 	// TODO: use boardingExitDelay https://github.com/ark-network/ark/pull/501
-	boardingTimelock := common.RelativeLocktime{Type: cfg.UnilateralExitDelay.Type, Value: cfg.UnilateralExitDelay.Value * 2}
+	boardingTimelock := arklib.RelativeLocktime{Type: cfg.UnilateralExitDelay.Type, Value: cfg.UnilateralExitDelay.Value * 2}
 
 	expl := explorer.NewExplorer(s.esploraUrl, cfg.Network)
 
@@ -1125,9 +1127,9 @@ func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent
 				continue
 			}
 
-			vtxoAddress := common.Address{
+			vtxoAddress := arklib.Address{
 				VtxoTapKey: vtxoTapPubkey,
-				Signer:     config.ServerPubKey,
+				Signer:     config.SignerPubKey,
 				HRP:        config.Network.Addr,
 			}
 
@@ -1267,9 +1269,9 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64, invoice stri
 		nil,
 		preimageHash,
 		nil,
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
+		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
+		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
+		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
@@ -1287,7 +1289,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64, invoice stri
 
 	// Workaround to connect ws endpoint on a different port for regtest
 	wsClient := s.boltzSvc
-	if s.boltzSvc.URL == boltzURLByNetwork[common.BitcoinRegTest.Name] {
+	if s.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
 		wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
 	}
 
@@ -1377,9 +1379,9 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, myPubkey []byt
 		senderPubkey,
 		gotPreimageHash,
 		nil,
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
+		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
+		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
+		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
@@ -1445,9 +1447,9 @@ func (s *Service) reverseSwapWithPreimage(ctx context.Context, amount uint64, pr
 		senderPubkey,
 		gotPreimageHash,
 		nil,
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
-		&common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
+		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
+		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
+		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
@@ -1469,7 +1471,7 @@ func (s *Service) reverseSwapWithPreimage(ctx context.Context, amount uint64, pr
 
 		// Workaround to connect ws endpoint on a different port for regtest
 		wsClient := s.boltzSvc
-		if s.boltzSvc.URL == boltzURLByNetwork[common.BitcoinRegTest.Name] {
+		if s.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
 			wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
 		}
 
@@ -1554,10 +1556,10 @@ func (s *Service) getVHTLC(
 	ctx context.Context,
 	receiverPubkey, senderPubkey *secp256k1.PublicKey,
 	preimageHash []byte,
-	refundLocktimeParam *common.AbsoluteLocktime,
-	unilateralClaimDelayParam *common.RelativeLocktime,
-	unilateralRefundDelayParam *common.RelativeLocktime,
-	unilateralRefundWithoutReceiverDelayParam *common.RelativeLocktime,
+	refundLocktimeParam *arklib.AbsoluteLocktime,
+	unilateralClaimDelayParam *arklib.RelativeLocktime,
+	unilateralRefundDelayParam *arklib.RelativeLocktime,
+	unilateralRefundWithoutReceiverDelayParam *arklib.RelativeLocktime,
 ) (string, *vhtlc.VHTLCScript, *vhtlc.Opts, error) {
 	receiverPubkeySet := receiverPubkey != nil
 	senderPubkeySet := senderPubkey != nil
@@ -1575,29 +1577,29 @@ func (s *Service) getVHTLC(
 	cfg, _ := s.GetConfigData(ctx)
 
 	// Default values if not provided
-	refundLocktime := common.AbsoluteLocktime(80 * 600) // 80 blocks
+	refundLocktime := arklib.AbsoluteLocktime(80 * 600) // 80 blocks
 	if refundLocktimeParam != nil {
 		refundLocktime = *refundLocktimeParam
 	}
 
-	unilateralClaimDelay := common.RelativeLocktime{
-		Type:  common.LocktimeTypeSecond,
+	unilateralClaimDelay := arklib.RelativeLocktime{
+		Type:  arklib.LocktimeTypeSecond,
 		Value: 512, //60 * 12, // 12 hours
 	}
 	if unilateralClaimDelayParam != nil {
 		unilateralClaimDelay = *unilateralClaimDelayParam
 	}
 
-	unilateralRefundDelay := common.RelativeLocktime{
-		Type:  common.LocktimeTypeSecond,
+	unilateralRefundDelay := arklib.RelativeLocktime{
+		Type:  arklib.LocktimeTypeSecond,
 		Value: 1024, //60 * 24, // 24 hours
 	}
 	if unilateralRefundDelayParam != nil {
 		unilateralRefundDelay = *unilateralRefundDelayParam
 	}
 
-	unilateralRefundWithoutReceiverDelay := common.RelativeLocktime{
-		Type:  common.LocktimeTypeBlock,
+	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{
+		Type:  arklib.LocktimeTypeBlock,
 		Value: 224, // 224 blocks
 	}
 	if unilateralRefundWithoutReceiverDelayParam != nil {
@@ -1607,7 +1609,7 @@ func (s *Service) getVHTLC(
 	opts := vhtlc.Opts{
 		Sender:                               senderPubkey,
 		Receiver:                             receiverPubkey,
-		Server:                               cfg.ServerPubKey,
+		Server:                               cfg.SignerPubKey,
 		PreimageHash:                         preimageHash,
 		RefundLocktime:                       refundLocktime,
 		UnilateralClaimDelay:                 unilateralClaimDelay,
@@ -1619,7 +1621,7 @@ func (s *Service) getVHTLC(
 		return "", nil, nil, err
 	}
 
-	encodedAddr, err := vHTLC.Address(cfg.Network.Addr, cfg.ServerPubKey)
+	encodedAddr, err := vHTLC.Address(cfg.Network.Addr, cfg.SignerPubKey)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -1628,11 +1630,6 @@ func (s *Service) getVHTLC(
 }
 
 func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]types.Vtxo, error) {
-	cfg, err := s.GetConfigData(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	var allVtxos []types.Vtxo
 	for _, opt := range vhtlcOpts {
 		vHTLC, err := vhtlc.NewVHTLCScript(opt)
@@ -1640,14 +1637,16 @@ func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]
 			return nil, err
 		}
 
-		addrStr, err := vHTLC.Address(cfg.Network.Addr, cfg.ServerPubKey)
+		tapKey, _, err := vHTLC.TapTree()
 		if err != nil {
 			return nil, err
 		}
 
-		// Get vtxos for this address
+		serialised_key := schnorr.SerializePubKey(tapKey)
+		tapKeyStr := hex.EncodeToString(serialised_key)
+
 		vtxosRequest := indexer.GetVtxosRequestOption{}
-		vtxosRequest.WithAddresses([]string{addrStr})
+		vtxosRequest.WithScripts([]string{tapKeyStr})
 		VtxosResponse, err := s.indexerClient.GetVtxos(ctx, vtxosRequest)
 		if err != nil {
 			return nil, err
@@ -1711,12 +1710,12 @@ func (s *Service) claimVHTLC(
 		return "", err
 	}
 
-	decodedAddr, err := common.DecodeAddressV0(myAddr)
+	decodedAddr, err := arklib.DecodeAddressV0(myAddr)
 	if err != nil {
 		return "", err
 	}
 
-	pkScript, err := common.P2TRScript(decodedAddr.VtxoTapKey)
+	pkScript, err := script.P2TRScript(decodedAddr.VtxoTapKey)
 	if err != nil {
 		return "", err
 	}
@@ -1731,15 +1730,15 @@ func (s *Service) claimVHTLC(
 		return "", fmt.Errorf("failed to get config data: %w", err)
 	}
 
-	checkpointExitScript := &tree.CSVMultisigClosure{
+	checkpointExitScript := &script.CSVMultisigClosure{
 		Locktime: data.UnilateralExitDelay,
-		MultisigClosure: tree.MultisigClosure{
-			PubKeys: []*secp256k1.PublicKey{data.ServerPubKey},
+		MultisigClosure: script.MultisigClosure{
+			PubKeys: []*secp256k1.PublicKey{data.SignerPubKey},
 		},
 	}
 
-	redeemTx, checkpoints, err := tree.BuildOffchainTx(
-		[]common.VtxoInput{
+	redeemTx, checkpoints, err := offchain.BuildTxs(
+		[]offchain.VtxoInput{
 			{
 				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
 				Outpoint:           vtxoOutpoint,
@@ -1762,7 +1761,7 @@ func (s *Service) claimVHTLC(
 		return "", err
 	}
 
-	if err := tree.AddConditionWitness(0, redeemTx, wire.TxWitness{preimage}); err != nil {
+	if err := txutils.AddConditionWitness(0, redeemTx, wire.TxWitness{preimage}); err != nil {
 		return "", err
 	}
 
@@ -1871,7 +1870,7 @@ func (s *Service) refundVHTLC(
 		return "", err
 	}
 
-	var refundClosure tree.Closure
+	var refundClosure script.Closure
 	refundClosure = vtxoScript.RefundWithoutReceiverClosure
 	if withReceiver {
 		refundClosure = vtxoScript.RefundClosure
@@ -1908,15 +1907,15 @@ func (s *Service) refundVHTLC(
 		return "", err
 	}
 
-	checkpointExitScript := &tree.CSVMultisigClosure{
+	checkpointExitScript := &script.CSVMultisigClosure{
 		Locktime: cfg.UnilateralExitDelay,
-		MultisigClosure: tree.MultisigClosure{
-			PubKeys: []*secp256k1.PublicKey{cfg.ServerPubKey},
+		MultisigClosure: script.MultisigClosure{
+			PubKeys: []*secp256k1.PublicKey{cfg.SignerPubKey},
 		},
 	}
 
-	refundTx, checkpointPtxs, err := tree.BuildOffchainTx(
-		[]common.VtxoInput{
+	refundTx, checkpointPtxs, err := offchain.BuildTxs(
+		[]offchain.VtxoInput{
 			{
 				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
 				Outpoint:           vtxoOutpoint,
@@ -1968,10 +1967,6 @@ func (s *Service) refundVHTLC(
 	}
 
 	arkTxid, _, signedCheckpoints, err := s.grpcClient.SubmitTx(ctx, signedRefundTx, checkpointTxs)
-
-	if err != nil {
-		return "", err
-	}
 
 	if err != nil {
 		return "", err

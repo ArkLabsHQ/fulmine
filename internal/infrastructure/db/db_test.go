@@ -11,7 +11,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
-	"github.com/ark-network/ark/common"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -423,17 +423,17 @@ func makeVHTLC() vhtlc.Opts {
 		Sender:         senderKey.PubKey(),
 		Receiver:       receiverKey.PubKey(),
 		Server:         serverKey.PubKey(),
-		RefundLocktime: common.AbsoluteLocktime(100 * 600),
-		UnilateralClaimDelay: common.RelativeLocktime{
-			Type:  common.LocktimeTypeBlock,
+		RefundLocktime: arklib.AbsoluteLocktime(100 * 600),
+		UnilateralClaimDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeBlock,
 			Value: 300,
 		},
-		UnilateralRefundDelay: common.RelativeLocktime{
-			Type:  common.LocktimeTypeBlock,
+		UnilateralRefundDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeBlock,
 			Value: 400,
 		},
-		UnilateralRefundWithoutReceiverDelay: common.RelativeLocktime{
-			Type:  common.LocktimeTypeBlock,
+		UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeBlock,
 			Value: 500,
 		},
 	}

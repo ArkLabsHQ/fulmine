@@ -19,9 +19,9 @@ import (
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
-	"github.com/ark-network/ark/common"
-	arksdk "github.com/ark-network/ark/pkg/client-sdk"
-	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	arksdk "github.com/arkade-os/go-sdk"
+	sdktypes "github.com/arkade-os/go-sdk/types"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	qrcode "github.com/skip2/go-qrcode"
@@ -685,7 +685,7 @@ func (s *service) getTransfer(c *gin.Context, transfer types.Transfer, explorerU
 				nextSettlementStr = "unknown"
 			} else {
 				// TODO: use boardingExitDelay https://github.com/ark-network/ark/pull/501
-				boardingTimelock := common.RelativeLocktime{Type: data.UnilateralExitDelay.Type, Value: data.UnilateralExitDelay.Value * 2}
+				boardingTimelock := arklib.RelativeLocktime{Type: data.UnilateralExitDelay.Type, Value: data.UnilateralExitDelay.Value * 2}
 				closeToBoardingSettlement := time.Now().Add(time.Duration(boardingTimelock.Seconds()) * time.Second)
 				nextSettlement = closeToBoardingSettlement
 			}

@@ -7,7 +7,7 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
-	arksdk "github.com/ark-network/ark/pkg/client-sdk"
+	arksdk "github.com/arkade-os/go-sdk"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

@@ -1,6 +1,6 @@
 package types
 
-import "github.com/ark-network/ark/pkg/client-sdk/client"
+import "github.com/arkade-os/go-sdk/client"
 
 type PoolTxs struct {
 	DateCreated int64         `json:"dateCreated"`

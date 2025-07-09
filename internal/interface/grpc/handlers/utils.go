@@ -9,10 +9,10 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
-	"github.com/ark-network/ark/common"
-	"github.com/ark-network/ark/common/tree"
-	"github.com/ark-network/ark/pkg/client-sdk/indexer"
-	"github.com/ark-network/ark/pkg/client-sdk/types"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
+	"github.com/arkade-os/go-sdk/indexer"
+	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/nbd-wtf/go-nostr/nip19"
@@ -138,32 +138,32 @@ func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
 	return pk, nil
 }
 
-func parseAbsoluteLocktime(locktime uint32) *common.AbsoluteLocktime {
+func parseAbsoluteLocktime(locktime uint32) *arklib.AbsoluteLocktime {
 	if locktime == 0 {
 		return nil
 	}
-	lt := common.AbsoluteLocktime(locktime)
+	lt := arklib.AbsoluteLocktime(locktime)
 	return &lt
 }
 
-func parseRelativeLocktime(locktime *pb.RelativeLocktime) *common.RelativeLocktime {
+func parseRelativeLocktime(locktime *pb.RelativeLocktime) *arklib.RelativeLocktime {
 	if locktime == nil {
 		return nil
 	}
-	return &common.RelativeLocktime{
+	return &arklib.RelativeLocktime{
 		Type:  parseRelativeLocktimeType(locktime.Type),
 		Value: locktime.Value,
 	}
 }
 
-func parseRelativeLocktimeType(locktimeType pb.RelativeLocktime_LocktimeType) common.RelativeLocktimeType {
+func parseRelativeLocktimeType(locktimeType pb.RelativeLocktime_LocktimeType) arklib.RelativeLocktimeType {
 	switch locktimeType {
 	case pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK:
-		return common.LocktimeTypeBlock
+		return arklib.LocktimeTypeBlock
 	case pb.RelativeLocktime_LOCKTIME_TYPE_SECOND:
-		return common.LocktimeTypeSecond
+		return arklib.LocktimeTypeSecond
 	default:
-		return common.LocktimeTypeBlock
+		return arklib.LocktimeTypeBlock
 	}
 }
 
