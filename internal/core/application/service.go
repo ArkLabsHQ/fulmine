@@ -391,7 +391,13 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if err != nil {
 		return fmt.Errorf("failed to decode offchain address %s: %w", offchainAddress, err)
 	}
-	offchainPubkey := hex.EncodeToString(schnorr.SerializePubKey(decodedAddress.VtxoTapKey))
+
+	p2trScript, err := txscript.PayToTaprootScript(decodedAddress.VtxoTapKey)
+	if err != nil {
+		return fmt.Errorf("failed to create p2tr script: %w", err)
+	}
+
+	offchainPubkey := hex.EncodeToString(p2trScript)
 
 	s.subscribeForScripts(context.Background(), "", []string{offchainPubkey}, func(eventsCh <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
 		go s.handleInternalAddressEventChannel(eventsCh)
@@ -483,8 +489,6 @@ func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, 
 	}
 
 	var invoice string
-	fmt.Printf("get address with %d sat and %t\n", sats, sats > 1000)
-
 	_, offchainAddr, boardingAddr, err := s.Receive(ctx)
 	if err != nil {
 		return "", "", "", "", "", err
@@ -728,12 +732,14 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 
 func (s *Service) subscribeForScripts(ctx context.Context, subscriptionId string, scripts []string, extraFunc func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string)) error {
 	subscriptionId, err := s.indexerClient.SubscribeForScripts(ctx, subscriptionId, scripts)
+
+	log.Infof("subscribed for scripts with id %s", subscriptionId)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe for scripts: %w", err)
 	}
 
 	if extraFunc != nil {
-		subscriptionChannel, closeFn, err := s.indexerClient.GetSubscription(ctx, s.subscriptionId)
+		subscriptionChannel, closeFn, err := s.indexerClient.GetSubscription(ctx, subscriptionId)
 		if err != nil {
 			return fmt.Errorf("failed to get subscription for scripts: %w", err)
 		}
@@ -768,11 +774,16 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 			return fmt.Errorf("empty address provided")
 		}
 
-		decoded_address, err := arklib.DecodeAddressV0(addr)
+		decodedAddress, err := arklib.DecodeAddressV0(addr)
 		if err != nil {
 			return fmt.Errorf("failed to decode address %s: %w", addr, err)
 		}
-		serialised_script := hex.EncodeToString(schnorr.SerializePubKey(decoded_address.VtxoTapKey))
+
+		p2trScript, err := txscript.PayToTaprootScript(decodedAddress.VtxoTapKey)
+		if err != nil {
+			return fmt.Errorf("failed to create p2tr script: %w", err)
+		}
+		serialised_script := hex.EncodeToString(p2trScript)
 
 		if _, ok := subscribedScriptsMap[serialised_script]; ok {
 			log.Warnf("address %s already subscribed, skipping", addr)
@@ -1121,7 +1132,7 @@ func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent
 				log.WithError(err).Errorf("failed to decode script %s", script)
 				continue
 			}
-			vtxoTapPubkey, err := schnorr.ParsePubKey(decodedPubKey)
+			vtxoTapPubkey, err := schnorr.ParsePubKey(decodedPubKey[2:])
 			if err != nil {
 				log.WithError(err).Errorf("failed to parse pubkey %s", script)
 				continue
