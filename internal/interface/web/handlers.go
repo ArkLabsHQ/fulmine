@@ -680,8 +680,7 @@ func (s *service) getTransfer(c *gin.Context, transfer types.Transfer, explorerU
 			if err != nil {
 				nextSettlementStr = "unknown"
 			} else {
-				// TODO: use boardingExitDelay https://github.com/ark-network/ark/pull/501
-				boardingTimelock := arklib.RelativeLocktime{Type: data.UnilateralExitDelay.Type, Value: data.UnilateralExitDelay.Value * 2}
+				boardingTimelock := arklib.RelativeLocktime{Type: data.BoardingExitDelay.Type, Value: data.BoardingExitDelay.Value}
 				closeToBoardingSettlement := time.Now().Add(time.Duration(boardingTimelock.Seconds()) * time.Second)
 				nextSettlement = closeToBoardingSettlement
 			}

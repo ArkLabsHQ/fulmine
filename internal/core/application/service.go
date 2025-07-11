@@ -499,7 +499,6 @@ func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, 
 
 	if sats > 1000 {
 		invoice, err = s.GetInvoice(ctx, sats)
-		fmt.Printf("invoice: %s and err: %s\n", invoice, err)
 		if err == nil && len(invoice) > 0 {
 			bip21Addr += fmt.Sprintf("&lightning=%s", invoice)
 		}
@@ -1034,7 +1033,6 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 
-	// TODO: use boardingExitDelay https://github.com/ark-network/ark/pull/501
 	boardingTimelock := arklib.RelativeLocktime{Type: cfg.BoardingExitDelay.Type, Value: cfg.BoardingExitDelay.Value}
 
 	expl := explorer.NewExplorer(s.esploraUrl, cfg.Network)
@@ -1250,7 +1248,6 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64, pubkey []byt
 	// nolint
 	preimageHash, _ = hex.DecodeString(preimageHashStr)
 
-	fmt.Printf("boltzScv %+v\n", s.boltzSvc)
 	// Create the swap
 	swap, err := s.boltzSvc.CreateSwap(boltz.CreateSwapRequest{
 		From:            boltz.CurrencyArk,
@@ -1383,12 +1380,10 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 	}
 
 	amount, preimageHash, err := utils.DecodeInvoice(invoice)
-	fmt.Printf("amount: %d, preimageHash: %x\n", amount, preimageHash)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode invoice: %v", err)
 	}
 
-	fmt.Printf("boltzScv %+v\n", s.boltzSvc)
 	// Create the swap
 	swap, err := s.boltzSvc.CreateSwap(boltz.CreateSwapRequest{
 		From:            boltz.CurrencyArk,
