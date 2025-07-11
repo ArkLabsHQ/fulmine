@@ -127,7 +127,6 @@ func (boltz *Websocket) Connect() error {
 				if err := json.Unmarshal(message, &response); err != nil {
 					continue
 				}
-				fmt.Printf("Received message: %+v\n", response)
 				if response.Error != "" {
 					continue
 				}

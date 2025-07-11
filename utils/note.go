@@ -1,11 +1,11 @@
 package utils
 
 import (
-	"github.com/ark-network/ark/common/note"
+	"github.com/arkade-os/arkd/pkg/ark-lib/note"
 )
 
 func SatsFromNote(text string) int {
-	n, err := note.NewFromString(text)
+	n, err := note.NewNoteFromString(text)
 	if err != nil {
 		return 0
 	}
