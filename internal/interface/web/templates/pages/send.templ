@@ -63,7 +63,7 @@ templ SendBodyContent(currentBalance string) {
 		}
 		
 
-		const validateIsBip21 = async (bip21) => {
+	const validateIsBip21 = async (bip21) => {
       const data = new FormData()
 			data.set('bip21', bip21)
 			const res = await fetch('/helpers/bip21/validate', { method: 'POST', body: data })
@@ -87,7 +87,7 @@ templ SendBodyContent(currentBalance string) {
 			return false
 		}
 
-	  const canSend = () => {
+	  const canSend = async () => {
 			const address = document.querySelector('#address').value
 			const amount = document.querySelector('#amount').value
 			const button = document.querySelector('button[type="submit"]')
@@ -96,10 +96,14 @@ templ SendBodyContent(currentBalance string) {
 			button.disabled = address.length === 0 || amount.length === 0 || !sats || sats > balance
 			button.innerText = sats > balance ? 'Not enough funds' : 'Preview send'
 			if (address) {
-				const disableInputAmount =
-					validateArkNote(address) &&
-					validateInvoice(address) &&
-					validateIsBip21(address)
+				const [isNote, isInvoice, isBip21] = await Promise.all([
+					validateArkNote(address),
+					validateInvoice(address),
+					validateIsBip21(address),
+				])
+
+				const disableInputAmount = isNote || isInvoice || isBip21 
+					
 				document.querySelector('#amount').disabled = disableInputAmount
 			} else {
 				document.querySelector('#amount').disabled = false

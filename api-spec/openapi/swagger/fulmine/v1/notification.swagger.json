@@ -239,18 +239,6 @@
         }
       }
     },
-    "v1Output": {
-      "type": "object",
-      "properties": {
-        "pubkey": {
-          "type": "string"
-        },
-        "amount": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
     "v1RemoveWebhookResponse": {
       "type": "object"
     },
@@ -326,11 +314,13 @@
         "outpoint": {
           "$ref": "#/definitions/v1Input"
         },
-        "receiver": {
-          "$ref": "#/definitions/v1Output"
+        "createdAt": {
+          "type": "string",
+          "format": "int64"
         },
-        "arkTxid": {
-          "type": "string"
+        "expiresAt": {
+          "type": "string",
+          "format": "int64"
         },
         "commitmentTxids": {
           "type": "array",
@@ -338,12 +328,33 @@
             "type": "string"
           }
         },
+        "isPreconfirmed": {
+          "type": "boolean"
+        },
+        "isSwept": {
+          "type": "boolean"
+        },
+        "isUnrolled": {
+          "type": "boolean"
+        },
+        "isSpent": {
+          "type": "boolean"
+        },
         "spentBy": {
           "type": "string"
         },
-        "expireAt": {
+        "settledBy": {
+          "type": "string"
+        },
+        "arkTxid": {
+          "type": "string"
+        },
+        "script": {
+          "type": "string"
+        },
+        "amount": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         }
       }
     },

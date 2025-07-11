@@ -62,27 +62,24 @@ message Tree {
   repeated TreeLevel levels = 1;
 }
 
-
-message Batch {
-  string id = 1;
-  string txid = 2;
-  string ark_txid = 3;
-  repeated Input inputs = 4;
-  repeated Output outputs = 5;
-  Fees fees = 6;
-}
-
 message TreeLevel {
   repeated Node nodes = 1;
 }
 
 message Vtxo {
   Input outpoint = 1;
-  Output receiver = 2;
-  string ark_txid = 3;
-  repeated string commitment_txids = 4;
-  string spent_by = 5;
-  int64 expire_at = 6;
+  int64 created_at = 4;
+  int64 expires_at = 5;
+  repeated string commitment_txids = 6;
+  bool is_preconfirmed = 7;
+  bool is_swept = 8;
+  bool is_unrolled = 9;
+  bool is_spent = 10;
+  string spent_by = 11;
+  string settled_by = 12;
+  string ark_txid = 13;
+  string script = 14;
+  uint64 amount = 15;
 }
 
 message TxData {

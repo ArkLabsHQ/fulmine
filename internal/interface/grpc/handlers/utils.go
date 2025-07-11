@@ -10,7 +10,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
-	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -203,54 +202,6 @@ func toNetworkProto(net string) pb.GetInfoResponse_Network {
 	}
 }
 
-func toTreeProto(root tree.TxTree) (*pb.Tree, error) {
-	type queueItem struct {
-		node       *tree.TxTree
-		parentTxid string
-	}
-
-	var levels []*pb.TreeLevel
-	currentLevel := []queueItem{}
-
-	// Start with top-level children, all children of `tree` have the root as parent
-	for _, child := range root.Children {
-		currentLevel = append(currentLevel, queueItem{
-			node:       child,
-			parentTxid: "",
-		})
-	}
-
-	for len(currentLevel) > 0 {
-		var nodes []*pb.Node
-		var nextLevel []queueItem
-
-		for _, item := range currentLevel {
-			serializedTx, err := item.node.Root.B64Encode()
-			if err != nil {
-				return nil, err
-			}
-
-			nodes = append(nodes, &pb.Node{
-				Txid:       item.node.Root.UnsignedTx.TxID(),
-				Tx:         serializedTx,
-				ParentTxid: item.parentTxid,
-			})
-
-			for _, child := range item.node.Children {
-				nextLevel = append(nextLevel, queueItem{
-					node:       child,
-					parentTxid: item.node.Root.UnsignedTx.TxID(),
-				})
-			}
-		}
-
-		levels = append(levels, &pb.TreeLevel{Nodes: nodes})
-		currentLevel = nextLevel
-	}
-
-	return &pb.Tree{Levels: levels}, nil
-}
-
 func toTxTypeProto(txType types.TxType) pb.TxType {
 	switch txType {
 	case types.TxSent:
@@ -317,17 +268,16 @@ func toNotificationProto(n application.Notification) *pb.Notification {
 	return notification
 }
 
+// Todo: Verify that the script is not Taproot Script
 func toVtxosProto(vtxos []types.Vtxo) []*pb.Vtxo {
 	list := make([]*pb.Vtxo, 0, len(vtxos))
 	for _, vtxo := range vtxos {
 		list = append(list, &pb.Vtxo{
-			Outpoint: toInputProto(vtxo.Outpoint),
-			Receiver: &pb.Output{
-				Pubkey: vtxo.Script,
-				Amount: vtxo.Amount,
-			},
+			Outpoint:        toInputProto(vtxo.Outpoint),
+			Script:          vtxo.Script,
+			Amount:          vtxo.Amount,
 			SpentBy:         vtxo.SpentBy,
-			ExpireAt:        vtxo.ExpiresAt.Unix(),
+			ExpiresAt:       vtxo.ExpiresAt.Unix(),
 			CommitmentTxids: vtxo.CommitmentTxids,
 			ArkTxid:         vtxo.ArkTxid,
 		})

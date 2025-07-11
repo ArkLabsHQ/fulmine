@@ -258,14 +258,12 @@ func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest
 				Txid: vtxo.Txid,
 				Vout: vtxo.VOut,
 			},
-			Receiver: &pb.Output{
-				Pubkey: vtxo.Script,
-				Amount: vtxo.Amount,
-			},
+			Script:          vtxo.Script,
+			Amount:          vtxo.Amount,
 			SpentBy:         vtxo.SpentBy,
 			ArkTxid:         vtxo.ArkTxid,
 			CommitmentTxids: vtxo.CommitmentTxids,
-			ExpireAt:        vtxo.ExpiresAt.Unix(),
+			ExpiresAt:       vtxo.ExpiresAt.Unix(),
 		})
 	}
 

@@ -14,7 +14,7 @@ require (
 	golang.org/x/crypto v0.35.0 // indirect
 )
 
-require github.com/lightningnetwork/lnd v0.18.2-beta
+require github.com/lightningnetwork/lnd v0.18.3-beta.rc3
 
 require (
 	github.com/aead/siphash v1.0.1 // indirect
