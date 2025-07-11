@@ -298,12 +298,23 @@ func toSwapTreeProto(tree *vhtlc.VHTLCScript) *pb.TaprootTree {
 }
 
 func toNotificationProto(n application.Notification) *pb.Notification {
-	// TODO: Convert Addresses to Scripts
-	return &pb.Notification{
+	notification := &pb.Notification{
 		Addresses:  n.Addrs,
 		NewVtxos:   toVtxosProto(n.NewVtxos),
 		SpentVtxos: toVtxosProto(n.SpentVtxos),
+		Txid:       n.Txid,
+		Tx:         n.Tx,
 	}
+	if len(n.Checkpoints) > 0 {
+		notification.Checkpoints = make(map[string]*pb.TxData, len(n.Checkpoints))
+		for k, v := range n.Checkpoints {
+			notification.Checkpoints[k] = &pb.TxData{
+				Tx:   v.Tx,
+				Txid: v.Txid,
+			}
+		}
+	}
+	return notification
 }
 
 func toVtxosProto(vtxos []types.Vtxo) []*pb.Vtxo {

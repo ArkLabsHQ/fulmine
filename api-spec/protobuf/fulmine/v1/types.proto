@@ -85,10 +85,18 @@ message Vtxo {
   int64 expire_at = 6;
 }
 
+message TxData {
+  string txid = 1;
+  string tx = 2;
+}
+
 message Notification {
   repeated string addresses = 1;
   repeated Vtxo new_vtxos = 2;
   repeated Vtxo spent_vtxos = 3;
+  string txid = 4;
+  string tx = 5;
+  map<string, TxData> checkpoints = 6;
 }
 
 enum RoundEventType {

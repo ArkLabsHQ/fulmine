@@ -855,7 +855,12 @@
           "description": "info about the current version of the ark wallet."
         },
         "pubkey": {
-          "type": "string"
+          "type": "string",
+          "description": "The Fulmine's public key used in VTXO scripts."
+        },
+        "signerPubkey": {
+          "type": "string",
+          "description": "The signer's public key used in VTXO scripts."
         }
       }
     },

@@ -224,6 +224,18 @@
             "type": "object",
             "$ref": "#/definitions/v1Vtxo"
           }
+        },
+        "txid": {
+          "type": "string"
+        },
+        "tx": {
+          "type": "string"
+        },
+        "checkpoints": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1TxData"
+          }
         }
       }
     },
@@ -282,6 +294,17 @@
     },
     "v1SubscribeForAddressesResponse": {
       "type": "object"
+    },
+    "v1TxData": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        },
+        "tx": {
+          "type": "string"
+        }
+      }
     },
     "v1UnsubscribeForAddressesRequest": {
       "type": "object",

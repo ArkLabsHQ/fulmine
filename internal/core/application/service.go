@@ -106,9 +106,11 @@ type Service struct {
 }
 
 type Notification struct {
-	Addrs      []string
-	NewVtxos   []types.Vtxo
-	SpentVtxos []types.Vtxo
+	indexer.TxData
+	Addrs       []string
+	NewVtxos    []types.Vtxo
+	SpentVtxos  []types.Vtxo
+	Checkpoints map[string]indexer.TxData
 }
 
 func NewService(
@@ -1152,12 +1154,15 @@ func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent
 			addresses = append(addresses, encodedAddress)
 
 		}
+
 		// non-blocking forward to notifications channel
 		go func(evt *indexer.ScriptEvent) {
 			s.notifications <- Notification{
-				Addrs:      addresses,
-				NewVtxos:   event.NewVtxos,
-				SpentVtxos: event.SpentVtxos,
+				Addrs:       addresses,
+				NewVtxos:    event.NewVtxos,
+				SpentVtxos:  event.SpentVtxos,
+				Checkpoints: event.CheckpointTxs,
+				TxData:      indexer.TxData{Tx: event.Tx, Txid: event.Txid},
 			}
 		}(event)
 	}
