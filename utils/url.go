@@ -23,7 +23,6 @@ func IsValidLnUrl(str string) bool {
 }
 
 func ValidateURL(s string) error {
-
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return fmt.Errorf("url is empty")

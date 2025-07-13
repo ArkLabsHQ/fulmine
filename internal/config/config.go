@@ -310,7 +310,9 @@ func cleanAndExpandPath(path string) string {
 }
 
 func deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir string) (*domain.LnConnectionOpts, error) {
-	var lnConnectionOpts *domain.LnConnectionOpts
+	if lndUrl == "" && clnUrl == "" {
+		return nil, nil
+	}
 
 	if lndUrl != "" && clnUrl != "" {
 		return nil, fmt.Errorf("cannot set both LND and CLN URLs at the same time")
@@ -321,36 +323,44 @@ func deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir string) (*domain.LnCo
 	}
 
 	if lndUrl != "" {
-		if err := utils.ValidateURL(lndUrl); err != nil {
-			return nil, fmt.Errorf("invalid LND URL: %v", err)
+		if strings.HasPrefix(lndUrl, "lndconnect://") {
+			return &domain.LnConnectionOpts{
+				LnUrl:          lndUrl,
+				ConnectionType: domain.LND_CONNECTION,
+			}, nil
 		}
 
-		if lndDatadir != "" {
-			lnConnectionOpts = &domain.LnConnectionOpts{
-				LnUrl:          lndUrl,
-				LnDatadir:      lndDatadir,
-				ConnectionType: domain.LND_CONNECTION,
-			}
-		} else {
+		if lndDatadir == "" {
 			return nil, fmt.Errorf("LND URL provided without LND datadir")
 		}
 
-	} else if clnUrl != "" {
-		if err := utils.ValidateURL(clnUrl); err != nil {
-			return nil, fmt.Errorf("invalid CLN URL: %v", err)
+		if err := utils.ValidateURL(lndUrl); err != nil {
+			return nil, fmt.Errorf("invalid LND URL: %v", err)
 		}
-
-		if clnDatadir != "" {
-			lnConnectionOpts = &domain.LnConnectionOpts{
-				LnUrl:          clnUrl,
-				LnDatadir:      clnDatadir,
-				ConnectionType: domain.CLN_CONNECTION,
-			}
-		} else {
-			return nil, fmt.Errorf("CLN URL provided without CLN datadir")
-		}
+		return &domain.LnConnectionOpts{
+			LnUrl:          lndUrl,
+			LnDatadir:      lndDatadir,
+			ConnectionType: domain.LND_CONNECTION,
+		}, nil
+	}
+	if strings.HasPrefix(clnUrl, "clnconnect://") {
+		return &domain.LnConnectionOpts{
+			LnUrl:          clnUrl,
+			ConnectionType: domain.CLN_CONNECTION,
+		}, nil
 	}
 
-	return lnConnectionOpts, nil
+	if clnDatadir == "" {
+		return nil, fmt.Errorf("CLN URL provided without CLN datadir")
+	}
 
+	if err := utils.ValidateURL(clnUrl); err != nil {
+		return nil, fmt.Errorf("invalid CLN URL: %v", err)
+	}
+
+	return &domain.LnConnectionOpts{
+		LnUrl:          clnUrl,
+		LnDatadir:      clnDatadir,
+		ConnectionType: domain.CLN_CONNECTION,
+	}, nil
 }
