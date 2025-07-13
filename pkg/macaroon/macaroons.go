@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/ark-network/ark/server/pkg/kvdb"
-	"github.com/ark-network/ark/server/pkg/macaroons"
+	"github.com/arkade-os/arkd/pkg/kvdb"
+	"github.com/arkade-os/arkd/pkg/macaroons"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 )

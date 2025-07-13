@@ -855,7 +855,12 @@
           "description": "info about the current version of the ark wallet."
         },
         "pubkey": {
-          "type": "string"
+          "type": "string",
+          "description": "The Fulmine's public key used in VTXO scripts."
+        },
+        "signerPubkey": {
+          "type": "string",
+          "description": "The signer's public key used in VTXO scripts."
         }
       }
     },
@@ -958,32 +963,6 @@
         }
       }
     },
-    "v1Node": {
-      "type": "object",
-      "properties": {
-        "txid": {
-          "type": "string"
-        },
-        "tx": {
-          "type": "string"
-        },
-        "parentTxid": {
-          "type": "string"
-        }
-      }
-    },
-    "v1Output": {
-      "type": "object",
-      "properties": {
-        "pubkey": {
-          "type": "string"
-        },
-        "amount": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
     "v1PayInvoiceRequest": {
       "type": "object",
       "properties": {
@@ -1075,24 +1054,6 @@
         "end": {
           "type": "string",
           "format": "int64"
-        },
-        "roundTx": {
-          "type": "string"
-        },
-        "congestionTree": {
-          "$ref": "#/definitions/v1Tree"
-        },
-        "forfeitTxs": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "connectors": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       }
     },
@@ -1216,10 +1177,10 @@
           "type": "string",
           "format": "uint64"
         },
-        "roundTxid": {
+        "commitmentTxid": {
           "type": "string"
         },
-        "redeemTxid": {
+        "arkTxid": {
           "type": "string"
         },
         "boardingTxid": {
@@ -1230,30 +1191,6 @@
         },
         "settled": {
           "type": "boolean"
-        }
-      }
-    },
-    "v1Tree": {
-      "type": "object",
-      "properties": {
-        "levels": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1TreeLevel"
-          }
-        }
-      }
-    },
-    "v1TreeLevel": {
-      "type": "object",
-      "properties": {
-        "nodes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1Node"
-          }
         }
       }
     },
@@ -1284,18 +1221,47 @@
         "outpoint": {
           "$ref": "#/definitions/v1Input"
         },
-        "receiver": {
-          "$ref": "#/definitions/v1Output"
+        "createdAt": {
+          "type": "string",
+          "format": "int64"
         },
-        "roundTxid": {
-          "type": "string"
+        "expiresAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "commitmentTxids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "isPreconfirmed": {
+          "type": "boolean"
+        },
+        "isSwept": {
+          "type": "boolean"
+        },
+        "isUnrolled": {
+          "type": "boolean"
+        },
+        "isSpent": {
+          "type": "boolean"
         },
         "spentBy": {
           "type": "string"
         },
-        "expireAt": {
+        "settledBy": {
+          "type": "string"
+        },
+        "arkTxid": {
+          "type": "string"
+        },
+        "script": {
+          "type": "string"
+        },
+        "amount": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         }
       }
     },
