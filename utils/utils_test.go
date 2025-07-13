@@ -9,7 +9,7 @@ import (
 
 var (
 	arkAddress   = "tark1qd90wnfly2zd5749lse0mgyttytzaumy35wx8rnvug3sz30wkl805qat5mgdend24ay6pnq0hcm2wgtfkk0xdn2lt25dc90wyxlcx8hnpst8lpeh"
-	arkNote      = "arknoteQrSSs5CFsLsMxsfNnhgudjqWeicxuSGSzBEntv7dyZ9CLS9zazjEyeyshmcwMRcKehCxJRouEwurnzPRbVbc3JHsfTZ3LT4mrBJDsVJj"
+	arkNote      = "arknote8rFzGqZsG9RCLripA6ez8d2hQEzFKsqCeiSnXhQj56Ysw7ZQT"
 	btcAddress   = "tb1pf422yvfxrh9ne0cunv0xalp3cv0pcys0fvpttv09lsh9dvt09zzqzcmphm"
 	bip21Invoice = "bitcoin:" + btcAddress + "?ark=" + arkAddress
 	mnemonic     = "reward liar quote property federal print outdoor attitude satoshi favorite special layer"

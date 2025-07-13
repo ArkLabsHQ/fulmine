@@ -10,7 +10,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
-	"github.com/ark-network/ark/common"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
@@ -107,16 +107,16 @@ func toOpts(row queries.Vhtlc) (*vhtlc.Opts, error) {
 		return nil, err
 	}
 
-	unilateralClaimDelay := common.RelativeLocktime{
-		Type:  common.RelativeLocktimeType(row.UnilateralClaimDelayType),
+	unilateralClaimDelay := arklib.RelativeLocktime{
+		Type:  arklib.RelativeLocktimeType(row.UnilateralClaimDelayType),
 		Value: uint32(row.UnilateralClaimDelayValue),
 	}
-	unilateralRefundDelay := common.RelativeLocktime{
-		Type:  common.RelativeLocktimeType(row.UnilateralRefundDelayType),
+	unilateralRefundDelay := arklib.RelativeLocktime{
+		Type:  arklib.RelativeLocktimeType(row.UnilateralRefundDelayType),
 		Value: uint32(row.UnilateralRefundDelayValue),
 	}
-	unilateralRefundWithoutReceiverDelay := common.RelativeLocktime{
-		Type:  common.RelativeLocktimeType(row.UnilateralRefundWithoutReceiverDelayType),
+	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{
+		Type:  arklib.RelativeLocktimeType(row.UnilateralRefundWithoutReceiverDelayType),
 		Value: uint32(row.UnilateralRefundWithoutReceiverDelayValue),
 	}
 
@@ -124,7 +124,7 @@ func toOpts(row queries.Vhtlc) (*vhtlc.Opts, error) {
 		Sender:                               sender,
 		Receiver:                             receiver,
 		Server:                               server,
-		RefundLocktime:                       common.AbsoluteLocktime(row.RefundLocktime),
+		RefundLocktime:                       arklib.AbsoluteLocktime(row.RefundLocktime),
 		UnilateralClaimDelay:                 unilateralClaimDelay,
 		UnilateralRefundDelay:                unilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
