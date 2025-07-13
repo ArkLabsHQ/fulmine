@@ -11,6 +11,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/lightningnetwork/lnd/input"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
@@ -37,12 +38,25 @@ func (s *service) Connect(ctx context.Context, opts *domain.LnConnectionOpts, ne
 	}
 
 	if err != nil {
-		return fmt.Errorf("error deriving cln connection : %w", err)
+		return fmt.Errorf("error deriving CLN connection : %w", err)
 	}
 
 	s.conn = conn
 	s.client = clnpb.NewNodeClient(conn)
 	s.lnConnectUrl = lnConnectUrl
+
+	resp, err := s.client.Getinfo(ctx, &clnpb.GetinfoRequest{})
+	if err != nil {
+		return fmt.Errorf("failed to connect to CLN: %w", err)
+	}
+	if resp.GetVersion() == "" {
+		return fmt.Errorf("something went wrong, version is empty")
+	}
+	if len(resp.GetId()) <= 0 {
+		return fmt.Errorf("something went wrong, pubkey is empty")
+	}
+
+	log.Infof("connected to CLN version %s with pubkey %x", resp.GetVersion(), resp.GetId())
 
 	return nil
 }

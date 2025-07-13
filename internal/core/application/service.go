@@ -138,16 +138,6 @@ func NewService(
 			return nil, err
 		}
 
-		if connectionOpts != nil {
-			err := dbSvc.Settings().UpdateSettings(context.Background(), domain.Settings{
-				LnConnectionOpts: connectionOpts,
-			})
-
-			if err != nil {
-				return nil, err
-			}
-		}
-
 		svc := &Service{
 			BuildInfo:                 buildInfo,
 			ArkClient:                 arkClient,
@@ -385,6 +375,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 
 	if settings.LnConnectionOpts != nil {
+		log.Debug("connecting to LN node...")
 		if err = s.connectLN(ctx, settings.LnConnectionOpts); err != nil {
 			log.WithError(err).Warn("failed to connect to LN node")
 		}
@@ -419,14 +410,20 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 	offchainPubkey := hex.EncodeToString(p2trScript)
 
-	s.subscribeForScripts(context.Background(), "", []string{offchainPubkey}, func(eventsCh <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
-		go s.handleInternalAddressEventChannel(eventsCh)
-		s.internalSubscriptionId = subId
-		s.closeInternalListener = func() {
-			s.internalSubscriptionId = ""
-			closeFn()
-		}
-	})
+	if err := s.subscribeForScripts(
+		context.Background(), "", []string{offchainPubkey},
+		func(eventsCh <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
+			go s.handleInternalAddressEventChannel(eventsCh)
+			s.internalSubscriptionId = subId
+			s.closeInternalListener = func() {
+				s.internalSubscriptionId = ""
+				closeFn()
+			}
+		},
+	); err != nil {
+		log.WithError(err).Error("failed to subscribe for our scripts")
+		return err
+	}
 
 	if arkConfig.UtxoMaxAmount != 0 {
 		go s.subscribeForBoardingEvent(ctx, boardingAddr, arkConfig)
@@ -439,20 +436,18 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 
-	scriptsToSubscribe = append(scriptsToSubscribe, offchainPubkey)
-
-	err = s.subscribeForScripts(context.Background(), "", scriptsToSubscribe, func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
-		go s.handleAddressEventChannel(stream, arkConfig)
-		s.subscriptionId = subId
-		s.closeAddressEventListener = func() {
-			s.subscriptionId = ""
-			closeFn()
+	if len(scriptsToSubscribe) > 0 {
+		if err := s.subscribeForScripts(context.Background(), "", scriptsToSubscribe, func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
+			go s.handleAddressEventChannel(stream, arkConfig)
+			s.subscriptionId = subId
+			s.closeAddressEventListener = func() {
+				s.subscriptionId = ""
+				closeFn()
+			}
+		}); err != nil {
+			log.WithError(err).Error("failed to resubscribe for scripts")
+			return err
 		}
-	})
-
-	if err != nil {
-		log.WithError(err).Error("failed to resubscribe for scripts")
-		return err
 	}
 
 	go func() {
@@ -1903,7 +1898,9 @@ func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]
 		tapKeyStr := hex.EncodeToString(serialised_key)
 
 		vtxosRequest := indexer.GetVtxosRequestOption{}
-		vtxosRequest.WithScripts([]string{tapKeyStr})
+		if err := vtxosRequest.WithScripts([]string{tapKeyStr}); err != nil {
+			return nil, err
+		}
 		VtxosResponse, err := s.indexerClient.GetVtxos(ctx, vtxosRequest)
 		if err != nil {
 			return nil, err

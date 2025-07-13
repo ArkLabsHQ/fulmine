@@ -43,7 +43,7 @@ func (s *service) Connect(ctx context.Context, opts *domain.LnConnectionOpts, ne
 	}
 
 	if err != nil {
-		return fmt.Errorf("error deriving lnd connection: %w", err)
+		return fmt.Errorf("error deriving LND connection: %w", err)
 	}
 
 	client := lnrpc.NewLightningClient(conn)
@@ -51,7 +51,7 @@ func (s *service) Connect(ctx context.Context, opts *domain.LnConnectionOpts, ne
 	ctx = getCtx(ctx, macaroon)
 	info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
-		return fmt.Errorf("unable to get info: %v", err)
+		return fmt.Errorf("failed to connect to LND: %v", err)
 	}
 
 	if len(info.GetVersion()) == 0 {

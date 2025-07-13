@@ -187,23 +187,6 @@ func (s *service) validateNoteApi(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
-func (s *service) validateArkAddress(c *gin.Context) {
-	var data gin.H
-	address := c.PostForm("address")
-	valid := utils.IsValidArkAddress(address)
-	if valid {
-		data = gin.H{
-			"valid": true,
-		}
-	} else {
-		data = gin.H{
-			"valid": false,
-			"error": "invalid ark address",
-		}
-	}
-	c.JSON(http.StatusOK, data)
-}
-
 func (s *service) validateMnemonicApi(c *gin.Context) {
 	var data gin.H
 	mnemonic := c.PostForm("mnemonic")
