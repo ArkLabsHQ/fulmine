@@ -169,7 +169,6 @@ func NewService(
 		if err := settingsRepo.AddDefaultSettings(ctx); err != nil {
 			return nil, err
 		}
-
 	}
 
 	arkClient, err := arksdk.NewArkClient(storeSvc)
@@ -180,11 +179,9 @@ func NewService(
 	}
 
 	if connectionOpts != nil {
-		err := dbSvc.Settings().UpdateSettings(ctx, domain.Settings{
+		if err := dbSvc.Settings().UpdateSettings(ctx, domain.Settings{
 			LnConnectionOpts: connectionOpts,
-		})
-
-		if err != nil {
+		}); err != nil {
 			return nil, err
 		}
 	}
@@ -351,7 +348,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 	if nextExpiry != nil {
 		if err := s.scheduleNextSettlement(*nextExpiry, arkConfig); err != nil {
-			log.WithError(err).Info("schedule next claim failed")
+			log.WithError(err).Error("failed to schedule next settlement")
 		}
 	}
 
@@ -377,7 +374,8 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if settings.LnConnectionOpts != nil {
 		log.Debug("connecting to LN node...")
 		if err = s.connectLN(ctx, settings.LnConnectionOpts); err != nil {
-			log.WithError(err).Warn("failed to connect to LN node")
+			log.WithError(err).Error("failed to connect to LN node")
+			return err
 		}
 
 	}
@@ -400,12 +398,14 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 	decodedAddress, err := arklib.DecodeAddressV0(offchainAddress)
 	if err != nil {
-		return fmt.Errorf("failed to decode offchain address %s: %w", offchainAddress, err)
+		log.WithError(err).Error("failed to decode offchain address")
+		return err
 	}
 
 	p2trScript, err := txscript.PayToTaprootScript(decodedAddress.VtxoTapKey)
 	if err != nil {
-		return fmt.Errorf("failed to create p2tr script: %w", err)
+		log.WithError(err).Error("failed to create p2tr script")
+		return err
 	}
 
 	offchainPubkey := hex.EncodeToString(p2trScript)
