@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	arkAddress   = "tark1qd90wnfly2zd5749lse0mgyttytzaumy35wx8rnvug3sz30wkl805qat5mgdend24ay6pnq0hcm2wgtfkk0xdn2lt25dc90wyxlcx8hnpst8lpeh"
+	arkAddress   = "tark1qz9fhwclk24f9w240hgt8x597vwjqn6ckswx96s3944dzj9f3qfg2dk2u4fadt0jj54kf8s3y42gr4fzl4f8xc5hfgl5kazuvk5cwsj5zg4aet"
 	arkNote      = "arknote8rFzGqZsG9RCLripA6ez8d2hQEzFKsqCeiSnXhQj56Ysw7ZQT"
 	btcAddress   = "tb1pf422yvfxrh9ne0cunv0xalp3cv0pcys0fvpttv09lsh9dvt09zzqzcmphm"
 	bip21Invoice = "bitcoin:" + btcAddress + "?ark=" + arkAddress

@@ -39,7 +39,6 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/ccoveille/go-safecast"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/lightningnetwork/lnd/input"
 	log "github.com/sirupsen/logrus"
 )
@@ -81,7 +80,7 @@ type Service struct {
 	lnSvc         ports.LnService
 	boltzSvc      *boltz.Api
 
-	publicKey *secp256k1.PublicKey
+	publicKey *btcec.PublicKey
 
 	esploraUrl string
 	boltzUrl   string
@@ -219,7 +218,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	if err != nil {
 		return err
 	}
-	prvKey := secp256k1.PrivKeyFromBytes(privKeyBytes)
+	prvKey, _ := btcec.PrivKeyFromBytes(privKeyBytes)
 
 	client, err := grpcclient.NewClient(serverUrl)
 	if err != nil {
@@ -587,7 +586,7 @@ func (s *Service) IsConnectedLN() bool {
 
 func (s *Service) GetVHTLC(
 	ctx context.Context,
-	receiverPubkey, senderPubkey *secp256k1.PublicKey,
+	receiverPubkey, senderPubkey *btcec.PublicKey,
 	preimageHash []byte,
 	refundLocktimeParam *arklib.AbsoluteLocktime,
 	unilateralClaimDelayParam *arklib.RelativeLocktime,
@@ -598,7 +597,7 @@ func (s *Service) GetVHTLC(
 		return "", nil, nil, err
 	}
 
-	addr, script, opts, err := s.getVHTLC(
+	addr, vhtlcScript, opts, err := s.getVHTLC(
 		ctx, receiverPubkey, senderPubkey, preimageHash,
 		refundLocktimeParam, unilateralClaimDelayParam, unilateralRefundDelayParam,
 		unilateralRefundWithoutReceiverDelayParam,
@@ -615,7 +614,7 @@ func (s *Service) GetVHTLC(
 		log.Debugf("added new vhtlc %x", preimageHash)
 	}()
 
-	return addr, script, opts, nil
+	return addr, vhtlcScript, opts, nil
 }
 
 func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]types.Vtxo, []vhtlc.Opts, error) {
@@ -1701,7 +1700,7 @@ func (s *Service) payInvoiceLN(ctx context.Context, invoice string) (string, err
 
 func (s *Service) getVHTLC(
 	ctx context.Context,
-	receiverPubkey, senderPubkey *secp256k1.PublicKey,
+	receiverPubkey, senderPubkey *btcec.PublicKey,
 	preimageHash []byte,
 	refundLocktimeParam *arklib.AbsoluteLocktime,
 	unilateralClaimDelayParam *arklib.RelativeLocktime,
@@ -1724,7 +1723,7 @@ func (s *Service) getVHTLC(
 	cfg, _ := s.GetConfigData(ctx)
 
 	// Default values if not provided
-	refundLocktime := arklib.AbsoluteLocktime(80 * 600) // 80 blocks
+	refundLocktime := arklib.AbsoluteLocktime(time.Now().Add(time.Hour * 24).Unix()) // 24 hours
 	if refundLocktimeParam != nil {
 		refundLocktime = *refundLocktimeParam
 	}
@@ -1789,11 +1788,13 @@ func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]
 			return nil, err
 		}
 
-		serialised_key := schnorr.SerializePubKey(tapKey)
-		tapKeyStr := hex.EncodeToString(serialised_key)
+		outScript, err := script.P2TRScript(tapKey)
+		if err != nil {
+			return nil, err
+		}
 
 		vtxosRequest := indexer.GetVtxosRequestOption{}
-		vtxosRequest.WithScripts([]string{tapKeyStr})
+		vtxosRequest.WithScripts([]string{hex.EncodeToString(outScript)})
 		VtxosResponse, err := s.indexerClient.GetVtxos(ctx, vtxosRequest)
 		if err != nil {
 			return nil, err
@@ -1852,7 +1853,7 @@ func (s *Service) claimVHTLC(
 	}
 
 	// self send output
-	_, myAddr, _, _, _, err := s.GetAddress(ctx, 0)
+	_, myAddr, _, _, pubkey, err := s.GetAddress(ctx, 0)
 	if err != nil {
 		return "", err
 	}
@@ -1876,11 +1877,40 @@ func (s *Service) claimVHTLC(
 	if err != nil {
 		return "", fmt.Errorf("failed to get config data: %w", err)
 	}
+	buf, err := hex.DecodeString(pubkey)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode my pubkey: %w", err)
+	}
+	myPubkey, err := btcec.ParsePubKey(buf)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse my pubkey: %w", err)
+	}
+
+	myScript := script.NewDefaultVtxoScript(myPubkey, data.SignerPubKey, data.UnilateralExitDelay)
+	_, myTapTree, err := myScript.TapTree()
+	if err != nil {
+		return "", fmt.Errorf("failed to get my taproot tree: %w", err)
+	}
+	myClosureScript, err := myScript.ForfeitClosures()[0].Script()
+	if err != nil {
+		return "", fmt.Errorf("failed to get my forfeit closure script: %w", err)
+	}
+	myMerkleProof, err := myTapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(myClosureScript).TapHash(),
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to get my taproot merkle proof: %w", err)
+	}
+
+	myCtrlBlock, err := txscript.ParseControlBlock(myMerkleProof.ControlBlock)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse my control block: %w", err)
+	}
 
 	checkpointExitScript := &script.CSVMultisigClosure{
 		Locktime: data.UnilateralExitDelay,
 		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*secp256k1.PublicKey{data.SignerPubKey},
+			PubKeys: []*btcec.PublicKey{data.SignerPubKey},
 		},
 	}
 
@@ -1890,9 +1920,13 @@ func (s *Service) claimVHTLC(
 				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
 				Outpoint:           vtxoOutpoint,
 				Amount:             amount,
-				Tapscript: &waddrmgr.Tapscript{
+				CheckpointTapscript: &waddrmgr.Tapscript{
 					ControlBlock:   ctrlBlock,
 					RevealedScript: claimScript,
+				},
+				Tapscript: &waddrmgr.Tapscript{
+					ControlBlock:   myCtrlBlock,
+					RevealedScript: myClosureScript,
 				},
 			},
 		},
@@ -1908,7 +1942,7 @@ func (s *Service) claimVHTLC(
 		return "", err
 	}
 
-	if err := txutils.AddConditionWitness(0, redeemTx, wire.TxWitness{preimage}); err != nil {
+	if err := txutils.AddConditionWitness(0, checkpoints[0], wire.TxWitness{preimage}); err != nil {
 		return "", err
 	}
 
@@ -2024,7 +2058,7 @@ func (s *Service) refundVHTLC(
 	checkpointExitScript := &script.CSVMultisigClosure{
 		Locktime: cfg.UnilateralExitDelay,
 		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*secp256k1.PublicKey{cfg.SignerPubKey},
+			PubKeys: []*btcec.PublicKey{cfg.SignerPubKey},
 		},
 	}
 
@@ -2102,7 +2136,7 @@ func (s *Service) refundVHTLC(
 	return arkTxid, nil
 }
 
-func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
+func parsePubkey(pubkey string) (*btcec.PublicKey, error) {
 	if len(pubkey) <= 0 {
 		return nil, nil
 	}
@@ -2112,7 +2146,7 @@ func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
 		return nil, fmt.Errorf("invalid pubkey: %s", err)
 	}
 
-	pk, err := secp256k1.ParsePubKey(dec)
+	pk, err := btcec.ParsePubKey(dec)
 	if err != nil {
 		return nil, fmt.Errorf("invalid pubkey: %s", err)
 	}

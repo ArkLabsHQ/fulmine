@@ -11,8 +11,8 @@ import (
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/go-sdk/types"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil/psbt"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -118,7 +118,7 @@ func parseInvoice(invoice string) (string, error) {
 	return invoice, nil
 }
 
-func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
+func parsePubkey(pubkey string) (*btcec.PublicKey, error) {
 	if len(pubkey) <= 0 {
 		return nil, nil
 	}
@@ -128,7 +128,7 @@ func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
 		return nil, fmt.Errorf("pubkey must be encoded in hex format")
 	}
 
-	pk, err := secp256k1.ParsePubKey(buf)
+	pk, err := btcec.ParsePubKey(buf)
 	if err != nil {
 		return nil, fmt.Errorf("invalid pubkey: %s", err)
 	}

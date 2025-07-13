@@ -11,7 +11,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 type vhtlcRepository struct {
@@ -89,15 +89,15 @@ func toOpts(row queries.Vhtlc) (*vhtlc.Opts, error) {
 		return nil, err
 	}
 
-	sender, err := secp256k1.ParsePubKey(senderBytes)
+	sender, err := btcec.ParsePubKey(senderBytes)
 	if err != nil {
 		return nil, err
 	}
-	receiver, err := secp256k1.ParsePubKey(receiverBytes)
+	receiver, err := btcec.ParsePubKey(receiverBytes)
 	if err != nil {
 		return nil, err
 	}
-	server, err := secp256k1.ParsePubKey(serverBytes)
+	server, err := btcec.ParsePubKey(serverBytes)
 	if err != nil {
 		return nil, err
 	}

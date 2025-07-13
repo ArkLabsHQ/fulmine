@@ -8,7 +8,6 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
 const (
@@ -16,9 +15,9 @@ const (
 )
 
 type Opts struct {
-	Sender                               *secp256k1.PublicKey
-	Receiver                             *secp256k1.PublicKey
-	Server                               *secp256k1.PublicKey
+	Sender                               *btcec.PublicKey
+	Receiver                             *btcec.PublicKey
+	Server                               *btcec.PublicKey
 	PreimageHash                         []byte
 	RefundLocktime                       arklib.AbsoluteLocktime
 	UnilateralClaimDelay                 arklib.RelativeLocktime
@@ -42,7 +41,7 @@ func (o Opts) claimClosure(preimageCondition []byte) *script.ConditionMultisigCl
 	return &script.ConditionMultisigClosure{
 		Condition: preimageCondition,
 		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*secp256k1.PublicKey{o.Receiver, o.Server},
+			PubKeys: []*btcec.PublicKey{o.Receiver, o.Server},
 		},
 	}
 }
@@ -50,7 +49,7 @@ func (o Opts) claimClosure(preimageCondition []byte) *script.ConditionMultisigCl
 // refundClosure = (Sender + Receiver + Server)
 func (o Opts) refundClosure() *script.MultisigClosure {
 	return &script.MultisigClosure{
-		PubKeys: []*secp256k1.PublicKey{o.Sender, o.Receiver, o.Server},
+		PubKeys: []*btcec.PublicKey{o.Sender, o.Receiver, o.Server},
 	}
 }
 
@@ -58,7 +57,7 @@ func (o Opts) refundClosure() *script.MultisigClosure {
 func (o Opts) refundWithoutReceiverClosure() *script.CLTVMultisigClosure {
 	return &script.CLTVMultisigClosure{
 		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*secp256k1.PublicKey{o.Sender, o.Server},
+			PubKeys: []*btcec.PublicKey{o.Sender, o.Server},
 		},
 		Locktime: o.RefundLocktime,
 	}
@@ -70,7 +69,7 @@ func (o Opts) unilateralClaimClosure(preimageCondition []byte) *script.Condition
 	return &script.ConditionCSVMultisigClosure{
 		CSVMultisigClosure: script.CSVMultisigClosure{
 			MultisigClosure: script.MultisigClosure{
-				PubKeys: []*secp256k1.PublicKey{o.Receiver},
+				PubKeys: []*btcec.PublicKey{o.Receiver},
 			},
 			Locktime: o.UnilateralClaimDelay,
 		},
@@ -82,7 +81,7 @@ func (o Opts) unilateralClaimClosure(preimageCondition []byte) *script.Condition
 func (o Opts) unilateralRefundClosure() *script.CSVMultisigClosure {
 	return &script.CSVMultisigClosure{
 		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*secp256k1.PublicKey{o.Sender, o.Receiver},
+			PubKeys: []*btcec.PublicKey{o.Sender, o.Receiver},
 		},
 		Locktime: o.UnilateralRefundDelay,
 	}
@@ -92,7 +91,7 @@ func (o Opts) unilateralRefundClosure() *script.CSVMultisigClosure {
 func (o Opts) unilateralRefundWithoutReceiverClosure() *script.CSVMultisigClosure {
 	return &script.CSVMultisigClosure{
 		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*secp256k1.PublicKey{o.Sender},
+			PubKeys: []*btcec.PublicKey{o.Sender},
 		},
 		Locktime: o.UnilateralRefundWithoutReceiverDelay,
 	}
@@ -101,9 +100,9 @@ func (o Opts) unilateralRefundWithoutReceiverClosure() *script.CSVMultisigClosur
 type VHTLCScript struct {
 	script.TapscriptsVtxoScript
 
-	Sender                                 *secp256k1.PublicKey
-	Receiver                               *secp256k1.PublicKey
-	Server                                 *secp256k1.PublicKey
+	Sender                                 *btcec.PublicKey
+	Receiver                               *btcec.PublicKey
+	Server                                 *btcec.PublicKey
 	ClaimClosure                           *script.ConditionMultisigClosure
 	RefundClosure                          *script.MultisigClosure
 	RefundWithoutReceiverClosure           *script.CLTVMultisigClosure
