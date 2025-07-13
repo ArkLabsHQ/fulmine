@@ -114,9 +114,6 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("unsupported db type: %s", viper.GetString(DbType))
 	}
 
-	// Ensure that only one Ligntning Connection Is Used
-	var lnConnectionOpts *domain.LnConnectionOpts
-
 	lndUrl := viper.GetString(LndUrl)
 	clnUrl := viper.GetString(ClnUrl)
 
