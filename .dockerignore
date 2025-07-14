@@ -4,4 +4,6 @@ dist
 .git
 .github
 Dockerfile	
-  
+.vscode
+storage
+docs

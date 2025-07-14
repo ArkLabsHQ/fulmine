@@ -12,7 +12,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -425,9 +425,9 @@ func makeVHTLC() vhtlc.Opts {
 	randBytes := make([]byte, 20)
 	_, _ = rand.Read(randBytes)
 
-	serverKey, _ := secp256k1.GeneratePrivateKey()
-	senderKey, _ := secp256k1.GeneratePrivateKey()
-	receiverKey, _ := secp256k1.GeneratePrivateKey()
+	serverKey, _ := btcec.NewPrivateKey()
+	senderKey, _ := btcec.NewPrivateKey()
+	receiverKey, _ := btcec.NewPrivateKey()
 
 	return vhtlc.Opts{
 		PreimageHash:   randBytes,
