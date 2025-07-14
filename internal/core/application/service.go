@@ -229,12 +229,19 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	}
 	prvKey := secp256k1.PrivKeyFromBytes(privKeyBytes)
 
-	client, err := grpcclient.NewClient(serverUrl)
+	validatedServerUrl, err := utils.ValidateURL(serverUrl)
+	if err != nil {
+		return fmt.Errorf("invalid server URL: %w", err)
+	}
+
+	println("Setting up Fulmine with server URL:", validatedServerUrl)
+
+	client, err := grpcclient.NewClient(validatedServerUrl)
 	if err != nil {
 		return err
 	}
 
-	indexerClient, err := indexerTransport.NewClient(serverUrl)
+	indexerClient, err := indexerTransport.NewClient(validatedServerUrl)
 	if err != nil {
 		return err
 	}
@@ -242,7 +249,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	if err := s.Init(ctx, arksdk.InitArgs{
 		WalletType:          arksdk.SingleKeyWallet,
 		ClientType:          arksdk.GrpcClient,
-		ServerUrl:           serverUrl,
+		ServerUrl:           validatedServerUrl,
 		ExplorerURL:         s.esploraUrl,
 		Password:            password,
 		Seed:                privateKey,

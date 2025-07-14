@@ -331,7 +331,7 @@ func deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir string) (*domain.LnCo
 			return nil, fmt.Errorf("LND URL provided without LND datadir")
 		}
 
-		if err := utils.ValidateURL(lndUrl); err != nil {
+		if _, err := utils.ValidateURL(lndUrl); err != nil {
 			return nil, fmt.Errorf("invalid LND URL: %v", err)
 		}
 		return &domain.LnConnectionOpts{
@@ -352,7 +352,7 @@ func deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir string) (*domain.LnCo
 		return nil, fmt.Errorf("CLN URL provided without CLN datadir")
 	}
 
-	if err := utils.ValidateURL(clnUrl); err != nil {
+	if _, err := utils.ValidateURL(clnUrl); err != nil {
 		return nil, fmt.Errorf("invalid CLN URL: %v", err)
 	}
 
