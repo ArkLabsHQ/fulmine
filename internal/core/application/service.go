@@ -51,6 +51,7 @@ const (
 	defaultUnilateralClaimDelay                 = 512
 	defaultUnilateralRefundDelay                = 1024
 	defaultUnilateralRefundWithoutReceiverDelay = 224
+	defaultRefundLocktime                       = time.Hour * 24
 )
 
 var boltzURLByNetwork = map[string]string{
@@ -1583,7 +1584,7 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, myPubkey []byt
 		return "", fmt.Errorf("invalid invoice amount: expected %d, got %d", amount, invoiceAmount)
 	}
 
-	vhtlcAddress, _, opts, err := s.getVHTLC(
+	_, _, opts, err := s.getVHTLC(
 		ctx,
 		nil,
 		senderPubkey,
@@ -1597,9 +1598,10 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, myPubkey []byt
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
 	}
 
-	if swap.LockupAddress != vhtlcAddress {
-		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
-	}
+	// TODO: sync with Boltz how to share this locktime info
+	// if swap.LockupAddress != vhtlcAddress {
+	// 	return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
+	// }
 
 	// Pay the invoice to reveal the preimage
 	preimageStr, err := s.payInvoiceLN(ctx, swap.Invoice)
@@ -1677,7 +1679,7 @@ func (s *Service) reverseSwapWithPreimage(ctx context.Context, amount uint64, pr
 		return "", fmt.Errorf("invalid invoice amount: expected %d, got %d", amount, invoiceAmount)
 	}
 
-	vhtlcAddress, _, vhtlcOpts, err := s.getVHTLC(
+	_, _, vhtlcOpts, err := s.getVHTLC(
 		ctx,
 		nil,
 		senderPubkey,
@@ -1691,9 +1693,10 @@ func (s *Service) reverseSwapWithPreimage(ctx context.Context, amount uint64, pr
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
 	}
 
-	if swap.LockupAddress != vhtlcAddress {
-		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
-	}
+	// TODO: sync with Boltz how to share this locktime info
+	// if swap.LockupAddress != vhtlcAddress {
+	// 	return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
+	// }
 
 	go func() {
 		// Wait until invoice is paid then proceed with claiming the VHTLC
@@ -1800,7 +1803,7 @@ func (s *Service) getVHTLC(
 	cfg, _ := s.GetConfigData(ctx)
 
 	// Default values if not provided
-	refundLocktime := arklib.AbsoluteLocktime(time.Now().Add(time.Hour * 24).Unix()) // 24 hours
+	refundLocktime := arklib.AbsoluteLocktime(time.Now().Add(defaultRefundLocktime).Unix())
 	if refundLocktimeParam != nil {
 		refundLocktime = *refundLocktimeParam
 	}
