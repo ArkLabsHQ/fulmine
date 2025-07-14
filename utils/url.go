@@ -46,5 +46,5 @@ func ValidateURL(s string) (string, error) {
 		return "", fmt.Errorf("url missing host")
 	}
 
-	return strings.TrimRight(s, "/"), nil
+	return strings.TrimSuffix(s, "/"), nil
 }

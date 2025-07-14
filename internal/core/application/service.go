@@ -234,8 +234,6 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		return fmt.Errorf("invalid server URL: %w", err)
 	}
 
-	println("Setting up Fulmine with server URL:", validatedServerUrl)
-
 	client, err := grpcclient.NewClient(validatedServerUrl)
 	if err != nil {
 		return err

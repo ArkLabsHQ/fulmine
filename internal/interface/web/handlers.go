@@ -162,7 +162,7 @@ func (s *service) initialize(c *gin.Context) {
 
 	if err := s.svc.Setup(c, serverUrl, password, privateKey); err != nil {
 		log.WithError(err).Warn("failed to initialize")
-		errorContent := components.Error("Server Initialization Failed", "Please try again")
+		errorContent := components.Error("Server initialization failed", "Please try again")
 		partialViewHandler(errorContent, c)
 	}
 
