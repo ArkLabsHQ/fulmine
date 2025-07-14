@@ -512,11 +512,9 @@ func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, 
 
 	bip21Addr := fmt.Sprintf("bitcoin:%s?ark=%s", boardingAddr, offchainAddr)
 
-	if sats > 1000 {
-		invoice, err = s.GetInvoice(ctx, sats)
-		if err == nil && len(invoice) > 0 {
-			bip21Addr += fmt.Sprintf("&lightning=%s", invoice)
-		}
+	invoice, err = s.GetInvoice(ctx, sats)
+	if err == nil && len(invoice) > 0 {
+		bip21Addr += fmt.Sprintf("&lightning=%s", invoice)
 	}
 
 	// add amount if passed
@@ -1025,13 +1023,7 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (string, error)
 		return "", fmt.Errorf("failed to generate preimage: %w", err)
 	}
 
-	_, _, _, _, pk, err := s.GetAddress(ctx, 0)
-	if err != nil {
-		return "", err
-	}
-	pubkey, _ := hex.DecodeString(pk)
-
-	return s.reverseSwapWithPreimage(ctx, amount, preimage, pubkey)
+	return s.reverseSwapWithPreimage(ctx, amount, preimage, s.publicKey.SerializeCompressed())
 }
 
 func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error) {
@@ -1660,6 +1652,9 @@ func (s *Service) reverseSwapWithPreimage(ctx context.Context, amount uint64, pr
 		PreimageHash:   hex.EncodeToString(buf[:]),
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "out of limits") {
+			return "", nil
+		}
 		return "", fmt.Errorf("failed to make reverse submarine swap: %v", err)
 	}
 

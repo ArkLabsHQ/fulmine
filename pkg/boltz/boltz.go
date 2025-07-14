@@ -15,6 +15,16 @@ type Api struct {
 }
 
 func (boltz *Api) CreateReverseSwap(request CreateReverseSwapRequest) (*CreateReverseSwapResponse, error) {
+	limits, err := sendGetRequest[GetSwapLimitsResponse](boltz, "/swap/submarine")
+	if err != nil {
+		return nil, err
+	}
+
+	if limits.Ark.Btc.Limits.Minimal > int(request.InvoiceAmount) || limits.Ark.Btc.Limits.Maximal < int(request.InvoiceAmount) {
+		return nil, fmt.Errorf("out of limits: invoice amount %d must be between %d and %d", request.InvoiceAmount,
+			limits.Ark.Btc.Limits.Minimal, limits.Ark.Btc.Limits.Maximal)
+	}
+
 	resp, err := sendPostRequest[CreateReverseSwapResponse](boltz, "/swap/reverse", request)
 	if err != nil {
 		return nil, err
@@ -62,6 +72,19 @@ func (boltz *Api) RevealPreimage(swapId string, preimage string) (*RevealPreimag
 		return nil, fmt.Errorf("%s", resp.Error)
 	}
 
+	return resp, nil
+}
+
+func sendGetRequest[T any](boltz *Api, endpoint string) (*T, error) {
+	res, err := boltz.Client.Get(boltz.URL + "/v2" + endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := unmarshalJson[T](res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse boltz response with status %d: %v", res.StatusCode, err)
+	}
 	return resp, nil
 }
 
