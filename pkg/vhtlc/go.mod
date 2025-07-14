@@ -11,7 +11,10 @@ require (
 	github.com/stretchr/testify v1.10.0
 )
 
-require github.com/lightningnetwork/lnd v0.18.3-beta.rc3
+require (
+	github.com/btcsuite/btcwallet v0.16.10-0.20240718224643-db3a4a2543bd
+	github.com/lightningnetwork/lnd v0.18.3-beta.rc3
+)
 
 require (
 	github.com/aead/siphash v1.0.1 // indirect
@@ -19,7 +22,6 @@ require (
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.9 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f // indirect
-	github.com/btcsuite/btcwallet v0.16.10-0.20240718224643-db3a4a2543bd // indirect
 	github.com/btcsuite/btcwallet/wallet/txauthor v1.3.4 // indirect
 	github.com/btcsuite/btcwallet/wallet/txrules v1.2.1 // indirect
 	github.com/btcsuite/btcwallet/wallet/txsizes v1.2.4 // indirect

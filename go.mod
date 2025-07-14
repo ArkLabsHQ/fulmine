@@ -186,7 +186,7 @@ require (
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.9
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
 	github.com/btcsuite/btclog v0.0.0-20241017175713-3428138b75c7 // indirect
-	github.com/btcsuite/btcwallet v0.16.10-0.20240809133323-7d3434c65ae2
+	github.com/btcsuite/btcwallet v0.16.10-0.20240809133323-7d3434c65ae2 // indirect
 	github.com/btcsuite/btcwallet/wallet/txauthor v1.3.5 // indirect
 	github.com/btcsuite/btcwallet/wallet/txrules v1.2.2 // indirect
 	github.com/btcsuite/btcwallet/wallet/txsizes v1.2.5 // indirect
