@@ -58,7 +58,7 @@ run-cln: clean build-static-assets
 ## test: runs all tests
 test:
 	@echo "Running all tests..."
-	@go test -v -race $(shell go list ./... | grep -v *internal/test/e2e*)
+	@go test -v -race --count=1 $(shell go list ./... | grep -v *internal/test/e2e*)
 
 ## test-vhtlc: runs tests for the VHTLC package
 test-vhtlc:
