@@ -35,10 +35,10 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/ccoveille/go-safecast"
 	"github.com/lightningnetwork/lnd/input"
 	log "github.com/sirupsen/logrus"
@@ -1905,36 +1905,8 @@ func (s *Service) claimVHTLC(
 		Index: vtxo.VOut,
 	}
 
-	vtxoScript, err := vhtlc.NewVHTLCScript(vhtlcOpts)
-	if err != nil {
-		return "", err
-	}
-
-	claimClosure := vtxoScript.ClaimClosure
-	claimScript, err := claimClosure.Script()
-	if err != nil {
-		return "", err
-	}
-
-	_, tapTree, err := vtxoScript.TapTree()
-	if err != nil {
-		return "", err
-	}
-
-	claimLeafProof, err := tapTree.GetTaprootMerkleProof(
-		txscript.NewBaseTapLeaf(claimScript).TapHash(),
-	)
-	if err != nil {
-		return "", err
-	}
-
-	ctrlBlock, err := txscript.ParseControlBlock(claimLeafProof.ControlBlock)
-	if err != nil {
-		return "", err
-	}
-
 	// self send output
-	_, myAddr, _, _, pubkey, err := s.GetAddress(ctx, 0)
+	_, myAddr, _, _, _, err := s.GetAddress(ctx, 0)
 	if err != nil {
 		return "", err
 	}
@@ -1954,61 +1926,29 @@ func (s *Service) claimVHTLC(
 		return "", err
 	}
 
-	data, err := s.GetConfigData(ctx)
+	cfg, err := s.GetConfigData(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get config data: %w", err)
 	}
-	buf, err := hex.DecodeString(pubkey)
+
+	vtxoScript, err := vhtlc.NewVHTLCScript(vhtlcOpts)
 	if err != nil {
-		return "", fmt.Errorf("failed to decode my pubkey: %w", err)
-	}
-	myPubkey, err := btcec.ParsePubKey(buf)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse my pubkey: %w", err)
+		return "", err
 	}
 
-	myScript := script.NewDefaultVtxoScript(myPubkey, data.SignerPubKey, data.UnilateralExitDelay)
-	_, myTapTree, err := myScript.TapTree()
+	claimTapscript, checkpointTapscript, err := vtxoScript.ClaimTapscript()
 	if err != nil {
-		return "", fmt.Errorf("failed to get my taproot tree: %w", err)
-	}
-	myClosureScript, err := myScript.ForfeitClosures()[0].Script()
-	if err != nil {
-		return "", fmt.Errorf("failed to get my forfeit closure script: %w", err)
-	}
-	myMerkleProof, err := myTapTree.GetTaprootMerkleProof(
-		txscript.NewBaseTapLeaf(myClosureScript).TapHash(),
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to get my taproot merkle proof: %w", err)
+		return "", err
 	}
 
-	myCtrlBlock, err := txscript.ParseControlBlock(myMerkleProof.ControlBlock)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse my control block: %w", err)
-	}
-
-	checkpointExitScript := &script.CSVMultisigClosure{
-		Locktime: data.UnilateralExitDelay,
-		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*btcec.PublicKey{data.SignerPubKey},
-		},
-	}
-
-	redeemTx, checkpoints, err := offchain.BuildTxs(
+	arkTx, checkpoints, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
-				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
-				Outpoint:           vtxoOutpoint,
-				Amount:             amount,
-				CheckpointTapscript: &waddrmgr.Tapscript{
-					ControlBlock:   ctrlBlock,
-					RevealedScript: claimScript,
-				},
-				Tapscript: &waddrmgr.Tapscript{
-					ControlBlock:   myCtrlBlock,
-					RevealedScript: myClosureScript,
-				},
+				RevealedTapscripts:  vtxoScript.GetRevealedTapscripts(),
+				Outpoint:            vtxoOutpoint,
+				Amount:              amount,
+				Tapscript:           claimTapscript,
+				CheckpointTapscript: checkpointTapscript,
 			},
 		},
 		[]*wire.TxOut{
@@ -2017,13 +1957,19 @@ func (s *Service) claimVHTLC(
 				PkScript: pkScript,
 			},
 		},
-		checkpointExitScript,
+		checkpointExitScript(cfg),
 	)
 	if err != nil {
 		return "", err
 	}
 
-	if err := txutils.AddConditionWitness(0, checkpoints[0], wire.TxWitness{preimage}); err != nil {
+	arkTxStr, err := arkTx.B64Encode()
+	if err != nil {
+		return "", err
+	}
+
+	signedArkTx, err := s.SignTransaction(ctx, arkTxStr)
+	if err != nil {
 		return "", err
 	}
 
@@ -2036,30 +1982,33 @@ func (s *Service) claimVHTLC(
 		checkpointTxs = append(checkpointTxs, tx)
 	}
 
-	reedemTxStr, err := redeemTx.B64Encode()
+	arkTxid, finalArkTx, signedCheckpoints, err := s.grpcClient.SubmitTx(ctx, signedArkTx, checkpointTxs)
 	if err != nil {
 		return "", err
 	}
 
-	signedRedeemTx, err := s.SignTransaction(ctx, reedemTxStr)
-	if err != nil {
+	if err := verifyFinalArkTx(finalArkTx, cfg.SignerPubKey, getInputTapLeaves(arkTx)); err != nil {
 		return "", err
 	}
 
-	arkTxid, _, signedCheckpoints, err := s.grpcClient.SubmitTx(ctx, signedRedeemTx, checkpointTxs)
-
-	if err != nil {
-		return "", err
-	}
-
-	finalCheckpoints := make([]string, 0, len(signedCheckpoints))
-	for _, ptx := range signedCheckpoints {
-		signedCheckpoint, err := s.SignTransaction(ctx, ptx)
-		if err != nil {
-			return "", fmt.Errorf("failed to sign checkpoint transaction: %w", err)
+	// verify and sign the checkpoints
+	signCheckpoint := func(tx *psbt.Packet) (string, error) {
+		// add the preimage to the checkpoint input
+		if err := txutils.AddConditionWitness(0, tx, wire.TxWitness{preimage}); err != nil {
+			return "", err
 		}
-		finalCheckpoints = append(finalCheckpoints, signedCheckpoint)
 
+		encoded, err := tx.B64Encode()
+		if err != nil {
+			return "", err
+		}
+
+		return s.SignTransaction(ctx, encoded)
+	}
+
+	finalCheckpoints, err := verifyAndSignCheckpoints(signedCheckpoints, checkpoints, cfg.SignerPubKey, signCheckpoint)
+	if err != nil {
+		return "", err
 	}
 
 	err = s.grpcClient.FinalizeTx(ctx, arkTxid, finalCheckpoints)
@@ -2099,29 +2048,7 @@ func (s *Service) refundVHTLC(
 		return "", err
 	}
 
-	var refundClosure script.Closure
-	refundClosure = vtxoScript.RefundWithoutReceiverClosure
-	if withReceiver {
-		refundClosure = vtxoScript.RefundClosure
-	}
-	refundScript, err := refundClosure.Script()
-	if err != nil {
-		return "", err
-	}
-
-	_, tapTree, err := vtxoScript.TapTree()
-	if err != nil {
-		return "", err
-	}
-
-	refundLeafProof, err := tapTree.GetTaprootMerkleProof(
-		txscript.NewBaseTapLeaf(refundScript).TapHash(),
-	)
-	if err != nil {
-		return "", err
-	}
-
-	ctrlBlock, err := txscript.ParseControlBlock(refundLeafProof.ControlBlock)
+	refundTapscript, err := vtxoScript.RefundTapscript(withReceiver)
 	if err != nil {
 		return "", err
 	}
@@ -2136,23 +2063,13 @@ func (s *Service) refundVHTLC(
 		return "", err
 	}
 
-	checkpointExitScript := &script.CSVMultisigClosure{
-		Locktime: cfg.UnilateralExitDelay,
-		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*btcec.PublicKey{cfg.SignerPubKey},
-		},
-	}
-
 	refundTx, checkpointPtxs, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
 				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
 				Outpoint:           vtxoOutpoint,
 				Amount:             amount,
-				Tapscript: &waddrmgr.Tapscript{
-					ControlBlock:   ctrlBlock,
-					RevealedScript: refundScript,
-				},
+				Tapscript:          refundTapscript,
 			},
 		},
 		[]*wire.TxOut{
@@ -2161,7 +2078,7 @@ func (s *Service) refundVHTLC(
 				PkScript: dest,
 			},
 		},
-		checkpointExitScript,
+		checkpointExitScript(cfg),
 	)
 	if err != nil {
 		return "", err
@@ -2193,20 +2110,27 @@ func (s *Service) refundVHTLC(
 		checkpointTxs = append(checkpointTxs, tx)
 	}
 
-	arkTxid, _, signedCheckpoints, err := s.grpcClient.SubmitTx(ctx, signedRefundTx, checkpointTxs)
-
+	arkTxid, finalArkTx, signedCheckpoints, err := s.grpcClient.SubmitTx(ctx, signedRefundTx, checkpointTxs)
 	if err != nil {
 		return "", err
 	}
 
-	finalCheckpoints := make([]string, 0, len(signedCheckpoints))
-	for _, ptx := range signedCheckpoints {
-		signedCheckpoint, err := s.SignTransaction(ctx, ptx)
-		if err != nil {
-			return "", fmt.Errorf("failed to sign checkpoint transaction: %w", err)
-		}
-		finalCheckpoints = append(finalCheckpoints, signedCheckpoint)
+	if err := verifyFinalArkTx(finalArkTx, cfg.SignerPubKey, getInputTapLeaves(refundTx)); err != nil {
+		return "", err
+	}
 
+	// verify and sign the checkpoints
+	signCheckpoint := func(tx *psbt.Packet) (string, error) {
+		encoded, err := tx.B64Encode()
+		if err != nil {
+			return "", err
+		}
+		return s.SignTransaction(ctx, encoded)
+	}
+
+	finalCheckpoints, err := verifyAndSignCheckpoints(signedCheckpoints, checkpointPtxs, cfg.SignerPubKey, signCheckpoint)
+	if err != nil {
+		return "", err
 	}
 
 	err = s.grpcClient.FinalizeTx(ctx, arkTxid, finalCheckpoints)
@@ -2215,6 +2139,15 @@ func (s *Service) refundVHTLC(
 	}
 
 	return arkTxid, nil
+}
+
+func checkpointExitScript(cfg *types.Config) *script.CSVMultisigClosure {
+	return &script.CSVMultisigClosure{
+		Locktime: cfg.UnilateralExitDelay,
+		MultisigClosure: script.MultisigClosure{
+			PubKeys: []*btcec.PublicKey{cfg.SignerPubKey},
+		},
+	}
 }
 
 func parsePubkey(pubkey string) (*btcec.PublicKey, error) {
@@ -2248,4 +2181,137 @@ func (s *Service) GetSwapHistory(ctx context.Context) ([]domain.Swap, error) {
 		return all[i].Timestamp > all[j].Timestamp
 	})
 	return all, nil
+}
+
+// verifyInputSignatures checks that all inputs have a signature for the given pubkey
+// and the signature is correct for the given tapscript leaf
+func verifyInputSignatures(tx *psbt.Packet, pubkey *btcec.PublicKey, tapLeaves map[int]txscript.TapLeaf) error {
+	xOnlyPubkey := schnorr.SerializePubKey(pubkey)
+
+	prevouts := make(map[wire.OutPoint]*wire.TxOut)
+	sigsToVerify := make(map[int]*psbt.TaprootScriptSpendSig)
+
+	for inputIndex, input := range tx.Inputs {
+		// collect previous outputs
+		if input.WitnessUtxo == nil {
+			return fmt.Errorf("input %d has no witness utxo, cannot verify signature", inputIndex)
+		}
+
+		outpoint := tx.UnsignedTx.TxIn[inputIndex].PreviousOutPoint
+		prevouts[outpoint] = input.WitnessUtxo
+
+		tapLeaf, ok := tapLeaves[inputIndex]
+		if !ok {
+			return fmt.Errorf("input %d has no tapscript leaf, cannot verify signature", inputIndex)
+		}
+
+		tapLeafHash := tapLeaf.TapHash()
+
+		// check if pubkey has a tapscript sig
+		hasSig := false
+		for _, sig := range input.TaprootScriptSpendSig {
+			if bytes.Equal(sig.XOnlyPubKey, xOnlyPubkey) && bytes.Equal(sig.LeafHash, tapLeafHash[:]) {
+				hasSig = true
+				sigsToVerify[inputIndex] = sig
+				break
+			}
+		}
+
+		if !hasSig {
+			return fmt.Errorf("input %d has no signature for pubkey %x", inputIndex, xOnlyPubkey)
+		}
+	}
+
+	prevoutFetcher := txscript.NewMultiPrevOutFetcher(prevouts)
+	txSigHashes := txscript.NewTxSigHashes(tx.UnsignedTx, prevoutFetcher)
+
+	for inputIndex, sig := range sigsToVerify {
+		msgHash, err := txscript.CalcTapscriptSignaturehash(
+			txSigHashes,
+			sig.SigHash,
+			tx.UnsignedTx,
+			inputIndex,
+			prevoutFetcher,
+			tapLeaves[inputIndex],
+		)
+		if err != nil {
+			return fmt.Errorf("failed to calculate tapscript signature hash: %w", err)
+		}
+
+		signature, err := schnorr.ParseSignature(sig.Signature)
+		if err != nil {
+			return fmt.Errorf("failed to parse signature: %w", err)
+		}
+
+		if !signature.Verify(msgHash, pubkey) {
+			return fmt.Errorf("input %d: invalid signature", inputIndex)
+		}
+	}
+
+	return nil
+}
+
+// getInputTapLeaves returns a map of input index to tapscript leaf
+// if the input has no tapscript leaf, it is not included in the map
+func getInputTapLeaves(tx *psbt.Packet) map[int]txscript.TapLeaf {
+	tapLeaves := make(map[int]txscript.TapLeaf)
+	for inputIndex, input := range tx.Inputs {
+		if input.TaprootLeafScript == nil {
+			continue
+		}
+		tapLeaves[inputIndex] = txscript.NewBaseTapLeaf(input.TaprootLeafScript[0].Script)
+	}
+	return tapLeaves
+}
+
+func verifyAndSignCheckpoints(signedCheckpoints []string, myCheckpoints []*psbt.Packet, arkSigner *btcec.PublicKey, sign func(tx *psbt.Packet) (string, error)) ([]string, error) {
+	finalCheckpoints := make([]string, 0, len(signedCheckpoints))
+	for _, checkpoint := range signedCheckpoints {
+		signedCheckpointPtx, err := psbt.NewFromRawBytes(strings.NewReader(checkpoint), true)
+		if err != nil {
+			return nil, err
+		}
+
+		// search for the checkpoint tx we initially created
+		var myCheckpointTx *psbt.Packet
+		for _, chk := range myCheckpoints {
+			if chk.UnsignedTx.TxID() == signedCheckpointPtx.UnsignedTx.TxID() {
+				myCheckpointTx = chk
+				break
+			}
+		}
+		if myCheckpointTx == nil {
+			return nil, fmt.Errorf("checkpoint tx not found")
+		}
+
+		// verify the server has signed the checkpoint tx
+		err = verifyInputSignatures(signedCheckpointPtx, arkSigner, getInputTapLeaves(myCheckpointTx))
+		if err != nil {
+			return nil, err
+		}
+
+		finalCheckpoint, err := sign(signedCheckpointPtx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to sign checkpoint transaction: %w", err)
+		}
+
+		finalCheckpoints = append(finalCheckpoints, finalCheckpoint)
+	}
+
+	return finalCheckpoints, nil
+}
+
+func verifyFinalArkTx(finalArkTx string, arkSigner *btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf) error {
+	finalArkPtx, err := psbt.NewFromRawBytes(strings.NewReader(finalArkTx), true)
+	if err != nil {
+		return err
+	}
+
+	// verify that the ark signer has signed the ark tx
+	err = verifyInputSignatures(finalArkPtx, arkSigner, expectedTapLeaves)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

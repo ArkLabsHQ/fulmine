@@ -8,6 +8,7 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/txscript"
+	"github.com/btcsuite/btcwallet/waddrmgr"
 )
 
 const (
@@ -196,4 +197,80 @@ func (v *VHTLCScript) Address(hrp string, serverPubkey *btcec.PublicKey) (string
 	}
 
 	return addr.EncodeV0()
+}
+
+// ClaimTapscript computes the necessary script and control block to spend the claim closure,
+// it also returns the custom checkpoint output script.
+func (v *VHTLCScript) ClaimTapscript() (*waddrmgr.Tapscript, *waddrmgr.Tapscript, error) {
+	claimClosure := v.ClaimClosure
+	claimScript, err := claimClosure.Script()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	_, tapTree, err := v.TapTree()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	leafProof, err := tapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(claimScript).TapHash(),
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ctrlBlock, err := txscript.ParseControlBlock(leafProof.ControlBlock)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// claim without the preimage
+	checkpointScript, err := v.ClaimClosure.MultisigClosure.Script()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &waddrmgr.Tapscript{
+			RevealedScript: leafProof.Script,
+			ControlBlock:   ctrlBlock,
+		}, &waddrmgr.Tapscript{
+			RevealedScript: checkpointScript,
+		}, nil
+}
+
+// RefundTapscript computes the necessary script and control block to spend the refund closure,
+// it does not return any checkpoint output script.
+func (v *VHTLCScript) RefundTapscript(withReceiver bool) (*waddrmgr.Tapscript, error) {
+	var refundClosure script.Closure
+	refundClosure = v.RefundWithoutReceiverClosure
+	if withReceiver {
+		refundClosure = v.RefundClosure
+	}
+	refundScript, err := refundClosure.Script()
+	if err != nil {
+		return nil, err
+	}
+
+	_, tapTree, err := v.TapTree()
+	if err != nil {
+		return nil, err
+	}
+
+	refundLeafProof, err := tapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(refundScript).TapHash(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	ctrlBlock, err := txscript.ParseControlBlock(refundLeafProof.ControlBlock)
+	if err != nil {
+		return nil, err
+	}
+
+	return &waddrmgr.Tapscript{
+		RevealedScript: refundLeafProof.Script,
+		ControlBlock:   ctrlBlock,
+	}, nil
 }
