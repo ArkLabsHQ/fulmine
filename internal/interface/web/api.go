@@ -77,19 +77,6 @@ func (s *service) updateSettingsApi(c *gin.Context) {
 		}
 	}
 
-	// TODO lnconnect
-
-	if lnURL := c.PostForm("lnurl"); len(lnURL) > 0 && settings.LnUrl != lnURL {
-		if utils.IsValidLnUrl(lnURL) {
-			settings.LnUrl = lnURL
-			changed = true
-		} else {
-			toast := components.Toast("Invalid LNURL", true)
-			toastHandler(toast, c)
-			return
-		}
-	}
-
 	if unit := c.PostForm("unit"); len(unit) > 0 && settings.Unit != unit {
 		settings.Unit = unit
 		changed = true
@@ -109,6 +96,11 @@ func (s *service) updateSettingsApi(c *gin.Context) {
 
 func (s *service) connectLNDApi(c *gin.Context) {
 	url := c.PostForm("lnurl")
+
+	if s.svc.IsPreConfiguredLN() {
+		url = ""
+	}
+
 	err := s.svc.ConnectLN(c.Request.Context(), url)
 	if err != nil {
 		toast := components.Toast(err.Error(), true)
@@ -190,23 +182,6 @@ func (s *service) validateNoteApi(c *gin.Context) {
 		data = gin.H{
 			"valid": false,
 			"error": "invalid note",
-		}
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-func (s *service) validateArkAddress(c *gin.Context) {
-	var data gin.H
-	address := c.PostForm("address")
-	valid := utils.IsValidArkAddress(address)
-	if valid {
-		data = gin.H{
-			"valid": true,
-		}
-	} else {
-		data = gin.H{
-			"valid": false,
-			"error": "invalid ark address",
 		}
 	}
 	c.JSON(http.StatusOK, data)

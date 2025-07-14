@@ -16,6 +16,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/cln"
+	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/lnd"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
@@ -118,8 +119,8 @@ func NewService(
 	storeSvc types.Store,
 	dbSvc ports.RepoManager,
 	schedulerSvc ports.SchedulerService,
-	lnSvc ports.LnService,
 	esploraUrl, boltzUrl, boltzWSUrl string,
+	connectionOpts *domain.LnConnectionOpts,
 ) (*Service, error) {
 	if arkClient, err := arksdk.LoadArkClient(storeSvc); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
@@ -146,7 +147,6 @@ func NewService(
 			grpcClient:                grpcClient,
 			indexerClient:             indexerClient,
 			schedulerSvc:              schedulerSvc,
-			lnSvc:                     lnSvc,
 			publicKey:                 nil,
 			isReady:                   true,
 			subscriptionLock:          sync.RWMutex{},
@@ -178,6 +178,14 @@ func NewService(
 		return nil, err
 	}
 
+	if connectionOpts != nil {
+		if err := dbSvc.Settings().UpdateSettings(ctx, domain.Settings{
+			LnConnectionOpts: connectionOpts,
+		}); err != nil {
+			return nil, err
+		}
+	}
+
 	svc := &Service{
 		BuildInfo:                 buildInfo,
 		ArkClient:                 arkClient,
@@ -186,7 +194,6 @@ func NewService(
 		dbSvc:                     dbSvc,
 		grpcClient:                nil,
 		schedulerSvc:              schedulerSvc,
-		lnSvc:                     lnSvc,
 		subscriptionLock:          sync.RWMutex{},
 		notifications:             make(chan Notification),
 		stopBoardingEventListener: make(chan struct{}),
@@ -341,7 +348,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 	if nextExpiry != nil {
 		if err := s.scheduleNextSettlement(*nextExpiry, arkConfig); err != nil {
-			log.WithError(err).Info("schedule next claim failed")
+			log.WithError(err).Error("failed to schedule next settlement")
 		}
 	}
 
@@ -363,13 +370,14 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		log.WithError(err).Warn("failed to get settings")
 		return err
 	}
-	if len(settings.LnUrl) > 0 {
-		if strings.HasPrefix(settings.LnUrl, "clnconnect:") {
-			s.lnSvc = cln.NewService()
+
+	if settings.LnConnectionOpts != nil {
+		log.Debug("connecting to LN node...")
+		if err = s.connectLN(ctx, settings.LnConnectionOpts); err != nil {
+			log.WithError(err).Error("failed to connect to LN node")
+			return err
 		}
-		if err := s.lnSvc.Connect(ctx, settings.LnUrl); err != nil {
-			log.WithError(err).Warn("failed to connect to ln node")
-		}
+
 	}
 
 	url := s.boltzUrl
@@ -390,24 +398,32 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 	decodedAddress, err := arklib.DecodeAddressV0(offchainAddress)
 	if err != nil {
-		return fmt.Errorf("failed to decode offchain address %s: %w", offchainAddress, err)
+		log.WithError(err).Error("failed to decode offchain address")
+		return err
 	}
 
 	p2trScript, err := txscript.PayToTaprootScript(decodedAddress.VtxoTapKey)
 	if err != nil {
-		return fmt.Errorf("failed to create p2tr script: %w", err)
+		log.WithError(err).Error("failed to create p2tr script")
+		return err
 	}
 
 	offchainPubkey := hex.EncodeToString(p2trScript)
 
-	s.subscribeForScripts(context.Background(), "", []string{offchainPubkey}, func(eventsCh <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
-		go s.handleInternalAddressEventChannel(eventsCh)
-		s.internalSubscriptionId = subId
-		s.closeInternalListener = func() {
-			s.internalSubscriptionId = ""
-			closeFn()
-		}
-	})
+	if err := s.subscribeForScripts(
+		context.Background(), "", []string{offchainPubkey},
+		func(eventsCh <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
+			go s.handleInternalAddressEventChannel(eventsCh)
+			s.internalSubscriptionId = subId
+			s.closeInternalListener = func() {
+				s.internalSubscriptionId = ""
+				closeFn()
+			}
+		},
+	); err != nil {
+		log.WithError(err).Error("failed to subscribe for our scripts")
+		return err
+	}
 
 	if arkConfig.UtxoMaxAmount != 0 {
 		go s.subscribeForBoardingEvent(ctx, boardingAddr, arkConfig)
@@ -420,20 +436,18 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 
-	scriptsToSubscribe = append(scriptsToSubscribe, offchainPubkey)
-
-	err = s.subscribeForScripts(context.Background(), "", scriptsToSubscribe, func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
-		go s.handleAddressEventChannel(stream, arkConfig)
-		s.subscriptionId = subId
-		s.closeAddressEventListener = func() {
-			s.subscriptionId = ""
-			closeFn()
+	if len(scriptsToSubscribe) > 0 {
+		if err := s.subscribeForScripts(context.Background(), "", scriptsToSubscribe, func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
+			go s.handleAddressEventChannel(stream, arkConfig)
+			s.subscriptionId = subId
+			s.closeAddressEventListener = func() {
+				s.subscriptionId = ""
+				closeFn()
+			}
+		}); err != nil {
+			log.WithError(err).Error("failed to resubscribe for scripts")
+			return err
 		}
-	})
-
-	if err != nil {
-		log.WithError(err).Error("failed to resubscribe for scripts")
-		return err
 	}
 
 	go func() {
@@ -568,13 +582,48 @@ func (s *Service) WhenNextSettlement(ctx context.Context) time.Time {
 	return s.schedulerSvc.WhenNextSettlement()
 }
 
-func (s *Service) ConnectLN(ctx context.Context, connectUrl string) error {
-	if strings.HasPrefix(connectUrl, "clnconnect:") {
-		s.lnSvc = cln.NewService()
+func (s *Service) ConnectLN(ctx context.Context, lnUrl string) error {
+	if len(lnUrl) == 0 {
+		settings, err := s.dbSvc.Settings().GetSettings(ctx)
+		if err != nil {
+			log.WithError(err).Warn("failed to get settings")
+			return err
+		}
+
+		if settings.LnConnectionOpts == nil {
+			return fmt.Errorf("no LN connection options found, please provide a valid LN Connect URL")
+		}
+
+		return s.connectLN(ctx, settings.LnConnectionOpts)
 	}
-	if err := s.lnSvc.Connect(ctx, connectUrl); err != nil {
-		return err
+
+	if s.IsPreConfiguredLN() {
+		return fmt.Errorf("cannot change LN URL, it is already pre-configured")
 	}
+
+	lnConnectionType := domain.CLN_CONNECTION
+	if strings.Contains(lnUrl, "lndconnect:") {
+		lnConnectionType = domain.LND_CONNECTION
+	}
+
+	lnConnctionOpts := &domain.LnConnectionOpts{
+		LnUrl:          lnUrl,
+		LnDatadir:      "",
+		ConnectionType: lnConnectionType,
+	}
+
+	err := s.connectLN(ctx, lnConnctionOpts)
+	if err != nil {
+		return fmt.Errorf("failed to connect to LN node: %w", err)
+	}
+
+	err = s.dbSvc.Settings().UpdateSettings(ctx, domain.Settings{
+		LnConnectionOpts: lnConnctionOpts,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update LN connection options: %w", err)
+	}
+
 	return nil
 }
 
@@ -583,7 +632,49 @@ func (s *Service) DisconnectLN() {
 }
 
 func (s *Service) IsConnectedLN() bool {
+	if s.lnSvc == nil {
+		return false
+	}
 	return s.lnSvc.IsConnected()
+}
+
+func (s *Service) GetLnConnectUrl() string {
+	if s.lnSvc == nil {
+		return ""
+	}
+	return s.lnSvc.GetLnConnectUrl()
+}
+
+func (s *Service) connectLN(ctx context.Context, lnOpts *domain.LnConnectionOpts) error {
+	data, err := s.GetConfigData(ctx)
+	if err != nil {
+		return err
+	}
+
+	connectionOpts := lnOpts
+	if connectionOpts.ConnectionType == domain.CLN_CONNECTION {
+		s.lnSvc = cln.NewService()
+	} else {
+		s.lnSvc = lnd.NewService()
+	}
+
+	if err := s.lnSvc.Connect(ctx, connectionOpts, data.Network.Name); err != nil {
+		log.WithError(err).Warn("failed to connect to ln node")
+	}
+
+	return nil
+
+}
+
+func (s *Service) IsPreConfiguredLN() bool {
+	settings, err := s.dbSvc.Settings().GetSettings(context.Background())
+	if err != nil {
+		return false
+	}
+
+	lnOpts := settings.LnConnectionOpts
+
+	return lnOpts != nil && lnOpts.LnDatadir != ""
 }
 
 func (s *Service) GetVHTLC(
@@ -1807,7 +1898,9 @@ func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]
 		tapKeyStr := hex.EncodeToString(serialised_key)
 
 		vtxosRequest := indexer.GetVtxosRequestOption{}
-		vtxosRequest.WithScripts([]string{tapKeyStr})
+		if err := vtxosRequest.WithScripts([]string{tapKeyStr}); err != nil {
+			return nil, err
+		}
 		VtxosResponse, err := s.indexerClient.GetVtxos(ctx, vtxosRequest)
 		if err != nil {
 			return nil, err

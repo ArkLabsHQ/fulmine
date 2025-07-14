@@ -2,6 +2,12 @@ package components
 
 // button templates
 
+templ activeConnectButton() {
+	<button class="button md:w-auto" name="connect-pre" hx-post="/helpers/node/connect">
+	  Connect
+	</button>
+}
+
 templ connectButton() {
 	<button class="button md:w-auto" disabled name="connect" hx-post="/helpers/node/connect">
 	  Connect
@@ -230,11 +236,17 @@ templ CreateWalletButton(disabled ...bool) {
 	)
 }
 
-templ LnConnectButtons(id string) {
-	@rowButtonsContainer(
-		connectButton(),
-		scanButton(id),
-	)
+templ LnConnectButtons(id string, isPreconfigured bool) {
+	if isPreconfigured {
+		@rowButtonsContainer(
+			activeConnectButton())
+	} else {
+		@rowButtonsContainer(
+			connectButton(),
+			scanButton(id),
+		)
+	}
+	
 }
 
 templ OrangeButton(label string, disabled ...bool) {

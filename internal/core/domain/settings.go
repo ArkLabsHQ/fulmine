@@ -1,16 +1,31 @@
 package domain
 
-import "context"
+import (
+	"context"
+)
+
+type ConnectionType int
+
+const (
+	CLN_CONNECTION ConnectionType = iota
+	LND_CONNECTION
+)
+
+type LnConnectionOpts struct {
+	LnDatadir      string
+	LnUrl          string
+	ConnectionType ConnectionType
+}
 
 type Settings struct {
-	ApiRoot     string
-	ServerUrl   string
-	EsploraUrl  string
-	Currency    string
-	EventServer string
-	FullNode    string
-	LnUrl       string
-	Unit        string
+	ApiRoot          string
+	ServerUrl        string
+	EsploraUrl       string
+	Currency         string
+	EventServer      string
+	FullNode         string
+	Unit             string
+	LnConnectionOpts *LnConnectionOpts
 }
 
 type SettingsRepository interface {

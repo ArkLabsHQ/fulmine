@@ -5,11 +5,14 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 
-	"github.com/lightningnetwork/lnd/lnrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
@@ -44,22 +47,6 @@ func decodeLNDConnectUrl(lndConnectUrl string) (cp *x509.CertPool, macaroon stri
 	return
 }
 
-func getClient(lndConnectUrl string) (client lnrpc.LightningClient, conn *grpc.ClientConn, macaroon string, err error) {
-	// decode url
-	cert, macaroon, host, err := decodeLNDConnectUrl(lndConnectUrl)
-	if err != nil {
-		return
-	}
-	// check credentials (only cert, not macaroon)
-	creds := credentials.NewClientTLSFromCert(cert, "")
-	conn, err = grpc.NewClient(host, grpc.WithTransportCredentials(creds))
-	if err != nil {
-		return
-	}
-
-	return lnrpc.NewLightningClient(conn), conn, macaroon, nil
-}
-
 func getCtx(ctx context.Context, macaroon string) context.Context {
 	return metadata.AppendToOutgoingContext(ctx, "macaroon", macaroon)
 }
@@ -81,4 +68,84 @@ func toBase64(input string) string {
 	input = strings.ReplaceAll(input, "-", "+")
 	input = strings.ReplaceAll(input, "_", "/")
 	return input
+}
+
+func deriveLndConnFromUrl(lndConnectUrl string) (conn *grpc.ClientConn, macaroon string, err error) {
+	cert, macaroon, host, err := decodeLNDConnectUrl(lndConnectUrl)
+	if err != nil {
+		return
+	}
+	// check credentials (only cert, not macaroon)
+	creds := credentials.NewClientTLSFromCert(cert, "")
+	conn, err = grpc.NewClient(host, grpc.WithTransportCredentials(creds))
+	if err != nil {
+		return
+	}
+
+	return conn, macaroon, nil
+}
+
+func deriveLndConnFromPath(dataDir, host, network string) (conn *grpc.ClientConn, macaroon, lnUrl string, err error) {
+	tlsPath := filepath.Join(dataDir, "tls.cert")
+
+	tlsBytes, err := os.ReadFile(tlsPath)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	block, _ := pem.Decode(tlsBytes)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return nil, "", "", errors.New("failed to decode PEM block " +
+			"containing tls certificate")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, "", "", err
+	}
+	pool := x509.NewCertPool()
+	pool.AddCert(cert)
+
+	lndNetwork := deriveLndNetwork(network)
+	macPath := filepath.Join(dataDir, "data", "chain", "bitcoin", lndNetwork, "admin.macaroon")
+
+	macBytes, err := os.ReadFile(macPath)
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	macaroon = hex.EncodeToString(macBytes)
+
+	creds := credentials.NewClientTLSFromCert(pool, "")
+	conn, err = grpc.NewClient(host, grpc.WithTransportCredentials(creds))
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	// derive lnConnect URL
+	lnConnectUrl := fmt.Sprintf("lndconnect://%smacaroon=%s&?cert=%s",
+		host,
+		base64.StdEncoding.EncodeToString(macBytes),
+		base64.StdEncoding.EncodeToString(tlsBytes),
+	)
+
+	return conn, macaroon, lnConnectUrl, nil
+}
+
+func deriveLndNetwork(network string) string {
+	switch network {
+	case "bitcoin":
+		return "mainnet"
+	case "testnet":
+		return "testnet"
+	case "testnet4":
+		return "testnet"
+	case "signet":
+		return "signet"
+	case "regtest":
+		return "regtest"
+	case "mutinynet":
+		return "signet"
+	default:
+		return "regtest"
+	}
 }

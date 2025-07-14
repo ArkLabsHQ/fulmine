@@ -18,6 +18,8 @@ type Setting struct {
 	FullNode    string
 	LnUrl       sql.NullString
 	Unit        string
+	LnDatadir   sql.NullString
+	LnType      sql.NullInt64
 }
 
 type SubscribedScript struct {

@@ -44,6 +44,7 @@ lint:
 run: clean build-static-assets
 	@echo "Running fulmine in dev mode..."
 	@export FULMINE_NO_MACAROONS=true; \
+	export FULMINE_LOG_LEVEL=5; \
 	go run ./cmd/fulmine
 
 run-cln: clean build-static-assets
