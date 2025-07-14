@@ -19,9 +19,8 @@ import (
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
-	"github.com/ark-network/ark/common"
-	arksdk "github.com/ark-network/ark/pkg/client-sdk"
-	sdktypes "github.com/ark-network/ark/pkg/client-sdk/types"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	sdktypes "github.com/arkade-os/go-sdk/types"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	qrcode "github.com/skip2/go-qrcode"
@@ -163,7 +162,7 @@ func (s *service) initialize(c *gin.Context) {
 
 	if err := s.svc.Setup(c, serverUrl, password, privateKey); err != nil {
 		log.WithError(err).Warn("failed to initialize")
-		errorContent := components.Error("Server not found", "Please try again")
+		errorContent := components.Error("Server initialization failed", "Please try again")
 		partialViewHandler(errorContent, c)
 	}
 
@@ -266,7 +265,6 @@ func (s *service) receiveQrCode(c *gin.Context) {
 			return
 		}
 	}
-	fmt.Printf("receiveQrCode sats: %d\n", sats)
 	bip21, offchainAddr, boardingAddr, invoice, _, err := s.svc.GetAddress(c, sats)
 	if err != nil {
 		// nolint:all
@@ -436,12 +434,10 @@ func (s *service) sendConfirm(c *gin.Context) {
 		return
 	}
 
-	receivers := []arksdk.Receiver{
-		arksdk.NewBitcoinReceiver(address, value),
-	}
+	receivers := []sdktypes.Receiver{{To: address, Amount: value}}
 
 	if utils.IsValidArkAddress(address) {
-		txId, err = s.svc.SendOffChain(c, false, receivers, true)
+		txId, err = s.svc.SendOffChain(c, false, receivers)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
@@ -556,7 +552,7 @@ func (s *service) settings(c *gin.Context) {
 
 	active := c.Param("active")
 	bodyContent := pages.SettingsBodyContent(
-		active, *settings, s.svc.IsConnectedLN(), s.svc.IsLocked(c), s.svc.BuildInfo.Version,
+		active, *settings, s.svc.GetLnConnectUrl(), s.svc.IsConnectedLN(), s.svc.IsPreConfiguredLN(), s.svc.IsLocked(c), s.svc.BuildInfo.Version,
 	)
 	s.pageViewHandler(bodyContent, c)
 }
@@ -684,8 +680,7 @@ func (s *service) getTransfer(c *gin.Context, transfer types.Transfer, explorerU
 			if err != nil {
 				nextSettlementStr = "unknown"
 			} else {
-				// TODO: use boardingExitDelay https://github.com/ark-network/ark/pull/501
-				boardingTimelock := common.RelativeLocktime{Type: data.UnilateralExitDelay.Type, Value: data.UnilateralExitDelay.Value * 2}
+				boardingTimelock := arklib.RelativeLocktime{Type: data.BoardingExitDelay.Type, Value: data.BoardingExitDelay.Value}
 				closeToBoardingSettlement := time.Now().Add(time.Duration(boardingTimelock.Seconds()) * time.Second)
 				nextSettlement = closeToBoardingSettlement
 			}
@@ -860,7 +855,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 		if transformedSwap.Kind == "submarine" {
 			updatedTransfers, sendTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return swap.FundingTxId != "" && swap.FundingTxId == t.RedeemTxid
+				return swap.FundingTxId != "" && swap.FundingTxId == t.ArkTxid
 			})
 
 			if ok {
@@ -870,7 +865,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			}
 
 			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return swap.RedeemTxId != "" && swap.RedeemTxId == t.RedeemTxid
+				return swap.RedeemTxId != "" && swap.RedeemTxId == t.ArkTxid
 			})
 			if ok {
 				transferTxns = updatedTransfers
@@ -880,7 +875,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 		} else {
 			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return swap.RedeemTxId != "" && swap.RedeemTxId == t.RedeemTxid
+				return swap.RedeemTxId != "" && swap.RedeemTxId == t.ArkTxid
 			})
 
 			if ok {
@@ -1161,10 +1156,10 @@ func toTransfer(tx sdktypes.Transaction, treeExpiryValue int64) types.Transfer {
 		dateCreated = 0
 	}
 	// get one txid to identify tx
-	txid := tx.RoundTxid
+	txid := tx.CommitmentTxid
 	explorable := true
 	if len(txid) == 0 {
-		txid = tx.RedeemTxid
+		txid = tx.ArkTxid
 		explorable = false
 	}
 	if len(txid) == 0 {

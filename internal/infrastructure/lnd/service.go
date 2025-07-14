@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/lightningnetwork/lnd/input"
 	"github.com/lightningnetwork/lnd/lnrpc"
@@ -18,29 +19,39 @@ var (
 )
 
 type service struct {
-	client   lnrpc.LightningClient
-	conn     *grpc.ClientConn
-	macaroon string
+	client       lnrpc.LightningClient
+	conn         *grpc.ClientConn
+	lnConnectUrl string
+	macaroon     string
 }
 
 func NewService() ports.LnService {
-	return &service{nil, nil, ""}
+	return &service{nil, nil, "", ""}
 }
 
-func (s *service) Connect(ctx context.Context, lndConnectUrl string) error {
-	if len(lndConnectUrl) == 0 {
-		return fmt.Errorf("empty lnurl")
+func (s *service) Connect(ctx context.Context, opts *domain.LnConnectionOpts, network string) (err error) {
+	var conn *grpc.ClientConn
+	var macaroon string
+	var lnConnectUrl string
+
+	if strings.HasPrefix(opts.LnUrl, "lndconnect:") {
+		conn, macaroon, err = deriveLndConnFromUrl(opts.LnUrl)
+		lnConnectUrl = opts.LnUrl
+
+	} else {
+		conn, macaroon, lnConnectUrl, err = deriveLndConnFromPath(opts.LnDatadir, opts.LnUrl, network)
 	}
 
-	client, conn, macaroon, err := getClient(lndConnectUrl)
 	if err != nil {
-		return fmt.Errorf("unable to get client: %v", err)
+		return fmt.Errorf("error deriving LND connection: %w", err)
 	}
+
+	client := lnrpc.NewLightningClient(conn)
 
 	ctx = getCtx(ctx, macaroon)
 	info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
-		return fmt.Errorf("unable to get info: %v", err)
+		return fmt.Errorf("failed to connect to LND: %v", err)
 	}
 
 	if len(info.GetVersion()) == 0 {
@@ -54,6 +65,7 @@ func (s *service) Connect(ctx context.Context, lndConnectUrl string) error {
 	s.client = client
 	s.conn = conn
 	s.macaroon = macaroon
+	s.lnConnectUrl = lnConnectUrl
 
 	log.Infof("connected to LND version %s with pubkey %s", info.GetVersion(), info.GetIdentityPubkey())
 
@@ -80,6 +92,10 @@ func (s *service) GetInfo(ctx context.Context) (version, pubkey string, err erro
 	}
 
 	return info.Version, info.IdentityPubkey, nil
+}
+
+func (s *service) GetLnConnectUrl() string {
+	return s.lnConnectUrl
 }
 
 func (s *service) GetInvoice(

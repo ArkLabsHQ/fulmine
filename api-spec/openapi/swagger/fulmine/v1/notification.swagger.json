@@ -224,18 +224,18 @@
             "type": "object",
             "$ref": "#/definitions/v1Vtxo"
           }
-        }
-      }
-    },
-    "v1Output": {
-      "type": "object",
-      "properties": {
-        "pubkey": {
+        },
+        "txid": {
           "type": "string"
         },
-        "amount": {
-          "type": "string",
-          "format": "uint64"
+        "tx": {
+          "type": "string"
+        },
+        "checkpoints": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1TxData"
+          }
         }
       }
     },
@@ -283,6 +283,17 @@
     "v1SubscribeForAddressesResponse": {
       "type": "object"
     },
+    "v1TxData": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        },
+        "tx": {
+          "type": "string"
+        }
+      }
+    },
     "v1UnsubscribeForAddressesRequest": {
       "type": "object",
       "properties": {
@@ -303,18 +314,47 @@
         "outpoint": {
           "$ref": "#/definitions/v1Input"
         },
-        "receiver": {
-          "$ref": "#/definitions/v1Output"
+        "createdAt": {
+          "type": "string",
+          "format": "int64"
         },
-        "roundTxid": {
-          "type": "string"
+        "expiresAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "commitmentTxids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "isPreconfirmed": {
+          "type": "boolean"
+        },
+        "isSwept": {
+          "type": "boolean"
+        },
+        "isUnrolled": {
+          "type": "boolean"
+        },
+        "isSpent": {
+          "type": "boolean"
         },
         "spentBy": {
           "type": "string"
         },
-        "expireAt": {
+        "settledBy": {
+          "type": "string"
+        },
+        "arkTxid": {
+          "type": "string"
+        },
+        "script": {
+          "type": "string"
+        },
+        "amount": {
           "type": "string",
-          "format": "int64"
+          "format": "uint64"
         }
       }
     },

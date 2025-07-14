@@ -2,58 +2,61 @@ package cln
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	clnpb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/cln"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/lightningnetwork/lnd/input"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 type service struct {
-	client clnpb.NodeClient
-	conn   *grpc.ClientConn
+	client       clnpb.NodeClient
+	conn         *grpc.ClientConn
+	lnConnectUrl string
 }
 
 func NewService() ports.LnService {
-	return &service{nil, nil}
+	return &service{nil, nil, ""}
 }
 
-func (s *service) Connect(ctx context.Context, clnConnectUrl string) error {
-	rootCert, privateKey, certChain, host, err := decodeClnConnectUrl(clnConnectUrl)
-	if err != nil {
-		return err
+func (s *service) Connect(ctx context.Context, opts *domain.LnConnectionOpts, network string) (err error) {
+	var conn *grpc.ClientConn
+	var lnConnectUrl string
+
+	if strings.HasPrefix(opts.LnUrl, "clnconnect:") {
+		conn, err = deriveClnConnFromUrl(opts.LnUrl)
+		lnConnectUrl = opts.LnUrl
+
+	} else {
+		conn, lnConnectUrl, err = deriveClnConnFromPath(opts.LnDatadir, opts.LnUrl, network)
 	}
 
-	caPool := x509.NewCertPool()
-	if !caPool.AppendCertsFromPEM([]byte(rootCert)) {
-		return fmt.Errorf("could not parse root certificate")
-	}
-
-	cert, err := tls.X509KeyPair([]byte(certChain), []byte(privateKey))
 	if err != nil {
-		return fmt.Errorf("error with X509KeyPair, %s", err)
-	}
-
-	creds := credentials.NewTLS(&tls.Config{
-		ServerName:   "cln",
-		RootCAs:      caPool,
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   tls.VersionTLS12,
-	})
-
-	conn, err := grpc.NewClient(host, grpc.WithTransportCredentials(creds))
-	if err != nil {
-		return err
+		return fmt.Errorf("error deriving CLN connection : %w", err)
 	}
 
 	s.conn = conn
 	s.client = clnpb.NewNodeClient(conn)
+	s.lnConnectUrl = lnConnectUrl
+
+	resp, err := s.client.Getinfo(ctx, &clnpb.GetinfoRequest{})
+	if err != nil {
+		return fmt.Errorf("failed to connect to CLN: %w", err)
+	}
+	if resp.GetVersion() == "" {
+		return fmt.Errorf("something went wrong, version is empty")
+	}
+	if len(resp.GetId()) <= 0 {
+		return fmt.Errorf("something went wrong, pubkey is empty")
+	}
+
+	log.Infof("connected to CLN version %s with pubkey %x", resp.GetVersion(), resp.GetId())
 
 	return nil
 }
@@ -69,6 +72,10 @@ func (s *service) GetInfo(ctx context.Context) (version string, pubkey string, e
 	}
 
 	return resp.Version, hex.EncodeToString(resp.Id), nil
+}
+
+func (s *service) GetLnConnectUrl() string {
+	return s.lnConnectUrl
 }
 
 func (s *service) GetInvoice(

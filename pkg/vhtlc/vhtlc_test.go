@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
-	"github.com/ark-network/ark/common"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/lightningnetwork/lnd/input"
@@ -28,10 +28,10 @@ func TestVHTLC(t *testing.T) {
 		Receiver:                             receiverKey.PubKey(),
 		Server:                               serverKey.PubKey(),
 		PreimageHash:                         preimageHash,
-		RefundLocktime:                       common.AbsoluteLocktime(time.Now().Add(24 * time.Hour).Unix()),
-		UnilateralClaimDelay:                 common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: 144},
-		UnilateralRefundDelay:                common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: 72},
-		UnilateralRefundWithoutReceiverDelay: common.RelativeLocktime{Type: common.LocktimeTypeBlock, Value: 288},
+		RefundLocktime:                       arklib.AbsoluteLocktime(time.Now().Add(24 * time.Hour).Unix()),
+		UnilateralClaimDelay:                 arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: 144},
+		UnilateralRefundDelay:                arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: 72},
+		UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: 288},
 	})
 	require.NoError(t, err)
 

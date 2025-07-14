@@ -11,8 +11,8 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
-	"github.com/ark-network/ark/common"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -26,8 +26,12 @@ var (
 		Currency:    "cur",
 		EventServer: "eventserver",
 		FullNode:    "fullnode",
-		LnUrl:       "lndconnect",
 		Unit:        "unit",
+		LnConnectionOpts: &domain.LnConnectionOpts{
+			LnDatadir:      "lnd_dir",
+			ConnectionType: domain.LND_CONNECTION,
+			LnUrl:          "lnd",
+		},
 	}
 
 	testRolloverTarget = domain.VtxoRolloverTarget{
@@ -150,8 +154,15 @@ func testAddSettings(t *testing.T, repo domain.SettingsRepository) {
 
 func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 	t.Run("update settings", func(t *testing.T) {
+		newConnectionOpts := domain.LnConnectionOpts{
+			LnDatadir:      "cln_dir",
+			ConnectionType: domain.CLN_CONNECTION,
+			LnUrl:          "cln",
+		}
+
 		newSettings := domain.Settings{
-			ApiRoot: "updated apiroot",
+			ApiRoot:          "updated apiroot",
+			LnConnectionOpts: &newConnectionOpts,
 		}
 
 		err := repo.UpdateSettings(ctx, newSettings)
@@ -162,6 +173,7 @@ func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 
 		expectedSettings := testSettings
 		expectedSettings.ApiRoot = newSettings.ApiRoot
+		expectedSettings.LnConnectionOpts = &newConnectionOpts
 
 		err = repo.UpdateSettings(ctx, newSettings)
 		require.NoError(t, err)
@@ -185,7 +197,6 @@ func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 		settings, err = repo.GetSettings(ctx)
 		require.NoError(t, err)
 		require.NotNil(t, settings)
-		require.Equal(t, expectedSettings, *settings)
 		require.Equal(t, expectedSettings, *settings)
 	})
 }
@@ -414,26 +425,26 @@ func makeVHTLC() vhtlc.Opts {
 	randBytes := make([]byte, 20)
 	_, _ = rand.Read(randBytes)
 
-	serverKey, _ := secp256k1.GeneratePrivateKey()
-	senderKey, _ := secp256k1.GeneratePrivateKey()
-	receiverKey, _ := secp256k1.GeneratePrivateKey()
+	serverKey, _ := btcec.NewPrivateKey()
+	senderKey, _ := btcec.NewPrivateKey()
+	receiverKey, _ := btcec.NewPrivateKey()
 
 	return vhtlc.Opts{
 		PreimageHash:   randBytes,
 		Sender:         senderKey.PubKey(),
 		Receiver:       receiverKey.PubKey(),
 		Server:         serverKey.PubKey(),
-		RefundLocktime: common.AbsoluteLocktime(100 * 600),
-		UnilateralClaimDelay: common.RelativeLocktime{
-			Type:  common.LocktimeTypeBlock,
+		RefundLocktime: arklib.AbsoluteLocktime(100 * 600),
+		UnilateralClaimDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeBlock,
 			Value: 300,
 		},
-		UnilateralRefundDelay: common.RelativeLocktime{
-			Type:  common.LocktimeTypeBlock,
+		UnilateralRefundDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeBlock,
 			Value: 400,
 		},
-		UnilateralRefundWithoutReceiverDelay: common.RelativeLocktime{
-			Type:  common.LocktimeTypeBlock,
+		UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeBlock,
 			Value: 500,
 		},
 	}

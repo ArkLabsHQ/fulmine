@@ -274,6 +274,11 @@ func claimVHTLC(preimage string) (string, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		payload, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("failed to claim VHTLC: %d %s", resp.StatusCode, string(payload))
+	}
+
 	var claimResp ClaimVHTLCResponse
 	if err := json.NewDecoder(resp.Body).Decode(&claimResp); err != nil {
 		return "", err

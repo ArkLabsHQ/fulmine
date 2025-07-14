@@ -9,8 +9,8 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
-	"github.com/ark-network/ark/common"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/timshannon/badgerhold/v4"
 )
@@ -106,10 +106,10 @@ type vhtlcData struct {
 	Sender                               string
 	Receiver                             string
 	Server                               string
-	RefundLocktime                       common.AbsoluteLocktime
-	UnilateralClaimDelay                 common.RelativeLocktime
-	UnilateralRefundDelay                common.RelativeLocktime
-	UnilateralRefundWithoutReceiverDelay common.RelativeLocktime
+	RefundLocktime                       arklib.AbsoluteLocktime
+	UnilateralClaimDelay                 arklib.RelativeLocktime
+	UnilateralRefundDelay                arklib.RelativeLocktime
+	UnilateralRefundWithoutReceiverDelay arklib.RelativeLocktime
 }
 
 func (d *vhtlcData) toOpts() (*vhtlc.Opts, error) {
@@ -126,15 +126,15 @@ func (d *vhtlcData) toOpts() (*vhtlc.Opts, error) {
 		return nil, err
 	}
 
-	sender, err := secp256k1.ParsePubKey(senderBytes)
+	sender, err := btcec.ParsePubKey(senderBytes)
 	if err != nil {
 		return nil, err
 	}
-	receiver, err := secp256k1.ParsePubKey(receiverBytes)
+	receiver, err := btcec.ParsePubKey(receiverBytes)
 	if err != nil {
 		return nil, err
 	}
-	server, err := secp256k1.ParsePubKey(serverBytes)
+	server, err := btcec.ParsePubKey(serverBytes)
 	if err != nil {
 		return nil, err
 	}

@@ -43,7 +43,7 @@ func TestOnboard(t *testing.T) {
 }
 
 func TestSendOffChain(t *testing.T) {
-	const receivingAddr = "tark132dmk8aj42ftj4ta6zee4p0nr5sy7k95r33w5yfddtg532vgz2z5kyd6crud92v5nsmt2qkaartxt33292kngqds2up2wzpw9ugfvvcr9s64v"
+	const receivingAddr = "tark1qz9fhwclk24f9w240hgt8x597vwjqn6ckswx96s3944dzj9f3qfg2dk2u4fadt0jj54kf8s3y42gr4fzl4f8xc5hfgl5kazuvk5cwsj5zg4aet"
 
 	onboardAddress, err := getOnboardAddress(1000)
 	require.NoError(t, err)

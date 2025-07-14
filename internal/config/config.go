@@ -9,10 +9,12 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	envunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/env"
 	fileunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/file"
 	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
+	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/spf13/viper"
 )
 
@@ -22,21 +24,23 @@ const (
 )
 
 type Config struct {
-	Datadir          string
-	DbType           string
-	GRPCPort         uint32
-	HTTPPort         uint32
-	WithTLS          bool
-	LogLevel         uint32
-	ArkServer        string
-	EsploraURL       string
-	BoltzURL         string
-	BoltzWSURL       string
-	CLNDatadir       string // for testing purposes only
+	Datadir    string
+	DbType     string
+	GRPCPort   uint32
+	HTTPPort   uint32
+	WithTLS    bool
+	LogLevel   uint32
+	ArkServer  string
+	EsploraURL string
+	BoltzURL   string
+	BoltzWSURL string
+
 	UnlockerType     string
 	UnlockerFilePath string
 	UnlockerPassword string
 	DisableTelemetry bool
+
+	LnConnectionOpts *domain.LnConnectionOpts
 
 	unlocker    ports.Unlocker
 	macaroonSvc macaroon.Service
@@ -55,9 +59,10 @@ var (
 	BoltzWSURL       = "BOLTZ_WS_URL"
 	DisableTelemetry = "DISABLE_TELEMETRY"
 	NoMacaroons      = "NO_MACAROONS"
-
-	// Only for testing purposes
-	CLNDatadir = "CLN_DATADIR"
+	LndUrl           = "LND_URL"
+	ClnUrl           = "CLN_URL"
+	ClnDatadir       = "CLN_DATADIR"
+	LndDatadir       = "LND_DATADIR"
 
 	// Unlocker configuration
 	UnlockerType     = "UNLOCKER_TYPE"
@@ -77,6 +82,10 @@ var (
 		badgerDb: {},
 	}
 	defaultNoMacaroons = false
+	defaultLndUrl      = ""
+	defaultClnUrl      = ""
+	defaultClnDatadir  = ""
+	defaultLndDatadir  = ""
 )
 
 func LoadConfig() (*Config, error) {
@@ -92,6 +101,10 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(DisableTelemetry, defaultDisableTelemetry)
 	viper.SetDefault(DbType, dbType)
 	viper.SetDefault(NoMacaroons, defaultNoMacaroons)
+	viper.SetDefault(LndUrl, defaultLndUrl)
+	viper.SetDefault(ClnUrl, defaultClnUrl)
+	viper.SetDefault(ClnDatadir, defaultClnDatadir)
+	viper.SetDefault(LndDatadir, defaultLndDatadir)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
@@ -99,6 +112,17 @@ func LoadConfig() (*Config, error) {
 
 	if _, ok := supportedDbType[viper.GetString(DbType)]; !ok {
 		return nil, fmt.Errorf("unsupported db type: %s", viper.GetString(DbType))
+	}
+
+	lndUrl := viper.GetString(LndUrl)
+	clnUrl := viper.GetString(ClnUrl)
+
+	lndDatadir := cleanAndExpandPath(viper.GetString(LndDatadir))
+	clnDatadir := cleanAndExpandPath(viper.GetString(ClnDatadir))
+
+	lnConnectionOpts, err := deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir)
+	if err != nil {
+		return nil, fmt.Errorf("error deriving lightning connection config: %w", err)
 	}
 
 	config := &Config{
@@ -112,11 +136,12 @@ func LoadConfig() (*Config, error) {
 		EsploraURL:       viper.GetString(EsploraURL),
 		BoltzURL:         viper.GetString(BoltzURL),
 		BoltzWSURL:       viper.GetString(BoltzWSURL),
-		CLNDatadir:       cleanAndExpandPath(viper.GetString(CLNDatadir)),
 		UnlockerType:     viper.GetString(UnlockerType),
 		UnlockerFilePath: viper.GetString(UnlockerFilePath),
 		UnlockerPassword: viper.GetString(UnlockerPassword),
 		DisableTelemetry: viper.GetBool(DisableTelemetry),
+
+		LnConnectionOpts: lnConnectionOpts,
 	}
 
 	if err := config.initUnlockerService(); err != nil {
@@ -279,4 +304,61 @@ func cleanAndExpandPath(path string) string {
 	// NOTE: The os.ExpandEnv doesn't work with Windows-style %VARIABLE%,
 	// but the variables can still be expanded via POSIX-style $VARIABLE.
 	return filepath.Clean(os.ExpandEnv(path))
+}
+
+func deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir string) (*domain.LnConnectionOpts, error) {
+	if lndUrl == "" && clnUrl == "" {
+		return nil, nil
+	}
+
+	if lndUrl != "" && clnUrl != "" {
+		return nil, fmt.Errorf("cannot set both LND and CLN URLs at the same time")
+	}
+
+	if lndDatadir != "" && clnDatadir != "" {
+		return nil, fmt.Errorf("cannot set both LND and CLN datadirs at the same time")
+	}
+
+	if lndUrl != "" {
+		if strings.HasPrefix(lndUrl, "lndconnect://") {
+			return &domain.LnConnectionOpts{
+				LnUrl:          lndUrl,
+				ConnectionType: domain.LND_CONNECTION,
+			}, nil
+		}
+
+		if lndDatadir == "" {
+			return nil, fmt.Errorf("LND URL provided without LND datadir")
+		}
+
+		if _, err := utils.ValidateURL(lndUrl); err != nil {
+			return nil, fmt.Errorf("invalid LND URL: %v", err)
+		}
+		return &domain.LnConnectionOpts{
+			LnUrl:          lndUrl,
+			LnDatadir:      lndDatadir,
+			ConnectionType: domain.LND_CONNECTION,
+		}, nil
+	}
+
+	if strings.HasPrefix(clnUrl, "clnconnect://") {
+		return &domain.LnConnectionOpts{
+			LnUrl:          clnUrl,
+			ConnectionType: domain.CLN_CONNECTION,
+		}, nil
+	}
+
+	if clnDatadir == "" {
+		return nil, fmt.Errorf("CLN URL provided without CLN datadir")
+	}
+
+	if _, err := utils.ValidateURL(clnUrl); err != nil {
+		return nil, fmt.Errorf("invalid CLN URL: %v", err)
+	}
+
+	return &domain.LnConnectionOpts{
+		LnUrl:          clnUrl,
+		LnDatadir:      clnDatadir,
+		ConnectionType: domain.CLN_CONNECTION,
+	}, nil
 }

@@ -4,11 +4,11 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/ark-network/ark/common"
-	"github.com/ark-network/ark/common/tree"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/btcsuite/btcwallet/waddrmgr"
 )
 
 const (
@@ -16,14 +16,14 @@ const (
 )
 
 type Opts struct {
-	Sender                               *secp256k1.PublicKey
-	Receiver                             *secp256k1.PublicKey
-	Server                               *secp256k1.PublicKey
+	Sender                               *btcec.PublicKey
+	Receiver                             *btcec.PublicKey
+	Server                               *btcec.PublicKey
 	PreimageHash                         []byte
-	RefundLocktime                       common.AbsoluteLocktime
-	UnilateralClaimDelay                 common.RelativeLocktime
-	UnilateralRefundDelay                common.RelativeLocktime
-	UnilateralRefundWithoutReceiverDelay common.RelativeLocktime
+	RefundLocktime                       arklib.AbsoluteLocktime
+	UnilateralClaimDelay                 arklib.RelativeLocktime
+	UnilateralRefundDelay                arklib.RelativeLocktime
+	UnilateralRefundWithoutReceiverDelay arklib.RelativeLocktime
 }
 
 func (o Opts) validate() error {
@@ -38,39 +38,39 @@ func (o Opts) validate() error {
 	return nil
 }
 
-func (o Opts) claimClosure(preimageCondition []byte) *tree.ConditionMultisigClosure {
-	return &tree.ConditionMultisigClosure{
+func (o Opts) claimClosure(preimageCondition []byte) *script.ConditionMultisigClosure {
+	return &script.ConditionMultisigClosure{
 		Condition: preimageCondition,
-		MultisigClosure: tree.MultisigClosure{
-			PubKeys: []*secp256k1.PublicKey{o.Receiver, o.Server},
+		MultisigClosure: script.MultisigClosure{
+			PubKeys: []*btcec.PublicKey{o.Receiver, o.Server},
 		},
 	}
 }
 
 // refundClosure = (Sender + Receiver + Server)
-func (o Opts) refundClosure() *tree.MultisigClosure {
-	return &tree.MultisigClosure{
-		PubKeys: []*secp256k1.PublicKey{o.Sender, o.Receiver, o.Server},
+func (o Opts) refundClosure() *script.MultisigClosure {
+	return &script.MultisigClosure{
+		PubKeys: []*btcec.PublicKey{o.Sender, o.Receiver, o.Server},
 	}
 }
 
 // RefundWithoutReceiver = (Sender + Server) at RefundDelay
-func (o Opts) refundWithoutReceiverClosure() *tree.CLTVMultisigClosure {
-	return &tree.CLTVMultisigClosure{
-		MultisigClosure: tree.MultisigClosure{
-			PubKeys: []*secp256k1.PublicKey{o.Sender, o.Server},
+func (o Opts) refundWithoutReceiverClosure() *script.CLTVMultisigClosure {
+	return &script.CLTVMultisigClosure{
+		MultisigClosure: script.MultisigClosure{
+			PubKeys: []*btcec.PublicKey{o.Sender, o.Server},
 		},
 		Locktime: o.RefundLocktime,
 	}
 }
 
 // unilateralClaimClosure = (Receiver + Preimage) at UnilateralClaimDelay
-func (o Opts) unilateralClaimClosure(preimageCondition []byte) *tree.ConditionCSVMultisigClosure {
+func (o Opts) unilateralClaimClosure(preimageCondition []byte) *script.ConditionCSVMultisigClosure {
 	// TODO: update deps and add condition
-	return &tree.ConditionCSVMultisigClosure{
-		CSVMultisigClosure: tree.CSVMultisigClosure{
-			MultisigClosure: tree.MultisigClosure{
-				PubKeys: []*secp256k1.PublicKey{o.Receiver},
+	return &script.ConditionCSVMultisigClosure{
+		CSVMultisigClosure: script.CSVMultisigClosure{
+			MultisigClosure: script.MultisigClosure{
+				PubKeys: []*btcec.PublicKey{o.Receiver},
 			},
 			Locktime: o.UnilateralClaimDelay,
 		},
@@ -79,37 +79,37 @@ func (o Opts) unilateralClaimClosure(preimageCondition []byte) *tree.ConditionCS
 }
 
 // unilateralRefundClosure = (Sender + Receiver) at UnilateralRefundDelay
-func (o Opts) unilateralRefundClosure() *tree.CSVMultisigClosure {
-	return &tree.CSVMultisigClosure{
-		MultisigClosure: tree.MultisigClosure{
-			PubKeys: []*secp256k1.PublicKey{o.Sender, o.Receiver},
+func (o Opts) unilateralRefundClosure() *script.CSVMultisigClosure {
+	return &script.CSVMultisigClosure{
+		MultisigClosure: script.MultisigClosure{
+			PubKeys: []*btcec.PublicKey{o.Sender, o.Receiver},
 		},
 		Locktime: o.UnilateralRefundDelay,
 	}
 }
 
 // unilateralRefundWithoutReceiverClosure = (Sender) at UnilateralRefundWithoutReceiverDelay
-func (o Opts) unilateralRefundWithoutReceiverClosure() *tree.CSVMultisigClosure {
-	return &tree.CSVMultisigClosure{
-		MultisigClosure: tree.MultisigClosure{
-			PubKeys: []*secp256k1.PublicKey{o.Sender},
+func (o Opts) unilateralRefundWithoutReceiverClosure() *script.CSVMultisigClosure {
+	return &script.CSVMultisigClosure{
+		MultisigClosure: script.MultisigClosure{
+			PubKeys: []*btcec.PublicKey{o.Sender},
 		},
 		Locktime: o.UnilateralRefundWithoutReceiverDelay,
 	}
 }
 
 type VHTLCScript struct {
-	tree.TapscriptsVtxoScript
+	script.TapscriptsVtxoScript
 
-	Sender                                 *secp256k1.PublicKey
-	Receiver                               *secp256k1.PublicKey
-	Server                                 *secp256k1.PublicKey
-	ClaimClosure                           *tree.ConditionMultisigClosure
-	RefundClosure                          *tree.MultisigClosure
-	RefundWithoutReceiverClosure           *tree.CLTVMultisigClosure
-	UnilateralClaimClosure                 *tree.ConditionCSVMultisigClosure
-	UnilateralRefundClosure                *tree.CSVMultisigClosure
-	UnilateralRefundWithoutReceiverClosure *tree.CSVMultisigClosure
+	Sender                                 *btcec.PublicKey
+	Receiver                               *btcec.PublicKey
+	Server                                 *btcec.PublicKey
+	ClaimClosure                           *script.ConditionMultisigClosure
+	RefundClosure                          *script.MultisigClosure
+	RefundWithoutReceiverClosure           *script.CLTVMultisigClosure
+	UnilateralClaimClosure                 *script.ConditionCSVMultisigClosure
+	UnilateralRefundClosure                *script.CSVMultisigClosure
+	UnilateralRefundWithoutReceiverClosure *script.CSVMultisigClosure
 
 	preimageConditionScript []byte
 }
@@ -133,8 +133,8 @@ func NewVHTLCScript(opts Opts) (*VHTLCScript, error) {
 	unilateralRefundWithoutReceiverClosure := opts.unilateralRefundWithoutReceiverClosure()
 
 	return &VHTLCScript{
-		TapscriptsVtxoScript: tree.TapscriptsVtxoScript{
-			Closures: []tree.Closure{
+		TapscriptsVtxoScript: script.TapscriptsVtxoScript{
+			Closures: []script.Closure{
 				// Collaborative paths
 				claimClosure,
 				refundClosure,
@@ -169,7 +169,7 @@ func makePreimageConditionScript(preimageHash []byte) ([]byte, error) {
 // GetRevealedTapscripts returns all available scripts as hex-encoded strings
 func (v *VHTLCScript) GetRevealedTapscripts() []string {
 	var scripts []string
-	for _, closure := range []tree.Closure{
+	for _, closure := range []script.Closure{
 		v.ClaimClosure,
 		v.RefundClosure,
 		v.RefundWithoutReceiverClosure,
@@ -190,11 +190,87 @@ func (v *VHTLCScript) Address(hrp string, serverPubkey *btcec.PublicKey) (string
 		return "", err
 	}
 
-	addr := &common.Address{
+	addr := &arklib.Address{
 		HRP:        hrp,
-		Server:     serverPubkey,
+		Signer:     serverPubkey,
 		VtxoTapKey: tapKey,
 	}
 
-	return addr.Encode()
+	return addr.EncodeV0()
+}
+
+// ClaimTapscript computes the necessary script and control block to spend the claim closure,
+// it also returns the custom checkpoint output script.
+func (v *VHTLCScript) ClaimTapscript() (*waddrmgr.Tapscript, *waddrmgr.Tapscript, error) {
+	claimClosure := v.ClaimClosure
+	claimScript, err := claimClosure.Script()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	_, tapTree, err := v.TapTree()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	leafProof, err := tapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(claimScript).TapHash(),
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ctrlBlock, err := txscript.ParseControlBlock(leafProof.ControlBlock)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// claim without the preimage
+	checkpointScript, err := v.ClaimClosure.MultisigClosure.Script()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &waddrmgr.Tapscript{
+			RevealedScript: leafProof.Script,
+			ControlBlock:   ctrlBlock,
+		}, &waddrmgr.Tapscript{
+			RevealedScript: checkpointScript,
+		}, nil
+}
+
+// RefundTapscript computes the necessary script and control block to spend the refund closure,
+// it does not return any checkpoint output script.
+func (v *VHTLCScript) RefundTapscript(withReceiver bool) (*waddrmgr.Tapscript, error) {
+	var refundClosure script.Closure
+	refundClosure = v.RefundWithoutReceiverClosure
+	if withReceiver {
+		refundClosure = v.RefundClosure
+	}
+	refundScript, err := refundClosure.Script()
+	if err != nil {
+		return nil, err
+	}
+
+	_, tapTree, err := v.TapTree()
+	if err != nil {
+		return nil, err
+	}
+
+	refundLeafProof, err := tapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(refundScript).TapHash(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	ctrlBlock, err := txscript.ParseControlBlock(refundLeafProof.ControlBlock)
+	if err != nil {
+		return nil, err
+	}
+
+	return &waddrmgr.Tapscript{
+		RevealedScript: refundLeafProof.Script,
+		ControlBlock:   ctrlBlock,
+	}, nil
 }

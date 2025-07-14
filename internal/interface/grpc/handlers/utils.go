@@ -9,12 +9,10 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
-	"github.com/ark-network/ark/common"
-	"github.com/ark-network/ark/common/tree"
-	"github.com/ark-network/ark/pkg/client-sdk/indexer"
-	"github.com/ark-network/ark/pkg/client-sdk/types"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/arkade-os/go-sdk/types"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil/psbt"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -120,7 +118,7 @@ func parseInvoice(invoice string) (string, error) {
 	return invoice, nil
 }
 
-func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
+func parsePubkey(pubkey string) (*btcec.PublicKey, error) {
 	if len(pubkey) <= 0 {
 		return nil, nil
 	}
@@ -130,7 +128,7 @@ func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
 		return nil, fmt.Errorf("pubkey must be encoded in hex format")
 	}
 
-	pk, err := secp256k1.ParsePubKey(buf)
+	pk, err := btcec.ParsePubKey(buf)
 	if err != nil {
 		return nil, fmt.Errorf("invalid pubkey: %s", err)
 	}
@@ -138,32 +136,32 @@ func parsePubkey(pubkey string) (*secp256k1.PublicKey, error) {
 	return pk, nil
 }
 
-func parseAbsoluteLocktime(locktime uint32) *common.AbsoluteLocktime {
+func parseAbsoluteLocktime(locktime uint32) *arklib.AbsoluteLocktime {
 	if locktime == 0 {
 		return nil
 	}
-	lt := common.AbsoluteLocktime(locktime)
+	lt := arklib.AbsoluteLocktime(locktime)
 	return &lt
 }
 
-func parseRelativeLocktime(locktime *pb.RelativeLocktime) *common.RelativeLocktime {
+func parseRelativeLocktime(locktime *pb.RelativeLocktime) *arklib.RelativeLocktime {
 	if locktime == nil {
 		return nil
 	}
-	return &common.RelativeLocktime{
+	return &arklib.RelativeLocktime{
 		Type:  parseRelativeLocktimeType(locktime.Type),
 		Value: locktime.Value,
 	}
 }
 
-func parseRelativeLocktimeType(locktimeType pb.RelativeLocktime_LocktimeType) common.RelativeLocktimeType {
+func parseRelativeLocktimeType(locktimeType pb.RelativeLocktime_LocktimeType) arklib.RelativeLocktimeType {
 	switch locktimeType {
 	case pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK:
-		return common.LocktimeTypeBlock
+		return arklib.LocktimeTypeBlock
 	case pb.RelativeLocktime_LOCKTIME_TYPE_SECOND:
-		return common.LocktimeTypeSecond
+		return arklib.LocktimeTypeSecond
 	default:
-		return common.LocktimeTypeBlock
+		return arklib.LocktimeTypeBlock
 	}
 }
 
@@ -202,22 +200,6 @@ func toNetworkProto(net string) pb.GetInfoResponse_Network {
 	default:
 		return pb.GetInfoResponse_NETWORK_UNSPECIFIED
 	}
-}
-
-func toTreeProto(tree tree.TxTree) *pb.Tree {
-	levels := make([]*pb.TreeLevel, 0, len(tree))
-	for _, treeLevel := range tree {
-		nodes := make([]*pb.Node, 0, len(treeLevel))
-		for _, node := range treeLevel {
-			nodes = append(nodes, &pb.Node{
-				Txid:       node.Txid,
-				Tx:         node.Tx,
-				ParentTxid: node.ParentTxid,
-			})
-		}
-		levels = append(levels, &pb.TreeLevel{Nodes: nodes})
-	}
-	return &pb.Tree{Levels: levels}
 }
 
 func toTxTypeProto(txType types.TxType) pb.TxType {
@@ -267,32 +249,43 @@ func toSwapTreeProto(tree *vhtlc.VHTLCScript) *pb.TaprootTree {
 }
 
 func toNotificationProto(n application.Notification) *pb.Notification {
-	// TODO: Convert Addresses to Scripts
-	return &pb.Notification{
+	notification := &pb.Notification{
 		Addresses:  n.Addrs,
 		NewVtxos:   toVtxosProto(n.NewVtxos),
 		SpentVtxos: toVtxosProto(n.SpentVtxos),
+		Txid:       n.Txid,
+		Tx:         n.Tx,
 	}
+	if len(n.Checkpoints) > 0 {
+		notification.Checkpoints = make(map[string]*pb.TxData, len(n.Checkpoints))
+		for k, v := range n.Checkpoints {
+			notification.Checkpoints[k] = &pb.TxData{
+				Tx:   v.Tx,
+				Txid: v.Txid,
+			}
+		}
+	}
+	return notification
 }
 
-func toVtxosProto(vtxos []indexer.Vtxo) []*pb.Vtxo {
+// Todo: Verify that the script is not Taproot Script
+func toVtxosProto(vtxos []types.Vtxo) []*pb.Vtxo {
 	list := make([]*pb.Vtxo, 0, len(vtxos))
 	for _, vtxo := range vtxos {
 		list = append(list, &pb.Vtxo{
-			Outpoint: toInputProto(vtxo.Outpoint),
-			Receiver: &pb.Output{
-				Pubkey: vtxo.Script,
-				Amount: vtxo.Amount,
-			},
-			SpentBy:   vtxo.SpentBy,
-			RoundTxid: vtxo.CommitmentTxid,
-			ExpireAt:  vtxo.ExpiresAt,
+			Outpoint:        toInputProto(vtxo.Outpoint),
+			Script:          vtxo.Script,
+			Amount:          vtxo.Amount,
+			SpentBy:         vtxo.SpentBy,
+			ExpiresAt:       vtxo.ExpiresAt.Unix(),
+			CommitmentTxids: vtxo.CommitmentTxids,
+			ArkTxid:         vtxo.ArkTxid,
 		})
 	}
 	return list
 }
 
-func toInputProto(outpoint indexer.Outpoint) *pb.Input {
+func toInputProto(outpoint types.Outpoint) *pb.Input {
 	return &pb.Input{
 		Txid: outpoint.Txid,
 		Vout: outpoint.VOut,

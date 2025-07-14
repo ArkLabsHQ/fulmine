@@ -1,10 +1,10 @@
 package types
 
-import "github.com/ark-network/ark/pkg/client-sdk/client"
+import "github.com/arkade-os/go-sdk/types"
 
 type PoolTxs struct {
-	DateCreated int64         `json:"dateCreated"`
-	Vtxos       []client.Vtxo `json:"vtxos"`
+	DateCreated int64        `json:"dateCreated"`
+	Vtxos       []types.Vtxo `json:"vtxos"`
 }
 
 type Transaction struct {

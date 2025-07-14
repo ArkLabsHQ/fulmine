@@ -54,6 +54,17 @@ type CreateReverseSwapResponse struct {
 	Error string `json:"error"`
 }
 
+type GetSwapLimitsResponse struct {
+	Ark struct {
+		Btc struct {
+			Limits struct {
+				Maximal int `json:"maximal"`
+				Minimal int `json:"minimal"`
+			} `json:"limits"`
+		} `json:"BTC"`
+	} `json:"ARK"`
+}
+
 type RevealPreimageRequest struct {
 	Id       string `json:"id"`
 	Preimage string `json:"preimage"`
