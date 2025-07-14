@@ -26,8 +26,12 @@ var (
 		Currency:    "cur",
 		EventServer: "eventserver",
 		FullNode:    "fullnode",
-		LnUrl:       "lndconnect",
 		Unit:        "unit",
+		LnConnectionOpts: &domain.LnConnectionOpts{
+			LnDatadir:      "lnd_dir",
+			ConnectionType: domain.LND_CONNECTION,
+			LnUrl:          "lnd",
+		},
 	}
 
 	testRolloverTarget = domain.VtxoRolloverTarget{
@@ -150,8 +154,15 @@ func testAddSettings(t *testing.T, repo domain.SettingsRepository) {
 
 func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 	t.Run("update settings", func(t *testing.T) {
+		newConnectionOpts := domain.LnConnectionOpts{
+			LnDatadir:      "cln_dir",
+			ConnectionType: domain.CLN_CONNECTION,
+			LnUrl:          "cln",
+		}
+
 		newSettings := domain.Settings{
-			ApiRoot: "updated apiroot",
+			ApiRoot:          "updated apiroot",
+			LnConnectionOpts: &newConnectionOpts,
 		}
 
 		err := repo.UpdateSettings(ctx, newSettings)
@@ -162,6 +173,7 @@ func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 
 		expectedSettings := testSettings
 		expectedSettings.ApiRoot = newSettings.ApiRoot
+		expectedSettings.LnConnectionOpts = &newConnectionOpts
 
 		err = repo.UpdateSettings(ctx, newSettings)
 		require.NoError(t, err)
@@ -185,7 +197,6 @@ func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 		settings, err = repo.GetSettings(ctx)
 		require.NoError(t, err)
 		require.NotNil(t, settings)
-		require.Equal(t, expectedSettings, *settings)
 		require.Equal(t, expectedSettings, *settings)
 	})
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/config"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db"
-	lnd "github.com/ArkLabsHQ/fulmine/internal/infrastructure/lnd"
 	scheduler "github.com/ArkLabsHQ/fulmine/internal/infrastructure/scheduler/gocron"
 	grpcservice "github.com/ArkLabsHQ/fulmine/internal/interface/grpc"
 	"github.com/arkade-os/go-sdk/store"
@@ -106,11 +105,10 @@ func main() {
 	}
 
 	schedulerSvc := scheduler.NewScheduler()
-	lnSvc := lnd.NewService()
 
 	appSvc, err := application.NewService(
-		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc, lnSvc,
-		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL,
+		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc,
+		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.LnConnectionOpts,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init application service")
