@@ -656,12 +656,7 @@ func (s *Service) connectLN(ctx context.Context, lnOpts *domain.LnConnectionOpts
 		s.lnSvc = lnd.NewService()
 	}
 
-	if err := s.lnSvc.Connect(ctx, connectionOpts, data.Network.Name); err != nil {
-		log.WithError(err).Warn("failed to connect to ln node")
-	}
-
-	return nil
-
+	return s.lnSvc.Connect(ctx, connectionOpts, data.Network.Name)
 }
 
 func (s *Service) IsPreConfiguredLN() bool {

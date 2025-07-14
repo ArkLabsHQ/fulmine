@@ -15,6 +15,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -26,21 +27,22 @@ func decodeLNDConnectUrl(lndConnectUrl string) (cp *x509.CertPool, macaroon stri
 	}
 
 	cert := toBase64(u.Query().Get("cert"))
-
-	cp = x509.NewCertPool()
-	certPEM := "-----BEGIN CERTIFICATE-----\n" + cert + "\n-----END CERTIFICATE-----"
-	if !cp.AppendCertsFromPEM([]byte(certPEM)) {
-		err = fmt.Errorf("credentials: failed to append certificates")
-		return
+	if cert != "" {
+		cp = x509.NewCertPool()
+		certPEM := "-----BEGIN CERTIFICATE-----\n" + cert + "\n-----END CERTIFICATE-----"
+		if !cp.AppendCertsFromPEM([]byte(certPEM)) {
+			return nil, "", "", fmt.Errorf("credentials: failed to append certificates")
+		}
 	}
 
 	macaroonBase64 := toBase64(u.Query().Get("macaroon"))
-	decodedBytes, err := base64.StdEncoding.DecodeString(macaroonBase64)
-	if err != nil {
-		err = fmt.Errorf("failed to decode base64: %v", err)
-		return
+	if macaroonBase64 != "" {
+		decodedBytes, err := base64.StdEncoding.DecodeString(macaroonBase64)
+		if err != nil {
+			return nil, "", "", fmt.Errorf("failed to decode base64: %v", err)
+		}
+		macaroon = hex.EncodeToString(decodedBytes)
 	}
-	macaroon = hex.EncodeToString(decodedBytes)
 
 	host = u.Host
 
@@ -48,6 +50,9 @@ func decodeLNDConnectUrl(lndConnectUrl string) (cp *x509.CertPool, macaroon stri
 }
 
 func getCtx(ctx context.Context, macaroon string) context.Context {
+	if macaroon == "" {
+		return ctx
+	}
 	return metadata.AppendToOutgoingContext(ctx, "macaroon", macaroon)
 }
 
@@ -76,7 +81,10 @@ func deriveLndConnFromUrl(lndConnectUrl string) (conn *grpc.ClientConn, macaroon
 		return
 	}
 	// check credentials (only cert, not macaroon)
-	creds := credentials.NewClientTLSFromCert(cert, "")
+	creds := insecure.NewCredentials()
+	if cert != nil {
+		creds = credentials.NewClientTLSFromCert(cert, "")
+	}
 	conn, err = grpc.NewClient(host, grpc.WithTransportCredentials(creds))
 	if err != nil {
 		return
@@ -86,47 +94,55 @@ func deriveLndConnFromUrl(lndConnectUrl string) (conn *grpc.ClientConn, macaroon
 }
 
 func deriveLndConnFromPath(dataDir, host, network string) (conn *grpc.ClientConn, macaroon, lnUrl string, err error) {
-	tlsPath := filepath.Join(dataDir, "tls.cert")
-
-	tlsBytes, err := os.ReadFile(tlsPath)
-	if err != nil {
-		return nil, "", "", err
-	}
-
-	block, _ := pem.Decode(tlsBytes)
-	if block == nil || block.Type != "CERTIFICATE" {
-		return nil, "", "", errors.New("failed to decode PEM block " +
-			"containing tls certificate")
-	}
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return nil, "", "", err
-	}
-	pool := x509.NewCertPool()
-	pool.AddCert(cert)
-
+	macQueryString := ""
 	lndNetwork := deriveLndNetwork(network)
 	macPath := filepath.Join(dataDir, "data", "chain", "bitcoin", lndNetwork, "admin.macaroon")
+	if _, err := os.Stat(macPath); err == nil {
+		macBytes, err := os.ReadFile(macPath)
+		if err != nil {
+			return nil, "", "", err
+		}
 
-	macBytes, err := os.ReadFile(macPath)
-	if err != nil {
-		return nil, "", "", err
+		macaroon = hex.EncodeToString(macBytes)
+		macQueryString = "?macaroon=" + macaroon
 	}
 
-	macaroon = hex.EncodeToString(macBytes)
+	tlsQueryString := ""
+	tlsPath := filepath.Join(dataDir, "tls.cert")
+	creds := insecure.NewCredentials()
+	if _, err := os.Stat(macPath); err == nil {
+		tlsBytes, err := os.ReadFile(tlsPath)
+		if err != nil {
+			return nil, "", "", err
+		}
 
-	creds := credentials.NewClientTLSFromCert(pool, "")
+		block, _ := pem.Decode(tlsBytes)
+		if block == nil || block.Type != "CERTIFICATE" {
+			return nil, "", "", errors.New(
+				"failed to decode PEM block containing tls certificate",
+			)
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, "", "", err
+		}
+		pool := x509.NewCertPool()
+		pool.AddCert(cert)
+
+		creds = credentials.NewClientTLSFromCert(pool, "")
+		tlsQueryString = "&cert=" + base64.StdEncoding.EncodeToString(tlsBytes)
+		if macQueryString == "" {
+			tlsQueryString = "?cert=" + base64.StdEncoding.EncodeToString(tlsBytes)
+		}
+	}
+
 	conn, err = grpc.NewClient(host, grpc.WithTransportCredentials(creds))
 	if err != nil {
 		return nil, "", "", err
 	}
 
 	// derive lnConnect URL
-	lnConnectUrl := fmt.Sprintf("lndconnect://%smacaroon=%s&?cert=%s",
-		host,
-		base64.StdEncoding.EncodeToString(macBytes),
-		base64.StdEncoding.EncodeToString(tlsBytes),
-	)
+	lnConnectUrl := fmt.Sprintf("lndconnect://%s%s%s", host, macQueryString, tlsQueryString)
 
 	return conn, macaroon, lnConnectUrl, nil
 }

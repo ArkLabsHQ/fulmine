@@ -340,6 +340,7 @@ func deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir string) (*domain.LnCo
 			ConnectionType: domain.LND_CONNECTION,
 		}, nil
 	}
+
 	if strings.HasPrefix(clnUrl, "clnconnect://") {
 		return &domain.LnConnectionOpts{
 			LnUrl:          clnUrl,
