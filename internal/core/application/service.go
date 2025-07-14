@@ -45,9 +45,12 @@ import (
 )
 
 const (
-	WalletInit   = "init"
-	WalletUnlock = "unlock"
-	WalletReset  = "reset"
+	WalletInit                                  = "init"
+	WalletUnlock                                = "unlock"
+	WalletReset                                 = "reset"
+	defaultUnilateralClaimDelay                 = 512
+	defaultUnilateralRefundDelay                = 1024
+	defaultUnilateralRefundWithoutReceiverDelay = 224
 )
 
 var boltzURLByNetwork = map[string]string{
@@ -1809,7 +1812,7 @@ func (s *Service) getVHTLC(
 
 	unilateralClaimDelay := arklib.RelativeLocktime{
 		Type:  arklib.LocktimeTypeSecond,
-		Value: 512, //60 * 12, // 12 hours
+		Value: defaultUnilateralClaimDelay, //60 * 12, // 12 hours
 	}
 	if unilateralClaimDelayParam != nil {
 		unilateralClaimDelay = *unilateralClaimDelayParam
@@ -1817,7 +1820,7 @@ func (s *Service) getVHTLC(
 
 	unilateralRefundDelay := arklib.RelativeLocktime{
 		Type:  arklib.LocktimeTypeSecond,
-		Value: 1024, //60 * 24, // 24 hours
+		Value: defaultUnilateralRefundDelay, //60 * 24, // 24 hours
 	}
 	if unilateralRefundDelayParam != nil {
 		unilateralRefundDelay = *unilateralRefundDelayParam
@@ -1825,7 +1828,7 @@ func (s *Service) getVHTLC(
 
 	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{
 		Type:  arklib.LocktimeTypeBlock,
-		Value: 224, // 224 blocks
+		Value: defaultUnilateralRefundWithoutReceiverDelay, // 224 blocks
 	}
 	if unilateralRefundWithoutReceiverDelayParam != nil {
 		unilateralRefundWithoutReceiverDelay = *unilateralRefundWithoutReceiverDelayParam
