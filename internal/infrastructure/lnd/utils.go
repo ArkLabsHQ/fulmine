@@ -110,7 +110,7 @@ func deriveLndConnFromPath(dataDir, host, network string) (conn *grpc.ClientConn
 	tlsQueryString := ""
 	tlsPath := filepath.Join(dataDir, "tls.cert")
 	creds := insecure.NewCredentials()
-	if _, err := os.Stat(macPath); err == nil {
+	if _, err := os.Stat(tlsPath); err == nil {
 		tlsBytes, err := os.ReadFile(tlsPath)
 		if err != nil {
 			return nil, "", "", err
