@@ -112,8 +112,6 @@ func unmarshalJson[T any](body io.ReadCloser) (*T, error) {
 		return nil, err
 	}
 
-	fmt.Printf("Raw Boltz response: %s\n", string(rawBody))
-
 	var res T
 	if err := json.Unmarshal(rawBody, &res); err != nil {
 		return nil, err

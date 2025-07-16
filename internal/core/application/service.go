@@ -1618,13 +1618,11 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, preimage, myPu
 	}
 
 	// Pay the invoice to reveal the preimage
-	_, err = s.payInvoiceLN(ctx, swap.Invoice)
-	if err != nil {
+	if _, err := s.payInvoiceLN(ctx, swap.Invoice); err != nil {
 		return "", fmt.Errorf("failed to pay invoice: %v", err)
 	}
 
-	// Claim the funds locked in the VHTLC with the revealed preimage
-	txid, err := s.claimVHTLC(ctx, preimage, *opts)
+	txid, err := s.waitAndClaimVHTLC(ctx, swap.Id, preimage, opts)
 	if err != nil {
 		return "", fmt.Errorf("failed to claim vHTLC: %v", err)
 	}
@@ -1709,69 +1707,84 @@ func (s *Service) reverseSwapWithPreimage(ctx context.Context, amount uint64, pr
 	}
 
 	go func() {
-		// Wait until invoice is paid then proceed with claiming the VHTLC
-
-		// Workaround to connect ws endpoint on a different port for regtest
-		wsClient := s.boltzSvc
-		if s.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
-			wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
+		if _, err := s.waitAndClaimVHTLC(
+			context.Background(), swap.Id, preimage, vhtlcOpts,
+		); err != nil {
+			log.WithError(err).Error("failed to claim VHTLC")
 		}
+	}()
+	return swap.Invoice, nil
+}
 
-		ws := wsClient.NewWebsocket()
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func (s *Service) waitAndClaimVHTLC(
+	ctx context.Context, swapId string, preimage []byte, vhtlcOpts *vhtlc.Opts,
+) (string, error) {
+	wsClient := s.boltzSvc
+	if s.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
+		wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
+	}
+
+	ws := wsClient.NewWebsocket()
+	{
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
-		err = ws.Connect()
+		err := ws.Connect()
 		for err != nil {
 			log.WithError(err).Warn("failed to connect to boltz websocket")
 			time.Sleep(time.Second)
 			log.Debug("reconnecting...")
 			err = ws.Connect()
 			if ctx.Err() != nil {
-				log.Warnf("timeout while connecting to websocket: %v", ctx.Err())
-				return
+				return "", fmt.Errorf("timeout while connecting to websocket: %v", ctx.Err())
 			}
 		}
 
-		err = ws.Subscribe([]string{swap.Id})
+		err = ws.Subscribe([]string{swapId})
 		for err != nil {
 			log.WithError(err).Warn("failed to subscribe for swap events")
 			time.Sleep(time.Second)
 			log.Debug("retrying...")
-			err = ws.Subscribe([]string{swap.Id})
+			err = ws.Subscribe([]string{swapId})
 		}
+	}
 
-		for update := range ws.Updates {
-			log.Infof("WS update: %+v\n", update)
-			parsedStatus := boltz.ParseEvent(update.Status)
+	var txid string
+	for update := range ws.Updates {
+		parsedStatus := boltz.ParseEvent(update.Status)
 
-			confirmed := false
-			switch parsedStatus {
-			case boltz.TransactionMempool:
-				confirmed = true
-			case boltz.InvoiceFailedToPay, boltz.TransactionFailed, boltz.TransactionLockupFailed:
-				log.Warnf("failed to receive payment: %s", update.Status)
-				return
-			}
-			if confirmed {
-				log.Infof("claiming VHTLC with preimage")
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				utils.Retry(ctx, func(ctx context.Context) bool {
-					_, err := s.claimVHTLC(ctx, preimage, *vhtlcOpts)
-					log.Printf("error trying to claim vhtlc: %s", err)
-					if err != nil && errors.Is(err, ErrorNoVtxosFound) {
-						log.Warnf("failed to claim vhtlc: %s", err)
-						return false
+		confirmed := false
+		switch parsedStatus {
+		case boltz.TransactionMempool:
+			confirmed = true
+		case boltz.InvoiceFailedToPay, boltz.TransactionFailed, boltz.TransactionLockupFailed:
+			return "", fmt.Errorf("failed to receive payment: %s", update.Status)
+		}
+		if confirmed {
+			ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			defer cancel()
+
+			interval := 200 * time.Millisecond
+			log.Debug("claiming VHTLC with preimage...")
+			if err := utils.Retry(ctx, interval, func(ctx context.Context) (bool, error) {
+				var err error
+				txid, err = s.claimVHTLC(ctx, preimage, *vhtlcOpts)
+				if err != nil {
+					if errors.Is(err, ErrorNoVtxosFound) {
+						return false, nil
 					}
+					return false, err
+				}
 
-					return true
-				}, 5*time.Second, 2*time.Second)
-
-				break
+				return true, nil
+			}); err != nil {
+				return "", err
 			}
+			log.Debugf("successfully claimed VHTLC with tx: %s", txid)
+			break
 		}
-	}()
-	return swap.Invoice, nil
+	}
+
+	return txid, nil
 }
 
 func (s *Service) getInvoiceLN(ctx context.Context, amount uint64, memo, preimage string) (string, string, error) {
@@ -1897,11 +1910,11 @@ func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]
 		if err := vtxosRequest.WithScripts([]string{hex.EncodeToString(outScript)}); err != nil {
 			return nil, err
 		}
-		VtxosResponse, err := s.indexerClient.GetVtxos(ctx, vtxosRequest)
+		resp, err := s.indexerClient.GetVtxos(ctx, vtxosRequest)
 		if err != nil {
 			return nil, err
 		}
-		allVtxos = append(allVtxos, VtxosResponse.Vtxos...)
+		allVtxos = append(allVtxos, resp.Vtxos...)
 	}
 
 	return allVtxos, nil
@@ -1914,12 +1927,9 @@ func (s *Service) claimVHTLC(
 	if err != nil {
 		return "", err
 	}
-
 	if len(vtxos) == 0 {
 		return "", ErrorNoVtxosFound
 	}
-
-	fmt.Printf("claiming vHTLC with %+v vtxos\n", vtxos)
 
 	vtxo := &vtxos[0]
 

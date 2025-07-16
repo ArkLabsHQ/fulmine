@@ -2,8 +2,6 @@ module github.com/ArkLabsHQ/fulmine/pkg/vhtlc
 
 go 1.23.1
 
-replace github.com/btcsuite/btcd/btcec/v2 => github.com/btcsuite/btcd/btcec/v2 v2.3.3
-
 require (
 	github.com/arkade-os/arkd/pkg/ark-lib v0.7.0
 	github.com/btcsuite/btcd v0.24.3-0.20240921052913-67b8efd3ba53

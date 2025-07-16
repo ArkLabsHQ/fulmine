@@ -105,7 +105,6 @@ func (s *service) events(c *gin.Context) {
 			if !ok {
 				return
 			}
-			fmt.Printf("event received %+v", event)
 			c.SSEvent(event.Type.String(), event)
 			c.Writer.Flush()
 		}
