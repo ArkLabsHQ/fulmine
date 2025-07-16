@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -53,6 +54,8 @@ const (
 	defaultUnilateralRefundWithoutReceiverDelay = 224
 	defaultRefundLocktime                       = time.Hour * 24
 )
+
+var ErrorNoVtxosFound = fmt.Errorf("no vtxos found for the given vhtlc opts")
 
 var boltzURLByNetwork = map[string]string{
 	arklib.Bitcoin.Name:          "https://api.boltz.exchange",
@@ -443,18 +446,19 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 
-	if len(scriptsToSubscribe) > 0 {
-		if err := s.subscribeForScripts(context.Background(), "", scriptsToSubscribe, func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
-			go s.handleAddressEventChannel(stream, arkConfig)
-			s.subscriptionId = subId
-			s.closeAddressEventListener = func() {
-				s.subscriptionId = ""
-				closeFn()
-			}
-		}); err != nil {
-			log.WithError(err).Error("failed to resubscribe for scripts")
-			return err
+	// always subscribe to the internal offchain address script
+	scriptsToSubscribe = append(scriptsToSubscribe, offchainPubkey)
+
+	if err := s.subscribeForScripts(context.Background(), "", scriptsToSubscribe, func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
+		go s.handleAddressEventChannel(stream, arkConfig)
+		s.subscriptionId = subId
+		s.closeAddressEventListener = func() {
+			s.subscriptionId = ""
+			closeFn()
 		}
+	}); err != nil {
+		log.WithError(err).Error("failed to resubscribe for scripts")
+		return err
 	}
 
 	go func() {
@@ -1360,7 +1364,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 	}
 
 	// Fund the VHTLC
-	receivers := []types.Receiver{{To: swap.Address, Amount: amount}}
+	receivers := []types.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
 	txid, err := s.SendOffChain(ctx, false, receivers)
 	if err != nil {
 		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
@@ -1457,7 +1461,7 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 		return "", fmt.Errorf("invoice must not be empty")
 	}
 
-	amount, preimageHash, err := utils.DecodeInvoice(invoice)
+	_, preimageHash, err := utils.DecodeInvoice(invoice)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode invoice: %v", err)
 	}
@@ -1496,7 +1500,7 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 	}
 
 	// Fund the VHTLC
-	receivers := []types.Receiver{{To: swap.Address, Amount: amount}}
+	receivers := []types.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
 	txid, err := s.SendOffChain(ctx, false, receivers)
 	if err != nil {
 		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
@@ -1749,9 +1753,18 @@ func (s *Service) reverseSwapWithPreimage(ctx context.Context, amount uint64, pr
 			}
 			if confirmed {
 				log.Infof("claiming VHTLC with preimage")
-				if _, err := s.claimVHTLC(context.Background(), preimage, *vhtlcOpts); err != nil {
-					log.Warnf("failed to claim vhtlc: %s", err)
-				}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				utils.Retry(ctx, func(ctx context.Context) bool {
+					_, err := s.claimVHTLC(ctx, preimage, *vhtlcOpts)
+					if err != nil && !errors.Is(err, ErrorNoVtxosFound) {
+						log.Warnf("failed to claim vhtlc: %s", err)
+						return true
+					}
+
+					return false
+				}, 5*time.Second, 2*time.Second)
+
 				break
 			}
 		}
@@ -1899,6 +1912,11 @@ func (s *Service) claimVHTLC(
 	if err != nil {
 		return "", err
 	}
+
+	if len(vtxos) == 0 {
+		return "", ErrorNoVtxosFound
+	}
+
 	vtxo := &vtxos[0]
 
 	vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
