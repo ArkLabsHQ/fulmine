@@ -42,11 +42,11 @@ func (o Opts) validate() error {
 	}
 
 	if o.UnilateralClaimDelay.Value == 0 {
-		return fmt.Errorf("unilateral claim delay must greater than 0")
+		return fmt.Errorf("unilateral claim delay must be greater than 0")
 	}
 
 	if o.UnilateralRefundDelay.Value == 0 {
-		return fmt.Errorf("unilateral refund delay must greater than 0")
+		return fmt.Errorf("unilateral refund delay must be greater than 0")
 	}
 
 	if o.UnilateralRefundWithoutReceiverDelay.Value == 0 {
