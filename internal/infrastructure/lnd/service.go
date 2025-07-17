@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/lightningnetwork/lnd/input"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnrpc/routerrpc"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
@@ -20,13 +22,14 @@ var (
 
 type service struct {
 	client       lnrpc.LightningClient
+	routerClient routerrpc.RouterClient
 	conn         *grpc.ClientConn
 	lnConnectUrl string
 	macaroon     string
 }
 
 func NewService() ports.LnService {
-	return &service{nil, nil, "", ""}
+	return &service{nil, nil, nil, "", ""}
 }
 
 func (s *service) Connect(ctx context.Context, opts *domain.LnConnectionOpts, network string) (err error) {
@@ -47,6 +50,7 @@ func (s *service) Connect(ctx context.Context, opts *domain.LnConnectionOpts, ne
 	}
 
 	client := lnrpc.NewLightningClient(conn)
+	routerClient := routerrpc.NewRouterClient(conn)
 
 	ctx = getCtx(ctx, macaroon)
 	info, err := client.GetInfo(ctx, &lnrpc.GetInfoRequest{})
@@ -63,6 +67,7 @@ func (s *service) Connect(ctx context.Context, opts *domain.LnConnectionOpts, ne
 	}
 
 	s.client = client
+	s.routerClient = routerClient
 	s.conn = conn
 	s.macaroon = macaroon
 	s.lnConnectUrl = lnConnectUrl
@@ -163,17 +168,44 @@ func (s *service) PayInvoice(
 		return "", fmt.Errorf("invalid invoice %s : %s", err, invoice)
 	}
 
-	sendRequest := &lnrpc.SendRequest{PaymentRequest: invoice}
-	response, err := s.client.SendPaymentSync(ctx, sendRequest)
+	sendRequest := &routerrpc.SendPaymentRequest{
+		PaymentRequest: invoice,
+		TimeoutSeconds: 120,
+	}
+	stream, err := s.routerClient.SendPaymentV2(ctx, sendRequest)
 	if err != nil {
 		return "", err
 	}
 
-	if err := response.GetPaymentError(); err != "" {
-		return "", fmt.Errorf("%s", err)
-	}
+	var preimage string
+	var success bool
+	for {
+		update, err := stream.Recv()
+		if err == io.EOF {
+			log.Println("stream closed")
+			break
+		}
+		if err != nil {
+			log.Fatalf("stream error: %v", err)
+		}
 
-	return hex.EncodeToString(response.GetPaymentPreimage()), nil
+		switch update.GetStatus() {
+		case lnrpc.Payment_PaymentStatus(routerrpc.PaymentState_SUCCEEDED):
+			preimage = update.GetPaymentPreimage()
+			success = true
+		case lnrpc.Payment_PaymentStatus(routerrpc.PaymentState_FAILED_ERROR),
+			lnrpc.Payment_PaymentStatus(routerrpc.PaymentState_FAILED_INCORRECT_PAYMENT_DETAILS),
+			lnrpc.Payment_PaymentStatus(routerrpc.PaymentState_FAILED_INSUFFICIENT_BALANCE),
+			lnrpc.Payment_PaymentStatus(routerrpc.PaymentState_FAILED_NO_ROUTE),
+			lnrpc.Payment_PaymentStatus(routerrpc.PaymentState_FAILED_TIMEOUT):
+			return "", fmt.Errorf("%s", update.GetFailureReason().String())
+		}
+
+		if success {
+			break
+		}
+	}
+	return preimage, nil
 }
 
 func (s *service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
