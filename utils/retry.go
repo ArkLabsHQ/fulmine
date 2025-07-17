@@ -18,7 +18,6 @@ func Retry(
 			}
 			return ctx.Err()
 		default:
-			fmt.Println("fn")
 			done, err := fn(ctx)
 			if err != nil {
 				return err
@@ -26,9 +25,7 @@ func Retry(
 			if done {
 				return nil
 			}
-			fmt.Println("retrying...")
 			<-time.After(interval)
-			fmt.Println("AAAAA")
 		}
 	}
 }
