@@ -119,32 +119,7 @@ service Service {
       get: "/v1/invoice/status"
     };
   }
-  // GetDelegatePublicKey retrieves the Fulmine's public key to be included in VTXO scripts.
-  rpc GetDelegatePublicKey(GetDelegatePublicKeyRequest) returns (GetDelegatePublicKeyResponse) {
-    option (google.api.http) = {
-      get: "/v1/delegate/pubkey"
-    };
-  }
-  // WatchAddressForRollover watches an address for rollover
-  rpc WatchAddressForRollover(WatchAddressForRolloverRequest) returns (WatchAddressForRolloverResponse) {
-    option (google.api.http) = {
-      post: "/v1/delegate/watch"
-      body: "*"
-    };
-  };
-  // UnwatchAddress unsubscribes an address from vtxo rollover
-  rpc UnwatchAddress(UnwatchAddressRequest) returns (UnwatchAddressResponse) {
-    option (google.api.http) = {
-      post: "/v1/delegate/unwatch"
-      body: "*"
-    };
-  };
-  // ListWatchedAddresses lists all watched addresses
-  rpc ListWatchedAddresses(ListWatchedAddressesRequest) returns (ListWatchedAddressesResponse) {
-    option (google.api.http) = {
-      get: "/v1/delegate/watched"
-    };
-  };
+  
 }
 
 message GetAddressRequest {}
@@ -327,16 +302,7 @@ message RelativeLocktime {
   uint32 value = 2;
 }
 
-// Request for getting the delegate public key. No fields required.
-message GetDelegatePublicKeyRequest {
-  // No fields needed
-}
 
-// Response containing the delegate public key.
-message GetDelegatePublicKeyResponse {
-  // The Fulmine's public key to be used for delegate operations, encoded in hex
-  string public_key = 1;
-}
 
 message WatchAddressForRolloverRequest {
     RolloverAddress rollover_address = 1;
