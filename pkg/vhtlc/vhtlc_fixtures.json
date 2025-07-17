@@ -126,7 +126,7 @@
               "type": "blocks",
               "value": 144
           },
-          "error": "unilateral claim delay must greater than 0"
+          "error": "unilateral claim delay must be greater than 0"
       },
       {
           "description": "Invalid refund locktime (zero)",
