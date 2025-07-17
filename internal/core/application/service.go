@@ -446,19 +446,18 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 
-	// always subscribe to the internal offchain address script
-	scriptsToSubscribe = append(scriptsToSubscribe, offchainPubkey)
-
-	if err := s.subscribeForScripts(context.Background(), "", scriptsToSubscribe, func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
-		go s.handleAddressEventChannel(stream, arkConfig)
-		s.subscriptionId = subId
-		s.closeAddressEventListener = func() {
-			s.subscriptionId = ""
-			closeFn()
+	if len(scriptsToSubscribe) > 0 {
+		if err := s.subscribeForScripts(context.Background(), "", scriptsToSubscribe, func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
+			go s.handleAddressEventChannel(stream, arkConfig)
+			s.subscriptionId = subId
+			s.closeAddressEventListener = func() {
+				s.subscriptionId = ""
+				closeFn()
+			}
+		}); err != nil {
+			log.WithError(err).Error("failed to resubscribe for scripts")
+			return err
 		}
-	}); err != nil {
-		log.WithError(err).Error("failed to resubscribe for scripts")
-		return err
 	}
 
 	go func() {
@@ -1347,7 +1346,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-	address, _, opts, err := s.getVHTLC(
+	vhtlcAddress, _, opts, err := s.getVHTLC(
 		ctx,
 		receiverPubkey,
 		nil,
@@ -1360,7 +1359,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
 	}
-	if swap.Address != address {
+	if swap.Address != vhtlcAddress {
 		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
@@ -1484,7 +1483,7 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-	address, _, _, err := s.getVHTLC(
+	vhtlcAddress, _, _, err := s.getVHTLC(
 		ctx,
 		receiverPubkey,
 		nil,
@@ -1497,7 +1496,7 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
 	}
-	if swap.Address != address {
+	if swap.Address != vhtlcAddress {
 		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
@@ -1558,7 +1557,6 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 	}
 
 	return "", fmt.Errorf("something went wrong")
-
 }
 
 // reverseSwap takes care of interacting with the Boltz server to make a reverse submarine swap.
