@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package fulmine.v1;
+
+import "fulmine/v1/types.proto";
+import "google/api/annotations.proto";
+
+service DelegateService {
+    rpc GetDelegateInfo(GetDelegateInfoRequest) returns (GetDelegateInfoResponse) {
+        option (google.api.http) = {
+          get: "/v1/delegate/info"
+        };
+    };
+
+   rpc DelegateRenewal(DelegateRenewalRequest) returns (DelegateRenewalResponse) {
+        option (google.api.http) = {
+          post: "/v1/delegate/renewal"
+          body: "*"
+        }; 
+   }
+
+   rpc GetRenewalStatus(GetRenewalStatusRequest) returns (GetRenewalStatusResponse) {
+        option (google.api.http) = {
+          get: "/v1/delegate/renewal"
+          body: "*"
+        }; 
+   }
+}
+
+message GetDelegateInfoRequest {}
+message GetDelegateInfoResponse {
+   string pubkey = 1;
+}
+
+message DelegateRenewalRequest {
+  string intent = 1;
+  repeated string forfeit_txs = 2;
+}
+message DelegateRenewalResponse { 
+  int64 scheduled_at = 1;
+}
+
+message GetRenewalStatusRequest {
+  string proof = 1;
+}
+message GetRenewalStatusReseponse {
+  RenewalStatus status = 1;
+  oneof info {
+    string commitment_txid = 2;
+    int64 scheduled_at = 3;
+    string fail_reason = 4;
+  }
+}
