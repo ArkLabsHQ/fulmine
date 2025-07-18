@@ -12,7 +12,9 @@ import (
 )
 
 const (
-	hash160Len = 20
+	hash160Len              = 20
+	minSecondsTimelock      = 512
+	secondsTimelockMultiple = 512
 )
 
 type Opts struct {
@@ -35,6 +37,48 @@ func (o Opts) validate() error {
 		return fmt.Errorf("preimage hash must be %d bytes", hash160Len)
 	}
 
+	if o.RefundLocktime == 0 {
+		return fmt.Errorf("refund locktime must be greater than 0")
+	}
+
+	if o.UnilateralClaimDelay.Value == 0 {
+		return fmt.Errorf("unilateral claim delay must be greater than 0")
+	}
+
+	if o.UnilateralRefundDelay.Value == 0 {
+		return fmt.Errorf("unilateral refund delay must be greater than 0")
+	}
+
+	if o.UnilateralRefundWithoutReceiverDelay.Value == 0 {
+		return fmt.Errorf("unilateral refund without receiver delay must be greater than 0")
+	}
+
+	// Validate seconds timelock values
+	if err := validateSecondsTimelock(o.UnilateralClaimDelay); err != nil {
+		return fmt.Errorf("unilateral claim delay: %w", err)
+	}
+
+	if err := validateSecondsTimelock(o.UnilateralRefundDelay); err != nil {
+		return fmt.Errorf("unilateral refund delay: %w", err)
+	}
+
+	if err := validateSecondsTimelock(o.UnilateralRefundWithoutReceiverDelay); err != nil {
+		return fmt.Errorf("unilateral refund without receiver delay: %w", err)
+	}
+
+	return nil
+}
+
+// validateSecondsTimelock validates that seconds timelock values meet the requirements
+func validateSecondsTimelock(locktime arklib.RelativeLocktime) error {
+	if locktime.Type == arklib.LocktimeTypeSecond {
+		if locktime.Value < minSecondsTimelock {
+			return fmt.Errorf("seconds timelock must be greater or equal to %d", minSecondsTimelock)
+		}
+		if locktime.Value%secondsTimelockMultiple != 0 {
+			return fmt.Errorf("seconds timelock must be multiple of %d", secondsTimelockMultiple)
+		}
+	}
 	return nil
 }
 
