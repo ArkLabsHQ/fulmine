@@ -6,137 +6,48 @@ import "fulmine/v1/types.proto";
 import "google/api/annotations.proto";
 
 service DelegateService {
-
-    rpc GetDelegateServiceInfo(GetDelegateServiceInfoRequest) returns (GetDelegateServiceInfoResponse) {
+    rpc GetDelegateInfo(GetDelegateInfoRequest) returns (GetDelegateInfoResponse) {
         option (google.api.http) = {
           get: "/v1/delegate/info"
         };
     };
 
-   rpc SubscribeToDelegateService(SubscribeToDelegateServiceRequest) returns (SubscribeToDelegateServiceResponse) {
+   rpc DelegateRenewal(DelegateRenewalRequest) returns (DelegateRenewalResponse) {
         option (google.api.http) = {
-          post: "/v1/delegate/subscribe"
+          post: "/v1/delegate/renewal"
           body: "*"
         }; 
    }
 
-   rpc GetSubscriptionInfo(GetSubscriptionInfoRequest) returns (GetSubscriptionInfoResponse) {
+   rpc GetRenewalStatus(GetRenewalStatusRequest) returns (GetRenewalStatusResponse) {
         option (google.api.http) = {
-          get: "/v1/delegate/subscription/{subscription_id}"
-        };
-    }
-
-    rpc WatchIntentForRollover(WatchIntentForRolloverRequest) returns (WatchIntentForRolloverResponse) {
-        option (google.api.http) = {
-          post: "/v1/delegate/watch_intent"
+          get: "/v1/delegate/renewal"
           body: "*"
-        };
-    };
-
-    rpc UnwatchIntentForRollover(UnwatchIntentForRolloverRequest) returns (UnwatchIntentForRolloverResponse) {
-        option (google.api.http) = {
-          post: "/v1/delegate/unwatch_intent"
-          body: "*"
-        };
-    };
-  
-  rpc GetDelegatedIntents(GetDelegatedIntentsRequest) returns (GetDelegatedIntentsResponse) {
-    option (google.api.http) = {
-      get: "/v1/delegate/round/{round_id}"
-    };
-  };
-
-
-  rpc DeleteDelegateSubscription(DeleteDelegateSubscriptionRequest) returns (DeleteDelegateSubscriptionResponse) {
-    option (google.api.http) = {
-      post: "/v1/delegate/delete_subscription"
-      body: "*"
-    };
-  };
-
-  rpc RenewDelegateSubscription(RenewDelegateSubscriptionRequest) returns (RenewDelegateSubscriptionResponse) {
-    option (google.api.http) = {
-      post: "/v1/delegate/renew_subscription"
-      body: "*"
-    };
-  };
-
+        }; 
+   }
 }
 
-message SubscribeToDelegateServiceRequest {
-    string delegate_offer_id = 1;
+message GetDelegateInfoRequest {}
+message GetDelegateInfoResponse {
+   string pubkey = 1;
 }
 
-message SubscribeToDelegateServiceResponse {
-    string subscription_id = 1; 
-    DelegateOffer delegator_offer = 2;
-    string public_key = 3; // Public key of the delegate
+message DelegateRenewalRequest {
+  string intent = 1;
+  repeated string forfeit_txs = 2;
+}
+message DelegateRenewalResponse { 
+  int64 scheduled_at = 1;
 }
 
-message GetSubscriptionInfoRequest {
-    string subscription_id = 1; 
+message GetRenewalStatusRequest {
+  string proof = 1;
 }
-
-message GetSubscriptionInfoResponse {
-    string subscription_id = 1; 
-    string public_key = 2; 
-    DelegateOffer delegate_offer = 3;
-    repeated string intents_ids = 4;
-}
-
-message WatchIntentForRolloverRequest {
-    string subscription_id = 1;
-    IntentInfo intent = 2;
-}
-
-message WatchIntentForRolloverResponse {
-    string intent_id = 1; 
-    uint64 block_height = 2;
-}
-
-message UnwatchIntentForRolloverRequest {
-    string subscription_id = 1;
-    string intent_id = 2; 
-}
-
-message UnwatchIntentForRolloverResponse {
-    bool success = 1;
-}
-
-message GetDelegatedIntentsRequest {
-    string subscription_id = 1;
-}
-
-message GetDelegatedIntentsResponse {
-    string subscription_id = 1; 
-    repeated IntentInfo intents = 2; 
-}
-
-message GetDelegateServiceInfoRequest {}
-
-message GetDelegateServiceInfoResponse {
-   repeated DelegateOffer delegate_offer = 1; // List of delegate offers available
-}
-
-message DelegateOffer {
-    string delegate_offer_id = 1; 
-    DelegateType delegate_type = 2;
-    uint32 max_intents_to_watch = 4; 
-    uint32 block_expiration = 5;
-}
-
-message DeleteDelegateSubscriptionRequest {
-    string subscription_id = 1; 
-}
-
-message DeleteDelegateSubscriptionResponse {
-    bool success = 1; 
-}
-
-message RenewDelegateSubscriptionRequest {
-    string subscription_id = 1; 
-}
-
-message RenewDelegateSubscriptionResponse {
-    bool success = 1; 
+message GetRenewalStatusReseponse {
+  RenewalStatus status = 1;
+  oneof info {
+    string commitment_txid = 2;
+    int64 scheduled_at = 3;
+    string fail_reason = 4;
+  }
 }

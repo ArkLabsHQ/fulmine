@@ -114,37 +114,9 @@ enum TxType {
   TX_TYPE_RECEIVED = 2;
 }
 
-enum DelegateType {
-  DELEGATE_TYPE_FREE = 0;
-  DELEGATE_TYPE_PAY = 1;
-}
-
-
-message IntentInput {
-  string txid = 1;
-  uint32 vout = 2;
-  uint64 amount = 3;
-}
-
-message IntentOutput {
-  oneof destination {
-    string vtxo_script = 1;
-    string onchain_address = 2;
-  }; // onchain or off-chain
-  uint64 amount = 3; // Amount to send in satoshis.
-}
-
-message IntentInfo {
-  string id = 1;
-  int64 created_at = 2;
-  repeated IntentOutput receivers = 3;
-  repeated IntentInput inputs = 4;
-  repeated IntentInput boarding_inputs = 5;
-  repeated string cosigners_public_keys = 6;
-  Bip322Signature proof = 7;
-}
-
-message Bip322Signature {
-  string signature = 1;
-  string message = 2;
+enum RenewalStatus {
+  RENEWAL_STATUS_UNSPECIFIED = 0;
+  RENEWAL_STATUS_PENDING = 1;
+  RENEWAL_STATUS_SUCCESS = 2;
+  RENEWAL_STATUS_FAILED = 3;
 }
