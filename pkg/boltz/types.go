@@ -10,6 +10,7 @@ const (
 type Currency string
 
 type TimeoutBlockHeights struct {
+	RefundLocktime                  uint32 `json:"refund"`
 	UnilateralClaim                 uint32 `json:"unilateralClaim"`
 	UnilateralRefund                uint32 `json:"unilateralRefund"`
 	UnilateralRefundWithoutReceiver uint32 `json:"unilateralRefundWithoutReceiver"`
