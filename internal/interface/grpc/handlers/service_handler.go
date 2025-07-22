@@ -46,12 +46,13 @@ func (h *serviceHandler) GetBalance(
 func (h *serviceHandler) GetInfo(
 	ctx context.Context, req *pb.GetInfoRequest,
 ) (*pb.GetInfoResponse, error) {
-	config, err := h.svc.GetConfigData(ctx)
+
+	_, _, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	_, _, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
+	serverInfo, err := h.svc.GetServerInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -62,18 +63,40 @@ func (h *serviceHandler) GetInfo(
 			Commit:  h.svc.BuildInfo.Commit,
 			Date:    h.svc.BuildInfo.Date,
 		},
-		Pubkey:       pubkey,
-		SignerPubkey: hex.EncodeToString(config.SignerPubKey.SerializeCompressed()),
+		Pubkey: pubkey,
+		ServerInfo: &pb.ServerInfo{
+			Version:                 serverInfo.Version,
+			SignerPubkey:            serverInfo.SignerPubKey,
+			VtxoTreeExpiry:          serverInfo.VtxoTreeExpiry,
+			UnilateralExitDelay:     serverInfo.UnilateralExitDelay,
+			BoardingExitDelay:       serverInfo.BoardingExitDelay,
+			RoundInterval:           serverInfo.RoundInterval,
+			Network:                 serverInfo.Network,
+			Dust:                    serverInfo.Dust,
+			ForfeitAddress:          serverInfo.ForfeitAddress,
+			MarketHourStartTime:     serverInfo.MarketHourStartTime,
+			MarketHourEndTime:       serverInfo.MarketHourEndTime,
+			MarketHourPeriod:        serverInfo.MarketHourPeriod,
+			MarketHourRoundInterval: serverInfo.MarketHourRoundInterval,
+			UtxoMinAmount:           serverInfo.UtxoMinAmount,
+			UtxoMaxAmount:           serverInfo.UtxoMaxAmount,
+			VtxoMinAmount:           serverInfo.VtxoMinAmount,
+			VtxoMaxAmount:           serverInfo.VtxoMaxAmount,
+		},
 	}
 
-	// Try to get network info, but don't fail if wallet is not initialized
 	data, err := h.svc.GetConfigData(ctx)
-	if err == nil && data != nil {
-		// Only set Network field if we successfully got config data
-		response.Network = toNetworkProto(data.Network.Name)
-		response.AddrPrefix = data.Network.Addr
-		response.ServerUrl = data.ServerUrl
+	if err != nil {
+		return nil, err
 	}
+	if data == nil {
+		return nil, status.Error(codes.Internal, "config data is nil")
+	}
+
+	// Only set Network field if we successfully got config data
+	response.Network = toNetworkProto(data.Network.Name)
+	response.AddrPrefix = data.Network.Addr
+	response.ServerUrl = data.ServerUrl
 
 	return response, nil
 }

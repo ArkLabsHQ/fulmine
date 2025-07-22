@@ -1035,6 +1035,22 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (string, error)
 	return s.reverseSwapWithPreimage(ctx, amount, preimage, s.publicKey.SerializeCompressed())
 }
 
+func (s *Service) GetServerInfo(ctx context.Context) (*client.Info, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil, err
+	}
+
+	if s.grpcClient == nil {
+		return nil, fmt.Errorf("grpc client not initialized")
+	}
+
+	info, err := s.grpcClient.GetInfo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get server info: %w", err)
+	}
+
+	return info, nil
+}
 func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err

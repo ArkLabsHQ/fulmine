@@ -113,3 +113,23 @@ enum TxType {
   TX_TYPE_SENT = 1;
   TX_TYPE_RECEIVED = 2;
 }
+
+message ServerInfo {
+  string signer_pubkey = 1;
+  int64 vtxo_tree_expiry = 2;
+  int64 unilateral_exit_delay = 3;
+  int64 round_interval = 4;
+  string network = 5;
+  uint64 dust = 6;
+  string forfeit_address = 7;
+  int64 market_hour_start_time = 8;
+  int64 market_hour_end_time = 9;
+  int64 market_hour_period = 10;
+  int64 market_hour_round_interval = 11;
+  string version = 12;
+  int64 utxo_min_amount = 13;
+  int64 utxo_max_amount = 14;
+  int64 vtxo_min_amount = 15; 
+  int64 vtxo_max_amount = 16; 
+  int64 boarding_exit_delay = 17;
+}

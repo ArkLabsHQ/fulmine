@@ -177,7 +177,7 @@ message GetInfoResponse {
   // The Fulmine's public key used in VTXO scripts.
   string pubkey = 5;
   // The signer's public key used in VTXO scripts.
-  string signer_pubkey = 6;
+  ServerInfo server_info = 6;
 }
 
 message GetOnboardAddressRequest {

@@ -858,8 +858,8 @@
           "type": "string",
           "description": "The Fulmine's public key used in VTXO scripts."
         },
-        "signerPubkey": {
-          "type": "string",
+        "serverInfo": {
+          "$ref": "#/definitions/v1ServerInfo",
           "description": "The signer's public key used in VTXO scripts."
         }
       }
@@ -1094,6 +1094,75 @@
       "properties": {
         "txid": {
           "type": "string"
+        }
+      }
+    },
+    "v1ServerInfo": {
+      "type": "object",
+      "properties": {
+        "signerPubkey": {
+          "type": "string"
+        },
+        "vtxoTreeExpiry": {
+          "type": "string",
+          "format": "int64"
+        },
+        "unilateralExitDelay": {
+          "type": "string",
+          "format": "int64"
+        },
+        "roundInterval": {
+          "type": "string",
+          "format": "int64"
+        },
+        "network": {
+          "type": "string"
+        },
+        "dust": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "forfeitAddress": {
+          "type": "string"
+        },
+        "marketHourStartTime": {
+          "type": "string",
+          "format": "int64"
+        },
+        "marketHourEndTime": {
+          "type": "string",
+          "format": "int64"
+        },
+        "marketHourPeriod": {
+          "type": "string",
+          "format": "int64"
+        },
+        "marketHourRoundInterval": {
+          "type": "string",
+          "format": "int64"
+        },
+        "version": {
+          "type": "string"
+        },
+        "utxoMinAmount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "utxoMaxAmount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "vtxoMinAmount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "vtxoMaxAmount": {
+          "type": "string",
+          "format": "int64"
+        },
+        "boardingExitDelay": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },
