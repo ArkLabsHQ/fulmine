@@ -80,7 +80,7 @@ lncli payinvoice <invoice>
 Start and provision Arkd:
 
 ```sh
-docker compose -f test.docker-compose.yml up -d arkd
+docker compose -f test.docker-compose.yml up -d arkd-wallet arkd
 # Create an alias for arkd
 alias arkd="docker exec arkd arkd"
 # Initialize the wallet

@@ -423,17 +423,21 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if err := s.subscribeForScripts(
 		context.Background(), "", []string{offchainPubkey},
 		func(eventsCh <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
+			log.Debugf("created new subscription %s for internal addresses", subId)
 			go s.handleInternalAddressEventChannel(eventsCh)
 			s.internalSubscriptionId = subId
 			s.closeInternalListener = func() {
 				s.internalSubscriptionId = ""
 				closeFn()
+				log.Debugf("removed subscription %s for internal addresses", subId)
 			}
 		},
 	); err != nil {
 		log.WithError(err).Error("failed to subscribe for our scripts")
 		return err
 	}
+
+	log.Debug("subscribed for internal addresses")
 
 	if arkConfig.UtxoMaxAmount != 0 {
 		go s.subscribeForBoardingEvent(ctx, boardingAddr, arkConfig)
@@ -447,17 +451,24 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 
 	if len(scriptsToSubscribe) > 0 {
-		if err := s.subscribeForScripts(context.Background(), "", scriptsToSubscribe, func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
-			go s.handleAddressEventChannel(stream, arkConfig)
-			s.subscriptionId = subId
-			s.closeAddressEventListener = func() {
-				s.subscriptionId = ""
-				closeFn()
-			}
-		}); err != nil {
+		if err := s.subscribeForScripts(
+			context.Background(), "", scriptsToSubscribe,
+			func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
+				log.Debugf("created new subscription %s for external addresses", subId)
+				go s.handleAddressEventChannel(stream, arkConfig)
+				s.subscriptionId = subId
+				s.closeAddressEventListener = func() {
+					s.subscriptionId = ""
+					closeFn()
+					log.Debugf("removed subscription %s for external addresses", subId)
+				}
+			},
+		); err != nil {
 			log.WithError(err).Error("failed to resubscribe for scripts")
 			return err
 		}
+
+		log.Debugf("restored subscription for %d external addresses", len(scriptsToSubscribe))
 	}
 
 	go func() {
@@ -818,27 +829,6 @@ func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (
 	return s.submarineSwap(ctx, amount)
 }
 
-func (s *Service) subscribeForScripts(ctx context.Context, subscriptionId string, scripts []string, extraFunc func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string)) error {
-	subscriptionId, err := s.indexerClient.SubscribeForScripts(ctx, subscriptionId, scripts)
-
-	log.Infof("subscribed for scripts with id %s", subscriptionId)
-	if err != nil {
-		return fmt.Errorf("failed to subscribe for scripts: %w", err)
-	}
-
-	if extraFunc != nil {
-		subscriptionChannel, closeFn, err := s.indexerClient.GetSubscription(ctx, subscriptionId)
-		if err != nil {
-			return fmt.Errorf("failed to get subscription for scripts: %w", err)
-		}
-
-		extraFunc(subscriptionChannel, closeFn, subscriptionId)
-
-	}
-
-	return nil
-}
-
 func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string) error {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return err
@@ -856,7 +846,7 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 		subscribedScriptsMap[script] = struct{}{}
 	}
 
-	addressScripts := make([]string, 0, len(addresses))
+	outScripts := make([]string, 0, len(addresses))
 	for _, addr := range addresses {
 		if addr == "" {
 			return fmt.Errorf("empty address provided")
@@ -869,36 +859,56 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 
 		p2trScript, err := txscript.PayToTaprootScript(decodedAddress.VtxoTapKey)
 		if err != nil {
-			return fmt.Errorf("failed to create p2tr script: %w", err)
+			return fmt.Errorf("failed to parse address to p2tr script: %w", err)
 		}
 		serialised_script := hex.EncodeToString(p2trScript)
 
 		if _, ok := subscribedScriptsMap[serialised_script]; ok {
-			log.Warnf("address %s already subscribed, skipping", addr)
 			continue
 		}
 
-		addressScripts = append(addressScripts, serialised_script)
+		outScripts = append(outScripts, serialised_script)
 	}
 
-	if len(addressScripts) == 0 {
+	if len(outScripts) == 0 {
 		return nil
 	}
 
-	err = s.subscribeForScripts(ctx, s.subscriptionId, addressScripts, nil)
-
+	if s.subscriptionId != "" {
+		err = s.subscribeForScripts(ctx, s.subscriptionId, outScripts, nil)
+	} else {
+		arkConfig, _err := s.GetConfigData(ctx)
+		if _err != nil {
+			return fmt.Errorf("failed to get config data: %s", _err)
+		}
+		err = s.subscribeForScripts(
+			context.Background(), "", outScripts,
+			func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
+				log.Debugf("created new subscription %s for external addresses", subId)
+				go s.handleAddressEventChannel(stream, arkConfig)
+				s.subscriptionId = subId
+				s.closeAddressEventListener = func() {
+					s.subscriptionId = ""
+					closeFn()
+					log.Debugf("removed subscription %s for external addresses", subId)
+				}
+			},
+		)
+	}
 	if err != nil {
-		return fmt.Errorf("failed to subscribe for address scripts: %w", err)
+		return fmt.Errorf("failed to subscribe for addresses: %w", err)
 	}
 
+	log.Debugf("subscribed for %d external addresses", len(outScripts))
+
 	// store in db
-	count, err := s.dbSvc.SubscribedScript().Add(ctx, addressScripts)
+	count, err := s.dbSvc.SubscribedScript().Add(ctx, outScripts)
 	if err != nil {
-		return fmt.Errorf("failed to store subscribed scripts in db: %w", err)
+		return fmt.Errorf("failed to add subscribed scripts to db: %w", err)
 	}
 
 	if count > 0 {
-		log.Infof("subscribed to %d address scripts", count)
+		log.Debugf("added %d subscribed scripts to db", count)
 	}
 
 	return nil
@@ -912,44 +922,61 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 	s.subscriptionLock.Lock()
 	defer s.subscriptionLock.Unlock()
 
-	addressScripts := make([]string, 0, len(addresses))
-
 	subscribedScripts, err := s.dbSvc.SubscribedScript().Get(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get subscribed scripts from db: %w", err)
+		return fmt.Errorf("failed to get subscribed scripts form db: %s", err)
 	}
-	subscribedScriptsMap := make(map[string]struct{}, len(subscribedScripts))
+
+	indexedScripts := make(map[string]struct{}, len(subscribedScripts))
 	for _, script := range subscribedScripts {
-		subscribedScriptsMap[script] = struct{}{}
+		indexedScripts[script] = struct{}{}
 	}
 
+	outScripts := make([]string, 0, len(addresses))
 	for _, addr := range addresses {
-		decoded_address, err := arklib.DecodeAddressV0(addr)
+		decoded, err := arklib.DecodeAddressV0(addr)
 		if err != nil {
-			return fmt.Errorf("failed to decode address %s: %w", addr, err)
+			return fmt.Errorf("failed to decode address %s: %s", addr, err)
 		}
-		serialised_script := hex.EncodeToString(schnorr.SerializePubKey(decoded_address.VtxoTapKey))
+		outScript, err := script.P2TRScript(decoded.VtxoTapKey)
+		if err != nil {
+			return fmt.Errorf("failed to parse address to p2tr script: %s", err)
+		}
+		serializedScript := hex.EncodeToString(outScript)
 
-		_, ok := subscribedScriptsMap[serialised_script]
+		_, ok := indexedScripts[serializedScript]
 		if !ok {
 			continue
 		}
 
-		addressScripts = append(addressScripts, serialised_script)
+		outScripts = append(outScripts, serializedScript)
 	}
 
-	err = s.indexerClient.UnsubscribeForScripts(ctx, s.subscriptionId, addressScripts)
-	if err != nil {
-		return fmt.Errorf("failed to unsubscribe for address scripts: %w", err)
+	if err = s.indexerClient.UnsubscribeForScripts(ctx, s.subscriptionId, outScripts); err != nil {
+		return fmt.Errorf("failed to unsubscribe for addresses: %s", err)
 	}
+
+	log.Debugf("unsubscribed for %d external addresses", len(outScripts))
 
 	// remove scripts from db
-	count, err := s.dbSvc.SubscribedScript().Delete(ctx, addressScripts)
+	count, err := s.dbSvc.SubscribedScript().Delete(ctx, outScripts)
 	if err != nil {
-		return fmt.Errorf("failed to remove subscribed scripts from db: %w", err)
+		return fmt.Errorf("failed to remove subscribed scripts from db: %s", err)
 	}
 
-	log.Infof("unsubscribed from %d address scripts", count)
+	subscribedScripts, err = s.dbSvc.SubscribedScript().Get(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get subscribed scripts form db: %s", err)
+	}
+	if count > 0 {
+		log.Debugf("removed %d subscribed scripts from db", count)
+	}
+
+	if len(subscribedScripts) == 0 {
+		s.subscriptionId = ""
+		s.closeAddressEventListener()
+		s.closeAddressEventListener = nil
+	}
 
 	return nil
 }
@@ -1056,6 +1083,24 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 
 	if s.IsLocked(ctx) {
 		return fmt.Errorf("service is locked")
+	}
+
+	return nil
+}
+
+func (s *Service) subscribeForScripts(ctx context.Context, subscriptionId string, scripts []string, extraFunc func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string)) error {
+	subscriptionId, err := s.indexerClient.SubscribeForScripts(ctx, subscriptionId, scripts)
+	if err != nil {
+		return fmt.Errorf("failed to subscribe for scripts: %w", err)
+	}
+
+	if extraFunc != nil {
+		subscriptionChannel, closeFn, err := s.indexerClient.GetSubscription(ctx, subscriptionId)
+		if err != nil {
+			return fmt.Errorf("failed to get subscription for scripts: %w", err)
+		}
+
+		extraFunc(subscriptionChannel, closeFn, subscriptionId)
 	}
 
 	return nil
