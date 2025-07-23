@@ -14,6 +14,7 @@ import (
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/lightningnetwork/lnd/input"
 	"github.com/stretchr/testify/require"
 )
@@ -46,6 +47,9 @@ func TestVHTLCAddress(t *testing.T) {
 				unilateralRefundWithoutReceiverDelay := testCase["unilateralRefundWithoutReceiverDelay"].(map[string]interface{})
 
 				expectedAddress := testCase["expected"].(string)
+				expectedTapTree := testCase["expectedTapTree"].(map[string]interface{})
+				expectedTapTreeRoot := expectedTapTree["root"].(string)
+				expectedTapTreeMerkleProofs := expectedTapTree["merkleProofs"].(map[string]interface{})
 
 				// Decode hex values
 				preimageHashBytes, err := hex.DecodeString(preimageHashHex)
@@ -84,6 +88,25 @@ func TestVHTLCAddress(t *testing.T) {
 					UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{Type: refundWithoutReceiverDelayType, Value: uint32(unilateralRefundWithoutReceiverDelay["value"].(float64))},
 				})
 				require.NoError(t, err)
+
+				_, taprootTree, err := script.TapTree()
+				require.NoError(t, err)
+
+				taprootTreeRoot, err := chainhash.NewHashFromStr(expectedTapTreeRoot)
+				require.NoError(t, err)
+				require.Equal(t, taprootTree.GetRoot(), *taprootTreeRoot)
+
+				require.Len(t, taprootTree.LeafMerkleProofs, len(expectedTapTreeMerkleProofs))
+
+				// print the taproot tree
+				for _, leaf := range taprootTree.LeafMerkleProofs {
+					tapTreeFullProof, err := taprootTree.GetTaprootMerkleProof(leaf.TapHash())
+					require.NoError(t, err)
+					require.Equal(t, leaf.Script, tapTreeFullProof.Script)
+					expectedCtrlBlock, ok := expectedTapTreeMerkleProofs[hex.EncodeToString(leaf.Script)].(map[string]interface{})
+					require.True(t, ok)
+					require.Equal(t, expectedCtrlBlock["controlBlock"], hex.EncodeToString(tapTreeFullProof.ControlBlock))
+				}
 
 				// Generate address
 				address, err := script.Address("tark", serverPubKey)
