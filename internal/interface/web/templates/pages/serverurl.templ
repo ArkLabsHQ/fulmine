@@ -4,10 +4,8 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 )
 
-templ ServerUrlBodyContent(serverUrl, privateKey, password string) {
+templ ServerUrlBodyContent(serverUrl string) {
   <form hx-post="/initialize" hx-target="#serverUrlError" hx-swap="innerHTML">
-    <input type="hidden" name="privateKey" value={privateKey}/>
-    <input type="hidden" name="password" value={password}/>
     <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
 	    <div>
 		    <div class="hidden md:block">@BigLogo()</div>
@@ -15,7 +13,7 @@ templ ServerUrlBodyContent(serverUrl, privateKey, password string) {
 	  		<p class="mb-10">Choose your Server</p>
         <p class="mb-2">Server URL</p>
         @components.InputWithPaste("serverUrl", "", serverUrl)
-				<div id="serverUrlError" class="mt-4"></div>
+		<div id="serverUrlError" class="mt-4"></div>
       </div>
 	  	@components.CreateWalletButton(true)
     </div>
@@ -44,9 +42,10 @@ templ ServerUrlBodyContent(serverUrl, privateKey, password string) {
 		  	}
 		  })
 		}
+
 		if (input && button) {
 			validateServerUrl()
-		  input.addEventListener('input', validateServerUrl)
+		  	input.addEventListener('input', validateServerUrl)
 		}
   </script>
 }

@@ -265,11 +265,31 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 					})
 				})
 			}
+
+			const clearErrors = (e, element_id_list) => {
+				console.log("Clearing error for ", e)
+				element_id_list.forEach((id) => {
+					if (e.detail && e.detail.target && e.detail.target.id === id) {
+						const el = document.getElementById(id)
+						if (el) {
+							setTimeout(() => {
+    						    el.innerHTML = "";
+								// Re-enable the submit button (if validation logic allows)
+          						const button = document.querySelector('button[type=submit]');
+          						if (button) {
+          						  button.disabled = false;
+		  						}
+    						}, 5000);
+						}	
+					}
+				})
+			}
 		
-			document.addEventListener('htmx:afterSwap', () => {
+			document.addEventListener('htmx:afterSwap', (e) => {
 				updateFiatValues()
 				updateCryptoValues()
 				passAlongQueryParams()
+				clearErrors(e, ["serverUrlError"])
 			})
 
 			document.addEventListener('htmx:load', () => {

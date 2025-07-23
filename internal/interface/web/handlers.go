@@ -136,35 +136,26 @@ func (s *service) initialize(c *gin.Context) {
 		return
 	}
 
-	privateKey := c.PostForm("privateKey")
-	if privateKey == "" {
-		toast := components.Toast("Private key can't be empty", true)
-		toastHandler(toast, c)
-		return
-	}
-	if err := utils.IsValidPrivateKey(privateKey); err != nil {
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
+	session, err := s.sessionStore.Get(c.Request, "fulmine-session")
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	password := c.PostForm("password")
-	if password == "" {
-		toast := components.Toast("Password can't be empty", true)
-		toastHandler(toast, c)
-		return
-	}
-	if err := utils.IsValidPassword(password); err != nil {
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
+	state, ok := session.Values["signup_state"].(*SigupState)
+	if !ok {
+		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("invalid session state"))
+
 	}
 
-	if err := s.svc.Setup(c, serverUrl, password, privateKey); err != nil {
+	if err := s.svc.Setup(c, serverUrl, state.Password, state.PrivateKey); err != nil {
 		log.WithError(err).Warn("failed to initialize")
 		errorContent := components.Error("Server initialization failed", "Please try again")
 		partialViewHandler(errorContent, c)
 	}
+
+	session.Values["signup_state"] = nil
 
 	redirect("/done", c)
 }
@@ -191,6 +182,40 @@ func (s *service) unlock(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
+func (s *service) createNewWallet(c *gin.Context) {
+	session, err := s.sessionStore.Get(c.Request, "fulmine-session")
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("invalid session state"))
+		return
+	}
+	state, ok := session.Values["signup_state"].(*SigupState)
+
+	if !ok {
+		s.newWalletPrivateKey(c)
+		return
+	}
+
+	switch state.Step {
+	case 1:
+		bodyContent := pages.ManagePrivateKeyContent(state.Nsec)
+		s.pageViewHandler(bodyContent, c)
+		return
+	case 2:
+		bodyContent := pages.SetPasswordContent(state.PrivateKey)
+		s.pageViewHandler(bodyContent, c)
+		return
+	case 3:
+		bodyContent := pages.ServerUrlBodyContent(state.ServerUrl)
+		s.pageViewHandler(bodyContent, c)
+		return
+	default:
+		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("invalid session state"))
+		return
+	}
+
+}
+
 func (s *service) newWalletPrivateKey(c *gin.Context) {
 	nsec, err := utils.SeedToNsec(utils.GetNewPrivateKey())
 	if err != nil {
@@ -198,6 +223,25 @@ func (s *service) newWalletPrivateKey(c *gin.Context) {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
+
+	session, err := s.sessionStore.Get(c.Request, "fulmine-session")
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	state, ok := session.Values["signup_state"].(*SigupState)
+	if !ok {
+		state = &SigupState{}
+	}
+
+	state.Nsec = nsec
+	state.Step = 1
+
+	session.Values["signup_state"] = state
+	_ = session.Save(c.Request, c.Writer)
+
 	bodyContent := pages.ManagePrivateKeyContent(nsec)
 	s.pageViewHandler(bodyContent, c)
 }
@@ -520,7 +564,28 @@ func (s *service) setPassword(c *gin.Context) {
 		serverUrl = s.arkServer
 	}
 
-	bodyContent := pages.ServerUrlBodyContent(serverUrl, privateKey, password)
+	session, err := s.sessionStore.Get(c.Request, "fulmine-session")
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	state, ok := session.Values["signup_state"].(*SigupState)
+	if !ok {
+		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("invalid session state"))
+		return
+	}
+
+	state.PrivateKey = privateKey
+	state.Password = password
+	state.ServerUrl = serverUrl
+	state.Step = 3
+
+	session.Values["signup_state"] = state
+	session.Save(c.Request, c.Writer)
+
+	bodyContent := pages.ServerUrlBodyContent(serverUrl)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -535,6 +600,21 @@ func (s *service) setPrivateKey(c *gin.Context) {
 		}
 		privateKey = seed
 	}
+
+	session, err := s.sessionStore.Get(c.Request, "fulmine-session")
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	state, ok := session.Values["signup_state"].(*SigupState)
+	if !ok {
+		state = &SigupState{}
+	}
+	state.PrivateKey = privateKey
+	state.Step = 2
+
 	bodyContent := pages.SetPasswordContent(privateKey)
 	partialViewHandler(bodyContent, c)
 }

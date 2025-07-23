@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"embed"
+	"encoding/gob"
 	"io/fs"
 	"net/http"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
+	"github.com/gorilla/sessions"
 )
 
 //go:embed static/*
@@ -51,11 +53,20 @@ func (t *TemplRender) Instance(name string, data interface{}) render.Render {
 	return nil
 }
 
+type SigupState struct {
+	PrivateKey string
+	Password   string
+	Nsec       string
+	ServerUrl  string
+	Step       int
+}
+
 type service struct {
 	*gin.Engine
-	svc       *application.Service
-	stopCh    chan struct{}
-	arkServer string
+	svc          *application.Service
+	stopCh       chan struct{}
+	arkServer    string
+	sessionStore *sessions.CookieStore
 }
 
 func NewService(
@@ -63,6 +74,7 @@ func NewService(
 	stopCh chan struct{},
 	sentryEnabled bool,
 	arkServer string,
+	sessionKey []byte,
 ) *service {
 	// Create a new Fiber server.
 	router := gin.Default()
@@ -71,11 +83,16 @@ func NewService(
 	router.HTMLRender = &TemplRender{}
 	staticFS, _ := fs.Sub(static, "static")
 
+	// setup session stores
+	gob.Register(&SigupState{})
+	store := sessions.NewCookieStore([]byte("temporary-session-key"))
+
 	svc := &service{
-		Engine:    router,
-		svc:       appSvc,
-		stopCh:    stopCh,
-		arkServer: arkServer,
+		Engine:       router,
+		svc:          appSvc,
+		stopCh:       stopCh,
+		arkServer:    arkServer,
+		sessionStore: store,
 	}
 
 	// Configure Sentry for Gin (includes built-in panic recovery)
@@ -96,7 +113,7 @@ func NewService(
 	svc.GET("/hero", svc.getHero)
 	svc.GET("/import", svc.importWalletPrivateKey)
 	svc.GET("/lock", svc.lock)
-	svc.GET("/new", svc.newWalletPrivateKey)
+	svc.GET("/new", svc.createNewWallet)
 	svc.GET("/receive", svc.receiveQrCode)
 	svc.GET("/receive/edit", svc.receiveEdit)
 	svc.GET("/send", svc.send)
