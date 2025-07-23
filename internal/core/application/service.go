@@ -879,7 +879,7 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 	} else {
 		arkConfig, _err := s.GetConfigData(ctx)
 		if _err != nil {
-			return fmt.Errorf("failed to get config data: %w", err)
+			return fmt.Errorf("failed to get config data: %s", _err)
 		}
 		err = s.subscribeForScripts(
 			context.Background(), "", outScripts,
