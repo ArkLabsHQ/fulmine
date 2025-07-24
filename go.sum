@@ -33,10 +33,8 @@ github.com/arkade-os/arkd/pkg/kvdb v0.7.0 h1:+XN0FeUEilKLuNHarP/mpwsCWla2iAHc6z9
 github.com/arkade-os/arkd/pkg/kvdb v0.7.0/go.mod h1:8SEm4dAIcGtnGqZ8+QRk58Z1VjIIctl6bZJLQwaOePo=
 github.com/arkade-os/arkd/pkg/macaroons v0.7.0 h1:BZfaeCDGNu/u/efnlesDjzzEPMYpCQO//jeE4d/3CwY=
 github.com/arkade-os/arkd/pkg/macaroons v0.7.0/go.mod h1:JuHFgu0NjbvFnTF7j7oHHatIMkKKPKvznUPkZwFi2Xk=
-github.com/arkade-os/go-sdk v0.6.3-0.20250708202756-ea74c26f2e8c h1:ydqesy63hYQ0pvyJdiV81T4HAwt7/dZjc6pCUmsG3Tg=
-github.com/arkade-os/go-sdk v0.6.3-0.20250708202756-ea74c26f2e8c/go.mod h1:fmR3DRDLDpsagxWK3j2KgCrVeif6W8cqhYKX7RA/lOs=
-github.com/arkade-os/go-sdk/api-spec v0.0.0-20250708202756-ea74c26f2e8c h1:slPhwLmRbujU3vBwxt2sXyi35+sr/FtvbyHgsUoUZtQ=
-github.com/arkade-os/go-sdk/api-spec v0.0.0-20250708202756-ea74c26f2e8c/go.mod h1:8Mh0qB4GF8DFIYZZcgDMOgNzO/0VmTV4g6uwgFVMOqw=
+github.com/arkade-os/go-sdk v0.6.3-0.20250724173930-5eeaed3f7640 h1:egw4IK98Q2yaSkxChXoLVZZOrtQeO7aEB565+NwakiI=
+github.com/arkade-os/go-sdk v0.6.3-0.20250724173930-5eeaed3f7640/go.mod h1:HM/f32H6LSlxlT832PnAqQmVT85J1uww6DetUXuMdyY=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 h1:DklsrG3dyBCFEj5IhUbnKptjxatkF07cF2ak3yi77so=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=
