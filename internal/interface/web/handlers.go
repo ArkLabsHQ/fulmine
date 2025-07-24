@@ -240,7 +240,12 @@ func (s *service) newWalletPrivateKey(c *gin.Context) {
 	state.Step = 1
 
 	session.Values["signup_state"] = state
-	_ = session.Save(c.Request, c.Writer)
+	err = session.Save(c.Request, c.Writer)
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("failed to save session state"))
+		return
+	}
 
 	bodyContent := pages.ManagePrivateKeyContent(nsec)
 	s.pageViewHandler(bodyContent, c)
@@ -583,7 +588,12 @@ func (s *service) setPassword(c *gin.Context) {
 	state.Step = 3
 
 	session.Values["signup_state"] = state
-	session.Save(c.Request, c.Writer)
+	err = session.Save(c.Request, c.Writer)
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("failed to save session state"))
+		return
+	}
 
 	bodyContent := pages.ServerUrlBodyContent(serverUrl)
 	partialViewHandler(bodyContent, c)
@@ -614,6 +624,12 @@ func (s *service) setPrivateKey(c *gin.Context) {
 	}
 	state.PrivateKey = privateKey
 	state.Step = 2
+	err = session.Save(c.Request, c.Writer)
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("failed to save session state"))
+		return
+	}
 
 	bodyContent := pages.SetPasswordContent(privateKey)
 	partialViewHandler(bodyContent, c)
