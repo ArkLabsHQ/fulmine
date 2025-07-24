@@ -12,6 +12,8 @@ else
 fi
 
 # generate data parts
+
+volumeDir="/root/.lightning/regtest"
 rootCert=$(grep -v 'CERTIFICATE' "${volumeDir}/ca.pem" | tr -d '=' | tr '/+' '_-' | tr -d '\n')
 privateKey=$(grep -v 'PRIVATE KEY' "${volumeDir}/client-key.pem" | tr -d '=' | tr '/+' '_-' | tr -d '\n')
 certChain=$(grep -v 'CERTIFICATE' "${volumeDir}/client.pem" | tr -d '=' | tr '/+' '_-' | tr -d '\n')

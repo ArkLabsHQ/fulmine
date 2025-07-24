@@ -366,6 +366,12 @@ func (h *serviceHandler) PayInvoice(
 	return &pb.PayInvoiceResponse{Txid: txid}, nil
 }
 
+func (h *serviceHandler) PayOffer(
+	ctx context.Context, req *pb.PayOfferRequest,
+) (*pb.PayOfferResponse, error) {
+	return nil, status.Errorf(codes.Internal, "Unimplemented endpoint")
+}
+
 func (h *serviceHandler) IsInvoiceSettled(
 	ctx context.Context, req *pb.IsInvoiceSettledRequest,
 ) (*pb.IsInvoiceSettledResponse, error) {

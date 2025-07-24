@@ -64,6 +64,13 @@ var boltzURLByNetwork = map[string]string{
 	arklib.BitcoinRegTest.Name:   "http://localhost:9001",
 }
 
+var boltzWSURLByNetwork = map[string]string{
+	arklib.Bitcoin.Name:          "https://api.boltz.exchange",
+	arklib.BitcoinTestNet.Name:   "https://api.testnet.boltz.exchange",
+	arklib.BitcoinMutinyNet.Name: "https://api.boltz.mutinynet.arkade.sh",
+	arklib.BitcoinRegTest.Name:   "http://localhost:9004",
+}
+
 type BuildInfo struct {
 	Version string
 	Commit  string
@@ -278,7 +285,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		url = boltzURLByNetwork[config.Network.Name]
 	}
 	if wsUrl == "" {
-		wsUrl = boltzURLByNetwork[config.Network.Name]
+		wsUrl = boltzWSURLByNetwork[config.Network.Name]
 	}
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 
@@ -387,7 +394,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			log.WithError(err).Error("failed to connect to LN node")
 			return err
 		}
-
 	}
 
 	url := s.boltzUrl
@@ -1417,10 +1423,6 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 
 	// Workaround to connect ws endpoint on a different port for regtest
 	wsClient := s.boltzSvc
-	if s.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
-		wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
-	}
-
 	ws := wsClient.NewWebsocket()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -1554,10 +1556,6 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 
 	// Workaround to connect ws endpoint on a different port for regtest
 	wsClient := s.boltzSvc
-	if s.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
-		wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
-	}
-
 	ws := wsClient.NewWebsocket()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -1636,7 +1634,6 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, preimage, myPu
 	if err != nil {
 		return "", fmt.Errorf("failed to decode invoice: %v", err)
 	}
-
 	if invoiceAmount != amount {
 		return "", fmt.Errorf("invalid invoice amount: expected %d, got %d", amount, invoiceAmount)
 	}
@@ -1763,10 +1760,6 @@ func (s *Service) waitAndClaimVHTLC(
 	ctx context.Context, swapId string, preimage []byte, vhtlcOpts *vhtlc.Opts,
 ) (string, error) {
 	wsClient := s.boltzSvc
-	if s.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
-		wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
-	}
-
 	ws := wsClient.NewWebsocket()
 	{
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -2332,7 +2325,7 @@ func verifyInputSignatures(tx *psbt.Packet, pubkey *btcec.PublicKey, tapLeaves m
 	return nil
 }
 
-// getInputTapLeaves returns a map of input index to tapscript leaf
+// GetInputTapLeaves returns a map of input index to tapscript leaf
 // if the input has no tapscript leaf, it is not included in the map
 func getInputTapLeaves(tx *psbt.Packet) map[int]txscript.TapLeaf {
 	tapLeaves := make(map[int]txscript.TapLeaf)
