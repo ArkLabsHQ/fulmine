@@ -913,23 +913,6 @@
         }
       }
     },
-    "v1GetInvoiceRequest": {
-      "type": "object",
-      "properties": {
-        "amount": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
-    "v1GetInvoiceResponse": {
-      "type": "object",
-      "properties": {
-        "invoice": {
-          "type": "string"
-        }
-      }
-    },
     "v1GetOnboardAddressRequest": {
       "type": "object",
       "properties": {
