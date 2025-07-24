@@ -15,7 +15,7 @@ require (
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-00010101000000-000000000000
 	github.com/a-h/templ v0.3.924
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/ccoveille/go-safecast v1.2.0
+	github.com/ccoveille/go-safecast v1.6.1
 	github.com/dgraph-io/badger/v4 v4.6.0
 	github.com/getsentry/sentry-go v0.32.0
 	github.com/getsentry/sentry-go/gin v0.32.0
