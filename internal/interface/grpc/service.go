@@ -2,6 +2,7 @@ package grpc_interface
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -132,7 +133,15 @@ func NewService(
 		return nil, err
 	}
 
-	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled, arkServer)
+	// setup session stores
+	sessionKey := make([]byte, 32)
+	_, err = rand.Read(sessionKey)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate session key: %w", err)
+	}
+
+	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled, arkServer, sessionKey)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", feHandler)
