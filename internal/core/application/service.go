@@ -1076,6 +1076,26 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error
 	return s.submarineSwapWithInvoice(ctx, invoice, pubkey)
 }
 
+func (s *Service) SendOffchainWithRetry(ctx context.Context, withExpiryCoinselect bool, receivers []types.Receiver) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	const retryAttempts = 5
+	var err error
+
+	for i := 0; i < retryAttempts; i++ {
+		var tx string
+		tx, err = s.ArkClient.SendOffChain(ctx, withExpiryCoinselect, receivers)
+		if err != nil {
+			continue
+		}
+		return tx, nil
+	}
+
+	return "", fmt.Errorf("failed to send offchain after %d attempts: %w", retryAttempts, err)
+}
+
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 	if !s.isReady {
 		return fmt.Errorf("service not initialized")

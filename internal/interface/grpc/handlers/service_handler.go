@@ -170,7 +170,7 @@ func (h *serviceHandler) SendOffChain(
 	}
 	receivers := []types.Receiver{{To: address, Amount: amount}}
 
-	arkTxId, err := h.svc.SendOffChain(ctx, false, receivers)
+	arkTxId, err := h.svc.SendOffchainWithRetry(ctx, false, receivers)
 	if err != nil {
 		return nil, err
 	}
