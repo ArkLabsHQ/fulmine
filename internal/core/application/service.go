@@ -1086,7 +1086,7 @@ func (s *Service) SendOffchainWithRetry(ctx context.Context, withExpiryCoinselec
 
 	for i := 0; i < retryAttempts; i++ {
 		var tx string
-		tx, err = s.ArkClient.SendOffChain(ctx, withExpiryCoinselect, receivers)
+		tx, err = s.SendOffChain(ctx, withExpiryCoinselect, receivers)
 		if err != nil {
 			continue
 		}
