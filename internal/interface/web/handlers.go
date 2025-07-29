@@ -16,6 +16,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/pages"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
+	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
@@ -336,7 +337,7 @@ func (s *service) sendPreview(c *gin.Context) {
 	}
 
 	dest := c.PostForm("address")
-	var addr, invoice, onchainAddr, offchainAddr string
+	var addr, invoice, onchainAddr, offchainAddr, offer string
 
 	sats, err := strconv.Atoi(c.PostForm("sats"))
 	if err != nil {
@@ -374,6 +375,9 @@ func (s *service) sendPreview(c *gin.Context) {
 	if utils.IsValidInvoice(dest) {
 		invoice = dest
 	}
+	if swap.IsBolt12Offer(dest) {
+		offer = dest
+	}
 
 	if len(offchainAddr) > 0 {
 		if config.VtxoMaxAmount != -1 && int64(total) > config.VtxoMaxAmount {
@@ -407,6 +411,19 @@ func (s *service) sendPreview(c *gin.Context) {
 		} else {
 			addr = onchainAddr
 		}
+	} else if len(offer) > 0 {
+		if config.VtxoMaxAmount != -1 && int64(total) > config.VtxoMaxAmount {
+			if len(onchainAddr) > 0 && (config.UtxoMaxAmount == -1 || int64(total) <= config.UtxoMaxAmount) {
+				addr = onchainAddr
+			} else {
+				toast := components.Toast("Amount too high", true)
+				toastHandler(toast, c)
+				return
+			}
+		} else {
+			addr = offer
+		}
+
 	}
 
 	if len(addr) == 0 {
@@ -457,6 +474,15 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	if utils.IsValidInvoice(address) {
 		txId, err = s.svc.PayInvoice(c, address)
+		if err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+	}
+
+	if swap.IsValidBolt12Offer(address) {
+		txId, err = s.svc.PayOffer(c, address)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)

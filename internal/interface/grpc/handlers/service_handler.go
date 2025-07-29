@@ -369,7 +369,17 @@ func (h *serviceHandler) PayInvoice(
 func (h *serviceHandler) PayOffer(
 	ctx context.Context, req *pb.PayOfferRequest,
 ) (*pb.PayOfferResponse, error) {
-	return nil, status.Errorf(codes.Internal, "Unimplemented endpoint")
+	offer := req.GetOffer()
+	if len(offer) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "offer cannot be empty")
+	}
+
+	txid, err := h.svc.PayOffer(ctx, offer)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.PayOfferResponse{Txid: txid}, nil
 }
 
 func (h *serviceHandler) IsInvoiceSettled(

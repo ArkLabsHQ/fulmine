@@ -18,6 +18,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/cln"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/lnd"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
+	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
@@ -61,13 +62,6 @@ var boltzURLByNetwork = map[string]string{
 	arklib.BitcoinTestNet.Name:   "https://api.testnet.boltz.exchange",
 	arklib.BitcoinMutinyNet.Name: "https://api.boltz.mutinynet.arkade.sh",
 	arklib.BitcoinRegTest.Name:   "http://localhost:9001",
-}
-
-var boltzWSURLByNetwork = map[string]string{
-	arklib.Bitcoin.Name:          "https://api.boltz.exchange",
-	arklib.BitcoinTestNet.Name:   "https://api.testnet.boltz.exchange",
-	arklib.BitcoinMutinyNet.Name: "https://api.boltz.mutinynet.arkade.sh",
-	arklib.BitcoinRegTest.Name:   "http://localhost:9004",
 }
 
 type BuildInfo struct {
@@ -304,7 +298,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		url = boltzURLByNetwork[config.Network.Name]
 	}
 	if wsUrl == "" {
-		wsUrl = boltzWSURLByNetwork[config.Network.Name]
+		wsUrl = boltzURLByNetwork[config.Network.Name]
 	}
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 
@@ -938,13 +932,20 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error
 		return "", err
 	}
 
-	_, _, _, _, pk, err := s.GetAddress(ctx, 0)
-	if err != nil {
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, s.boltzSvc.URL, s.boltzSvc.WSURL, s.publicKey)
+
+	return swapHandler.PayInvoice(ctx, invoice)
+}
+
+func (s *Service) PayOffer(ctx context.Context, offer string) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
-	pubkey, _ := hex.DecodeString(pk)
 
-	return s.submarineSwapWithInvoice(ctx, invoice, pubkey)
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, s.boltzSvc.URL, s.boltzSvc.WSURL, s.publicKey)
+
+	return swapHandler.PayOffer(ctx, offer)
+
 }
 
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
@@ -1274,6 +1275,10 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 
 	// Workaround to connect ws endpoint on a different port for regtest
 	wsClient := s.boltzSvc
+	if s.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
+		wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
+	}
+
 	ws := wsClient.NewWebsocket()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -1347,105 +1352,6 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 				}
 				log.Debugf("added new swap %s", swap.Id)
 			}()
-			return txid, nil
-		}
-	}
-
-	return "", fmt.Errorf("something went wrong")
-}
-
-func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, pubkey []byte) (string, error) {
-	if len(invoice) == 0 {
-		return "", fmt.Errorf("invoice must not be empty")
-	}
-
-	_, preimageHash, err := utils.DecodeInvoice(invoice)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode invoice: %v", err)
-	}
-
-	// Create the swap
-	swap, err := s.boltzSvc.CreateSwap(boltz.CreateSwapRequest{
-		From:            boltz.CurrencyArk,
-		To:              boltz.CurrencyBtc,
-		Invoice:         invoice,
-		RefundPublicKey: hex.EncodeToString(pubkey),
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to make submarine swap: %v", err)
-	}
-
-	receiverPubkey, err := parsePubkey(swap.ClaimPublicKey)
-	if err != nil {
-		return "", fmt.Errorf("invalid claim pubkey: %v", err)
-	}
-
-	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-	vhtlcAddress, _, _, err := s.getVHTLC(
-		ctx,
-		receiverPubkey,
-		nil,
-		preimageHash,
-		&refundLocktime,
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
-	}
-	if swap.Address != vhtlcAddress {
-		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
-	}
-
-	// Fund the VHTLC
-	receivers := []types.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
-	txid, err := s.SendOffChain(ctx, false, receivers)
-	if err != nil {
-		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
-	}
-
-	// Workaround to connect ws endpoint on a different port for regtest
-	wsClient := s.boltzSvc
-	ws := wsClient.NewWebsocket()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	err = ws.Connect()
-	for err != nil {
-		log.WithError(err).Warn("failed to connect to boltz websocket")
-		time.Sleep(time.Second)
-		log.Debug("reconnecting...")
-		err = ws.Connect()
-		if ctx.Err() != nil {
-			return "", fmt.Errorf("timeout while connecting to websocket: %v", ctx.Err())
-		}
-	}
-
-	err = ws.Subscribe([]string{swap.Id})
-	for err != nil {
-		log.WithError(err).Warn("failed to subscribe for swap events")
-		time.Sleep(time.Second)
-		log.Debug("retrying...")
-		err = ws.Subscribe([]string{swap.Id})
-	}
-
-	for update := range ws.Updates {
-		parsedStatus := boltz.ParseEvent(update.Status)
-
-		switch parsedStatus {
-		case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
-			// Refund the VHTLC if the swap fails
-			withReceiver := true
-			txid, err := s.RefundVHTLC(
-				context.Background(), swap.Id, hex.EncodeToString(preimageHash), withReceiver,
-			)
-			if err != nil {
-				return "", fmt.Errorf("failed to refund vHTLC: %s", err)
-			}
-
-			return txid, fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
-		case boltz.TransactionClaimed, boltz.InvoiceSet:
-			// Nothing left to do, return the VHTLC funding txid
 			return txid, nil
 		}
 	}
@@ -1611,6 +1517,10 @@ func (s *Service) waitAndClaimVHTLC(
 	ctx context.Context, swapId string, preimage []byte, vhtlcOpts *vhtlc.Opts,
 ) (string, error) {
 	wsClient := s.boltzSvc
+	if s.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
+		wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
+	}
+
 	ws := wsClient.NewWebsocket()
 	{
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)

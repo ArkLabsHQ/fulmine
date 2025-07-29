@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/gin-gonic/gin"
 )
@@ -155,6 +156,24 @@ func (s *service) validateInvoiceApi(c *gin.Context) {
 		data = gin.H{
 			"valid": false,
 			"error": "invalid invoice",
+		}
+	}
+	c.JSON(http.StatusOK, data)
+}
+
+func (s *service) validateOfferApi(c *gin.Context) {
+	var data gin.H
+	offer := c.PostForm("offer")
+	sats := swap.SatsFromBolt12Offer(offer)
+	if sats > 0 {
+		data = gin.H{
+			"sats":  sats,
+			"valid": true,
+		}
+	} else {
+		data = gin.H{
+			"valid": false,
+			"error": "invalid offer",
 		}
 	}
 	c.JSON(http.StatusOK, data)
