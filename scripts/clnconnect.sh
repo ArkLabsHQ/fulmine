@@ -23,6 +23,6 @@ rootCertParameter="?rootCert=${rootCert}"
 privateKeyParameter="&privateKey=${privateKey}"
 certChainParameter="&certChain=${certChain}"
 
-clnconnect="clnconnect://localhost:9936${rootCertParameter}${privateKeyParameter}${certChainParameter}"
+clnconnect="clnconnect://boltz-cln:9736${rootCertParameter}${privateKeyParameter}${certChainParameter}"
 
 echo $clnconnect

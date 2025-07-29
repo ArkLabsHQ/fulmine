@@ -34,8 +34,10 @@ services:
       - '9000:9000'
       - '9001:9001'
       - '9004:9004'
+      - '9005:9005'
     expose:
       - '9001'
+      - '9005'
       - '9006'
     environment:
       BOLTZ_CONFIG: |
@@ -146,6 +148,7 @@ services:
     environment:
       - FULMINE_ARK_SERVER=http://arkd:7070
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
+      - FULMINE_NO_MACAROONS=true
     ports:
       - 7002:7000
       - 7003:7001
