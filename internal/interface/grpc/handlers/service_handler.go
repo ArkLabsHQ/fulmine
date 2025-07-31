@@ -7,6 +7,8 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/pkg/swap"
+	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/arkade-os/go-sdk/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -358,12 +360,24 @@ func (h *serviceHandler) PayInvoice(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	txid, err := h.svc.PayInvoice(ctx, invoice)
-	if err != nil {
-		return nil, err
+	// Handle BOLT11 and BOLT12
+	if utils.IsValidInvoice(invoice) {
+		txid, err := h.svc.PayInvoice(ctx, invoice)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "paying invoice failed: %v", err)
+		}
+		return &pb.PayInvoiceResponse{Txid: txid}, nil
 	}
 
-	return &pb.PayInvoiceResponse{Txid: txid}, nil
+	if swap.IsBolt12Offer(invoice) {
+		txid, err := h.svc.PayOffer(ctx, invoice)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "paying offer failed: %v", err)
+		}
+		return &pb.PayInvoiceResponse{Txid: txid}, nil
+	}
+
+	return nil, status.Error(codes.InvalidArgument, "invoice string is neither valid BOLT11 nor BOLT12 offer")
 }
 
 func (h *serviceHandler) IsInvoiceSettled(

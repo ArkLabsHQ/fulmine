@@ -19,6 +19,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/cln"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/lnd"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
+	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
@@ -387,7 +388,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			log.WithError(err).Error("failed to connect to LN node")
 			return err
 		}
-
 	}
 
 	url := s.boltzUrl
@@ -1054,12 +1054,23 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (string, error)
 		return "", err
 	}
 
-	preimage := make([]byte, 32)
-	if _, err := rand.Read(preimage); err != nil {
-		return "", fmt.Errorf("failed to generate preimage: %w", err)
+	configData, err := s.GetConfigData(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get config data: %v", err)
 	}
 
-	return s.reverseSwapWithPreimage(ctx, amount, preimage, s.publicKey.SerializeCompressed())
+	boltzApi := s.boltzSvc
+
+	if configData.Network.Name == arklib.BitcoinRegTest.Name {
+		boltzApi = &boltz.Api{
+			URL:   s.boltzUrl,
+			WSURL: "http://localhost:9004",
+		}
+	}
+
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
+
+	return swapHandler.GetInvoice(ctx, amount)
 }
 
 func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error) {
@@ -1067,13 +1078,49 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error
 		return "", err
 	}
 
-	_, _, _, _, pk, err := s.GetAddress(ctx, 0)
+	configData, err := s.GetConfigData(ctx)
 	if err != nil {
+		return "", fmt.Errorf("failed to get config data: %v", err)
+	}
+
+	boltzApi := s.boltzSvc
+
+	if configData.Network.Name == arklib.BitcoinRegTest.Name {
+		boltzApi = &boltz.Api{
+			URL:   s.boltzUrl,
+			WSURL: "http://localhost:9004",
+		}
+	}
+
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
+
+	return swapHandler.PayInvoice(ctx, invoice)
+}
+
+func (s *Service) PayOffer(ctx context.Context, offer string) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
-	pubkey, _ := hex.DecodeString(pk)
 
-	return s.submarineSwapWithInvoice(ctx, invoice, pubkey)
+	configData, err := s.GetConfigData(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get config data: %v", err)
+	}
+
+	boltzApi := s.boltzSvc
+	var lightningUrl string
+
+	if configData.Network.Name == arklib.BitcoinRegTest.Name {
+		boltzApi = &boltz.Api{
+			URL: "http://localhost:9005",
+		}
+		lightningUrl = "http://localhost:9005"
+	}
+
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
+
+	return swapHandler.PayOffer(ctx, offer, lightningUrl)
+
 }
 
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
@@ -1501,109 +1548,6 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 	return "", fmt.Errorf("something went wrong")
 }
 
-func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, pubkey []byte) (string, error) {
-	if len(invoice) == 0 {
-		return "", fmt.Errorf("invoice must not be empty")
-	}
-
-	_, preimageHash, err := utils.DecodeInvoice(invoice)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode invoice: %v", err)
-	}
-
-	// Create the swap
-	swap, err := s.boltzSvc.CreateSwap(boltz.CreateSwapRequest{
-		From:            boltz.CurrencyArk,
-		To:              boltz.CurrencyBtc,
-		Invoice:         invoice,
-		RefundPublicKey: hex.EncodeToString(pubkey),
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to make submarine swap: %v", err)
-	}
-
-	receiverPubkey, err := parsePubkey(swap.ClaimPublicKey)
-	if err != nil {
-		return "", fmt.Errorf("invalid claim pubkey: %v", err)
-	}
-
-	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-	vhtlcAddress, _, _, err := s.getVHTLC(
-		ctx,
-		receiverPubkey,
-		nil,
-		preimageHash,
-		&refundLocktime,
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
-	}
-	if swap.Address != vhtlcAddress {
-		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
-	}
-
-	// Fund the VHTLC
-	receivers := []types.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
-	txid, err := s.SendOffChain(ctx, false, receivers)
-	if err != nil {
-		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
-	}
-
-	// Workaround to connect ws endpoint on a different port for regtest
-	wsClient := s.boltzSvc
-	if s.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
-		wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
-	}
-
-	ws := wsClient.NewWebsocket()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	err = ws.Connect()
-	for err != nil {
-		log.WithError(err).Warn("failed to connect to boltz websocket")
-		time.Sleep(time.Second)
-		log.Debug("reconnecting...")
-		err = ws.Connect()
-		if ctx.Err() != nil {
-			return "", fmt.Errorf("timeout while connecting to websocket: %v", ctx.Err())
-		}
-	}
-
-	err = ws.Subscribe([]string{swap.Id})
-	for err != nil {
-		log.WithError(err).Warn("failed to subscribe for swap events")
-		time.Sleep(time.Second)
-		log.Debug("retrying...")
-		err = ws.Subscribe([]string{swap.Id})
-	}
-
-	for update := range ws.Updates {
-		parsedStatus := boltz.ParseEvent(update.Status)
-
-		switch parsedStatus {
-		case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
-			// Refund the VHTLC if the swap fails
-			withReceiver := true
-			txid, err := s.RefundVHTLC(
-				context.Background(), swap.Id, hex.EncodeToString(preimageHash), withReceiver,
-			)
-			if err != nil {
-				return "", fmt.Errorf("failed to refund vHTLC: %s", err)
-			}
-
-			return txid, fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
-		case boltz.TransactionClaimed, boltz.InvoiceSet:
-			// Nothing left to do, return the VHTLC funding txid
-			return txid, nil
-		}
-	}
-
-	return "", fmt.Errorf("something went wrong")
-}
-
 // reverseSwap takes care of interacting with the Boltz server to make a reverse submarine swap.
 // Passing a preimage to this function means that the invoice generated by Boltz is expected
 // to be paid by somebody else, and therefore the swap status is watched before claiming the funds
@@ -1636,7 +1580,6 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, preimage, myPu
 	if err != nil {
 		return "", fmt.Errorf("failed to decode invoice: %v", err)
 	}
-
 	if invoiceAmount != amount {
 		return "", fmt.Errorf("invalid invoice amount: expected %d, got %d", amount, invoiceAmount)
 	}
@@ -2332,7 +2275,7 @@ func verifyInputSignatures(tx *psbt.Packet, pubkey *btcec.PublicKey, tapLeaves m
 	return nil
 }
 
-// getInputTapLeaves returns a map of input index to tapscript leaf
+// GetInputTapLeaves returns a map of input index to tapscript leaf
 // if the input has no tapscript leaf, it is not included in the map
 func getInputTapLeaves(tx *psbt.Packet) map[int]txscript.TapLeaf {
 	tapLeaves := make(map[int]txscript.TapLeaf)

@@ -133,6 +133,7 @@ func NewService(
 	svc.POST("/helpers/claim/:txid", svc.claimTx)
 	svc.POST("/helpers/forgot", svc.forgotApi)
 	svc.POST("/helpers/invoice/validate", svc.validateInvoiceApi)
+	svc.POST("/helpers/offer/validate", svc.validateOfferApi)
 	svc.POST("/helpers/lnurl/validate", svc.validateLnUrlApi)
 	svc.POST("/helpers/node/connect", svc.connectLNDApi)
 	svc.POST("/helpers/node/disconnect", svc.disconnectLNDApi)
