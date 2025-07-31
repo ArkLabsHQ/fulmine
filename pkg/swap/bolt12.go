@@ -202,7 +202,7 @@ func SatsFromBolt12Offer(offer string) int {
 	if err != nil {
 		return 0
 	}
-	return int(decodedOffer.Amount)
+	return int(decodedOffer.AmountInSats)
 }
 
 func IsValidBolt12Offer(offer string) bool {
