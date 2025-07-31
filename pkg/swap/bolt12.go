@@ -51,18 +51,9 @@ const (
 )
 
 func DecodeBolt12Invoice(invoice string) (*Invoice, error) {
-	hrp, words, err := bech32ToWords(invoice)
+	payload, err := bech32ToWords(invoice, "lni")
 	if err != nil {
 		return nil, fmt.Errorf("bech32ToWords: %w", err)
-	}
-
-	if hrp != "lni" {
-		return nil, errors.New("invalid BOLT12 human-readable part")
-	}
-
-	payload, err := bech32.ConvertBits(words, 5, 8, false)
-	if err != nil {
-		return nil, fmt.Errorf("ConvertBits: %w", err)
 	}
 
 	invoiceData := new(Invoice)
@@ -82,6 +73,14 @@ func DecodeBolt12Invoice(invoice string) (*Invoice, error) {
 		return nil, fmt.Errorf("decode: %w", err)
 	}
 
+	if len(invoiceData.PaymentHash) != 32 {
+		return nil, errors.New("invoice payment hash must be 32 bytes")
+	}
+
+	if invoiceData.Amount == 0 {
+		return nil, errors.New("invoice amount is required")
+	}
+
 	invoiceData.AmountInSats, err = safecast.ToUint64(invoiceData.Amount / 1000)
 	if err != nil {
 		return nil, fmt.Errorf("invalid amount in sats: %w", err)
@@ -93,18 +92,9 @@ func DecodeBolt12Invoice(invoice string) (*Invoice, error) {
 }
 
 func DecodeBolt12Offer(offer string) (*Offer, error) {
-	hrp, words, err := bech32ToWords(offer)
+	payload, err := bech32ToWords(offer, "lno")
 	if err != nil {
 		return nil, fmt.Errorf("bech32ToWords: %w", err)
-	}
-
-	if hrp != "lno" {
-		return nil, errors.New("invalid BOLT12 human-readable part")
-	}
-
-	payload, err := bech32.ConvertBits(words, 5, 8, false)
-	if err != nil {
-		return nil, fmt.Errorf("ConvertBits: %w", err)
 	}
 
 	offerData := new(Offer)
@@ -124,6 +114,14 @@ func DecodeBolt12Offer(offer string) (*Offer, error) {
 
 	if err != nil {
 		return nil, fmt.Errorf("decode: %w", err)
+	}
+
+	if len(offerData.Description) == 0 {
+		return nil, errors.New("offer description is required")
+	}
+
+	if offerData.Amount == 0 {
+		return nil, errors.New("offer amount is required")
 	}
 
 	offerData.AmountInSats, err = safecast.ToUint64(offerData.Amount / 1000)
@@ -160,31 +158,38 @@ func cleanBech32String(bech32String string) string {
 }
 
 // Parse and decode Bech32 data part into 5-bit words
-func bech32ToWords(bech32String string) (prefix string, words []byte, err error) {
+func bech32ToWords(bech32String string, hrp string) (payload []byte, err error) {
 	// 1. Remove formatting and make lowercase
 	cleanString := strings.ToLower(cleanBech32String(bech32String))
 
 	// 2. Split into prefix and data by first '1'
 	parts := strings.SplitN(cleanString, "1", 2)
 	if len(parts) != 2 {
-		return "", nil, errors.New("invalid BOLT12 format: missing separator")
+		return nil, errors.New("invalid BOLT12 format: missing separator")
 	}
 	prefix, data := parts[0], parts[1]
 
-	// 3. Bech32 charset
 	const charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
-	// 4. Convert data chars to 5-bit words
-	words = make([]byte, 0, len(data))
+	words := make([]byte, 0, len(data))
 	for _, r := range data {
 		index := strings.IndexRune(charset, r)
 		if index == -1 {
-			return "", nil, errors.New("invalid character in data part")
+			return nil, errors.New("invalid character in data part")
 		}
 		words = append(words, byte(index))
 	}
 
-	return prefix, words, nil
+	if prefix != hrp {
+		return nil, fmt.Errorf("invalid prefix: expected %s, got %s", hrp, prefix)
+	}
+
+	payload, err = bech32.ConvertBits(words, 5, 8, false)
+	if err != nil {
+		return nil, fmt.Errorf("ConvertBits: %w", err)
+	}
+
+	return payload, nil
 }
 
 func IsBolt12Offer(offer string) bool {
