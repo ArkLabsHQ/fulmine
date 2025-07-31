@@ -106,12 +106,8 @@ func sendPostRequest[T any](boltz *Api, endpoint string, requestBody interface{}
 		return nil, err
 	}
 
-	println(boltz.URL)
-
 	res, err := boltz.Client.Post(boltz.URL+"/v2"+endpoint, "application/json", bytes.NewBuffer(rawBody))
 	if err != nil {
-		println(err.Error())
-
 		return nil, err
 
 	}

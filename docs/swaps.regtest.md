@@ -52,7 +52,7 @@ Start CLN used by boltz:
 ```sh
 docker compose -f boltz.docker-compose.yml up -d boltz-cln
 # Create an alias for lncli
-alias lncli="docker exec -it boltz-cln lightning-cli --network=regtest"
+alias clncli="docker exec -it boltz-cln lightning-cli --network=regtest"
 ```
 
 
@@ -67,7 +67,7 @@ nigiri faucet <address>
 Fund CLN wallet:
 
 ```sh 
-lncli --network=regtest newaddr bech32
+clncli --network=regtest newaddr bech32
 # Faucet 1 BTC
 nigiri faucet <address>
 ```
@@ -84,19 +84,12 @@ nigiri lnd listpeers | jq .peers | jq length
 Connect the CLN instances:
 
 ```sh
-lncli connect `nigiri cln getinfo | jq -r .id` cln 9935
+clncli connect `nigiri cln getinfo | jq -r .id` cln 9935
 # Check the list of peers contains exactly one peer on both sides
-lncli listpeers | jq .peers | jq length
+clncli listpeers | jq .peers | jq length
 nigiri cln listpeers | jq .peers | jq length
 ```
-get address
 
-
-open channel 
-```sh
-# 100k sats channel Boltz <> User
-lncli fundchannel id=`nigiri cln getinfo | jq -r .id` amount=100000
-```
 
 Open and fund channel between the LND instances:
 
@@ -115,13 +108,13 @@ Open and fund channel between the CLN instances:
 
 ```sh
 # 100k sats channel Boltz <> User
-lncli fundchannel id=`nigiri cln getinfo | jq -r .id` amount=100000
+clncli fundchannel id=`nigiri cln getinfo | jq -r .id` amount=100000
 # Make the channel mature by mining 10 blocks
 nigiri rpc --generate 10
 # Send 50k sats to the other side to balance the channel
 nigiri cln addinvoice --amt 50000
 # Type 'yes' when asked
-lncli payinvoice <invoice>
+clncli payinvoice <invoice>
 ```
 
 

@@ -57,7 +57,6 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
-	github.com/arkade-os/go-sdk/api-spec v0.0.0-20250708202756-ea74c26f2e8c // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btclog/v2 v2.0.1-0.20250602222548-9967d19bb084 // indirect
 	github.com/btcsuite/winsvc v1.0.0 // indirect
@@ -178,7 +177,6 @@ require (
 )
 
 require (
-	github.com/ArkLabsHQ/fulmine/pkg/swap v0.0.0-00010101000000-000000000000
 	github.com/FactomProject/basen v0.0.0-20150613233007-fe3947df716e // indirect
 	github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec // indirect
 	github.com/aead/siphash v1.0.1 // indirect
