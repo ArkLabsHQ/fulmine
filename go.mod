@@ -11,7 +11,7 @@ replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-d
 require (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-00010101000000-000000000000
-	github.com/a-h/templ v0.3.920
+	github.com/a-h/templ v0.3.924
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/ccoveille/go-safecast v1.2.0
 	github.com/dgraph-io/badger/v4 v4.6.0
@@ -42,10 +42,10 @@ require (
 )
 
 require (
-	github.com/arkade-os/arkd/pkg/ark-lib v0.7.0
+	github.com/arkade-os/arkd/pkg/ark-lib v0.7.1-0.20250724164901-72ea52fed011
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/go-sdk v0.6.3-0.20250724173930-5eeaed3f7640
+	github.com/arkade-os/go-sdk v0.6.3-0.20250731195833-a571317dbbab
 )
 
 require (

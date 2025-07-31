@@ -5,7 +5,7 @@ go 1.23.6
 toolchain go1.24.2
 
 require (
-	github.com/arkade-os/arkd/pkg/ark-lib v0.7.0
+	github.com/arkade-os/arkd/pkg/ark-lib v0.7.1-0.20250724164901-72ea52fed011
 	github.com/btcsuite/btcd v0.24.3-0.20250318170759-4f4ea81776d6
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
