@@ -281,6 +281,11 @@ func (h *SwapHandler) refundVHTLC(
 	if err != nil {
 		return "", err
 	}
+
+	if len(vtxos) == 0 {
+		return "", fmt.Errorf("no vtxos found for the given vhtlc opts: %v", vhtlcOpts)
+	}
+
 	vtxo := vtxos[0]
 
 	vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
@@ -478,6 +483,7 @@ func (h *SwapHandler) waitAndClaimVHTLC(
 	ctx context.Context, swapId string, preimage []byte, vhtlcOpts *vhtlc.Opts,
 ) (string, error) {
 	ws := h.boltzSvc.NewWebsocket()
+	defer ws.Close()
 	{
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
