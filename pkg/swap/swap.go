@@ -33,20 +33,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	defaultUnilateralClaimDelay                 = 512
-	defaultUnilateralRefundDelay                = 1024
-	defaultUnilateralRefundWithoutReceiverDelay = 224
-	defaultRefundLocktime                       = time.Hour * 24
-)
-
-var boltzURLByNetwork = map[string]string{
-	arklib.Bitcoin.Name:          "https://api.boltz.exchange",
-	arklib.BitcoinTestNet.Name:   "https://api.testnet.boltz.exchange",
-	arklib.BitcoinMutinyNet.Name: "https://api.boltz.mutinynet.arkade.sh",
-	arklib.BitcoinRegTest.Name:   "http://localhost:9001",
-}
-
 var ErrorNoVtxosFound = fmt.Errorf("no vtxos found for the given vhtlc opts")
 
 type SwapHandler struct {
@@ -57,15 +43,13 @@ type SwapHandler struct {
 	publicKey       *btcec.PublicKey
 }
 
-func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.TransportClient, indexerClient indexer.Indexer, boltzUrl, boltzWSUrl string, pubkey *btcec.PublicKey) *SwapHandler {
-	println("boltzUrl:", boltzUrl, "boltzWSUrl:", boltzWSUrl)
-	boltzSvc := &boltz.Api{URL: boltzUrl, WSURL: boltzWSUrl}
+func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.TransportClient, indexerClient indexer.Indexer, boltzSvc *boltz.Api, publicKey *btcec.PublicKey) *SwapHandler {
 
 	return &SwapHandler{
 		arkClient:       arkClient,
 		transportClient: transportClient,
 		boltzSvc:        boltzSvc,
-		publicKey:       pubkey,
+		publicKey:       publicKey,
 	}
 }
 
@@ -77,7 +61,7 @@ func (h *SwapHandler) PayInvoice(ctx context.Context, invoice string) (string, e
 	return h.submarineSwap(ctx, invoice)
 }
 
-func (h *SwapHandler) PayOffer(ctx context.Context, offer string) (string, error) {
+func (h *SwapHandler) PayOffer(ctx context.Context, offer string, lightningUrl string) (string, error) {
 	// Decode the offer to get the amount
 	decodedOffer, err := DecodeBolt12Offer(offer)
 	if err != nil {
@@ -90,25 +74,18 @@ func (h *SwapHandler) PayOffer(ctx context.Context, offer string) (string, error
 		return "", fmt.Errorf("offer amount is 0")
 	}
 
-	configData, err := h.arkClient.GetConfigData(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to get config data: %v", err)
-	}
-
 	boltzApi := h.boltzSvc
-	if configData.Network.Name == arklib.BitcoinRegTest.Name {
+	if lightningUrl != "" {
 		boltzApi = &boltz.Api{
-			URL: "http://localhost:9005",
+			URL: lightningUrl,
 		}
 	}
 
 	response, err := boltzApi.FetchBolt12Invoice(boltz.FetchBolt12InvoiceRequest{
 		Offer:  offer,
 		Amount: amountInSats,
-		Note:   decodedOffer.Description,
+		Note:   decodedOffer.DescriptionStr,
 	})
-
-	println("Fetched invoice:", response.Invoice)
 
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch invoice: %v", err)
@@ -168,15 +145,19 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string) (string
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
+	unilateralClaimDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim}
+	unilateralRefundDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund}
+	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver}
+
 	vhtlcAddress, _, vhtlcOpts, err := h.getVHTLC(
 		ctx,
 		receiverPubkey,
 		nil,
 		preimageHash,
-		&refundLocktime,
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
+		refundLocktime,
+		unilateralClaimDelay,
+		unilateralRefundDelay,
+		unilateralRefundWithoutReceiverDelay,
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
@@ -192,13 +173,7 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string) (string
 		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
 	}
 
-	// Workaround to connect ws endpoint on a different port for regtest
-	wsClient := h.boltzSvc
-	if h.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
-		wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
-	}
-
-	ws := wsClient.NewWebsocket()
+	ws := h.boltzSvc.NewWebsocket()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	err = ws.Connect()
@@ -248,10 +223,10 @@ func (h *SwapHandler) getVHTLC(
 	ctx context.Context,
 	receiverPubkey, senderPubkey *btcec.PublicKey,
 	preimageHash []byte,
-	refundLocktimeParam *arklib.AbsoluteLocktime,
-	unilateralClaimDelayParam *arklib.RelativeLocktime,
-	unilateralRefundDelayParam *arklib.RelativeLocktime,
-	unilateralRefundWithoutReceiverDelayParam *arklib.RelativeLocktime,
+	refundLocktime arklib.AbsoluteLocktime,
+	unilateralClaimDelay arklib.RelativeLocktime,
+	unilateralRefundDelay arklib.RelativeLocktime,
+	unilateralRefundWithoutReceiverDelay arklib.RelativeLocktime,
 ) (string, *vhtlc.VHTLCScript, *vhtlc.Opts, error) {
 	receiverPubkeySet := receiverPubkey != nil
 	senderPubkeySet := senderPubkey != nil
@@ -263,36 +238,6 @@ func (h *SwapHandler) getVHTLC(
 	}
 	if !senderPubkeySet {
 		senderPubkey = h.publicKey
-	}
-
-	// Default values if not provided
-	refundLocktime := arklib.AbsoluteLocktime(time.Now().Add(defaultRefundLocktime).Unix())
-	if refundLocktimeParam != nil {
-		refundLocktime = *refundLocktimeParam
-	}
-
-	unilateralClaimDelay := arklib.RelativeLocktime{
-		Type:  arklib.LocktimeTypeSecond,
-		Value: defaultUnilateralClaimDelay, //60 * 12, // 12 hours
-	}
-	if unilateralClaimDelayParam != nil {
-		unilateralClaimDelay = *unilateralClaimDelayParam
-	}
-
-	unilateralRefundDelay := arklib.RelativeLocktime{
-		Type:  arklib.LocktimeTypeSecond,
-		Value: defaultUnilateralRefundDelay, //60 * 24, // 24 hours
-	}
-	if unilateralRefundDelayParam != nil {
-		unilateralRefundDelay = *unilateralRefundDelayParam
-	}
-
-	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{
-		Type:  arklib.LocktimeTypeBlock,
-		Value: defaultUnilateralRefundWithoutReceiverDelay, // 224 blocks
-	}
-	if unilateralRefundWithoutReceiverDelayParam != nil {
-		unilateralRefundWithoutReceiverDelay = *unilateralRefundWithoutReceiverDelayParam
 	}
 
 	config, err := h.arkClient.GetConfigData(ctx)
@@ -311,7 +256,6 @@ func (h *SwapHandler) getVHTLC(
 		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
 	}
 
-	println("ops", opts.Receiver, opts.Sender, opts.Server)
 	vHTLC, err := vhtlc.NewVHTLCScript(opts)
 	if err != nil {
 		return "", nil, nil, err
@@ -498,15 +442,19 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
+	unilateralClaimDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim}
+	unilateralRefundDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund}
+	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver}
+
 	vhtlcAddress, _, vhtlcOpts, err := h.getVHTLC(
 		ctx,
 		nil,
 		senderPubkey,
 		gotPreimageHash,
-		&refundLocktime,
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
+		refundLocktime,
+		unilateralClaimDelay,
+		unilateralRefundDelay,
+		unilateralRefundWithoutReceiverDelay,
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
@@ -529,12 +477,7 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 func (h *SwapHandler) waitAndClaimVHTLC(
 	ctx context.Context, swapId string, preimage []byte, vhtlcOpts *vhtlc.Opts,
 ) (string, error) {
-	wsClient := h.boltzSvc
-	if h.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
-		wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
-	}
-
-	ws := wsClient.NewWebsocket()
+	ws := h.boltzSvc.NewWebsocket()
 	{
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()

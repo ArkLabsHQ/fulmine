@@ -1,3 +1,4 @@
+# Taken from a Boltz Repository https://github.com/BoltzExchange/boltz-backend/blob/master/docker/c-lightning/Dockerfile
 ARG VERSION=latest
 
 FROM ubuntu:22.04 AS build

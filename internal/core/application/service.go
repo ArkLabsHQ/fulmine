@@ -1054,12 +1054,23 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (string, error)
 		return "", err
 	}
 
-	preimage := make([]byte, 32)
-	if _, err := rand.Read(preimage); err != nil {
-		return "", fmt.Errorf("failed to generate preimage: %w", err)
+	configData, err := s.GetConfigData(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get config data: %v", err)
 	}
 
-	return s.reverseSwapWithPreimage(ctx, amount, preimage, s.publicKey.SerializeCompressed())
+	boltzApi := s.boltzSvc
+
+	if configData.Network.Name == arklib.BitcoinRegTest.Name {
+		boltzApi = &boltz.Api{
+			URL:   s.boltzUrl,
+			WSURL: "http://localhost:9004",
+		}
+	}
+
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
+
+	return swapHandler.GetInvoice(ctx, amount)
 }
 
 func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error) {
@@ -1067,7 +1078,21 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error
 		return "", err
 	}
 
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, s.boltzSvc.URL, s.boltzSvc.WSURL, s.publicKey)
+	configData, err := s.GetConfigData(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get config data: %v", err)
+	}
+
+	boltzApi := s.boltzSvc
+
+	if configData.Network.Name == arklib.BitcoinRegTest.Name {
+		boltzApi = &boltz.Api{
+			URL:   s.boltzUrl,
+			WSURL: "http://localhost:9004",
+		}
+	}
+
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
 
 	return swapHandler.PayInvoice(ctx, invoice)
 }
@@ -1077,9 +1102,24 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (string, error) {
 		return "", err
 	}
 
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, s.boltzSvc.URL, s.boltzSvc.WSURL, s.publicKey)
+	configData, err := s.GetConfigData(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get config data: %v", err)
+	}
 
-	return swapHandler.PayOffer(ctx, offer)
+	boltzApi := s.boltzSvc
+	var lightningUrl string
+
+	if configData.Network.Name == arklib.BitcoinRegTest.Name {
+		boltzApi = &boltz.Api{
+			URL: "http://localhost:9005",
+		}
+		lightningUrl = "http://localhost:9005"
+	}
+
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
+
+	return swapHandler.PayOffer(ctx, offer, lightningUrl)
 
 }
 
