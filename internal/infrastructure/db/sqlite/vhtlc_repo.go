@@ -29,7 +29,7 @@ func NewVHTLCRepository(db *sql.DB) (domain.VHTLCRepository, error) {
 func (r *vhtlcRepository) Add(ctx context.Context, opts vhtlc.Opts) error {
 	optsParams := toOptParams(opts)
 	if _, err := r.Get(ctx, optsParams.PreimageHash); err == nil {
-		return fmt.Errorf("vHTLC with preimage hash %s alllready exists", optsParams.PreimageHash)
+		return fmt.Errorf("vHTLC with preimage hash %s already exists", optsParams.PreimageHash)
 	}
 
 	if err := r.querier.InsertVHTLC(ctx, optsParams); err != nil {

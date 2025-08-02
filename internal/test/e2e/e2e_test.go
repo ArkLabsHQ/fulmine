@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"testing"
+	"time"
 
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/lightningnetwork/lnd/input"
@@ -19,6 +20,8 @@ func TestOnboard(t *testing.T) {
 	txid, err := faucet(onboardAddress, "0.00001")
 	require.NoError(t, err)
 	require.NotEmpty(t, txid)
+
+	time.Sleep(11 * time.Second) // onchain polling interval is 10 seconds
 
 	history, err := getTransactionHistory()
 	require.NoError(t, err)

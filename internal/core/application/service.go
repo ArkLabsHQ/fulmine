@@ -704,6 +704,12 @@ func (s *Service) GetVHTLC(
 		return "", nil, nil, err
 	}
 
+	// check if preimage hash already exists in DB
+	preimageHashStr := hex.EncodeToString(preimageHash)
+	if _, err := s.dbSvc.VHTLC().Get(ctx, preimageHashStr); err == nil {
+		return "", nil, nil, fmt.Errorf("vHTLC with preimage hash %s already exists", preimageHashStr)
+	}
+
 	addr, vhtlcScript, opts, err := s.getVHTLC(
 		ctx, receiverPubkey, senderPubkey, preimageHash,
 		refundLocktimeParam, unilateralClaimDelayParam, unilateralRefundDelayParam,
@@ -715,7 +721,8 @@ func (s *Service) GetVHTLC(
 
 	go func() {
 		if err := s.dbSvc.VHTLC().Add(context.Background(), *opts); err != nil {
-			log.WithError(err).Fatal("failed to add vhtlc")
+			log.WithError(err).Error("failed to add vhtlc")
+			return
 		}
 
 		log.Debugf("added new vhtlc %x", preimageHash)
