@@ -1195,7 +1195,7 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 
 				needSchedule := false
 
-				for _, utxo := range event.NewUtxos {
+				for _, utxo := range event.ConfirmedUtxos {
 					confirmedAt := time.Unix(utxo.ConfirmedAt, 0)
 					spendableAt := confirmedAt.Add(boardingDuration)
 
