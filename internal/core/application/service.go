@@ -1164,66 +1164,43 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 // subscribeForBoardingEvent aims to update the scheduled settlement
 // by checking for spent and new vtxos on the given boarding address
 func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string, cfg *types.Config) {
-	ticker := time.NewTicker(time.Minute)
-	defer ticker.Stop()
-
 	boardingTimelock := arklib.RelativeLocktime{Type: cfg.BoardingExitDelay.Type, Value: cfg.BoardingExitDelay.Value}
+	boardingDuration := time.Duration(boardingTimelock.Seconds() * int64(time.Second))
 
-	expl := explorer.NewExplorer(s.esploraUrl, cfg.Network)
-
-	currentSet := make(map[string]types.Utxo)
-	utxos, err := expl.GetUtxos(address)
+	expl, err := explorer.NewExplorer(s.esploraUrl, cfg.Network)
 	if err != nil {
-		log.WithError(err).Error("failed to get utxos")
+		log.WithError(err).Error("failed to create explorer")
 		return
 	}
-	for _, utxo := range utxos {
-		key := fmt.Sprintf("%s:%d", utxo.Txid, utxo.Vout)
-		currentSet[key] = utxo.ToUtxo(boardingTimelock, []string{})
+
+	if err := expl.SubscribeForAddresses([]string{address}); err != nil {
+		log.WithError(err).Error("failed to subscribe for addresses")
+		return
 	}
+
+	eventsCh := expl.GetAddressesEvents()
 
 	for {
 		select {
 		case <-s.stopBoardingEventListener:
 			return
-		case <-ticker.C:
-			utxos, err := expl.GetUtxos(address)
-			if err != nil {
-				log.WithError(err).Error("failed to get utxos")
-				continue
-			}
-
-			if len(utxos) == 0 {
-				continue
-			}
-
-			newSet := make(map[string]types.Utxo)
-			for _, utxo := range utxos {
-				key := fmt.Sprintf("%s:%d", utxo.Txid, utxo.Vout)
-				newSet[key] = utxo.ToUtxo(boardingTimelock, []string{})
-			}
-
-			// find new utxos
-			newUtxos := make([]types.Utxo, 0)
-			for key, newUtxo := range newSet {
-				if _, exists := currentSet[key]; !exists {
-					newUtxos = append(newUtxos, newUtxo)
-				}
-			}
-
-			if len(newUtxos) > 0 {
-				log.Infof("boarding event detected: %d new utxos", len(newUtxos))
+		case event := <-eventsCh:
+			if len(event.NewUtxos) > 0 {
+				log.Infof("boarding event detected: %d new utxos", len(event.NewUtxos))
 			}
 
 			// if expiry is before the next scheduled settlement, we need to schedule a new one
-			if len(newUtxos) > 0 {
+			if len(event.ConfirmedUtxos) > 0 {
 				nextScheduledSettlement := s.WhenNextSettlement(ctx)
 
 				needSchedule := false
 
-				for _, vtxo := range newUtxos {
-					if nextScheduledSettlement.IsZero() || vtxo.SpendableAt.Before(nextScheduledSettlement) {
-						nextScheduledSettlement = vtxo.SpendableAt
+				for _, utxo := range event.NewUtxos {
+					confirmedAt := time.Unix(utxo.ConfirmedAt, 0)
+					spendableAt := confirmedAt.Add(boardingDuration)
+
+					if nextScheduledSettlement.IsZero() || spendableAt.Before(nextScheduledSettlement) {
+						nextScheduledSettlement = spendableAt
 						needSchedule = true
 					}
 				}
@@ -1234,9 +1211,6 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 					}
 				}
 			}
-
-			// update current set
-			currentSet = newSet
 		}
 	}
 }
