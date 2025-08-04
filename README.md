@@ -77,6 +77,7 @@ The following environment variables can be configured:
 | `FULMINE_UNLOCKER_PASSWORD` | Password string to use for unlocking (when using `env` unlocker) | Not set by default |
 | `FULMINE_BOLTZ_URL` | URL of the custom Boltz backend to connect to for swaps | Not set by default |
 | `FULMINE_BOLTZ_WS_URL` | URL of the custom Boltz WebSocket backend to connect to for swap events | Not set by default |
+| `FULMINE_DISABLE_TELEMETRY` | Opt out of telemetry logs | False by default | 
 
 When using Docker, you can set these variables using the `-e` flag:
 
