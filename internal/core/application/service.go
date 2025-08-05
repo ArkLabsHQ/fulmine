@@ -11,7 +11,6 @@ import (
 	"math"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
@@ -96,9 +95,8 @@ type Service struct {
 
 	isReady bool
 
-	subscriptionId         string
-	internalSubscriptionId string
-	subscriptionLock       sync.RWMutex
+	internalSubscription *subscriptionHandler
+	externalSubscription *subscriptionHandler
 
 	walletUpdates chan WalletUpdate
 
@@ -106,8 +104,6 @@ type Service struct {
 	notifications chan Notification
 
 	stopBoardingEventListener chan struct{}
-	closeInternalListener     func()
-	closeAddressEventListener func()
 }
 
 type Notification struct {
@@ -154,7 +150,6 @@ func NewService(
 			schedulerSvc:              schedulerSvc,
 			publicKey:                 nil,
 			isReady:                   true,
-			subscriptionLock:          sync.RWMutex{},
 			notifications:             make(chan Notification),
 			stopBoardingEventListener: make(chan struct{}),
 			esploraUrl:                data.ExplorerURL,
@@ -199,7 +194,6 @@ func NewService(
 		dbSvc:                     dbSvc,
 		grpcClient:                nil,
 		schedulerSvc:              schedulerSvc,
-		subscriptionLock:          sync.RWMutex{},
 		notifications:             make(chan Notification),
 		stopBoardingEventListener: make(chan struct{}),
 		esploraUrl:                esploraUrl,
@@ -308,24 +302,13 @@ func (s *Service) LockNode(ctx context.Context) error {
 	s.schedulerSvc.Stop()
 	log.Info("scheduler stopped")
 
-	// close all subscriptions
-	s.subscriptionLock.Lock()
-	defer s.subscriptionLock.Unlock()
-
-	// close address subscriptions stream
-	if s.closeAddressEventListener != nil {
-		s.closeAddressEventListener()
-		s.closeAddressEventListener = nil
-	}
+	s.internalSubscription.stop()
+	s.externalSubscription.stop()
 
 	// close boarding event listener
 	s.stopBoardingEventListener <- struct{}{}
 	close(s.stopBoardingEventListener)
 	s.stopBoardingEventListener = make(chan struct{})
-
-	// close internal address event listener
-	s.closeInternalListener()
-	s.closeInternalListener = nil
 
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: "lock"}
@@ -406,69 +389,35 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 
-	decodedAddress, err := arklib.DecodeAddressV0(offchainAddress)
+	offchainPkScript, err := addressPkScript(offchainAddress)
 	if err != nil {
-		log.WithError(err).Error("failed to decode offchain address")
+		log.WithError(err).Error("failed to get offchain address")
 		return err
 	}
 
-	p2trScript, err := txscript.PayToTaprootScript(decodedAddress.VtxoTapKey)
-	if err != nil {
-		log.WithError(err).Error("failed to create p2tr script")
+	s.internalSubscription = newSubscriptionHandler(
+		settings.ServerUrl,
+		internalScriptsStore(offchainPkScript),
+		s.handleInternalAddressEventChannel,
+	)
+
+	s.externalSubscription = newSubscriptionHandler(
+		settings.ServerUrl,
+		s.dbSvc.SubscribedScript(),
+		s.handleAddressEventChannel(arkConfig),
+	)
+
+	if err := s.internalSubscription.start(); err != nil {
+		log.WithError(err).Error("failed to start internal subscription")
 		return err
 	}
-
-	offchainPubkey := hex.EncodeToString(p2trScript)
-
-	if err := s.subscribeForScripts(
-		context.Background(), "", []string{offchainPubkey},
-		func(eventsCh <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
-			log.Debugf("created new subscription %s for internal addresses", subId)
-			go s.handleInternalAddressEventChannel(eventsCh)
-			s.internalSubscriptionId = subId
-			s.closeInternalListener = func() {
-				s.internalSubscriptionId = ""
-				closeFn()
-				log.Debugf("removed subscription %s for internal addresses", subId)
-			}
-		},
-	); err != nil {
-		log.WithError(err).Error("failed to subscribe for our scripts")
+	if err := s.externalSubscription.start(); err != nil {
+		log.WithError(err).Error("failed to start external subscription")
 		return err
 	}
-
-	log.Debug("subscribed for internal addresses")
 
 	if arkConfig.UtxoMaxAmount != 0 {
 		go s.subscribeForBoardingEvent(ctx, boardingAddr, arkConfig)
-	}
-
-	// resubscribe to previously subscribed scripts
-	scriptsToSubscribe, err := s.dbSvc.SubscribedScript().Get(ctx)
-	if err != nil {
-		log.WithError(err).Error("failed to get subscribed scripts")
-		return err
-	}
-
-	if len(scriptsToSubscribe) > 0 {
-		if err := s.subscribeForScripts(
-			context.Background(), "", scriptsToSubscribe,
-			func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
-				log.Debugf("created new subscription %s for external addresses", subId)
-				go s.handleAddressEventChannel(stream, arkConfig)
-				s.subscriptionId = subId
-				s.closeAddressEventListener = func() {
-					s.subscriptionId = ""
-					closeFn()
-					log.Debugf("removed subscription %s for external addresses", subId)
-				}
-			},
-		); err != nil {
-			log.WithError(err).Error("failed to resubscribe for scripts")
-			return err
-		}
-
-		log.Debugf("restored subscription for %d external addresses", len(scriptsToSubscribe))
 	}
 
 	go func() {
@@ -841,84 +790,17 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 		return err
 	}
 
-	s.subscriptionLock.Lock()
-	defer s.subscriptionLock.Unlock()
-
-	subscribedScripts, err := s.dbSvc.SubscribedScript().Get(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get subscribed scripts from db: %w", err)
-	}
-	subscribedScriptsMap := make(map[string]struct{}, len(subscribedScripts))
-	for _, script := range subscribedScripts {
-		subscribedScriptsMap[script] = struct{}{}
-	}
-
-	outScripts := make([]string, 0, len(addresses))
+	scripts := make([]string, 0, len(addresses))
 	for _, addr := range addresses {
-		if addr == "" {
-			return fmt.Errorf("empty address provided")
-		}
-
-		decodedAddress, err := arklib.DecodeAddressV0(addr)
-		if err != nil {
-			return fmt.Errorf("failed to decode address %s: %w", addr, err)
-		}
-
-		p2trScript, err := txscript.PayToTaprootScript(decodedAddress.VtxoTapKey)
+		pkScript, err := addressPkScript(addr)
 		if err != nil {
 			return fmt.Errorf("failed to parse address to p2tr script: %w", err)
 		}
-		serialised_script := hex.EncodeToString(p2trScript)
 
-		if _, ok := subscribedScriptsMap[serialised_script]; ok {
-			continue
-		}
-
-		outScripts = append(outScripts, serialised_script)
+		scripts = append(scripts, pkScript)
 	}
 
-	if len(outScripts) == 0 {
-		return nil
-	}
-
-	if s.subscriptionId != "" {
-		err = s.subscribeForScripts(ctx, s.subscriptionId, outScripts, nil)
-	} else {
-		arkConfig, _err := s.GetConfigData(ctx)
-		if _err != nil {
-			return fmt.Errorf("failed to get config data: %s", _err)
-		}
-		err = s.subscribeForScripts(
-			context.Background(), "", outScripts,
-			func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string) {
-				log.Debugf("created new subscription %s for external addresses", subId)
-				go s.handleAddressEventChannel(stream, arkConfig)
-				s.subscriptionId = subId
-				s.closeAddressEventListener = func() {
-					s.subscriptionId = ""
-					closeFn()
-					log.Debugf("removed subscription %s for external addresses", subId)
-				}
-			},
-		)
-	}
-	if err != nil {
-		return fmt.Errorf("failed to subscribe for addresses: %w", err)
-	}
-
-	log.Debugf("subscribed for %d external addresses", len(outScripts))
-
-	// store in db
-	count, err := s.dbSvc.SubscribedScript().Add(ctx, outScripts)
-	if err != nil {
-		return fmt.Errorf("failed to add subscribed scripts to db: %w", err)
-	}
-
-	if count > 0 {
-		log.Debugf("added %d subscribed scripts to db", count)
-	}
-
-	return nil
+	return s.externalSubscription.subscribe(ctx, scripts)
 }
 
 func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []string) error {
@@ -926,66 +808,16 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 		return err
 	}
 
-	s.subscriptionLock.Lock()
-	defer s.subscriptionLock.Unlock()
-
-	subscribedScripts, err := s.dbSvc.SubscribedScript().Get(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get subscribed scripts form db: %s", err)
-	}
-
-	indexedScripts := make(map[string]struct{}, len(subscribedScripts))
-	for _, script := range subscribedScripts {
-		indexedScripts[script] = struct{}{}
-	}
-
-	outScripts := make([]string, 0, len(addresses))
+	scripts := make([]string, 0, len(addresses))
 	for _, addr := range addresses {
-		decoded, err := arklib.DecodeAddressV0(addr)
+		pkScript, err := addressPkScript(addr)
 		if err != nil {
-			return fmt.Errorf("failed to decode address %s: %s", addr, err)
+			return fmt.Errorf("failed to parse address to p2tr script: %w", err)
 		}
-		outScript, err := script.P2TRScript(decoded.VtxoTapKey)
-		if err != nil {
-			return fmt.Errorf("failed to parse address to p2tr script: %s", err)
-		}
-		serializedScript := hex.EncodeToString(outScript)
-
-		_, ok := indexedScripts[serializedScript]
-		if !ok {
-			continue
-		}
-
-		outScripts = append(outScripts, serializedScript)
+		scripts = append(scripts, pkScript)
 	}
 
-	if err = s.indexerClient.UnsubscribeForScripts(ctx, s.subscriptionId, outScripts); err != nil {
-		return fmt.Errorf("failed to unsubscribe for addresses: %s", err)
-	}
-
-	log.Debugf("unsubscribed for %d external addresses", len(outScripts))
-
-	// remove scripts from db
-	count, err := s.dbSvc.SubscribedScript().Delete(ctx, outScripts)
-	if err != nil {
-		return fmt.Errorf("failed to remove subscribed scripts from db: %s", err)
-	}
-
-	subscribedScripts, err = s.dbSvc.SubscribedScript().Get(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get subscribed scripts form db: %s", err)
-	}
-	if count > 0 {
-		log.Debugf("removed %d subscribed scripts from db", count)
-	}
-
-	if len(subscribedScripts) == 0 {
-		s.subscriptionId = ""
-		s.closeAddressEventListener()
-		s.closeAddressEventListener = nil
-	}
-
-	return nil
+	return s.externalSubscription.unsubscribe(ctx, scripts)
 }
 
 func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification {
@@ -1090,24 +922,6 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 
 	if s.IsLocked(ctx) {
 		return fmt.Errorf("service is locked")
-	}
-
-	return nil
-}
-
-func (s *Service) subscribeForScripts(ctx context.Context, subscriptionId string, scripts []string, extraFunc func(stream <-chan *indexer.ScriptEvent, closeFn func(), subId string)) error {
-	subscriptionId, err := s.indexerClient.SubscribeForScripts(ctx, subscriptionId, scripts)
-	if err != nil {
-		return fmt.Errorf("failed to subscribe for scripts: %w", err)
-	}
-
-	if extraFunc != nil {
-		subscriptionChannel, closeFn, err := s.indexerClient.GetSubscription(ctx, subscriptionId)
-		if err != nil {
-			return fmt.Errorf("failed to get subscription for scripts: %w", err)
-		}
-
-		extraFunc(subscriptionChannel, closeFn, subscriptionId)
 	}
 
 	return nil
@@ -1242,17 +1056,16 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 }
 
 // handleAddressEventChannel is used to forward address events to the notifications channel
-func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent, config *types.Config) {
-	log.Infof("starting address event handler")
-	for event := range eventsCh {
+func (s *Service) handleAddressEventChannel(config *types.Config) func(event *indexer.ScriptEvent) {
+	return func(event *indexer.ScriptEvent) {
 		if event == nil {
 			log.Warn("Received nil event from event channel")
-			continue
+			return
 		}
 
 		if event.Err != nil {
 			log.WithError(event.Err).Error("AddressEvent subscription error")
-			continue
+			return
 		}
 
 		log.Infof("received address event(%d spent vtxos, %d new vtxos)", len(event.SpentVtxos), len(event.NewVtxos))
@@ -1301,58 +1114,56 @@ func (s *Service) handleAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent
 
 // handleInternalAddressEventChannel is used to handle address events from the internal address event channel
 // it is used to schedule next settlement when a VTXO is spent or created
-func (s *Service) handleInternalAddressEventChannel(eventsCh <-chan *indexer.ScriptEvent) {
-	for event := range eventsCh {
-		if event.Err != nil {
-			log.WithError(event.Err).Error("AddressEvent subscription error")
-			continue
-		}
+func (s *Service) handleInternalAddressEventChannel(event *indexer.ScriptEvent) {
+	if event.Err != nil {
+		log.WithError(event.Err).Error("AddressEvent subscription error")
+		return
+	}
 
-		ctx := context.Background()
+	ctx := context.Background()
 
-		data, err := s.GetConfigData(ctx)
+	data, err := s.GetConfigData(ctx)
+	if err != nil {
+		log.WithError(err).Error("failed to get config data")
+		return
+	}
+
+	log.Infof("received internal address event (%d spent vtxos, %d new vtxos)", len(event.SpentVtxos), len(event.NewVtxos))
+
+	// if some vtxos were spent, schedule a settlement to soonest expiry among new vtxos / boarding UTXOs set
+	if len(event.SpentVtxos) > 0 {
+		nextExpiry, err := s.computeNextExpiry(ctx, data)
 		if err != nil {
-			log.WithError(err).Error("failed to get config data")
+			log.WithError(err).Error("failed to compute next expiry")
 			return
 		}
 
-		log.Infof("received internal address event (%d spent vtxos, %d new vtxos)", len(event.SpentVtxos), len(event.NewVtxos))
-
-		// if some vtxos were spent, schedule a settlement to soonest expiry among new vtxos / boarding UTXOs set
-		if len(event.SpentVtxos) > 0 {
-			nextExpiry, err := s.computeNextExpiry(ctx, data)
-			if err != nil {
-				log.WithError(err).Error("failed to compute next expiry")
-				return
+		if nextExpiry != nil {
+			if err := s.scheduleNextSettlement(*nextExpiry, data); err != nil {
+				log.WithError(err).Info("schedule next claim failed")
 			}
-
-			if nextExpiry != nil {
-				if err := s.scheduleNextSettlement(*nextExpiry, data); err != nil {
-					log.WithError(err).Info("schedule next claim failed")
-				}
-			}
-
-			return
 		}
 
-		// if some vtxos were created, schedule a settlement to the soonest expiry among new vtxos
-		if len(event.NewVtxos) > 0 {
-			nextScheduledSettlement := s.WhenNextSettlement(ctx)
+		return
+	}
 
-			needSchedule := false
+	// if some vtxos were created, schedule a settlement to the soonest expiry among new vtxos
+	if len(event.NewVtxos) > 0 {
+		nextScheduledSettlement := s.WhenNextSettlement(ctx)
 
-			for _, vtxo := range event.NewVtxos {
-				log.Infof("new vtxo: %s, expires at: %s", vtxo.Txid, vtxo.ExpiresAt.Format(time.RFC3339))
-				if nextScheduledSettlement.IsZero() || vtxo.ExpiresAt.Before(nextScheduledSettlement) {
-					nextScheduledSettlement = vtxo.ExpiresAt
-					needSchedule = true
-				}
+		needSchedule := false
+
+		for _, vtxo := range event.NewVtxos {
+			log.Infof("new vtxo: %s, expires at: %s", vtxo.Txid, vtxo.ExpiresAt.Format(time.RFC3339))
+			if nextScheduledSettlement.IsZero() || vtxo.ExpiresAt.Before(nextScheduledSettlement) {
+				nextScheduledSettlement = vtxo.ExpiresAt
+				needSchedule = true
 			}
+		}
 
-			if needSchedule {
-				if err := s.scheduleNextSettlement(nextScheduledSettlement, data); err != nil {
-					log.WithError(err).Info("schedule next claim failed")
-				}
+		if needSchedule {
+			if err := s.scheduleNextSettlement(nextScheduledSettlement, data); err != nil {
+				log.WithError(err).Info("schedule next claim failed")
 			}
 		}
 	}
@@ -2402,4 +2213,31 @@ func verifyFinalArkTx(finalArkTx string, arkSigner *btcec.PublicKey, expectedTap
 	}
 
 	return nil
+}
+
+func addressPkScript(addr string) (string, error) {
+	decodedAddress, err := arklib.DecodeAddressV0(addr)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode address %s: %w", addr, err)
+	}
+
+	p2trScript, err := txscript.PayToTaprootScript(decodedAddress.VtxoTapKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse address to p2tr script: %w", err)
+	}
+	return hex.EncodeToString(p2trScript), nil
+}
+
+type internalScriptsStore string
+
+func (s internalScriptsStore) Get(ctx context.Context) ([]string, error) {
+	return []string{string(s)}, nil
+}
+
+func (s internalScriptsStore) Add(ctx context.Context, scripts []string) (int, error) {
+	return 0, fmt.Errorf("cannot add scripts to internal subscription")
+}
+
+func (s internalScriptsStore) Delete(ctx context.Context, scripts []string) (int, error) {
+	return 0, fmt.Errorf("cannot delete scripts from internal subscription")
 }
