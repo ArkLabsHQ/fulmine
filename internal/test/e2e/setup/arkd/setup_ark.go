@@ -17,7 +17,7 @@ var arkdExec = "docker exec -t arkd"
 var log = logrus.New()
 
 type ServerInfo struct {
-	Pubkey string `json:"pubkey"`
+	SignerPubkey string `json:"signerPubkey"`
 }
 
 func execCommand(command string) (string, error) {
@@ -104,7 +104,7 @@ func setupArkServer() error {
 	if err := json.Unmarshal(body, &serverInfo); err != nil {
 		return err
 	}
-	log.Info("Ark Server Public Key: ", serverInfo.Pubkey)
+	log.Info("Ark Server Public Key: ", serverInfo.SignerPubkey)
 
 	// Get arkd address and fund it with nigiri faucet
 	arkdAddress, err := execCommand(arkdExec + " arkd wallet address")
