@@ -22,9 +22,10 @@ type subscriptionHandler struct {
 	scripts        scriptsStore
 	onEvent        func(event *indexer.ScriptEvent)
 
-	mu      sync.Mutex
-	closeFn func()
-	id      string
+	mu          sync.Mutex
+	closeFn     func()
+	cancelRetry func()
+	id          string
 }
 
 func newSubscriptionHandler(indexerBaseURL string, scripts scriptsStore, onEvent func(event *indexer.ScriptEvent)) *subscriptionHandler {
@@ -43,9 +44,6 @@ func (h *subscriptionHandler) createIndexerClient() (indexer.Indexer, error) {
 }
 
 func (h *subscriptionHandler) subscribe(ctx context.Context, scripts []string) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
 	count, err := h.scripts.Add(ctx, scripts)
 	if err != nil {
 		return fmt.Errorf("failed to add scripts: %w", err)
@@ -57,7 +55,11 @@ func (h *subscriptionHandler) subscribe(ctx context.Context, scripts []string) e
 
 	log.Debugf("added %d scripts to subscription", count)
 
-	if len(h.id) == 0 {
+	h.mu.Lock()
+	id := h.id
+	h.mu.Unlock()
+
+	if len(id) == 0 {
 		if err := h.start(); err != nil {
 			return err
 		}
@@ -69,7 +71,7 @@ func (h *subscriptionHandler) subscribe(ctx context.Context, scripts []string) e
 		return fmt.Errorf("failed to create indexer client: %w", err)
 	}
 
-	_, err = indexerClient.SubscribeForScripts(ctx, h.id, scripts)
+	_, err = indexerClient.SubscribeForScripts(ctx, id, scripts)
 	if err != nil {
 		log.WithError(err).Warn("failed to update subscription, retrying...")
 		h.stop()
@@ -83,9 +85,6 @@ func (h *subscriptionHandler) subscribe(ctx context.Context, scripts []string) e
 }
 
 func (h *subscriptionHandler) unsubscribe(ctx context.Context, scripts []string) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
 	count, err := h.scripts.Delete(ctx, scripts)
 	if err != nil {
 		return fmt.Errorf("failed to remove scripts: %w", err)
@@ -97,7 +96,11 @@ func (h *subscriptionHandler) unsubscribe(ctx context.Context, scripts []string)
 
 	log.Debugf("removed %d scripts from subscription", count)
 
-	if len(h.id) == 0 {
+	h.mu.Lock()
+	id := h.id
+	h.mu.Unlock()
+
+	if len(id) == 0 {
 		scripts, err := h.scripts.Get(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get scripts: %w", err)
@@ -117,7 +120,7 @@ func (h *subscriptionHandler) unsubscribe(ctx context.Context, scripts []string)
 		return fmt.Errorf("failed to create indexer client: %w", err)
 	}
 
-	err = indexerClient.UnsubscribeForScripts(ctx, h.id, scripts)
+	err = indexerClient.UnsubscribeForScripts(ctx, id, scripts)
 	if err != nil {
 		log.WithError(err).Warn("failed to unsubscribe, retrying...")
 		h.stop()
@@ -141,6 +144,15 @@ func (h *subscriptionHandler) unsubscribe(ctx context.Context, scripts []string)
 }
 
 func (h *subscriptionHandler) stop() {
+	if h.cancelRetry != nil {
+		h.cancelRetry()
+		h.cancelRetry = nil
+	}
+
+	h.close()
+}
+
+func (h *subscriptionHandler) close() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -159,14 +171,8 @@ func (h *subscriptionHandler) start() error {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	h.mu.Lock()
-	h.closeFn = cancel
+	h.cancelRetry = cancel
 	h.mu.Unlock()
-
-	onError := func(err error) {
-		h.stop()
-		log.WithError(err).Warn("retrying in 2 seconds")
-		time.Sleep(2 * time.Second)
-	}
 
 	scripts, err := h.scripts.Get(ctx)
 	if err != nil {
@@ -180,12 +186,21 @@ func (h *subscriptionHandler) start() error {
 	}
 
 	go func() {
+		onError := func(err error) {
+			h.close()
+			log.WithError(err).Warn("retrying in 2 seconds")
+			time.Sleep(2 * time.Second)
+		}
+
 		for {
 			select {
 			case <-ctx.Done():
+				log.Debugf("context done, stop retrying to subscribe")
 				return
 			default:
 			}
+
+			log.Debugf("creating subscription...")
 
 			if err := h.create(ctx); err != nil {
 				onError(err)
@@ -207,10 +222,7 @@ func (h *subscriptionHandler) start() error {
 			}
 
 			h.mu.Lock()
-			h.closeFn = func() {
-				cancel()
-				closeFn()
-			}
+			h.closeFn = closeFn
 			h.mu.Unlock()
 
 			stopped := false
