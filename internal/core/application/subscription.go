@@ -22,7 +22,7 @@ type subscriptionHandler struct {
 	scripts        scriptsStore
 	onEvent        func(event *indexer.ScriptEvent)
 
-	lock    sync.RWMutex
+	mu      sync.Mutex
 	closeFn func()
 	id      string
 }
@@ -32,7 +32,7 @@ func newSubscriptionHandler(indexerBaseURL string, scripts scriptsStore, onEvent
 		indexerBaseURL: indexerBaseURL,
 		scripts:        scripts,
 		onEvent:        onEvent,
-		lock:           sync.RWMutex{},
+		mu:             sync.Mutex{},
 		closeFn:        nil,
 		id:             "",
 	}
@@ -43,8 +43,8 @@ func (h *subscriptionHandler) createIndexerClient() (indexer.Indexer, error) {
 }
 
 func (h *subscriptionHandler) subscribe(ctx context.Context, scripts []string) error {
-	h.lock.Lock()
-	defer h.lock.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
 	count, err := h.scripts.Add(ctx, scripts)
 	if err != nil {
@@ -83,8 +83,8 @@ func (h *subscriptionHandler) subscribe(ctx context.Context, scripts []string) e
 }
 
 func (h *subscriptionHandler) unsubscribe(ctx context.Context, scripts []string) error {
-	h.lock.Lock()
-	defer h.lock.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
 	count, err := h.scripts.Delete(ctx, scripts)
 	if err != nil {
@@ -98,6 +98,14 @@ func (h *subscriptionHandler) unsubscribe(ctx context.Context, scripts []string)
 	log.Debugf("removed %d scripts from subscription", count)
 
 	if len(h.id) == 0 {
+		scripts, err := h.scripts.Get(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get scripts: %w", err)
+		}
+		if len(scripts) == 0 {
+			return nil
+		}
+
 		if err := h.start(); err != nil {
 			return err
 		}
@@ -133,8 +141,8 @@ func (h *subscriptionHandler) unsubscribe(ctx context.Context, scripts []string)
 }
 
 func (h *subscriptionHandler) stop() {
-	h.lock.Lock()
-	defer h.lock.Unlock()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 
 	if h.closeFn != nil {
 		h.closeFn()
@@ -148,7 +156,11 @@ func (h *subscriptionHandler) stop() {
 }
 
 func (h *subscriptionHandler) start() error {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	h.mu.Lock()
+	h.closeFn = cancel
+	h.mu.Unlock()
 
 	onError := func(err error) {
 		h.stop()
@@ -169,6 +181,12 @@ func (h *subscriptionHandler) start() error {
 
 	go func() {
 		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			if err := h.create(ctx); err != nil {
 				onError(err)
 				continue
@@ -188,11 +206,15 @@ func (h *subscriptionHandler) start() error {
 				continue
 			}
 
-			h.closeFn = closeFn
+			h.mu.Lock()
+			h.closeFn = func() {
+				cancel()
+				closeFn()
+			}
+			h.mu.Unlock()
 
 			stopped := false
 			for !stopped {
-
 				select {
 				case <-ctx.Done():
 					return
@@ -235,6 +257,8 @@ func (h *subscriptionHandler) create(ctx context.Context) error {
 		return fmt.Errorf("failed to subscribe for scripts: %w", err)
 	}
 
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	h.id = subscriptionId
 
 	return nil
