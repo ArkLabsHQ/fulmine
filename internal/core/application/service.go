@@ -205,6 +205,31 @@ func NewService(
 	return svc, nil
 }
 
+// TODO: temporary override the go-sdk balance to avoid the rate limit issue
+func (s *Service) Balance(ctx context.Context) (arksdk.Balance, error) {
+	vtxos, _, err := s.ListVtxos(ctx)
+	if err != nil {
+		return arksdk.Balance{}, err
+	}
+
+	total := uint64(0)
+	for _, vtxo := range vtxos {
+		total += vtxo.Amount
+	}
+
+	balance := arksdk.Balance{
+		OnchainBalance: arksdk.OnchainBalance{
+			SpendableAmount: 0,
+			LockedAmount:    []arksdk.LockedOnchainBalance{},
+		},
+		OffchainBalance: arksdk.OffchainBalance{
+			Total: total,
+		},
+	}
+
+	return balance, nil
+}
+
 func (s *Service) IsReady() bool {
 	return s.isReady
 }
@@ -501,15 +526,16 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 
-	balance, err := s.Balance(ctx, false)
+	balance, err := s.Balance(ctx)
 	if err != nil {
 		return 0, err
 	}
-	onchainBalance := balance.OnchainBalance.SpendableAmount
-	for _, amount := range balance.OnchainBalance.LockedAmount {
-		onchainBalance += amount.Amount
-	}
-	return balance.OffchainBalance.Total + onchainBalance, nil
+	// TODO : revert
+	// onchainBalance := balance.OnchainBalance.SpendableAmount
+	// for _, amount := range balance.OnchainBalance.LockedAmount {
+	// 	onchainBalance += amount.Amount
+	// }
+	return balance.OffchainBalance.Total, nil
 }
 
 func (s *Service) GetRound(ctx context.Context, roundId string) (*indexer.CommitmentTx, error) {
@@ -978,7 +1004,7 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 // subscribeForBoardingEvent aims to update the scheduled settlement
 // by checking for spent and new vtxos on the given boarding address
 func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string, cfg *types.Config) {
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 
 	boardingTimelock := arklib.RelativeLocktime{Type: cfg.BoardingExitDelay.Type, Value: cfg.BoardingExitDelay.Value}
