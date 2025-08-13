@@ -163,3 +163,19 @@ templ SendSuccessContent(address, amount, txid, explorerUrl string) {
 		}
 	</div>
 }
+
+templ SendPendingContent(address, amount string) {
+	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+		<div class="flex flex-col items-center">
+			@components.Header("Sending")
+			<div class="mt-6 h-16 w-16 rounded-full border-4 border-white/20 border-t-white animate-spin"></div>
+			<p class="mt-8">Invoice Payment Pending…</p>
+			<p class="mt-8 text-3xl cryptoAmount" sats={amount}>{amount} SATS</p>
+			<div class="flex mt-8 w-64 gap-2 items-center">
+				<p class="text-white/50">to</p>
+				<p class="overflow-hidden text-ellipsis whitespace-nowrap">{address}</p>
+				<p class="text-white/50">@components.CopyWidget(address)</p>
+			</div>
+		</div>
+	</div>
+}

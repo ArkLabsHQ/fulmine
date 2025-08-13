@@ -38,6 +38,7 @@ type service struct {
 	vhtlcRepo            domain.VHTLCRepository
 	vtxoRolloverRepo     domain.VtxoRolloverRepository
 	swapRepo             domain.SwapRepository
+	paymentRepo          domain.PaymentRepository
 	subscribedScriptRepo domain.SubscribedScriptRepository
 }
 
@@ -47,6 +48,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		vhtlcRepo            domain.VHTLCRepository
 		vtxoRolloverRepo     domain.VtxoRolloverRepository
 		swapRepo             domain.SwapRepository
+		paymentRepo          domain.PaymentRepository
 		subscribedScriptRepo domain.SubscribedScriptRepository
 		err                  error
 	)
@@ -83,6 +85,12 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open swap db: %s", err)
 		}
+
+		paymentRepo, err = badgerdb.NewPaymentRepository(baseDir, logger)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open payment db: %s", err)
+		}
+
 		subscribedScriptRepo, err = badgerdb.NewSubscribedScriptRepository(baseDir, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open subscribed script db: %s", err)
@@ -137,6 +145,11 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open swap db: %s", err)
 		}
+		paymentRepo, err = sqlitedb.NewPaymentRepository(db)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open payment db: %s", err)
+		}
+
 		subscribedScriptRepo, err = sqlitedb.NewSubscribedScriptRepository(db)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open subscribed script db: %s", err)
@@ -151,6 +164,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		vhtlcRepo:            vhtlcRepo,
 		vtxoRolloverRepo:     vtxoRolloverRepo,
 		swapRepo:             swapRepo,
+		paymentRepo:          paymentRepo,
 		subscribedScriptRepo: subscribedScriptRepo,
 	}, nil
 }
@@ -171,6 +185,10 @@ func (s *service) Swap() domain.SwapRepository {
 	return s.swapRepo
 }
 
+func (s *service) Payment() domain.PaymentRepository {
+	return s.paymentRepo
+}
+
 func (s *service) SubscribedScript() domain.SubscribedScriptRepository {
 	return s.subscribedScriptRepo
 }
@@ -180,5 +198,6 @@ func (s *service) Close() {
 	s.vhtlcRepo.Close()
 	s.vtxoRolloverRepo.Close()
 	s.swapRepo.Close()
+	s.paymentRepo.Close()
 	s.subscribedScriptRepo.Close()
 }
