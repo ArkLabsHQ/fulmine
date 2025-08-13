@@ -462,6 +462,12 @@ func (s *service) sendConfirm(c *gin.Context) {
 			toastHandler(toast, c)
 			return
 		}
+
+		if len(txId) == 0 {
+			bodyContent := pages.SendPendingContent(address, sats)
+			partialViewHandler(bodyContent, c)
+			return
+		}
 	}
 
 	if len(txId) == 0 {
@@ -891,15 +897,29 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 	}
 
 	// transform remaining transaction types
+	paymentHistory, err := s.svc.GetPaymentHistory(c)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, tx := range transferTxns {
 
 		modifiedTansfer := toTransfer(tx, treeExpiryValue)
+
+		for _, payment := range paymentHistory {
+			if payment.TxId == tx.TransactionKey.ArkTxid && payment.Status == domain.PaymentPending {
+				fmt.Printf("payment %+v\n", payment)
+				modifiedTansfer.Status = "pending"
+			}
+		}
+
 		transaction := types.Transaction{
 			Kind:        "transfer",
 			Transfer:    &modifiedTansfer,
 			Id:          modifiedTansfer.Txid,
 			DateCreated: tx.CreatedAt.Unix(),
 		}
+
 		history = append(history, transaction)
 
 	}

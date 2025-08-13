@@ -7,6 +7,7 @@ type RepoManager interface {
 	VHTLC() domain.VHTLCRepository
 	VtxoRollover() domain.VtxoRolloverRepository
 	Swap() domain.SwapRepository
+	Payment() domain.PaymentRepository
 	SubscribedScript() domain.SubscribedScriptRepository
 	Close()
 }

@@ -82,3 +82,20 @@ SELECT * FROM subscribed_script;
 
 -- name: DeleteSubscribedScript :exec
 DELETE FROM subscribed_script WHERE script = ?;
+
+-- Payment queries
+-- name: CreatePayment :exec
+INSERT INTO payment (id, amount, timestamp, payment_type, status, invoice, tx_id)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+-- name: GetPayment :one
+SELECT * FROM payment WHERE id = ? LIMIT 1;
+
+-- name: ListPayments :many
+SELECT * FROM payment ORDER BY timestamp DESC;
+
+-- (optional) name: UpdatePaymentStatus :exec
+UPDATE payment SET status = ? WHERE id = ?;
+
+-- (optional) name: ListPaymentsByType :many
+SELECT * FROM payment WHERE payment_type = ? ORDER BY timestamp DESC;

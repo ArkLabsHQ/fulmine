@@ -10,6 +10,35 @@ import (
 	"database/sql"
 )
 
+const createPayment = `-- name: CreatePayment :exec
+INSERT INTO payment (id, amount, timestamp, payment_type, status, invoice, tx_id)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+`
+
+type CreatePaymentParams struct {
+	ID          string
+	Amount      int64
+	Timestamp   int64
+	PaymentType int64
+	Status      int64
+	Invoice     string
+	TxID        string
+}
+
+// Payment queries
+func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) error {
+	_, err := q.db.ExecContext(ctx, createPayment,
+		arg.ID,
+		arg.Amount,
+		arg.Timestamp,
+		arg.PaymentType,
+		arg.Status,
+		arg.Invoice,
+		arg.TxID,
+	)
+	return err
+}
+
 const createSwap = `-- name: CreateSwap :exec
 INSERT INTO swap (
   id, amount, timestamp, to_currency, from_currency, status, invoice, funding_tx_id, redeem_tx_id, vhtlc_id
@@ -71,6 +100,25 @@ DELETE FROM vtxo_rollover WHERE address = ?
 func (q *Queries) DeleteVtxoRollover(ctx context.Context, address string) error {
 	_, err := q.db.ExecContext(ctx, deleteVtxoRollover, address)
 	return err
+}
+
+const getPayment = `-- name: GetPayment :one
+SELECT id, amount, timestamp, payment_type, status, invoice, tx_id FROM payment WHERE id = ? LIMIT 1
+`
+
+func (q *Queries) GetPayment(ctx context.Context, id string) (Payment, error) {
+	row := q.db.QueryRowContext(ctx, getPayment, id)
+	var i Payment
+	err := row.Scan(
+		&i.ID,
+		&i.Amount,
+		&i.Timestamp,
+		&i.PaymentType,
+		&i.Status,
+		&i.Invoice,
+		&i.TxID,
+	)
+	return i, err
 }
 
 const getSettings = `-- name: GetSettings :one
@@ -232,6 +280,41 @@ func (q *Queries) InsertVHTLC(ctx context.Context, arg InsertVHTLCParams) error 
 		arg.UnilateralRefundWithoutReceiverDelayValue,
 	)
 	return err
+}
+
+const listPayments = `-- name: ListPayments :many
+SELECT id, amount, timestamp, payment_type, status, invoice, tx_id FROM payment ORDER BY timestamp DESC
+`
+
+func (q *Queries) ListPayments(ctx context.Context) ([]Payment, error) {
+	rows, err := q.db.QueryContext(ctx, listPayments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Payment
+	for rows.Next() {
+		var i Payment
+		if err := rows.Scan(
+			&i.ID,
+			&i.Amount,
+			&i.Timestamp,
+			&i.PaymentType,
+			&i.Status,
+			&i.Invoice,
+			&i.TxID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listSubscribedScript = `-- name: ListSubscribedScript :many

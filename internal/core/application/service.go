@@ -850,6 +850,37 @@ func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification 
 	return s.notifications
 }
 
+func (s *Service) getVtxoFromScript(ctx context.Context, vhtlcScript *vhtlc.VHTLCScript) (*types.Vtxo, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil, err
+	}
+
+	tapKey, _, err := vhtlcScript.TapTree()
+	if err != nil {
+		return nil, err
+	}
+
+	outScript, err := script.P2TRScript(tapKey)
+	if err != nil {
+		return nil, err
+	}
+	vtxosRequest := indexer.GetVtxosRequestOption{}
+	if err := vtxosRequest.WithScripts([]string{hex.EncodeToString(outScript)}); err != nil {
+		return nil, err
+	}
+
+	resp, err := s.indexerClient.GetVtxos(ctx, vtxosRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resp.Vtxos) == 0 {
+		return nil, fmt.Errorf("no vtxos found for vhtlc script %s", hex.EncodeToString(outScript))
+	}
+
+	return &resp.Vtxos[0], nil
+}
+
 func (s *Service) GetDelegatePublicKey(ctx context.Context) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
@@ -1320,7 +1351,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 			}()
 
 			return "", fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
-		case boltz.TransactionClaimed, boltz.InvoiceSet:
+		case boltz.TransactionClaimed, boltz.InvoiceSettled:
 			// Nothing left to do, return the VHTLC funding txid
 			go func() {
 				if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
@@ -1350,7 +1381,12 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 		return "", fmt.Errorf("invoice must not be empty")
 	}
 
-	_, preimageHash, err := utils.DecodeInvoice(invoice)
+	// _, preimageHash, decodedInvoice, err := utils.DecodeInvoice(invoice)
+	// if err != nil {
+	// 	return "", fmt.Errorf("failed to decode invoice: %v", err)
+	// }
+
+	_, preimageHash, _, err := utils.DecodeInvoice(invoice)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode invoice: %v", err)
 	}
@@ -1362,6 +1398,7 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 		Invoice:         invoice,
 		RefundPublicKey: hex.EncodeToString(pubkey),
 	})
+
 	if err != nil {
 		return "", fmt.Errorf("failed to make submarine swap: %v", err)
 	}
@@ -1372,7 +1409,7 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-	vhtlcAddress, _, _, err := s.getVHTLC(
+	vhtlcAddress, vhtlcScript, vhtlcOpts, err := s.getVHTLC(
 		ctx,
 		receiverPubkey,
 		nil,
@@ -1396,6 +1433,16 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
 	}
 
+	paymentData := domain.Payment{
+		Id:        swap.Id,
+		Amount:    swap.ExpectedAmount,
+		Timestamp: time.Now().Unix(),
+		Status:    domain.PaymentPending,
+		Invoice:   invoice,
+		Type:      domain.Pay,
+		TxId:      txid,
+	}
+
 	// Workaround to connect ws endpoint on a different port for regtest
 	wsClient := s.boltzSvc
 	if s.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
@@ -1403,49 +1450,106 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 	}
 
 	ws := wsClient.NewWebsocket()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	err = ws.Connect()
-	for err != nil {
-		log.WithError(err).Warn("failed to connect to boltz websocket")
-		time.Sleep(time.Second)
-		log.Debug("reconnecting...")
+
+	err = utils.Retry(ctx, 5*time.Second, func(ctx context.Context) (bool, error) {
 		err = ws.Connect()
-		if ctx.Err() != nil {
-			return "", fmt.Errorf("timeout while connecting to websocket: %v", ctx.Err())
+		if err != nil {
+			log.WithError(err).Warn("failed to connect to boltz websocket")
+			return false, nil
 		}
+		return true, nil
+	})
+
+	if err != nil {
+		return "", err
 	}
 
-	err = ws.Subscribe([]string{swap.Id})
-	for err != nil {
-		log.WithError(err).Warn("failed to subscribe for swap events")
-		time.Sleep(time.Second)
-		log.Debug("retrying...")
+	err = utils.Retry(ctx, 5*time.Second, func(ctx context.Context) (bool, error) {
 		err = ws.Subscribe([]string{swap.Id})
+		if err != nil {
+			log.WithError(err).Warn("failed to subscribe for swap events")
+			return false, nil
+		}
+		return true, nil
+	})
+
+	if err != nil {
+		return "", err
 	}
 
-	for update := range ws.Updates {
-		parsedStatus := boltz.ParseEvent(update.Status)
+	for {
+		select {
+		case update, ok := <-ws.Updates:
+			if !ok {
+				return "", fmt.Errorf("updates closed")
+			}
+			switch boltz.ParseEvent(update.Status) {
+			case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
+				paymentData.Status = domain.PaymentFailed
+				if err := s.dbSvc.Payment().Add(ctx, paymentData); err != nil {
+					log.WithError(err).Error("failed to add payment data to db")
+				}
+				txid, err := s.refundVHTLC(ctx, swap.Id, true, *vhtlcOpts)
+				if err != nil {
+					return "", fmt.Errorf("refund failed: %w", err)
+				}
+				return txid, fmt.Errorf("refunded %s", txid)
+			case boltz.TransactionClaimed, boltz.InvoiceSettled:
+				paymentData.Status = domain.PaymentSuccess
+				if err := s.dbSvc.Payment().Add(ctx, paymentData); err != nil {
+					log.WithError(err).Error("failed to add payment data to db")
+				}
+				return txid, nil
+			}
+		case <-ctx.Done():
 
-		switch parsedStatus {
-		case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
-			// Refund the VHTLC if the swap fails
-			withReceiver := true
-			txid, err := s.RefundVHTLC(
-				context.Background(), swap.Id, hex.EncodeToString(preimageHash), withReceiver,
-			)
-			if err != nil {
-				return "", fmt.Errorf("failed to refund vHTLC: %s", err)
+			refundFunc := func() {
+				txid, err := s.refundVHTLC(context.Background(), swap.Id, false, *vhtlcOpts)
+				if err != nil {
+					log.WithError(err).Error("failed to refund vhtlc")
+					return
+				}
+				log.Infof("vhtlc refunded %s", txid)
 			}
 
-			return txid, fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
-		case boltz.TransactionClaimed, boltz.InvoiceSet:
-			// Nothing left to do, return the VHTLC funding txid
-			return txid, nil
+			if err := s.dbSvc.Payment().Add(context.Background(), paymentData); err != nil {
+				log.WithError(err).Error("failed to add payment data to db")
+			}
+
+			go func() {
+				// time.Sleep(time.Duration(decodedInvoice.Expiry) * time.Second)
+				time.Sleep(time.Second * 60) // wait for 30 seconds before refunding
+				vtxo, err := s.getVtxoFromScript(context.Background(), vhtlcScript)
+
+				log.Infof("checking vhtlc status for %+v", vtxo)
+
+				if err != nil {
+					log.WithError(err).Error("failed to check vhtlc status")
+					return
+				}
+
+				if !vtxo.Spent {
+					refundLocktime := vhtlcOpts.RefundLocktime
+					var err error
+					if vhtlcOpts.RefundLocktime.IsSeconds() {
+						err = s.schedulerSvc.ScheduleRefundAtTime(time.Unix(int64(refundLocktime), 0), refundFunc)
+					} else {
+						log.Infof("scheduling vhtlc refund at height %d", refundLocktime)
+						err = s.schedulerSvc.ScheduleRefundAtHeight(uint32(refundLocktime), refundFunc)
+					}
+					if err != nil {
+						log.WithError(err).Error("failed to schedule vhtlc refund")
+					}
+
+					return
+				}
+			}()
+
+			return "", nil
 		}
 	}
-
-	return "", fmt.Errorf("something went wrong")
 }
 
 // reverseSwap takes care of interacting with the Boltz server to make a reverse submarine swap.
@@ -1476,7 +1580,7 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, preimage, myPu
 	}
 
 	// verify preimage hash and invoice amount
-	invoiceAmount, gotPreimageHash, err := utils.DecodeInvoice(swap.Invoice)
+	invoiceAmount, gotPreimageHash, _, err := utils.DecodeInvoice(swap.Invoice)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode invoice: %v", err)
 	}
@@ -1562,7 +1666,7 @@ func (s *Service) reverseSwapWithPreimage(ctx context.Context, amount uint64, pr
 	}
 
 	// verify preimage hash and invoice amount
-	invoiceAmount, gotPreimageHash, err := utils.DecodeInvoice(swap.Invoice)
+	invoiceAmount, gotPreimageHash, _, err := utils.DecodeInvoice(swap.Invoice)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode invoice: %v", err)
 	}
@@ -2105,6 +2209,15 @@ func (s *Service) GetSwapHistory(ctx context.Context) ([]domain.Swap, error) {
 	sort.Slice(all, func(i, j int) bool {
 		return all[i].Timestamp > all[j].Timestamp
 	})
+	return all, nil
+}
+
+func (s *Service) GetPaymentHistory(ctx context.Context) ([]domain.Payment, error) {
+	all, err := s.dbSvc.Payment().GetAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get payment history: %w", err)
+	}
+
 	return all, nil
 }
 
