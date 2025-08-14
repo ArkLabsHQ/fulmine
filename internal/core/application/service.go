@@ -267,12 +267,17 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		return err
 	}
 
+	pollingInterval := 5 * time.Minute
+	if strings.Contains(s.esploraUrl, "localhost") {
+		pollingInterval = 5 * time.Second
+	}
+
 	if err := s.Init(ctx, arksdk.InitArgs{
 		WalletType:           arksdk.SingleKeyWallet,
 		ClientType:           arksdk.GrpcClient,
 		ServerUrl:            validatedServerUrl,
 		ExplorerURL:          s.esploraUrl,
-		ExplorerPollInterval: 5 * time.Minute,
+		ExplorerPollInterval: pollingInterval,
 		Password:             password,
 		Seed:                 privateKey,
 		WithTransactionFeed:  true,
