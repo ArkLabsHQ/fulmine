@@ -1,9 +1,9 @@
 # First image used to build the sources
-FROM golang:1.23.1 AS builder
+FROM golang:1.24.6 AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
-ARG ARKD_VERSION=v0.7.0
+ARG ARKD_VERSION=debug-logs
 
 WORKDIR /app
 

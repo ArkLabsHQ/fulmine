@@ -55,6 +55,8 @@ services:
       - FULMINE_BOLTZ_URL=http://boltz:9001
       - FULMINE_BOLTZ_WS_URL=ws://boltz:9004
       - FULMINE_NO_MACAROONS=true
+      - FULMINE_LOG_LEVEL=5
+      - FULMINE_DISABLE_TELEMETRY=true
     ports:
       - "7000:7000"
       - "7001:7001"

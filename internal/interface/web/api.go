@@ -10,21 +10,21 @@ import (
 )
 
 func (s *service) getBalanceApi(c *gin.Context) {
-	balance, err := s.svc.Balance(c, false)
+	balance, err := s.svc.Balance(c)
 	if err != nil {
 		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	onchainBalance := balance.OnchainBalance.SpendableAmount
-	for _, amount := range balance.OnchainBalance.LockedAmount {
-		onchainBalance += amount.Amount
-	}
+	// onchainBalance := balance.OnchainBalance.SpendableAmount
+	// for _, amount := range balance.OnchainBalance.LockedAmount {
+	// 	onchainBalance += amount.Amount
+	// }
 	data := gin.H{
 		"offchain": balance.OffchainBalance.Total,
-		"onchain":  onchainBalance,
-		"total":    balance.OffchainBalance.Total + onchainBalance,
+		"onchain":  0,
+		"total":    balance.OffchainBalance.Total,
 	}
 	c.JSON(http.StatusOK, data)
 }
