@@ -28,7 +28,6 @@ import (
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/client"
 	grpcclient "github.com/arkade-os/go-sdk/client/grpc"
-	"github.com/arkade-os/go-sdk/explorer"
 	indexer "github.com/arkade-os/go-sdk/indexer"
 	indexerTransport "github.com/arkade-os/go-sdk/indexer/grpc"
 	"github.com/arkade-os/go-sdk/store"
@@ -250,13 +249,14 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	}
 
 	if err := s.Init(ctx, arksdk.InitArgs{
-		WalletType:          arksdk.SingleKeyWallet,
-		ClientType:          arksdk.GrpcClient,
-		ServerUrl:           validatedServerUrl,
-		ExplorerURL:         s.esploraUrl,
-		Password:            password,
-		Seed:                privateKey,
-		WithTransactionFeed: true,
+		WalletType:           arksdk.SingleKeyWallet,
+		ClientType:           arksdk.GrpcClient,
+		ServerUrl:            validatedServerUrl,
+		ExplorerURL:          s.esploraUrl,
+		ExplorerPollInterval: 5 * time.Minute,
+		Password:             password,
+		Seed:                 privateKey,
+		WithTransactionFeed:  true,
 	}); err != nil {
 		return err
 	}
@@ -1164,43 +1164,30 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 // subscribeForBoardingEvent aims to update the scheduled settlement
 // by checking for spent and new vtxos on the given boarding address
 func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string, cfg *types.Config) {
-	boardingTimelock := arklib.RelativeLocktime{Type: cfg.BoardingExitDelay.Type, Value: cfg.BoardingExitDelay.Value}
-	boardingDuration := time.Duration(boardingTimelock.Seconds() * int64(time.Second))
-
-	expl, err := explorer.NewExplorer(s.esploraUrl, cfg.Network)
-	if err != nil {
-		log.WithError(err).Error("failed to create explorer")
-		return
-	}
-
-	if err := expl.SubscribeForAddresses([]string{address}); err != nil {
-		log.WithError(err).Error("failed to subscribe for addresses")
-		return
-	}
-
-	eventsCh := expl.GetAddressesEvents()
+	eventsCh := s.GetUtxoEventChannel(ctx)
 
 	for {
 		select {
 		case <-s.stopBoardingEventListener:
 			return
 		case event := <-eventsCh:
-			if len(event.NewUtxos) > 0 {
-				log.Infof("boarding event detected: %d new utxos", len(event.NewUtxos))
+			if len(event.Utxos) > 0 {
+				log.Infof("boarding event detected: %d new utxos", len(event.Utxos))
 			}
 
 			// if expiry is before the next scheduled settlement, we need to schedule a new one
-			if len(event.ConfirmedUtxos) > 0 {
+			if len(event.Utxos) > 0 {
 				nextScheduledSettlement := s.WhenNextSettlement(ctx)
 
 				needSchedule := false
 
-				for _, utxo := range event.ConfirmedUtxos {
-					confirmedAt := time.Unix(utxo.ConfirmedAt, 0)
-					spendableAt := confirmedAt.Add(boardingDuration)
+				for _, utxo := range event.Utxos {
+					if !utxo.IsConfirmed() {
+						continue
+					}
 
-					if nextScheduledSettlement.IsZero() || spendableAt.Before(nextScheduledSettlement) {
-						nextScheduledSettlement = spendableAt
+					if nextScheduledSettlement.IsZero() || utxo.SpendableAt.Before(nextScheduledSettlement) {
+						nextScheduledSettlement = utxo.SpendableAt
 						needSchedule = true
 					}
 				}
