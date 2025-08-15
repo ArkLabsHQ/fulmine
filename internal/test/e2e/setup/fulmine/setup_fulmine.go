@@ -93,7 +93,11 @@ func createWallet(password string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to create wallet: %d", resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response error body: %w", err)
+		}
+		return fmt.Errorf("failed to create wallet: %d, %s", resp.StatusCode, string(body))
 	}
 	return nil
 }
