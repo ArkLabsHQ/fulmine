@@ -8,8 +8,6 @@ replace github.com/ArkLabsHQ/fulmine/pkg/boltz => ./pkg/boltz
 
 replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-display v1.30.0-hex-display
 
-replace github.com/arkade-os/go-sdk => ../go-sdk
-
 require (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-00010101000000-000000000000
@@ -47,7 +45,7 @@ require (
 	github.com/arkade-os/arkd/pkg/ark-lib v0.7.1-0.20250724164901-72ea52fed011
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/go-sdk v0.6.3-0.20250814080852-9c8bd83b21a8
+	github.com/arkade-os/go-sdk v0.6.3-0.20250815055335-ce10d91739d0
 )
 
 require (
