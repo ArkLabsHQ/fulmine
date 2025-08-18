@@ -850,37 +850,6 @@ func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification 
 	return s.notifications
 }
 
-func (s *Service) getVtxoFromScript(ctx context.Context, vhtlcScript *vhtlc.VHTLCScript) (*types.Vtxo, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return nil, err
-	}
-
-	tapKey, _, err := vhtlcScript.TapTree()
-	if err != nil {
-		return nil, err
-	}
-
-	outScript, err := script.P2TRScript(tapKey)
-	if err != nil {
-		return nil, err
-	}
-	vtxosRequest := indexer.GetVtxosRequestOption{}
-	if err := vtxosRequest.WithScripts([]string{hex.EncodeToString(outScript)}); err != nil {
-		return nil, err
-	}
-
-	resp, err := s.indexerClient.GetVtxos(ctx, vtxosRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(resp.Vtxos) == 0 {
-		return nil, fmt.Errorf("no vtxos found for vhtlc script %s", hex.EncodeToString(outScript))
-	}
-
-	return &resp.Vtxos[0], nil
-}
-
 func (s *Service) GetDelegatePublicKey(ctx context.Context) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
@@ -1381,12 +1350,7 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 		return "", fmt.Errorf("invoice must not be empty")
 	}
 
-	// _, preimageHash, decodedInvoice, err := utils.DecodeInvoice(invoice)
-	// if err != nil {
-	// 	return "", fmt.Errorf("failed to decode invoice: %v", err)
-	// }
-
-	_, preimageHash, _, err := utils.DecodeInvoice(invoice)
+	_, preimageHash, decodedInvoice, err := utils.DecodeInvoice(invoice)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode invoice: %v", err)
 	}
@@ -1409,7 +1373,7 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-	vhtlcAddress, vhtlcScript, vhtlcOpts, err := s.getVHTLC(
+	vhtlcAddress, _, vhtlcOpts, err := s.getVHTLC(
 		ctx,
 		receiverPubkey,
 		nil,
@@ -1505,51 +1469,87 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 			}
 		case <-ctx.Done():
 
-			refundFunc := func() {
+			unilateral := func() {
 				txid, err := s.refundVHTLC(context.Background(), swap.Id, false, *vhtlcOpts)
 				if err != nil {
 					log.WithError(err).Error("failed to refund vhtlc")
 					return
 				}
+
+				paymentData.Status = domain.PaymentFailed
+
+				if err := s.dbSvc.Payment().Add(context.Background(), paymentData); err != nil {
+					log.WithError(err).Error("failed to add payment data to db")
+				}
+
 				log.Infof("vhtlc refunded %s", txid)
 			}
 
-			if err := s.dbSvc.Payment().Add(context.Background(), paymentData); err != nil {
-				log.WithError(err).Error("failed to add payment data to db")
-			}
-
 			go func() {
-				// time.Sleep(time.Duration(decodedInvoice.Expiry) * time.Second)
-				time.Sleep(time.Second * 60) // wait for 30 seconds before refunding
-				vtxo, err := s.getVtxoFromScript(context.Background(), vhtlcScript)
+				if err := s.dbSvc.Payment().Add(context.Background(), paymentData); err != nil {
+					log.WithError(err).Error("failed to add payment data to db")
+				}
 
-				log.Infof("checking vhtlc status for %+v", vtxo)
+				isSpent, isRefunded, err := s.watchSwapAfterExpiry(int64(decodedInvoice.Expiry), swap.Id, *vhtlcOpts, unilateral)
 
 				if err != nil {
-					log.WithError(err).Error("failed to check vhtlc status")
+					log.WithError(err).Error("failed to watch swap after expiry")
 					return
 				}
 
-				if !vtxo.Spent {
-					refundLocktime := vhtlcOpts.RefundLocktime
-					var err error
-					if vhtlcOpts.RefundLocktime.IsSeconds() {
-						err = s.schedulerSvc.ScheduleRefundAtTime(time.Unix(int64(refundLocktime), 0), refundFunc)
-					} else {
-						log.Infof("scheduling vhtlc refund at height %d", refundLocktime)
-						err = s.schedulerSvc.ScheduleRefundAtHeight(uint32(refundLocktime), refundFunc)
-					}
-					if err != nil {
-						log.WithError(err).Error("failed to schedule vhtlc refund")
-					}
-
-					return
+				if isSpent {
+					paymentData.Status = domain.PaymentSuccess
 				}
+
+				if isRefunded {
+					paymentData.Status = domain.PaymentFailed
+				}
+
+				if err := s.dbSvc.Payment().Add(context.Background(), paymentData); err != nil {
+					log.WithError(err).Error("failed to add payment data to db")
+				}
+
 			}()
-
 			return "", nil
 		}
 	}
+}
+
+func (s *Service) watchSwapAfterExpiry(expirySeconds int64, swapId string, opts vhtlc.Opts, unilateral func()) (isSpent bool, isRefunded bool, err error) {
+	time.Sleep(time.Duration(expirySeconds) * time.Second)
+
+	vtxos, err := s.getVHTLCFunds(context.Background(), []vhtlc.Opts{opts})
+	if err != nil {
+		log.WithError(err).Error("failed to check vhtlc status")
+		return false, false, err
+	}
+	if len(vtxos) == 0 {
+		return false, false, fmt.Errorf("vhtlc %s not found or already spent", opts.PreimageHash)
+	}
+
+	if vtxos[0].Spent {
+		log.Infof("vhtlc %s already spent, nothing to do", opts.PreimageHash)
+		return true, false, nil
+	}
+
+	// cooperative
+	if _, err = s.refundVHTLC(context.Background(), swapId, true, opts); err == nil {
+		log.Infof("vhtlc %s refunded cooperatively", opts.PreimageHash)
+		return false, true, nil
+
+	}
+
+	// schedule unilateral
+	refundLT := opts.RefundLocktime
+
+	if refundLT.IsSeconds() {
+		err = s.schedulerSvc.ScheduleRefundAtTime(time.Unix(int64(refundLT), 0), unilateral)
+	} else {
+		log.Infof("scheduling vhtlc refund at height %d", refundLT)
+		err = s.schedulerSvc.ScheduleRefundAtHeight(uint32(refundLT), unilateral)
+	}
+
+	return false, false, err
 }
 
 // reverseSwap takes care of interacting with the Boltz server to make a reverse submarine swap.

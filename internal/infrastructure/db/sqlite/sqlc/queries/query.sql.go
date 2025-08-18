@@ -317,6 +317,41 @@ func (q *Queries) ListPayments(ctx context.Context) ([]Payment, error) {
 	return items, nil
 }
 
+const listPaymentsByType = `-- name: ListPaymentsByType :many
+SELECT id, amount, timestamp, payment_type, status, invoice, tx_id FROM payment WHERE payment_type = ? ORDER BY timestamp DESC
+`
+
+func (q *Queries) ListPaymentsByType(ctx context.Context, paymentType int64) ([]Payment, error) {
+	rows, err := q.db.QueryContext(ctx, listPaymentsByType, paymentType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Payment
+	for rows.Next() {
+		var i Payment
+		if err := rows.Scan(
+			&i.ID,
+			&i.Amount,
+			&i.Timestamp,
+			&i.PaymentType,
+			&i.Status,
+			&i.Invoice,
+			&i.TxID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSubscribedScript = `-- name: ListSubscribedScript :many
 SELECT script FROM subscribed_script
 `
@@ -464,6 +499,20 @@ func (q *Queries) ListVtxoRollover(ctx context.Context) ([]VtxoRollover, error) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const updatePaymentStatus = `-- name: UpdatePaymentStatus :exec
+UPDATE payment SET status = ? WHERE id = ?
+`
+
+type UpdatePaymentStatusParams struct {
+	Status int64
+	ID     string
+}
+
+func (q *Queries) UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updatePaymentStatus, arg.Status, arg.ID)
+	return err
 }
 
 const upsertSettings = `-- name: UpsertSettings :exec

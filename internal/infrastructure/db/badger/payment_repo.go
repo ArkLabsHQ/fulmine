@@ -31,6 +31,10 @@ func NewPaymentRepository(baseDir string, logger badger.Logger) (domain.PaymentR
 	return &paymentRepository{store}, nil
 }
 
+func (r *paymentRepository) Update(ctx context.Context, payment domain.Payment) error {
+	return r.store.Update(payment.Id, &payment)
+}
+
 func (r *paymentRepository) GetAll(ctx context.Context) ([]domain.Payment, error) {
 	var payments []domain.Payment
 	err := r.store.Find(&payments, nil)

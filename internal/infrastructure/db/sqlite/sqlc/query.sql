@@ -94,8 +94,8 @@ SELECT * FROM payment WHERE id = ? LIMIT 1;
 -- name: ListPayments :many
 SELECT * FROM payment ORDER BY timestamp DESC;
 
--- (optional) name: UpdatePaymentStatus :exec
+-- name: UpdatePaymentStatus :exec
 UPDATE payment SET status = ? WHERE id = ?;
 
--- (optional) name: ListPaymentsByType :many
+-- name: ListPaymentsByType :many
 SELECT * FROM payment WHERE payment_type = ? ORDER BY timestamp DESC;

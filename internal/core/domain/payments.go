@@ -35,5 +35,6 @@ type PaymentRepository interface {
 	GetAll(ctx context.Context) ([]Payment, error)
 	Get(ctx context.Context, paymentId string) (*Payment, error)
 	Add(ctx context.Context, payment Payment) error
+	Update(ctx context.Context, payment Payment) error
 	Close()
 }

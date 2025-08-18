@@ -38,6 +38,17 @@ func (r *paymentRepository) Add(ctx context.Context, payment domain.Payment) err
 	})
 }
 
+func (r *paymentRepository) Update(ctx context.Context, payment domain.Payment) error {
+	err := r.querier.UpdatePaymentStatus(ctx, queries.UpdatePaymentStatusParams{
+		Status: int64(payment.Status),
+		ID:     payment.Id,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update payment status: %w", err)
+	}
+	return nil
+}
+
 func (r *paymentRepository) Get(ctx context.Context, paymentId string) (*domain.Payment, error) {
 	row, err := r.querier.GetPayment(ctx, paymentId)
 	if err != nil {

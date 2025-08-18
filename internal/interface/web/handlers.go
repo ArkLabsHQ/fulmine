@@ -902,15 +902,21 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		return nil, err
 	}
 
+	// Index pending payments by ArkTxid for O(1) lookup
+	pendingByArkTxid := make(map[string]struct{}, len(paymentHistory))
+	for _, p := range paymentHistory {
+		if p.Status == domain.PaymentPending && p.TxId != "" {
+			pendingByArkTxid[p.TxId] = struct{}{}
+		}
+	}
+
 	for _, tx := range transferTxns {
 
 		modifiedTansfer := toTransfer(tx, treeExpiryValue)
 
-		for _, payment := range paymentHistory {
-			if payment.TxId == tx.TransactionKey.ArkTxid && payment.Status == domain.PaymentPending {
-				fmt.Printf("payment %+v\n", payment)
-				modifiedTansfer.Status = "pending"
-			}
+		modifiedTransfer := toTransfer(tx, treeExpiryValue)
+		if _, ok := pendingByArkTxid[tx.ArkTxid]; ok {
+			modifiedTransfer.Status = "pending"
 		}
 
 		transaction := types.Transaction{

@@ -80,6 +80,7 @@ func (s *service) Stop() {
 	s.scheduler.Stop()
 
 	s.mu.Lock()
+
 	if s.blockCancel != nil {
 		s.blockCancel()
 		s.blockCancel = nil
