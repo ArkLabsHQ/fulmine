@@ -1215,6 +1215,12 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 	if err != nil {
 		return "", fmt.Errorf("failed to create invoice: %w", err)
 	}
+
+	_, _, decodedInvoice, err := utils.DecodeInvoice(invoice)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode invoice: %w", err)
+	}
+
 	// nolint
 	preimageHash, _ = hex.DecodeString(preimageHashStr)
 
@@ -1287,62 +1293,118 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 		err = ws.Subscribe([]string{swap.Id})
 	}
 
-	for update := range ws.Updates {
-		parsedStatus := boltz.ParseEvent(update.Status)
+	for {
+		select {
+		case update, ok := <-ws.Updates:
+			if !ok {
+				return "", fmt.Errorf("updates closed")
+			}
+			switch boltz.ParseEvent(update.Status) {
+			case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
+				// Refund the VHTLC if the swap fails
+				withReceiver := true
+				refundTxid, err := s.RefundVHTLC(
+					context.Background(), swap.Id, hex.EncodeToString(preimageHash), withReceiver,
+				)
+				if err != nil {
+					return "", fmt.Errorf("failed to refund vHTLC: %s", err)
+				}
 
-		switch parsedStatus {
-		case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
-			// Refund the VHTLC if the swap fails
-			withReceiver := true
-			refundTxid, err := s.RefundVHTLC(
-				context.Background(), swap.Id, hex.EncodeToString(preimageHash), withReceiver,
-			)
-			if err != nil {
-				return "", fmt.Errorf("failed to refund vHTLC: %s", err)
+				go func() {
+					if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+						Id:          swap.Id,
+						Amount:      amount,
+						Timestamp:   time.Now().Unix(),
+						Status:      domain.SwapFailed,
+						Invoice:     invoice,
+						FundingTxId: txid,
+						RedeemTxId:  refundTxid,
+						To:          boltz.CurrencyBtc,
+						From:        boltz.CurrencyArk,
+						VhtlcOpts:   *opts,
+					}); err != nil {
+						log.WithError(err).Fatal("failed to store swap")
+					}
+					log.Debugf("added new refunded swap %s", swap.Id)
+				}()
+
+				return "", fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
+			case boltz.TransactionClaimed, boltz.InvoiceSettled:
+				// Nothing left to do, return the VHTLC funding txid
+				go func() {
+					if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+						Id:          swap.Id,
+						Amount:      amount,
+						Timestamp:   time.Now().Unix(),
+						Status:      domain.SwapSuccess,
+						Invoice:     invoice,
+						FundingTxId: txid,
+						To:          boltz.CurrencyBtc,
+						From:        boltz.CurrencyArk,
+						VhtlcOpts:   *opts,
+					}); err != nil {
+						log.WithError(err).Fatal("failed to store swap")
+					}
+					log.Debugf("added new swap %s", swap.Id)
+				}()
+				return txid, nil
+			}
+		case <-ctx.Done():
+			swapData := domain.Swap{
+				Id:          swap.Id,
+				Amount:      amount,
+				Timestamp:   time.Now().Unix(),
+				Status:      domain.SwapSuccess,
+				Invoice:     invoice,
+				FundingTxId: txid,
+				To:          boltz.CurrencyBtc,
+				From:        boltz.CurrencyArk,
+				VhtlcOpts:   *opts,
+			}
+
+			unilateral := func() {
+				txid, err := s.refundVHTLC(context.Background(), swap.Id, false, *opts)
+				if err != nil {
+					log.WithError(err).Error("failed to refund vhtlc")
+					return
+				}
+
+				swapData.Status = domain.SwapFailed
+
+				if err := s.dbSvc.Swap().UpdateSwap(context.Background(), swapData); err != nil {
+					log.WithError(err).Error("failed to add payment data to db")
+				}
+
+				log.Infof("vhtlc refunded %s", txid)
 			}
 
 			go func() {
-				if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
-					Id:          swap.Id,
-					Amount:      amount,
-					Timestamp:   time.Now().Unix(),
-					Status:      domain.SwapFailed,
-					Invoice:     invoice,
-					FundingTxId: txid,
-					RedeemTxId:  refundTxid,
-					To:          boltz.CurrencyBtc,
-					From:        boltz.CurrencyArk,
-					VhtlcOpts:   *opts,
-				}); err != nil {
-					log.WithError(err).Fatal("failed to store swap")
+				if err := s.dbSvc.Swap().Add(context.Background(), swapData); err != nil {
+					log.WithError(err).Error("failed to add payment data to db")
 				}
-				log.Debugf("added new refunded swap %s", swap.Id)
-			}()
 
-			return "", fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
-		case boltz.TransactionClaimed, boltz.InvoiceSettled:
-			// Nothing left to do, return the VHTLC funding txid
-			go func() {
-				if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
-					Id:          swap.Id,
-					Amount:      amount,
-					Timestamp:   time.Now().Unix(),
-					Status:      domain.SwapSuccess,
-					Invoice:     invoice,
-					FundingTxId: txid,
-					To:          boltz.CurrencyBtc,
-					From:        boltz.CurrencyArk,
-					VhtlcOpts:   *opts,
-				}); err != nil {
-					log.WithError(err).Fatal("failed to store swap")
+				isSpent, isRefunded, err := s.watchSwapAfterExpiry(int64(decodedInvoice.Expiry), swap.Id, *opts, unilateral)
+
+				if err != nil {
+					log.WithError(err).Error("failed to watch swap after expiry")
+					return
 				}
-				log.Debugf("added new swap %s", swap.Id)
+
+				if isSpent {
+					swapData.Status = domain.SwapSuccess
+				}
+
+				if isRefunded {
+					swapData.Status = domain.SwapFailed
+				}
+
+				if err := s.dbSvc.Swap().UpdateSwap(context.Background(), swapData); err != nil {
+					log.WithError(err).Error("failed to add payment data to db")
+				}
 			}()
-			return txid, nil
+			return "", nil
 		}
 	}
-
-	return "", fmt.Errorf("something went wrong")
 }
 
 func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, pubkey []byte) (string, error) {
@@ -1478,7 +1540,7 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 
 				paymentData.Status = domain.PaymentFailed
 
-				if err := s.dbSvc.Payment().Add(context.Background(), paymentData); err != nil {
+				if err := s.dbSvc.Payment().Update(context.Background(), paymentData); err != nil {
 					log.WithError(err).Error("failed to add payment data to db")
 				}
 
@@ -1505,7 +1567,7 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 					paymentData.Status = domain.PaymentFailed
 				}
 
-				if err := s.dbSvc.Payment().Add(context.Background(), paymentData); err != nil {
+				if err := s.dbSvc.Payment().Update(context.Background(), paymentData); err != nil {
 					log.WithError(err).Error("failed to add payment data to db")
 				}
 

@@ -137,6 +137,11 @@ templ SwapHistoryLine(swap types.Swap) {
 				<p class="cryptoAmount" sats={swap.Amount}>{swap.Amount} SATS</p>
 				<p class="text-sm text-white/50 fiatAmount" sats={swap.Amount}>&nbsp;</p>
 			</div>
+      if swap.Status == "pending" {
+        <span class="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400">
+          Pending
+        </span>
+      }
 		</div>
 	</div>
 }

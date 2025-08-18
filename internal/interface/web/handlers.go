@@ -636,6 +636,12 @@ func (s *service) swapConfirm(c *gin.Context) {
 			toastHandler(toast, c)
 			return
 		}
+
+		if len(txid) == 0 {
+			bodyContent := pages.SwapPendingContent(kind, sats)
+			partialViewHandler(bodyContent, c)
+			return
+		}
 	}
 
 	bodyContent := pages.SwapSuccessContent(kind, sats, txid, explorerUrl)

@@ -83,6 +83,11 @@ func (r *swapRepository) Add(ctx context.Context, swap domain.Swap) error {
 	return nil
 }
 
+func (r *swapRepository) UpdateSwap(ctx context.Context, swap domain.Swap) error {
+	swapData := toSwapData(swap)
+	return r.store.Update(swap.Id, swapData)
+}
+
 func (s *swapRepository) Close() {
 	// nolint:all
 	s.store.Close()

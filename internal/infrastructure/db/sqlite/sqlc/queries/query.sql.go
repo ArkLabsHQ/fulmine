@@ -515,6 +515,20 @@ func (q *Queries) UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStat
 	return err
 }
 
+const updateSwapStatus = `-- name: UpdateSwapStatus :exec
+UPDATE swap SET status = ? WHERE id = ?
+`
+
+type UpdateSwapStatusParams struct {
+	Status int64
+	ID     string
+}
+
+func (q *Queries) UpdateSwapStatus(ctx context.Context, arg UpdateSwapStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updateSwapStatus, arg.Status, arg.ID)
+	return err
+}
+
 const upsertSettings = `-- name: UpsertSettings :exec
 INSERT INTO settings (id, api_root, server_url, esplora_url, currency, event_server, full_node, unit, ln_url, ln_datadir, ln_type)
 VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

@@ -69,6 +69,9 @@ SELECT  sqlc.embed(swap), sqlc.embed(vhtlc)
 FROM swap
   LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash;
 
+-- name: UpdateSwapStatus :exec
+UPDATE swap SET status = ? WHERE id = ?;
+
 -- SubscribedScript queries
 -- name: InsertSubscribedScript :exec
 INSERT INTO subscribed_script (script)
