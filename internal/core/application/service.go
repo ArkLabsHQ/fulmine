@@ -1354,7 +1354,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 				Id:          swap.Id,
 				Amount:      amount,
 				Timestamp:   time.Now().Unix(),
-				Status:      domain.SwapSuccess,
+				Status:      domain.SwapPending,
 				Invoice:     invoice,
 				FundingTxId: txid,
 				To:          boltz.CurrencyBtc,
@@ -1370,6 +1370,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 				}
 
 				swapData.Status = domain.SwapFailed
+				swapData.RedeemTxId = txid
 
 				if err := s.dbSvc.Swap().UpdateSwap(context.Background(), swapData); err != nil {
 					log.WithError(err).Error("failed to add payment data to db")
@@ -1383,7 +1384,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 					log.WithError(err).Error("failed to add payment data to db")
 				}
 
-				isSpent, isRefunded, err := s.watchSwapAfterExpiry(int64(decodedInvoice.Expiry), swap.Id, *opts, unilateral)
+				isSpent, coopRefundId, err := s.watchSwapAfterExpiry(int64(decodedInvoice.Expiry), swap.Id, *opts, unilateral)
 
 				if err != nil {
 					log.WithError(err).Error("failed to watch swap after expiry")
@@ -1394,9 +1395,11 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 					swapData.Status = domain.SwapSuccess
 				}
 
-				if isRefunded {
-					swapData.Status = domain.SwapFailed
+				if len(coopRefundId) > 0 {
+					swapData.RedeemTxId = coopRefundId
 				}
+
+				swapData.Status = domain.SwapFailed
 
 				if err := s.dbSvc.Swap().UpdateSwap(context.Background(), swapData); err != nil {
 					log.WithError(err).Error("failed to add payment data to db")
@@ -1465,8 +1468,9 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 		Timestamp: time.Now().Unix(),
 		Status:    domain.PaymentPending,
 		Invoice:   invoice,
-		Type:      domain.Pay,
+		Type:      domain.PaymentSend,
 		TxId:      txid,
+		Opts:      *vhtlcOpts,
 	}
 
 	// Workaround to connect ws endpoint on a different port for regtest
@@ -1539,6 +1543,7 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 				}
 
 				paymentData.Status = domain.PaymentFailed
+				paymentData.ReclaimedTxId = txid
 
 				if err := s.dbSvc.Payment().Update(context.Background(), paymentData); err != nil {
 					log.WithError(err).Error("failed to add payment data to db")
@@ -1547,12 +1552,12 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 				log.Infof("vhtlc refunded %s", txid)
 			}
 
-			go func() {
-				if err := s.dbSvc.Payment().Add(context.Background(), paymentData); err != nil {
-					log.WithError(err).Error("failed to add payment data to db")
-				}
+			if err := s.dbSvc.Payment().Add(context.Background(), paymentData); err != nil {
+				log.WithError(err).Error("failed to add payment data to db")
+			}
 
-				isSpent, isRefunded, err := s.watchSwapAfterExpiry(int64(decodedInvoice.Expiry), swap.Id, *vhtlcOpts, unilateral)
+			go func() {
+				isSpent, coopRefundId, err := s.watchSwapAfterExpiry(int64(decodedInvoice.Expiry), swap.Id, *vhtlcOpts, unilateral)
 
 				if err != nil {
 					log.WithError(err).Error("failed to watch swap after expiry")
@@ -1561,10 +1566,12 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 
 				if isSpent {
 					paymentData.Status = domain.PaymentSuccess
-				}
-
-				if isRefunded {
+				} else if len(coopRefundId) > 0 {
 					paymentData.Status = domain.PaymentFailed
+					paymentData.ReclaimedTxId = coopRefundId
+
+				} else {
+					paymentData.Status = domain.PaymentRefunding
 				}
 
 				if err := s.dbSvc.Payment().Update(context.Background(), paymentData); err != nil {
@@ -1577,27 +1584,29 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 	}
 }
 
-func (s *Service) watchSwapAfterExpiry(expirySeconds int64, swapId string, opts vhtlc.Opts, unilateral func()) (isSpent bool, isRefunded bool, err error) {
+func (s *Service) watchSwapAfterExpiry(expirySeconds int64, swapId string, opts vhtlc.Opts, unilateral func()) (isSpent bool, coopRefundId string, err error) {
 	time.Sleep(time.Duration(expirySeconds) * time.Second)
 
 	vtxos, err := s.getVHTLCFunds(context.Background(), []vhtlc.Opts{opts})
 	if err != nil {
 		log.WithError(err).Error("failed to check vhtlc status")
-		return false, false, err
+		return false, "", err
 	}
 	if len(vtxos) == 0 {
-		return false, false, fmt.Errorf("vhtlc %s not found or already spent", opts.PreimageHash)
+		return false, "", fmt.Errorf("vhtlc %s not found or already spent", opts.PreimageHash)
 	}
 
 	if vtxos[0].Spent {
 		log.Infof("vhtlc %s already spent, nothing to do", opts.PreimageHash)
-		return true, false, nil
+		return true, "", nil
 	}
 
 	// cooperative
-	if _, err = s.refundVHTLC(context.Background(), swapId, true, opts); err == nil {
+	txid, err := s.refundVHTLC(context.Background(), swapId, true, opts)
+
+	if err == nil {
 		log.Infof("vhtlc %s refunded cooperatively", opts.PreimageHash)
-		return false, true, nil
+		return false, txid, nil
 
 	}
 
@@ -1611,7 +1620,7 @@ func (s *Service) watchSwapAfterExpiry(expirySeconds int64, swapId string, opts 
 		err = s.schedulerSvc.ScheduleRefundAtHeight(uint32(refundLT), unilateral)
 	}
 
-	return false, false, err
+	return false, "", err
 }
 
 // reverseSwap takes care of interacting with the Boltz server to make a reverse submarine swap.

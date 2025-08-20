@@ -2,12 +2,15 @@ package domain
 
 import (
 	"context"
+
+	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 )
 
 type PaymentStatus int
 
 const (
 	PaymentPending PaymentStatus = iota
+	PaymentRefunding
 	PaymentFailed
 	PaymentSuccess
 )
@@ -15,8 +18,8 @@ const (
 type PaymentType int
 
 const (
-	Receive PaymentType = iota
-	Pay
+	PaymentReceive PaymentType = iota
+	PaymentSend
 )
 
 type Payment struct {
@@ -24,10 +27,12 @@ type Payment struct {
 	Amount    uint64
 	Timestamp int64
 
-	Status  PaymentStatus
-	Type    PaymentType
-	Invoice string
-	TxId    string
+	Status        PaymentStatus
+	Type          PaymentType
+	Invoice       string
+	TxId          string
+	ReclaimedTxId string
+	Opts          vhtlc.Opts
 }
 
 // PaymentRepository stores the Payment initiated by the wallet

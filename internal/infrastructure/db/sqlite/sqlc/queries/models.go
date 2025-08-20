@@ -16,6 +16,8 @@ type Payment struct {
 	Status      int64
 	Invoice     string
 	TxID        string
+	ReclaimTxID sql.NullString
+	VhtlcID     string
 }
 
 type Setting struct {

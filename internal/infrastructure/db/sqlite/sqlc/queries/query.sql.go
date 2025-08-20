@@ -11,8 +11,8 @@ import (
 )
 
 const createPayment = `-- name: CreatePayment :exec
-INSERT INTO payment (id, amount, timestamp, payment_type, status, invoice, tx_id)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO payment (id, amount, timestamp, payment_type, status, invoice, tx_id, reclaim_tx_id, vhtlc_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreatePaymentParams struct {
@@ -23,6 +23,8 @@ type CreatePaymentParams struct {
 	Status      int64
 	Invoice     string
 	TxID        string
+	ReclaimTxID sql.NullString
+	VhtlcID     string
 }
 
 // Payment queries
@@ -35,6 +37,8 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) er
 		arg.Status,
 		arg.Invoice,
 		arg.TxID,
+		arg.ReclaimTxID,
+		arg.VhtlcID,
 	)
 	return err
 }
@@ -103,20 +107,42 @@ func (q *Queries) DeleteVtxoRollover(ctx context.Context, address string) error 
 }
 
 const getPayment = `-- name: GetPayment :one
-SELECT id, amount, timestamp, payment_type, status, invoice, tx_id FROM payment WHERE id = ? LIMIT 1
+SELECT  payment.id, payment.amount, payment.timestamp, payment.payment_type, payment.status, payment.invoice, payment.tx_id, payment.reclaim_tx_id, payment.vhtlc_id,
+        vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value
+FROM payment
+  LEFT JOIN vhtlc ON payment.vhtlc_id = vhtlc.preimage_hash
+WHERE id = ?
 `
 
-func (q *Queries) GetPayment(ctx context.Context, id string) (Payment, error) {
+type GetPaymentRow struct {
+	Payment Payment
+	Vhtlc   Vhtlc
+}
+
+func (q *Queries) GetPayment(ctx context.Context, id string) (GetPaymentRow, error) {
 	row := q.db.QueryRowContext(ctx, getPayment, id)
-	var i Payment
+	var i GetPaymentRow
 	err := row.Scan(
-		&i.ID,
-		&i.Amount,
-		&i.Timestamp,
-		&i.PaymentType,
-		&i.Status,
-		&i.Invoice,
-		&i.TxID,
+		&i.Payment.ID,
+		&i.Payment.Amount,
+		&i.Payment.Timestamp,
+		&i.Payment.PaymentType,
+		&i.Payment.Status,
+		&i.Payment.Invoice,
+		&i.Payment.TxID,
+		&i.Payment.ReclaimTxID,
+		&i.Payment.VhtlcID,
+		&i.Vhtlc.PreimageHash,
+		&i.Vhtlc.Sender,
+		&i.Vhtlc.Receiver,
+		&i.Vhtlc.Server,
+		&i.Vhtlc.RefundLocktime,
+		&i.Vhtlc.UnilateralClaimDelayType,
+		&i.Vhtlc.UnilateralClaimDelayValue,
+		&i.Vhtlc.UnilateralRefundDelayType,
+		&i.Vhtlc.UnilateralRefundDelayValue,
+		&i.Vhtlc.UnilateralRefundWithoutReceiverDelayType,
+		&i.Vhtlc.UnilateralRefundWithoutReceiverDelayValue,
 	)
 	return i, err
 }
@@ -283,26 +309,46 @@ func (q *Queries) InsertVHTLC(ctx context.Context, arg InsertVHTLCParams) error 
 }
 
 const listPayments = `-- name: ListPayments :many
-SELECT id, amount, timestamp, payment_type, status, invoice, tx_id FROM payment ORDER BY timestamp DESC
+SELECT  payment.id, payment.amount, payment.timestamp, payment.payment_type, payment.status, payment.invoice, payment.tx_id, payment.reclaim_tx_id, payment.vhtlc_id, vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value
+FROM payment
+  LEFT JOIN vhtlc ON payment.vhtlc_id = vhtlc.preimage_hash
 `
 
-func (q *Queries) ListPayments(ctx context.Context) ([]Payment, error) {
+type ListPaymentsRow struct {
+	Payment Payment
+	Vhtlc   Vhtlc
+}
+
+func (q *Queries) ListPayments(ctx context.Context) ([]ListPaymentsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listPayments)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Payment
+	var items []ListPaymentsRow
 	for rows.Next() {
-		var i Payment
+		var i ListPaymentsRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.Amount,
-			&i.Timestamp,
-			&i.PaymentType,
-			&i.Status,
-			&i.Invoice,
-			&i.TxID,
+			&i.Payment.ID,
+			&i.Payment.Amount,
+			&i.Payment.Timestamp,
+			&i.Payment.PaymentType,
+			&i.Payment.Status,
+			&i.Payment.Invoice,
+			&i.Payment.TxID,
+			&i.Payment.ReclaimTxID,
+			&i.Payment.VhtlcID,
+			&i.Vhtlc.PreimageHash,
+			&i.Vhtlc.Sender,
+			&i.Vhtlc.Receiver,
+			&i.Vhtlc.Server,
+			&i.Vhtlc.RefundLocktime,
+			&i.Vhtlc.UnilateralClaimDelayType,
+			&i.Vhtlc.UnilateralClaimDelayValue,
+			&i.Vhtlc.UnilateralRefundDelayType,
+			&i.Vhtlc.UnilateralRefundDelayValue,
+			&i.Vhtlc.UnilateralRefundWithoutReceiverDelayType,
+			&i.Vhtlc.UnilateralRefundWithoutReceiverDelayValue,
 		); err != nil {
 			return nil, err
 		}
@@ -318,7 +364,7 @@ func (q *Queries) ListPayments(ctx context.Context) ([]Payment, error) {
 }
 
 const listPaymentsByType = `-- name: ListPaymentsByType :many
-SELECT id, amount, timestamp, payment_type, status, invoice, tx_id FROM payment WHERE payment_type = ? ORDER BY timestamp DESC
+SELECT id, amount, timestamp, payment_type, status, invoice, tx_id, reclaim_tx_id, vhtlc_id FROM payment WHERE payment_type = ? ORDER BY timestamp DESC
 `
 
 func (q *Queries) ListPaymentsByType(ctx context.Context, paymentType int64) ([]Payment, error) {
@@ -338,6 +384,8 @@ func (q *Queries) ListPaymentsByType(ctx context.Context, paymentType int64) ([]
 			&i.Status,
 			&i.Invoice,
 			&i.TxID,
+			&i.ReclaimTxID,
+			&i.VhtlcID,
 		); err != nil {
 			return nil, err
 		}
@@ -501,31 +549,39 @@ func (q *Queries) ListVtxoRollover(ctx context.Context) ([]VtxoRollover, error) 
 	return items, nil
 }
 
-const updatePaymentStatus = `-- name: UpdatePaymentStatus :exec
-UPDATE payment SET status = ? WHERE id = ?
+const updatePayment = `-- name: UpdatePayment :exec
+UPDATE payment 
+SET status = ?,
+reclaim_tx_id = ?
+WHERE id = ?
 `
 
-type UpdatePaymentStatusParams struct {
-	Status int64
-	ID     string
+type UpdatePaymentParams struct {
+	Status      int64
+	ReclaimTxID sql.NullString
+	ID          string
 }
 
-func (q *Queries) UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStatusParams) error {
-	_, err := q.db.ExecContext(ctx, updatePaymentStatus, arg.Status, arg.ID)
+func (q *Queries) UpdatePayment(ctx context.Context, arg UpdatePaymentParams) error {
+	_, err := q.db.ExecContext(ctx, updatePayment, arg.Status, arg.ReclaimTxID, arg.ID)
 	return err
 }
 
-const updateSwapStatus = `-- name: UpdateSwapStatus :exec
-UPDATE swap SET status = ? WHERE id = ?
+const updateSwap = `-- name: UpdateSwap :exec
+UPDATE swap 
+SET status = ?,
+redeem_tx_id = ?
+WHERE id = ?
 `
 
-type UpdateSwapStatusParams struct {
-	Status int64
-	ID     string
+type UpdateSwapParams struct {
+	Status     int64
+	RedeemTxID string
+	ID         string
 }
 
-func (q *Queries) UpdateSwapStatus(ctx context.Context, arg UpdateSwapStatusParams) error {
-	_, err := q.db.ExecContext(ctx, updateSwapStatus, arg.Status, arg.ID)
+func (q *Queries) UpdateSwap(ctx context.Context, arg UpdateSwapParams) error {
+	_, err := q.db.ExecContext(ctx, updateSwap, arg.Status, arg.RedeemTxID, arg.ID)
 	return err
 }
 

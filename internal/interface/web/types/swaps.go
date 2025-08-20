@@ -7,4 +7,13 @@ type Swap struct {
 	Id     string `json:"id"`
 	Kind   string `json:"kind"`
 	Status string `json:"status"`
+
+	ExpiresAt string `json:"expiry"`
+	// RefundLocktime is the locktime for the refund transaction
+	RefundLocktime uint32 `json:"refundLocktime,omitempty"`
+
+	// If Swap is Outbound, this is the Sent VHTLC
+	VHTLCTransfer *Transfer `json:"vhtlc,omitempty"`
+	// If Swap is Inbound, this is the Redeem Tx, else this is Txn of reclaim Failed Outbound Swap
+	RedeemTransfer *Transfer `json:"redeemTransfer,omitempty"`
 }
