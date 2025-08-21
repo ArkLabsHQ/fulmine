@@ -8,6 +8,18 @@ import (
 	"database/sql"
 )
 
+type Payment struct {
+	ID          string
+	Amount      int64
+	Timestamp   int64
+	PaymentType int64
+	Status      int64
+	Invoice     string
+	TxID        string
+	ReclaimTxID sql.NullString
+	VhtlcID     string
+}
+
 type Setting struct {
 	ID          int64
 	ApiRoot     string

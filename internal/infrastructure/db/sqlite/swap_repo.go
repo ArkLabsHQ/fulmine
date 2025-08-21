@@ -75,6 +75,35 @@ func (r *swapRepository) Get(ctx context.Context, swapId string) (*domain.Swap, 
 	return toSwap(row.Swap, row.Vhtlc)
 }
 
+func (r *swapRepository) UpdateSwap(ctx context.Context, swap domain.Swap) error {
+	existingSwap, err := r.Get(ctx, swap.Id)
+	if err != nil {
+		return fmt.Errorf("failed to get swap %s: %w", swap.Id, err)
+	}
+
+	if existingSwap == nil {
+		return fmt.Errorf("existing swap %s does not exist", swap.Id)
+	}
+
+	if swap.Status != 0 {
+		existingSwap.Status = swap.Status
+	}
+
+	if swap.RedeemTxId != "" {
+		existingSwap.RedeemTxId = swap.RedeemTxId
+	}
+
+	err = r.querier.UpdateSwap(ctx, queries.UpdateSwapParams{
+		Status:     int64(existingSwap.Status),
+		RedeemTxID: existingSwap.RedeemTxId,
+		ID:         swap.Id,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update swap status: %w", err)
+	}
+	return nil
+}
+
 func (r *swapRepository) GetAll(ctx context.Context) ([]domain.Swap, error) {
 	rows, err := r.querier.ListSwaps(ctx)
 	if err != nil {

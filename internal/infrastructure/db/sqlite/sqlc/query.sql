@@ -69,6 +69,12 @@ SELECT  sqlc.embed(swap), sqlc.embed(vhtlc)
 FROM swap
   LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash;
 
+-- name: UpdateSwap :exec
+UPDATE swap 
+SET status = ?,
+redeem_tx_id = ?
+WHERE id = ?;
+
 -- SubscribedScript queries
 -- name: InsertSubscribedScript :exec
 INSERT INTO subscribed_script (script)
@@ -82,3 +88,29 @@ SELECT * FROM subscribed_script;
 
 -- name: DeleteSubscribedScript :exec
 DELETE FROM subscribed_script WHERE script = ?;
+
+-- Payment queries
+-- name: CreatePayment :exec
+INSERT INTO payment (id, amount, timestamp, payment_type, status, invoice, tx_id, reclaim_tx_id, vhtlc_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- name: GetPayment :one
+SELECT  sqlc.embed(payment),
+        sqlc.embed(vhtlc)
+FROM payment
+  LEFT JOIN vhtlc ON payment.vhtlc_id = vhtlc.preimage_hash
+WHERE id = ?;
+
+-- name: ListPayments :many
+SELECT  sqlc.embed(payment), sqlc.embed(vhtlc)
+FROM payment
+  LEFT JOIN vhtlc ON payment.vhtlc_id = vhtlc.preimage_hash;
+
+-- name: UpdatePayment :exec
+UPDATE payment 
+SET status = ?,
+reclaim_tx_id = ?
+WHERE id = ?;
+
+-- name: ListPaymentsByType :many
+SELECT * FROM payment WHERE payment_type = ? ORDER BY timestamp DESC;

@@ -33,5 +33,6 @@ type SwapRepository interface {
 	GetAll(ctx context.Context) ([]Swap, error)
 	Get(ctx context.Context, swapId string) (*Swap, error)
 	Add(ctx context.Context, swap Swap) error
+	UpdateSwap(ctx context.Context, swap Swap) error
 	Close()
 }

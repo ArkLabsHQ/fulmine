@@ -462,12 +462,12 @@ func (s *service) sendConfirm(c *gin.Context) {
 			toastHandler(toast, c)
 			return
 		}
-	}
 
-	if len(txId) == 0 {
-		toast := components.Toast("Something went wrong", true)
-		toastHandler(toast, c)
-		return
+		if len(txId) == 0 {
+			bodyContent := pages.SendPendingContent(address, sats)
+			partialViewHandler(bodyContent, c)
+			return
+		}
 	}
 
 	data, err := s.svc.GetConfigData(c)
@@ -630,6 +630,12 @@ func (s *service) swapConfirm(c *gin.Context) {
 			toastHandler(toast, c)
 			return
 		}
+
+		if len(txid) == 0 {
+			bodyContent := pages.SwapPendingContent(kind, sats)
+			partialViewHandler(bodyContent, c)
+			return
+		}
 	}
 
 	bodyContent := pages.SwapSuccessContent(kind, sats, txid, explorerUrl)
@@ -698,8 +704,26 @@ func (s *service) getTransfer(c *gin.Context, transfer types.Transfer, explorerU
 }
 
 // TODO: Ensure the correct Content are being displayed
-func (s *service) getSwap(swap types.Swap, vhtlc *types.Transfer, redeem *types.Transfer) templ.Component {
-	return pages.SwapContent(swap, vhtlc, redeem)
+func (s *service) getSwap(swap types.Swap) templ.Component {
+	switch swap.Status {
+	case "pending":
+		return pages.SwapTxPendingContent(swap)
+	case "refunding":
+		return pages.SwapTxRefundingContent(swap)
+	default:
+		return pages.SwapContent(swap)
+	}
+}
+
+func (s *service) getPayment(c *gin.Context, payment types.Payment) templ.Component {
+	switch payment.Status {
+	case "pending":
+		return pages.PaymentTxPendingContent(payment)
+	case "refunding":
+		return pages.PaymentTxRefundingContent(payment)
+	default:
+		return pages.PaymentContent(payment)
+	}
 }
 
 func (s *service) getTx(c *gin.Context) {
@@ -729,11 +753,15 @@ func (s *service) getTx(c *gin.Context) {
 			tx = transaction
 			break
 		}
-		// Display the redeem transfer for swap transactions Providing option to redeem
-		if transaction.Kind == "swap" && transaction.RedeemTransfer != nil && transaction.RedeemTransfer.Txid == txid {
-			bodyContent := s.getTransfer(c, *transaction.RedeemTransfer, explorerUrl)
-			s.pageViewHandler(bodyContent, c)
-			return
+		// TODO: Display the correct content for swap transaction
+		if transaction.Kind == "swap" {
+			swapTx := transaction.Swap
+
+			if swapTx.RedeemTransfer != nil && swapTx.RedeemTransfer.Txid == txid {
+				bodyContent := s.getTransfer(c, *swapTx.RedeemTransfer, explorerUrl)
+				s.pageViewHandler(bodyContent, c)
+				return
+			}
 		}
 	}
 
@@ -742,8 +770,10 @@ func (s *service) getTx(c *gin.Context) {
 		bodyContent = pages.TxNotFoundContent()
 	} else if tx.Kind == "transfer" {
 		bodyContent = s.getTransfer(c, *tx.Transfer, explorerUrl)
+	} else if tx.Kind == "payment" {
+		bodyContent = s.getPayment(c, *tx.Payment)
 	} else {
-		bodyContent = s.getSwap(*tx.Swap, tx.VHTLCTransfer, tx.RedeemTransfer)
+		bodyContent = s.getSwap(*tx.Swap)
 	}
 	s.pageViewHandler(bodyContent, c)
 }
@@ -762,6 +792,7 @@ func (s *service) getTxs(c *gin.Context) {
 		log.WithError(err).Warn("failed to get tx history")
 	}
 
+	// TODO: (JOSHUA) Inefficient, please optimize later
 	if lastId == "0" {
 		if len(txHistory) > txsPerPage {
 			txHistory = txHistory[:txsPerPage]
@@ -847,12 +878,6 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 	// add swaps to history
 	for _, swap := range swapTxs {
 		transformedSwap := toSwap(swap)
-		swapTxn := types.Transaction{
-			Kind:        "swap",
-			Swap:        &transformedSwap,
-			Id:          swap.Id,
-			DateCreated: swap.Timestamp,
-		}
 
 		if transformedSwap.Kind == "submarine" {
 			updatedTransfers, sendTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
@@ -862,7 +887,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			if ok {
 				transferTxns = updatedTransfers
 				modifiedSendTransfer := toTransfer(sendTransfer, treeExpiryValue)
-				swapTxn.VHTLCTransfer = &modifiedSendTransfer
+				transformedSwap.VHTLCTransfer = &modifiedSendTransfer
 			}
 
 			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
@@ -871,7 +896,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			if ok {
 				transferTxns = updatedTransfers
 				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
-				swapTxn.RedeemTransfer = &modifiedReceiveTransfer
+				transformedSwap.RedeemTransfer = &modifiedReceiveTransfer
 			}
 
 		} else {
@@ -882,8 +907,15 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			if ok {
 				transferTxns = updatedTransfers
 				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
-				swapTxn.RedeemTransfer = &modifiedReceiveTransfer
+				transformedSwap.RedeemTransfer = &modifiedReceiveTransfer
 			}
+		}
+
+		swapTxn := types.Transaction{
+			Kind:        "swap",
+			Swap:        &transformedSwap,
+			Id:          swap.Id,
+			DateCreated: swap.Timestamp,
 		}
 
 		history = append(history, swapTxn)
@@ -891,15 +923,66 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 	}
 
 	// transform remaining transaction types
+	paymentTxns, err := s.svc.GetPaymentHistory(c)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, p := range paymentTxns {
+		transformedPayment := toPayment(p)
+
+		if transformedPayment.Kind == "pay" {
+			updatedTransfers, sendTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
+				return p.TxId != "" && p.TxId == t.ArkTxid
+			})
+
+			if ok {
+				transferTxns = updatedTransfers
+				modifiedSendTransfer := toTransfer(sendTransfer, treeExpiryValue)
+				transformedPayment.PaymentTransfer = &modifiedSendTransfer
+			}
+
+			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
+				return p.ReclaimedTxId != "" && p.ReclaimedTxId == t.ArkTxid
+			})
+
+			if ok {
+				transferTxns = updatedTransfers
+				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
+				transformedPayment.ReclaimTransfer = &modifiedReceiveTransfer
+			}
+		} else {
+			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
+				return p.TxId != "" && p.TxId == t.ArkTxid
+			})
+
+			if ok {
+				transferTxns = updatedTransfers
+				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
+				transformedPayment.PaymentTransfer = &modifiedReceiveTransfer
+			}
+		}
+		paymentTxn := types.Transaction{
+			Kind:        "payment",
+			Payment:     &transformedPayment,
+			Id:          p.Id,
+			DateCreated: p.Timestamp,
+		}
+
+		history = append(history, paymentTxn)
+	}
+
 	for _, tx := range transferTxns {
 
-		modifiedTansfer := toTransfer(tx, treeExpiryValue)
+		modifiedTransfer := toTransfer(tx, treeExpiryValue)
+
 		transaction := types.Transaction{
 			Kind:        "transfer",
-			Transfer:    &modifiedTansfer,
-			Id:          modifiedTansfer.Txid,
+			Transfer:    &modifiedTransfer,
+			Id:          modifiedTransfer.Txid,
 			DateCreated: tx.CreatedAt.Unix(),
 		}
+
 		history = append(history, transaction)
 
 	}
@@ -1123,9 +1206,22 @@ func toSwap(swap domain.Swap) types.Swap {
 		case domain.SwapPending:
 			return "pending"
 		default:
+			if swap.RedeemTxId == "" {
+				return "refunding"
+			}
 			return "failure"
 		}
 	}
+
+	expiry := prettyUnixTimestamp(0)
+	_, _, inv, err := utils.DecodeInvoice(swap.Invoice)
+	if err == nil {
+		at := swap.Timestamp + int64(inv.Expiry)
+		expiry = prettyUnixTimestamp(int64(at))
+	}
+
+	// TODO: I have assumed that the refund locktime is in blockheight
+	refundLT := swap.VhtlcOpts.RefundLocktime
 
 	return types.Swap{
 		Amount: strconv.FormatUint(swap.Amount, 10),
@@ -1134,7 +1230,58 @@ func toSwap(swap domain.Swap) types.Swap {
 		Id:     swap.Id,
 		Kind:   selectSwapType(swap),
 		Status: selectSwapStatus(swap),
+
+		ExpiresAt:      expiry,
+		RefundLocktime: uint32(refundLT),
 	}
+}
+
+func toPayment(payment domain.Payment) types.Payment {
+	selectPaymentStatus := func(payment domain.Payment) string {
+		switch payment.Status {
+		case domain.PaymentSuccess:
+			return "success"
+		case domain.PaymentPending:
+			return "pending"
+		case domain.PaymentRefunding:
+			return "refunding"
+		default:
+			return "failure"
+		}
+	}
+
+	selectPaymentType := func(payment domain.Payment) string {
+		switch payment.Type {
+		case domain.PaymentSend:
+			return "send"
+		case domain.PaymentReceive:
+			return "receive"
+		default:
+			return "send"
+		}
+	}
+
+	expiry := prettyUnixTimestamp(0)
+	_, _, inv, err := utils.DecodeInvoice(payment.Invoice)
+	if err == nil {
+		at := payment.Timestamp + int64(inv.Expiry)
+		expiry = prettyUnixTimestamp(int64(at))
+	}
+
+	// TODO: I have assumed that the refund locktime is in blockheight
+	refundLT := payment.Opts.RefundLocktime
+
+	return types.Payment{
+		Amount:           strconv.FormatUint(payment.Amount, 10),
+		Date:             prettyDay(payment.Timestamp),
+		Hour:             prettyHour(payment.Timestamp),
+		Kind:             selectPaymentType(payment),
+		Status:           selectPaymentStatus(payment),
+		RefundLockHeight: uint32(refundLT),
+
+		ExpiresAt: expiry,
+	}
+
 }
 
 func toTransfer(tx sdktypes.Transaction, treeExpiryValue int64) types.Transfer {
