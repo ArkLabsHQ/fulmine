@@ -1861,7 +1861,7 @@ func (s *Service) claimVHTLC(
 		return "", err
 	}
 
-	claimTapscript, checkpointTapscript, err := vtxoScript.ClaimTapscript()
+	claimTapscript, err := vtxoScript.ClaimTapscript()
 	if err != nil {
 		return "", err
 	}
@@ -1869,11 +1869,10 @@ func (s *Service) claimVHTLC(
 	arkTx, checkpoints, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
-				RevealedTapscripts:  vtxoScript.GetRevealedTapscripts(),
-				Outpoint:            vtxoOutpoint,
-				Amount:              amount,
-				Tapscript:           claimTapscript,
-				CheckpointTapscript: checkpointTapscript,
+				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
+				Outpoint:           vtxoOutpoint,
+				Amount:             amount,
+				Tapscript:          claimTapscript,
 			},
 		},
 		[]*wire.TxOut{
@@ -1888,12 +1887,21 @@ func (s *Service) claimVHTLC(
 		return "", err
 	}
 
-	arkTxStr, err := arkTx.B64Encode()
-	if err != nil {
-		return "", err
+	signTransaction := func(tx *psbt.Packet) (string, error) {
+		// add the preimage to the checkpoint input
+		if err := txutils.AddConditionWitness(0, tx, wire.TxWitness{preimage}); err != nil {
+			return "", err
+		}
+
+		encoded, err := tx.B64Encode()
+		if err != nil {
+			return "", err
+		}
+
+		return s.SignTransaction(ctx, encoded)
 	}
 
-	signedArkTx, err := s.SignTransaction(ctx, arkTxStr)
+	signedArkTx, err := signTransaction(arkTx)
 	if err != nil {
 		return "", err
 	}
@@ -1916,22 +1924,7 @@ func (s *Service) claimVHTLC(
 		return "", err
 	}
 
-	// verify and sign the checkpoints
-	signCheckpoint := func(tx *psbt.Packet) (string, error) {
-		// add the preimage to the checkpoint input
-		if err := txutils.AddConditionWitness(0, tx, wire.TxWitness{preimage}); err != nil {
-			return "", err
-		}
-
-		encoded, err := tx.B64Encode()
-		if err != nil {
-			return "", err
-		}
-
-		return s.SignTransaction(ctx, encoded)
-	}
-
-	finalCheckpoints, err := verifyAndSignCheckpoints(signedCheckpoints, checkpoints, cfg.SignerPubKey, signCheckpoint)
+	finalCheckpoints, err := verifyAndSignCheckpoints(signedCheckpoints, checkpoints, cfg.SignerPubKey, signTransaction)
 	if err != nil {
 		return "", err
 	}
@@ -2009,12 +2002,15 @@ func (s *Service) refundVHTLC(
 		return "", err
 	}
 
-	refundTxStr, err := refundTx.B64Encode()
-	if err != nil {
-		return "", err
+	signTransaction := func(tx *psbt.Packet) (string, error) {
+		encoded, err := tx.B64Encode()
+		if err != nil {
+			return "", err
+		}
+		return s.SignTransaction(ctx, encoded)
 	}
 
-	signedRefundTx, err := s.SignTransaction(ctx, refundTxStr)
+	signedRefundTx, err := signTransaction(refundTx)
 	if err != nil {
 		return "", err
 	}
@@ -2045,15 +2041,7 @@ func (s *Service) refundVHTLC(
 	}
 
 	// verify and sign the checkpoints
-	signCheckpoint := func(tx *psbt.Packet) (string, error) {
-		encoded, err := tx.B64Encode()
-		if err != nil {
-			return "", err
-		}
-		return s.SignTransaction(ctx, encoded)
-	}
-
-	finalCheckpoints, err := verifyAndSignCheckpoints(signedCheckpoints, checkpointPtxs, cfg.SignerPubKey, signCheckpoint)
+	finalCheckpoints, err := verifyAndSignCheckpoints(signedCheckpoints, checkpointPtxs, cfg.SignerPubKey, signTransaction)
 	if err != nil {
 		return "", err
 	}
