@@ -705,21 +705,23 @@ func (s *service) getTransfer(c *gin.Context, transfer types.Transfer, explorerU
 
 // TODO: Ensure the correct Content are being displayed
 func (s *service) getSwap(swap types.Swap) templ.Component {
-	if swap.Status == "pending" {
+	switch swap.Status {
+	case "pending":
 		return pages.SwapTxPendingContent(swap)
-	} else if swap.Status == "refunding" {
+	case "refunding":
 		return pages.SwapTxRefundingContent(swap)
-	} else {
+	default:
 		return pages.SwapContent(swap)
 	}
 }
 
 func (s *service) getPayment(c *gin.Context, payment types.Payment) templ.Component {
-	if payment.Status == "pending" {
+	switch payment.Status {
+	case "pending":
 		return pages.PaymentTxPendingContent(payment)
-	} else if payment.Status == "refunding" {
+	case "refunding":
 		return pages.PaymentTxRefundingContent(payment)
-	} else {
+	default:
 		return pages.PaymentContent(payment)
 	}
 }
