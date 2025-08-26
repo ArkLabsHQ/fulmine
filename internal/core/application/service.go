@@ -1135,7 +1135,6 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 	if len(spendableVtxos) > 0 {
 		for _, vtxo := range spendableVtxos[:] {
 			if vtxo.ExpiresAt.Before(time.Now()) {
-				log.Warnf("vtxo %s is already expired, skipping", vtxo.Txid)
 				continue
 			}
 
@@ -1157,7 +1156,6 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 			// TODO replace by boardingExitDelay https://github.com/ark-network/ark/pull/501
 			boardingExpiry := tx.CreatedAt.Add(time.Duration(data.UnilateralExitDelay.Seconds()*2) * time.Second)
 			if boardingExpiry.Before(time.Now()) {
-				log.Warnf("boarding UTXO %s is already expired, skipping", tx.BoardingTxid)
 				continue
 			}
 
