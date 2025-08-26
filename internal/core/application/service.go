@@ -973,13 +973,16 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 	var expiry *time.Time
 
 	if len(spendableVtxos) > 0 {
-		nextExpiry := spendableVtxos[0].ExpiresAt
-		for _, vtxo := range spendableVtxos[1:] {
-			if vtxo.ExpiresAt.Before(nextExpiry) {
-				nextExpiry = vtxo.ExpiresAt
+		for _, vtxo := range spendableVtxos[:] {
+			if vtxo.ExpiresAt.Before(time.Now()) {
+				continue
+			}
+
+			if expiry == nil || vtxo.ExpiresAt.Before(*expiry) {
+				expiry = &vtxo.ExpiresAt
 			}
 		}
-		expiry = &nextExpiry
+
 	}
 
 	txs, err := s.GetTransactionHistory(ctx)
@@ -992,6 +995,10 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 		if len(tx.BoardingTxid) > 0 && !tx.Settled {
 			// TODO replace by boardingExitDelay https://github.com/ark-network/ark/pull/501
 			boardingExpiry := tx.CreatedAt.Add(time.Duration(data.UnilateralExitDelay.Seconds()*2) * time.Second)
+			if boardingExpiry.Before(time.Now()) {
+				continue
+			}
+
 			if expiry == nil || boardingExpiry.Before(*expiry) {
 				expiry = &boardingExpiry
 			}
