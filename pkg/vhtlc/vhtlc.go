@@ -243,8 +243,7 @@ func (v *VHTLCScript) Address(hrp string, serverPubkey *btcec.PublicKey) (string
 	return addr.EncodeV0()
 }
 
-// ClaimTapscript computes the necessary script and control block to spend the claim closure,
-// it also returns the custom checkpoint output script.
+// ClaimTapscript computes the necessary script and control block to spend the claim closure
 func (v *VHTLCScript) ClaimTapscript() (*waddrmgr.Tapscript, error) {
 	claimClosure := v.ClaimClosure
 	claimScript, err := claimClosure.Script()
