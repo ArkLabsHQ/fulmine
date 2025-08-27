@@ -29,7 +29,7 @@ func TestOnboard(t *testing.T) {
 		}
 		_, err = findInHistory(txid, history, boarding)
 		return err == nil
-	}, 1*time.Minute, 10*time.Second, "tx %s not found in history within 6m", txid)
+	}, 1*time.Minute, 10*time.Second, "tx %s not found in history within 1m", txid)
 
 	history, err := getTransactionHistory()
 	require.NoError(t, err)
