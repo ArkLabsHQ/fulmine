@@ -71,10 +71,11 @@ Open and fund channel between the LND instances:
 lncli openchannel --node_key=`nigiri lnd getinfo | jq -r .identity_pubkey` --local_amt=100000
 # Make the channel mature by mining 10 blocks
 nigiri rpc --generate 10
-# Send 50k sats to the other side to balance the channel
+# Generate an invoice for 50k sats
 nigiri lnd addinvoice --amt 50000
-# Type 'yes' when asked
+# Manually copy the payment request and send 50k sats to the other side to balance the channel
 lncli payinvoice <invoice>
+# Type 'yes' when asked
 ```
 
 Start and provision Arkd:
@@ -83,7 +84,7 @@ Start and provision Arkd:
 docker compose -f test.docker-compose.yml up -d arkd-wallet arkd
 # Create an alias for arkd
 alias arkd="docker exec arkd arkd"
-# Initialize the wallet
+# Wait till arkd is built then initialize the wallet
 arkd wallet create --password password
 # Unlock the service
 arkd wallet unlock --password password
