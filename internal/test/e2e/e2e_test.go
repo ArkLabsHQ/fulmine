@@ -21,7 +21,15 @@ func TestOnboard(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, txid)
 
-	time.Sleep(6 * time.Minute) // onchain polling interval is 5 minutes, wait a bit longer to be sure
+	// Wait (up to 6m) for the tx to appear in history; poll periodically.
+	require.Eventually(t, func() bool {
+		history, err := getTransactionHistory()
+		if err != nil {
+			return false
+		}
+		_, err = findInHistory(txid, history, boarding)
+		return err == nil
+	}, 6*time.Minute, 10*time.Second, "tx %s not found in history within 6m", txid)
 
 	history, err := getTransactionHistory()
 	require.NoError(t, err)
