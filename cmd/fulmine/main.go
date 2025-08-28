@@ -104,7 +104,7 @@ func main() {
 		Date:    date,
 	}
 
-	schedulerSvc := scheduler.NewScheduler()
+	schedulerSvc := scheduler.NewScheduler(cfg.EsploraURL)
 
 	appSvc, err := application.NewService(
 		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc,

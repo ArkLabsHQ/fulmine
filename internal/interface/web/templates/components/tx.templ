@@ -97,9 +97,6 @@ templ Transfer(tx types.Transfer, explorerUrl string) {
         if tx.Kind == "sent" {
           @SentTxTable(tx.Amount, tx.CreatedAt, tx.Status)
         }
-        if tx.Kind == "swap" {
-          @SwappedTxTable(tx.Amount, tx.CreatedAt, tx.Status)
-        }
       </div>
     </div>
 	</div>
