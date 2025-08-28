@@ -1011,7 +1011,7 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 // subscribeForBoardingEvent aims to update the scheduled settlement
 // by checking for spent and new vtxos on the given boarding address
 func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string, cfg *types.Config) {
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	boardingTimelock := arklib.RelativeLocktime{Type: cfg.BoardingExitDelay.Type, Value: cfg.BoardingExitDelay.Value}
