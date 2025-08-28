@@ -182,6 +182,9 @@ services:
         rootCertPath = "/home/boltz/.cln/hold/ca.pem"
         privateKeyPath = "/home/boltz/.cln/hold/client-key.pem"
         certChainPath = "/home/boltz/.cln/hold/client.pem"
+
+        [nodeSwitch]
+        clnAmountThreshold = 1000
     volumes:
       - boltz_datadir:/home/boltz/.boltz
       - lnd_datadir:/home/boltz/.lnd

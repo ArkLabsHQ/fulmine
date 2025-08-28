@@ -628,7 +628,7 @@ func (h *SwapHandler) claimVHTLC(
 		return "", err
 	}
 
-	claimTapscript, checkpointTapscript, err := vtxoScript.ClaimTapscript()
+	claimTapscript, err := vtxoScript.ClaimTapscript()
 	if err != nil {
 		return "", err
 	}
@@ -636,11 +636,10 @@ func (h *SwapHandler) claimVHTLC(
 	arkTx, checkpoints, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
-				RevealedTapscripts:  vtxoScript.GetRevealedTapscripts(),
-				Outpoint:            vtxoOutpoint,
-				Amount:              amount,
-				Tapscript:           claimTapscript,
-				CheckpointTapscript: checkpointTapscript,
+				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
+				Outpoint:           vtxoOutpoint,
+				Amount:             amount,
+				Tapscript:          claimTapscript,
 			},
 		},
 		[]*wire.TxOut{
