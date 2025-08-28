@@ -873,10 +873,14 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		return nil, err
 	}
 
+	payments, regularSwaps := Partition(swapTxs, func(s domain.Swap) bool {
+		return s.Type == domain.SwapPayment
+	})
+
 	history := make([]types.Transaction, 0, len(transferTxns)+len(swapTxs))
 
 	// add swaps to history
-	for _, swap := range swapTxs {
+	for _, swap := range regularSwaps {
 		transformedSwap := toSwap(swap)
 
 		if transformedSwap.Kind == "submarine" {
@@ -922,18 +926,12 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 	}
 
-	// transform remaining transaction types
-	paymentTxns, err := s.svc.GetPaymentHistory(c)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, p := range paymentTxns {
+	for _, p := range payments {
 		transformedPayment := toPayment(p)
 
 		if transformedPayment.Kind == "pay" {
 			updatedTransfers, sendTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return p.TxId != "" && p.TxId == t.ArkTxid
+				return p.FundingTxId != "" && p.FundingTxId == t.ArkTxid
 			})
 
 			if ok {
@@ -943,7 +941,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			}
 
 			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return p.ReclaimedTxId != "" && p.ReclaimedTxId == t.ArkTxid
+				return p.RedeemTxId != "" && p.RedeemTxId == t.ArkTxid
 			})
 
 			if ok {
@@ -953,7 +951,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			}
 		} else {
 			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return p.TxId != "" && p.TxId == t.ArkTxid
+				return p.FundingTxId != "" && p.FundingTxId == t.ArkTxid
 			})
 
 			if ok {
@@ -1220,8 +1218,20 @@ func toSwap(swap domain.Swap) types.Swap {
 		expiry = prettyUnixTimestamp(int64(at))
 	}
 
-	// TODO: I have assumed that the refund locktime is in blockheight
+	var refundLocktime types.LockTime
+
 	refundLT := swap.VhtlcOpts.RefundLocktime
+	if refundLT.IsSeconds() {
+		refundLocktime = types.LockTime{
+			Timelock:  prettyUnixTimestamp(int64(refundLT)),
+			IsSeconds: true,
+		}
+	} else {
+		refundLocktime = types.LockTime{
+			Timelock:  strconv.FormatUint(uint64(refundLT), 10),
+			IsSeconds: false,
+		}
+	}
 
 	return types.Swap{
 		Amount: strconv.FormatUint(swap.Amount, 10),
@@ -1232,32 +1242,30 @@ func toSwap(swap domain.Swap) types.Swap {
 		Status: selectSwapStatus(swap),
 
 		ExpiresAt:      expiry,
-		RefundLocktime: uint32(refundLT),
+		RefundLockTime: &refundLocktime,
 	}
 }
 
-func toPayment(payment domain.Payment) types.Payment {
-	selectPaymentStatus := func(payment domain.Payment) string {
-		switch payment.Status {
-		case domain.PaymentSuccess:
-			return "success"
-		case domain.PaymentPending:
-			return "pending"
-		case domain.PaymentRefunding:
-			return "refunding"
-		default:
-			return "failure"
+func toPayment(payment domain.Swap) types.Payment {
+	selectPaymentType := func(swap domain.Swap) string {
+		if swap.To == boltz.CurrencyBtc && swap.From == boltz.CurrencyArk {
+			return "send"
+		} else {
+			return "receive"
 		}
 	}
 
-	selectPaymentType := func(payment domain.Payment) string {
-		switch payment.Type {
-		case domain.PaymentSend:
-			return "send"
-		case domain.PaymentReceive:
-			return "receive"
+	selectPaymentStatus := func(swap domain.Swap) string {
+		switch swap.Status {
+		case domain.SwapSuccess:
+			return "success"
+		case domain.SwapPending:
+			return "pending"
 		default:
-			return "send"
+			if swap.RedeemTxId == "" {
+				return "refunding"
+			}
+			return "failure"
 		}
 	}
 
@@ -1268,18 +1276,29 @@ func toPayment(payment domain.Payment) types.Payment {
 		expiry = prettyUnixTimestamp(int64(at))
 	}
 
-	// TODO: I have assumed that the refund locktime is in blockheight
-	refundLT := payment.Opts.RefundLocktime
+	var refundLocktime types.LockTime
+
+	refundLT := payment.VhtlcOpts.RefundLocktime
+	if refundLT.IsSeconds() {
+		refundLocktime = types.LockTime{
+			Timelock:  prettyUnixTimestamp(int64(refundLT)),
+			IsSeconds: true,
+		}
+	} else {
+		refundLocktime = types.LockTime{
+			Timelock:  strconv.FormatUint(uint64(refundLT), 10),
+			IsSeconds: false,
+		}
+	}
 
 	return types.Payment{
-		Amount:           strconv.FormatUint(payment.Amount, 10),
-		Date:             prettyDay(payment.Timestamp),
-		Hour:             prettyHour(payment.Timestamp),
-		Kind:             selectPaymentType(payment),
-		Status:           selectPaymentStatus(payment),
-		RefundLockHeight: uint32(refundLT),
-
-		ExpiresAt: expiry,
+		Amount:         strconv.FormatUint(payment.Amount, 10),
+		Date:           prettyDay(payment.Timestamp),
+		Hour:           prettyHour(payment.Timestamp),
+		Kind:           selectPaymentType(payment),
+		Status:         selectPaymentStatus(payment),
+		RefundLockTime: &refundLocktime,
+		ExpiresAt:      expiry,
 	}
 
 }

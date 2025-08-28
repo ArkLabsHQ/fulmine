@@ -54,6 +54,7 @@ func (r *swapRepository) Add(ctx context.Context, swap domain.Swap) error {
 			FundingTxID:  swap.FundingTxId,
 			RedeemTxID:   swap.RedeemTxId,
 			VhtlcID:      preimageHash,
+			SwapType:     int64(swap.Type),
 		}); err != nil {
 			return fmt.Errorf("failed to insert swap: %s", err)
 		}
@@ -75,7 +76,7 @@ func (r *swapRepository) Get(ctx context.Context, swapId string) (*domain.Swap, 
 	return toSwap(row.Swap, row.Vhtlc)
 }
 
-func (r *swapRepository) UpdateSwap(ctx context.Context, swap domain.Swap) error {
+func (r *swapRepository) Update(ctx context.Context, swap domain.Swap) error {
 	existingSwap, err := r.Get(ctx, swap.Id)
 	if err != nil {
 		return fmt.Errorf("failed to get swap %s: %w", swap.Id, err)
@@ -138,6 +139,7 @@ func toSwap(swap queries.Swap, vhtlc queries.Vhtlc) (*domain.Swap, error) {
 		To:          boltz.Currency(swap.ToCurrency),
 		From:        boltz.Currency(swap.FromCurrency),
 		Status:      domain.SwapStatus(swap.Status),
+		Type:        domain.SwapType(swap.SwapType),
 		Invoice:     swap.Invoice,
 		FundingTxId: swap.FundingTxID,
 		RedeemTxId:  swap.RedeemTxID,

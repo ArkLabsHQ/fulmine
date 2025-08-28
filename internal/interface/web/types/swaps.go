@@ -9,8 +9,8 @@ type Swap struct {
 	Status string `json:"status"`
 
 	ExpiresAt string `json:"expiry"`
-	// RefundLocktime is the locktime for the refund transaction
-	RefundLocktime uint32 `json:"refundLocktime,omitempty"`
+
+	RefundLockTime *LockTime `json:"refundLockTime,omitempty"`
 
 	// If Swap is Outbound, this is the Sent VHTLC
 	VHTLCTransfer *Transfer `json:"vhtlc,omitempty"`

@@ -43,7 +43,7 @@ templ PaymentTxPendingContent(tx types.Payment) {
           @components.TxIcon(tx.Kind, "")
           <p class="mt-4 capitalize">{tx.Kind}</p>
           <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
-          @components.PendingPaymentTable(tx.Date, tx.ExpiresAt, tx.RefundLockHeight)
+          @components.PendingPaymentTable(tx.Date, tx.ExpiresAt, *tx.RefundLockTime)
         </div>
       </div>
       <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
@@ -67,7 +67,7 @@ templ PaymentTxRefundingContent(tx types.Payment) {
           @components.TxIcon(tx.Kind, "")
           <p class="mt-4 capitalize">{tx.Kind}</p>
           <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
-          @components.RefundingPaymentTable(tx.Date, tx.RefundLockHeight)
+          @components.RefundingPaymentTable(tx.Date, *tx.RefundLockTime)
         </div>
       </div>
       <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
@@ -90,7 +90,7 @@ templ SwapTxPendingContent(tx types.Swap) {
           @components.TxIcon(tx.Kind, "")
           <p class="mt-4 capitalize">{tx.Kind}</p>
           <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
-          @components.PendingSwapTable(tx.Date, tx.ExpiresAt, tx.RefundLocktime)
+          @components.PendingSwapTable(tx.Date, tx.ExpiresAt, *tx.RefundLockTime)
         </div>
       </div>
       <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
@@ -114,7 +114,7 @@ templ SwapTxRefundingContent(tx types.Swap) {
           @components.TxIcon(tx.Kind, "")
           <p class="mt-4 capitalize">{tx.Kind}</p>
           <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
-          @components.RefundingSwapTable(tx.Date, tx.RefundLocktime)
+          @components.RefundingSwapTable(tx.Date, *tx.RefundLockTime)
         </div>
       </div>
       <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">

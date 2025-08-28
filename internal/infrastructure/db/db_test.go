@@ -50,9 +50,6 @@ var (
 	testSwap   = makeSwap()
 	secondSwap = makeSwap()
 
-	testPayment   = makePayment()
-	secondPayment = makePayment()
-
 	testSubscribedScripts = []string{
 		"script1",
 		"script2",
@@ -93,7 +90,6 @@ func TestRepoManager(t *testing.T) {
 			testVtxoRolloverRepository(t, svc)
 			testSwapRepository(t, svc)
 			testSubscribedScriptRepository(t, svc)
-			testPaymentRepository(t, svc)
 		})
 	}
 }
@@ -126,14 +122,6 @@ func testSwapRepository(t *testing.T, svc ports.RepoManager) {
 		testAddSwap(t, svc.Swap())
 		testGetAllSwap(t, svc.Swap())
 		testUpdateSwap(t, svc.Swap())
-	})
-}
-
-func testPaymentRepository(t *testing.T, svc ports.RepoManager) {
-	t.Run("payment repository", func(t *testing.T) {
-		testAddPayment(t, svc.Payment())
-		testGetAllPayment(t, svc.Payment())
-		testUpdatePayment(t, svc.Payment())
 	})
 }
 
@@ -384,7 +372,7 @@ func testUpdateSwap(t *testing.T, repo domain.SwapRepository) {
 		modifiedTestSwap.Status = domain.SwapSuccess
 		modifiedTestSwap.RedeemTxId = "redeemed_tx_id"
 
-		err := repo.UpdateSwap(ctx, modifiedTestSwap)
+		err := repo.Update(ctx, modifiedTestSwap)
 		require.NoError(t, err)
 
 		updatedSwap, err := repo.Get(ctx, testSwap.Id)
@@ -392,65 +380,6 @@ func testUpdateSwap(t *testing.T, repo domain.SwapRepository) {
 		require.NotNil(t, updatedSwap)
 		require.Equal(t, domain.SwapSuccess, updatedSwap.Status)
 		require.Equal(t, "redeemed_tx_id", updatedSwap.RedeemTxId)
-	})
-}
-
-func testAddPayment(t *testing.T, repo domain.PaymentRepository) {
-	t.Run("add payment", func(t *testing.T) {
-		payment, err := repo.Get(ctx, testPayment.Id)
-		require.Error(t, err)
-		require.Nil(t, payment)
-
-		err = repo.Add(ctx, testPayment)
-		require.NoError(t, err)
-
-		err = repo.Add(ctx, testPayment)
-		require.Error(t, err)
-
-		payment, err = repo.Get(ctx, testPayment.Id)
-		require.NoError(t, err)
-		require.NotNil(t, payment)
-		require.Equal(t, *payment, testPayment)
-
-		err = repo.Add(ctx, testPayment)
-		require.Error(t, err)
-	})
-}
-
-func testGetAllPayment(t *testing.T, repo domain.PaymentRepository) {
-	t.Run("get all payment", func(t *testing.T) {
-		payments, err := repo.GetAll(ctx)
-		require.NoError(t, err)
-		require.Len(t, payments, 1)
-
-		// Add another payment
-
-		err = repo.Add(ctx, secondPayment)
-		require.NoError(t, err)
-
-		// Get all payments
-		payments, err = repo.GetAll(ctx)
-		require.NoError(t, err)
-		require.Len(t, payments, 2)
-		require.Subset(t, []domain.Payment{testPayment, secondPayment}, payments)
-	})
-}
-
-func testUpdatePayment(t *testing.T, repo domain.PaymentRepository) {
-	t.Run("update payment", func(t *testing.T) {
-		modifiedTestPayment := testPayment
-		modifiedTestPayment.Status = domain.PaymentSuccess
-		modifiedTestPayment.ReclaimedTxId = "reclaimed_tx_id"
-
-		err := repo.Update(ctx, modifiedTestPayment)
-		require.NoError(t, err)
-
-		updatedPayment, err := repo.Get(ctx, testPayment.Id)
-		require.NoError(t, err)
-		require.NotNil(t, updatedPayment)
-		require.Equal(t, domain.PaymentSuccess, updatedPayment.Status)
-		require.Equal(t, "reclaimed_tx_id", updatedPayment.ReclaimedTxId)
-
 	})
 }
 
@@ -551,18 +480,5 @@ func makeSwap() domain.Swap {
 		VhtlcOpts:   makeVHTLC(),
 		FundingTxId: "funding_tx_id",
 		RedeemTxId:  "redeem_tx_id",
-	}
-}
-
-func makePayment() domain.Payment {
-	return domain.Payment{
-		Id:        uuid.New().String(),
-		Amount:    1000,
-		Timestamp: time.Now().Unix(),
-
-		Status:        domain.PaymentPending,
-		Invoice:       "test_invoice",
-		Opts:          makeVHTLC(),
-		ReclaimedTxId: "",
 	}
 }
