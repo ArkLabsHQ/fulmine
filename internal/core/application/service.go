@@ -976,7 +976,8 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (string, error) {
 
 	if configData.Network.Name == arklib.BitcoinRegTest.Name {
 		boltzApi = &boltz.Api{
-			URL: "http://localhost:9005",
+			URL:   s.boltzUrl,
+			WSURL: "http://localhost:9004",
 		}
 		lightningUrl = "http://localhost:9005"
 	}
