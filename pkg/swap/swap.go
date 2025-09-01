@@ -210,7 +210,7 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string) (string
 			}
 
 			return txid, fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
-		case boltz.TransactionClaimed, boltz.InvoiceSet:
+		case boltz.TransactionClaimed, boltz.InvoiceSettled:
 			// Nothing left to do, return the VHTLC funding txid
 			return txid, nil
 		}

@@ -1348,7 +1348,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 			}()
 
 			return "", fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
-		case boltz.TransactionClaimed, boltz.InvoiceSet:
+		case boltz.TransactionClaimed, boltz.InvoiceSettled:
 			// Nothing left to do, return the VHTLC funding txid
 			go func() {
 				if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
