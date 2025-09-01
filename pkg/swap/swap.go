@@ -68,7 +68,7 @@ func (h *SwapHandler) PayOffer(ctx context.Context, offer string, lightningUrl s
 		return "", fmt.Errorf("failed to decode offer: %v", err)
 	}
 
-	amountInSats := decodedOffer.Amount
+	amountInSats := decodedOffer.AmountInSats
 
 	if amountInSats == 0 {
 		return "", fmt.Errorf("offer amount is 0")
@@ -119,7 +119,7 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string) (string
 		if err != nil {
 			return "", fmt.Errorf("failed to decode bolt12 invoice: %v", err)
 		}
-		preimageHash = decodedInvoice.PaymentHash
+		preimageHash = decodedInvoice.PaymentHash160
 	} else {
 		_, hash, err := DecodeInvoice(invoice)
 		if err != nil {
