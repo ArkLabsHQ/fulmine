@@ -22,15 +22,10 @@ services:
         - --grpc-port=9736
         - --plugin=/root/hold
         - --plugin=/root/clnurl
-        - --clnurl-host=0.0.0.0
         - --ignore-fee-limits=false
         - --min-emergency-msat=1000000
-
       volumes:
         - cln_datadir:/root/.lightning/regtest
-      ports:
-        - '9936:9735' # p2p
-        - '9836:9736' # grpc
   boltz-lnd:
     image: lightninglabs/lnd:v0.19.1-beta
     restart: unless-stopped
@@ -81,6 +76,7 @@ services:
       - '9005:9005'
     expose:
       - '9001'
+      - '9004'
       - '9005'
     depends_on:
       boltz-postgres:
