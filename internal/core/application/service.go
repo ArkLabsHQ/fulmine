@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -918,20 +919,7 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (string, error)
 		return "", err
 	}
 
-	configData, err := s.GetConfigData(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to get config data: %v", err)
-	}
-
 	boltzApi := s.boltzSvc
-
-	if configData.Network.Name == arklib.BitcoinRegTest.Name {
-		boltzApi = &boltz.Api{
-			URL:   s.boltzUrl,
-			WSURL: "http://localhost:9004",
-		}
-	}
-
 	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
 
 	return swapHandler.GetInvoice(ctx, amount)
@@ -942,19 +930,7 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error
 		return "", err
 	}
 
-	configData, err := s.GetConfigData(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to get config data: %v", err)
-	}
-
 	boltzApi := s.boltzSvc
-
-	if configData.Network.Name == arklib.BitcoinRegTest.Name {
-		boltzApi = &boltz.Api{
-			URL:   s.boltzUrl,
-			WSURL: "http://localhost:9004",
-		}
-	}
 
 	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
 
@@ -975,17 +951,18 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (string, error) {
 	var lightningUrl string
 
 	if configData.Network.Name == arklib.BitcoinRegTest.Name {
-		boltzApi = &boltz.Api{
-			URL:   s.boltzUrl,
-			WSURL: "http://localhost:9004",
+		boltzUrl, err := url.Parse(s.boltzSvc.URL)
+		if err != nil {
+			return "", err
 		}
-		lightningUrl = "http://localhost:9005"
+		host := boltzUrl.Hostname()
+		boltzUrl.Host = fmt.Sprintf("%s:%d", host, 9005)
+		lightningUrl = boltzUrl.String()
 	}
 
 	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
 
 	return swapHandler.PayOffer(ctx, offer, lightningUrl)
-
 }
 
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
@@ -1315,9 +1292,6 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 
 	// Workaround to connect ws endpoint on a different port for regtest
 	wsClient := s.boltzSvc
-	if s.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
-		wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
-	}
 
 	ws := wsClient.NewWebsocket()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -1489,9 +1463,6 @@ func (s *Service) waitAndClaimVHTLC(
 	ctx context.Context, swapId string, preimage []byte, vhtlcOpts *vhtlc.Opts,
 ) (string, error) {
 	wsClient := s.boltzSvc
-	if s.boltzSvc.URL == boltzURLByNetwork[arklib.BitcoinRegTest.Name] {
-		wsClient = &boltz.Api{WSURL: "http://localhost:9004"}
-	}
 
 	ws := wsClient.NewWebsocket()
 	{

@@ -112,9 +112,9 @@ clncli fundchannel id=`nigiri cln getinfo | jq -r .id` amount=100000
 # Make the channel mature by mining 10 blocks
 nigiri rpc --generate 10
 # Send 50k sats to the other side to balance the channel
-nigiri cln addinvoice --amt 50000
+nigiri cln invoice 50000000 "" ""
 # Type 'yes' when asked
-clncli payinvoice <invoice>
+clncli pay <invoice>
 ```
 
 
@@ -204,6 +204,8 @@ docker exec -i lnd bash -c \
 ```
 
 You're good to go to test submarine and reverse submarine swaps on Ark!
+
+**NOTE:** Use amounts above 1000 sats when testing swaps.
 
 ### Troubleshooting
 
