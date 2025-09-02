@@ -31,7 +31,7 @@ templ lnConnectSection(number, title, text string) {
 templ LnConnectCodeSample() {
   <div class="flex flex-col gap-2">
     <p class="text-sm text-white/50">SAMPLE CODE</p>
-    @components.CodeSample("echo 'lndconnect://example.com?cert='\"`grep -v 'CERTIFICATE' tls.cert | tr -d '=' | tr '/+' '_-'`\"'&macaroon='\"`base64 admin.macaroon | tr -d '=' | tr '/+' '_-'`\" | tr -d '\n' | qrencode -o /tmp/out.png")
+    @components.CodeSample("docker exec -i boltz-lnd bash -c 'echo -n \"lndconnect://boltz-lnd:10009?cert=$(grep -v CERTIFICATE /root/.lnd/tls.cert | tr -d = | tr \"/+\" \"_-\")&macaroon=$(base64 /root/.lnd/data/chain/bitcoin/regtest/admin.macaroon | tr -d = | tr \"/+\" \"_-\")\"'")
   </div>
 }
 
