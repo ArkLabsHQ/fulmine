@@ -776,13 +776,13 @@ func (s *Service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, e
 	return s.lnSvc.IsInvoiceSettled(ctx, invoice)
 }
 
-func (s *Service) GetBalanceLN(ctx context.Context) (msats uint64, err error) {
+func (s *Service) GetBalanceLN(ctx context.Context) (local, remote uint64, err error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
 	if !s.lnSvc.IsConnected() {
-		return 0, fmt.Errorf("not connected to LN")
+		return 0, 0, fmt.Errorf("not connected to LN")
 	}
 
 	return s.lnSvc.GetBalance(ctx)
@@ -1256,6 +1256,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 		Invoice:         invoice,
 		RefundPublicKey: hex.EncodeToString(myPubkey),
 	})
+
 	if err != nil {
 		return "", fmt.Errorf("failed to make submarine swap: %v", err)
 	}

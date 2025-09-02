@@ -45,14 +45,14 @@ templ SwapTabs(active string) {
   </div>
 }
 
-templ SwapPartialContent(active, balance string) {
+templ SwapPartialContent(active, balance string, remoteBalance string) {
 	<div id="swapPartial">
 	  @SwapTabs(active)
-	  @SwapInputAmountComponent(active, balance)
+	  @SwapInputAmountComponent(active, balance, remoteBalance)
 	</div>
 }
 
-templ SwapBodyContent(currentBalance, nodeBalance string, isLnConnected bool) {
+templ SwapBodyContent(currentBalance, nodeBalance string, remoteBalance string,  isLnConnected bool) {
   @components.DesktopHeader()
 	<div id="swapBody">
     <form hx-post="/swap/preview" hx-target="#swapBody" hx-target="outerHTML">
@@ -94,7 +94,7 @@ templ SwapBodyContent(currentBalance, nodeBalance string, isLnConnected bool) {
 								MAX
 							</p>
 						</div>
-						@SwapPartialContent("inbound", nodeBalance)
+						@SwapPartialContent("inbound", nodeBalance, remoteBalance)
 				  }
 				</div>
 				if isLnConnected {
@@ -116,8 +116,18 @@ templ SwapBodyContent(currentBalance, nodeBalance string, isLnConnected bool) {
 			const button = document.querySelector('button[type="submit"]')
 			const balance = parseInt(document.querySelector('#balance').value)
 			const sats = parseInt(document.querySelector('#sats').value)
+			const kind = document.querySelector('#swapKind').value
 			button.disabled = amount.length === 0 || sats > balance
 			button.innerText = sats > balance ? 'Not enough funds' : 'Preview swap'
+
+			if (kind === 'outbound') {
+				const remoteBalance = parseInt(document.querySelector('#remoteBalance').value)
+				if (sats > remoteBalance) {
+					button.disabled = true
+					button.innerText = 'Not enough remote balance'
+				}
+			}
+
 		}
 		document.addEventListener('htmx:load', () => {
 		  document.querySelector('#amount').addEventListener('input', canSwap)
@@ -206,8 +216,9 @@ templ SwapHistoryListContent(swaps []types.Swap, loadMore bool) {
 	}
 }
 
-templ SwapInputAmountComponent(kind, maxBalance string) {
+templ SwapInputAmountComponent(kind, maxBalance string, remoteBalance string) {
 	<input class="hidden" id="swapKind" name="kind" value={kind} />
 	<input class="hidden" id="balance" value={maxBalance} />
+	<input class="hidden" id="remoteBalance" value={remoteBalance} />
 	@components.SendAmount(maxBalance)
 }

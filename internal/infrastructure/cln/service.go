@@ -150,14 +150,16 @@ func (s *service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, e
 	return invoiceResp.Invoices[0].Status == clnpb.ListinvoicesInvoices_PAID, nil // TODO
 }
 
-func (s *service) GetBalance(ctx context.Context) (uint64, error) {
-	total := uint64(0)
+func (s *service) GetBalance(ctx context.Context) (uint64, uint64, error) {
+	local := uint64(0)
+	remote := uint64(0)
 	resp, err := s.client.ListFunds(ctx, &clnpb.ListfundsRequest{})
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	for _, channel := range resp.GetChannels() {
-		total += channel.GetOurAmountMsat().Msat
+		local += channel.GetOurAmountMsat().Msat
+		remote += channel.GetAmountMsat().Msat - local
 	}
-	return total, nil
+	return local, remote, nil
 }

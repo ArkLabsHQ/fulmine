@@ -16,5 +16,5 @@ type LnService interface {
 	IsInvoiceSettled(ctx context.Context, invoice string) (ok bool, err error)
 	PayInvoice(ctx context.Context, invoice string) (preimage string, err error)
 	Disconnect()
-	GetBalance(ctx context.Context) (balance uint64, err error)
+	GetBalance(ctx context.Context) (local uint64, remote uint64, err error)
 }

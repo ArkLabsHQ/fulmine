@@ -595,15 +595,19 @@ func (s *service) swap(c *gin.Context) {
 		return
 	}
 
-	bodyContent := pages.SwapBodyContent(spendableBalance, s.getNodeBalance(c), s.svc.IsConnectedLN())
+	local, remote := s.getNodeBalance(c)
+
+	bodyContent := pages.SwapBodyContent(spendableBalance, local, remote, s.svc.IsConnectedLN())
 	s.pageViewHandler(bodyContent, c)
 }
 
 func (s *service) swapActive(c *gin.Context) {
 	active := c.Param("active")
+	local, remote := s.getNodeBalance(c)
+
 	var balance string
 	if active == "inbound" {
-		balance = s.getNodeBalance(c)
+		balance = local
 	} else {
 		spendableBalance, err := s.getSpendableBalance(c)
 		if err != nil {
@@ -613,7 +617,7 @@ func (s *service) swapActive(c *gin.Context) {
 		}
 		balance = spendableBalance
 	}
-	bodyContent := pages.SwapPartialContent(active, balance)
+	bodyContent := pages.SwapPartialContent(active, balance, remote)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -838,15 +842,16 @@ func (s *service) getSpendableBalance(c *gin.Context) (string, error) {
 	return strconv.FormatUint(balance, 10), nil
 }
 
-func (s *service) getNodeBalance(c *gin.Context) string {
+func (s *service) getNodeBalance(c *gin.Context) (string, string) {
 	if s.svc.IsConnectedLN() {
-		msats, err := s.svc.GetBalanceLN(c)
+		local, remote, err := s.svc.GetBalanceLN(c)
 		if err == nil {
-			sats := msats / 1000
-			return strconv.FormatUint(sats, 10)
+			local := local / 1000
+			remote := remote / 1000
+			return strconv.FormatUint(local, 10), strconv.FormatUint(remote, 10)
 		}
 	}
-	return "0"
+	return "0", "0"
 }
 
 func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction, err error) {
