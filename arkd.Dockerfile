@@ -3,7 +3,7 @@ FROM golang:1.24.6 AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
-ARG ARKD_VERSION=debug-logs
+ARG ARKD_VERSION=master
 
 WORKDIR /app
 
