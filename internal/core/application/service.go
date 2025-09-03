@@ -27,7 +27,6 @@ import (
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/client"
 	grpcclient "github.com/arkade-os/go-sdk/client/grpc"
-	"github.com/arkade-os/go-sdk/explorer"
 	indexer "github.com/arkade-os/go-sdk/indexer"
 	indexerTransport "github.com/arkade-os/go-sdk/indexer/grpc"
 	"github.com/arkade-os/go-sdk/store"
@@ -36,6 +35,7 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
@@ -205,31 +205,6 @@ func NewService(
 	return svc, nil
 }
 
-// TODO: temporary override the go-sdk balance to avoid the rate limit issue
-func (s *Service) Balance(ctx context.Context) (arksdk.Balance, error) {
-	vtxos, _, err := s.ListVtxos(ctx)
-	if err != nil {
-		return arksdk.Balance{}, err
-	}
-
-	total := uint64(0)
-	for _, vtxo := range vtxos {
-		total += vtxo.Amount
-	}
-
-	balance := arksdk.Balance{
-		OnchainBalance: arksdk.OnchainBalance{
-			SpendableAmount: 0,
-			LockedAmount:    []arksdk.LockedOnchainBalance{},
-		},
-		OffchainBalance: arksdk.OffchainBalance{
-			Total: total,
-		},
-	}
-
-	return balance, nil
-}
-
 func (s *Service) IsReady() bool {
 	return s.isReady
 }
@@ -268,14 +243,26 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		return err
 	}
 
+	infos, err := client.GetInfo(ctx)
+	if err != nil {
+		return err
+	}
+
+	pollingInterval := 5 * time.Minute
+	if infos.Network == "regtest" {
+		log.Info("using faster polling interval for regtest")
+		pollingInterval = 5 * time.Second
+	}
+
 	if err := s.Init(ctx, arksdk.InitArgs{
-		WalletType:          arksdk.SingleKeyWallet,
-		ClientType:          arksdk.GrpcClient,
-		ServerUrl:           validatedServerUrl,
-		ExplorerURL:         s.esploraUrl,
-		Password:            password,
-		Seed:                privateKey,
-		WithTransactionFeed: true,
+		WalletType:           arksdk.SingleKeyWallet,
+		ClientType:           arksdk.GrpcClient,
+		ServerUrl:            validatedServerUrl,
+		ExplorerURL:          s.esploraUrl,
+		ExplorerPollInterval: pollingInterval,
+		Password:             password,
+		Seed:                 privateKey,
+		WithTransactionFeed:  true,
 	}); err != nil {
 		return err
 	}
@@ -414,7 +401,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 
-	offchainPkScript, err := addressPkScript(offchainAddress)
+	offchainPkScript, err := offchainAddressPkScript(offchainAddress)
 	if err != nil {
 		log.WithError(err).Error("failed to get offchain address")
 		return err
@@ -526,15 +513,11 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 
-	balance, err := s.Balance(ctx)
+	balance, err := s.Balance(ctx, false)
 	if err != nil {
 		return 0, err
 	}
-	// TODO : revert
-	// onchainBalance := balance.OnchainBalance.SpendableAmount
-	// for _, amount := range balance.OnchainBalance.LockedAmount {
-	// 	onchainBalance += amount.Amount
-	// }
+
 	return balance.OffchainBalance.Total, nil
 }
 
@@ -818,7 +801,7 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 
 	scripts := make([]string, 0, len(addresses))
 	for _, addr := range addresses {
-		pkScript, err := addressPkScript(addr)
+		pkScript, err := offchainAddressPkScript(addr)
 		if err != nil {
 			return fmt.Errorf("failed to parse address to p2tr script: %w", err)
 		}
@@ -836,7 +819,7 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 
 	scripts := make([]string, 0, len(addresses))
 	for _, addr := range addresses {
-		pkScript, err := addressPkScript(addr)
+		pkScript, err := offchainAddressPkScript(addr)
 		if err != nil {
 			return fmt.Errorf("failed to parse address to p2tr script: %w", err)
 		}
@@ -1011,66 +994,46 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 // subscribeForBoardingEvent aims to update the scheduled settlement
 // by checking for spent and new vtxos on the given boarding address
 func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string, cfg *types.Config) {
-	ticker := time.NewTicker(5 * time.Minute)
-	defer ticker.Stop()
-
-	boardingTimelock := arklib.RelativeLocktime{Type: cfg.BoardingExitDelay.Type, Value: cfg.BoardingExitDelay.Value}
-
-	expl := explorer.NewExplorer(s.esploraUrl, cfg.Network)
-
-	currentSet := make(map[string]types.Utxo)
-	utxos, err := expl.GetUtxos(address)
+	eventsCh := s.GetUtxoEventChannel(ctx)
+	boardingScript, err := onchainAddressPkScript(address, cfg.Network)
 	if err != nil {
-		log.WithError(err).Error("failed to get utxos")
+		log.WithError(err).Error("failed to get output script")
 		return
-	}
-	for _, utxo := range utxos {
-		key := fmt.Sprintf("%s:%d", utxo.Txid, utxo.Vout)
-		currentSet[key] = utxo.ToUtxo(boardingTimelock, []string{})
 	}
 
 	for {
 		select {
 		case <-s.stopBoardingEventListener:
 			return
-		case <-ticker.C:
-			utxos, err := expl.GetUtxos(address)
-			if err != nil {
-				log.WithError(err).Error("failed to get utxos")
+		case event, ok := <-eventsCh:
+			if !ok {
+				return
+			}
+			if event.Type == 0 && len(event.Utxos) == 0 {
 				continue
 			}
 
-			if len(utxos) == 0 {
-				continue
-			}
+			filteredUtxos := make([]types.Utxo, 0, len(event.Utxos))
+			for _, utxo := range event.Utxos {
+				if utxo.Spent || !utxo.IsConfirmed() {
+					continue
+				}
 
-			newSet := make(map[string]types.Utxo)
-			for _, utxo := range utxos {
-				key := fmt.Sprintf("%s:%d", utxo.Txid, utxo.Vout)
-				newSet[key] = utxo.ToUtxo(boardingTimelock, []string{})
-			}
-
-			// find new utxos
-			newUtxos := make([]types.Utxo, 0)
-			for key, newUtxo := range newSet {
-				if _, exists := currentSet[key]; !exists {
-					newUtxos = append(newUtxos, newUtxo)
+				if utxo.Script == boardingScript {
+					filteredUtxos = append(filteredUtxos, utxo)
 				}
 			}
 
-			if len(newUtxos) > 0 {
-				log.Infof("boarding event detected: %d new utxos", len(newUtxos))
-			}
-
 			// if expiry is before the next scheduled settlement, we need to schedule a new one
-			if len(newUtxos) > 0 {
+			if len(filteredUtxos) > 0 {
+				log.Infof("boarding event detected: %d new confirmed utxos", len(filteredUtxos))
 				nextScheduledSettlement := s.WhenNextSettlement(ctx)
 
 				needSchedule := false
 
-				for _, vtxo := range newUtxos {
-					if nextScheduledSettlement.IsZero() || vtxo.SpendableAt.Before(nextScheduledSettlement) {
-						nextScheduledSettlement = vtxo.SpendableAt
+				for _, utxo := range filteredUtxos {
+					if nextScheduledSettlement.IsZero() || utxo.SpendableAt.Before(nextScheduledSettlement) {
+						nextScheduledSettlement = utxo.SpendableAt
 						needSchedule = true
 					}
 				}
@@ -1081,9 +1044,6 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 					}
 				}
 			}
-
-			// update current set
-			currentSet = newSet
 		}
 	}
 }
@@ -1873,6 +1833,11 @@ func (s *Service) claimVHTLC(
 		return "", err
 	}
 
+	checkpointScript, err := hex.DecodeString(cfg.CheckpointTapscript)
+	if err != nil {
+		return "", err
+	}
+
 	arkTx, checkpoints, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
@@ -1888,7 +1853,7 @@ func (s *Service) claimVHTLC(
 				PkScript: pkScript,
 			},
 		},
-		checkpointExitScript(cfg),
+		checkpointScript,
 	)
 	if err != nil {
 		return "", err
@@ -1988,6 +1953,11 @@ func (s *Service) refundVHTLC(
 		return "", err
 	}
 
+	checkpointScript, err := hex.DecodeString(cfg.CheckpointTapscript)
+	if err != nil {
+		return "", err
+	}
+
 	refundTx, checkpointPtxs, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
@@ -2003,7 +1973,7 @@ func (s *Service) refundVHTLC(
 				PkScript: dest,
 			},
 		},
-		checkpointExitScript(cfg),
+		checkpointScript,
 	)
 	if err != nil {
 		return "", err
@@ -2059,15 +2029,6 @@ func (s *Service) refundVHTLC(
 	}
 
 	return arkTxid, nil
-}
-
-func checkpointExitScript(cfg *types.Config) *script.CSVMultisigClosure {
-	return &script.CSVMultisigClosure{
-		Locktime: cfg.UnilateralExitDelay,
-		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*btcec.PublicKey{cfg.SignerPubKey},
-		},
-	}
 }
 
 func parsePubkey(pubkey string) (*btcec.PublicKey, error) {
@@ -2236,7 +2197,7 @@ func verifyFinalArkTx(finalArkTx string, arkSigner *btcec.PublicKey, expectedTap
 	return nil
 }
 
-func addressPkScript(addr string) (string, error) {
+func offchainAddressPkScript(addr string) (string, error) {
 	decodedAddress, err := arklib.DecodeAddressV0(addr)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode address %s: %w", addr, err)
@@ -2247,6 +2208,19 @@ func addressPkScript(addr string) (string, error) {
 		return "", fmt.Errorf("failed to parse address to p2tr script: %w", err)
 	}
 	return hex.EncodeToString(p2trScript), nil
+}
+
+func onchainAddressPkScript(addr string, network arklib.Network) (string, error) {
+	btcAddress, err := btcutil.DecodeAddress(addr, toBitcoinNetwork(network))
+	if err != nil {
+		return "", fmt.Errorf("failed to decode address %s: %w", addr, err)
+	}
+
+	script, err := txscript.PayToAddrScript(btcAddress)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse address to p2tr script: %w", err)
+	}
+	return hex.EncodeToString(script), nil
 }
 
 type internalScriptsStore string
@@ -2261,4 +2235,23 @@ func (s internalScriptsStore) Add(ctx context.Context, scripts []string) (int, e
 
 func (s internalScriptsStore) Delete(ctx context.Context, scripts []string) (int, error) {
 	return 0, fmt.Errorf("cannot delete scripts from internal subscription")
+}
+
+func toBitcoinNetwork(net arklib.Network) *chaincfg.Params {
+	switch net.Name {
+	case arklib.Bitcoin.Name:
+		return &chaincfg.MainNetParams
+	case arklib.BitcoinTestNet.Name:
+		return &chaincfg.TestNet3Params
+	//case arklib.BitcoinTestNet4.Name: //TODO uncomment once supported
+	//	return chaincfg.TestNet4Params
+	case arklib.BitcoinSigNet.Name:
+		return &chaincfg.SigNetParams
+	case arklib.BitcoinMutinyNet.Name:
+		return &arklib.MutinyNetSigNetParams
+	case arklib.BitcoinRegTest.Name:
+		return &chaincfg.RegressionNetParams
+	default:
+		return &chaincfg.MainNetParams
+	}
 }
