@@ -1002,7 +1002,14 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 		select {
 		case <-s.stopBoardingEventListener:
 			return
-		case event := <-eventsCh:
+		case event, ok := <-eventsCh:
+			if !ok {
+				return
+			}
+			if event.Type == 0 && len(event.Utxos) == 0 {
+				continue
+			}
+
 			filteredUtxos := make([]types.Utxo, 0, len(event.Utxos))
 			for _, utxo := range event.Utxos {
 				if utxo.Spent || !utxo.IsConfirmed() {
