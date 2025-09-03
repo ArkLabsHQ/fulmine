@@ -518,10 +518,6 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 
-	onchainBalance := balance.OnchainBalance.SpendableAmount
-	for _, amount := range balance.OnchainBalance.LockedAmount {
-		onchainBalance += amount.Amount
-	}
 	return balance.OffchainBalance.Total, nil
 }
 
