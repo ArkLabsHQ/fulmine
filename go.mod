@@ -44,6 +44,7 @@ require (
 )
 
 require (
+	github.com/ArkLabsHQ/fulmine/pkg/swap v0.0.0-00010101000000-000000000000
 	github.com/arkade-os/arkd/pkg/ark-lib v0.7.1-0.20250829153206-1d45ead6c3ec
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
@@ -52,7 +53,6 @@ require (
 
 require (
 	dario.cat/mergo v1.0.1 // indirect
-	github.com/ArkLabsHQ/fulmine/pkg/swap v0.0.0-00010101000000-000000000000 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/Masterminds/semver/v3 v3.2.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
