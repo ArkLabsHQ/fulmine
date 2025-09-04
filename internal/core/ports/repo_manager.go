@@ -1,6 +1,10 @@
 package ports
 
-import "github.com/ArkLabsHQ/fulmine/internal/core/domain"
+import (
+	"time"
+
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
+)
 
 type RepoManager interface {
 	Settings() domain.SettingsRepository
@@ -10,3 +14,5 @@ type RepoManager interface {
 	SubscribedScript() domain.SubscribedScriptRepository
 	Close()
 }
+
+const DefaultDbTimeout = 5 * time.Minute // seconds

@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
 )
 
@@ -28,11 +29,14 @@ func NewVtxoRolloverRepository(db *sql.DB) (domain.VtxoRolloverRepository, error
 }
 
 func (r *vtxoRolloverRepository) AddTarget(ctx context.Context, target domain.VtxoRolloverTarget) error {
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
 	treeJSON, err := json.Marshal(target.TaprootTree)
 	if err != nil {
 		return err
 	}
-	return r.querier.UpsertVtxoRollover(ctx, queries.UpsertVtxoRolloverParams{
+	return r.querier.UpsertVtxoRollover(timeoutContext, queries.UpsertVtxoRolloverParams{
 		Address:            target.Address,
 		TaprootTree:        string(treeJSON),
 		DestinationAddress: target.DestinationAddress,
@@ -40,7 +44,10 @@ func (r *vtxoRolloverRepository) AddTarget(ctx context.Context, target domain.Vt
 }
 
 func (r *vtxoRolloverRepository) GetTarget(ctx context.Context, address string) (*domain.VtxoRolloverTarget, error) {
-	row, err := r.querier.GetVtxoRollover(ctx, address)
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
+	row, err := r.querier.GetVtxoRollover(timeoutContext, address)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("rollover target not found for address: %s", address)
@@ -59,7 +66,10 @@ func (r *vtxoRolloverRepository) GetTarget(ctx context.Context, address string) 
 }
 
 func (r *vtxoRolloverRepository) GetAllTargets(ctx context.Context) ([]domain.VtxoRolloverTarget, error) {
-	rows, err := r.querier.ListVtxoRollover(ctx)
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
+	rows, err := r.querier.ListVtxoRollover(timeoutContext)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +89,10 @@ func (r *vtxoRolloverRepository) GetAllTargets(ctx context.Context) ([]domain.Vt
 }
 
 func (r *vtxoRolloverRepository) DeleteTarget(ctx context.Context, address string) error {
-	return r.querier.DeleteVtxoRollover(ctx, address)
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
+	return r.querier.DeleteVtxoRollover(timeoutContext, address)
 }
 
 func (r *vtxoRolloverRepository) Close() {

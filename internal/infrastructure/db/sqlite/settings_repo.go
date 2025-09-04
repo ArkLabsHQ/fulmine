@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
 )
 
@@ -32,11 +33,17 @@ func NewSettingsRepository(db *sql.DB) (domain.SettingsRepository, error) {
 }
 
 func (s *settingsRepository) AddDefaultSettings(ctx context.Context) error {
-	return s.AddSettings(ctx, defaultSettings)
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
+	return s.AddSettings(timeoutContext, defaultSettings)
 }
 
 func (s *settingsRepository) AddSettings(ctx context.Context, settings domain.Settings) error {
-	_, err := s.GetSettings(ctx)
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
+	_, err := s.GetSettings(timeoutContext)
 	if err == nil {
 		return fmt.Errorf("settings already exist")
 	}
@@ -50,7 +57,7 @@ func (s *settingsRepository) AddSettings(ctx context.Context, settings domain.Se
 		lnUrl = sql.NullString{String: settings.LnConnectionOpts.LnUrl, Valid: true}
 	}
 
-	return s.querier.UpsertSettings(ctx, queries.UpsertSettingsParams{
+	return s.querier.UpsertSettings(timeoutContext, queries.UpsertSettingsParams{
 		ApiRoot:     settings.ApiRoot,
 		ServerUrl:   settings.ServerUrl,
 		EsploraUrl:  sql.NullString{String: settings.EsploraUrl, Valid: true},
@@ -65,7 +72,10 @@ func (s *settingsRepository) AddSettings(ctx context.Context, settings domain.Se
 }
 
 func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain.Settings) error {
-	existing, err := s.querier.GetSettings(ctx)
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
+	existing, err := s.querier.GetSettings(timeoutContext)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("settings not found")
@@ -103,7 +113,7 @@ func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain
 		existing.LnUrl = sql.NullString{String: settings.LnConnectionOpts.LnUrl, Valid: true}
 	}
 
-	return s.querier.UpsertSettings(ctx, queries.UpsertSettingsParams{
+	return s.querier.UpsertSettings(timeoutContext, queries.UpsertSettingsParams{
 		ApiRoot:     existing.ApiRoot,
 		ServerUrl:   existing.ServerUrl,
 		EsploraUrl:  existing.EsploraUrl,
@@ -118,7 +128,10 @@ func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain
 }
 
 func (s *settingsRepository) GetSettings(ctx context.Context) (*domain.Settings, error) {
-	row, err := s.querier.GetSettings(ctx)
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
+	row, err := s.querier.GetSettings(timeoutContext)
 	if err != nil {
 		return nil, err
 	}
@@ -146,15 +159,18 @@ func (s *settingsRepository) GetSettings(ctx context.Context) (*domain.Settings,
 }
 
 func (s *settingsRepository) CleanSettings(ctx context.Context) error {
-	_, err := s.GetSettings(ctx)
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
+	_, err := s.GetSettings(timeoutContext)
 	if err != nil {
 		return fmt.Errorf("settings not found")
 	}
-	if err := s.querier.DeleteSettings(ctx); err != nil {
+	if err := s.querier.DeleteSettings(timeoutContext); err != nil {
 		return err
 	}
 	// nolint:all
-	s.db.ExecContext(ctx, "VACUUM")
+	s.db.ExecContext(timeoutContext, "VACUUM")
 	return nil
 }
 

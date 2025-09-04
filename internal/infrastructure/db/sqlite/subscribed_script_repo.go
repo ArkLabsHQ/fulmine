@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
 )
@@ -29,8 +30,11 @@ func NewSubscribedScriptRepository(db *sql.DB) (domain.SubscribedScriptRepositor
 }
 
 func (r *subscribedScriptRepository) Add(ctx context.Context, scripts []string) (count int, err error) {
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
 	count = 0
-	txBody := func(querierWithTx *queries.Queries) error {
+	txBody := func(ctx context.Context, querierWithTx *queries.Queries) error {
 		for _, script := range scripts {
 			err := querierWithTx.InsertSubscribedScript(ctx, script)
 			if err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed") {
@@ -45,7 +49,7 @@ func (r *subscribedScriptRepository) Add(ctx context.Context, scripts []string) 
 		return nil
 	}
 
-	err = execTx(ctx, r.db, txBody)
+	err = execTx(timeoutContext, r.db, txBody)
 	if err != nil {
 		return 0, fmt.Errorf("failed to execute transaction: %w", err)
 	}
@@ -54,7 +58,10 @@ func (r *subscribedScriptRepository) Add(ctx context.Context, scripts []string) 
 }
 
 func (r *subscribedScriptRepository) Get(ctx context.Context) ([]string, error) {
-	rows, err := r.querier.ListSubscribedScript(ctx)
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
+	rows, err := r.querier.ListSubscribedScript(timeoutContext)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return []string{}, nil
@@ -66,8 +73,11 @@ func (r *subscribedScriptRepository) Get(ctx context.Context) ([]string, error) 
 }
 
 func (r *subscribedScriptRepository) Delete(ctx context.Context, scripts []string) (count int, err error) {
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
 	count = 0
-	txBody := func(querierWithTx *queries.Queries) error {
+	txBody := func(ctx context.Context, querierWithTx *queries.Queries) error {
 		for _, script := range scripts {
 			// Check if the script exists before trying to delete it
 			_, err := querierWithTx.GetSubscribedScript(ctx, script)
@@ -86,7 +96,7 @@ func (r *subscribedScriptRepository) Delete(ctx context.Context, scripts []strin
 		return nil
 	}
 
-	err = execTx(ctx, r.db, txBody)
+	err = execTx(timeoutContext, r.db, txBody)
 	if err != nil {
 		return 0, fmt.Errorf("failed to execute transaction: %w", err)
 	}
