@@ -87,6 +87,19 @@ templ SendBodyContent(currentBalance string) {
 			return false
 		}
 
+	  const validateOffer = async (offer) => {
+	  const data = new FormData()
+	  	data.set('offer', offer)
+				const res = await fetch('/helpers/offer/validate', { method: 'POST', body: data })
+				if (res.ok) {
+					const { sats, valid } = await res.json()
+					if (valid) updateUI({ sats, buttonLabel: 'Send to Bolt12' })
+					return valid
+				}
+				return false
+			}
+
+
 	  const canSend = async () => {
 			const address = document.querySelector('#address').value
 			const amount = document.querySelector('#amount').value
@@ -96,13 +109,14 @@ templ SendBodyContent(currentBalance string) {
 			button.disabled = address.length === 0 || amount.length === 0 || !sats || sats > balance
 			button.innerText = sats > balance ? 'Not enough funds' : 'Preview send'
 			if (address) {
-				const [isNote, isInvoice, isBip21] = await Promise.all([
+				const [isNote, isInvoice, isBip21, isOffer] = await Promise.all([
 					validateArkNote(address),
 					validateInvoice(address),
 					validateIsBip21(address),
+					validateOffer(address),
 				])
 
-				const disableInputAmount = isNote || isInvoice || isBip21 
+				const disableInputAmount = isNote || isInvoice || isBip21  || isOffer
 					
 				document.querySelector('#amount').disabled = disableInputAmount
 			} else {

@@ -1,4 +1,31 @@
 services:
+  boltz-cln:
+      build: 
+        context: .
+        dockerfile: cln.Dockerfile
+      restart: unless-stopped
+      container_name: boltz-cln
+      healthcheck:
+        test: ["CMD", "lightning-cli", "--network=regtest", "getinfo"]
+        interval: 10s
+        timeout: 5s
+        retries: 10
+      command:
+        - --bind-addr=0.0.0.0:9735
+        - --bitcoin-rpcconnect=bitcoin:18443
+        - --bitcoin-rpcpassword=123 
+        - --bitcoin-rpcuser=admin1
+        - --log-level=debug
+        - --network=regtest
+        - --large-channels
+        - --grpc-host=0.0.0.0
+        - --grpc-port=9736
+        - --plugin=/root/hold
+        - --plugin=/root/clnurl
+        - --ignore-fee-limits=false
+        - --min-emergency-msat=1000000
+      volumes:
+        - cln_datadir:/root/.lightning/regtest
   boltz-lnd:
     image: lightninglabs/lnd:v0.19.1-beta
     restart: unless-stopped
@@ -46,8 +73,11 @@ services:
       - '9000:9000'
       - '9001:9001'
       - '9004:9004'
+      - '9005:9005'
     expose:
       - '9001'
+      - '9004'
+      - '9005'
     depends_on:
       boltz-postgres:
         condition: service_healthy
@@ -134,9 +164,27 @@ services:
         port = 10009
         certpath = "/home/boltz/.lnd/tls.cert"
         macaroonpath = "/home/boltz/.lnd/data/chain/bitcoin/regtest/admin.macaroon"
+
+        [currencies.cln]
+        host = "boltz-cln"
+        port = 9736
+        rootCertPath = "/home/boltz/.cln/ca.pem"
+        privateKeyPath = "/home/boltz/.cln/client-key.pem"
+        certChainPath = "/home/boltz/.cln/client.pem"
+
+        [currencies.cln.hold]
+        host = "boltz-cln"
+        port = 9292
+        rootCertPath = "/home/boltz/.cln/hold/ca.pem"
+        privateKeyPath = "/home/boltz/.cln/hold/client-key.pem"
+        certChainPath = "/home/boltz/.cln/hold/client.pem"
+
+        [nodeSwitch]
+        clnAmountThreshold = 1000
     volumes:
       - boltz_datadir:/home/boltz/.boltz
       - lnd_datadir:/home/boltz/.lnd
+      - cln_datadir:/home/boltz/.cln
     entrypoint: sh -c 'echo "$$BOLTZ_CONFIG" > /home/boltz/.boltz/boltz.config && boltzd --datadir /home/boltz/.boltz --configpath /home/boltz/.boltz/boltz.config'
   boltz-postgres:
     image: postgres:15.4
@@ -184,6 +232,8 @@ volumes:
     name: bitcoin_fulmine_data
   lnd_datadir:
     name: lnd_datadir
+  cln_datadir:
+    name: cln_datadir
 
 
 networks:

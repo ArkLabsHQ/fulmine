@@ -136,7 +136,7 @@ func SendBodyContent(currentBalance string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></form></div><script>\n\t  const updateUI = ({ sats, buttonLabel }) => {\n\t\t\tconst button = document.querySelector('button[type=\"submit\"]')\n\t\t\tbutton.disabled = false\n\t\t\tbutton.innerText = buttonLabel\n\t\t\tdocument.querySelector('#sats').value = sats\n\t\t\tconst unit = document.querySelector('#unit').innerText\n\t\t\tconst amount = unit === 'SATS' ? sats : fromSatoshis(sats)\n\t\t\tdocument.querySelector('#amount').value = amount\n\t\t}\n\n\t  const validateArkNote = async (note) => {\n      const data = new FormData()\n\t\t\tdata.set('note', note)\n\t\t\tconst res = await fetch('/helpers/note/validate', { method: 'POST', body: data })\n\t\t\tif (res.ok) {\n\t\t\t\tconst { sats, valid } = await res.json()\n\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Redeem note' })\n\t\t\t\treturn valid\n\t\t\t}\n\t\t\treturn false\n\t\t}\n\t\t\n\n\tconst validateIsBip21 = async (bip21) => {\n      const data = new FormData()\n\t\t\tdata.set('bip21', bip21)\n\t\t\tconst res = await fetch('/helpers/bip21/validate', { method: 'POST', body: data })\n\t\t\tif (res.ok) {\n\t\t\t\tconst { sats, valid } = await res.json()\n\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Send' })\n\t\t\t\treturn valid\n\t\t\t}\n\t\t\treturn false\n\t\t}\n\n\t  const validateInvoice = async (invoice) => {\n      const data = new FormData()\n\t\t\tdata.set('invoice', invoice)\n\t\t\tconst res = await fetch('/helpers/invoice/validate', { method: 'POST', body: data })\n\t\t\tif (res.ok) {\n\t\t\t\tconst { sats, valid } = await res.json()\n\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Send to lightning' })\n\t\t\t\treturn valid\n\t\t\t}\n\t\t\treturn false\n\t\t}\n\n\t  const canSend = async () => {\n\t\t\tconst address = document.querySelector('#address').value\n\t\t\tconst amount = document.querySelector('#amount').value\n\t\t\tconst button = document.querySelector('button[type=\"submit\"]')\n\t\t\tconst balance = parseInt(document.querySelector('#balance').value)\n\t\t\tconst sats = parseInt(document.querySelector('#sats').value)\n\t\t\tbutton.disabled = address.length === 0 || amount.length === 0 || !sats || sats > balance\n\t\t\tbutton.innerText = sats > balance ? 'Not enough funds' : 'Preview send'\n\t\t\tif (address) {\n\t\t\t\tconst [isNote, isInvoice, isBip21] = await Promise.all([\n\t\t\t\t\tvalidateArkNote(address),\n\t\t\t\t\tvalidateInvoice(address),\n\t\t\t\t\tvalidateIsBip21(address),\n\t\t\t\t])\n\n\t\t\t\tconst disableInputAmount = isNote || isInvoice || isBip21 \n\t\t\t\t\t\n\t\t\t\tdocument.querySelector('#amount').disabled = disableInputAmount\n\t\t\t} else {\n\t\t\t\tdocument.querySelector('#amount').disabled = false\n\t\t\t}\n\t\t}\n\n\t  document.querySelector('#address').addEventListener('input', canSend)\n\t  document.querySelector('#amount').addEventListener('input', canSend)\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></form></div><script>\n\t  const updateUI = ({ sats, buttonLabel }) => {\n\t\t\tconst button = document.querySelector('button[type=\"submit\"]')\n\t\t\tbutton.disabled = false\n\t\t\tbutton.innerText = buttonLabel\n\t\t\tdocument.querySelector('#sats').value = sats\n\t\t\tconst unit = document.querySelector('#unit').innerText\n\t\t\tconst amount = unit === 'SATS' ? sats : fromSatoshis(sats)\n\t\t\tdocument.querySelector('#amount').value = amount\n\t\t}\n\n\t  const validateArkNote = async (note) => {\n      const data = new FormData()\n\t\t\tdata.set('note', note)\n\t\t\tconst res = await fetch('/helpers/note/validate', { method: 'POST', body: data })\n\t\t\tif (res.ok) {\n\t\t\t\tconst { sats, valid } = await res.json()\n\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Redeem note' })\n\t\t\t\treturn valid\n\t\t\t}\n\t\t\treturn false\n\t\t}\n\t\t\n\n\tconst validateIsBip21 = async (bip21) => {\n      const data = new FormData()\n\t\t\tdata.set('bip21', bip21)\n\t\t\tconst res = await fetch('/helpers/bip21/validate', { method: 'POST', body: data })\n\t\t\tif (res.ok) {\n\t\t\t\tconst { sats, valid } = await res.json()\n\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Send' })\n\t\t\t\treturn valid\n\t\t\t}\n\t\t\treturn false\n\t\t}\n\n\t  const validateInvoice = async (invoice) => {\n      const data = new FormData()\n\t\t\tdata.set('invoice', invoice)\n\t\t\tconst res = await fetch('/helpers/invoice/validate', { method: 'POST', body: data })\n\t\t\tif (res.ok) {\n\t\t\t\tconst { sats, valid } = await res.json()\n\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Send to lightning' })\n\t\t\t\treturn valid\n\t\t\t}\n\t\t\treturn false\n\t\t}\n\n\t  const validateOffer = async (offer) => {\n\t  const data = new FormData()\n\t  \tdata.set('offer', offer)\n\t\t\t\tconst res = await fetch('/helpers/offer/validate', { method: 'POST', body: data })\n\t\t\t\tif (res.ok) {\n\t\t\t\t\tconst { sats, valid } = await res.json()\n\t\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Send to Bolt12' })\n\t\t\t\t\treturn valid\n\t\t\t\t}\n\t\t\t\treturn false\n\t\t\t}\n\n\n\t  const canSend = async () => {\n\t\t\tconst address = document.querySelector('#address').value\n\t\t\tconst amount = document.querySelector('#amount').value\n\t\t\tconst button = document.querySelector('button[type=\"submit\"]')\n\t\t\tconst balance = parseInt(document.querySelector('#balance').value)\n\t\t\tconst sats = parseInt(document.querySelector('#sats').value)\n\t\t\tbutton.disabled = address.length === 0 || amount.length === 0 || !sats || sats > balance\n\t\t\tbutton.innerText = sats > balance ? 'Not enough funds' : 'Preview send'\n\t\t\tif (address) {\n\t\t\t\tconst [isNote, isInvoice, isBip21, isOffer] = await Promise.all([\n\t\t\t\t\tvalidateArkNote(address),\n\t\t\t\t\tvalidateInvoice(address),\n\t\t\t\t\tvalidateIsBip21(address),\n\t\t\t\t\tvalidateOffer(address),\n\t\t\t\t])\n\n\t\t\t\tconst disableInputAmount = isNote || isInvoice || isBip21  || isOffer\n\t\t\t\t\t\n\t\t\t\tdocument.querySelector('#amount').disabled = disableInputAmount\n\t\t\t} else {\n\t\t\t\tdocument.querySelector('#amount').disabled = false\n\t\t\t}\n\t\t}\n\n\t  document.querySelector('#address').addEventListener('input', canSend)\n\t  document.querySelector('#amount').addEventListener('input', canSend)\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -172,7 +172,7 @@ func SendPreviewContent(address, sats, feeAmount, total string) templ.Component 
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(address)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 121, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 135, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -185,7 +185,7 @@ func SendPreviewContent(address, sats, feeAmount, total string) templ.Component 
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 122, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 136, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -222,7 +222,7 @@ func SendPreviewContent(address, sats, feeAmount, total string) templ.Component 
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 133, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 147, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -235,7 +235,7 @@ func SendPreviewContent(address, sats, feeAmount, total string) templ.Component 
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 133, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 147, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -248,7 +248,7 @@ func SendPreviewContent(address, sats, feeAmount, total string) templ.Component 
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(address)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 136, Col: 92}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 150, Col: 92}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -326,7 +326,7 @@ func SendSuccessContent(address, amount, txid, explorerUrl string) templ.Compone
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(amount)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 154, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 168, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -339,7 +339,7 @@ func SendSuccessContent(address, amount, txid, explorerUrl string) templ.Compone
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(amount)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 154, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 168, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -352,7 +352,7 @@ func SendSuccessContent(address, amount, txid, explorerUrl string) templ.Compone
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(address)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 157, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 171, Col: 71}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
