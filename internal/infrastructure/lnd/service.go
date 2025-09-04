@@ -223,16 +223,71 @@ func (s *service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, e
 	return invoiceResp.State == lnrpc.Invoice_SETTLED, nil
 }
 
-func (s *service) GetBalance(ctx context.Context) (local uint64, remote uint64, err error) {
+func (s *service) GetBalance(ctx context.Context) (balance uint64, err error) {
 	ctx = getCtx(ctx, s.macaroon)
 	resp, err := s.client.ChannelBalance(ctx, &lnrpc.ChannelBalanceRequest{})
+	if err != nil {
+		return 0, err
+	}
+
+	return resp.LocalBalance.Msat, nil
+}
+
+func (s *service) GetMaxChannelLimit(ctx context.Context) (uint64, uint64, error) {
+	ctx = getCtx(ctx, s.macaroon)
+
+	resp, err := s.client.ListChannels(ctx, &lnrpc.ListChannelsRequest{})
 	if err != nil {
 		return 0, 0, err
 	}
 
-	local = resp.LocalBalance.Msat
+	clampSub := func(a, b uint64) uint64 {
+		if a <= b {
+			return 0
+		}
+		return a - b
+	}
 
-	remote = resp.RemoteBalance.Msat
+	max64 := func(a, b uint64) uint64 {
+		if a > b {
+			return a
+		}
+		return b
+	}
 
-	return local, remote, nil
+	var maxLocalChannelLimit uint64
+	var maxRemoteChannelLimit uint64
+
+	// WARN: This is based on heuristics
+	trimThreshold := uint64(2000)
+
+	for _, channel := range resp.Channels {
+		var localChannelLimit uint64
+		var remoteChannelLimit uint64
+
+		commitFee := uint64(channel.GetCommitFee())
+		localReserve := uint64(channel.LocalConstraints.GetChanReserveSat())
+		localBalance := uint64(channel.GetLocalBalance())
+		remoteBalance := uint64(channel.GetRemoteBalance())
+		remoteReserve := uint64(channel.RemoteConstraints.GetChanReserveSat())
+
+		totalLocalReserve := localReserve + trimThreshold
+		totalRemoteReserve := remoteReserve + trimThreshold
+
+		if channel.Initiator {
+			totalLocalReserve += commitFee
+		} else {
+			totalRemoteReserve += commitFee
+		}
+
+		localChannelLimit = clampSub(localBalance, totalLocalReserve)
+		remoteChannelLimit = clampSub(remoteBalance, totalRemoteReserve)
+
+		maxLocalChannelLimit = max64(maxLocalChannelLimit, localChannelLimit)
+		maxRemoteChannelLimit = max64(maxRemoteChannelLimit, remoteChannelLimit)
+
+	}
+
+	return maxLocalChannelLimit, maxRemoteChannelLimit, nil
+
 }

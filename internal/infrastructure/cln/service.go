@@ -150,16 +150,74 @@ func (s *service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, e
 	return invoiceResp.Invoices[0].Status == clnpb.ListinvoicesInvoices_PAID, nil // TODO
 }
 
-func (s *service) GetBalance(ctx context.Context) (uint64, uint64, error) {
-	local := uint64(0)
-	remote := uint64(0)
+func (s *service) GetBalance(ctx context.Context) (uint64, error) {
+	balance := uint64(0)
 	resp, err := s.client.ListFunds(ctx, &clnpb.ListfundsRequest{})
+	if err != nil {
+		return 0, err
+	}
+	for _, channel := range resp.GetChannels() {
+		balance += channel.GetOurAmountMsat().Msat
+	}
+
+	return balance, nil
+}
+
+func (s *service) GetMaxChannelLimit(ctx context.Context) (uint64, uint64, error) {
+
+	resp, err := s.client.ListPeerChannels(ctx, &clnpb.ListpeerchannelsRequest{})
 	if err != nil {
 		return 0, 0, err
 	}
-	for _, channel := range resp.GetChannels() {
-		local += channel.GetOurAmountMsat().Msat
-		remote += channel.GetAmountMsat().Msat - local
+
+	var maxLocalChannelLimit uint64
+	var maxRemoteChannelLimit uint64
+
+	clampSub := func(a, b uint64) uint64 {
+		if a <= b {
+			return 0
+		}
+		return a - b
 	}
-	return local, remote, nil
+
+	max64 := func(a, b uint64) uint64 {
+		if a > b {
+			return a
+		}
+		return b
+	}
+
+	// WARN: This is based on heuristics
+	trimThreshold := uint64(2000)
+
+	for _, channel := range resp.Channels {
+		var localChannelLimit uint64
+		var remoteChannelLimit uint64
+
+		commitFee := uint64(channel.LastTxFeeMsat.Msat)
+		localReserve := uint64(channel.OurReserveMsat.Msat)
+		remoteReserve := uint64(channel.TheirReserveMsat.Msat)
+
+		localBalance := channel.ToUsMsat.Msat
+		// This is not exact, because it doesn't account for fees
+		remoteBalance := channel.GetTotalMsat().Msat - localBalance
+
+		totalLocalReserve := localReserve + trimThreshold
+		totalRemoteReserve := remoteReserve + trimThreshold
+
+		if channel.Opener == clnpb.ChannelSide_LOCAL {
+			totalLocalReserve += commitFee
+		} else {
+			totalRemoteReserve += commitFee
+		}
+
+		localChannelLimit = clampSub(localBalance, totalLocalReserve)
+		remoteChannelLimit = clampSub(remoteBalance, totalRemoteReserve)
+
+		maxLocalChannelLimit = max64(maxLocalChannelLimit, localChannelLimit)
+		maxRemoteChannelLimit = max64(maxRemoteChannelLimit, remoteChannelLimit)
+	}
+
+	return maxLocalChannelLimit / 1000, maxRemoteChannelLimit / 1000, nil
+
 }

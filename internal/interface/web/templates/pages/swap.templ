@@ -45,14 +45,14 @@ templ SwapTabs(active string) {
   </div>
 }
 
-templ SwapPartialContent(active, balance string, remoteBalance string) {
+templ SwapPartialContent(active, balance string, localMax, remoteMax string) {
 	<div id="swapPartial">
 	  @SwapTabs(active)
-	  @SwapInputAmountComponent(active, balance, remoteBalance)
+	  @SwapInputAmountComponent(active, balance, localMax, remoteMax)
 	</div>
 }
 
-templ SwapBodyContent(currentBalance, nodeBalance string, remoteBalance string,  isLnConnected bool) {
+templ SwapBodyContent(currentBalance, nodeBalance string, localMax string, remoteMax string,  isLnConnected bool) {
   @components.DesktopHeader()
 	<div id="swapBody">
     <form hx-post="/swap/preview" hx-target="#swapBody" hx-target="outerHTML">
@@ -74,6 +74,7 @@ templ SwapBodyContent(currentBalance, nodeBalance string, remoteBalance string, 
 								class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer"
 								onclick="setMax(this)"
 								sats={currentBalance}
+								maxLn={remoteMax}
 								kind="outbound">
 								MAX
 							</p>
@@ -90,11 +91,12 @@ templ SwapBodyContent(currentBalance, nodeBalance string, remoteBalance string, 
 								class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer"
 								onclick="setMax(this)"
 								sats={nodeBalance}
+								maxLn={localMax}
 								kind="inbound">
 								MAX
 							</p>
 						</div>
-						@SwapPartialContent("inbound", nodeBalance, remoteBalance)
+						@SwapPartialContent("inbound", nodeBalance, localMax, remoteMax)
 				  }
 				</div>
 				if isLnConnected {
@@ -107,9 +109,35 @@ templ SwapBodyContent(currentBalance, nodeBalance string, remoteBalance string, 
 	  const setMax = (el) => {
 			const kind = el.getAttribute('kind')
 			const sats = el.getAttribute('sats')
-			if (!kind || !sats) return
+			const maxLn= el.getAttribute('maxLn')
+			const button = document.querySelector('button[type="submit"]')
+
+			console.log("kind", kind)
+			console.log("sats", sats)
+			console.log("maxLn", maxLn)
+
+			if (!kind || !sats || !maxLn) return
+
+			satsAmount = parseInt(sats)
+			maxLnAmount = parseInt(maxLn)
+
+			if (parseInt(sats) == 0) {
+				button.disabled = true
+				button.innerText = 'Not enough funds'
+				return
+			}
+
+			if (parseInt(maxLnAmount) == 0) {
+				button.disabled = true
+				button.innerText = kind == "outbound" ? 'Not Enough remote balance' : 'Not Enough local balance'
+				return
+			}
+
+			const maxValue = satsAmount < maxLnAmount ? sats : maxLnAmount
+
 			document.querySelector(`#${kind}`).click()
-			setTimeout(() => setMaxValue(sats), 100)
+			setTimeout(() => setMaxValue(maxValue), 100)
+
 		}
 		const canSwap = () => {
 			const amount = document.querySelector('#amount').value
@@ -121,10 +149,16 @@ templ SwapBodyContent(currentBalance, nodeBalance string, remoteBalance string, 
 			button.innerText = sats > balance ? 'Not enough funds' : 'Preview swap'
 
 			if (kind === 'outbound') {
-				const remoteBalance = parseInt(document.querySelector('#remoteBalance').value)
-				if (sats > remoteBalance) {
+				const remoteMax = parseInt(document.querySelector('#remoteMax').value)
+				if (sats > remoteMax) {
 					button.disabled = true
 					button.innerText = 'Not enough remote balance'
+				}
+			} else {
+				const localMax = parseInt(document.querySelector('#localMax').value)
+				if (sats > localMax) {
+					button.disabled = true
+					button.innerText = 'Not enough local balance'
 				}
 			}
 
@@ -216,9 +250,10 @@ templ SwapHistoryListContent(swaps []types.Swap, loadMore bool) {
 	}
 }
 
-templ SwapInputAmountComponent(kind, maxBalance string, remoteBalance string) {
+templ SwapInputAmountComponent(kind, maxBalance string, localMax, remoteMax string) {
 	<input class="hidden" id="swapKind" name="kind" value={kind} />
 	<input class="hidden" id="balance" value={maxBalance} />
-	<input class="hidden" id="remoteBalance" value={remoteBalance} />
+	<input class="hidden" id="localMax" value={localMax} />
+	<input class="hidden" id="remoteMax" value={remoteMax} />
 	@components.SendAmount(maxBalance)
 }

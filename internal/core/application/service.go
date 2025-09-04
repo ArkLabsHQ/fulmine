@@ -776,7 +776,19 @@ func (s *Service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, e
 	return s.lnSvc.IsInvoiceSettled(ctx, invoice)
 }
 
-func (s *Service) GetBalanceLN(ctx context.Context) (local, remote uint64, err error) {
+func (s *Service) GetBalanceLN(ctx context.Context) (balance uint64, err error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return 0, err
+	}
+
+	if !s.lnSvc.IsConnected() {
+		return 0, fmt.Errorf("not connected to LN")
+	}
+
+	return s.lnSvc.GetBalance(ctx)
+}
+
+func (s *Service) GetMaxChannelLimit(ctx context.Context) (local uint64, remote uint64, err error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return 0, 0, err
 	}
@@ -785,7 +797,7 @@ func (s *Service) GetBalanceLN(ctx context.Context) (local, remote uint64, err e
 		return 0, 0, fmt.Errorf("not connected to LN")
 	}
 
-	return s.lnSvc.GetBalance(ctx)
+	return s.lnSvc.GetMaxChannelLimit(ctx)
 }
 
 // ln -> ark (reverse submarine swap)
