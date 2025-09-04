@@ -44,10 +44,10 @@ type SwapHandler struct {
 }
 
 func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.TransportClient, indexerClient indexer.Indexer, boltzSvc *boltz.Api, publicKey *btcec.PublicKey) *SwapHandler {
-
 	return &SwapHandler{
 		arkClient:       arkClient,
 		transportClient: transportClient,
+		indexerClient:   indexerClient,
 		boltzSvc:        boltzSvc,
 		publicKey:       publicKey,
 	}
@@ -318,6 +318,11 @@ func (h *SwapHandler) refundVHTLC(
 		return "", err
 	}
 
+	checkpointTapscript, err := hex.DecodeString(cfg.CheckpointTapscript)
+	if err != nil {
+		return "", err
+	}
+
 	refundTx, checkpointPtxs, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
@@ -333,7 +338,7 @@ func (h *SwapHandler) refundVHTLC(
 				PkScript: dest,
 			},
 		},
-		checkpointExitScript(cfg),
+		checkpointTapscript,
 	)
 	if err != nil {
 		return "", err
@@ -633,6 +638,11 @@ func (h *SwapHandler) claimVHTLC(
 		return "", err
 	}
 
+	checkpointTapscript, err := hex.DecodeString(cfg.CheckpointTapscript)
+	if err != nil {
+		return "", err
+	}
+
 	arkTx, checkpoints, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
@@ -648,7 +658,7 @@ func (h *SwapHandler) claimVHTLC(
 				PkScript: pkScript,
 			},
 		},
-		checkpointExitScript(cfg),
+		checkpointTapscript,
 	)
 	if err != nil {
 		return "", err
