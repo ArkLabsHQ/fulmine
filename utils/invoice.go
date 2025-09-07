@@ -7,19 +7,19 @@ import (
 	decodepay "github.com/nbd-wtf/ln-decodepay"
 )
 
-func DecodeInvoice(invoice string) (uint64, []byte, error) {
+func DecodeInvoice(invoice string) (uint64, []byte, *decodepay.Bolt11, error) {
 	bolt11, err := decodepay.Decodepay(invoice)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, nil, err
 	}
 
 	amount := uint64(bolt11.MSatoshi / 1000)
 	preimageHash, err := hex.DecodeString(bolt11.PaymentHash)
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, nil, err
 	}
 
-	return amount, input.Ripemd160H(preimageHash), nil
+	return amount, input.Ripemd160H(preimageHash), &bolt11, nil
 }
 
 func SatsFromInvoice(invoice string) int {

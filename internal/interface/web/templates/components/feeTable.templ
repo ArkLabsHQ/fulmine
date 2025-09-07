@@ -1,5 +1,7 @@
 package components
 
+import "github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
+
 templ tableLine(left, right string, kind ...string) {
   <div class="flex justify-between mb-2">
     <p class="text-white/50 uppercase">{left}</p>
@@ -40,7 +42,7 @@ templ statusLine(status string) {
   </div>
 }
 
-templ PendingTxTable(createdAt, expiresAt, nextClaim string) {
+templ PendingTransferTable(createdAt, expiresAt, nextClaim string) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @statusLine("pending")
     @tableLine("Expiring", expiresAt)
@@ -50,6 +52,86 @@ templ PendingTxTable(createdAt, expiresAt, nextClaim string) {
     <div class="flex justify-between text-white/50 items-center gap-4">
       <p hx-get="/modal/reversibleinfo" hx-target="#modal" class="cursor-pointer">@InfoIcon()</p>
       <p class="text-xs">Transaction pending. Funds will be non-reversible after settlement.</p>
+    </div>
+  </div>
+}
+
+templ PendingPaymentTable(createdAt, expiresAt string, refundLockTime types.LockTime) {
+  <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
+    @statusLine("pending")
+    @tableLine("Expiring", expiresAt)
+  </div>
+  <div class="bg-desktopbg md:bg-white/10 p-4 w-full max-w-[360px] mt-4 rounded-lg text-white">
+    if refundLockTime.IsSeconds {
+      <p class="mb-4">Your payment is Pending and would be Scheduled For Refunded at time <span class="font-semibold">{refundLockTime.Timelock}</span></p>
+    } else {
+      <p class="mb-4">Your payment is Pending and would be Scheduled For Refund at block height <span class="font-semibold">{refundLockTime.Timelock}</span></p>
+    }
+    <div class="flex justify-between text-white/50 items-center gap-4">
+      <p hx-get="/modal/reversibleinfo" hx-target="#modal" class="cursor-pointer">@InfoIcon()</p>
+      <p class="text-xs">Payment pending. Funds will be non-reversible after being successful.</p>
+    </div>
+  </div>
+}
+
+templ RefundingPaymentTable(createdAt string, refundLocktime types.LockTime) {
+  <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
+    @statusLine("refunding")
+    if refundLocktime.IsSeconds {
+      @tableLine("Refunding Time", refundLocktime.Timelock)
+    } else {
+      @tableLine("Refunding Height", refundLocktime.Timelock)
+    }
+  </div>
+  <div class="bg-desktopbg md:bg-white/10 p-4 w-full max-w-[360px] mt-4 rounded-lg text-white">
+    if refundLocktime.IsSeconds {
+      <p class="mb-4">Your payment is scheduled for Refund at time <span class="font-semibold">{refundLocktime.Timelock}</span></p>
+    } else {
+      <p class="mb-4">Your payment is scheduled for Refund at block height <span class="font-semibold">{refundLocktime.Timelock}</span></p>
+    }
+    <div class="flex justify-between text-white/50 items-center gap-4">
+      <p hx-get="/modal/reversibleinfo" hx-target="#modal" class="cursor-pointer">@InfoIcon()</p>
+      <p class="text-xs">Payment Refunding. Funds will be non-reversible after being successful.</p>
+    </div>
+  </div>
+}
+
+templ PendingSwapTable(createdAt, expiresAt string, refundLocktime types.LockTime) {
+  <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
+    @statusLine("pending")
+    @tableLine("Expiring", expiresAt)
+  </div>
+  <div class="bg-desktopbg md:bg-white/10 p-4 w-full max-w-[360px] mt-4 rounded-lg text-white">
+    if refundLocktime.IsSeconds {
+      <p class="mb-4">Your Swap is Pending and would be Scheduled For Refund at time <span class="font-semibold">{refundLocktime.Timelock}</span></p>
+    } else {
+      <p class="mb-4">Your Swap is Pending and would be Scheduled For Refund at block height <span class="font-semibold">{refundLocktime.Timelock}</span></p>
+    }
+    <div class="flex justify-between text-white/50 items-center gap-4">
+      <p hx-get="/modal/reversibleinfo" hx-target="#modal" class="cursor-pointer">@InfoIcon()</p>
+      <p class="text-xs">Swap pending. Funds will be non-reversible after being successful.</p>
+    </div>
+  </div>
+}
+
+templ RefundingSwapTable(createdAt string, refundLocktime types.LockTime) {
+  <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
+    @statusLine("refunding")
+    if refundLocktime.IsSeconds {
+      @tableLine("Refunding Time", refundLocktime.Timelock)
+    } else {
+      @tableLine("Refunding Height", refundLocktime.Timelock)
+    }
+  </div>
+  <div class="bg-desktopbg md:bg-white/10 p-4 w-full max-w-[360px] mt-4 rounded-lg text-white">
+    if refundLocktime.IsSeconds {
+      <p class="mb-4">Your Swap is scheduled for Refund at time <span class="font-semibold">{refundLocktime.Timelock}</span></p>
+    } else {
+      <p class="mb-4">Your Swap is scheduled for Refund at block height <span class="font-semibold">{refundLocktime.Timelock}</span></p>
+    }
+    <div class="flex justify-between text-white/50 items-center gap-4">
+      <p hx-get="/modal/reversibleinfo" hx-target="#modal" class="cursor-pointer">@InfoIcon()</p>
+      <p class="text-xs">Swap Refunding. Funds will be non-reversible after being successful.</p>
     </div>
   </div>
 }
