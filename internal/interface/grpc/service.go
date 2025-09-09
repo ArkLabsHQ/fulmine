@@ -231,7 +231,10 @@ func (s *service) Stop() {
 	// nolint:all
 
 	s.httpServer.SetKeepAlivesEnabled(false)
-	s.httpServer.Shutdown(context.Background())
+	err := s.httpServer.Shutdown(context.Background())
+	if err != nil {
+		_ = s.httpServer.Close()
+	}
 
 	log.Info("stopped http server")
 
