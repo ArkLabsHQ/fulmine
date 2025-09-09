@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
@@ -231,7 +232,9 @@ func (s *service) Stop() {
 	// nolint:all
 
 	s.httpServer.SetKeepAlivesEnabled(false)
-	err := s.httpServer.Shutdown(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	err := s.httpServer.Shutdown(ctx)
 	if err != nil {
 		_ = s.httpServer.Close()
 	}

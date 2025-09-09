@@ -96,8 +96,15 @@ func (s *service) events(c *gin.Context) {
 	c.Writer.Header().Set("Connection", "keep-alive")
 
 	ctx, cancel := context.WithCancel(c.Request.Context())
-	go func() { <-s.stopCh; cancel() }()
 	defer cancel()
+
+	go func() {
+		select {
+		case <-s.stopCh:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
 
 	channel := s.svc.GetTransactionEventChannel(ctx)
 
