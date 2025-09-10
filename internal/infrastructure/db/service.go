@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"embed"
 	"errors"
 	"fmt"
@@ -117,8 +118,20 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 			return nil, fmt.Errorf("failed to create migration instance: %s", err)
 		}
 
-		if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		// ---- STEPWISE MIGRATION ----
+		vhtlc_migration_begin := uint(20250622101533)
+
+		if err := m.Migrate(vhtlc_migration_begin); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 			return nil, fmt.Errorf("failed to run migrations: %s", err)
+		}
+
+		err = BackfillVhtlc(context.Background(), db)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			return nil, fmt.Errorf("failed to run remaining migrations: %s", err)
 		}
 
 		settingsRepo, err = sqlitedb.NewSettingsRepository(db)
