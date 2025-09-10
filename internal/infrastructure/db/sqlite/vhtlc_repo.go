@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
@@ -27,12 +28,15 @@ func NewVHTLCRepository(db *sql.DB) (domain.VHTLCRepository, error) {
 }
 
 func (r *vhtlcRepository) Add(ctx context.Context, opts vhtlc.Opts) error {
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
 	optsParams := toOptParams(opts)
-	if _, err := r.Get(ctx, optsParams.PreimageHash); err == nil {
+	if _, err := r.Get(timeoutContext, optsParams.PreimageHash); err == nil {
 		return fmt.Errorf("vHTLC with preimage hash %s already exists", optsParams.PreimageHash)
 	}
 
-	if err := r.querier.InsertVHTLC(ctx, optsParams); err != nil {
+	if err := r.querier.InsertVHTLC(timeoutContext, optsParams); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("vHTLC with preimage hash %s already exists", optsParams.PreimageHash)
 		}
@@ -42,7 +46,10 @@ func (r *vhtlcRepository) Add(ctx context.Context, opts vhtlc.Opts) error {
 }
 
 func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*vhtlc.Opts, error) {
-	row, err := r.querier.GetVHTLC(ctx, preimageHash)
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
+	row, err := r.querier.GetVHTLC(timeoutContext, preimageHash)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("vHTLC with preimage hash %s not found", preimageHash)
@@ -54,7 +61,10 @@ func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*vhtlc.
 }
 
 func (r *vhtlcRepository) GetAll(ctx context.Context) ([]vhtlc.Opts, error) {
-	rows, err := r.querier.ListVHTLC(ctx)
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
+	rows, err := r.querier.ListVHTLC(timeoutContext)
 	if err != nil {
 		return nil, err
 	}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	"modernc.org/sqlite"
@@ -30,7 +31,10 @@ func NewSwapRepository(db *sql.DB) (domain.SwapRepository, error) {
 }
 
 func (r *swapRepository) Add(ctx context.Context, swap domain.Swap) error {
-	txBody := func(querierWithTx *queries.Queries) error {
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
+	txBody := func(ctx context.Context, querierWithTx *queries.Queries) error {
 		optsParams := toOptParams(swap.VhtlcOpts)
 		preimageHash := optsParams.PreimageHash
 
@@ -60,11 +64,14 @@ func (r *swapRepository) Add(ctx context.Context, swap domain.Swap) error {
 		return nil
 	}
 
-	return execTx(ctx, r.db, txBody)
+	return execTx(timeoutContext, r.db, txBody)
 }
 
 func (r *swapRepository) Get(ctx context.Context, swapId string) (*domain.Swap, error) {
-	row, err := r.querier.GetSwap(ctx, swapId)
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
+	row, err := r.querier.GetSwap(timeoutContext, swapId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("swap %s not found", swapId)
@@ -76,7 +83,10 @@ func (r *swapRepository) Get(ctx context.Context, swapId string) (*domain.Swap, 
 }
 
 func (r *swapRepository) GetAll(ctx context.Context) ([]domain.Swap, error) {
-	rows, err := r.querier.ListSwaps(ctx)
+	timeoutContext, cancel := context.WithTimeout(ctx, ports.DefaultDbTimeout)
+	defer cancel()
+
+	rows, err := r.querier.ListSwaps(timeoutContext)
 	if err != nil {
 		return nil, err
 	}
