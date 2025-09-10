@@ -662,13 +662,16 @@ func (s *Service) GetVHTLC(
 		return "", nil, nil, err
 	}
 
-	// check if preimage hash already exists in DB
-	preimageHashStr := hex.EncodeToString(preimageHash)
-	if _, err := s.dbSvc.VHTLC().Get(ctx, preimageHashStr); err == nil {
+	compressedReceiverPubkey := receiverPubkey.SerializeCompressed()
+	compressedSenderPubkey := senderPubkey.SerializeCompressed()
+
+	vhtlc_id := domain.CreateVhtlcId(preimageHash, compressedSenderPubkey, compressedReceiverPubkey)
+
+	if _, err := s.dbSvc.VHTLC().Get(ctx, vhtlc_id); err == nil {
 		return "", nil, nil, fmt.Errorf("vHTLC with preimage hash %s already exists", preimageHashStr)
 	}
 
-	addr, vhtlcScript, opts, err := s.getVHTLC(
+	addr, vhtlcScript, opts, _, err := s.getVHTLC(
 		ctx, receiverPubkey, senderPubkey, preimageHash,
 		refundLocktimeParam, unilateralClaimDelayParam, unilateralRefundDelayParam,
 		unilateralRefundWithoutReceiverDelayParam,
@@ -689,7 +692,7 @@ func (s *Service) GetVHTLC(
 	return addr, vhtlcScript, opts, nil
 }
 
-func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]types.Vtxo, []vhtlc.Opts, error) {
+func (s *Service) ListVHTLC(ctx context.Context, vhtlc_id string) ([]types.Vtxo, []vhtlc.Opts, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return nil, nil, err
 	}
@@ -698,8 +701,8 @@ func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]t
 	var vhtlcOpts []vhtlc.Opts
 	vhtlcRepo := s.dbSvc.VHTLC()
 
-	if preimageHashFilter != "" {
-		opt, err := vhtlcRepo.Get(ctx, preimageHashFilter)
+	if vhtlc_id != "" {
+		opt, err := vhtlcRepo.Get(ctx, vhtlc_id)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -720,13 +723,12 @@ func (s *Service) ListVHTLC(ctx context.Context, preimageHashFilter string) ([]t
 	return vtxos, vhtlcOpts, nil
 }
 
-func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, error) {
+func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte, vhtlc_id string) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
 
-	preimageHash := hex.EncodeToString(btcutil.Hash160(preimage))
-	vhtlcOpts, err := s.dbSvc.VHTLC().Get(ctx, preimageHash)
+	vhtlcOpts, err := s.dbSvc.VHTLC().Get(ctx, vhtlc_id)
 	if err != nil {
 		return "", err
 	}
@@ -734,12 +736,12 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte) (string, erro
 	return s.claimVHTLC(ctx, preimage, *vhtlcOpts)
 }
 
-func (s *Service) RefundVHTLC(ctx context.Context, swapId, preimageHash string, withReceiver bool) (string, error) {
+func (s *Service) RefundVHTLC(ctx context.Context, swapId, vhtlc_id string, withReceiver bool) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
 
-	vhtlcOpts, err := s.dbSvc.VHTLC().Get(ctx, preimageHash)
+	vhtlcOpts, err := s.dbSvc.VHTLC().Get(ctx, vhtlc_id)
 	if err != nil {
 		return "", err
 	}
@@ -1202,7 +1204,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-	vhtlcAddress, _, opts, err := s.getVHTLC(
+	vhtlcAddress, _, opts, vhtlc_id, err := s.getVHTLC(
 		ctx,
 		receiverPubkey,
 		nil,
@@ -1262,7 +1264,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 			// Refund the VHTLC if the swap fails
 			withReceiver := true
 			refundTxid, err := s.RefundVHTLC(
-				context.Background(), swap.Id, hex.EncodeToString(preimageHash), withReceiver,
+				context.Background(), swap.Id, vhtlc_id, withReceiver,
 			)
 			if err != nil {
 				return "", fmt.Errorf("failed to refund vHTLC: %s", err)
@@ -1339,7 +1341,7 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-	vhtlcAddress, _, _, err := s.getVHTLC(
+	vhtlcAddress, _, _, vhtlcId, err := s.getVHTLC(
 		ctx,
 		receiverPubkey,
 		nil,
@@ -1399,7 +1401,7 @@ func (s *Service) submarineSwapWithInvoice(ctx context.Context, invoice string, 
 			// Refund the VHTLC if the swap fails
 			withReceiver := true
 			txid, err := s.RefundVHTLC(
-				context.Background(), swap.Id, hex.EncodeToString(preimageHash), withReceiver,
+				context.Background(), swap.Id, vhtlcId, withReceiver,
 			)
 			if err != nil {
 				return "", fmt.Errorf("failed to refund vHTLC: %s", err)
@@ -1673,11 +1675,11 @@ func (s *Service) getVHTLC(
 	unilateralClaimDelayParam *arklib.RelativeLocktime,
 	unilateralRefundDelayParam *arklib.RelativeLocktime,
 	unilateralRefundWithoutReceiverDelayParam *arklib.RelativeLocktime,
-) (string, *vhtlc.VHTLCScript, *vhtlc.Opts, error) {
+) (string, *vhtlc.VHTLCScript, *vhtlc.Opts, string, error) {
 	receiverPubkeySet := receiverPubkey != nil
 	senderPubkeySet := senderPubkey != nil
 	if receiverPubkeySet == senderPubkeySet {
-		return "", nil, nil, fmt.Errorf("only one of receiver and sender pubkey must be set")
+		return "", nil, nil, "", fmt.Errorf("only one of receiver and sender pubkey must be set")
 	}
 	if !receiverPubkeySet {
 		receiverPubkey = s.publicKey
@@ -1685,6 +1687,10 @@ func (s *Service) getVHTLC(
 	if !senderPubkeySet {
 		senderPubkey = s.publicKey
 	}
+
+	senderSerialised := senderPubkey.SerializeCompressed()
+	receiverSerialised := receiverPubkey.SerializeCompressed()
+	vhtlcId := domain.CreateVhtlcId(preimageHash, senderSerialised, receiverSerialised)
 
 	// nolint
 	cfg, _ := s.GetConfigData(ctx)
@@ -1731,15 +1737,15 @@ func (s *Service) getVHTLC(
 	}
 	vHTLC, err := vhtlc.NewVHTLCScript(opts)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, "", err
 	}
 
 	encodedAddr, err := vHTLC.Address(cfg.Network.Addr, cfg.SignerPubKey)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, "", err
 	}
 
-	return encodedAddr, vHTLC, &opts, nil
+	return encodedAddr, vHTLC, &opts, vhtlcId, nil
 }
 
 func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]types.Vtxo, error) {

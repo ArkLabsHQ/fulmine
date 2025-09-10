@@ -133,15 +133,18 @@ func toOpts(row queries.Vhtlc) (*vhtlc.Opts, error) {
 }
 
 func toOptParams(opts vhtlc.Opts) queries.InsertVHTLCParams {
-	preimageHash := hex.EncodeToString(opts.PreimageHash)
-	sender := hex.EncodeToString(opts.Sender.SerializeCompressed())
-	receiver := hex.EncodeToString(opts.Receiver.SerializeCompressed())
+	preimageHash := opts.PreimageHash
+	sender := opts.Sender.SerializeCompressed()
+	receiver := opts.Receiver.SerializeCompressed()
 	server := hex.EncodeToString(opts.Server.SerializeCompressed())
 
+	vhtlcId := domain.CreateVhtlcId(preimageHash, sender, receiver)
+
 	return queries.InsertVHTLCParams{
-		PreimageHash:                             preimageHash,
-		Sender:                                   sender,
-		Receiver:                                 receiver,
+		ID:                                       vhtlcId,
+		PreimageHash:                             hex.EncodeToString(preimageHash),
+		Sender:                                   hex.EncodeToString(sender),
+		Receiver:                                 hex.EncodeToString(receiver),
 		Server:                                   server,
 		RefundLocktime:                           int64(opts.RefundLocktime),
 		UnilateralClaimDelayType:                 int64(opts.UnilateralClaimDelay.Type),

@@ -221,7 +221,12 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 		return nil, status.Error(codes.InvalidArgument, "invalid preimage")
 	}
 
-	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes)
+	vhtlcId := req.GetVhtlcId()
+	if vhtlcId == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing vhtlc_id")
+	}
+
+	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes, vhtlcId)
 	if err != nil {
 		return nil, err
 	}
@@ -230,14 +235,14 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 }
 
 func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb.RefundVHTLCWithoutReceiverRequest) (*pb.RefundVHTLCWithoutReceiverResponse, error) {
-	preimageHash, err := parsePreimageHash(req.GetPreimageHash())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+	vhtlcId := req.GetVhtlcId()
+	if vhtlcId == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing vhtlc_id")
 	}
 	withReceiver := true
 	withoutReceiver := !withReceiver
 
-	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", preimageHash, withoutReceiver)
+	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", vhtlcId, withoutReceiver)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +251,7 @@ func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb
 }
 
 func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest) (*pb.ListVHTLCResponse, error) {
-	vtxos, _, err := h.svc.ListVHTLC(ctx, req.GetPreimageHashFilter())
+	vtxos, _, err := h.svc.ListVHTLC(ctx, req.GetVhtlcId())
 	if err != nil {
 		return nil, err
 	}

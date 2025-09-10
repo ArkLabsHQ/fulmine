@@ -96,7 +96,7 @@ service Service {
       body: "*"
     };
   }
-  // ListVHTLC = list all vhtlc OR filter by preimage_hash
+  // ListVHTLC = list all vhtlc OR filter by vhtlc_id
   rpc ListVHTLC(ListVHTLCRequest) returns (ListVHTLCResponse) {
     option (google.api.http) = {
       get: "/v1/vhtlc"
@@ -260,21 +260,22 @@ message CreateVHTLCResponse {
 }
 
 message ClaimVHTLCRequest {
-  string preimage = 1;
+  string vhtlc_id = 1;
+  string preimage = 2;
 }
 message ClaimVHTLCResponse {
   string redeem_txid = 1;
 }
 
 message RefundVHTLCWithoutReceiverRequest {
-  string preimage_hash = 1;
+  string vhtlc_id = 1;
 }
 message RefundVHTLCWithoutReceiverResponse {
   string redeem_txid = 1;
 }
 
 message ListVHTLCRequest {
-  string preimage_hash_filter = 1;
+  string vhtlc_id = 1;
 }
 message ListVHTLCResponse {
   repeated Vtxo vhtlcs = 1;
