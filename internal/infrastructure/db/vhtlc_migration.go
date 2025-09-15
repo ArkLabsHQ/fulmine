@@ -75,7 +75,6 @@ func ensureVhtlcNew(ctx context.Context, db *sql.DB) error {
 		return fmt.Errorf("pragma on: %w", err)
 	}
 
-	// COMMIT;
 	if err = tx.Commit(); err != nil {
 		return err
 	}
@@ -223,7 +222,6 @@ INSERT INTO vhtlc_new (
 		return err
 	}
 
-	// 2) Begin write tx AFTER closing the read cursor
 	tx, err := dbh.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -235,7 +233,6 @@ INSERT INTO vhtlc_new (
 	}()
 
 	for _, r := range buf {
-		// If your inputs are hex strings, decode them before computing the ID
 		preimageBytes, err := hex.DecodeString(r.preimageHash)
 		if err != nil {
 			return err
@@ -249,11 +246,8 @@ INSERT INTO vhtlc_new (
 			return err
 		}
 
-		// domain.CreateVhtlcId should deterministically derive your new id
 		id := domain.CreateVhtlcId(preimageBytes, senderBytes, receiverBytes)
 
-		// IMPORTANT: insert into vhtlc_new (not vhtlc) during backfill
-		// Ensure you have a corresponding sqlc query: InsertVHTLCNew
 		if _, err := tx.ExecContext(ctx, insertVHTLC,
 			id,
 			r.preimageHash,
