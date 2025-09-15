@@ -243,44 +243,35 @@ func (v *VHTLCScript) Address(hrp string, serverPubkey *btcec.PublicKey) (string
 	return addr.EncodeV0()
 }
 
-// ClaimTapscript computes the necessary script and control block to spend the claim closure,
-// it also returns the custom checkpoint output script.
-func (v *VHTLCScript) ClaimTapscript() (*waddrmgr.Tapscript, *waddrmgr.Tapscript, error) {
+// ClaimTapscript computes the necessary script and control block to spend the claim closure
+func (v *VHTLCScript) ClaimTapscript() (*waddrmgr.Tapscript, error) {
 	claimClosure := v.ClaimClosure
 	claimScript, err := claimClosure.Script()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	_, tapTree, err := v.TapTree()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	leafProof, err := tapTree.GetTaprootMerkleProof(
 		txscript.NewBaseTapLeaf(claimScript).TapHash(),
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	ctrlBlock, err := txscript.ParseControlBlock(leafProof.ControlBlock)
 	if err != nil {
-		return nil, nil, err
-	}
-
-	// claim without the preimage
-	checkpointScript, err := v.ClaimClosure.MultisigClosure.Script()
-	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	return &waddrmgr.Tapscript{
-			RevealedScript: leafProof.Script,
-			ControlBlock:   ctrlBlock,
-		}, &waddrmgr.Tapscript{
-			RevealedScript: checkpointScript,
-		}, nil
+		RevealedScript: leafProof.Script,
+		ControlBlock:   ctrlBlock,
+	}, nil
 }
 
 // RefundTapscript computes the necessary script and control block to spend the refund closure,

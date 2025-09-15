@@ -16,10 +16,6 @@ import (
 var arkdExec = "docker exec -t arkd"
 var log = logrus.New()
 
-type ServerInfo struct {
-	SignerPubkey string `json:"signerPubkey"`
-}
-
 func execCommand(command string) (string, error) {
 	cmd := exec.Command("sh", "-c", command)
 	output, err := cmd.CombinedOutput()
@@ -36,7 +32,7 @@ func execCommand(command string) (string, error) {
 }
 
 func checkWalletStatus() (bool, bool, bool, error) {
-	output, err := execCommand(arkdExec + " arkd wallet status")
+	output, err := execCommand(fmt.Sprintf("%s arkd wallet status", arkdExec))
 	if err != nil {
 		return false, false, false, err
 	}
@@ -63,30 +59,27 @@ func waitForWalletReady(maxRetries int, retryDelay time.Duration) error {
 }
 
 func setupArkServer() error {
-	log.Info("Setting up ARK server...")
+	log.Info("Setting up Ark server...")
 
 	// Create and unlock arkd wallet with deterministic mnemonic
-	mnemonic := strings.Repeat("abandon ", 23) + "abandon"
-	_, err := execCommand(fmt.Sprintf("%s arkd wallet create --password secret --mnemonic \"%s\"", arkdExec, mnemonic))
-	if err != nil {
+	if _, err := execCommand(fmt.Sprintf(
+		"%s arkd wallet create --password secret", arkdExec,
+	)); err != nil {
 		return err
 	}
-
 	log.Info("Wallet created successfully")
 
-	_, err = execCommand(arkdExec + " arkd wallet unlock --password secret")
-	if err != nil {
+	if _, err := execCommand(fmt.Sprintf(
+		"%s arkd wallet unlock --password secret", arkdExec,
+	)); err != nil {
 		return err
 	}
-
 	log.Info("Wallet unlocked successfully")
 
 	// Wait for wallet to be ready and synced
 	if err := waitForWalletReady(30, 2*time.Second); err != nil {
 		return err
 	}
-
-	log.Info("Wallet ready and synced")
 
 	// Get and log the server info
 	resp, err := http.Get("http://localhost:7070/v1/info")
@@ -100,62 +93,54 @@ func setupArkServer() error {
 		return err
 	}
 
-	var serverInfo ServerInfo
+	var serverInfo struct {
+		SignerPubkey string `json:"signerPubkey"`
+	}
 	if err := json.Unmarshal(body, &serverInfo); err != nil {
 		return err
 	}
-	log.Info("Ark Server Public Key: ", serverInfo.SignerPubkey)
+	log.Info("Ark signer pubkey: ", serverInfo.SignerPubkey)
 
 	// Get arkd address and fund it with nigiri faucet
-	arkdAddress, err := execCommand(arkdExec + " arkd wallet address")
+	arkdAddress, err := execCommand(fmt.Sprintf("%s arkd wallet address", arkdExec))
 	if err != nil {
 		return err
 	}
 	arkdAddress = strings.TrimSpace(arkdAddress)
-	log.Info("Funding arkd address: ", arkdAddress)
-	_, err = execCommand(fmt.Sprintf("nigiri faucet %s", arkdAddress))
-	if err != nil {
-		return err
+	log.Infof("Ark server funding address: %s", arkdAddress)
+	for i := 0; i < 4; i++ {
+		if _, err := execCommand(fmt.Sprintf("nigiri faucet %s", arkdAddress)); err != nil {
+			return err
+		}
 	}
+	log.Info("Arkd funded with 4 BTC")
 
 	// Wait for transaction to be confirmed
 	time.Sleep(5 * time.Second)
 
-	// Initialize ark client
-	_, err = execCommand(fmt.Sprintf("%s ark init --server-url http://localhost:7070 --explorer http://chopsticks:3000 --password secret --network regtest", arkdExec))
+	note, err := execCommand(fmt.Sprintf("%s arkd note --amount 21000000", arkdExec))
 	if err != nil {
+		return err
+	}
+	note = strings.TrimSpace(note)
+
+	log.Info("Setting up Ark client...")
+
+	// Initialize ark client
+	if _, err = execCommand(fmt.Sprintf(
+		"%s ark init --server-url http://localhost:7070 "+
+			"--explorer http://chopsticks:3000 --password secret", arkdExec,
+	)); err != nil {
 		return err
 	}
 
 	// Get ark boarding address and fund it
-	arkReceiveOutput, err := execCommand(arkdExec + " ark receive")
-	if err != nil {
+	if _, err := execCommand(fmt.Sprintf(
+		"%s ark redeem-notes -n %s --password secret", arkdExec, note,
+	)); err != nil {
 		return err
 	}
-
-	var receiveInfo struct {
-		BoardingAddress string `json:"boarding_address"`
-	}
-	if err := json.Unmarshal([]byte(arkReceiveOutput), &receiveInfo); err != nil {
-		return err
-	}
-
-	boardingAddress := receiveInfo.BoardingAddress
-	log.Info("Funding boarding address: ", boardingAddress)
-	_, err = execCommand(fmt.Sprintf("nigiri faucet %s 0.21", boardingAddress))
-	if err != nil {
-		return err
-	}
-
-	// Wait for transaction to be confirmed
-	time.Sleep(5 * time.Second)
-
-	// Settle the funds and wait for completion
-	_, err = execCommand(arkdExec + " ark settle --password secret")
-	if err != nil {
-		return err
-	}
-	log.Info("Settlement completed successfully")
+	log.Info("Ark client funded with 0.21 BTC")
 
 	log.Info("Ark server and client setup completed successfully")
 	return nil

@@ -1,6 +1,6 @@
 # ⚡️fulmine
 
-[![Go Version](https://img.shields.io/badge/Go-1.23.1-blue.svg)](https://golang.org/doc/go1.23)
+[![Go Version](https://img.shields.io/badge/Go-1.24.6-blue.svg)](https://golang.org/doc/go1.24)
 [![GitHub Release](https://img.shields.io/github/v/release/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/releases/latest)
 [![License](https://img.shields.io/github/license/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/blob/main/LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/stargazers)
@@ -9,7 +9,7 @@
 ![fulmine-og-v2](https://github.com/user-attachments/assets/8d59879d-727b-4aa7-8a9f-4d696406c6cf)
 
 
-Fulmine is a Bitcoin wallet daemon that integrates Ark protocol's batched transaction model with Lightning Network infrastructure, enabling routing nodes, service providers and payment hubs to optimize channel liquidity while minimizing on-chain fees, without compromising on self-custody.
+Fulmine is Bitcoin wallet daemon that enables swap providers and payment hubs to optimize Lightning Network channel liquidity while minimizing on-chain fees.
 
 ## 🚀 Usage
 
@@ -77,6 +77,7 @@ The following environment variables can be configured:
 | `FULMINE_UNLOCKER_PASSWORD` | Password string to use for unlocking (when using `env` unlocker) | Not set by default |
 | `FULMINE_BOLTZ_URL` | URL of the custom Boltz backend to connect to for swaps | Not set by default |
 | `FULMINE_BOLTZ_WS_URL` | URL of the custom Boltz WebSocket backend to connect to for swap events | Not set by default |
+| `FULMINE_DISABLE_TELEMETRY` | Opt out of telemetry logs | False by default | 
 
 When using Docker, you can set these variables using the `-e` flag:
 
@@ -238,7 +239,7 @@ For more detailed information about request and response structures, please refe
 
 ## 👨‍💻 Development
 
-To get started with fulmine development you need Go `1.23.1` or higher and Node.js `18.17.1` or higher.
+To get started with fulmine development you need Go `1.24.6` or higher and Node.js `18.17.1` or higher.
 
 ```bash
 git clone https://github.com/ArkLabsHQ/fulmine.git
