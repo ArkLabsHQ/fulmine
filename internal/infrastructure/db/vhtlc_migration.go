@@ -234,7 +234,6 @@ INSERT INTO vhtlc_new (
 		}
 	}()
 
-	// Use your sqlc package bound to the tx
 	for _, r := range buf {
 		// If your inputs are hex strings, decode them before computing the ID
 		preimageBytes, err := hex.DecodeString(r.preimageHash)
