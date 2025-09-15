@@ -2,46 +2,22 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/sirupsen/logrus"
 )
-
-const privKey = "7dc828f12ef62b9200632f6503ece76f8ef7718e1f36f62d692bffa9e3a3ed7c"
 
 var log = logrus.New()
 
 // Create a custom HTTP client that allows HTTP/0.9 responses
 var httpClient = &http.Client{
 	Transport: &http.Transport{},
-}
-
-type ServerInfo struct {
-	Pubkey string `json:"pubkey"`
-}
-
-type WalletStatus struct {
-	Initialized bool `json:"initialized"`
-	Unlocked    bool `json:"unlocked"`
-	Synced      bool `json:"synced"`
-}
-
-type GenSeedResponse struct {
-	Hex  string `json:"hex"`
-	Nsec string `json:"nsec"`
-}
-
-type AddressResponse struct {
-	Address string `json:"address"`
-	Pubkey  string `json:"pubkey"`
-}
-
-type OnboardResponse struct {
-	Address string `json:"address"`
 }
 
 func checkWalletStatus() (bool, bool, bool, error) {
@@ -51,7 +27,11 @@ func checkWalletStatus() (bool, bool, bool, error) {
 	}
 	defer resp.Body.Close()
 
-	var status WalletStatus
+	var status struct {
+		Initialized bool `json:"initialized"`
+		Unlocked    bool `json:"unlocked"`
+		Synced      bool `json:"synced"`
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
 		return false, false, false, err
 	}
@@ -75,8 +55,9 @@ func waitForWalletReady(maxRetries int, retryDelay time.Duration) error {
 }
 
 func createWallet(password string) error {
+	prvkey, _ := btcec.NewPrivateKey()
 	payload := map[string]string{
-		"private_key": privKey,
+		"private_key": hex.EncodeToString(prvkey.Serialize()),
 		"password":    password,
 		"server_url":  "http://arkd:7070",
 	}
@@ -124,10 +105,8 @@ func unlockWallet(password string) error {
 	return nil
 }
 
-func setupFulmineServer() error {
-	log.Info("Starting Fulmine server setup process...")
-
-	log.Info("Creating new wallet...")
+func setupFulmine() error {
+	log.Info("Setting up Fulmine...")
 
 	password := "secret"
 	if err := createWallet(password); err != nil {
@@ -136,7 +115,6 @@ func setupFulmineServer() error {
 	}
 	log.Info("Wallet created successfully")
 
-	log.Info("Attempting to unlock wallet...")
 	if err := unlockWallet(password); err != nil {
 		log.WithError(err).Error("Failed to unlock wallet")
 		return err
@@ -144,36 +122,35 @@ func setupFulmineServer() error {
 	log.Info("Wallet unlocked successfully")
 
 	// Wait for wallet to be ready and synced
-	log.Info("Waiting for wallet to be ready and synced...")
 	if err := waitForWalletReady(30, 2*time.Second); err != nil {
 		log.WithError(err).Error("Wallet failed to be ready after maximum retries")
 		return err
 	}
-	log.Info("Wallet is ready and synced")
 
-	// Get and log the server info
-	log.Info("Fetching server information...")
+	// Get fulmine pubkey
 	resp, err := httpClient.Get("http://localhost:7001/api/v1/info")
 	if err != nil {
-		log.WithError(err).Error("Failed to fetch server info")
+		log.WithError(err).Error("Failed to fetch Fulmine info")
 		return err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.WithError(err).Error("Failed to read server info response")
+		log.WithError(err).Error("Failed to read Fulmine info response")
 		return err
 	}
 
-	var serverInfo ServerInfo
+	var serverInfo struct {
+		Pubkey string `json:"pubkey"`
+	}
 	if err := json.Unmarshal(body, &serverInfo); err != nil {
-		log.WithError(err).Error("Failed to parse server info")
+		log.WithError(err).Error("Failed to parse Fulmine info")
 		return err
 	}
-	log.Info("Fulmine Server Public Key: ", serverInfo.Pubkey)
+	log.Info("Fulmine pubkey: ", serverInfo.Pubkey)
 
-	log.Info("Fulmine server setup completed successfully")
+	log.Info("Fulmine setup completed successfully")
 	return nil
 }
 
@@ -184,10 +161,10 @@ func main() {
 		return
 	}
 	if initialized && unlocked && synced {
-		log.Info("Fulmine server already initialized, skipping setup")
+		log.Info("Fulmine already initialized, skipping setup")
 		return
 	}
-	if err := setupFulmineServer(); err != nil {
+	if err := setupFulmine(); err != nil {
 		log.WithError(err).Fatal("Setup failed")
 	}
 }

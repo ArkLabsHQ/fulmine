@@ -70,7 +70,6 @@ vet:
 	@echo "Running code analysis..."
 	@go vet ./...
 	
-	
 ## proto: compile proto stubs
 proto: proto-lint
 	@echo "Compiling stubs..."
@@ -92,9 +91,7 @@ up-test-env:
 
 ## setup-arkd: sets up the ARK server
 setup-test-env:
-	@echo "Setting up ARK server..."
 	@go run ./internal/test/e2e/setup/arkd/setup_ark.go
-	@echo "Setting up Fulmine server..."
 	@go run ./internal/test/e2e/setup/fulmine/setup_fulmine.go
 
 ## down-test-env: stops test environment
