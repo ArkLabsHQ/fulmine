@@ -21,7 +21,7 @@ func TestOnboard(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, txid)
 
-	time.Sleep(11 * time.Second) // onchain polling interval is 10 seconds
+	time.Sleep(1 * time.Minute) // onchain polling interval is 1 Minute
 
 	history, err := getTransactionHistory()
 	require.NoError(t, err)
