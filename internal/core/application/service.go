@@ -1839,11 +1839,6 @@ func (s *Service) claimVHTLC(
 		return "", err
 	}
 
-	checkpointScript, err := hex.DecodeString(cfg.CheckpointTapscript)
-	if err != nil {
-		return "", err
-	}
-
 	arkTx, checkpoints, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
@@ -1859,7 +1854,7 @@ func (s *Service) claimVHTLC(
 				PkScript: pkScript,
 			},
 		},
-		checkpointScript,
+		checkpointExitScript(cfg),
 	)
 	if err != nil {
 		return "", err
@@ -1959,11 +1954,6 @@ func (s *Service) refundVHTLC(
 		return "", err
 	}
 
-	checkpointScript, err := hex.DecodeString(cfg.CheckpointTapscript)
-	if err != nil {
-		return "", err
-	}
-
 	refundTx, checkpointPtxs, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
@@ -1979,7 +1969,7 @@ func (s *Service) refundVHTLC(
 				PkScript: dest,
 			},
 		},
-		checkpointScript,
+		checkpointExitScript(cfg),
 	)
 	if err != nil {
 		return "", err
@@ -2035,6 +2025,15 @@ func (s *Service) refundVHTLC(
 	}
 
 	return arkTxid, nil
+}
+
+func checkpointExitScript(cfg *types.Config) *script.CSVMultisigClosure {
+	return &script.CSVMultisigClosure{
+		Locktime: cfg.UnilateralExitDelay,
+		MultisigClosure: script.MultisigClosure{
+			PubKeys: []*btcec.PublicKey{cfg.SignerPubKey},
+		},
+	}
 }
 
 func parsePubkey(pubkey string) (*btcec.PublicKey, error) {

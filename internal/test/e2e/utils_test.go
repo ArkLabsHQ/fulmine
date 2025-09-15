@@ -12,10 +12,15 @@ import (
 	"time"
 )
 
+const baseUrl = "http://localhost:7001/api/v1"
+
 var httpClient = &http.Client{}
 
 func faucetOffchain(address string, amount string) error {
-	cmd := exec.Command("docker", "exec", "-t", "arkd", "ark", "send", "--to", address, "--amount", amount, "--password", "secret")
+	cmd := exec.Command(
+		"docker", "exec", "-t", "arkd",
+		"ark", "send", "--to", address, "--amount", amount, "--password", "secret",
+	)
 	_, err := cmd.Output()
 	if err != nil {
 		return err
@@ -30,13 +35,9 @@ func faucet(address string, amount string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	txid := strings.TrimPrefix(string(output), "txId: ")
-	time.Sleep(6 * time.Second)
-	return strings.TrimSpace(txid), nil
-}
 
-type onboardResponse struct {
-	Address string `json:"address"`
+	txid := strings.TrimPrefix(string(output), "txId: ")
+	return strings.TrimSpace(txid), nil
 }
 
 type balanceResponse struct {
@@ -44,7 +45,8 @@ type balanceResponse struct {
 }
 
 func getBalance() (uint64, error) {
-	resp, err := httpClient.Get("http://localhost:7001/api/v1/balance")
+	url := fmt.Sprintf("%s/balance", baseUrl)
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		return 0, err
 	}
@@ -62,40 +64,56 @@ func getBalance() (uint64, error) {
 }
 
 func getOnboardAddress(amount uint64) (string, error) {
-	payload := map[string]uint64{
-		"amount": amount,
-	}
-
+	payload := map[string]uint64{"amount": amount}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := httpClient.Post("http://localhost:7001/api/v1/onboard", "application/json", bytes.NewBuffer(jsonData))
+	url := fmt.Sprintf("%s/onboard", baseUrl)
+	resp, err := httpClient.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 
-	var onboardResp onboardResponse
+	var onboardResp struct {
+		Address string `json:"address"`
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&onboardResp); err != nil {
 		return "", err
 	}
 	return onboardResp.Address, nil
 }
 
-type SettleResponse struct {
-	Txid string `json:"txid"`
-}
-
-func settle() (string, error) {
-	resp, err := httpClient.Get("http://localhost:7001/api/v1/settle")
+func getPubkey() (string, error) {
+	url := fmt.Sprintf("%s/address", baseUrl)
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 
-	var settleResp SettleResponse
+	var addrResp struct {
+		Pubkey string `json:"pubkey"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&addrResp); err != nil {
+		return "", err
+	}
+	return addrResp.Pubkey, nil
+}
+
+func settle() (string, error) {
+	url := fmt.Sprintf("%s/settle", baseUrl)
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var settleResp struct {
+		Txid string `json:"txid"`
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&settleResp); err != nil {
 		return "", err
 	}
@@ -104,17 +122,17 @@ func settle() (string, error) {
 }
 
 func sendOffChain(address string, amount uint64) (string, error) {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"address": address,
 		"amount":  amount,
 	}
-
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := httpClient.Post("http://localhost:7001/api/v1/send/offchain", "application/json", bytes.NewBuffer(jsonData))
+	url := fmt.Sprintf("%s/send/offchain", baseUrl)
+	resp, err := httpClient.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", err
 	}
@@ -131,17 +149,17 @@ func sendOffChain(address string, amount uint64) (string, error) {
 }
 
 func sendOnChain(address string, amount uint64) (string, error) {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"address": address,
 		"amount":  amount,
 	}
-
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := httpClient.Post("http://localhost:7001/api/v1/send/onchain", "application/json", bytes.NewBuffer(jsonData))
+	url := fmt.Sprintf("%s/send/onchain", baseUrl)
+	resp, err := httpClient.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", err
 	}
@@ -153,8 +171,33 @@ func sendOnChain(address string, amount uint64) (string, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&sendResp); err != nil {
 		return "", err
 	}
-	time.Sleep(time.Second)
+
 	return sendResp.Txid, nil
+}
+
+func getReceiverOffchainAddress() (string, error) {
+	cmd := exec.Command("docker", "exec", "-t", "arkd", "ark", "receive")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+
+	var out struct {
+		Address string `json:"offchain_address"`
+	}
+	if err := json.Unmarshal(output, &out); err != nil {
+		return "", err
+	}
+	return out.Address, nil
+}
+
+func getReceiverOnchainAddress() (string, error) {
+	cmd := exec.Command("nigiri", "rpc", "getnewaddress")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
 }
 
 type transactionInfo struct {
@@ -167,18 +210,17 @@ type transactionInfo struct {
 	Settled      bool   `json:"settled"`
 }
 
-type transactionHistoryResponse struct {
-	Transactions []transactionInfo `json:"transactions"`
-}
-
 func getTransactionHistory() ([]transactionInfo, error) {
-	resp, err := httpClient.Get("http://localhost:7001/api/v1/transactions")
+	url := fmt.Sprintf("%s/transactions", baseUrl)
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	var historyResp transactionHistoryResponse
+	var historyResp struct {
+		Transactions []transactionInfo `json:"transactions"`
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&historyResp); err != nil {
 		return nil, err
 	}
@@ -226,16 +268,17 @@ type createVHTLCResponse struct {
 }
 
 func createVHTLC(preimageHash, receiverPubkey string) (*createVHTLCResponse, error) {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"preimage_hash":   preimageHash,
 		"receiver_pubkey": receiverPubkey,
 	}
-
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := httpClient.Post("http://localhost:7001/api/v1/vhtlc", "application/json", bytes.NewBuffer(jsonData))
+
+	url := fmt.Sprintf("%s/vhtlc", baseUrl)
+	resp, err := httpClient.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}
@@ -259,16 +302,14 @@ type ClaimVHTLCResponse struct {
 }
 
 func claimVHTLC(preimage string) (string, error) {
-	payload := map[string]string{
-		"preimage": preimage,
-	}
-
+	payload := map[string]string{"preimage": preimage}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := httpClient.Post("http://localhost:7001/api/v1/vhtlc/claim", "application/json", bytes.NewBuffer(jsonData))
+	url := fmt.Sprintf("%s/vhtlc/claim", baseUrl)
+	resp, err := httpClient.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return "", err
 	}
@@ -298,9 +339,9 @@ type ListVHTLCResponse struct {
 }
 
 func listVHTLC(preimageHashFilter string) ([]Vtxo, error) {
-	url := "http://localhost:7001/api/v1/vhtlc"
+	url := fmt.Sprintf("%s/vhtlc", baseUrl)
 	if preimageHashFilter != "" {
-		url += "?preimage_hash_filter=" + preimageHashFilter
+		url = fmt.Sprintf("%s?preimage_hash_filter=%s", url, preimageHashFilter)
 	}
 	resp, err := httpClient.Get(url)
 	if err != nil {
