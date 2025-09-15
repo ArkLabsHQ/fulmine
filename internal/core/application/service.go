@@ -2021,13 +2021,9 @@ func (s *Service) refundVHTLC(
 	return arkTxid, nil
 }
 
-func checkpointExitScript(cfg *types.Config) *script.CSVMultisigClosure {
-	return &script.CSVMultisigClosure{
-		Locktime: cfg.UnilateralExitDelay,
-		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*btcec.PublicKey{cfg.SignerPubKey},
-		},
-	}
+func checkpointExitScript(cfg *types.Config) []byte {
+	buf, _ := hex.DecodeString(cfg.CheckpointTapscript)
+	return buf
 }
 
 func parsePubkey(pubkey string) (*btcec.PublicKey, error) {
