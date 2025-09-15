@@ -38,7 +38,7 @@ func OpenDb(dbPath string) (*sql.DB, error) {
 func execTx(
 	ctx context.Context,
 	db *sql.DB,
-	txBody func(*queries.Queries) error,
+	txBody func(context.Context, *queries.Queries) error,
 ) (err error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -62,7 +62,7 @@ func execTx(
 		}
 	}()
 
-	if err = txBody(querier.WithTx(tx)); err != nil {
+	if err = txBody(ctx, querier.WithTx(tx)); err != nil {
 		return fmt.Errorf("failed to execute transaction: %w", err)
 	}
 
