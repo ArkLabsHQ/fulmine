@@ -200,6 +200,7 @@ func initKeyStore(datadir string) (*macaroons.RootKeyStorage, error) {
 		filepath.Join(datadir, macaroonsDbFile),
 		true,
 		kvdb.DefaultDBTimeout,
+		false,
 	)
 	if err != nil {
 		return nil, err
