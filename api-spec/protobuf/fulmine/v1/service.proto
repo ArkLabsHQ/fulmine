@@ -114,7 +114,6 @@ service Service {
       body: "*"
     };
   }
- 
   rpc IsInvoiceSettled(IsInvoiceSettledRequest) returns (IsInvoiceSettledResponse) {
     option (google.api.http) = {
       get: "/v1/invoice/status"
@@ -291,8 +290,6 @@ message GetInvoiceResponse {
 message PayInvoiceRequest {
   string invoice = 1;
 }
-
-
 message PayInvoiceResponse {
   string txid = 1;
 }
