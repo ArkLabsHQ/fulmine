@@ -15,6 +15,7 @@ const (
 	ActionAccess = "access"
 
 	adminMacaroonFile = "admin.macaroon"
+	macaroonsFolder   = "macaroons"
 )
 
 var (
