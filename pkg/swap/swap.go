@@ -318,11 +318,6 @@ func (h *SwapHandler) refundVHTLC(
 		return "", err
 	}
 
-	checkpointTapscript, err := hex.DecodeString(cfg.CheckpointTapscript)
-	if err != nil {
-		return "", err
-	}
-
 	refundTx, checkpointPtxs, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
@@ -338,7 +333,7 @@ func (h *SwapHandler) refundVHTLC(
 				PkScript: dest,
 			},
 		},
-		checkpointTapscript,
+		checkpointExitScript(cfg),
 	)
 	if err != nil {
 		return "", err
@@ -638,11 +633,6 @@ func (h *SwapHandler) claimVHTLC(
 		return "", err
 	}
 
-	checkpointTapscript, err := hex.DecodeString(cfg.CheckpointTapscript)
-	if err != nil {
-		return "", err
-	}
-
 	arkTx, checkpoints, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
@@ -658,7 +648,7 @@ func (h *SwapHandler) claimVHTLC(
 				PkScript: pkScript,
 			},
 		},
-		checkpointTapscript,
+		checkpointExitScript(cfg),
 	)
 	if err != nil {
 		return "", err
