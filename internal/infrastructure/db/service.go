@@ -125,7 +125,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 			return nil, fmt.Errorf("failed to run migrations: %s", err)
 		}
 
-		err = BackfillVhtlc(context.Background(), db)
+		err = sqlitedb.BackfillVhtlc(context.Background(), db)
 		if err != nil {
 			return nil, err
 		}

@@ -26,45 +26,51 @@ func NewVHTLCRepository(db *sql.DB) (domain.VHTLCRepository, error) {
 	return &vhtlcRepository{db: db, querier: queries.New(db)}, nil
 }
 
-func (r *vhtlcRepository) Add(ctx context.Context, opts vhtlc.Opts) error {
-	optsParams := toOptParams(opts)
-	if _, err := r.Get(ctx, optsParams.PreimageHash); err == nil {
-		return fmt.Errorf("vHTLC with preimage hash %s already exists", optsParams.PreimageHash)
+func (r *vhtlcRepository) Add(ctx context.Context, vhtlc domain.Vhtlc) error {
+	optsParams := toVhtlcRow(vhtlc)
+	if _, err := r.Get(ctx, optsParams.ID); err == nil {
+		return fmt.Errorf("vHTLC withID %s already exists", optsParams.ID)
 	}
 
 	if err := r.querier.InsertVHTLC(ctx, optsParams); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("vHTLC with preimage hash %s already exists", optsParams.PreimageHash)
+			return fmt.Errorf("vHTLC with ID %s already exists", optsParams.ID)
 		}
 		return err
 	}
 	return nil
 }
 
-func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*vhtlc.Opts, error) {
-	row, err := r.querier.GetVHTLC(ctx, preimageHash)
+func (r *vhtlcRepository) Get(ctx context.Context, id string) (*domain.Vhtlc, error) {
+	row, err := r.querier.GetVHTLC(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("vHTLC with preimage hash %s not found", preimageHash)
+			return nil, fmt.Errorf("vHTLC with id %s not found", id)
 
 		}
 		return nil, err
 	}
-	return toOpts(row)
+
+	vhtlc, err := toVhtlc(row)
+	if err != nil {
+		return nil, err
+	}
+
+	return &vhtlc, nil
 }
 
-func (r *vhtlcRepository) GetAll(ctx context.Context) ([]vhtlc.Opts, error) {
+func (r *vhtlcRepository) GetAll(ctx context.Context) ([]domain.Vhtlc, error) {
 	rows, err := r.querier.ListVHTLC(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]vhtlc.Opts, 0, len(rows))
+	out := make([]domain.Vhtlc, 0, len(rows))
 	for _, row := range rows {
-		opt, err := toOpts(row)
+		vhtlc, err := toVhtlc(row)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, *opt)
+		out = append(out, vhtlc)
 	}
 	return out, nil
 }
@@ -75,36 +81,36 @@ func (r *vhtlcRepository) Close() {
 	}
 }
 
-func toOpts(row queries.Vhtlc) (*vhtlc.Opts, error) {
+func toVhtlc(row queries.Vhtlc) (domain.Vhtlc, error) {
 	senderBytes, err := hex.DecodeString(row.Sender)
 	if err != nil {
-		return nil, err
+		return domain.Vhtlc{}, err
 	}
 	receiverBytes, err := hex.DecodeString(row.Receiver)
 	if err != nil {
-		return nil, err
+		return domain.Vhtlc{}, err
 	}
 	serverBytes, err := hex.DecodeString(row.Server)
 	if err != nil {
-		return nil, err
+		return domain.Vhtlc{}, err
 	}
 
 	sender, err := btcec.ParsePubKey(senderBytes)
 	if err != nil {
-		return nil, err
+		return domain.Vhtlc{}, err
 	}
 	receiver, err := btcec.ParsePubKey(receiverBytes)
 	if err != nil {
-		return nil, err
+		return domain.Vhtlc{}, err
 	}
 	server, err := btcec.ParsePubKey(serverBytes)
 	if err != nil {
-		return nil, err
+		return domain.Vhtlc{}, err
 	}
 
 	preimageHashBytes, err := hex.DecodeString(row.PreimageHash)
 	if err != nil {
-		return nil, err
+		return domain.Vhtlc{}, err
 	}
 
 	unilateralClaimDelay := arklib.RelativeLocktime{
@@ -120,7 +126,7 @@ func toOpts(row queries.Vhtlc) (*vhtlc.Opts, error) {
 		Value: uint32(row.UnilateralRefundWithoutReceiverDelayValue),
 	}
 
-	return &vhtlc.Opts{
+	opts := vhtlc.Opts{
 		Sender:                               sender,
 		Receiver:                             receiver,
 		Server:                               server,
@@ -129,14 +135,16 @@ func toOpts(row queries.Vhtlc) (*vhtlc.Opts, error) {
 		UnilateralRefundDelay:                unilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
 		PreimageHash:                         preimageHashBytes,
-	}, nil
+	}
+
+	return domain.NewVhtlc(opts), nil
 }
 
-func toOptParams(opts vhtlc.Opts) queries.InsertVHTLCParams {
-	preimageHash := opts.PreimageHash
-	sender := opts.Sender.SerializeCompressed()
-	receiver := opts.Receiver.SerializeCompressed()
-	server := hex.EncodeToString(opts.Server.SerializeCompressed())
+func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
+	preimageHash := vhtlc.PreimageHash
+	sender := vhtlc.Sender.SerializeCompressed()
+	receiver := vhtlc.Receiver.SerializeCompressed()
+	server := hex.EncodeToString(vhtlc.Server.SerializeCompressed())
 
 	vhtlcId := domain.CreateVhtlcId(preimageHash, sender, receiver)
 
@@ -146,12 +154,12 @@ func toOptParams(opts vhtlc.Opts) queries.InsertVHTLCParams {
 		Sender:                                   hex.EncodeToString(sender),
 		Receiver:                                 hex.EncodeToString(receiver),
 		Server:                                   server,
-		RefundLocktime:                           int64(opts.RefundLocktime),
-		UnilateralClaimDelayType:                 int64(opts.UnilateralClaimDelay.Type),
-		UnilateralClaimDelayValue:                int64(opts.UnilateralClaimDelay.Value),
-		UnilateralRefundDelayType:                int64(opts.UnilateralRefundDelay.Type),
-		UnilateralRefundDelayValue:               int64(opts.UnilateralRefundDelay.Value),
-		UnilateralRefundWithoutReceiverDelayType: int64(opts.UnilateralRefundWithoutReceiverDelay.Type),
-		UnilateralRefundWithoutReceiverDelayValue: int64(opts.UnilateralRefundWithoutReceiverDelay.Value),
+		RefundLocktime:                           int64(vhtlc.RefundLocktime),
+		UnilateralClaimDelayType:                 int64(vhtlc.UnilateralClaimDelay.Type),
+		UnilateralClaimDelayValue:                int64(vhtlc.UnilateralClaimDelay.Value),
+		UnilateralRefundDelayType:                int64(vhtlc.UnilateralRefundDelay.Type),
+		UnilateralRefundDelayValue:               int64(vhtlc.UnilateralRefundDelay.Value),
+		UnilateralRefundWithoutReceiverDelayType: int64(vhtlc.UnilateralRefundWithoutReceiverDelay.Type),
+		UnilateralRefundWithoutReceiverDelayValue: int64(vhtlc.UnilateralRefundWithoutReceiverDelay.Value),
 	}
 }

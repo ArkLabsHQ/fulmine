@@ -31,13 +31,12 @@ func NewSwapRepository(db *sql.DB) (domain.SwapRepository, error) {
 
 func (r *swapRepository) Add(ctx context.Context, swap domain.Swap) error {
 	txBody := func(querierWithTx *queries.Queries) error {
-		optsParams := toOptParams(swap.VhtlcOpts)
-		preimageHash := optsParams.PreimageHash
+		vhtlcRow := toVhtlcRow(swap.Vhtlc)
 
-		if err := querierWithTx.InsertVHTLC(ctx, optsParams); err != nil {
+		if err := querierWithTx.InsertVHTLC(ctx, vhtlcRow); err != nil {
 			if sqlErr, ok := err.(*sqlite.Error); ok {
 				if sqlErr.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
-					return fmt.Errorf("vHTLC with preimage hash %s already exists", optsParams.PreimageHash)
+					return fmt.Errorf("vHTLC with id %s already exists", vhtlcRow.ID)
 				}
 			}
 			return fmt.Errorf("failed to insert vhtlc: %s", err)
@@ -53,7 +52,7 @@ func (r *swapRepository) Add(ctx context.Context, swap domain.Swap) error {
 			Invoice:      swap.Invoice,
 			FundingTxID:  swap.FundingTxId,
 			RedeemTxID:   swap.RedeemTxId,
-			VhtlcID:      preimageHash,
+			VhtlcID:      vhtlcRow.ID,
 		}); err != nil {
 			return fmt.Errorf("failed to insert swap: %s", err)
 		}
@@ -96,22 +95,22 @@ func (r *swapRepository) Close() {
 	r.db.Close()
 }
 
-func toSwap(swap queries.Swap, vhtlc queries.Vhtlc) (*domain.Swap, error) {
-	vhtlcOpts, err := toOpts(vhtlc)
+func toSwap(swapRow queries.Swap, vhtlcRow queries.Vhtlc) (*domain.Swap, error) {
+	vhtlc, err := toVhtlc(vhtlcRow)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode vhtlc opts: %w", err)
 	}
 
 	return &domain.Swap{
-		Id:          swap.ID,
-		Amount:      uint64(swap.Amount),
-		Timestamp:   swap.Timestamp,
-		To:          boltz.Currency(swap.ToCurrency),
-		From:        boltz.Currency(swap.FromCurrency),
-		Status:      domain.SwapStatus(swap.Status),
-		Invoice:     swap.Invoice,
-		FundingTxId: swap.FundingTxID,
-		RedeemTxId:  swap.RedeemTxID,
-		VhtlcOpts:   *vhtlcOpts,
+		Id:          swapRow.ID,
+		Amount:      uint64(swapRow.Amount),
+		Timestamp:   swapRow.Timestamp,
+		To:          boltz.Currency(swapRow.ToCurrency),
+		From:        boltz.Currency(swapRow.FromCurrency),
+		Status:      domain.SwapStatus(swapRow.Status),
+		Invoice:     swapRow.Invoice,
+		FundingTxId: swapRow.FundingTxID,
+		RedeemTxId:  swapRow.RedeemTxID,
+		Vhtlc:       vhtlc,
 	}, nil
 }

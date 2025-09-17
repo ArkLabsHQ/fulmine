@@ -223,7 +223,7 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 
 	vhtlcId := req.GetVhtlcId()
 	if vhtlcId == "" {
-		return nil, status.Error(codes.InvalidArgument, "missing vhtlc_id")
+		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
 	}
 
 	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes, vhtlcId)
@@ -237,7 +237,7 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb.RefundVHTLCWithoutReceiverRequest) (*pb.RefundVHTLCWithoutReceiverResponse, error) {
 	vhtlcId := req.GetVhtlcId()
 	if vhtlcId == "" {
-		return nil, status.Error(codes.InvalidArgument, "missing vhtlc_id")
+		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
 	}
 	withReceiver := true
 	withoutReceiver := !withReceiver
