@@ -23,14 +23,14 @@ SELECT * FROM settings WHERE id = 1;
 -- VHTLC queries
 -- name: InsertVHTLC :exec
 INSERT INTO vhtlc (
-    preimage_hash, sender, receiver, server, refund_locktime,
+    id, preimage_hash, sender, receiver, server, refund_locktime,
     unilateral_claim_delay_type, unilateral_claim_delay_value,
     unilateral_refund_delay_type, unilateral_refund_delay_value,
     unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetVHTLC :one
-SELECT * FROM vhtlc WHERE preimage_hash = ?;
+SELECT * FROM vhtlc WHERE id = ?;
 
 -- name: ListVHTLC :many
 SELECT * FROM vhtlc;
@@ -61,13 +61,13 @@ INSERT INTO swap (
 SELECT  sqlc.embed(swap),
         sqlc.embed(vhtlc)
 FROM swap
-  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash
-WHERE id = ?;
+  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.id
+WHERE swap.id = ?;
 
 -- name: ListSwaps :many
 SELECT  sqlc.embed(swap), sqlc.embed(vhtlc)
 FROM swap
-  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash;
+  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.id;
 
 -- SubscribedScript queries
 -- name: InsertSubscribedScript :exec

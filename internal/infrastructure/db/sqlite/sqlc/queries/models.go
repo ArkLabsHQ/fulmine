@@ -40,6 +40,7 @@ type Swap struct {
 }
 
 type Vhtlc struct {
+	ID                                        string
 	PreimageHash                              string
 	Sender                                    string
 	Receiver                                  string

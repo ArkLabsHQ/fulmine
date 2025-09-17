@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 )
 
 type SwapStatus int
@@ -23,7 +22,7 @@ type Swap struct {
 	From        boltz.Currency
 	Status      SwapStatus
 	Invoice     string
-	VhtlcOpts   vhtlc.Opts
+	Vhtlc       Vhtlc
 	FundingTxId string // the txid of the virtual tx that funded the vhtlc
 	RedeemTxId  string // the txid of the virtual tx that redeemed the funds, by either "claiming" or "refunding"
 }
