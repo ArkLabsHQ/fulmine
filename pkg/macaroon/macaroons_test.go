@@ -72,6 +72,9 @@ func TestService(t *testing.T) {
 	})
 
 	t.Run("auth", func(t *testing.T) {
+		err = svc.Auth(context.TODO(), whitelistedEP)
+		require.NoError(t, err)
+
 		err := svc.Auth(ctx, whitelistedEP)
 		require.NoError(t, err)
 
