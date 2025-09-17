@@ -106,8 +106,8 @@ services:
       - FULMINE_LOG_LEVEL=5
       - FULMINE_DISABLE_TELEMETRY=true
     ports:
-      - "7004:7000"
-      - "7005:7001"
+      - "7000:7000"
+      - "7001:7001"
     volumes:
       - type: tmpfs
         target: /app/data
