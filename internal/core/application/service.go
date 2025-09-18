@@ -771,18 +771,6 @@ func (s *Service) GetBalanceLN(ctx context.Context) (balance uint64, err error) 
 	return s.lnSvc.GetBalance(ctx)
 }
 
-func (s *Service) GetMaxChannelLimit(ctx context.Context) (local uint64, remote uint64, err error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return 0, 0, err
-	}
-
-	if !s.lnSvc.IsConnected() {
-		return 0, 0, fmt.Errorf("not connected to LN")
-	}
-
-	return s.lnSvc.GetMaxChannelLimit(ctx)
-}
-
 // ln -> ark (reverse submarine swap)
 func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {

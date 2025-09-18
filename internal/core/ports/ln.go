@@ -13,7 +13,6 @@ type LnService interface {
 	GetLnConnectUrl() string
 	GetInvoice(ctx context.Context, value uint64, note, preimage string) (invoice string, preimageHash string, err error)
 	DecodeInvoice(ctx context.Context, invoice string) (value uint64, preimageHash []byte, err error)
-	GetMaxChannelLimit(ctx context.Context) (maxLocalChannelLimit uint64, maxRemoteChannelLimit uint64, err error)
 	IsInvoiceSettled(ctx context.Context, invoice string) (ok bool, err error)
 	PayInvoice(ctx context.Context, invoice string) (preimage string, err error)
 	Disconnect()

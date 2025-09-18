@@ -596,17 +596,14 @@ func (s *service) swap(c *gin.Context) {
 	}
 
 	balance := s.getNodeBalance(c)
-	localMax, remoteMax := s.getNodeMaxChannelLimit(c)
 
-	bodyContent := pages.SwapBodyContent(spendableBalance, balance, localMax, remoteMax, s.svc.IsConnectedLN())
+	bodyContent := pages.SwapBodyContent(spendableBalance, balance, s.svc.IsConnectedLN())
 	s.pageViewHandler(bodyContent, c)
 }
 
 func (s *service) swapActive(c *gin.Context) {
 	active := c.Param("active")
 	nodeBalance := s.getNodeBalance(c)
-
-	localMax, remoteMax := s.getNodeMaxChannelLimit(c)
 
 	var balance string
 	if active == "inbound" {
@@ -620,7 +617,7 @@ func (s *service) swapActive(c *gin.Context) {
 		}
 		balance = spendableBalance
 	}
-	bodyContent := pages.SwapPartialContent(active, balance, localMax, remoteMax)
+	bodyContent := pages.SwapPartialContent(active, balance)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -854,19 +851,6 @@ func (s *service) getNodeBalance(c *gin.Context) string {
 		}
 	}
 	return "0"
-}
-
-func (s *service) getNodeMaxChannelLimit(c *gin.Context) (string, string) {
-	if s.svc.IsConnectedLN() {
-		local, remote, err := s.svc.GetMaxChannelLimit(c)
-
-		if err == nil {
-			return strconv.FormatUint(local, 10), strconv.FormatUint(remote, 10)
-		}
-	}
-
-	return "0", "0"
-
 }
 
 func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction, err error) {

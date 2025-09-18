@@ -45,14 +45,14 @@ templ SwapTabs(active string) {
   </div>
 }
 
-templ SwapPartialContent(active, balance string, localMax, remoteMax string) {
+templ SwapPartialContent(active, balance string) {
 	<div id="swapPartial">
 	  @SwapTabs(active)
-	  @SwapInputAmountComponent(active, balance, localMax, remoteMax)
+	  @SwapInputAmountComponent(active, balance)
 	</div>
 }
 
-templ SwapBodyContent(currentBalance, nodeBalance string, localMax string, remoteMax string,  isLnConnected bool) {
+templ SwapBodyContent(currentBalance, nodeBalance string,  isLnConnected bool) {
   @components.DesktopHeader()
 	<div id="swapBody">
     <form hx-post="/swap/preview" hx-target="#swapBody" hx-target="outerHTML">
@@ -70,14 +70,6 @@ templ SwapBodyContent(currentBalance, nodeBalance string, localMax string, remot
 									<p class="cryptoAmount" sats={currentBalance}>{currentBalance} SATS</p>
 								</div>
 							</div>
-							<p
-								class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer"
-								onclick="setMax(this)"
-								sats={currentBalance}
-								maxLn={remoteMax}
-								kind="outbound">
-								MAX
-							</p>
 						</div>
 						<div class="flex justify-between items-center mt-6">
 							<div class="flex items-center gap-4">
@@ -87,16 +79,8 @@ templ SwapBodyContent(currentBalance, nodeBalance string, localMax string, remot
 									<p class="cryptoAmount" sats={nodeBalance}>{nodeBalance} SATS</p>
 								</div>
 							</div>
-							<p
-								class="py-1 px-2 bg-white/20 text-white/50 rounded-lg cursor-pointer"
-								onclick="setMax(this)"
-								sats={nodeBalance}
-								maxLn={localMax}
-								kind="inbound">
-								MAX
-							</p>
 						</div>
-						@SwapPartialContent("inbound", nodeBalance, localMax, remoteMax)
+						@SwapPartialContent("inbound", nodeBalance)
 				  }
 				</div>
 				if isLnConnected {
@@ -106,39 +90,6 @@ templ SwapBodyContent(currentBalance, nodeBalance string, localMax string, remot
 	  </form>
 	</div>
 	<script>
-	  const setMax = (el) => {
-			const kind = el.getAttribute('kind')
-			const sats = el.getAttribute('sats')
-			const maxLn= el.getAttribute('maxLn')
-			const button = document.querySelector('button[type="submit"]')
-
-			console.log("kind", kind)
-			console.log("sats", sats)
-			console.log("maxLn", maxLn)
-
-			if (!kind || !sats || !maxLn) return
-
-			satsAmount = parseInt(sats)
-			maxLnAmount = parseInt(maxLn)
-
-			if (parseInt(sats) == 0) {
-				button.disabled = true
-				button.innerText = 'Not enough funds'
-				return
-			}
-
-			if (parseInt(maxLnAmount) == 0) {
-				button.disabled = true
-				button.innerText = kind == "outbound" ? 'Not Enough remote balance' : 'Not Enough local balance'
-				return
-			}
-
-			const maxValue = satsAmount < maxLnAmount ? sats : maxLnAmount
-
-			document.querySelector(`#${kind}`).click()
-			setTimeout(() => setMaxValue(maxValue), 100)
-
-		}
 		const canSwap = () => {
 			const amount = document.querySelector('#amount').value
 			const button = document.querySelector('button[type="submit"]')
@@ -147,20 +98,6 @@ templ SwapBodyContent(currentBalance, nodeBalance string, localMax string, remot
 			const kind = document.querySelector('#swapKind').value
 			button.disabled = amount.length === 0 || sats > balance
 			button.innerText = sats > balance ? 'Not enough funds' : 'Preview swap'
-
-			if (kind === 'outbound') {
-				const remoteMax = parseInt(document.querySelector('#remoteMax').value)
-				if (sats > remoteMax) {
-					button.disabled = true
-					button.innerText = 'Not enough remote balance'
-				}
-			} else {
-				const localMax = parseInt(document.querySelector('#localMax').value)
-				if (sats > localMax) {
-					button.disabled = true
-					button.innerText = 'Not enough local balance'
-				}
-			}
 
 		}
 		document.addEventListener('htmx:load', () => {
@@ -250,10 +187,8 @@ templ SwapHistoryListContent(swaps []types.Swap, loadMore bool) {
 	}
 }
 
-templ SwapInputAmountComponent(kind, maxBalance string, localMax, remoteMax string) {
+templ SwapInputAmountComponent(kind, maxBalance string,) {
 	<input class="hidden" id="swapKind" name="kind" value={kind} />
 	<input class="hidden" id="balance" value={maxBalance} />
-	<input class="hidden" id="localMax" value={localMax} />
-	<input class="hidden" id="remoteMax" value={remoteMax} />
 	@components.SendAmount(maxBalance)
 }
