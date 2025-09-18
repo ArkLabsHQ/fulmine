@@ -10,6 +10,16 @@ import (
 )
 
 func BackfillVhtlc(ctx context.Context, dbh *sql.DB) error {
+	var tableExists int
+
+	if err := dbh.QueryRowContext(ctx,
+		existsQuery("vhtlc", "id"),
+	).Scan(&tableExists); err != nil {
+		return fmt.Errorf("failed to verify updated vhtlc existence: %w", err)
+	}
+	if tableExists > 0 {
+		return nil
+	}
 
 	if err := ensureVhtlcNew(ctx, dbh); err != nil {
 		return fmt.Errorf("failed to ensure vhtlc_new table: %s", err)
@@ -47,16 +57,6 @@ func ensureVhtlcNew(ctx context.Context, db *sql.DB) error {
 			unilateral_refund_without_receiver_delay_value INTEGER NOT NULL
 		);
 	`
-
-	var tableExists int
-	if err := db.QueryRowContext(ctx,
-		existsQuery("vhtlc", "id"),
-	).Scan(&tableExists); err != nil {
-		return fmt.Errorf("check updated vhtlc existence: %w", err)
-	}
-	if tableExists > 0 {
-		return nil
-	}
 
 	if _, err := db.ExecContext(ctx, createVhtlc); err != nil {
 		return fmt.Errorf("create vhtlc_new: %w", err)
