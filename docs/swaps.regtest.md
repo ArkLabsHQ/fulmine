@@ -17,14 +17,14 @@ The purpose of this guide is to make you able to test Ark/LN submarine and rever
 
 NOTE: *For sake of simplicity, all stacks use the same Bitcoind instance.*
 
-### Requirements
+## Requirements
 
 * [Docker](https://docs.docker.com/engine/install/)
 * [Nigiri](https://nigiri.vulpem.com/)
 * [jq](https://formulae.brew.sh/formula/jq)
 
 
-### Setup regtest environment
+## Setup regtest environment
 
 Start regtest enviroment with Bitcoin and LND - this LND instance will be used by the end user:
 
@@ -118,11 +118,12 @@ nigiri cln invoice 50000000 "" ""
 clncli pay <invoice>
 ```
 
+## Setup arkd
 
 Start and provision Arkd:
 
 ```sh
-docker compose -f test.docker-compose.yml up -d arkd-wallet arkd
+docker compose -f test.docker-compose.yml up -d arkd
 # Create an alias for arkd
 alias arkd="docker exec arkd arkd"
 # Wait till arkd is built then initialize the wallet
@@ -139,6 +140,8 @@ nigiri faucet <address>
 NOTE: *The docker services defined in `test.docker-compose.yml` make use of temporary volumes, therefore any restart will become a fresh new start:* **DON'T DO THAT**.
 
 The regtest setup is finished.
+
+## Setup Boltz
 
 ### Setup Fulmine used by Boltz
 
@@ -170,7 +173,7 @@ docker exec -i boltz-lnd bash -c \
 
 Copy the generated URL to the clipboard. On Fulmine's tab of your browser, go to Settings > Lightning, paste the URL and click the Connect button.
 
-# Start Boltz backend
+### Start Boltz backend
 
 Start Boltz backend with:
 
@@ -178,8 +181,7 @@ Start Boltz backend with:
 docker compose -f boltz.docker-compose.yml up -d boltz-postgres boltz
 ```
 
-
-### Setup Fulmine used by end user
+## Setup Fulmine used by end user
 
 Start Fulmine used by end user:
 
