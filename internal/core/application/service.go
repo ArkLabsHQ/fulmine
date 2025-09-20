@@ -124,7 +124,12 @@ func NewService(
 	esploraUrl, boltzUrl, boltzWSUrl string,
 	connectionOpts *domain.LnConnectionOpts,
 ) (*Service, error) {
-	if arkClient, err := arksdk.LoadArkClient(storeSvc); err == nil {
+	opts := make([]arksdk.ClientOption, 0)
+	if log.IsLevelEnabled(log.DebugLevel) {
+		opts = append(opts, arksdk.WithVerbose())
+	}
+
+	if arkClient, err := arksdk.LoadArkClient(storeSvc, opts...); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
 		if err != nil {
 			return nil, err
@@ -172,7 +177,7 @@ func NewService(
 		}
 	}
 
-	arkClient, err := arksdk.NewArkClient(storeSvc)
+	arkClient, err := arksdk.NewArkClient(storeSvc, opts...)
 	if err != nil {
 		// nolint:all
 		settingsRepo.CleanSettings(ctx)
