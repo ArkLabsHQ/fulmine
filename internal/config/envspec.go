@@ -19,7 +19,7 @@ func EnvSpecs() []EnvVar {
 			Name:        Datadir,
 			FullName:    P + Datadir,
 			Type:        "string (path)",
-			Default:     DefaultDatadir,
+			Default:     "${HOME}/.fulmine",
 			Description: "Data directory for Fulmine state",
 		},
 		{

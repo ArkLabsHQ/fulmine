@@ -4,7 +4,7 @@ Generated from `config.EnvSpecs()`. **Do not edit manually.**
 
 | Variable | Default | Type | Description |
 |----------|--------|------|-------------|
-| `FULMINE_DATADIR` | `/home/joshua/.fulmine` | `string (path)` | Data directory for Fulmine state |
+| `FULMINE_DATADIR` | `${HOME}/.fulmine` | `string (path)` | Data directory for Fulmine state |
 | `FULMINE_DB_TYPE` | `sqlite` | `string` | Database backend: sqlite | badger |
 | `FULMINE_GRPC_PORT` | `7000` | `uint32 (port)` | gRPC server port |
 | `FULMINE_HTTP_PORT` | `7001` | `uint32 (port)` | HTTP server port |

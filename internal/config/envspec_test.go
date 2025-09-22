@@ -33,6 +33,11 @@ func TestSpecMatchesViperDefaults(t *testing.T) {
 		if s.Default == "" {
 			continue
 		}
+
+		if s.Name == cfg.Datadir {
+			continue
+		}
+
 		want[s.Name] = s.Default
 	}
 
