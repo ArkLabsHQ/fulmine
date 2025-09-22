@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	cfg "github.com/ArkLabsHQ/fulmine/internal/config" // <-- update to your actual package path
+	cfg "github.com/ArkLabsHQ/fulmine/internal/config"
 )
 
 func main() {
