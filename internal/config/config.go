@@ -69,42 +69,42 @@ var (
 	UnlockerFilePath = "UNLOCKER_FILE_PATH"
 	UnlockerPassword = "UNLOCKER_PASSWORD"
 
-	defaultDatadir          = appDatadir("fulmine", false)
-	dbType                  = sqliteDb
-	defaultGRPCPort         = 7000
-	defaultHTTPPort         = 7001
-	defaultWithTLS          = false
-	defaultLogLevel         = 4
-	defaultArkServer        = ""
-	defaultDisableTelemetry = false
+	DefaultDatadir          = appDatadir("fulmine", false)
+	DefaultDbType           = sqliteDb
+	DefaultGRPCPort         = 7000
+	DefaultHTTPPort         = 7001
+	DefaultWithTLS          = false
+	DefaultLogLevel         = 4
+	DefaultArkServer        = ""
+	DefaultDisableTelemetry = false
 	supportedDbType         = map[string]struct{}{
 		sqliteDb: {},
 		badgerDb: {},
 	}
-	defaultNoMacaroons = false
-	defaultLndUrl      = ""
-	defaultClnUrl      = ""
-	defaultClnDatadir  = ""
-	defaultLndDatadir  = ""
+	DefaultNoMacaroons = false
+	DefaultLndUrl      = ""
+	DefaultClnUrl      = ""
+	DefaultClnDatadir  = ""
+	DefaultLndDatadir  = ""
 )
 
 func LoadConfig() (*Config, error) {
 	viper.SetEnvPrefix("FULMINE")
 	viper.AutomaticEnv()
 
-	viper.SetDefault(Datadir, defaultDatadir)
-	viper.SetDefault(GRPCPort, defaultGRPCPort)
-	viper.SetDefault(HTTPPort, defaultHTTPPort)
-	viper.SetDefault(WithTLS, defaultWithTLS)
-	viper.SetDefault(LogLevel, defaultLogLevel)
-	viper.SetDefault(ArkServer, defaultArkServer)
-	viper.SetDefault(DisableTelemetry, defaultDisableTelemetry)
-	viper.SetDefault(DbType, dbType)
-	viper.SetDefault(NoMacaroons, defaultNoMacaroons)
-	viper.SetDefault(LndUrl, defaultLndUrl)
-	viper.SetDefault(ClnUrl, defaultClnUrl)
-	viper.SetDefault(ClnDatadir, defaultClnDatadir)
-	viper.SetDefault(LndDatadir, defaultLndDatadir)
+	viper.SetDefault(Datadir, DefaultDatadir)
+	viper.SetDefault(GRPCPort, DefaultGRPCPort)
+	viper.SetDefault(HTTPPort, DefaultHTTPPort)
+	viper.SetDefault(WithTLS, DefaultWithTLS)
+	viper.SetDefault(LogLevel, DefaultLogLevel)
+	viper.SetDefault(ArkServer, DefaultArkServer)
+	viper.SetDefault(DisableTelemetry, DefaultDisableTelemetry)
+	viper.SetDefault(DbType, DefaultDbType)
+	viper.SetDefault(NoMacaroons, DefaultNoMacaroons)
+	viper.SetDefault(LndUrl, DefaultLndUrl)
+	viper.SetDefault(ClnUrl, DefaultClnUrl)
+	viper.SetDefault(ClnDatadir, DefaultClnDatadir)
+	viper.SetDefault(LndDatadir, DefaultLndDatadir)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
