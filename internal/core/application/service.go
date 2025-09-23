@@ -946,7 +946,12 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error
 	if err != nil {
 		if swapDetails.Status == swap.SwapFailed {
 			go func() {
-				s.scheduleSwapRefund(swapDetails.Id, *swapDetails.Opts)
+				err := s.scheduleSwapRefund(swapDetails.Id, *swapDetails.Opts)
+				if err != nil {
+					log.WithError(err).Error("failed to schedule swap refund")
+					return
+				}
+
 			}()
 		}
 
@@ -997,7 +1002,12 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (string, error) {
 	if err != nil {
 		if swapDetails.Status == swap.SwapFailed {
 			go func() {
-				s.scheduleSwapRefund(swapDetails.Id, *swapDetails.Opts)
+				err := s.scheduleSwapRefund(swapDetails.Id, *swapDetails.Opts)
+
+				if err != nil {
+					log.WithError(err).Error("failed to schedule swap refund")
+					return
+				}
 			}()
 		}
 
@@ -1407,7 +1417,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 				return txid, nil
 			}
 		case <-ctx.Done():
-			swapData := domain.Swap{
+			if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
 				Id:          swap.Id,
 				Amount:      amount,
 				Timestamp:   time.Now().Unix(),
@@ -1418,25 +1428,18 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 				To:          boltz.CurrencyBtc,
 				From:        boltz.CurrencyArk,
 				VhtlcOpts:   *opts,
+			}); err != nil {
+				log.WithError(err).Fatal("failed to store swap")
 			}
 
 			go func() {
-				isSpent, err := s.scheduleSwapRefund(swap.Id, *opts)
+				err := s.scheduleSwapRefund(swap.Id, *opts)
 
 				if err != nil {
 					log.WithError(err).Error("failed to watch swap after expiry")
 					return
 				}
 
-				if isSpent {
-					swapData.Status = domain.SwapSuccess
-				} else {
-					swapData.Status = domain.SwapFailed
-				}
-
-				if err := s.dbSvc.Swap().Update(context.Background(), swapData); err != nil {
-					log.WithError(err).Error("failed to add payment data to db")
-				}
 			}()
 			return "", nil
 		}
@@ -1977,7 +1980,7 @@ func (s *Service) refundVHTLC(
 	return arkTxid, nil
 }
 
-func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (isSpent bool, err error) {
+func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error) {
 	unilateral := func() {
 		txid, err := s.refundVHTLC(context.Background(), swapId, false, opts)
 		if err != nil {
@@ -2001,15 +2004,23 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (isSpent bo
 	vtxos, err := s.getVHTLCFunds(context.Background(), []vhtlc.Opts{opts})
 	if err != nil {
 		log.WithError(err).Error("failed to check vhtlc status")
-		return false, err
+		return err
 	}
 	if len(vtxos) == 0 {
-		return false, fmt.Errorf("vhtlc %s not found or already spent", opts.PreimageHash)
+		return fmt.Errorf("vhtlc %s not found or already spent", opts.PreimageHash)
 	}
 
 	if vtxos[0].Spent {
 		log.Infof("vhtlc %s already spent, nothing to do", opts.PreimageHash)
-		return true, nil
+		swapData := domain.Swap{
+			Id:     swapId,
+			Status: domain.SwapSuccess,
+		}
+
+		if err := s.dbSvc.Swap().Update(context.Background(), swapData); err != nil {
+			log.WithError(err).Error("failed to add payment data to db")
+		}
+		return nil
 	}
 
 	refundLT := opts.RefundLocktime
@@ -2021,7 +2032,7 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (isSpent bo
 		err = s.schedulerSvc.ScheduleRefundAtHeight(uint32(refundLT), unilateral)
 	}
 
-	return false, err
+	return
 }
 
 func checkpointExitScript(cfg *types.Config) *script.CSVMultisigClosure {
