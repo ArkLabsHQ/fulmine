@@ -33,8 +33,8 @@ github.com/arkade-os/arkd/pkg/kvdb v0.7.0 h1:+XN0FeUEilKLuNHarP/mpwsCWla2iAHc6z9
 github.com/arkade-os/arkd/pkg/kvdb v0.7.0/go.mod h1:8SEm4dAIcGtnGqZ8+QRk58Z1VjIIctl6bZJLQwaOePo=
 github.com/arkade-os/arkd/pkg/macaroons v0.7.0 h1:BZfaeCDGNu/u/efnlesDjzzEPMYpCQO//jeE4d/3CwY=
 github.com/arkade-os/arkd/pkg/macaroons v0.7.0/go.mod h1:JuHFgu0NjbvFnTF7j7oHHatIMkKKPKvznUPkZwFi2Xk=
-github.com/arkade-os/go-sdk v0.7.1 h1:oSdN1ErdFejZB993zlh/q++YhziMfKiHFvCNTKfatwc=
-github.com/arkade-os/go-sdk v0.7.1/go.mod h1:cGMYagvFj57pBUSJPL+wVQ67eVrNk0R6MPtEOLKyRlQ=
+github.com/arkade-os/go-sdk v0.7.2-0.20250920044614-7ad704f4846f h1:BAtzSK6JbVBMRcXsJguNImms/IiAJPNHhS7uwYuStmE=
+github.com/arkade-os/go-sdk v0.7.2-0.20250920044614-7ad704f4846f/go.mod h1:cGMYagvFj57pBUSJPL+wVQ67eVrNk0R6MPtEOLKyRlQ=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 h1:DklsrG3dyBCFEj5IhUbnKptjxatkF07cF2ak3yi77so=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=
@@ -94,8 +94,8 @@ github.com/bytedance/sonic v1.11.6 h1:oUp34TzMlL+OY1OUWxHqsdkgC/Zfc85zGqw9siXjrc
 github.com/bytedance/sonic v1.11.6/go.mod h1:LysEHSvpvDySVdC2f87zGWf6CIKJcAvqab1ZaiQtds4=
 github.com/bytedance/sonic/loader v0.1.1 h1:c+e5Pt1k/cy5wMveRDyk2X4B9hF4g7an8N3zCYjJFNM=
 github.com/bytedance/sonic/loader v0.1.1/go.mod h1:ncP89zfokxS5LZrJxl5z0UJcsk4M4yY2JpfqGeCtNLU=
-github.com/ccoveille/go-safecast v1.2.0 h1:H4X7aosepsU1Mfk+098CTdKpsDH0cfYJ2RmwXFjgvfc=
-github.com/ccoveille/go-safecast v1.2.0/go.mod h1:QqwNjxQ7DAqY0C721OIO9InMk9zCwcsO7tnRuHytad8=
+github.com/ccoveille/go-safecast v1.6.1 h1:Nb9WMDR8PqhnKCVs2sCB+OqhohwO5qaXtCviZkIff5Q=
+github.com/ccoveille/go-safecast v1.6.1/go.mod h1:QqwNjxQ7DAqY0C721OIO9InMk9zCwcsO7tnRuHytad8=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=

@@ -38,6 +38,18 @@ func (boltz *Api) CreateReverseSwap(request CreateReverseSwapRequest) (*CreateRe
 	return resp, nil
 }
 
+func (boltz *Api) FetchBolt12Invoice(request FetchBolt12InvoiceRequest) (*FetchBolt12InvoiceResponse, error) {
+	resp, err := sendPostRequest[FetchBolt12InvoiceResponse](boltz, "/lightning/BTC/bolt12/fetch", request)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Error != "" {
+		return nil, fmt.Errorf("%s", resp.Error)
+	}
+
+	return resp, nil
+}
+
 func (boltz *Api) CreateSwap(request CreateSwapRequest) (*CreateSwapResponse, error) {
 	resp, err := sendPostRequest[CreateSwapResponse](boltz, "/swap/submarine", request)
 	if err != nil {
@@ -120,6 +132,7 @@ func sendPostRequest[T any](boltz *Api, endpoint string, requestBody any) (*T, e
 	res, err := boltz.Client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("POST %s: %w", endpoint, err)
+
 	}
 
 	return unmarshalJson[T](res.Body)

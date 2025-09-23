@@ -192,7 +192,7 @@ func (c *Config) initMacaroonService() error {
 
 	if !viper.GetBool(NoMacaroons) {
 		svc, err := macaroon.NewService(
-			viper.GetString(Datadir), macFiles, WhitelistedByMethod(), AllPermissionsByMethod(),
+			c.Datadir, macaroonsFolder, macFiles, WhitelistedByMethod(), AllPermissionsByMethod(),
 		)
 		if err != nil {
 			return err

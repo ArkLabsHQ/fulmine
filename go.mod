@@ -6,6 +6,8 @@ replace github.com/ArkLabsHQ/fulmine/pkg/vhtlc => ./pkg/vhtlc
 
 replace github.com/ArkLabsHQ/fulmine/pkg/boltz => ./pkg/boltz
 
+replace github.com/ArkLabsHQ/fulmine/pkg/swap => ./pkg/swap
+
 replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-display v1.30.0-hex-display
 
 require (
@@ -13,7 +15,7 @@ require (
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-00010101000000-000000000000
 	github.com/a-h/templ v0.3.937
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/ccoveille/go-safecast v1.2.0
+	github.com/ccoveille/go-safecast v1.6.1
 	github.com/dgraph-io/badger/v4 v4.6.0
 	github.com/getsentry/sentry-go v0.32.0
 	github.com/getsentry/sentry-go/gin v0.32.0
@@ -42,10 +44,12 @@ require (
 )
 
 require (
+	github.com/ArkLabsHQ/fulmine/pkg/swap v0.0.0-00010101000000-000000000000
 	github.com/arkade-os/arkd/pkg/ark-lib v0.7.1
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/go-sdk v0.7.1
+	github.com/arkade-os/go-sdk v0.7.2-0.20250920044614-7ad704f4846f
+	gopkg.in/macaroon.v2 v2.1.0
 )
 
 require (
@@ -160,7 +164,6 @@ require (
 	golang.org/x/tools v0.35.0 // indirect
 	google.golang.org/genproto v0.0.0-20240930140551-af27646dc61f // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
-	gopkg.in/macaroon.v2 v2.1.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect

@@ -151,13 +151,14 @@ func (s *service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, e
 }
 
 func (s *service) GetBalance(ctx context.Context) (uint64, error) {
-	total := uint64(0)
+	balance := uint64(0)
 	resp, err := s.client.ListFunds(ctx, &clnpb.ListfundsRequest{})
 	if err != nil {
 		return 0, err
 	}
 	for _, channel := range resp.GetChannels() {
-		total += channel.GetOurAmountMsat().Msat
+		balance += channel.GetOurAmountMsat().Msat
 	}
-	return total, nil
+
+	return balance, nil
 }
