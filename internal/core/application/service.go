@@ -115,6 +115,12 @@ type Notification struct {
 	Checkpoints map[string]indexer.TxData
 }
 
+type SwapResponse struct {
+	TxId       string
+	SwapStatus domain.SwapStatus
+	Invoice    string
+}
+
 func NewService(
 	buildInfo BuildInfo,
 	storeCfg store.Config,
@@ -498,7 +504,10 @@ func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, 
 
 	bip21Addr := fmt.Sprintf("bitcoin:%s?ark=%s", boardingAddr, offchainAddr)
 
-	invoice, err = s.GetInvoice(ctx, sats)
+	invoiceResponse, err := s.GetInvoice(ctx, sats)
+
+	invoice = invoiceResponse.Invoice
+
 	if err == nil && len(invoice) > 0 {
 		bip21Addr += fmt.Sprintf("&lightning=%s", invoice)
 	}
@@ -791,9 +800,9 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 }
 
 // ark -> ln (submarine swap)
-func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (string, error) {
+func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (SwapResponse, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
+		return SwapResponse{}, err
 	}
 
 	return s.submarineSwap(ctx, amount)
@@ -902,84 +911,113 @@ func (s *Service) IsLocked(ctx context.Context) bool {
 	return s.ArkClient.IsLocked(ctx)
 }
 
-func (s *Service) GetInvoice(ctx context.Context, amount uint64) (string, error) {
+func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
+		return SwapResponse{}, err
 	}
 
 	boltzApi := s.boltzSvc
 	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
 
-	swapDetails, err := swapHandler.GetInvoice(ctx, amount)
+	postProcess := func(swapData swap.Swap) error {
+		err := s.dbSvc.Swap().Update(context.Background(), domain.Swap{
+			Id:         swapData.Id,
+			RedeemTxId: swapData.RedeemTxid,
+			Status:     domain.SwapStatus(swapData.Status),
+		})
+
+		return err
+
+	}
+
+	swapDetails, err := swapHandler.GetInvoice(ctx, amount, postProcess)
 	if err != nil {
-		return "", err
-	}
-
-	swapData := domain.Swap{
-		Id:         swapDetails.Id,
-		Type:       domain.SwapPayment,
-		Amount:     amount,
-		From:       boltz.CurrencyBtc,
-		To:         boltz.CurrencyArk,
-		VhtlcOpts:  *swapDetails.Opts,
-		Status:     domain.SwapPending,
-		RedeemTxId: swapDetails.RefundTxid,
-	}
-
-	err = s.dbSvc.Swap().Add(context.Background(), swapData)
-
-	return swapData.Invoice, err
-
-}
-
-func (s *Service) PayInvoice(ctx context.Context, invoice string) (string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
-	}
-
-	boltzApi := s.boltzSvc
-
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
-
-	swapDetails, err := swapHandler.PayInvoice(ctx, invoice)
-
-	if err != nil {
-		if swapDetails.Status == swap.SwapFailed {
-			go func() {
-				err := s.scheduleSwapRefund(swapDetails.Id, *swapDetails.Opts)
-				if err != nil {
-					log.WithError(err).Error("failed to schedule swap refund")
-					return
-				}
-
-			}()
+		if strings.Contains(err.Error(), "out of limits") {
+			return SwapResponse{}, nil
 		}
 
-		return "", err
+		return SwapResponse{}, err
 	}
 
-	err = s.dbSvc.Swap().Add(context.Background(), domain.Swap{
-		Id:          swapDetails.Id,
-		Type:        domain.SwapPayment,
-		Amount:      swapDetails.Amount,
-		From:        boltz.CurrencyArk,
-		To:          boltz.CurrencyBtc,
-		VhtlcOpts:   *swapDetails.Opts,
-		FundingTxId: swapDetails.TxId,
-		Status:      domain.SwapStatus(swapDetails.Status),
-	})
+	swapStatus := domain.SwapStatus(swapDetails.Status)
 
-	return swapDetails.TxId, err
+	go func() {
+		err = s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+			Id:          swapDetails.Id,
+			Type:        domain.SwapPayment,
+			Amount:      swapDetails.Amount,
+			From:        boltz.CurrencyArk,
+			To:          boltz.CurrencyBtc,
+			VhtlcOpts:   *swapDetails.Opts,
+			Timestamp:   swapDetails.Timestamp,
+			FundingTxId: swapDetails.TxId,
+			Status:      swapStatus,
+		})
+
+		if err != nil {
+			log.WithError(err).Error("failed to add swap to db")
+			return
+		}
+
+	}()
+
+	return SwapResponse{Invoice: swapDetails.Invoice, SwapStatus: swapStatus}, err
+
 }
 
-func (s *Service) PayOffer(ctx context.Context, offer string) (string, error) {
+func (s *Service) PayInvoice(ctx context.Context, invoice string) (SwapResponse, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
+		return SwapResponse{}, err
+	}
+
+	boltzApi := s.boltzSvc
+
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
+
+	unilateralRefund := func(swapData swap.Swap) error {
+		err := s.scheduleSwapRefund(swapData.Id, *swapData.Opts)
+		return err
+	}
+
+	swapDetails, err := swapHandler.PayInvoice(ctx, invoice, unilateralRefund)
+
+	if err != nil {
+		return SwapResponse{}, err
+	}
+
+	swapStatus := domain.SwapStatus(swapDetails.Status)
+
+	go func() {
+		err = s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+			Id:          swapDetails.Id,
+			Type:        domain.SwapPayment,
+			Amount:      swapDetails.Amount,
+			From:        boltz.CurrencyArk,
+			Timestamp:   swapDetails.Timestamp,
+			To:          boltz.CurrencyBtc,
+			VhtlcOpts:   *swapDetails.Opts,
+			FundingTxId: swapDetails.TxId,
+			Status:      swapStatus,
+		})
+
+		if err != nil {
+			log.WithError(err).Error("failed to add swap to db")
+			return
+		}
+
+	}()
+
+	return SwapResponse{TxId: swapDetails.Id, SwapStatus: swapStatus, Invoice: swapDetails.Invoice}, err
+}
+
+func (s *Service) PayOffer(ctx context.Context, offer string) (SwapResponse, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return SwapResponse{}, err
 	}
 
 	configData, err := s.GetConfigData(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed to get config data: %v", err)
+		return SwapResponse{}, fmt.Errorf("failed to get config data: %v", err)
 	}
 
 	boltzApi := s.boltzSvc
@@ -988,7 +1026,7 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (string, error) {
 	if configData.Network.Name == arklib.BitcoinRegTest.Name {
 		boltzUrl, err := url.Parse(s.boltzSvc.URL)
 		if err != nil {
-			return "", err
+			return SwapResponse{}, err
 		}
 		host := boltzUrl.Hostname()
 		boltzUrl.Host = fmt.Sprintf("%s:%d", host, 9005)
@@ -997,24 +1035,40 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (string, error) {
 
 	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
 
-	swapDetails, err := swapHandler.PayOffer(ctx, offer, lightningUrl)
-
-	if err != nil {
-		if swapDetails.Status == swap.SwapFailed {
-			go func() {
-				err := s.scheduleSwapRefund(swapDetails.Id, *swapDetails.Opts)
-
-				if err != nil {
-					log.WithError(err).Error("failed to schedule swap refund")
-					return
-				}
-			}()
-		}
-
-		return "", err
+	unilateralRefund := func(swapData swap.Swap) error {
+		err := s.scheduleSwapRefund(swapData.Id, *swapData.Opts)
+		return err
 	}
 
-	return swapDetails.TxId, nil
+	swapDetails, err := swapHandler.PayOffer(ctx, offer, lightningUrl, unilateralRefund)
+
+	if err != nil {
+		return SwapResponse{}, err
+	}
+
+	swapStatus := domain.SwapStatus(swapDetails.Status)
+
+	go func() {
+		err = s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+			Id:          swapDetails.Id,
+			Type:        domain.SwapPayment,
+			Amount:      swapDetails.Amount,
+			From:        boltz.CurrencyArk,
+			To:          boltz.CurrencyBtc,
+			VhtlcOpts:   *swapDetails.Opts,
+			FundingTxId: swapDetails.TxId,
+			Timestamp:   swapDetails.Timestamp,
+			Status:      swapStatus,
+		})
+
+		if err != nil {
+			log.WithError(err).Error("failed to add swap to db")
+			return
+		}
+
+	}()
+
+	return SwapResponse{TxId: swapDetails.Id, SwapStatus: swapStatus, Invoice: swapDetails.Invoice}, err
 }
 
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
@@ -1260,11 +1314,11 @@ func (s *Service) handleInternalAddressEventChannel(event *indexer.ScriptEvent) 
 // When passing an amount, the invoice is generated by us, otherwise it means its generated by
 // somebody else. In any case, we fund the VHTLC and make sure that it succeeds before returning,
 // otherwise the VHTLC is refunded if necessary.
-func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, error) {
+func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapResponse, error) {
 	// Get our pubkey
 	_, _, _, _, pk, err := s.GetAddress(ctx, 0)
 	if err != nil {
-		return "", fmt.Errorf("failed to get pubkey: %v", err)
+		return SwapResponse{}, fmt.Errorf("failed to get pubkey: %v", err)
 	}
 	myPubkey, _ := hex.DecodeString(pk)
 
@@ -1273,12 +1327,12 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 	// Get invoice from the connected LN service
 	invoice, preimageHashStr, err := s.getInvoiceLN(ctx, amount, "increase outbound capacity", "")
 	if err != nil {
-		return "", fmt.Errorf("failed to create invoice: %w", err)
+		return SwapResponse{}, fmt.Errorf("failed to create invoice: %w", err)
 	}
 
 	preimageHash, err = hex.DecodeString(preimageHashStr)
 	if err != nil {
-		return "", fmt.Errorf("failed to decode preimage hash: %v", err)
+		return SwapResponse{}, fmt.Errorf("failed to decode preimage hash: %v", err)
 	}
 
 	// Schedule a payment timeout of 2 minute
@@ -1294,12 +1348,12 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("failed to make submarine swap: %v", err)
+		return SwapResponse{}, fmt.Errorf("failed to make submarine swap: %v", err)
 	}
 
 	receiverPubkey, err := parsePubkey(swap.ClaimPublicKey)
 	if err != nil {
-		return "", fmt.Errorf("invalid claim pubkey: %v", err)
+		return SwapResponse{}, fmt.Errorf("invalid claim pubkey: %v", err)
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
@@ -1314,10 +1368,10 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
+		return SwapResponse{}, fmt.Errorf("failed to verify vHTLC: %v", err)
 	}
 	if swap.Address != vhtlcAddress {
-		return "", fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
+		return SwapResponse{}, fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
 	// Workaround to connect ws endpoint on a different port for regtest
@@ -1326,55 +1380,39 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	err = utils.Retry(ctx, 5*time.Second, func(ctx context.Context) (bool, error) {
-		err = ws.Connect()
-		if err != nil {
-			log.WithError(err).Warn("failed to connect to boltz websocket")
-			return false, nil
-		}
-		return true, nil
-	})
-
+	err = ws.ConnectAndSubscribe(ctx, []string{swap.Id}, 5*time.Second)
 	if err != nil {
-		return "", err
-	}
-
-	err = utils.Retry(ctx, 5*time.Second, func(ctx context.Context) (bool, error) {
-		err = ws.Subscribe([]string{swap.Id})
-		if err != nil {
-			log.WithError(err).Warn("failed to subscribe for swap events")
-			return false, nil
-		}
-		return true, nil
-	})
-
-	if err != nil {
-		return "", err
+		return SwapResponse{}, err
 	}
 
 	// Fund the VHTLC
 	receivers := []types.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
 	txid, err := s.SendOffChain(ctx, false, receivers)
 	if err != nil {
-		return "", fmt.Errorf("failed to pay to vHTLC address: %v", err)
+		return SwapResponse{}, fmt.Errorf("failed to pay to vHTLC address: %v", err)
 	}
 
 	for {
 		select {
 		case update, ok := <-ws.Updates:
-			// TODO (Joshua): This should still wait for payment to be completed
+			// TODO (Joshua): This should  wait for payment to be completed
 			if !ok {
-				return "", fmt.Errorf("updates closed")
+				return SwapResponse{}, fmt.Errorf("updates closed")
 			}
 			switch boltz.ParseEvent(update.Status) {
 			case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
 				// Refund the VHTLC if the swap fails
 				withReceiver := true
-				refundTxid, err := s.RefundVHTLC(
-					context.Background(), swap.Id, hex.EncodeToString(preimageHash), withReceiver,
+				refundTxid, err := s.refundVHTLC(
+					context.Background(), swap.Id, withReceiver, *opts,
 				)
 				if err != nil {
-					return "", fmt.Errorf("failed to refund vHTLC: %s", err)
+					go func() {
+						err := s.scheduleSwapRefund(swap.Id, *opts)
+						if err != nil {
+							log.WithError(err).Error("failed to watch swap after expiry")
+						}
+					}()
 				}
 
 				go func() {
@@ -1396,7 +1434,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 					log.Debugf("added new refunded swap %s", swap.Id)
 				}()
 
-				return "", fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
+				return SwapResponse{TxId: txid, SwapStatus: domain.SwapFailed, Invoice: invoice}, fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
 			case boltz.TransactionClaimed, boltz.InvoiceSettled:
 				go func() {
 					if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
@@ -1414,7 +1452,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 					}
 					log.Debugf("added new swap %s", swap.Id)
 				}()
-				return txid, nil
+				return SwapResponse{TxId: txid, SwapStatus: domain.SwapSuccess, Invoice: invoice}, nil
 			}
 		case <-ctx.Done():
 			if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
@@ -1441,7 +1479,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (string, err
 				}
 
 			}()
-			return "", nil
+			return SwapResponse{TxId: txid, SwapStatus: domain.SwapFailed, Invoice: invoice}, nil
 		}
 	}
 }

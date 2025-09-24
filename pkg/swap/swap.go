@@ -56,7 +56,7 @@ type Swap struct {
 	Invoice      string
 	TxId         string
 	Timestamp    int64
-	RefundTxid   string
+	RedeemTxid   string
 	Status       SwapStatus
 	PreimageHash []byte
 	TimeoutInfo  boltz.TimeoutBlockHeights
@@ -74,15 +74,15 @@ func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.Transport
 	}
 }
 
-func (h *SwapHandler) PayInvoice(ctx context.Context, invoice string) (Swap, error) {
+func (h *SwapHandler) PayInvoice(ctx context.Context, invoice string, unilateralRefund func(swap Swap) error) (Swap, error) {
 	if len(invoice) <= 0 {
 		return Swap{}, fmt.Errorf("missing invoice")
 	}
 
-	return h.submarineSwap(ctx, invoice)
+	return h.submarineSwap(ctx, invoice, unilateralRefund)
 }
 
-func (h *SwapHandler) PayOffer(ctx context.Context, offer string, lightningUrl string) (Swap, error) {
+func (h *SwapHandler) PayOffer(ctx context.Context, offer string, lightningUrl string, unilateralRefund func(swap Swap) error) (Swap, error) {
 	// Decode the offer to get the amount
 	decodedOffer, err := DecodeBolt12Offer(offer)
 	if err != nil {
@@ -116,19 +116,20 @@ func (h *SwapHandler) PayOffer(ctx context.Context, offer string, lightningUrl s
 		return Swap{}, fmt.Errorf("failed to fetch invoice: %s", response.Error)
 	}
 
-	return h.submarineSwap(ctx, response.Invoice)
+	return h.submarineSwap(ctx, response.Invoice, unilateralRefund)
 }
 
-func (h *SwapHandler) GetInvoice(ctx context.Context, amount uint64) (Swap, error) {
+// TODO (Joshua) : Ensure That this is being tracked
+func (h *SwapHandler) GetInvoice(ctx context.Context, amount uint64, postProcess func(swap Swap) error) (Swap, error) {
 	preimage := make([]byte, 32)
 	if _, err := rand.Read(preimage); err != nil {
 		return Swap{}, fmt.Errorf("failed to generate preimage: %w", err)
 	}
 
-	return h.reverseSwap(ctx, amount, preimage)
+	return h.reverseSwap(ctx, amount, preimage, postProcess)
 }
 
-func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string) (Swap, error) {
+func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilateralRefund func(swap Swap) error) (Swap, error) {
 	if len(invoice) == 0 {
 		return Swap{}, fmt.Errorf("invoice must not be empty")
 	}
@@ -192,31 +193,10 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string) (Swap, 
 	}
 
 	ws := h.boltzSvc.NewWebsocket()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	err = Retry(ctx, 5*time.Second, func(ctx context.Context) (bool, error) {
-		err = ws.Connect()
-		if err != nil {
-			log.WithError(err).Warn("failed to connect to boltz websocket")
-			return false, nil
-		}
-		return true, nil
-	})
-
-	if err != nil {
-		return Swap{}, err
-	}
-
-	err = Retry(ctx, 5*time.Second, func(ctx context.Context) (bool, error) {
-		err = ws.Subscribe([]string{swap.Id})
-		if err != nil {
-			log.WithError(err).Warn("failed to subscribe for swap events")
-			return false, nil
-		}
-		return true, nil
-	})
-
+	err = ws.ConnectAndSubscribe(ctx, []string{swap.Id}, 5*time.Second)
 	if err != nil {
 		return Swap{}, err
 	}
@@ -229,6 +209,7 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string) (Swap, 
 	}
 
 	swapDetails := Swap{
+		Id:           swap.Id,
 		Invoice:      invoice,
 		TxId:         txid,
 		PreimageHash: preimageHash,
@@ -257,11 +238,16 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string) (Swap, 
 				)
 
 				if err != nil {
-					return swapDetails, fmt.Errorf("failed to refund vHTLC: %s", err)
+					go func() {
+						err := unilateralRefund(swapDetails)
+						if err != nil {
+							log.WithError(err).Error("failed to do unilateral refund")
+						}
+					}()
 				}
-				swapDetails.RefundTxid = txid
+				swapDetails.RedeemTxid = txid
 
-				return swapDetails, fmt.Errorf("something went wrong, the vhtlc was refunded %s", txid)
+				return swapDetails, nil
 			case boltz.TransactionClaimed, boltz.InvoiceSettled:
 				swapDetails.Status = SwapSuccess
 
@@ -269,7 +255,15 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string) (Swap, 
 			}
 		case <-ctx.Done():
 			swapDetails.Status = SwapFailed
-			return swapDetails, fmt.Errorf("timeout while waiting for swap to complete")
+
+			go func() {
+				err := unilateralRefund(swapDetails)
+				if err != nil {
+					log.WithError(err).Error("failed to do unilateral refund")
+				}
+			}()
+
+			return swapDetails, nil
 		}
 	}
 
@@ -463,12 +457,11 @@ func (h *SwapHandler) boltzRefundSwap(swapId, refundTx string) (string, error) {
 	return tx.Transaction, nil
 }
 
-func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage []byte) (Swap, error) {
+func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage []byte, postProcess func(swap Swap) error) (Swap, error) {
 	var preimageHash []byte
 	buf := sha256.Sum256(preimage)
 	preimageHash = input.Ripemd160H(buf[:])
 
-	// make swap
 	swap, err := h.boltzSvc.CreateReverseSwap(boltz.CreateReverseSwapRequest{
 		From:           boltz.CurrencyBtc,
 		To:             boltz.CurrencyArk,
@@ -478,9 +471,6 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 	})
 
 	if err != nil {
-		if strings.Contains(err.Error(), "out of limits") {
-			return Swap{}, nil
-		}
 		return Swap{}, fmt.Errorf("failed to make reverse submarine swap: %v", err)
 	}
 
@@ -503,14 +493,6 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 		return Swap{}, fmt.Errorf("invalid invoice amount: expected %d, got %d", amount, invoiceAmount)
 	}
 
-	swapDetails := Swap{
-		Invoice:      swap.Invoice,
-		PreimageHash: preimageHash,
-		TimeoutInfo:  swap.TimeoutBlockHeights,
-		Timestamp:    time.Now().Unix(),
-		Status:       SwapPending,
-	}
-
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
 	unilateralClaimDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim}
 	unilateralRefundDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund}
@@ -526,6 +508,18 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 		unilateralRefundDelay,
 		unilateralRefundWithoutReceiverDelay,
 	)
+
+	swapDetails := Swap{
+		Id:           swap.Id,
+		Invoice:      swap.Invoice,
+		PreimageHash: preimageHash,
+		TimeoutInfo:  swap.TimeoutBlockHeights,
+		Timestamp:    time.Now().Unix(),
+		Status:       SwapPending,
+		Amount:       amount,
+		Opts:         vhtlcOpts,
+	}
+
 	if err != nil {
 		return swapDetails, fmt.Errorf("failed to verify vHTLC: %v", err)
 	}
@@ -534,12 +528,21 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 		return swapDetails, fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
-	// TODO(Joshua) : This should include some post processing to ensure the data is saved
+	// TODO: (Joshua) This should exists for the lifetime of the invoice
 	go func() {
-		if _, err := h.waitAndClaimVHTLC(
+		if reedeemTxId, err := h.waitAndClaimVHTLC(
 			context.Background(), swap.Id, preimage, vhtlcOpts,
 		); err != nil {
+			swapDetails.Status = SwapFailed
 			log.WithError(err).Error("failed to claim VHTLC")
+		} else {
+			swapDetails.RedeemTxid = reedeemTxId
+			swapDetails.Status = SwapSuccess
+		}
+
+		err = postProcess(swapDetails)
+		if err != nil {
+			log.WithError(err).Error("failed to post process swap")
 		}
 	}()
 	return swapDetails, nil

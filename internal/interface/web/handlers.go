@@ -473,10 +473,18 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsValidInvoice(address) {
-		txId, err = s.svc.PayInvoice(c, address)
+		resp, err := s.svc.PayInvoice(c, address)
+		txId = resp.TxId
+
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
+			return
+		}
+
+		if resp.SwapStatus == domain.SwapFailed {
+			bodyContent := pages.SendFailureContent(address, sats)
+			partialViewHandler(bodyContent, c)
 			return
 		}
 
@@ -488,7 +496,9 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if swap.IsValidBolt12Offer(address) {
-		txId, err = s.svc.PayOffer(c, address)
+		resp, err := s.svc.PayOffer(c, address)
+		txId = resp.TxId
+
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
@@ -660,10 +670,18 @@ func (s *service) swapConfirm(c *gin.Context) {
 			return
 		}
 	} else {
-		txid, err = s.svc.IncreaseOutboundCapacity(c, satsUint64)
+		swapResponse, err := s.svc.IncreaseOutboundCapacity(c, satsUint64)
+		txid = swapResponse.TxId
+
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
+			return
+		}
+
+		if swapResponse.SwapStatus == domain.SwapFailed {
+			bodyContent := pages.SwapFailureContent(kind, sats)
+			partialViewHandler(bodyContent, c)
 			return
 		}
 
