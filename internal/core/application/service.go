@@ -382,6 +382,11 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	_, pubkey := btcec.PrivKeyFromBytes(buf)
 	s.publicKey = pubkey
 
+	p2trScript, err := txscript.PayToTaprootScript(pubkey)
+	serialiesScript := hex.EncodeToString(p2trScript)
+
+	println("using address with script:", serialiesScript)
+
 	settings, err := s.dbSvc.Settings().GetSettings(ctx)
 	if err != nil {
 		log.WithError(err).Warn("failed to get settings")
@@ -2025,6 +2030,8 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 			log.WithError(err).Error("failed to refund vhtlc")
 			return
 		}
+
+		println("this is the refund txid:", txid)
 
 		swapData := domain.Swap{
 			Id:         swapId,

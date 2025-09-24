@@ -998,6 +998,8 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 				return p.RedeemTxId != "" && p.RedeemTxId == t.ArkTxid
 			})
 
+			fmt.Printf("RedeemTxId: %s, receiveTransfer.ArkTxid: %s, ok: %v\n", p.RedeemTxId, receiveTransfer.ArkTxid, ok)
+
 			if ok {
 				transferTxns = updatedTransfers
 				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
