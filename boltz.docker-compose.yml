@@ -41,7 +41,7 @@ services:
       - '10010:10009'
   boltz:
     restart: unless-stopped
-    image: boltz/boltz:ark
+    image: boltz/boltz:ark-v8
     ports:
       - '9000:9000'
       - '9001:9001'
@@ -121,7 +121,7 @@ services:
         maxSwapAmount = 4294967
         minSwapAmount = 50000
         maxZeroConfAmount = 100000
-        preferredWallet = "lnd"
+        preferredWallet = "core"
 
         [currencies.chain]
         host = "bitcoin"
