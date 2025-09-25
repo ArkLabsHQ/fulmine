@@ -41,6 +41,7 @@ type SwapHandler struct {
 	indexerClient   indexer.Indexer
 	boltzSvc        *boltz.Api
 	publicKey       *btcec.PublicKey
+	timeout         uint32
 }
 
 type SwapStatus int
@@ -64,13 +65,16 @@ type Swap struct {
 	Amount       uint64
 }
 
-func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.TransportClient, indexerClient indexer.Indexer, boltzSvc *boltz.Api, publicKey *btcec.PublicKey) *SwapHandler {
+func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.TransportClient, indexerClient indexer.Indexer, boltzSvc *boltz.Api, publicKey *btcec.PublicKey, timeout uint32) *SwapHandler {
+
+	println(timeout)
 	return &SwapHandler{
 		arkClient:       arkClient,
 		transportClient: transportClient,
 		indexerClient:   indexerClient,
 		boltzSvc:        boltzSvc,
 		publicKey:       publicKey,
+		timeout:         timeout,
 	}
 }
 
@@ -150,16 +154,13 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 		preimageHash = hash
 	}
 
-	// Schedule a payment timeout of 2 minute
-	paymentTimeout := uint32(2 * 60)
-
 	// Create the swap
 	swap, err := h.boltzSvc.CreateSwap(boltz.CreateSwapRequest{
 		From:            boltz.CurrencyArk,
 		To:              boltz.CurrencyBtc,
 		Invoice:         invoice,
 		RefundPublicKey: hex.EncodeToString(h.publicKey.SerializeCompressed()),
-		PaymentTimeout:  paymentTimeout,
+		PaymentTimeout:  h.timeout,
 	})
 	if err != nil {
 		return Swap{}, fmt.Errorf("failed to make submarine swap: %v", err)
@@ -192,8 +193,10 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 		return Swap{}, fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
+	contextTimeout := time.Second * time.Duration(h.timeout*2)
+
 	ws := h.boltzSvc.NewWebsocket()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
 	defer cancel()
 
 	err = ws.ConnectAndSubscribe(ctx, []string{swap.Id}, 5*time.Second)

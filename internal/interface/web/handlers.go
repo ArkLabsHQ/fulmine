@@ -817,6 +817,16 @@ func (s *service) getTx(c *gin.Context) {
 				return
 			}
 		}
+
+		if transaction.Kind == "payment" {
+			paymentTx := transaction.Payment
+
+			if paymentTx.ReclaimTransfer != nil && paymentTx.ReclaimTransfer.Txid == txid {
+				bodyContent := s.getTransfer(c, *paymentTx.ReclaimTransfer, explorerUrl)
+				s.pageViewHandler(bodyContent, c)
+				return
+			}
+		}
 	}
 
 	var bodyContent templ.Component
@@ -983,7 +993,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 	for _, p := range payments {
 		transformedPayment := toPayment(p)
 
-		if transformedPayment.Kind == "pay" {
+		if transformedPayment.Kind == "send" {
 			updatedTransfers, sendTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
 				return p.FundingTxId != "" && p.FundingTxId == t.ArkTxid
 			})

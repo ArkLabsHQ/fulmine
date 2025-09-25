@@ -94,6 +94,8 @@ type Service struct {
 	boltzUrl   string
 	boltzWSUrl string
 
+	swapTimeout uint32
+
 	isReady bool
 
 	internalSubscription *subscriptionHandler
@@ -127,7 +129,7 @@ func NewService(
 	storeSvc types.Store,
 	dbSvc ports.RepoManager,
 	schedulerSvc ports.SchedulerService,
-	esploraUrl, boltzUrl, boltzWSUrl string,
+	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 	connectionOpts *domain.LnConnectionOpts,
 ) (*Service, error) {
 	opts := make([]arksdk.ClientOption, 0)
@@ -167,6 +169,7 @@ func NewService(
 			esploraUrl:                data.ExplorerURL,
 			boltzUrl:                  boltzUrl,
 			boltzWSUrl:                boltzWSUrl,
+			swapTimeout:               swapTimeout,
 			walletUpdates:             make(chan WalletUpdate),
 		}
 
@@ -211,6 +214,7 @@ func NewService(
 		esploraUrl:                esploraUrl,
 		boltzUrl:                  boltzUrl,
 		boltzWSUrl:                boltzWSUrl,
+		swapTimeout:               swapTimeout,
 		walletUpdates:             make(chan WalletUpdate),
 	}
 
@@ -919,7 +923,7 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 	}
 
 	boltzApi := s.boltzSvc
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
 
 	postProcess := func(swapData swap.Swap) error {
 		err := s.dbSvc.Swap().Update(context.Background(), domain.Swap{
@@ -974,7 +978,7 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (SwapResponse,
 
 	boltzApi := s.boltzSvc
 
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
 
 	unilateralRefund := func(swapData swap.Swap) error {
 		err := s.scheduleSwapRefund(swapData.Id, *swapData.Opts)
@@ -1035,7 +1039,7 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (SwapResponse, err
 		lightningUrl = boltzUrl.String()
 	}
 
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey)
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
 
 	unilateralRefund := func(swapData swap.Swap) error {
 		err := s.scheduleSwapRefund(swapData.Id, *swapData.Opts)
@@ -1337,16 +1341,13 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 		return SwapResponse{}, fmt.Errorf("failed to decode preimage hash: %v", err)
 	}
 
-	// Schedule a payment timeout of 2 minute
-	paymentTimeout := uint32(2 * 60)
-
 	// Create the swap
 	swap, err := s.boltzSvc.CreateSwap(boltz.CreateSwapRequest{
 		From:            boltz.CurrencyArk,
 		To:              boltz.CurrencyBtc,
 		Invoice:         invoice,
 		RefundPublicKey: hex.EncodeToString(myPubkey),
-		PaymentTimeout:  paymentTimeout,
+		PaymentTimeout:  s.swapTimeout,
 	})
 
 	if err != nil {
@@ -1376,10 +1377,11 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 		return SwapResponse{}, fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
-	// Workaround to connect ws endpoint on a different port for regtest
+	contextTimeout := time.Second * time.Duration(s.swapTimeout*2)
+
 	wsClient := s.boltzSvc
 	ws := wsClient.NewWebsocket()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
 	defer cancel()
 
 	err = ws.ConnectAndSubscribe(ctx, []string{swap.Id}, 5*time.Second)

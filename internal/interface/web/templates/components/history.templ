@@ -145,6 +145,18 @@ templ SwapHistoryLine(swap types.Swap) {
 				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunding</p>
 			</div>
       	}
+
+		if swap.Status == "failure" {
+			if swap.RedeemTransfer != nil && swap.RedeemTransfer.Txid != "" {
+      	  		<div class="flex items-center">
+					if swap.RedeemTransfer.Status == "pending" {
+		  			<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
+					}
+					<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunded</p>
+				</div>	
+			} 
+      	}
+
 		<div class="flex items-center gap-4">
 			<div class="flex flex-col w-32 text-right">
 				<p class="cryptoAmount" sats={swap.Amount}>{swap.Amount} SATS</p>
@@ -181,6 +193,18 @@ templ PaymentHistoryLine(payment types.Payment) {
 				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunding</p>
 			</div>
       	}
+
+		if payment.Status == "failure" {
+			if payment.ReclaimTransfer != nil && payment.ReclaimTransfer.Txid != "" {
+      	  		<div class="flex items-center">
+					if payment.ReclaimTransfer.Status == "pending" {
+		  			<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
+					}
+					<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunded</p>
+				</div>	
+			} 
+      	}
+
 		<div class="flex items-center gap-4">
 			<div class="flex flex-col w-32 text-right">
 				<p class="cryptoAmount" sats={payment.Amount}>{payment.Amount} SATS</p>
