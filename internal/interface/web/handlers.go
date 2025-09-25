@@ -807,8 +807,8 @@ func (s *service) getTx(c *gin.Context) {
 			tx = transaction
 			break
 		}
-		// TODO: Display the correct content for swap transaction
-		if transaction.Kind == "swap" {
+
+		if transaction.Kind == "swap" && transaction.Swap != nil {
 			swapTx := transaction.Swap
 
 			if swapTx.RedeemTransfer != nil && swapTx.RedeemTransfer.Txid == txid {
@@ -818,7 +818,7 @@ func (s *service) getTx(c *gin.Context) {
 			}
 		}
 
-		if transaction.Kind == "payment" {
+		if transaction.Kind == "payment" && transaction.Payment != nil {
 			paymentTx := transaction.Payment
 
 			if paymentTx.ReclaimTransfer != nil && paymentTx.ReclaimTransfer.Txid == txid {

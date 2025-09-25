@@ -196,7 +196,7 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 	contextTimeout := time.Second * time.Duration(h.timeout*2)
 
 	ws := h.boltzSvc.NewWebsocket()
-	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
+	ctx, cancel := context.WithTimeout(ctx, contextTimeout)
 	defer cancel()
 
 	err = ws.ConnectAndSubscribe(ctx, []string{swap.Id}, 5*time.Second)

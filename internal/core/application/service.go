@@ -948,7 +948,7 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 	swapStatus := domain.SwapStatus(swapDetails.Status)
 
 	go func() {
-		err = s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+		dbErr := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
 			Id:          swapDetails.Id,
 			Type:        domain.SwapPayment,
 			Amount:      swapDetails.Amount,
@@ -960,8 +960,8 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 			Status:      swapStatus,
 		})
 
-		if err != nil {
-			log.WithError(err).Error("failed to add swap to db")
+		if dbErr != nil {
+			log.WithError(dbErr).Error("failed to add swap to db")
 			return
 		}
 
@@ -994,7 +994,7 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (SwapResponse,
 	swapStatus := domain.SwapStatus(swapDetails.Status)
 
 	go func() {
-		err = s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+		dbErr := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
 			Id:          swapDetails.Id,
 			Type:        domain.SwapPayment,
 			Amount:      swapDetails.Amount,
@@ -1006,8 +1006,8 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (SwapResponse,
 			Status:      swapStatus,
 		})
 
-		if err != nil {
-			log.WithError(err).Error("failed to add swap to db")
+		if dbErr != nil {
+			log.WithError(dbErr).Error("failed to add swap to db")
 			return
 		}
 
@@ -1055,7 +1055,7 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (SwapResponse, err
 	swapStatus := domain.SwapStatus(swapDetails.Status)
 
 	go func() {
-		err = s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+		dbErr := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
 			Id:          swapDetails.Id,
 			Type:        domain.SwapPayment,
 			Amount:      swapDetails.Amount,
@@ -1067,8 +1067,8 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (SwapResponse, err
 			Status:      swapStatus,
 		})
 
-		if err != nil {
-			log.WithError(err).Error("failed to add swap to db")
+		if dbErr != nil {
+			log.WithError(dbErr).Error("failed to add swap to db")
 			return
 		}
 
@@ -1381,7 +1381,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 
 	wsClient := s.boltzSvc
 	ws := wsClient.NewWebsocket()
-	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
+	ctx, cancel := context.WithTimeout(ctx, contextTimeout)
 	defer cancel()
 
 	err = ws.ConnectAndSubscribe(ctx, []string{swap.Id}, 5*time.Second)
@@ -1433,7 +1433,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 						From:        boltz.CurrencyArk,
 						VhtlcOpts:   *opts,
 					}); err != nil {
-						log.WithError(err).Fatal("failed to store swap")
+						log.WithError(err).Error("failed to store swap")
 					}
 					log.Debugf("added new refunded swap %s", swap.Id)
 				}()
@@ -1452,7 +1452,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 						From:        boltz.CurrencyArk,
 						VhtlcOpts:   *opts,
 					}); err != nil {
-						log.WithError(err).Fatal("failed to store swap")
+						log.WithError(err).Error("failed to store swap")
 					}
 					log.Debugf("added new swap %s", swap.Id)
 				}()
@@ -1471,7 +1471,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 				From:        boltz.CurrencyArk,
 				VhtlcOpts:   *opts,
 			}); err != nil {
-				log.WithError(err).Fatal("failed to store swap")
+				log.WithError(err).Error("failed to store swap")
 			}
 
 			go func() {
@@ -1565,7 +1565,7 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, preimage, myPu
 			VhtlcOpts:  *opts,
 			RedeemTxId: txid,
 		}); err != nil {
-			log.WithError(err).Fatal("failed to store swap")
+			log.WithError(err).Error("failed to store swap")
 		}
 		log.Debugf("added new swap %s", swap.Id)
 	}()
