@@ -3,7 +3,6 @@ package scheduler
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -54,8 +53,6 @@ func (s *service) Start() {
 			callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			h, err := s.esploraService.GetBlockHeight(callCtx)
 			cancel()
-
-			log.Printf("current block height: %d\n", h)
 
 			if err == nil {
 				s.mu.Lock()

@@ -193,7 +193,7 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 	}
 
 	ws := h.boltzSvc.NewWebsocket()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	err = ws.ConnectAndSubscribe(ctx, []string{swap.Id}, 5*time.Second)
@@ -234,8 +234,7 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 				swapDetails.Status = SwapFailed
 
 				txid, err := h.refundVHTLC(
-					context.Background(), swap.Id, withReceiver, *vhtlcOpts,
-				)
+					context.Background(), swap.Id, withReceiver, *vhtlcOpts)
 
 				if err != nil {
 					go func() {
@@ -358,7 +357,18 @@ func (h *SwapHandler) refundVHTLC(
 		return "", err
 	}
 
-	dest, err := txscript.PayToTaprootScript(vhtlcOpts.Sender)
+	_, offchainAddress, _, err := h.arkClient.Receive(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	offchainPkScript, err := offchainAddressPkScript(offchainAddress)
+	if err != nil {
+
+		return "", err
+	}
+
+	dest, err := hex.DecodeString(offchainPkScript)
 	if err != nil {
 		return "", err
 	}
@@ -919,4 +929,17 @@ func verifyFinalArkTx(finalArkTx string, arkSigner *btcec.PublicKey, expectedTap
 	}
 
 	return nil
+}
+
+func offchainAddressPkScript(addr string) (string, error) {
+	decodedAddress, err := arklib.DecodeAddressV0(addr)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode address %s: %w", addr, err)
+	}
+
+	p2trScript, err := txscript.PayToTaprootScript(decodedAddress.VtxoTapKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse address to p2tr script: %w", err)
+	}
+	return hex.EncodeToString(p2trScript), nil
 }

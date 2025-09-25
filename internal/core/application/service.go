@@ -382,11 +382,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	_, pubkey := btcec.PrivKeyFromBytes(buf)
 	s.publicKey = pubkey
 
-	p2trScript, err := txscript.PayToTaprootScript(pubkey)
-	serialiesScript := hex.EncodeToString(p2trScript)
-
-	println("using address with script:", serialiesScript)
-
 	settings, err := s.dbSvc.Settings().GetSettings(ctx)
 	if err != nil {
 		log.WithError(err).Warn("failed to get settings")
@@ -536,6 +531,8 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
+
+	log.Infof("balance offchain: %d", balance.OffchainBalance.Total)
 
 	return balance.OffchainBalance.Total, nil
 }
@@ -1940,7 +1937,18 @@ func (s *Service) refundVHTLC(
 		return "", err
 	}
 
-	dest, err := txscript.PayToTaprootScript(vhtlcOpts.Sender)
+	_, offchainAddress, _, err := s.Receive(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	offchainPkScript, err := offchainAddressPkScript(offchainAddress)
+	if err != nil {
+
+		return "", err
+	}
+
+	dest, err := hex.DecodeString(offchainPkScript)
 	if err != nil {
 		return "", err
 	}
@@ -2031,8 +2039,6 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 			return
 		}
 
-		println("this is the refund txid:", txid)
-
 		swapData := domain.Swap{
 			Id:         swapId,
 			Status:     domain.SwapFailed,
@@ -2055,19 +2061,6 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 		return fmt.Errorf("vhtlc %s not found or already spent", opts.PreimageHash)
 	}
 
-	if vtxos[0].Spent {
-		log.Infof("vhtlc %s already spent, nothing to do", opts.PreimageHash)
-		swapData := domain.Swap{
-			Id:     swapId,
-			Status: domain.SwapSuccess,
-		}
-
-		if err := s.dbSvc.Swap().Update(context.Background(), swapData); err != nil {
-			log.WithError(err).Error("failed to add payment data to db")
-		}
-		return nil
-	}
-
 	refundLT := opts.RefundLocktime
 
 	if refundLT.IsSeconds() {
@@ -2077,7 +2070,7 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 		err = s.schedulerSvc.ScheduleRefundAtHeight(uint32(refundLT), unilateral)
 	}
 
-	return
+	return err
 }
 
 func checkpointExitScript(cfg *types.Config) *script.CSVMultisigClosure {
