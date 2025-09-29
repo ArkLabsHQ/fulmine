@@ -1013,7 +1013,7 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (SwapResponse,
 
 	}()
 
-	return SwapResponse{TxId: swapDetails.Id, SwapStatus: swapStatus, Invoice: swapDetails.Invoice}, err
+	return SwapResponse{TxId: swapDetails.TxId, SwapStatus: swapStatus, Invoice: swapDetails.Invoice}, err
 }
 
 func (s *Service) PayOffer(ctx context.Context, offer string) (SwapResponse, error) {
@@ -1074,7 +1074,7 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (SwapResponse, err
 
 	}()
 
-	return SwapResponse{TxId: swapDetails.Id, SwapStatus: swapStatus, Invoice: swapDetails.Invoice}, err
+	return SwapResponse{TxId: swapDetails.TxId, SwapStatus: swapStatus, Invoice: swapDetails.Invoice}, err
 }
 
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
