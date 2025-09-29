@@ -764,6 +764,8 @@ func (s *service) getSwap(swap types.Swap) templ.Component {
 		return pages.SwapTxPendingContent(swap)
 	case "refunding":
 		return pages.SwapTxRefundingContent(swap)
+	case "failure":
+		return pages.SwapTxFailureContent(swap)
 	default:
 		return pages.SwapContent(swap)
 	}
@@ -775,6 +777,8 @@ func (s *service) getPayment(c *gin.Context, payment types.Payment) templ.Compon
 		return pages.PaymentTxPendingContent(payment)
 	case "refunding":
 		return pages.PaymentTxRefundingContent(payment)
+	case "failure":
+		return pages.PaymentTxFailureContent(payment)
 	default:
 		return pages.PaymentContent(payment)
 	}
@@ -811,6 +815,12 @@ func (s *service) getTx(c *gin.Context) {
 		if transaction.Kind == "swap" && transaction.Swap != nil {
 			swapTx := transaction.Swap
 
+			if swapTx.VHTLCTransfer != nil && swapTx.VHTLCTransfer.Txid == txid {
+				bodyContent := s.getTransfer(c, *swapTx.VHTLCTransfer, explorerUrl)
+				s.pageViewHandler(bodyContent, c)
+				return
+			}
+
 			if swapTx.RedeemTransfer != nil && swapTx.RedeemTransfer.Txid == txid {
 				bodyContent := s.getTransfer(c, *swapTx.RedeemTransfer, explorerUrl)
 				s.pageViewHandler(bodyContent, c)
@@ -821,11 +831,18 @@ func (s *service) getTx(c *gin.Context) {
 		if transaction.Kind == "payment" && transaction.Payment != nil {
 			paymentTx := transaction.Payment
 
+			if paymentTx.PaymentTransfer != nil && paymentTx.PaymentTransfer.Txid == txid {
+				bodyContent := s.getTransfer(c, *paymentTx.PaymentTransfer, explorerUrl)
+				s.pageViewHandler(bodyContent, c)
+				return
+			}
+
 			if paymentTx.ReclaimTransfer != nil && paymentTx.ReclaimTransfer.Txid == txid {
 				bodyContent := s.getTransfer(c, *paymentTx.ReclaimTransfer, explorerUrl)
 				s.pageViewHandler(bodyContent, c)
 				return
 			}
+
 		}
 	}
 
@@ -1015,7 +1032,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			}
 		} else {
 			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return p.FundingTxId != "" && p.FundingTxId == t.ArkTxid
+				return p.RedeemTxId != "" && p.RedeemTxId == t.ArkTxid
 			})
 
 			if ok {
@@ -1268,7 +1285,7 @@ func toSwap(swap domain.Swap) types.Swap {
 		case domain.SwapPending:
 			return "pending"
 		default:
-			if swap.RedeemTxId == "" {
+			if swap.RedeemTxId == "" && swap.FundingTxId != "" {
 				return "refunding"
 			}
 			return "failure"
@@ -1326,7 +1343,7 @@ func toPayment(payment domain.Swap) types.Payment {
 		case domain.SwapPending:
 			return "pending"
 		default:
-			if swap.RedeemTxId == "" {
+			if swap.RedeemTxId == "" && swap.FundingTxId != "" {
 				return "refunding"
 			}
 			return "failure"

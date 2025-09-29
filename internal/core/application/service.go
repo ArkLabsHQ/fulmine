@@ -925,15 +925,15 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 
 	postProcess := func(swapData swap.Swap) error {
 		err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
-			Id:          swapData.Id,
-			Type:        domain.SwapPayment,
-			Amount:      swapData.Amount,
-			From:        boltz.CurrencyArk,
-			To:          boltz.CurrencyBtc,
-			VhtlcOpts:   *swapData.Opts,
-			Timestamp:   swapData.Timestamp,
-			FundingTxId: swapData.TxId,
-			Status:      domain.SwapStatus(swapData.Status),
+			Id:         swapData.Id,
+			Type:       domain.SwapPayment,
+			Amount:     swapData.Amount,
+			From:       boltz.CurrencyBtc,
+			To:         boltz.CurrencyArk,
+			VhtlcOpts:  *swapData.Opts,
+			Timestamp:  swapData.Timestamp,
+			RedeemTxId: swapData.RedeemTxid,
+			Status:     domain.SwapStatus(swapData.Status),
 		})
 
 		return err

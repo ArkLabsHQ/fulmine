@@ -736,12 +736,21 @@ func (h *SwapHandler) claimVHTLC(
 		return "", err
 	}
 
-	arkTxStr, err := arkTx.B64Encode()
-	if err != nil {
-		return "", err
+	signTransaction := func(tx *psbt.Packet) (string, error) {
+		// add the preimage to the checkpoint input
+		if err := txutils.AddConditionWitness(0, tx, wire.TxWitness{preimage}); err != nil {
+			return "", err
+		}
+
+		encoded, err := tx.B64Encode()
+		if err != nil {
+			return "", err
+		}
+
+		return h.arkClient.SignTransaction(ctx, encoded)
 	}
 
-	signedArkTx, err := h.arkClient.SignTransaction(ctx, arkTxStr)
+	signedArkTx, err := signTransaction(arkTx)
 	if err != nil {
 		return "", err
 	}
@@ -764,22 +773,7 @@ func (h *SwapHandler) claimVHTLC(
 		return "", err
 	}
 
-	// verify and sign the checkpoints
-	signCheckpoint := func(tx *psbt.Packet) (string, error) {
-		// add the preimage to the checkpoint input
-		if err := txutils.AddConditionWitness(0, tx, wire.TxWitness{preimage}); err != nil {
-			return "", err
-		}
-
-		encoded, err := tx.B64Encode()
-		if err != nil {
-			return "", err
-		}
-
-		return h.arkClient.SignTransaction(ctx, encoded)
-	}
-
-	finalCheckpoints, err := verifyAndSignCheckpoints(signedCheckpoints, checkpoints, cfg.SignerPubKey, signCheckpoint)
+	finalCheckpoints, err := verifyAndSignCheckpoints(signedCheckpoints, checkpoints, cfg.SignerPubKey, signTransaction)
 	if err != nil {
 		return "", err
 	}

@@ -154,6 +154,10 @@ templ SwapHistoryLine(swap types.Swap) {
 					}
 					<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunded</p>
 				</div>	
+			} else {
+				<div class="flex items-center">
+				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Failure</p>
+				</div>
 			} 
       	}
 
@@ -202,6 +206,10 @@ templ PaymentHistoryLine(payment types.Payment) {
 					}
 					<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunded</p>
 				</div>	
+			} else {
+				<div class="flex items-center">
+				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Failure</p>
+				</div>
 			} 
       	}
 
@@ -248,8 +256,8 @@ templ HistoryEmpty() {
       </clipPath>
     </defs>
     </svg>
-	  <p class="font-bold">Looks like you don't have any transactions</p>
-		<p class="text-white/50">Send, receive, or swap your first BTC on Ark.</p>
+	<p class="font-bold">Looks like you don&#39;t have any transactions</p>
+	<p class="text-white/50">Send, receive, or swap your first BTC on Ark.</p>
 	</div>
 }
 
