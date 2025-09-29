@@ -536,8 +536,6 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 
-	log.Infof("balance offchain: %d", balance.OffchainBalance.Total)
-
 	return balance.OffchainBalance.Total, nil
 }
 
@@ -926,10 +924,16 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
 
 	postProcess := func(swapData swap.Swap) error {
-		err := s.dbSvc.Swap().Update(context.Background(), domain.Swap{
-			Id:         swapData.Id,
-			RedeemTxId: swapData.RedeemTxid,
-			Status:     domain.SwapStatus(swapData.Status),
+		err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+			Id:          swapData.Id,
+			Type:        domain.SwapPayment,
+			Amount:      swapData.Amount,
+			From:        boltz.CurrencyArk,
+			To:          boltz.CurrencyBtc,
+			VhtlcOpts:   *swapData.Opts,
+			Timestamp:   swapData.Timestamp,
+			FundingTxId: swapData.TxId,
+			Status:      domain.SwapStatus(swapData.Status),
 		})
 
 		return err
@@ -945,29 +949,7 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 		return SwapResponse{}, err
 	}
 
-	swapStatus := domain.SwapStatus(swapDetails.Status)
-
-	go func() {
-		dbErr := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
-			Id:          swapDetails.Id,
-			Type:        domain.SwapPayment,
-			Amount:      swapDetails.Amount,
-			From:        boltz.CurrencyArk,
-			To:          boltz.CurrencyBtc,
-			VhtlcOpts:   *swapDetails.Opts,
-			Timestamp:   swapDetails.Timestamp,
-			FundingTxId: swapDetails.TxId,
-			Status:      swapStatus,
-		})
-
-		if dbErr != nil {
-			log.WithError(dbErr).Error("failed to add swap to db")
-			return
-		}
-
-	}()
-
-	return SwapResponse{Invoice: swapDetails.Invoice, SwapStatus: swapStatus}, err
+	return SwapResponse{Invoice: swapDetails.Invoice, SwapStatus: domain.SwapPending}, err
 
 }
 
