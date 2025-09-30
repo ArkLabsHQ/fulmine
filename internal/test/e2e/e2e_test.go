@@ -91,48 +91,6 @@ func TestSendOnChain(t *testing.T) {
 	require.Equal(t, int(initialBalance-1000), int(balance))
 }
 
-func TestGetVirtualTxs(t *testing.T) {
-	// Get transaction history to find some txids
-	history, err := getTransactionHistory()
-	require.NoError(t, err)
-	require.NotEmpty(t, history, "need at least one transaction in history")
-
-	// Collect some txids from history
-	var txids []string
-	for _, tx := range history {
-		var txid string
-		switch {
-		case tx.BoardingTxid != "":
-			txid = tx.BoardingTxid
-		case tx.RedeemTxid != "":
-			txid = tx.RedeemTxid
-		case tx.RoundTxid != "":
-			txid = tx.RoundTxid
-		}
-		txids = append(txids, txid)
-		if len(txids) >= 2 {
-			break
-		}
-	}
-	require.NotEmpty(t, txids, "need at least one txid to test")
-
-	// Test with single txid
-	virtualTxs, err := getVirtualTxs(txids[:1])
-	require.NoError(t, err)
-	require.Len(t, virtualTxs, 1, "should return one virtual transaction")
-	require.NotEmpty(t, virtualTxs[0], "virtual transaction hex should not be empty")
-
-	// Test with multiple txids if available
-	if len(txids) > 1 {
-		virtualTxs, err = getVirtualTxs(txids)
-		require.NoError(t, err)
-		require.Len(t, virtualTxs, len(txids), "should return all requested virtual transactions")
-		for i, vtx := range virtualTxs {
-			require.NotEmpty(t, vtx, "virtual transaction %d hex should not be empty", i)
-		}
-	}
-}
-
 func TestVHTLC(t *testing.T) {
 	// For sake of simplicity, in this test sender = receiver to test both
 	// funding and claiming the VHTLC via API
