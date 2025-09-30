@@ -63,6 +63,12 @@ func TestSendOffChain(t *testing.T) {
 	balance, err := getBalance()
 	require.NoError(t, err)
 	require.Equal(t, int(initialBalance-1000), int(balance))
+
+	// Test GetVirtualTxs RPC with the txid from the send operation
+	virtualTxs, err := getVirtualTxs([]string{txid})
+	require.NoError(t, err)
+	require.Len(t, virtualTxs, 1, "should return one virtual transaction")
+	require.NotEmpty(t, virtualTxs[0], "virtual transaction hex should not be empty")
 }
 
 func TestSendOnChain(t *testing.T) {
@@ -83,6 +89,46 @@ func TestSendOnChain(t *testing.T) {
 	balance, err := getBalance()
 	require.NoError(t, err)
 	require.Equal(t, int(initialBalance-1000), int(balance))
+}
+
+func TestGetVirtualTxs(t *testing.T) {
+	// Get transaction history to find some txids
+	history, err := getTransactionHistory()
+	require.NoError(t, err)
+	require.NotEmpty(t, history, "need at least one transaction in history")
+
+	// Collect some txids from history
+	var txids []string
+	for _, tx := range history {
+		if tx.RoundTxid != "" {
+			txids = append(txids, tx.RoundTxid)
+		}
+		if len(txids) >= 2 {
+			break
+		}
+	}
+	require.NotEmpty(t, txids, "need at least one txid to test")
+
+	// Test with single txid
+	virtualTxs, err := getVirtualTxs([]string{txids[0]})
+	require.NoError(t, err)
+	require.Len(t, virtualTxs, 1, "should return one virtual transaction")
+	require.NotEmpty(t, virtualTxs[0], "virtual transaction hex should not be empty")
+
+	// Test with multiple txids if available
+	if len(txids) > 1 {
+		virtualTxs, err = getVirtualTxs(txids)
+		require.NoError(t, err)
+		require.Len(t, virtualTxs, len(txids), "should return all requested virtual transactions")
+		for i, vtx := range virtualTxs {
+			require.NotEmpty(t, vtx, "virtual transaction %d hex should not be empty", i)
+		}
+	}
+
+	// Test with empty txids list
+	virtualTxs, err = getVirtualTxs([]string{})
+	require.NoError(t, err)
+	require.Empty(t, virtualTxs, "empty txids should return empty response")
 }
 
 func TestVHTLC(t *testing.T) {

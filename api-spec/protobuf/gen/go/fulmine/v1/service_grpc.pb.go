@@ -41,6 +41,7 @@ const (
 	Service_WatchAddressForRollover_FullMethodName    = "/fulmine.v1.Service/WatchAddressForRollover"
 	Service_UnwatchAddress_FullMethodName             = "/fulmine.v1.Service/UnwatchAddress"
 	Service_ListWatchedAddresses_FullMethodName       = "/fulmine.v1.Service/ListWatchedAddresses"
+	Service_GetVirtualTxs_FullMethodName              = "/fulmine.v1.Service/GetVirtualTxs"
 )
 
 // ServiceClient is the client API for Service service.
@@ -86,6 +87,8 @@ type ServiceClient interface {
 	UnwatchAddress(ctx context.Context, in *UnwatchAddressRequest, opts ...grpc.CallOption) (*UnwatchAddressResponse, error)
 	// ListWatchedAddresses lists all watched addresses
 	ListWatchedAddresses(ctx context.Context, in *ListWatchedAddressesRequest, opts ...grpc.CallOption) (*ListWatchedAddressesResponse, error)
+	// GetVirtualTxs returns the virtual transactions in hex format for the specified txids.
+	GetVirtualTxs(ctx context.Context, in *GetVirtualTxsRequest, opts ...grpc.CallOption) (*GetVirtualTxsResponse, error)
 }
 
 type serviceClient struct {
@@ -316,6 +319,16 @@ func (c *serviceClient) ListWatchedAddresses(ctx context.Context, in *ListWatche
 	return out, nil
 }
 
+func (c *serviceClient) GetVirtualTxs(ctx context.Context, in *GetVirtualTxsRequest, opts ...grpc.CallOption) (*GetVirtualTxsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetVirtualTxsResponse)
+	err := c.cc.Invoke(ctx, Service_GetVirtualTxs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServiceServer is the server API for Service service.
 // All implementations should embed UnimplementedServiceServer
 // for forward compatibility
@@ -359,6 +372,8 @@ type ServiceServer interface {
 	UnwatchAddress(context.Context, *UnwatchAddressRequest) (*UnwatchAddressResponse, error)
 	// ListWatchedAddresses lists all watched addresses
 	ListWatchedAddresses(context.Context, *ListWatchedAddressesRequest) (*ListWatchedAddressesResponse, error)
+	// GetVirtualTxs returns the virtual transactions in hex format for the specified txids.
+	GetVirtualTxs(context.Context, *GetVirtualTxsRequest) (*GetVirtualTxsResponse, error)
 }
 
 // UnimplementedServiceServer should be embedded to have forward compatible implementations.
@@ -430,6 +445,9 @@ func (UnimplementedServiceServer) UnwatchAddress(context.Context, *UnwatchAddres
 }
 func (UnimplementedServiceServer) ListWatchedAddresses(context.Context, *ListWatchedAddressesRequest) (*ListWatchedAddressesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListWatchedAddresses not implemented")
+}
+func (UnimplementedServiceServer) GetVirtualTxs(context.Context, *GetVirtualTxsRequest) (*GetVirtualTxsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetVirtualTxs not implemented")
 }
 
 // UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -839,6 +857,24 @@ func _Service_ListWatchedAddresses_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_GetVirtualTxs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVirtualTxsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).GetVirtualTxs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_GetVirtualTxs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).GetVirtualTxs(ctx, req.(*GetVirtualTxsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Service_ServiceDesc is the grpc.ServiceDesc for Service service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -933,6 +969,10 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListWatchedAddresses",
 			Handler:    _Service_ListWatchedAddresses_Handler,
+		},
+		{
+			MethodName: "GetVirtualTxs",
+			Handler:    _Service_GetVirtualTxs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

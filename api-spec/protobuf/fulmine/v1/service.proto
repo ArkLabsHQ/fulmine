@@ -145,6 +145,12 @@ service Service {
       get: "/v1/delegate/watched"
     };
   };
+  // GetVirtualTxs returns the virtual transactions in hex format for the specified txids.
+  rpc GetVirtualTxs(GetVirtualTxsRequest) returns (GetVirtualTxsResponse) {
+    option (google.api.http) = {
+      get: "/v1/virtualTx/{txids}"
+    };
+  };
 }
 
 message GetAddressRequest {}
@@ -365,4 +371,12 @@ message RolloverAddress {
 
 message Tapscripts {
   repeated string scripts = 1;
+}
+
+message GetVirtualTxsRequest {
+  repeated string txids = 1;
+}
+
+message GetVirtualTxsResponse {
+  repeated string txs = 1;
 }
