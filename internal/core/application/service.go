@@ -543,6 +543,19 @@ func (s *Service) GetRound(ctx context.Context, roundId string) (*indexer.Commit
 	return s.indexerClient.GetCommitmentTx(ctx, roundId)
 }
 
+func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil, err
+	}
+
+	resp, err := s.indexerClient.GetVirtualTxs(ctx, txids)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Txs, nil
+}
+
 func (s *Service) Settle(ctx context.Context) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err

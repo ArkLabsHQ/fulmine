@@ -658,6 +658,42 @@
           "Service"
         ]
       }
+    },
+    "/v1/virtualTx/{txids}": {
+      "get": {
+        "summary": "GetVirtualTxs returns the virtual transactions in hex format for the specified txids.",
+        "operationId": "Service_GetVirtualTxs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetVirtualTxsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "txids",
+            "in": "path",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv",
+            "minItems": 1
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
     }
   },
   "definitions": {
@@ -914,6 +950,17 @@
           "items": {
             "type": "object",
             "$ref": "#/definitions/v1TransactionInfo"
+          }
+        }
+      }
+    },
+    "v1GetVirtualTxsResponse": {
+      "type": "object",
+      "properties": {
+        "txs": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       }

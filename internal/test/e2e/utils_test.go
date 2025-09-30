@@ -355,3 +355,30 @@ func listVHTLC(preimageHashFilter string) ([]Vtxo, error) {
 	}
 	return listResp.Vhtlcs, nil
 }
+
+type GetVirtualTxsResponse struct {
+	Txs []string `json:"txs"`
+}
+
+func getVirtualTxs(txids []string) ([]string, error) {
+	// Join txids with commas for the URL path parameter
+	txidsParam := strings.Join(txids, ",")
+	url := fmt.Sprintf("%s/virtualTx/%s", baseUrl, txidsParam)
+	
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to get virtual txs: %s, body: %s", resp.Status, string(body))
+	}
+
+	var virtualTxsResp GetVirtualTxsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&virtualTxsResp); err != nil {
+		return nil, err
+	}
+	return virtualTxsResp.Txs, nil
+}

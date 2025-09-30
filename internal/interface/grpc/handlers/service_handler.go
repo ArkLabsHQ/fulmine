@@ -459,3 +459,33 @@ func (h *serviceHandler) ListWatchedAddresses(
 		Addresses: rolloverAddresses,
 	}, nil
 }
+
+func (h *serviceHandler) GetVirtualTxs(
+	ctx context.Context, req *pb.GetVirtualTxsRequest,
+) (*pb.GetVirtualTxsResponse, error) {
+	txids := req.GetTxids()
+	
+	// Filter out empty strings
+	filteredTxids := make([]string, 0, len(txids))
+	for _, txid := range txids {
+		if txid != "" {
+			filteredTxids = append(filteredTxids, txid)
+		}
+	}
+	
+	// If no valid txids, return empty list
+	if len(filteredTxids) == 0 {
+		return &pb.GetVirtualTxsResponse{
+			Txs: []string{},
+		}, nil
+	}
+
+	txs, err := h.svc.GetVirtualTxs(ctx, filteredTxids)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetVirtualTxsResponse{
+		Txs: txs,
+	}, nil
+}
