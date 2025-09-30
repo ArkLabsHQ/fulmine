@@ -131,5 +131,44 @@ func testUrls(t *testing.T) {
 
 		res = utils.IsValidURL("https://acme.com:7070")
 		require.Equal(t, true, res)
+
+		// Test ValidateURL - should return host:port without scheme when port is specified
+		validated, err := utils.ValidateURL("http://boltz-lnd:10009")
+		require.NoError(t, err)
+		require.Equal(t, "boltz-lnd:10009", validated, "With port: strip scheme")
+
+		validated, err = utils.ValidateURL("https://acme.com:7070")
+		require.NoError(t, err)
+		require.Equal(t, "acme.com:7070", validated, "With port: strip scheme")
+
+		validated, err = utils.ValidateURL("localhost:7000")
+		require.NoError(t, err)
+		require.Equal(t, "localhost:7000", validated, "With port: strip scheme")
+
+		validated, err = utils.ValidateURL("acme.com:8080")
+		require.NoError(t, err)
+		require.Equal(t, "acme.com:8080", validated, "With port: strip scheme")
+
+		// Test ValidateURL - should keep scheme when no port specified
+		validated, err = utils.ValidateURL("http://acme.com")
+		require.NoError(t, err)
+		require.Equal(t, "http://acme.com", validated, "No port: keep scheme")
+
+		validated, err = utils.ValidateURL("https://example.com")
+		require.NoError(t, err)
+		require.Equal(t, "https://example.com", validated, "No port: keep scheme")
+
+		validated, err = utils.ValidateURL("acme.com")
+		require.NoError(t, err)
+		require.Equal(t, "http://acme.com", validated, "No port, no scheme: add http")
+
+		// Test error cases
+		_, err = utils.ValidateURL("")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "url is empty")
+
+		_, err = utils.ValidateURL("ftp://acme.com")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unsupported scheme")
 	})
 }

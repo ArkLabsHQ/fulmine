@@ -336,11 +336,12 @@ func deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir string) (*domain.LnCo
 			return nil, fmt.Errorf("LND URL provided without LND datadir")
 		}
 
-		if _, err := utils.ValidateURL(lndUrl); err != nil {
+		validatedUrl, err := utils.ValidateURL(lndUrl)
+		if err != nil {
 			return nil, fmt.Errorf("invalid LND URL: %v", err)
 		}
 		return &domain.LnConnectionOpts{
-			LnUrl:          lndUrl,
+			LnUrl:          validatedUrl,
 			LnDatadir:      lndDatadir,
 			ConnectionType: domain.LND_CONNECTION,
 		}, nil
@@ -357,12 +358,13 @@ func deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir string) (*domain.LnCo
 		return nil, fmt.Errorf("CLN URL provided without CLN datadir")
 	}
 
-	if _, err := utils.ValidateURL(clnUrl); err != nil {
+	validatedUrl, err := utils.ValidateURL(clnUrl)
+	if err != nil {
 		return nil, fmt.Errorf("invalid CLN URL: %v", err)
 	}
 
 	return &domain.LnConnectionOpts{
-		LnUrl:          clnUrl,
+		LnUrl:          validatedUrl,
 		LnDatadir:      clnDatadir,
 		ConnectionType: domain.CLN_CONNECTION,
 	}, nil
