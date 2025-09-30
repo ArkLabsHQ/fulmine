@@ -45,10 +45,10 @@ require (
 
 require (
 	github.com/ArkLabsHQ/fulmine/pkg/swap v0.0.0-00010101000000-000000000000
-	github.com/arkade-os/arkd/pkg/ark-lib v0.7.1
+	github.com/arkade-os/arkd/pkg/ark-lib v0.7.2-0.20250930111159-7f278b58e00f
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/go-sdk v0.7.2-0.20250923154845-f259927a0f13
+	github.com/arkade-os/go-sdk v0.7.2-0.20250930111804-8aeb354e796f
 	gopkg.in/macaroon.v2 v2.1.0
 )
 
