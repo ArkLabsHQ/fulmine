@@ -17,14 +17,14 @@ The purpose of this guide is to make you able to test Ark/LN submarine and rever
 
 NOTE: *For sake of simplicity, all stacks use the same Bitcoind instance.*
 
-### Requirements
+## Requirements
 
 * [Docker](https://docs.docker.com/engine/install/)
 * [Nigiri](https://nigiri.vulpem.com/)
 * [jq](https://formulae.brew.sh/formula/jq)
 
 
-### Setup regtest environment
+## Setup regtest environment
 
 Start regtest enviroment with Bitcoin and LND - this LND instance will be used by the end user:
 
@@ -47,10 +47,27 @@ docker compose -f boltz.docker-compose.yml up -d boltz-lnd
 alias lncli="docker exec -it boltz-lnd lncli --network=regtest"
 ```
 
+Start CLN used by boltz:
+
+```sh
+docker compose -f boltz.docker-compose.yml up -d boltz-cln
+# Create an alias for lncli
+alias clncli="docker exec -it boltz-cln lightning-cli --network=regtest"
+```
+
+
 Fund LND wallet:
 
 ```sh
 lncli newaddress p2wkh
+# Faucet 1 BTC
+nigiri faucet <address>
+```
+
+Fund CLN wallet:
+
+```sh 
+clncli --network=regtest newaddr bech32
 # Faucet 1 BTC
 nigiri faucet <address>
 ```
@@ -63,6 +80,16 @@ lncli connect `nigiri lnd getinfo | jq -r .identity_pubkey`@lnd:9735
 lncli listpeers | jq .peers | jq length
 nigiri lnd listpeers | jq .peers | jq length
 ```
+
+Connect the CLN instances:
+
+```sh
+clncli connect `nigiri cln getinfo | jq -r .id` cln 9935
+# Check the list of peers contains exactly one peer on both sides
+clncli listpeers | jq .peers | jq length
+nigiri cln listpeers | jq .peers | jq length
+```
+
 
 Open and fund channel between the LND instances:
 
@@ -78,10 +105,25 @@ lncli payinvoice <invoice>
 # Type 'yes' when asked
 ```
 
+Open and fund channel between the CLN instances:
+
+```sh
+# 100k sats channel Boltz <> User
+clncli fundchannel id=`nigiri cln getinfo | jq -r .id` amount=100000
+# Make the channel mature by mining 10 blocks
+nigiri rpc --generate 10
+# Send 50k sats to the other side to balance the channel
+nigiri cln invoice 50000000 "" ""
+# Type 'yes' when asked
+clncli pay <invoice>
+```
+
+## Setup arkd
+
 Start and provision Arkd:
 
 ```sh
-docker compose -f test.docker-compose.yml up -d arkd-wallet arkd
+docker compose -f test.docker-compose.yml up -d arkd
 # Create an alias for arkd
 alias arkd="docker exec arkd arkd"
 # Wait till arkd is built then initialize the wallet
@@ -98,6 +140,8 @@ nigiri faucet <address>
 NOTE: *The docker services defined in `test.docker-compose.yml` make use of temporary volumes, therefore any restart will become a fresh new start:* **DON'T DO THAT**.
 
 The regtest setup is finished.
+
+## Setup Boltz
 
 ### Setup Fulmine used by Boltz
 
@@ -129,7 +173,7 @@ docker exec -i boltz-lnd bash -c \
 
 Copy the generated URL to the clipboard. On Fulmine's tab of your browser, go to Settings > Lightning, paste the URL and click the Connect button.
 
-# Start Boltz backend
+### Start Boltz backend
 
 Start Boltz backend with:
 
@@ -137,8 +181,7 @@ Start Boltz backend with:
 docker compose -f boltz.docker-compose.yml up -d boltz-postgres boltz
 ```
 
-
-### Setup Fulmine used by end user
+## Setup Fulmine used by end user
 
 Start Fulmine used by end user:
 
@@ -164,6 +207,8 @@ docker exec -i lnd bash -c \
 ```
 
 You're good to go to test submarine and reverse submarine swaps on Ark!
+
+**NOTE:** Use amounts above 1000 sats when testing swaps.
 
 ### Troubleshooting
 
