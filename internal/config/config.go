@@ -181,7 +181,9 @@ func (c *Config) initDb() error {
 		c.Datadir = appDatadir("fulmine", false)
 	} else {
 		datadir := viper.GetString(c.Datadir)
-		makeDirectoryIfNotExists(datadir)
+		if err := makeDirectoryIfNotExists(datadir); err != nil {
+			return fmt.Errorf("failed to create data directory: %w", err)
+		}
 	}
 
 	return nil
