@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"net/http"
 	"testing"
 	"time"
 
@@ -11,6 +12,15 @@ import (
 	"github.com/lightningnetwork/lnd/input"
 	"github.com/stretchr/testify/require"
 )
+
+func TestHealth(t *testing.T) {
+	// Health endpoint should return 200 OK when service is ready and arkd is reachable
+	statusCode, status, err := checkHealth()
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, statusCode, "health endpoint should return 200 OK")
+	require.NotEmpty(t, status, "health status should not be empty")
+	t.Logf("Health check passed: status=%d, response=%s", statusCode, status)
+}
 
 func TestOnboard(t *testing.T) {
 	onboardAddress, err := getOnboardAddress(100000)

@@ -12,7 +12,10 @@ import (
 	"time"
 )
 
-const baseUrl = "http://localhost:7001/api/v1"
+const (
+	baseUrl    = "http://localhost:7001/api/v1"
+	healthzUrl = "http://localhost:7001/healthz"
+)
 
 var httpClient = &http.Client{}
 
@@ -354,4 +357,30 @@ func listVHTLC(preimageHashFilter string) ([]Vtxo, error) {
 		return nil, err
 	}
 	return listResp.Vhtlcs, nil
+}
+
+type HealthResponse struct {
+	Status string `json:"status"`
+}
+
+func checkHealth() (int, string, error) {
+	resp, err := httpClient.Get(healthzUrl)
+	if err != nil {
+		return 0, "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return resp.StatusCode, "", err
+	}
+
+	// Try to parse as JSON, but also handle plain text responses
+	var healthResp HealthResponse
+	if err := json.Unmarshal(body, &healthResp); err == nil {
+		return resp.StatusCode, healthResp.Status, nil
+	}
+
+	// Return raw body if not JSON
+	return resp.StatusCode, string(body), nil
 }
