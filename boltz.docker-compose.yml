@@ -151,7 +151,7 @@ services:
         maxSwapAmount = 4294967
         minSwapAmount = 50000
         maxZeroConfAmount = 100000
-        preferredWallet = "lnd"
+        preferredWallet = "core"
 
         [currencies.chain]
         host = "bitcoin"

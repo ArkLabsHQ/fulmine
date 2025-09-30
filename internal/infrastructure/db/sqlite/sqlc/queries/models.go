@@ -37,6 +37,7 @@ type Swap struct {
 	FundingTxID  string
 	RedeemTxID   string
 	VhtlcID      string
+	SwapType     int64
 }
 
 type Vhtlc struct {

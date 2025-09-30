@@ -88,3 +88,19 @@ func prettyHour(unixTime int64) string {
 	}
 	return time.Unix(unixTime, 0).Format("15:04")
 }
+
+// Partition splits items into two slices based on pred(item).
+func Partition[T any](items []T, pred func(T) bool) (yes, no []T) {
+	// (Optional) tiny optimization to reduce reallocs
+	yes = make([]T, 0, len(items)/2)
+	no = make([]T, 0, len(items)/2)
+
+	for _, it := range items {
+		if pred(it) {
+			yes = append(yes, it)
+		} else {
+			no = append(no, it)
+		}
+	}
+	return
+}

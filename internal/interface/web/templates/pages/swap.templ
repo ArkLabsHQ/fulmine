@@ -141,6 +141,28 @@ templ SwapSuccessContent(kind, sats, txid, explorerUrl string) {
 	</div>
 }
 
+templ SwapFailureContent(kind, sats string) {
+	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">  
+	  <div class="flex flex-col items-center">
+		  @components.Header("Refunding Swap")
+	    @FailureIcon()
+			@SwapMovementComponent(kind, sats)
+		</div>
+	</div>
+}
+
+
+templ SwapPendingContent(kind, sats string) {
+	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">  
+	  <div class="flex flex-col items-center">
+		  @components.Header("Swap")
+      <p class="text-lg font-semibold text-yellow-500 mt-4">Swap Pending...</p>
+			@SwapMovementComponent(kind, sats)
+      <p class="text-gray-500 text-sm mt-2">Your swap is being processed, please wait.</p>
+		</div>
+	</div>
+}
+
 templ SwapMovementComponent(kind, sats string) {
   <div class="flex flex-col items-center gap-2 text-3xl text-white/50">
 	  <div class="flex items-center gap-4">

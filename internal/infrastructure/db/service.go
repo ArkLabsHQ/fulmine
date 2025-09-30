@@ -83,6 +83,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open swap db: %s", err)
 		}
+
 		subscribedScriptRepo, err = badgerdb.NewSubscribedScriptRepository(baseDir, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open subscribed script db: %s", err)
@@ -137,6 +138,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open swap db: %s", err)
 		}
+
 		subscribedScriptRepo, err = sqlitedb.NewSubscribedScriptRepository(db)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open subscribed script db: %s", err)

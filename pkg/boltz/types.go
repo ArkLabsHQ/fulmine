@@ -33,6 +33,7 @@ type CreateSwapRequest struct {
 	To              Currency `json:"to"`
 	RefundPublicKey string   `json:"refundPublicKey"`
 	Invoice         string   `json:"invoice,omitempty"`
+	PaymentTimeout  uint32   `json:"paymentTimeout,omitempty"`
 }
 
 type CreateSwapResponse struct {
