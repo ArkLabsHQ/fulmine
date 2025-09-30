@@ -63,6 +63,12 @@ func TestSendOffChain(t *testing.T) {
 	balance, err := getBalance()
 	require.NoError(t, err)
 	require.Equal(t, int(initialBalance-1000), int(balance))
+
+	// Test GetVirtualTxs RPC with the txid from the send operation
+	virtualTxs, err := getVirtualTxs([]string{txid})
+	require.NoError(t, err)
+	require.Len(t, virtualTxs, 1, "should return one virtual transaction")
+	require.NotEmpty(t, virtualTxs[0], "virtual transaction hex should not be empty")
 }
 
 func TestSendOnChain(t *testing.T) {
