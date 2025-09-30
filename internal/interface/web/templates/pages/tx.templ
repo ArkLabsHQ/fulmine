@@ -21,20 +21,151 @@ templ TransferTxPendingContent(tx types.Transfer, explorerUrl string, nextClaim 
           @components.TxIcon(tx.Kind, "")
           <p class="mt-4 capitalize">{tx.Kind}</p>
           <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
-          @components.PendingTxTable(tx.CreatedAt, tx.ExpiresAt, nextClaim)
+          @components.PendingTransferTable(tx.CreatedAt, tx.ExpiresAt, nextClaim)
         </div>
       </div>
       <div class="showOnRequest flex flex-col items-center mt-10 w-full">
         @components.SpinnerIconOrange()
-        <p class="font-semibold mt-10 mb-3 text-lg">Processing...</p>
+        <p class="font-semibold mt-10 mb-3 text-lg">Pending...</p>
         <p class="max-w-[320px] text-center">Settlement is underway—your off-chain Ark transactions are securely being confirmed into the Bitcoin blockchain. You can safely leave this page; the signing sessions will continue seamlessly in the background with all available participants.</p>
       </div>
     </div>
   </form>
 }
 
-//TODO: add flesh to the SwapContent
-templ SwapContent(tx types.Swap, vhtlc *types.Transfer, redeem *types.Transfer) {
+templ PaymentTxFailureContent(tx types.Payment) {
+  @components.DesktopHeader()
+  <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
+      <div>
+        @components.Header("Failure")
+        <div class="hideOnRequest flex flex-col items-center">
+          @components.TxIcon(tx.Kind, "")
+          <p class="mt-4 capitalize">{tx.Kind}</p>
+          <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
+        </div>
+      </div>
+      <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
+          <div class="showOnRequest flex flex-col items-center mt-10 w-full">
+            <p class="font-semibold mt-10 mb-3 text-lg">Failed Payment</p>
+          </div>
+      </div>
+    </div>
+}
+
+templ PaymentTxPendingContent(tx types.Payment) {
+  @components.DesktopHeader()
+  <form hx-post={"/helpers/refund/" + tx.Id}>
+    <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
+      <div>
+        @components.HeaderWithAction("Initiate Refund", components.RefundButtonsAction(tx.Id))
+        <div class="hideOnRequest flex flex-col items-center">
+          @components.TxIcon(tx.Kind, "")
+          <p class="mt-4 capitalize">{tx.Kind}</p>
+          <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
+          @components.PendingPaymentTable(tx.Date, tx.ExpiresAt, *tx.RefundLockTime)
+        </div>
+      </div>
+      <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
+          <div class="showOnRequest flex flex-col items-center mt-10 w-full">
+            @components.SpinnerIconOrange()
+            <p class="font-semibold mt-10 mb-3 text-lg">Pending...</p>
+            <p class="max-w-[320px] text-center">Payment is Underway, Please Wait for Expiry</p>
+          </div>
+      </div>
+    </div>
+    </form>
+
+}
+
+templ PaymentTxRefundingContent(tx types.Payment) {
+  @components.DesktopHeader()
+  <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
+      <div>
+        @components.Header("Refund")
+        <div class="hideOnRequest flex flex-col items-center">
+          @components.TxIcon(tx.Kind, "")
+          <p class="mt-4 capitalize">{tx.Kind}</p>
+          <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
+          @components.RefundingPaymentTable(tx.Date, *tx.RefundLockTime)
+        </div>
+      </div>
+      <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
+          <div class="showOnRequest flex flex-col items-center mt-10 w-full">
+            @components.SpinnerIconOrange()
+            <p class="font-semibold mt-10 mb-3 text-lg">Refunding...</p>
+            <p class="max-w-[320px] text-center">Refund is Underway, Please Wait</p>
+          </div>
+      </div>
+    </div>
+}
+
+templ SwapTxPendingContent(tx types.Swap) {
+  @components.DesktopHeader()
+  <form hx-post={"/helpers/refund/" + tx.Id}>
+    <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
+      <div>
+        @components.HeaderWithAction("Initiate Refund", components.RefundButtonsAction(tx.Id))
+        <div class="hideOnRequest flex flex-col items-center">
+          @components.TxIcon(tx.Kind, "")
+          <p class="mt-4 capitalize">{tx.Kind}</p>
+          <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
+          @components.PendingSwapTable(tx.Date, tx.ExpiresAt, *tx.RefundLockTime)
+        </div>
+      </div>
+      <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
+          <div class="showOnRequest flex flex-col items-center mt-10 w-full">
+            @components.SpinnerIconOrange()
+            <p class="font-semibold mt-10 mb-3 text-lg">Pending...</p>
+            <p class="max-w-[320px] text-center">Swap is Underway, Please Wait for Expiry</p>
+          </div>
+      </div>
+    </div>
+    </form>
+
+}
+
+templ SwapTxFailureContent(tx types.Swap) {
+  @components.DesktopHeader()
+  <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
+      <div>
+        @components.Header("Failure")
+        <div class="hideOnRequest flex flex-col items-center">
+          @components.TxIcon(tx.Kind, "")
+          <p class="mt-4 capitalize">{tx.Kind}</p>
+          <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
+        </div>
+      </div>
+      <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
+          <div class="showOnRequest flex flex-col items-center mt-10 w-full">
+            <p class="font-semibold mt-10 mb-3 text-lg">Swap Failure</p>
+          </div>
+      </div>
+    </div>
+}
+
+templ SwapTxRefundingContent(tx types.Swap) {
+  @components.DesktopHeader()
+  <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
+      <div>
+        @components.Header("Refund")
+        <div class="hideOnRequest flex flex-col items-center">
+          @components.TxIcon(tx.Kind, "")
+          <p class="mt-4 capitalize">{tx.Kind}</p>
+          <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
+          @components.RefundingSwapTable(tx.Date, *tx.RefundLockTime)
+        </div>
+      </div>
+      <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
+          <div class="showOnRequest flex flex-col items-center mt-10 w-full">
+            @components.SpinnerIconOrange()
+            <p class="font-semibold mt-10 mb-3 text-lg">Refunding...</p>
+            <p class="max-w-[320px] text-center">Refund is Underway, Please Wait</p>
+          </div>
+      </div>
+    </div>
+}
+
+templ SwapContent(tx types.Swap) {
   @components.DesktopHeader()
   <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
      <div class="flex flex-col items-center">
@@ -65,18 +196,43 @@ templ SwapContent(tx types.Swap, vhtlc *types.Transfer, redeem *types.Transfer) 
 	    </div>
       // Add Associating VHTLC Transfers
       <hr class="border border-1 border-white/10 w-full"/>
-      if tx.Kind == "submarine" && vhtlc != nil {
-        @components.TransferHistoryLine(*vhtlc)  
-        if tx.Status == "failure" && redeem != nil {
+      if tx.Kind == "submarine" && tx.VHTLCTransfer != nil {
+        @components.TransferHistoryLine(*tx.VHTLCTransfer)  
+        if tx.Status == "failure" && tx.RedeemTransfer != nil {
           <hr class="border border-1 border-white/10 w-full"/>
-          <div txid={redeem.Txid} onclick="showTx(this)">@components.TransferHistoryLine(*redeem)</div>
+          <div txid={tx.RedeemTransfer.Txid} onclick="showTx(this)">@components.TransferHistoryLine(*tx.RedeemTransfer)</div>
         }
-      } else if tx.Kind == "reverse" && redeem != nil {
-        <div txid={redeem.Txid} onclick="showTx(this)">@components.TransferHistoryLine(*redeem)</div>
+      } else if tx.Kind == "reverse" && tx.RedeemTransfer != nil {
+        <div txid={tx.RedeemTransfer.Txid} onclick="showTx(this)">@components.TransferHistoryLine(*tx.RedeemTransfer)</div>
       }
-      
 		</div>
   </div>
+}
+
+//TODO: add flesh to the PaymentContent
+templ PaymentContent(tx types.Payment) {
+  @components.DesktopHeader()
+  <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
+	  <div class="flex flex-col items-center">
+		  @components.Header("Payment")
+      if tx.Status == "success" {
+	      @SuccessIcon()
+      } else {
+        @components.FailureTxIcon()
+      }
+      <p class="flex items-center gap-4 cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
+    </div>
+    // Add Associating VHTLC Transfers
+      <hr class="border border-1 border-white/10 w-full"/>
+      if tx.PaymentTransfer != nil {
+        <div txid={tx.PaymentTransfer.Txid} onclick="showTx(this)">@components.TransferHistoryLine(*tx.PaymentTransfer)</div>
+        if tx.Status == "failure" && tx.ReclaimTransfer != nil {
+            <hr class="border border-1 border-white/10 w-full"/>
+            <div txid={tx.ReclaimTransfer.Txid} onclick="showTx(this)">@components.TransferHistoryLine(*tx.ReclaimTransfer)</div>
+          }
+      } 
+	</div>
+
 }
 
 templ TxNotFoundContent() {

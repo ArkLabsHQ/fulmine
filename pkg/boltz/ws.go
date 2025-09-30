@@ -1,6 +1,7 @@
 package boltz
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -227,4 +228,32 @@ func (boltz *Websocket) Reconnect() error {
 	if err := boltz.conn.Close(); err != nil {
 	}
 	return boltz.Connect()
+}
+
+func (boltz *Websocket) ConnectAndSubscribe(ctx context.Context, swapIds []string, retryInterval time.Duration) error {
+	err := Retry(ctx, 5*time.Second, func(ctx context.Context) (bool, error) {
+		err := boltz.Connect()
+		if err != nil {
+			return false, nil
+		}
+		return true, nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("could not connect to boltz websocket: %w", err)
+	}
+
+	err = Retry(ctx, retryInterval, func(ctx context.Context) (bool, error) {
+		err = boltz.Subscribe(swapIds)
+		if err != nil {
+			return false, nil
+		}
+		return true, nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("could not subscribe to boltz websocket: %w", err)
+	}
+
+	return nil
 }

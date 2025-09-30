@@ -2,10 +2,12 @@ package boltz
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 type Api struct {
@@ -87,36 +89,53 @@ func (boltz *Api) RevealPreimage(swapId string, preimage string) (*RevealPreimag
 	return resp, nil
 }
 
-func sendGetRequest[T any](boltz *Api, endpoint string) (*T, error) {
-	res, err := boltz.Client.Get(boltz.URL + "/v2" + endpoint)
-	if err != nil {
-		return nil, err
-	}
+const defaultHTTPTimeout = 15 * time.Second
 
-	resp, err := unmarshalJson[T](res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse boltz response with status %d: %v", res.StatusCode, err)
-	}
-	return resp, nil
+func withTimeoutCtx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), defaultHTTPTimeout)
 }
 
-func sendPostRequest[T any](boltz *Api, endpoint string, requestBody interface{}) (*T, error) {
+func sendGetRequest[T any](boltz *Api, endpoint string) (*T, error) {
+	ctx, cancel := withTimeoutCtx()
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, boltz.URL+"/v2"+endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("new GET %s: %w", endpoint, err)
+	}
+	req.Header.Set("Accept", "application/json")
+
+	res, err := boltz.Client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("GET %s: %w", endpoint, err)
+	}
+
+	return unmarshalJson[T](res.Body)
+}
+
+func sendPostRequest[T any](boltz *Api, endpoint string, requestBody any) (*T, error) {
 	rawBody, err := json.Marshal(requestBody)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	res, err := boltz.Client.Post(boltz.URL+"/v2"+endpoint, "application/json", bytes.NewBuffer(rawBody))
+	ctx, cancel := withTimeoutCtx()
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, boltz.URL+"/v2"+endpoint, bytes.NewReader(rawBody))
 	if err != nil {
-		return nil, err
-
+		return nil, fmt.Errorf("new POST %s: %w", endpoint, err)
 	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
 
-	resp, err := unmarshalJson[T](res.Body)
+	res, err := boltz.Client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse boltz response with status %d: %v", res.StatusCode, err)
+		return nil, fmt.Errorf("POST %s: %w", endpoint, err)
+
 	}
-	return resp, nil
+
+	return unmarshalJson[T](res.Body)
 }
 
 func unmarshalJson[T any](body io.ReadCloser) (*T, error) {

@@ -41,6 +41,7 @@ type Config struct {
 	UnlockerPassword string `mapstructure:"UNLOCKER_PASSWORD" envDefault:"" envInfo:"Unlocker password (if using env unlocker)"`
 	DisableTelemetry bool   `mapstructure:"DISABLE_TELEMETRY" envDefault:"false" envInfo:"Disable telemetry"`
 	NoMacaroons      bool   `mapstructure:"NO_MACAROONS" envDefault:"false" envInfo:"Disable macaroons"`
+	SwapTimeout      uint32 `mapstructure:"SWAP_TIMEOUT" envDefault:"120" envInfo:"Swap timeout in seconds"`
 
 	LndUrl     string `mapstructure:"LND_URL" envDefault:"" envInfo:"LND connection URL (lndconnect:// or http://host:port)"`
 	ClnUrl     string `mapstructure:"CLN_URL" envDefault:"" envInfo:"CLN connection URL (clnconnect:// or http://host:port)"`

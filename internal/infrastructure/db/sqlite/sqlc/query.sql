@@ -54,8 +54,8 @@ DELETE FROM vtxo_rollover WHERE address = ?;
 -- Swap queries
 -- name: CreateSwap :exec
 INSERT INTO swap (
-  id, amount, timestamp, to_currency, from_currency, status, invoice, funding_tx_id, redeem_tx_id, vhtlc_id
-) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );
+  id, amount, timestamp, to_currency, from_currency, swap_type, status, invoice, funding_tx_id, redeem_tx_id, vhtlc_id
+) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );
 
 -- name: GetSwap :one
 SELECT  sqlc.embed(swap),
@@ -68,6 +68,12 @@ WHERE id = ?;
 SELECT  sqlc.embed(swap), sqlc.embed(vhtlc)
 FROM swap
   LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash;
+
+-- name: UpdateSwap :exec
+UPDATE swap 
+SET status = ?,
+redeem_tx_id = ?
+WHERE id = ?;
 
 -- SubscribedScript queries
 -- name: InsertSubscribedScript :exec

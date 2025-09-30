@@ -121,6 +121,7 @@ func testSwapRepository(t *testing.T, svc ports.RepoManager) {
 	t.Run("swap repository", func(t *testing.T) {
 		testAddSwap(t, svc.Swap())
 		testGetAllSwap(t, svc.Swap())
+		testUpdateSwap(t, svc.Swap())
 	})
 }
 
@@ -362,6 +363,23 @@ func testGetAllSwap(t *testing.T, repo domain.SwapRepository) {
 		require.NoError(t, err)
 		require.Len(t, swaps, 2)
 		require.Subset(t, []domain.Swap{testSwap, secondSwap}, swaps)
+	})
+}
+
+func testUpdateSwap(t *testing.T, repo domain.SwapRepository) {
+	t.Run("update swap", func(t *testing.T) {
+		modifiedTestSwap := testSwap
+		modifiedTestSwap.Status = domain.SwapSuccess
+		modifiedTestSwap.RedeemTxId = "redeemed_tx_id"
+
+		err := repo.Update(ctx, modifiedTestSwap)
+		require.NoError(t, err)
+
+		updatedSwap, err := repo.Get(ctx, testSwap.Id)
+		require.NoError(t, err)
+		require.NotNil(t, updatedSwap)
+		require.Equal(t, domain.SwapSuccess, updatedSwap.Status)
+		require.Equal(t, "redeemed_tx_id", updatedSwap.RedeemTxId)
 	})
 }
 

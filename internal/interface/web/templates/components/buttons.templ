@@ -83,6 +83,13 @@ templ settleButtonDot() {
   </button>
 }
 
+templ refundButtonDot() {
+	<button class="flex gap-3 items-center border-0 p-0 text-red" type="submit">
+    @WarningIcon()
+    Refund now
+  </button>
+}
+
 templ viewTxButton(txid, explorerUrl string) {
 	<a class="button md:w-auto" onclick="handleOpen()">View transaction</a>
 	<script>
@@ -261,6 +268,12 @@ templ SettleButtonsAction(txid, explorerUrl string) {
 	@dotsButtonContainer(
 		viewTxButtonDot(txid, explorerUrl),
 	  settleButtonDot(),
+	)
+}
+
+templ RefundButtonsAction(txid string) {
+	@dotsButtonContainer(
+	  	refundButtonDot(),
 	)
 }
 
