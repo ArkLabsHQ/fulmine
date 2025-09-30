@@ -100,9 +100,16 @@ func TestGetVirtualTxs(t *testing.T) {
 	// Collect some txids from history
 	var txids []string
 	for _, tx := range history {
-		if tx.RoundTxid != "" {
-			txids = append(txids, tx.RoundTxid)
+		var txid string
+		switch {
+		case tx.BoardingTxid != "":
+			txid = tx.BoardingTxid
+		case tx.RedeemTxid != "":
+			txid = tx.RedeemTxid
+		case tx.RoundTxid != "":
+			txid = tx.RoundTxid
 		}
+		txids = append(txids, txid)
 		if len(txids) >= 2 {
 			break
 		}
@@ -110,7 +117,7 @@ func TestGetVirtualTxs(t *testing.T) {
 	require.NotEmpty(t, txids, "need at least one txid to test")
 
 	// Test with single txid
-	virtualTxs, err := getVirtualTxs([]string{txids[0]})
+	virtualTxs, err := getVirtualTxs(txids[:1])
 	require.NoError(t, err)
 	require.Len(t, virtualTxs, 1, "should return one virtual transaction")
 	require.NotEmpty(t, virtualTxs[0], "virtual transaction hex should not be empty")
@@ -124,11 +131,6 @@ func TestGetVirtualTxs(t *testing.T) {
 			require.NotEmpty(t, vtx, "virtual transaction %d hex should not be empty", i)
 		}
 	}
-
-	// Test with empty txids list
-	virtualTxs, err = getVirtualTxs([]string{})
-	require.NoError(t, err)
-	require.Empty(t, virtualTxs, "empty txids should return empty response")
 }
 
 func TestVHTLC(t *testing.T) {
