@@ -12,6 +12,8 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 type vhtlcRepository struct {
@@ -29,12 +31,14 @@ func NewVHTLCRepository(db *sql.DB) (domain.VHTLCRepository, error) {
 func (r *vhtlcRepository) Add(ctx context.Context, vhtlc domain.Vhtlc) error {
 	optsParams := toVhtlcRow(vhtlc)
 	if _, err := r.Get(ctx, optsParams.ID); err == nil {
-		return fmt.Errorf("vHTLC withID %s already exists", optsParams.ID)
+		return fmt.Errorf("vHTLC with ID %s already exists", optsParams.ID)
 	}
 
 	if err := r.querier.InsertVHTLC(ctx, optsParams); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("vHTLC with ID %s already exists", optsParams.ID)
+		if sqlErr, ok := err.(*sqlite.Error); ok {
+			if sqlErr.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
+				return fmt.Errorf("vHTLC with ID %s already exists", optsParams.ID)
+			}
 		}
 		return err
 	}
@@ -146,7 +150,7 @@ func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
 	receiver := vhtlc.Receiver.SerializeCompressed()
 	server := hex.EncodeToString(vhtlc.Server.SerializeCompressed())
 
-	vhtlcId := domain.CreateVhtlcId(preimageHash, sender, receiver)
+	vhtlcId := domain.GetVhtlcId(preimageHash, sender, receiver)
 
 	return queries.InsertVHTLCParams{
 		ID:                                       vhtlcId,

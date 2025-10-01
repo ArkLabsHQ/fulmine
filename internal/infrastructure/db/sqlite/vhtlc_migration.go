@@ -127,7 +127,7 @@ INSERT INTO vhtlc_new (
 			return err
 		}
 
-		id := domain.CreateVhtlcId(preB, sndB, rcvB)
+		id := domain.GetVhtlcId(preB, sndB, rcvB)
 
 		if _, err = stmt.ExecContext(ctx,
 			id, preimageHash, sender, receiver, server, refundLock,

@@ -67,7 +67,7 @@ func TestVhtlcMigration(t *testing.T) {
 		receiver, err := hex.DecodeString(r.Receiver)
 		require.NoError(t, err)
 
-		want := domain.CreateVhtlcId(decodedPreimage, sender, receiver)
+		want := domain.GetVhtlcId(decodedPreimage, sender, receiver)
 		require.Equal(t, want, r.ID)
 
 		swapRow := db.QueryRow(`SELECT vhtlc_id FROM swap WHERE vhtlc_id = ?`, r.ID)
