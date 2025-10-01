@@ -67,7 +67,6 @@ type Swap struct {
 
 func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.TransportClient, indexerClient indexer.Indexer, boltzSvc *boltz.Api, publicKey *btcec.PublicKey, timeout uint32) *SwapHandler {
 
-	println(timeout)
 	return &SwapHandler{
 		arkClient:       arkClient,
 		transportClient: transportClient,
