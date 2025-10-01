@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS swap (
     to_currency TEXT NOT NULL,
     from_currency TEXT NOT NULL,
     status INTEGER NOT NULL CHECK(status IN(0,1,2)),
+    swap_type INTEGER CHECK(swap_type IN(0,1)) NOT NULL,
     invoice TEXT NOT NULL,
     funding_tx_id TEXT NOT NULL,
     redeem_tx_id TEXT NOT NULL,

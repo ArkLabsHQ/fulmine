@@ -33,11 +33,11 @@ type Swap struct {
 	ToCurrency   string
 	FromCurrency string
 	Status       int64
+	SwapType     int64
 	Invoice      string
 	FundingTxID  string
 	RedeemTxID   string
 	VhtlcID      string
-	SwapType     int64
 }
 
 type Vhtlc struct {

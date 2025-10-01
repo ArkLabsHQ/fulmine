@@ -109,7 +109,7 @@ func (q *Queries) GetSubscribedScript(ctx context.Context, script string) (strin
 }
 
 const getSwap = `-- name: GetSwap :one
-SELECT  swap.id, swap.amount, swap.timestamp, swap.to_currency, swap.from_currency, swap.status, swap.invoice, swap.funding_tx_id, swap.redeem_tx_id, swap.vhtlc_id,
+SELECT  swap.id, swap.amount, swap.timestamp, swap.to_currency, swap.from_currency, swap.status, swap.swap_type, swap.invoice, swap.funding_tx_id, swap.redeem_tx_id, swap.vhtlc_id,
         vhtlc.id, vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value
 FROM swap
   LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.id
@@ -131,6 +131,7 @@ func (q *Queries) GetSwap(ctx context.Context, id string) (GetSwapRow, error) {
 		&i.Swap.ToCurrency,
 		&i.Swap.FromCurrency,
 		&i.Swap.Status,
+		&i.Swap.SwapType,
 		&i.Swap.Invoice,
 		&i.Swap.FundingTxID,
 		&i.Swap.RedeemTxID,
@@ -268,7 +269,7 @@ func (q *Queries) ListSubscribedScript(ctx context.Context) ([]string, error) {
 }
 
 const listSwaps = `-- name: ListSwaps :many
-SELECT  swap.id, swap.amount, swap.timestamp, swap.to_currency, swap.from_currency, swap.status, swap.invoice, swap.funding_tx_id, swap.redeem_tx_id, swap.vhtlc_id, vhtlc.id, vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value
+SELECT  swap.id, swap.amount, swap.timestamp, swap.to_currency, swap.from_currency, swap.status, swap.swap_type, swap.invoice, swap.funding_tx_id, swap.redeem_tx_id, swap.vhtlc_id, vhtlc.id, vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value
 FROM swap
   LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.id
 `
@@ -294,6 +295,7 @@ func (q *Queries) ListSwaps(ctx context.Context) ([]ListSwapsRow, error) {
 			&i.Swap.ToCurrency,
 			&i.Swap.FromCurrency,
 			&i.Swap.Status,
+			&i.Swap.SwapType,
 			&i.Swap.Invoice,
 			&i.Swap.FundingTxID,
 			&i.Swap.RedeemTxID,
