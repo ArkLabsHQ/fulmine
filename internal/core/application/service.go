@@ -703,14 +703,9 @@ func (s *Service) GetVHTLC(
 		senderKey = s.publicKey
 	}
 
-	fmt.Printf("receiver: %x\n", receiverKey.SerializeCompressed())
-	fmt.Printf("sender: %x\n", senderKey.SerializeCompressed())
-	fmt.Printf("preimageHash: %x\n", preimageHash)
-
 	compressedReceiverPubkey := receiverKey.SerializeCompressed()
 	compressedSenderPubkey := senderKey.SerializeCompressed()
-
-	vhtlcId := domain.CreateVhtlcId(preimageHash, compressedSenderPubkey, compressedReceiverPubkey)
+	vhtlcId := domain.GetVhtlcId(preimageHash, compressedSenderPubkey, compressedReceiverPubkey)
 
 	if _, err := s.dbSvc.VHTLC().Get(ctx, vhtlcId); err == nil {
 		return "", "", nil, nil, fmt.Errorf("vHTLC with id %s already exists", vhtlcId)
@@ -1709,7 +1704,7 @@ func (s *Service) getVHTLC(
 	senderSerialised := senderPubkey.SerializeCompressed()
 	receiverSerialised := receiverPubkey.SerializeCompressed()
 
-	vhtlcId := domain.CreateVhtlcId(preimageHash, senderSerialised, receiverSerialised)
+	vhtlcId := domain.GetVhtlcId(preimageHash, senderSerialised, receiverSerialised)
 
 	// nolint
 	cfg, _ := s.GetConfigData(ctx)

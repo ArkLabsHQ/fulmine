@@ -22,21 +22,16 @@ type VHTLCRepository interface {
 }
 
 func NewVhtlc(opts vhtlc.Opts) Vhtlc {
-	return Vhtlc{
-		Opts: opts,
-		Id:   GetVhtlcId(opts),
-	}
-}
-
-func GetVhtlcId(opts vhtlc.Opts) string {
 	preimageHash := opts.PreimageHash
 	sender := opts.Sender.SerializeCompressed()
 	receiver := opts.Receiver.SerializeCompressed()
-
-	return CreateVhtlcId(preimageHash, sender, receiver)
+	return Vhtlc{
+		Opts: opts,
+		Id:   GetVhtlcId(preimageHash, sender, receiver),
+	}
 }
 
-func CreateVhtlcId(preimageHash, sender, receiver []byte) string {
+func GetVhtlcId(preimageHash, sender, receiver []byte) string {
 	id := make([]byte, 0, len(preimageHash)+len(sender)+len(receiver))
 	id = append(id, preimageHash...)
 	id = append(id, sender...)
