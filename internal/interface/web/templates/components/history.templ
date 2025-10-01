@@ -8,6 +8,7 @@ func ShowTxIcon(kind, status string) templ.Component {
 	if status == "pending" {
 		return PendingIcon()
 	}
+
 	if status == "waiting" {
 		return WaitingIcon()
 	}
@@ -30,6 +31,7 @@ templ PendingIcon() {
     </svg>
 	</div>
 }
+
 
 templ TxReceivedIcon() {
 	<div class="flex items-center w-8 h-8 bg-greenbg/10 rounded-full mr-2">
@@ -102,6 +104,7 @@ templ TransferHistoryLine(tx types.Transfer) {
 							templ.KV("text-red", tx.Status != "pending" && tx.Kind == "sent"),
 							templ.KV("text-green", tx.Status != "pending" && tx.Kind == "received"),
 							templ.KV("text-yellow", tx.Status == "pending"),
+							templ.KV("text-yellow", tx.Status == "processing"),
 							templ.KV("text-white", tx.Status == "unconfirmed"),
 						}>
 		  			  <span class="cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</span>
@@ -132,6 +135,32 @@ templ SwapHistoryLine(swap types.Swap) {
 				<p class="text-sm text-white/50">{swap.Hour}</p>
 			</div>
 		</div>
+		if swap.Status == "pending" {
+        	<div class="flex items-center">
+				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
+			</div>
+      	}
+	  	if swap.Status == "refunding" {
+      	  <div class="flex items-center">
+				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunding</p>
+			</div>
+      	}
+
+		if swap.Status == "failure" {
+			if swap.RedeemTransfer != nil && swap.RedeemTransfer.Txid != "" {
+      	  		<div class="flex items-center">
+					if swap.RedeemTransfer.Status == "pending" {
+		  			<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
+					}
+					<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunded</p>
+				</div>	
+			} else {
+				<div class="flex items-center">
+				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Failure</p>
+				</div>
+			} 
+      	}
+
 		<div class="flex items-center gap-4">
 			<div class="flex flex-col w-32 text-right">
 				<p class="cryptoAmount" sats={swap.Amount}>{swap.Amount} SATS</p>
@@ -141,11 +170,66 @@ templ SwapHistoryLine(swap types.Swap) {
 	</div>
 }
 
+templ PaymentHistoryLine(payment types.Payment) {
+	<div class="flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10" >
+	  <div class="flex items-center gap-4">
+			<div class="flex items-center gap-2">
+				if payment.Kind == "send" {
+					@ArkIcon()
+					@ArrowRight()
+				} else {
+					@ArrowRight()
+					@ArkIcon()
+				}
+			</div>
+			<div class="flex flex-col">
+				<p class="text-white">{payment.Date}</p>
+				<p class="text-sm text-white/50">{payment.Hour}</p>
+			</div>
+		</div>
+		 if payment.Status == "pending" {
+        	<div class="flex items-center">
+				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
+			</div>
+      	}
+	  	if payment.Status == "refunding" {
+      	  <div class="flex items-center">
+				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunding</p>
+			</div>
+      	}
+
+		if payment.Status == "failure" {
+			if payment.ReclaimTransfer != nil && payment.ReclaimTransfer.Txid != "" {
+      	  		<div class="flex items-center">
+					if payment.ReclaimTransfer.Status == "pending" {
+		  			<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
+					}
+					<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunded</p>
+				</div>	
+			} else {
+				<div class="flex items-center">
+				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Failure</p>
+				</div>
+			} 
+      	}
+
+		<div class="flex items-center gap-4">
+			<div class="flex flex-col w-32 text-right">
+				<p class="cryptoAmount" sats={payment.Amount}>{payment.Amount} SATS</p>
+				<p class="text-sm text-white/50 fiatAmount" sats={payment.Amount}>&nbsp;</p>
+			</div>
+     
+		</div>
+	</div>
+}
+
 
 templ HistoryLine(tx types.Transaction) {
 	<div txid={tx.Id} onclick="showTx(this)">
 	  	if tx.Kind == "swap" {
 			@SwapHistoryLine(*tx.Swap)
+		} else if tx.Kind == "payment" {
+			@PaymentHistoryLine(*tx.Payment)
 		} else {
 			@TransferHistoryLine(*tx.Transfer)
 		}
@@ -172,8 +256,8 @@ templ HistoryEmpty() {
       </clipPath>
     </defs>
     </svg>
-	  <p class="font-bold">Looks like you don't have any transactions</p>
-		<p class="text-white/50">Send, receive, or swap your first BTC on Ark.</p>
+	<p class="font-bold">Looks like you don&#39;t have any transactions</p>
+	<p class="text-white/50">Send, receive, or swap your first BTC on Ark.</p>
 	</div>
 }
 

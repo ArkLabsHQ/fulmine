@@ -14,6 +14,13 @@ const (
 	SwapSuccess
 )
 
+type SwapType int
+
+const (
+	SwapRegular SwapType = iota
+	SwapPayment
+)
+
 type Swap struct {
 	Id          string
 	Amount      uint64
@@ -21,6 +28,7 @@ type Swap struct {
 	To          boltz.Currency
 	From        boltz.Currency
 	Status      SwapStatus
+	Type        SwapType
 	Invoice     string
 	Vhtlc       Vhtlc
 	FundingTxId string // the txid of the virtual tx that funded the vhtlc
@@ -32,5 +40,6 @@ type SwapRepository interface {
 	GetAll(ctx context.Context) ([]Swap, error)
 	Get(ctx context.Context, swapId string) (*Swap, error)
 	Add(ctx context.Context, swap Swap) error
+	Update(ctx context.Context, swap Swap) error
 	Close()
 }

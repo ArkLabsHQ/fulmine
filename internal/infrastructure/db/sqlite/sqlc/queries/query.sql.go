@@ -12,8 +12,8 @@ import (
 
 const createSwap = `-- name: CreateSwap :exec
 INSERT INTO swap (
-  id, amount, timestamp, to_currency, from_currency, status, invoice, funding_tx_id, redeem_tx_id, vhtlc_id
-) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+  id, amount, timestamp, to_currency, from_currency, swap_type, status, invoice, funding_tx_id, redeem_tx_id, vhtlc_id
+) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 `
 
 type CreateSwapParams struct {
@@ -22,6 +22,7 @@ type CreateSwapParams struct {
 	Timestamp    int64
 	ToCurrency   string
 	FromCurrency string
+	SwapType     int64
 	Status       int64
 	Invoice      string
 	FundingTxID  string
@@ -37,6 +38,7 @@ func (q *Queries) CreateSwap(ctx context.Context, arg CreateSwapParams) error {
 		arg.Timestamp,
 		arg.ToCurrency,
 		arg.FromCurrency,
+		arg.SwapType,
 		arg.Status,
 		arg.Invoice,
 		arg.FundingTxID,
@@ -387,6 +389,24 @@ func (q *Queries) ListVtxoRollover(ctx context.Context) ([]VtxoRollover, error) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateSwap = `-- name: UpdateSwap :exec
+UPDATE swap 
+SET status = ?,
+redeem_tx_id = ?
+WHERE id = ?
+`
+
+type UpdateSwapParams struct {
+	Status     int64
+	RedeemTxID string
+	ID         string
+}
+
+func (q *Queries) UpdateSwap(ctx context.Context, arg UpdateSwapParams) error {
+	_, err := q.db.ExecContext(ctx, updateSwap, arg.Status, arg.RedeemTxID, arg.ID)
+	return err
 }
 
 const upsertSettings = `-- name: UpsertSettings :exec

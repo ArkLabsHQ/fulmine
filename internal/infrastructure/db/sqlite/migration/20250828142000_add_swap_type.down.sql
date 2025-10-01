@@ -1,0 +1,1 @@
+ALTER TABLE swap DROP COLUMN swap_type;

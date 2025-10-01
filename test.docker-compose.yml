@@ -105,6 +105,7 @@ services:
       - FULMINE_NO_MACAROONS=true
       - FULMINE_LOG_LEVEL=5
       - FULMINE_DISABLE_TELEMETRY=true
+      - FULMINE_SWAP_TIMEOUT=30
     ports:
       - "7000:7000"
       - "7001:7001"

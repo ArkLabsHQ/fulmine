@@ -83,6 +83,11 @@ func (r *swapRepository) Add(ctx context.Context, swap domain.Swap) error {
 	return nil
 }
 
+func (r *swapRepository) Update(ctx context.Context, swap domain.Swap) error {
+	swapData := toSwapData(swap)
+	return r.store.Update(swap.Id, swapData)
+}
+
 func (s *swapRepository) Close() {
 	// nolint:all
 	s.store.Close()
@@ -95,6 +100,7 @@ type swapData struct {
 	To          boltz.Currency
 	From        boltz.Currency
 	Status      domain.SwapStatus
+	Type        domain.SwapType
 	Invoice     string
 	Vhtlc       vhtlcData
 	FundingTxId string
@@ -123,6 +129,7 @@ func toSwapData(swap domain.Swap) swapData {
 		To:          swap.To,
 		From:        swap.From,
 		Status:      swap.Status,
+		Type:        swap.Type,
 		Invoice:     swap.Invoice,
 		Vhtlc:       vhtlcData,
 		FundingTxId: swap.FundingTxId,
@@ -143,6 +150,7 @@ func (s *swapData) toSwap() (*domain.Swap, error) {
 		To:          s.To,
 		From:        s.From,
 		Status:      s.Status,
+		Type:        s.Type,
 		Invoice:     s.Invoice,
 		Vhtlc:       vHTLC,
 		FundingTxId: s.FundingTxId,

@@ -9,7 +9,7 @@ import (
 
 func TestSchedulerService(t *testing.T) {
 	t.Run("Schedule Next Settlement", func(t *testing.T) {
-		svc := NewScheduler()
+		svc := NewScheduler("")
 		svc.Start()
 		defer svc.Stop()
 
@@ -52,7 +52,7 @@ func TestSchedulerService(t *testing.T) {
 	})
 
 	t.Run("Schedule in Past", func(t *testing.T) {
-		svc := NewScheduler()
+		svc := NewScheduler("")
 		svc.Start()
 		defer svc.Stop()
 
@@ -69,7 +69,7 @@ func TestSchedulerService(t *testing.T) {
 	})
 
 	t.Run("Schedule Immediate Execution", func(t *testing.T) {
-		svc := NewScheduler()
+		svc := NewScheduler("")
 		svc.Start()
 		defer svc.Stop()
 

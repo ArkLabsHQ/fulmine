@@ -39,6 +39,7 @@ type Config struct {
 	UnlockerFilePath string
 	UnlockerPassword string
 	DisableTelemetry bool
+	SwapTimeout      uint32
 
 	LnConnectionOpts *domain.LnConnectionOpts
 
@@ -63,6 +64,7 @@ var (
 	ClnUrl           = "CLN_URL"
 	ClnDatadir       = "CLN_DATADIR"
 	LndDatadir       = "LND_DATADIR"
+	SwapTimeout      = "SWAP_TIMEOUT"
 
 	// Unlocker configuration
 	UnlockerType     = "UNLOCKER_TYPE"
@@ -86,6 +88,7 @@ var (
 	defaultClnUrl      = ""
 	defaultClnDatadir  = ""
 	defaultLndDatadir  = ""
+	defaultSwapTimeout = 120 // In seconds
 )
 
 func LoadConfig() (*Config, error) {
@@ -105,6 +108,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(ClnUrl, defaultClnUrl)
 	viper.SetDefault(ClnDatadir, defaultClnDatadir)
 	viper.SetDefault(LndDatadir, defaultLndDatadir)
+	viper.SetDefault(SwapTimeout, defaultSwapTimeout)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
@@ -140,6 +144,7 @@ func LoadConfig() (*Config, error) {
 		UnlockerFilePath: viper.GetString(UnlockerFilePath),
 		UnlockerPassword: viper.GetString(UnlockerPassword),
 		DisableTelemetry: viper.GetBool(DisableTelemetry),
+		SwapTimeout:      viper.GetUint32(SwapTimeout),
 
 		LnConnectionOpts: lnConnectionOpts,
 	}

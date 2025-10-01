@@ -347,13 +347,13 @@ func (h *serviceHandler) GetInvoice(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	invoice, err := h.svc.GetInvoice(ctx, amount)
+	resp, err := h.svc.GetInvoice(ctx, amount)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.GetInvoiceResponse{
-		Invoice: invoice,
+		Invoice: resp.Invoice,
 	}, nil
 }
 
@@ -367,19 +367,19 @@ func (h *serviceHandler) PayInvoice(
 
 	// Handle BOLT11 and BOLT12
 	if utils.IsValidInvoice(invoice) {
-		txid, err := h.svc.PayInvoice(ctx, invoice)
+		resp, err := h.svc.PayInvoice(ctx, invoice)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "paying invoice failed: %v", err)
 		}
-		return &pb.PayInvoiceResponse{Txid: txid}, nil
+		return &pb.PayInvoiceResponse{Txid: resp.TxId}, nil
 	}
 
 	if swap.IsBolt12Offer(invoice) {
-		txid, err := h.svc.PayOffer(ctx, invoice)
+		resp, err := h.svc.PayOffer(ctx, invoice)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "paying offer failed: %v", err)
 		}
-		return &pb.PayInvoiceResponse{Txid: txid}, nil
+		return &pb.PayInvoiceResponse{Txid: resp.TxId}, nil
 	}
 
 	return nil, status.Error(codes.InvalidArgument, "invoice string is neither valid BOLT11 nor BOLT12 offer")
@@ -462,5 +462,35 @@ func (h *serviceHandler) ListWatchedAddresses(
 
 	return &pb.ListWatchedAddressesResponse{
 		Addresses: rolloverAddresses,
+	}, nil
+}
+
+func (h *serviceHandler) GetVirtualTxs(
+	ctx context.Context, req *pb.GetVirtualTxsRequest,
+) (*pb.GetVirtualTxsResponse, error) {
+	txids := req.GetTxids()
+	
+	// Filter out empty strings
+	filteredTxids := make([]string, 0, len(txids))
+	for _, txid := range txids {
+		if txid != "" {
+			filteredTxids = append(filteredTxids, txid)
+		}
+	}
+	
+	// If no valid txids, return empty list
+	if len(filteredTxids) == 0 {
+		return &pb.GetVirtualTxsResponse{
+			Txs: []string{},
+		}, nil
+	}
+
+	txs, err := h.svc.GetVirtualTxs(ctx, filteredTxids)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetVirtualTxsResponse{
+		Txs: txs,
 	}, nil
 }
