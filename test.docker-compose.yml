@@ -107,8 +107,8 @@ services:
       - FULMINE_DISABLE_TELEMETRY=true
       - FULMINE_SWAP_TIMEOUT=30
     ports:
-      - "7004:7000"
-      - "7005:7001"
+      - "7000:7000"
+      - "7001:7001"
     volumes:
       - type: tmpfs
         target: /app/data
