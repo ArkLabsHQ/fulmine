@@ -26,7 +26,7 @@ func TestVhtlcMigration(t *testing.T) {
 	require.NoError(t, err)
 
 	var hasID int
-	db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('vhtlc') WHERE name = 'id'`).Scan(&hasID)
+	err = db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('vhtlc') WHERE name = 'id'`).Scan(&hasID)
 	require.NoError(t, err)
 	require.Equal(t, 1, hasID)
 
@@ -112,7 +112,7 @@ func setupOldSwapTable(t *testing.T, db *sql.DB) {
     funding_tx_id TEXT NOT NULL,
     redeem_tx_id TEXT NOT NULL,
     vhtlc_id TEXT NOT NULL,
-    FOREIGN KEY (vhtlc_id) REFERENCES vhtlc(id) ON DELETE CASCADE
+    FOREIGN KEY (vhtlc_id) REFERENCES vhtlc(preimage_hash) ON DELETE CASCADE
 		);
 	`)
 

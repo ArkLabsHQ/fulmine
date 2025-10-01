@@ -120,9 +120,16 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		}
 
 		// ---- STEPWISE MIGRATION ----
-		vhtlc_migration_begin := uint(20250622101533)
+		vhtlcMigrationBegin := uint(20250622101533)
+		_, dirty, verr := m.Version()
+		if verr != nil && !errors.Is(verr, migrate.ErrNilVersion) {
+			return nil, fmt.Errorf("failed to read migration version: %w", verr)
+		}
+		if dirty {
+			return nil, fmt.Errorf("database is in a dirty migration state; manual intervention required")
+		}
 
-		if err := m.Migrate(vhtlc_migration_begin); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		if err := m.Migrate(vhtlcMigrationBegin); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 			return nil, fmt.Errorf("failed to run migrations: %s", err)
 		}
 
