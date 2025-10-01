@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
+	log "github.com/sirupsen/logrus"
 )
 
 func BackfillVhtlc(ctx context.Context, dbh *sql.DB) error {
@@ -128,6 +129,8 @@ INSERT INTO vhtlc_new (
 		}
 
 		id := domain.GetVhtlcId(preB, sndB, rcvB)
+
+		log.Debug(fmt.Sprintf("vhtlc %s migrated -> id %s", preimageHash[:8], id))
 
 		if _, err = stmt.ExecContext(ctx,
 			id, preimageHash, sender, receiver, server, refundLock,
