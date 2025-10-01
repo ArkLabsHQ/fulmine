@@ -662,18 +662,32 @@ func (s *Service) GetVHTLC(
 	unilateralClaimDelayParam *arklib.RelativeLocktime,
 	unilateralRefundDelayParam *arklib.RelativeLocktime,
 	unilateralRefundWithoutReceiverDelayParam *arklib.RelativeLocktime,
-) (string, *vhtlc.VHTLCScript, *vhtlc.Opts, error) {
+) (string, string, *vhtlc.VHTLCScript, *vhtlc.Opts, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", nil, nil, err
+		return "", "", nil, nil, err
 	}
 
-	compressedReceiverPubkey := receiverPubkey.SerializeCompressed()
-	compressedSenderPubkey := senderPubkey.SerializeCompressed()
+	receiverKey := receiverPubkey
+	senderKey := senderPubkey
+
+	if receiverKey == nil {
+		receiverKey = s.publicKey
+	}
+	if senderKey == nil {
+		senderKey = s.publicKey
+	}
+
+	fmt.Printf("receiver: %x\n", receiverKey.SerializeCompressed())
+	fmt.Printf("sender: %x\n", senderKey.SerializeCompressed())
+	fmt.Printf("preimageHash: %x\n", preimageHash)
+
+	compressedReceiverPubkey := receiverKey.SerializeCompressed()
+	compressedSenderPubkey := senderKey.SerializeCompressed()
 
 	vhtlcId := domain.CreateVhtlcId(preimageHash, compressedSenderPubkey, compressedReceiverPubkey)
 
 	if _, err := s.dbSvc.VHTLC().Get(ctx, vhtlcId); err == nil {
-		return "", nil, nil, fmt.Errorf("vHTLC with id %s already exists", vhtlcId)
+		return "", "", nil, nil, fmt.Errorf("vHTLC with id %s already exists", vhtlcId)
 	}
 
 	addr, vhtlcScript, opts, _, err := s.getVHTLC(
@@ -682,7 +696,7 @@ func (s *Service) GetVHTLC(
 		unilateralRefundWithoutReceiverDelayParam,
 	)
 	if err != nil {
-		return "", nil, nil, err
+		return "", "", nil, nil, err
 	}
 
 	go func() {
@@ -694,7 +708,7 @@ func (s *Service) GetVHTLC(
 		log.Debugf("added new vhtlc %x", preimageHash)
 	}()
 
-	return addr, vhtlcScript, opts, nil
+	return addr, vhtlcId, vhtlcScript, opts, nil
 }
 
 func (s *Service) ListVHTLC(ctx context.Context, vhtlc_id string) ([]types.Vtxo, []domain.Vhtlc, error) {

@@ -775,6 +775,9 @@
     "v1CreateVHTLCResponse": {
       "type": "object",
       "properties": {
+        "id": {
+          "type": "string"
+        },
         "address": {
           "type": "string"
         },
