@@ -312,7 +312,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
 	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
 
-	addr, vhtlcScript, _, err := h.svc.GetVHTLC(
+	addr, vhtlc_id, vhtlcScript, _, err := h.svc.GetVHTLC(
 		ctx,
 		receiverPubkey,
 		senderPubkey,
@@ -327,6 +327,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	}
 
 	return &pb.CreateVHTLCResponse{
+		Id:                                   vhtlc_id,
 		Address:                              addr,
 		ClaimPubkey:                          hex.EncodeToString(vhtlcScript.Receiver.SerializeCompressed()[1:]),
 		RefundPubkey:                         hex.EncodeToString(vhtlcScript.Sender.SerializeCompressed()[1:]),
@@ -469,7 +470,7 @@ func (h *serviceHandler) GetVirtualTxs(
 	ctx context.Context, req *pb.GetVirtualTxsRequest,
 ) (*pb.GetVirtualTxsResponse, error) {
 	txids := req.GetTxids()
-	
+
 	// Filter out empty strings
 	filteredTxids := make([]string, 0, len(txids))
 	for _, txid := range txids {
@@ -477,7 +478,7 @@ func (h *serviceHandler) GetVirtualTxs(
 			filteredTxids = append(filteredTxids, txid)
 		}
 	}
-	
+
 	// If no valid txids, return empty list
 	if len(filteredTxids) == 0 {
 		return &pb.GetVirtualTxsResponse{

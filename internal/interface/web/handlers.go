@@ -1301,7 +1301,7 @@ func toSwap(swap domain.Swap) types.Swap {
 
 	var refundLocktime types.LockTime
 
-	refundLT := swap.VhtlcOpts.RefundLocktime
+	refundLT := swap.Vhtlc.RefundLocktime
 	if refundLT.IsSeconds() {
 		refundLocktime = types.LockTime{
 			Timelock:  prettyUnixTimestamp(int64(refundLT)),
@@ -1359,7 +1359,7 @@ func toPayment(payment domain.Swap) types.Payment {
 
 	var refundLocktime types.LockTime
 
-	refundLT := payment.VhtlcOpts.RefundLocktime
+	refundLT := payment.Vhtlc.RefundLocktime
 	if refundLT.IsSeconds() {
 		refundLocktime = types.LockTime{
 			Timelock:  prettyUnixTimestamp(int64(refundLT)),
