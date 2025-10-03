@@ -130,7 +130,7 @@ INSERT INTO vhtlc_new (
 
 		id := domain.GetVhtlcId(preB, sndB, rcvB)
 
-		log.Debug(fmt.Sprintf("vhtlc %s migrated -> id %s", preimageHash[:8], id))
+		log.Debug(fmt.Sprintf("vhtlc %s migrated -> id %s", preimageHash, id))
 
 		if _, err = stmt.ExecContext(ctx,
 			id, preimageHash, sender, receiver, server, refundLock,

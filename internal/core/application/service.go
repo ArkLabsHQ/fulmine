@@ -726,7 +726,7 @@ func (s *Service) GetVHTLC(
 			return
 		}
 
-		log.Debugf("added new vhtlc %x", preimageHash)
+		log.Debugf("added new vhtlc %s", vhtlcId)
 	}()
 
 	return addr, vhtlcId, vhtlcScript, opts, nil
@@ -948,6 +948,10 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
 
 	postProcess := func(swapData swap.Swap) error {
+		if swapData.Status != swap.SwapSuccess {
+			return nil
+		}
+
 		vHTLC := domain.NewVhtlc(*swapData.Opts)
 
 		err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
