@@ -32,26 +32,26 @@ func NewVHTLCRepository(baseDir string, logger badger.Logger) (domain.VHTLCRepos
 }
 
 // GetAll retrieves all VHTLC options from the database
-func (r *vhtlcRepository) GetAll(ctx context.Context) ([]vhtlc.Opts, error) {
+func (r *vhtlcRepository) GetAll(ctx context.Context) ([]domain.Vhtlc, error) {
 	var opts []vhtlcData
 	err := r.store.Find(&opts, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all vHTLC options: %w", err)
 	}
 
-	var vOpts []vhtlc.Opts
+	var vhtlcList []domain.Vhtlc
 	for _, opt := range opts {
-		vOpt, err := opt.toOpts()
+		vHTLC, err := opt.toVhtlc()
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert data to opts: %w", err)
 		}
-		vOpts = append(vOpts, *vOpt)
+		vhtlcList = append(vhtlcList, vHTLC)
 	}
-	return vOpts, nil
+	return vhtlcList, nil
 }
 
 // Get retrieves a specific VHTLC option by preimage hash
-func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*vhtlc.Opts, error) {
+func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*domain.Vhtlc, error) {
 	var dataOpts vhtlcData
 	err := r.store.Get(preimageHash, &dataOpts)
 	if errors.Is(err, badgerhold.ErrNotFound) {
@@ -61,39 +61,35 @@ func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*vhtlc.
 		return nil, fmt.Errorf("failed to get vHTLC option: %w", err)
 	}
 
-	opts, err := dataOpts.toOpts()
+	vHTLC, err := dataOpts.toVhtlc()
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert data to opts: %w", err)
 	}
 
-	return opts, nil
+	return &vHTLC, nil
 }
 
 // Add stores a new VHTLC option in the database
-func (r *vhtlcRepository) Add(ctx context.Context, opts vhtlc.Opts) error {
+func (r *vhtlcRepository) Add(ctx context.Context, vhtlc domain.Vhtlc) error {
 	data := vhtlcData{
-		PreimageHash:                         hex.EncodeToString(opts.PreimageHash),
-		Sender:                               hex.EncodeToString(opts.Sender.SerializeCompressed()),
-		Receiver:                             hex.EncodeToString(opts.Receiver.SerializeCompressed()),
-		Server:                               hex.EncodeToString(opts.Server.SerializeCompressed()),
-		RefundLocktime:                       opts.RefundLocktime,
-		UnilateralClaimDelay:                 opts.UnilateralClaimDelay,
-		UnilateralRefundDelay:                opts.UnilateralRefundDelay,
-		UnilateralRefundWithoutReceiverDelay: opts.UnilateralRefundWithoutReceiverDelay,
+		Id:                                   vhtlc.Id,
+		PreimageHash:                         hex.EncodeToString(vhtlc.PreimageHash),
+		Sender:                               hex.EncodeToString(vhtlc.Sender.SerializeCompressed()),
+		Receiver:                             hex.EncodeToString(vhtlc.Receiver.SerializeCompressed()),
+		Server:                               hex.EncodeToString(vhtlc.Server.SerializeCompressed()),
+		RefundLocktime:                       vhtlc.RefundLocktime,
+		UnilateralClaimDelay:                 vhtlc.UnilateralClaimDelay,
+		UnilateralRefundDelay:                vhtlc.UnilateralRefundDelay,
+		UnilateralRefundWithoutReceiverDelay: vhtlc.UnilateralRefundWithoutReceiverDelay,
 	}
 
-	if err := r.store.Insert(data.PreimageHash, data); err != nil {
+	if err := r.store.Insert(data.Id, data); err != nil {
 		if errors.Is(err, badgerhold.ErrKeyExists) {
-			return fmt.Errorf("vHTLC with preimage hash %s already exists", data.PreimageHash)
+			return fmt.Errorf("vHTLC with id %s already exists", data.Id)
 		}
 		return err
 	}
 	return nil
-}
-
-// Delete removes a VHTLC option from the database
-func (r *vhtlcRepository) Delete(ctx context.Context, preimageHash string) error {
-	return r.store.Delete(preimageHash, vhtlcData{})
 }
 
 func (s *vhtlcRepository) Close() {
@@ -102,6 +98,7 @@ func (s *vhtlcRepository) Close() {
 }
 
 type vhtlcData struct {
+	Id                                   string
 	PreimageHash                         string
 	Sender                               string
 	Receiver                             string
@@ -112,39 +109,39 @@ type vhtlcData struct {
 	UnilateralRefundWithoutReceiverDelay arklib.RelativeLocktime
 }
 
-func (d *vhtlcData) toOpts() (*vhtlc.Opts, error) {
+func (d *vhtlcData) toVhtlc() (domain.Vhtlc, error) {
 	senderBytes, err := hex.DecodeString(d.Sender)
 	if err != nil {
-		return nil, err
+		return domain.Vhtlc{}, err
 	}
 	receiverBytes, err := hex.DecodeString(d.Receiver)
 	if err != nil {
-		return nil, err
+		return domain.Vhtlc{}, err
 	}
 	serverBytes, err := hex.DecodeString(d.Server)
 	if err != nil {
-		return nil, err
+		return domain.Vhtlc{}, err
 	}
 
 	sender, err := btcec.ParsePubKey(senderBytes)
 	if err != nil {
-		return nil, err
+		return domain.Vhtlc{}, err
 	}
 	receiver, err := btcec.ParsePubKey(receiverBytes)
 	if err != nil {
-		return nil, err
+		return domain.Vhtlc{}, err
 	}
 	server, err := btcec.ParsePubKey(serverBytes)
 	if err != nil {
-		return nil, err
+		return domain.Vhtlc{}, err
 	}
 
 	preimageHashBytes, err := hex.DecodeString(d.PreimageHash)
 	if err != nil {
-		return nil, err
+		return domain.Vhtlc{}, err
 	}
 
-	return &vhtlc.Opts{
+	opts := vhtlc.Opts{
 		Sender:                               sender,
 		Receiver:                             receiver,
 		Server:                               server,
@@ -153,5 +150,7 @@ func (d *vhtlcData) toOpts() (*vhtlc.Opts, error) {
 		UnilateralRefundDelay:                d.UnilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: d.UnilateralRefundWithoutReceiverDelay,
 		PreimageHash:                         preimageHashBytes,
-	}, nil
+	}
+
+	return domain.NewVhtlc(opts), nil
 }
