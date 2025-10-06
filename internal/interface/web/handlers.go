@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -95,12 +96,22 @@ func (s *service) events(c *gin.Context) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 
-	channel := s.svc.GetTransactionEventChannel(c.Request.Context())
-	for {
+	ctx, cancel := context.WithCancel(c.Request.Context())
+	defer cancel()
+
+	go func() {
 		select {
 		case <-s.stopCh:
-			return
-		case <-c.Request.Context().Done():
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
+	channel := s.svc.GetTransactionEventChannel(ctx)
+
+	for {
+		select {
+		case <-ctx.Done():
 			return
 		case event, ok := <-channel:
 			if !ok {
