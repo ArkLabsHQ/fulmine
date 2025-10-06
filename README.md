@@ -63,21 +63,7 @@ Alternatively, you can download the latest release from the [releases page](http
 
 ### 🔧 Environment Variables
 
-The following environment variables can be configured:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `FULMINE_DATADIR` | Directory to store wallet data | `/app/data` in Docker, `~/.fulmine` otherwise |
-| `FULMINE_HTTP_PORT` | HTTP port for the web UI and REST API | `7001` |
-| `FULMINE_GRPC_PORT` | gRPC port for service communication | `7000` |
-| `FULMINE_ARK_SERVER` | URL of the Ark server to connect to | It pre-fills with the default Ark server |
-| `FULMINE_ESPLORA_URL` | URL of the Esplora server to connect to | It pre-fills with the default Esplora server |
-| `FULMINE_UNLOCKER_TYPE` | Type of unlocker to use for auto-unlock (`file` or `env`) | Not set by default (no auto-unlock) |
-| `FULMINE_UNLOCKER_FILE_PATH` | Path to the file containing the wallet password (when using `file` unlocker) | Not set by default |
-| `FULMINE_UNLOCKER_PASSWORD` | Password string to use for unlocking (when using `env` unlocker) | Not set by default |
-| `FULMINE_BOLTZ_URL` | URL of the custom Boltz backend to connect to for swaps | Not set by default |
-| `FULMINE_BOLTZ_WS_URL` | URL of the custom Boltz WebSocket backend to connect to for swap events | Not set by default |
-| `FULMINE_DISABLE_TELEMETRY` | Opt out of telemetry logs | False by default | 
+See the list of environment variables available [here](docs/environment.md).
 
 When using Docker, you can set these variables using the `-e` flag:
 
