@@ -8,8 +8,8 @@ github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da h1:KjTM2ks9d14ZYCvmH
 github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da/go.mod h1:eHEWzANqSiWQsof+nXEI9bUVUyV6F53Fp89EuCh2EAA=
 github.com/aead/siphash v1.0.1 h1:FwHfE/T45KPKYuuSAKyyvE+oPWcaQ+CUmFW0bPlM+kg=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
-github.com/arkade-os/arkd/pkg/ark-lib v0.7.2-0.20251004004158-088eae4b658b h1:WE4V2x4EFfyCQBovH/pcr54unfwSWoQA3hhhEFU+dXI=
-github.com/arkade-os/arkd/pkg/ark-lib v0.7.2-0.20251004004158-088eae4b658b/go.mod h1:WtND6j3BA5KcYWCCHkI5k5UZS2UU+GZHDwqMVn6SD2s=
+github.com/arkade-os/arkd/pkg/ark-lib v0.7.2-0.20251007164141-5fe7b9ab77fb h1:gOgpDznbLiOxVkK5WgURYjpdGZuZQ5H2IxZAaEtGG/w=
+github.com/arkade-os/arkd/pkg/ark-lib v0.7.2-0.20251007164141-5fe7b9ab77fb/go.mod h1:WtND6j3BA5KcYWCCHkI5k5UZS2UU+GZHDwqMVn6SD2s=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
