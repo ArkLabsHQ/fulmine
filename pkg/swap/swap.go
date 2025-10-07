@@ -735,7 +735,7 @@ func (h *SwapHandler) claimVHTLC(
 
 	signTransaction := func(tx *psbt.Packet) (string, error) {
 		// add the preimage to the checkpoint input
-		if err := txutils.AddConditionWitness(0, tx, wire.TxWitness{preimage}); err != nil {
+		if err := txutils.SetArkPsbtField(tx, 0, txutils.ConditionWitnessField, wire.TxWitness{preimage}); err != nil {
 			return "", err
 		}
 
@@ -783,13 +783,9 @@ func (h *SwapHandler) claimVHTLC(
 	return arkTxid, nil
 }
 
-func checkpointExitScript(cfg *types.Config) *script.CSVMultisigClosure {
-	return &script.CSVMultisigClosure{
-		Locktime: cfg.UnilateralExitDelay,
-		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*btcec.PublicKey{cfg.SignerPubKey},
-		},
-	}
+func checkpointExitScript(cfg *types.Config) []byte {
+	buf, _ := hex.DecodeString(cfg.CheckpointTapscript)
+	return buf
 }
 
 // verifyInputSignatures checks that all inputs have a signature for the given pubkey
