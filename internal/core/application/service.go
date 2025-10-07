@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
 	"net/url"
 	"sort"
 	"strings"
@@ -572,13 +571,8 @@ func (s *Service) scheduleNextSettlement(at time.Time, data *types.Config) error
 		}
 	}
 
-	// if market hour is set, schedule the task at the best market hour = market hour closer to `at` timestamp
-
-	marketHourStartTime := time.Unix(data.MarketHourStartTime, 0)
-	if !marketHourStartTime.IsZero() && data.MarketHourPeriod > 0 && at.After(marketHourStartTime) {
-		cycles := math.Floor(at.Sub(marketHourStartTime).Seconds() / float64(data.MarketHourPeriod))
-		at = marketHourStartTime.Add(time.Duration(cycles) * time.Duration(data.MarketHourPeriod) * time.Second)
-	}
+	// TODO: Fetch GetInfo to know the next market hour start, if any, and schedule the
+	// settlement for the one closest to the vtxo expiry.
 
 	roundInterval := time.Duration(data.RoundInterval) * time.Second
 	at = at.Add(-2 * roundInterval) // schedule 2 rounds before the expiry
@@ -1880,7 +1874,9 @@ func (s *Service) claimVHTLC(
 
 	signTransaction := func(tx *psbt.Packet) (string, error) {
 		// add the preimage to the checkpoint input
-		if err := txutils.AddConditionWitness(0, tx, wire.TxWitness{preimage}); err != nil {
+		if err := txutils.SetArkPsbtField(
+			tx, 0, txutils.ConditionWitnessField, wire.TxWitness{preimage},
+		); err != nil {
 			return "", err
 		}
 
@@ -2100,13 +2096,9 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 	return err
 }
 
-func checkpointExitScript(cfg *types.Config) *script.CSVMultisigClosure {
-	return &script.CSVMultisigClosure{
-		Locktime: cfg.UnilateralExitDelay,
-		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*btcec.PublicKey{cfg.SignerPubKey},
-		},
-	}
+func checkpointExitScript(cfg *types.Config) []byte {
+	buf, _ := hex.DecodeString(cfg.CheckpointTapscript)
+	return buf
 }
 
 func parsePubkey(pubkey string) (*btcec.PublicKey, error) {
