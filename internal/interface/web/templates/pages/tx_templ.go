@@ -143,7 +143,7 @@ func TransferTxPendingContent(tx types.Transfer, explorerUrl string, nextClaim s
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.PendingTransferTable(tx.CreatedAt, tx.ExpiresAt, nextClaim).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.PendingTransferTable(tx.CreatedAt, nextClaim).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -348,7 +348,7 @@ func PaymentTxPendingContent(tx types.Payment) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.PendingPaymentTable(tx.Date, tx.ExpiresAt, *tx.RefundLockTime).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.PendingPaymentTable(tx.Date, *tx.RefundLockTime).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -569,7 +569,7 @@ func SwapTxPendingContent(tx types.Swap) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.PendingSwapTable(tx.Date, tx.ExpiresAt, *tx.RefundLockTime).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.PendingSwapTable(tx.Date, *tx.RefundLockTime).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

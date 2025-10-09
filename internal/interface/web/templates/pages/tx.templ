@@ -21,7 +21,7 @@ templ TransferTxPendingContent(tx types.Transfer, explorerUrl string, nextClaim 
           @components.TxIcon(tx.Kind, "")
           <p class="mt-4 capitalize">{tx.Kind}</p>
           <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
-          @components.PendingTransferTable(tx.CreatedAt, tx.ExpiresAt, nextClaim)
+          @components.PendingTransferTable(tx.CreatedAt, nextClaim)
         </div>
       </div>
       <div class="showOnRequest flex flex-col items-center mt-10 w-full">
@@ -62,7 +62,7 @@ templ PaymentTxPendingContent(tx types.Payment) {
           @components.TxIcon(tx.Kind, "")
           <p class="mt-4 capitalize">{tx.Kind}</p>
           <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
-          @components.PendingPaymentTable(tx.Date, tx.ExpiresAt, *tx.RefundLockTime)
+          @components.PendingPaymentTable(tx.Date, *tx.RefundLockTime)
         </div>
       </div>
       <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
@@ -109,7 +109,7 @@ templ SwapTxPendingContent(tx types.Swap) {
           @components.TxIcon(tx.Kind, "")
           <p class="mt-4 capitalize">{tx.Kind}</p>
           <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
-          @components.PendingSwapTable(tx.Date, tx.ExpiresAt, *tx.RefundLockTime)
+          @components.PendingSwapTable(tx.Date, *tx.RefundLockTime)
         </div>
       </div>
       <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">

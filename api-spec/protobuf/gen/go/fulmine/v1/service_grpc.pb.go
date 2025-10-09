@@ -74,7 +74,7 @@ type ServiceClient interface {
 	// ClaimVHTLC = self send vHTLC -> VTXO
 	ClaimVHTLC(ctx context.Context, in *ClaimVHTLCRequest, opts ...grpc.CallOption) (*ClaimVHTLCResponse, error)
 	RefundVHTLCWithoutReceiver(ctx context.Context, in *RefundVHTLCWithoutReceiverRequest, opts ...grpc.CallOption) (*RefundVHTLCWithoutReceiverResponse, error)
-	// ListVHTLC = list all vhtlc OR filter by preimage_hash
+	// ListVHTLC = list all vhtlc OR filter by vhtlc_id
 	ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opts ...grpc.CallOption) (*ListVHTLCResponse, error)
 	GetInvoice(ctx context.Context, in *GetInvoiceRequest, opts ...grpc.CallOption) (*GetInvoiceResponse, error)
 	PayInvoice(ctx context.Context, in *PayInvoiceRequest, opts ...grpc.CallOption) (*PayInvoiceResponse, error)
@@ -359,7 +359,7 @@ type ServiceServer interface {
 	// ClaimVHTLC = self send vHTLC -> VTXO
 	ClaimVHTLC(context.Context, *ClaimVHTLCRequest) (*ClaimVHTLCResponse, error)
 	RefundVHTLCWithoutReceiver(context.Context, *RefundVHTLCWithoutReceiverRequest) (*RefundVHTLCWithoutReceiverResponse, error)
-	// ListVHTLC = list all vhtlc OR filter by preimage_hash
+	// ListVHTLC = list all vhtlc OR filter by vhtlc_id
 	ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error)
 	GetInvoice(context.Context, *GetInvoiceRequest) (*GetInvoiceResponse, error)
 	PayInvoice(context.Context, *PayInvoiceRequest) (*PayInvoiceResponse, error)

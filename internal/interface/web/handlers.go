@@ -941,12 +941,6 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 	if err != nil {
 		return nil, err
 	}
-	data, err := s.svc.GetConfigData(c)
-	if err != nil {
-		return nil, err
-	}
-	// TODO: use tx.ExpiresAt when it will be available
-	treeExpiryValue := int64(data.VtxoTreeExpiry.Value)
 
 	// Get Swap Transaction
 	swapTxs, err := s.svc.GetSwapHistory(c)
@@ -971,7 +965,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedSendTransfer := toTransfer(sendTransfer, treeExpiryValue)
+				modifiedSendTransfer := toTransfer(sendTransfer)
 				transformedSwap.VHTLCTransfer = &modifiedSendTransfer
 			}
 
@@ -980,7 +974,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			})
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
+				modifiedReceiveTransfer := toTransfer(receiveTransfer)
 				transformedSwap.RedeemTransfer = &modifiedReceiveTransfer
 			}
 
@@ -991,7 +985,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
+				modifiedReceiveTransfer := toTransfer(receiveTransfer)
 				transformedSwap.RedeemTransfer = &modifiedReceiveTransfer
 			}
 		}
@@ -1017,7 +1011,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedSendTransfer := toTransfer(sendTransfer, treeExpiryValue)
+				modifiedSendTransfer := toTransfer(sendTransfer)
 				transformedPayment.PaymentTransfer = &modifiedSendTransfer
 			}
 
@@ -1027,7 +1021,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
+				modifiedReceiveTransfer := toTransfer(receiveTransfer)
 				transformedPayment.ReclaimTransfer = &modifiedReceiveTransfer
 			}
 		} else {
@@ -1037,7 +1031,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
+				modifiedReceiveTransfer := toTransfer(receiveTransfer)
 				transformedPayment.PaymentTransfer = &modifiedReceiveTransfer
 			}
 		}
@@ -1053,7 +1047,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 	for _, tx := range transferTxns {
 
-		modifiedTransfer := toTransfer(tx, treeExpiryValue)
+		modifiedTransfer := toTransfer(tx)
 
 		transaction := types.Transaction{
 			Kind:        "transfer",
@@ -1145,7 +1139,7 @@ func (s *service) claimTx(c *gin.Context) {
 	txid := c.Param("txid")
 	var tx types.Transfer
 	for _, transaction := range transferTxns {
-		transfer := toTransfer(transaction, int64(data.VtxoTreeExpiry.Value))
+		transfer := toTransfer(transaction)
 		if transfer.Txid == txid {
 			tx = transfer
 			break
@@ -1301,7 +1295,7 @@ func toSwap(swap domain.Swap) types.Swap {
 
 	var refundLocktime types.LockTime
 
-	refundLT := swap.VhtlcOpts.RefundLocktime
+	refundLT := swap.Vhtlc.RefundLocktime
 	if refundLT.IsSeconds() {
 		refundLocktime = types.LockTime{
 			Timelock:  prettyUnixTimestamp(int64(refundLT)),
@@ -1359,7 +1353,7 @@ func toPayment(payment domain.Swap) types.Payment {
 
 	var refundLocktime types.LockTime
 
-	refundLT := payment.VhtlcOpts.RefundLocktime
+	refundLT := payment.Vhtlc.RefundLocktime
 	if refundLT.IsSeconds() {
 		refundLocktime = types.LockTime{
 			Timelock:  prettyUnixTimestamp(int64(refundLT)),
@@ -1384,7 +1378,7 @@ func toPayment(payment domain.Swap) types.Payment {
 
 }
 
-func toTransfer(tx sdktypes.Transaction, treeExpiryValue int64) types.Transfer {
+func toTransfer(tx sdktypes.Transaction) types.Transfer {
 	// amount
 	amount := strconv.FormatUint(tx.Amount, 10)
 	if tx.Type == sdktypes.TxSent {
@@ -1392,8 +1386,6 @@ func toTransfer(tx sdktypes.Transaction, treeExpiryValue int64) types.Transfer {
 	}
 	// date of creation
 	dateCreated := tx.CreatedAt.Unix()
-	// TODO: use tx.ExpiresAt when it will be available
-	expiresAt := tx.CreatedAt.Unix() + treeExpiryValue
 	// status of tx
 	status := "pending"
 	if tx.Settled {
@@ -1419,7 +1411,6 @@ func toTransfer(tx sdktypes.Transaction, treeExpiryValue int64) types.Transfer {
 		Amount:     amount,
 		CreatedAt:  prettyUnixTimestamp(dateCreated),
 		Day:        prettyDay(dateCreated),
-		ExpiresAt:  prettyUnixTimestamp(expiresAt),
 		Explorable: explorable,
 		Hour:       prettyHour(dateCreated),
 		Kind:       strings.ToLower(string(tx.Type)),
