@@ -10,8 +10,8 @@ require (
 require (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-00010101000000-000000000000
-	github.com/arkade-os/arkd/pkg/ark-lib v0.7.2-0.20251007164141-5fe7b9ab77fb
-	github.com/arkade-os/go-sdk v0.7.2-0.20251007164350-314cf4c806f5
+	github.com/arkade-os/arkd/pkg/ark-lib v0.7.2-0.20251009014210-60353368d8cc
+	github.com/arkade-os/go-sdk v0.7.2-0.20251008210548-f35e9755b2cb
 	github.com/ccoveille/go-safecast v1.6.1
 )
 

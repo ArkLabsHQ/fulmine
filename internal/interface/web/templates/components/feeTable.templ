@@ -42,10 +42,9 @@ templ statusLine(status string) {
   </div>
 }
 
-templ PendingTransferTable(createdAt, expiresAt, nextClaim string) {
+templ PendingTransferTable(createdAt, nextClaim string) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @statusLine("pending")
-    @tableLine("Expiring", expiresAt)
   </div>
   <div class="bg-desktopbg md:bg-white/10 p-4 w-full max-w-[360px] mt-4 rounded-lg text-white">
     <p class="mb-4">Your settlement has been scheduled for <span class="font-semibold">{nextClaim}</span></p>
@@ -56,10 +55,9 @@ templ PendingTransferTable(createdAt, expiresAt, nextClaim string) {
   </div>
 }
 
-templ PendingPaymentTable(createdAt, expiresAt string, refundLockTime types.LockTime) {
+templ PendingPaymentTable(createdAt string, refundLockTime types.LockTime) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @statusLine("pending")
-    @tableLine("Expiring", expiresAt)
   </div>
   <div class="bg-desktopbg md:bg-white/10 p-4 w-full max-w-[360px] mt-4 rounded-lg text-white">
     if refundLockTime.IsSeconds {
@@ -96,10 +94,9 @@ templ RefundingPaymentTable(createdAt string, refundLocktime types.LockTime) {
   </div>
 }
 
-templ PendingSwapTable(createdAt, expiresAt string, refundLocktime types.LockTime) {
+templ PendingSwapTable(createdAt string, refundLocktime types.LockTime) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @statusLine("pending")
-    @tableLine("Expiring", expiresAt)
   </div>
   <div class="bg-desktopbg md:bg-white/10 p-4 w-full max-w-[360px] mt-4 rounded-lg text-white">
     if refundLocktime.IsSeconds {

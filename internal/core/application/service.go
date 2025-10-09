@@ -75,17 +75,17 @@ type WalletUpdate struct {
 }
 
 type Service struct {
-	BuildInfo BuildInfo
+	BuildInfo     BuildInfo
+	IndexerClient indexer.Indexer
 
 	arksdk.ArkClient
-	storeCfg      store.Config
-	storeRepo     types.Store
-	dbSvc         ports.RepoManager
-	grpcClient    client.TransportClient
-	indexerClient indexer.Indexer
-	schedulerSvc  ports.SchedulerService
-	lnSvc         ports.LnService
-	boltzSvc      *boltz.Api
+	storeCfg     store.Config
+	storeRepo    types.Store
+	dbSvc        ports.RepoManager
+	grpcClient   client.TransportClient
+	schedulerSvc ports.SchedulerService
+	lnSvc        ports.LnService
+	boltzSvc     *boltz.Api
 
 	publicKey *btcec.PublicKey
 
@@ -159,7 +159,7 @@ func NewService(
 			storeRepo:                 storeSvc,
 			dbSvc:                     dbSvc,
 			grpcClient:                grpcClient,
-			indexerClient:             indexerClient,
+			IndexerClient:             indexerClient,
 			schedulerSvc:              schedulerSvc,
 			publicKey:                 nil,
 			isReady:                   true,
@@ -306,7 +306,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	s.esploraUrl = config.ExplorerURL
 	s.publicKey = prvKey.PubKey()
 	s.grpcClient = client
-	s.indexerClient = indexerClient
+	s.IndexerClient = indexerClient
 	s.isReady = true
 
 	go func() {
@@ -539,7 +539,7 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 }
 
 func (s *Service) GetRound(ctx context.Context, roundId string) (*indexer.CommitmentTx, error) {
-	return s.indexerClient.GetCommitmentTx(ctx, roundId)
+	return s.IndexerClient.GetCommitmentTx(ctx, roundId)
 }
 
 func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, error) {
@@ -547,7 +547,7 @@ func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, 
 		return nil, err
 	}
 
-	resp, err := s.indexerClient.GetVirtualTxs(ctx, txids)
+	resp, err := s.IndexerClient.GetVirtualTxs(ctx, txids)
 	if err != nil {
 		return nil, err
 	}
@@ -574,8 +574,8 @@ func (s *Service) scheduleNextSettlement(at time.Time, data *types.Config) error
 	// TODO: Fetch GetInfo to know the next market hour start, if any, and schedule the
 	// settlement for the one closest to the vtxo expiry.
 
-	roundInterval := time.Duration(data.RoundInterval) * time.Second
-	at = at.Add(-2 * roundInterval) // schedule 2 rounds before the expiry
+	sessionDuration := time.Duration(data.SessionDuration) * time.Second
+	at = at.Add(-2 * sessionDuration) // schedule 2 rounds before the expiry
 
 	return s.schedulerSvc.ScheduleNextSettlement(at, task)
 }
@@ -939,7 +939,7 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 	}
 
 	boltzApi := s.boltzSvc
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.IndexerClient, boltzApi, s.publicKey, s.swapTimeout)
 
 	postProcess := func(swapData swap.Swap) error {
 		if swapData.Status != swap.SwapSuccess {
@@ -984,7 +984,7 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (SwapResponse,
 
 	boltzApi := s.boltzSvc
 
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.IndexerClient, boltzApi, s.publicKey, s.swapTimeout)
 
 	unilateralRefund := func(swapData swap.Swap) error {
 		err := s.scheduleSwapRefund(swapData.Id, *swapData.Opts)
@@ -1046,7 +1046,7 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (SwapResponse, err
 		lightningUrl = boltzUrl.String()
 	}
 
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.IndexerClient, boltzApi, s.publicKey, s.swapTimeout)
 
 	unilateralRefund := func(swapData swap.Swap) error {
 		err := s.scheduleSwapRefund(swapData.Id, *swapData.Opts)
@@ -1782,7 +1782,7 @@ func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcList []domain.Vhtlc) (
 		if err := vtxosRequest.WithScripts([]string{hex.EncodeToString(outScript)}); err != nil {
 			return nil, err
 		}
-		resp, err := s.indexerClient.GetVtxos(ctx, vtxosRequest)
+		resp, err := s.IndexerClient.GetVtxos(ctx, vtxosRequest)
 		if err != nil {
 			return nil, err
 		}
