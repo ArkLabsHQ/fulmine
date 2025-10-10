@@ -48,10 +48,10 @@ func TestRealGrpcConnection(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		conn, err := grpc.NewClient(urlWithScheme, 
+		conn, err := grpc.NewClient(urlWithScheme,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithBlock())
-		
+
 		if err == nil {
 			// Connection might be created, but let's try to actually use it
 			client := grpc_health_v1.NewHealthClient(conn)
@@ -140,10 +140,10 @@ func TestConnectionWithVariousFormats(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	testCases := []struct {
-		name           string
-		url            string
-		shouldWork     bool
-		description    string
+		name        string
+		url         string
+		shouldWork  bool
+		description string
 	}{
 		{
 			name:        "Correct format: host:port",
