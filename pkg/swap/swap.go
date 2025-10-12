@@ -172,9 +172,16 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-	unilateralClaimDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim}
-	unilateralRefundDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund}
-	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver}
+
+	lockType := arklib.LocktimeTypeBlock
+
+	if refundLocktime.IsSeconds() {
+		lockType = arklib.LocktimeTypeSecond
+	}
+
+	unilateralClaimDelay := arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralClaim}
+	unilateralRefundDelay := arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralRefund}
+	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver}
 
 	vhtlcAddress, _, vhtlcOpts, err := h.getVHTLC(
 		ctx,
@@ -506,10 +513,17 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 		return Swap{}, fmt.Errorf("invalid invoice amount: expected %d, got %d", amount, invoiceAmount)
 	}
 
+	lockType := arklib.LocktimeTypeBlock
+
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-	unilateralClaimDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim}
-	unilateralRefundDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund}
-	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver}
+
+	if refundLocktime.IsSeconds() {
+		lockType = arklib.LocktimeTypeSecond
+	}
+
+	unilateralClaimDelay := arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralClaim}
+	unilateralRefundDelay := arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralRefund}
+	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver}
 
 	vhtlcAddress, _, vhtlcOpts, err := h.getVHTLC(
 		ctx,

@@ -1367,16 +1367,23 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 		return SwapResponse{}, fmt.Errorf("invalid claim pubkey: %v", err)
 	}
 
+	lockType := arklib.LocktimeTypeBlock
+
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
+
+	if refundLocktime.IsSeconds() {
+		lockType = arklib.LocktimeTypeSecond
+	}
+
 	vhtlcAddress, _, opts, _, err := s.getVHTLC(
 		ctx,
 		receiverPubkey,
 		nil,
 		preimageHash,
 		&refundLocktime,
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
+		&arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralClaim},
+		&arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralRefund},
+		&arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
 	)
 	if err != nil {
 		return SwapResponse{}, fmt.Errorf("failed to verify vHTLC: %v", err)
@@ -1534,16 +1541,23 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, preimage, myPu
 		return "", fmt.Errorf("invalid invoice amount: expected %d, got %d", amount, invoiceAmount)
 	}
 
+	lockType := arklib.LocktimeTypeBlock
+
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
+
+	if refundLocktime.IsSeconds() {
+		lockType = arklib.LocktimeTypeSecond
+	}
+
 	vhtlcAddress, _, opts, _, err := s.getVHTLC(
 		ctx,
 		nil,
 		senderPubkey,
 		gotPreimageHash,
 		&refundLocktime,
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim},
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund},
-		&arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
+		&arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralClaim},
+		&arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralRefund},
+		&arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
