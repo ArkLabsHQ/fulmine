@@ -21,6 +21,7 @@ func setupMiddleware(engine *gin.Engine, enabled bool) {
 		}))
 
 		log.Info("Sentry error monitoring enabled")
+		return
 	}
 
 	log.Info("Sentry error monitoring disabled")
