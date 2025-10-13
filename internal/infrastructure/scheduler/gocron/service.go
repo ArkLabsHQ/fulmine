@@ -20,7 +20,7 @@ type heightTask struct {
 type service struct {
 	scheduler      *gocron.Scheduler
 	esploraService esplora.Service
-	settleJob      *gocron.Job
+	job            *gocron.Job
 	mu             *sync.Mutex
 	blockCancel    context.CancelFunc
 	tasks          []*heightTask
@@ -122,7 +122,6 @@ func (s *service) ScheduleRefundAtTime(at time.Time, refundFunc func()) error {
 		refundFunc()
 		s.mu.Lock()
 		defer s.mu.Unlock()
-
 	})
 	if err != nil {
 		return err
@@ -145,9 +144,8 @@ func (s *service) ScheduleNextSettlement(at time.Time, settleFunc func()) error 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.settleJob != nil && s.settleJob.ScheduledTime().Before(at) {
-		return nil
-	}
+	s.scheduler.Remove(s.job)
+	s.job = nil
 
 	if delay == 0 {
 		settleFunc()
@@ -158,14 +156,14 @@ func (s *service) ScheduleNextSettlement(at time.Time, settleFunc func()) error 
 		settleFunc()
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		s.scheduler.Remove(s.settleJob)
-		s.settleJob = nil
+		s.scheduler.Remove(s.job)
+		s.job = nil
 	})
 	if err != nil {
 		return err
 	}
 
-	s.settleJob = job
+	s.job = job
 
 	return err
 }
@@ -175,9 +173,9 @@ func (s *service) WhenNextSettlement() time.Time {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.settleJob == nil {
+	if s.job == nil {
 		return time.Time{}
 	}
 
-	return s.settleJob.NextRun()
+	return s.job.NextRun()
 }

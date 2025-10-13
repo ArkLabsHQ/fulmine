@@ -143,7 +143,7 @@ func TransferTxPendingContent(tx types.Transfer, explorerUrl string, nextClaim s
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.PendingTransferTable(tx.CreatedAt, tx.ExpiresAt, nextClaim).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.PendingTransferTable(tx.CreatedAt, nextClaim).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -155,7 +155,7 @@ func TransferTxPendingContent(tx types.Transfer, explorerUrl string, nextClaim s
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p class=\"font-semibold mt-10 mb-3 text-lg\">Preconfirmed</p><p class=\"max-w-[320px] text-center\">Settlement is underway—your off-chain Ark transactions are securely being confirmed into the Bitcoin blockchain. You can safely leave this page; the signing sessions will continue seamlessly in the background with all available participants.</p></div></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p class=\"font-semibold mt-10 mb-3 text-lg\">Pending...</p><p class=\"max-w-[320px] text-center\">Settlement is underway—your off-chain Ark transactions are securely being confirmed into the Bitcoin blockchain. You can safely leave this page; the signing sessions will continue seamlessly in the background with all available participants.</p></div></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -348,7 +348,7 @@ func PaymentTxPendingContent(tx types.Payment) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.PendingPaymentTable(tx.Date, tx.ExpiresAt, *tx.RefundLockTime).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.PendingPaymentTable(tx.Date, *tx.RefundLockTime).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -569,7 +569,7 @@ func SwapTxPendingContent(tx types.Swap) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = components.PendingSwapTable(tx.Date, tx.ExpiresAt, *tx.RefundLockTime).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = components.PendingSwapTable(tx.Date, *tx.RefundLockTime).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

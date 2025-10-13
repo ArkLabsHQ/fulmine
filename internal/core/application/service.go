@@ -361,8 +361,15 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 
-	if err := s.scheduleNextSettlement(arkConfig); err != nil {
-		log.WithError(err).Error("failed to schedule next settlement")
+	nextExpiry, err := s.computeNextExpiry(ctx, arkConfig)
+	if err != nil {
+		log.WithError(err).Error("failed to compute next expiry")
+	}
+
+	if nextExpiry != nil {
+		if err := s.scheduleNextSettlement(*nextExpiry, arkConfig); err != nil {
+			log.WithError(err).Error("failed to schedule next settlement")
+		}
 	}
 
 	prvkeyStr, err := s.Dump(ctx)
@@ -556,17 +563,7 @@ func (s *Service) Settle(ctx context.Context) (string, error) {
 	return s.ArkClient.Settle(ctx)
 }
 
-func (s *Service) scheduleNextSettlement(data *types.Config) error {
-	nextExpiry, err := s.computeNextExpiry(context.Background(), data)
-
-	if err != nil {
-		return err
-	}
-
-	if nextExpiry == nil {
-		return nil
-	}
-
+func (s *Service) scheduleNextSettlement(at time.Time, data *types.Config) error {
 	task := func() {
 		_, err := s.Settle(context.Background())
 		if err != nil {
@@ -574,22 +571,13 @@ func (s *Service) scheduleNextSettlement(data *types.Config) error {
 		}
 	}
 
-	serverInfo, err := s.grpcClient.GetInfo(context.Background())
-	if err != nil {
-		return fmt.Errorf("failed to get server info: %w", err)
-	}
+	// TODO: Fetch GetInfo to know the next market hour start, if any, and schedule the
+	// settlement for the one closest to the vtxo expiry.
 
-	sessionDuration := time.Duration(serverInfo.SessionDuration) * time.Second
+	sessionDuration := time.Duration(data.SessionDuration) * time.Second
+	at = at.Add(-2 * sessionDuration) // schedule 2 rounds before the expiry
 
-	at := nextExpiry.Add(-2 * sessionDuration) // schedule 2 rounds before the expiry
-
-	nextMarketHour := time.Unix(serverInfo.ScheduledSessionStartTime, 0)
-
-	if nextMarketHour.Before(at) {
-		return s.schedulerSvc.ScheduleNextSettlement(at, task)
-	}
-
-	return s.schedulerSvc.ScheduleNextSettlement(*nextExpiry, task)
+	return s.schedulerSvc.ScheduleNextSettlement(at, task)
 }
 
 func (s *Service) WhenNextSettlement(ctx context.Context) time.Time {
@@ -1097,16 +1085,6 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (SwapResponse, err
 	return SwapResponse{TxId: swapDetails.TxId, SwapStatus: swapStatus, Invoice: swapDetails.Invoice}, err
 }
 
-func (s *Service) GetSessionDuration(ctx context.Context) (int64, error) {
-	info, err := s.grpcClient.GetInfo(ctx)
-
-	if err != nil {
-		return 0, err
-	}
-
-	return info.SessionDuration, nil
-}
-
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 	if !s.isReady {
 		return fmt.Errorf("service not initialized")
@@ -1160,7 +1138,7 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 	for _, tx := range txs {
 		if len(tx.BoardingTxid) > 0 && !tx.Settled {
 			// TODO replace by boardingExitDelay https://github.com/ark-network/ark/pull/501
-			boardingExpiry := tx.CreatedAt.Add(time.Duration(data.BoardingExitDelay.Seconds()*2) * time.Second)
+			boardingExpiry := tx.CreatedAt.Add(time.Duration(data.UnilateralExitDelay.Seconds()*2) * time.Second)
 			if boardingExpiry.Before(time.Now()) {
 				continue
 			}
@@ -1210,8 +1188,21 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 			// if expiry is before the next scheduled settlement, we need to schedule a new one
 			if len(filteredUtxos) > 0 {
 				log.Infof("boarding event detected: %d new confirmed utxos", len(filteredUtxos))
-				if err := s.scheduleNextSettlement(cfg); err != nil {
-					log.WithError(err).Info("schedule next claim failed")
+				nextScheduledSettlement := s.WhenNextSettlement(ctx)
+
+				needSchedule := false
+
+				for _, utxo := range filteredUtxos {
+					if nextScheduledSettlement.IsZero() || utxo.SpendableAt.Before(nextScheduledSettlement) {
+						nextScheduledSettlement = utxo.SpendableAt
+						needSchedule = true
+					}
+				}
+
+				if needSchedule {
+					if err := s.scheduleNextSettlement(nextScheduledSettlement, cfg); err != nil {
+						log.WithError(err).Info("schedule next claim failed")
+					}
 				}
 			}
 		}
@@ -1293,8 +1284,42 @@ func (s *Service) handleInternalAddressEventChannel(event *indexer.ScriptEvent) 
 
 	log.Infof("received internal address event (%d spent vtxos, %d new vtxos)", len(event.SpentVtxos), len(event.NewVtxos))
 
-	if err := s.scheduleNextSettlement(data); err != nil {
-		log.WithError(err).Info("schedule next claim failed")
+	// if some vtxos were spent, schedule a settlement to soonest expiry among new vtxos / boarding UTXOs set
+	if len(event.SpentVtxos) > 0 {
+		nextExpiry, err := s.computeNextExpiry(ctx, data)
+		if err != nil {
+			log.WithError(err).Error("failed to compute next expiry")
+			return
+		}
+
+		if nextExpiry != nil {
+			if err := s.scheduleNextSettlement(*nextExpiry, data); err != nil {
+				log.WithError(err).Info("schedule next claim failed")
+			}
+		}
+
+		return
+	}
+
+	// if some vtxos were created, schedule a settlement to the soonest expiry among new vtxos
+	if len(event.NewVtxos) > 0 {
+		nextScheduledSettlement := s.WhenNextSettlement(ctx)
+
+		needSchedule := false
+
+		for _, vtxo := range event.NewVtxos {
+			log.Infof("new vtxo: %s, expires at: %s", vtxo.Txid, vtxo.ExpiresAt.Format(time.RFC3339))
+			if nextScheduledSettlement.IsZero() || vtxo.ExpiresAt.Before(nextScheduledSettlement) {
+				nextScheduledSettlement = vtxo.ExpiresAt
+				needSchedule = true
+			}
+		}
+
+		if needSchedule {
+			if err := s.scheduleNextSettlement(nextScheduledSettlement, data); err != nil {
+				log.WithError(err).Info("schedule next claim failed")
+			}
+		}
 	}
 }
 
