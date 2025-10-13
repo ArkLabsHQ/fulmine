@@ -2335,7 +2335,7 @@ func toBitcoinNetwork(net arklib.Network) *chaincfg.Params {
 }
 
 func deriveTimelock(timelock uint32) arklib.RelativeLocktime {
-	if timelock%512 == 0 {
+	if timelock >= 512 {
 		return arklib.RelativeLocktime{Type: arklib.LocktimeTypeSecond, Value: timelock}
 	}
 
