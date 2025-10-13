@@ -23,7 +23,7 @@ WORKDIR /app
 COPY --from=builder /app/bin/* /app/
 
 ENV PATH="/app:${PATH}"
-ENV ARK_DATADIR=/app/data
+ENV ARKD_DATADIR=/app/data
 
 # Expose volume containing all 'arkd' data
 VOLUME /app/data

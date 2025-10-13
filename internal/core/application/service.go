@@ -50,7 +50,7 @@ const (
 	WalletReset                                 = "reset"
 	defaultUnilateralClaimDelay                 = 512
 	defaultUnilateralRefundDelay                = 1024
-	defaultUnilateralRefundWithoutReceiverDelay = 224
+	defaultUnilateralRefundWithoutReceiverDelay = 2048
 	defaultRefundLocktime                       = time.Hour * 24
 )
 
