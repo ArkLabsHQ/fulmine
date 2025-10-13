@@ -29,6 +29,7 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/ccoveille/go-safecast"
 	"github.com/lightningnetwork/lnd/input"
+	decodepay "github.com/nbd-wtf/ln-decodepay"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -67,7 +68,6 @@ type Swap struct {
 
 func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.TransportClient, indexerClient indexer.Indexer, boltzSvc *boltz.Api, publicKey *btcec.PublicKey, timeout uint32) *SwapHandler {
 
-	println(timeout)
 	return &SwapHandler{
 		arkClient:       arkClient,
 		transportClient: transportClient,
@@ -172,9 +172,6 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-	unilateralClaimDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim}
-	unilateralRefundDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund}
-	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver}
 
 	vhtlcAddress, _, vhtlcOpts, err := h.getVHTLC(
 		ctx,
@@ -182,9 +179,9 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 		nil,
 		preimageHash,
 		refundLocktime,
-		unilateralClaimDelay,
-		unilateralRefundDelay,
-		unilateralRefundWithoutReceiverDelay,
+		deriveTimelock(swap.TimeoutBlockHeights.UnilateralClaim),
+		deriveTimelock(swap.TimeoutBlockHeights.UnilateralRefund),
+		deriveTimelock(swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver),
 	)
 	if err != nil {
 		return Swap{}, fmt.Errorf("failed to verify vHTLC: %v", err)
@@ -507,9 +504,6 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-	unilateralClaimDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim}
-	unilateralRefundDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund}
-	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver}
 
 	vhtlcAddress, _, vhtlcOpts, err := h.getVHTLC(
 		ctx,
@@ -517,9 +511,9 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 		senderPubkey,
 		gotPreimageHash,
 		refundLocktime,
-		unilateralClaimDelay,
-		unilateralRefundDelay,
-		unilateralRefundWithoutReceiverDelay,
+		deriveTimelock(swap.TimeoutBlockHeights.UnilateralClaim),
+		deriveTimelock(swap.TimeoutBlockHeights.UnilateralRefund),
+		deriveTimelock(swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver),
 	)
 
 	swapDetails := Swap{
@@ -541,10 +535,14 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 		return swapDetails, fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
-	// TODO: (Joshua) This should exists for the lifetime of the invoice
+	inv, err := decodepay.Decodepay(swap.Invoice)
+	if err != nil {
+		return swapDetails, fmt.Errorf("failed to decode invoice: %v", err)
+	}
+
 	go func() {
 		if reedeemTxId, err := h.waitAndClaimVHTLC(
-			context.Background(), swap.Id, preimage, vhtlcOpts,
+			inv.Expiry, swap.Id, preimage, vhtlcOpts,
 		); err != nil {
 			swapDetails.Status = SwapFailed
 			log.WithError(err).Error("failed to claim VHTLC")
@@ -562,70 +560,63 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 }
 
 func (h *SwapHandler) waitAndClaimVHTLC(
-	ctx context.Context, swapId string, preimage []byte, vhtlcOpts *vhtlc.Opts,
+	invoiceExpiry int, swapId string, preimage []byte, vhtlcOpts *vhtlc.Opts,
 ) (string, error) {
+
+	expiryDuration := time.Duration(invoiceExpiry) * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), expiryDuration*2)
+	defer cancel()
+
 	ws := h.boltzSvc.NewWebsocket()
 	defer ws.Close()
-	{
-		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-		err := ws.Connect()
-		for err != nil {
-			log.WithError(err).Warn("failed to connect to boltz websocket")
-			time.Sleep(time.Second)
-			log.Debug("reconnecting...")
-			err = ws.Connect()
-			if ctx.Err() != nil {
-				return "", fmt.Errorf("timeout while connecting to websocket: %v", ctx.Err())
-			}
-		}
 
-		err = ws.Subscribe([]string{swapId})
-		for err != nil {
-			log.WithError(err).Warn("failed to subscribe for swap events")
-			time.Sleep(time.Second)
-			log.Debug("retrying...")
-			err = ws.Subscribe([]string{swapId})
-		}
+	err := ws.ConnectAndSubscribe(ctx, []string{swapId}, 5*time.Second)
+	if err != nil {
+		return "", err
 	}
 
 	var txid string
-	for update := range ws.Updates {
-		parsedStatus := boltz.ParseEvent(update.Status)
-
-		confirmed := false
-		switch parsedStatus {
-		case boltz.TransactionMempool:
-			confirmed = true
-		case boltz.InvoiceFailedToPay, boltz.TransactionFailed, boltz.TransactionLockupFailed:
-			return "", fmt.Errorf("failed to receive payment: %s", update.Status)
-		}
-		if confirmed {
-			ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-			defer cancel()
-
-			interval := 200 * time.Millisecond
-			log.Debug("claiming VHTLC with preimage...")
-			if err := Retry(ctx, interval, func(ctx context.Context) (bool, error) {
-				var err error
-				txid, err = h.claimVHTLC(ctx, preimage, *vhtlcOpts)
-				if err != nil {
-					if errors.Is(err, ErrorNoVtxosFound) {
-						return false, nil
-					}
-					return false, err
-				}
-
-				return true, nil
-			}); err != nil {
-				return "", err
+	for {
+		select {
+		case update, ok := <-ws.Updates:
+			if !ok {
+				return "", fmt.Errorf("updates closed")
 			}
-			log.Debugf("successfully claimed VHTLC with tx: %s", txid)
-			break
+			parsedStatus := boltz.ParseEvent(update.Status)
+
+			confirmed := false
+			switch parsedStatus {
+			case boltz.TransactionMempool:
+				confirmed = true
+			case boltz.InvoiceFailedToPay, boltz.TransactionFailed, boltz.TransactionLockupFailed:
+				return "", fmt.Errorf("failed to receive payment: %s", update.Status)
+			}
+			if confirmed {
+				interval := 200 * time.Millisecond
+				log.Debug("claiming VHTLC with preimage...")
+				if err := Retry(ctx, interval, func(ctx context.Context) (bool, error) {
+					var err error
+					txid, err = h.claimVHTLC(ctx, preimage, *vhtlcOpts)
+					if err != nil {
+						if errors.Is(err, ErrorNoVtxosFound) {
+							return false, nil
+						}
+						return false, err
+					}
+
+					return true, nil
+				}); err != nil {
+					return "", err
+				}
+				log.Debugf("successfully claimed VHTLC with tx: %s", txid)
+				return txid, nil
+			}
+		case <-ctx.Done():
+			return "", fmt.Errorf("timed out waiting for boltz to detect payment")
 		}
+
 	}
 
-	return txid, nil
 }
 
 func (h *SwapHandler) getVHTLCFunds(ctx context.Context, vhtlcOpts vhtlc.Opts) ([]types.Vtxo, error) {
@@ -738,7 +729,7 @@ func (h *SwapHandler) claimVHTLC(
 
 	signTransaction := func(tx *psbt.Packet) (string, error) {
 		// add the preimage to the checkpoint input
-		if err := txutils.AddConditionWitness(0, tx, wire.TxWitness{preimage}); err != nil {
+		if err := txutils.SetArkPsbtField(tx, 0, txutils.ConditionWitnessField, wire.TxWitness{preimage}); err != nil {
 			return "", err
 		}
 
@@ -786,13 +777,9 @@ func (h *SwapHandler) claimVHTLC(
 	return arkTxid, nil
 }
 
-func checkpointExitScript(cfg *types.Config) *script.CSVMultisigClosure {
-	return &script.CSVMultisigClosure{
-		Locktime: cfg.UnilateralExitDelay,
-		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*btcec.PublicKey{cfg.SignerPubKey},
-		},
-	}
+func checkpointExitScript(cfg *types.Config) []byte {
+	buf, _ := hex.DecodeString(cfg.CheckpointTapscript)
+	return buf
 }
 
 // verifyInputSignatures checks that all inputs have a signature for the given pubkey
@@ -939,4 +926,12 @@ func offchainAddressPkScript(addr string) (string, error) {
 		return "", fmt.Errorf("failed to parse address to p2tr script: %w", err)
 	}
 	return hex.EncodeToString(p2trScript), nil
+}
+
+func deriveTimelock(timelock uint32) arklib.RelativeLocktime {
+	if timelock >= 512 {
+		return arklib.RelativeLocktime{Type: arklib.LocktimeTypeSecond, Value: timelock}
+	}
+
+	return arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: timelock}
 }

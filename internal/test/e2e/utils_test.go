@@ -257,6 +257,7 @@ func findInHistory(txid string, history []transactionInfo, txType transactionTyp
 }
 
 type createVHTLCResponse struct {
+	Id                                   string `json:"id"`
 	Address                              string `json:"address"`
 	ClaimPubkey                          string `json:"claimPubkey"`
 	RefundPubkey                         string `json:"refundPubkey"`
@@ -301,8 +302,11 @@ type ClaimVHTLCResponse struct {
 	RedeemTxid string `json:"redeemTxid"`
 }
 
-func claimVHTLC(preimage string) (string, error) {
-	payload := map[string]string{"preimage": preimage}
+func claimVHTLC(vhtlcId, preimage string) (string, error) {
+	payload := map[string]string{
+		"vhtlcId":  vhtlcId,
+		"preimage": preimage,
+	}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
@@ -364,7 +368,7 @@ func getVirtualTxs(txids []string) ([]string, error) {
 	// Join txids with commas for the URL path parameter
 	txidsParam := strings.Join(txids, ",")
 	url := fmt.Sprintf("%s/virtualTx/%s", baseUrl, txidsParam)
-	
+
 	resp, err := httpClient.Get(url)
 	if err != nil {
 		return nil, err

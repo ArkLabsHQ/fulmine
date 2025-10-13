@@ -172,6 +172,7 @@ func NewVHTLCScript(opts Opts) (*VHTLCScript, error) {
 	claimClosure := opts.claimClosure(preimageCondition)
 	refundClosure := opts.refundClosure()
 	refundWithoutReceiverClosure := opts.refundWithoutReceiverClosure()
+
 	unilateralClaimClosure := opts.unilateralClaimClosure(preimageCondition)
 	unilateralRefundClosure := opts.unilateralRefundClosure()
 	unilateralRefundWithoutReceiverClosure := opts.unilateralRefundWithoutReceiverClosure()

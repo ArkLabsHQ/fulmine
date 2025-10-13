@@ -113,26 +113,19 @@ func (s *service) ScheduleRefundAtTime(at time.Time, refundFunc func()) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.scheduler.Remove(s.job)
-	s.job = nil
-
 	if delay == 0 {
 		refundFunc()
 		return nil
 	}
 
-	job, err := s.scheduler.Every(delay).WaitForSchedule().LimitRunsTo(1).Do(func() {
+	_, err := s.scheduler.Every(delay).WaitForSchedule().LimitRunsTo(1).Do(func() {
 		refundFunc()
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		s.scheduler.Remove(s.job)
-		s.job = nil
 	})
 	if err != nil {
 		return err
 	}
-
-	s.job = job
 
 	return err
 }
