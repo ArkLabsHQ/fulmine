@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"sync"
-	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
@@ -152,13 +150,6 @@ func NewService(
 		TLSConfig: cfg.tlsConfig(),
 	}
 
-	closeChannel := sync.OnceFunc(func() {
-		close(appStopCh)
-		close(feStopCh)
-	})
-
-	httpServer.RegisterOnShutdown(closeChannel)
-
 	svc := &service{
 		cfg,
 		appSvc,
@@ -227,20 +218,14 @@ func (s *service) autoUnlock() error {
 }
 
 func (s *service) Stop() {
+	s.appStopCh <- struct{}{}
+	s.feStopCh <- struct{}{}
+
 	s.grpcServer.GracefulStop()
 	log.Info("stopped grpc server")
 	// nolint:all
-
-	s.httpServer.SetKeepAlivesEnabled(false)
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	err := s.httpServer.Shutdown(ctx)
-	if err != nil {
-		_ = s.httpServer.Close()
-	}
-
+	s.httpServer.Shutdown(context.Background())
 	log.Info("stopped http server")
-
 }
 
 func (s *service) listenToWalletUpdates() {
