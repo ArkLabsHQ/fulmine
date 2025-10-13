@@ -32,6 +32,8 @@ templ statusLine(status string) {
       <p class="text-red">Failed</p>
     } else if status == "pending" {
       <p class="text-yellow">Pending</p>
+    } else if status == "preconfirmed" {
+      <p class="text-yellow">Preconfirmed</p>
     } else if status == "waiting" {
       <p class="text-yellow">Waiting</p>
     } else if status == "unconfirmed" {
@@ -42,22 +44,24 @@ templ statusLine(status string) {
   </div>
 }
 
-templ PendingTransferTable(createdAt, nextClaim string) {
+templ PendingTransferTable(createdAt, expiresAt, nextClaim string) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
-    @statusLine("pending")
+    @statusLine("preconfirmed")
+    @tableLine("Expiring", expiresAt)
   </div>
   <div class="bg-desktopbg md:bg-white/10 p-4 w-full max-w-[360px] mt-4 rounded-lg text-white">
     <p class="mb-4">Your settlement has been scheduled for <span class="font-semibold">{nextClaim}</span></p>
     <div class="flex justify-between text-white/50 items-center gap-4">
       <p hx-get="/modal/reversibleinfo" hx-target="#modal" class="cursor-pointer">@InfoIcon()</p>
-      <p class="text-xs">Transaction pending. Funds will be non-reversible after settlement.</p>
+      <p class="text-xs">Transaction preconfirmed. Funds will be non-reversible after settlement.</p>
     </div>
   </div>
 }
 
-templ PendingPaymentTable(createdAt string, refundLockTime types.LockTime) {
+templ PendingPaymentTable(createdAt string, expiresAt string, refundLockTime types.LockTime) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @statusLine("pending")
+    @tableLine("Expiring", expiresAt)
   </div>
   <div class="bg-desktopbg md:bg-white/10 p-4 w-full max-w-[360px] mt-4 rounded-lg text-white">
     if refundLockTime.IsSeconds {
@@ -94,9 +98,10 @@ templ RefundingPaymentTable(createdAt string, refundLocktime types.LockTime) {
   </div>
 }
 
-templ PendingSwapTable(createdAt string, refundLocktime types.LockTime) {
+templ PendingSwapTable(createdAt string, expiresAt string, refundLocktime types.LockTime) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @statusLine("pending")
+    @tableLine("Expiring", expiresAt)
   </div>
   <div class="bg-desktopbg md:bg-white/10 p-4 w-full max-w-[360px] mt-4 rounded-lg text-white">
     if refundLocktime.IsSeconds {

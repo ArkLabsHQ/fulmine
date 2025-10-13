@@ -20,7 +20,7 @@ type heightTask struct {
 type service struct {
 	scheduler      *gocron.Scheduler
 	esploraService esplora.Service
-	job            *gocron.Job
+	settleJob      *gocron.Job
 	mu             *sync.Mutex
 	blockCancel    context.CancelFunc
 	tasks          []*heightTask
@@ -113,26 +113,20 @@ func (s *service) ScheduleRefundAtTime(at time.Time, refundFunc func()) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.scheduler.Remove(s.job)
-	s.job = nil
-
 	if delay == 0 {
 		refundFunc()
 		return nil
 	}
 
-	job, err := s.scheduler.Every(delay).WaitForSchedule().LimitRunsTo(1).Do(func() {
+	_, err := s.scheduler.Every(delay).WaitForSchedule().LimitRunsTo(1).Do(func() {
 		refundFunc()
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		s.scheduler.Remove(s.job)
-		s.job = nil
+
 	})
 	if err != nil {
 		return err
 	}
-
-	s.job = job
 
 	return err
 }
@@ -151,8 +145,9 @@ func (s *service) ScheduleNextSettlement(at time.Time, settleFunc func()) error 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.scheduler.Remove(s.job)
-	s.job = nil
+	if s.settleJob != nil && s.settleJob.ScheduledTime().Before(at) {
+		return nil
+	}
 
 	if delay == 0 {
 		settleFunc()
@@ -163,14 +158,14 @@ func (s *service) ScheduleNextSettlement(at time.Time, settleFunc func()) error 
 		settleFunc()
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		s.scheduler.Remove(s.job)
-		s.job = nil
+		s.scheduler.Remove(s.settleJob)
+		s.settleJob = nil
 	})
 	if err != nil {
 		return err
 	}
 
-	s.job = job
+	s.settleJob = job
 
 	return err
 }
@@ -180,9 +175,9 @@ func (s *service) WhenNextSettlement() time.Time {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.job == nil {
+	if s.settleJob == nil {
 		return time.Time{}
 	}
 
-	return s.job.NextRun()
+	return s.settleJob.NextRun()
 }

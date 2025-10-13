@@ -942,6 +942,11 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		return nil, err
 	}
 
+	sessionDuration, err := s.svc.GetSessionDuration(c)
+	if err != nil {
+		return nil, err
+	}
+
 	// Get Swap Transaction
 	swapTxs, err := s.svc.GetSwapHistory(c)
 	if err != nil {
@@ -965,7 +970,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedSendTransfer := toTransfer(sendTransfer)
+				modifiedSendTransfer := toTransfer(sendTransfer, sessionDuration)
 				transformedSwap.VHTLCTransfer = &modifiedSendTransfer
 			}
 
@@ -974,7 +979,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			})
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer)
+				modifiedReceiveTransfer := toTransfer(receiveTransfer, sessionDuration)
 				transformedSwap.RedeemTransfer = &modifiedReceiveTransfer
 			}
 
@@ -985,7 +990,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer)
+				modifiedReceiveTransfer := toTransfer(receiveTransfer, sessionDuration)
 				transformedSwap.RedeemTransfer = &modifiedReceiveTransfer
 			}
 		}
@@ -1011,7 +1016,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedSendTransfer := toTransfer(sendTransfer)
+				modifiedSendTransfer := toTransfer(sendTransfer, sessionDuration)
 				transformedPayment.PaymentTransfer = &modifiedSendTransfer
 			}
 
@@ -1021,7 +1026,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer)
+				modifiedReceiveTransfer := toTransfer(receiveTransfer, sessionDuration)
 				transformedPayment.ReclaimTransfer = &modifiedReceiveTransfer
 			}
 		} else {
@@ -1031,7 +1036,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer)
+				modifiedReceiveTransfer := toTransfer(receiveTransfer, sessionDuration)
 				transformedPayment.PaymentTransfer = &modifiedReceiveTransfer
 			}
 		}
@@ -1047,7 +1052,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 	for _, tx := range transferTxns {
 
-		modifiedTransfer := toTransfer(tx)
+		modifiedTransfer := toTransfer(tx, sessionDuration)
 
 		transaction := types.Transaction{
 			Kind:        "transfer",
@@ -1129,6 +1134,12 @@ func (s *service) claimTx(c *gin.Context) {
 		return
 	}
 
+	sessionDuration, err := s.svc.GetSessionDuration(c)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
 	transferTxns, err := s.svc.GetTransactionHistory(c)
 	if err != nil {
 		// nolint:all
@@ -1139,7 +1150,7 @@ func (s *service) claimTx(c *gin.Context) {
 	txid := c.Param("txid")
 	var tx types.Transfer
 	for _, transaction := range transferTxns {
-		transfer := toTransfer(transaction)
+		transfer := toTransfer(transaction, sessionDuration)
 		if transfer.Txid == txid {
 			tx = transfer
 			break
@@ -1378,7 +1389,7 @@ func toPayment(payment domain.Swap) types.Payment {
 
 }
 
-func toTransfer(tx sdktypes.Transaction) types.Transfer {
+func toTransfer(tx sdktypes.Transaction, sessionDuration int64) types.Transfer {
 	// amount
 	amount := strconv.FormatUint(tx.Amount, 10)
 	if tx.Type == sdktypes.TxSent {
@@ -1386,6 +1397,10 @@ func toTransfer(tx sdktypes.Transaction) types.Transfer {
 	}
 	// date of creation
 	dateCreated := tx.CreatedAt.Unix()
+
+	// expiry of tx
+	expiresAt := dateCreated + sessionDuration
+
 	// status of tx
 	status := "pending"
 	if tx.Settled {
@@ -1411,6 +1426,7 @@ func toTransfer(tx sdktypes.Transaction) types.Transfer {
 		Amount:     amount,
 		CreatedAt:  prettyUnixTimestamp(dateCreated),
 		Day:        prettyDay(dateCreated),
+		ExpiresAt:  prettyUnixTimestamp(expiresAt),
 		Explorable: explorable,
 		Hour:       prettyHour(dateCreated),
 		Kind:       strings.ToLower(string(tx.Type)),
