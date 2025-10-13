@@ -172,9 +172,6 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-	unilateralClaimDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim}
-	unilateralRefundDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund}
-	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver}
 
 	vhtlcAddress, _, vhtlcOpts, err := h.getVHTLC(
 		ctx,
@@ -182,9 +179,9 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 		nil,
 		preimageHash,
 		refundLocktime,
-		unilateralClaimDelay,
-		unilateralRefundDelay,
-		unilateralRefundWithoutReceiverDelay,
+		deriveTimelock(swap.TimeoutBlockHeights.UnilateralClaim),
+		deriveTimelock(swap.TimeoutBlockHeights.UnilateralRefund),
+		deriveTimelock(swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver),
 	)
 	if err != nil {
 		return Swap{}, fmt.Errorf("failed to verify vHTLC: %v", err)
@@ -507,9 +504,6 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-	unilateralClaimDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralClaim}
-	unilateralRefundDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefund}
-	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver}
 
 	vhtlcAddress, _, vhtlcOpts, err := h.getVHTLC(
 		ctx,
@@ -517,9 +511,9 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 		senderPubkey,
 		gotPreimageHash,
 		refundLocktime,
-		unilateralClaimDelay,
-		unilateralRefundDelay,
-		unilateralRefundWithoutReceiverDelay,
+		deriveTimelock(swap.TimeoutBlockHeights.UnilateralClaim),
+		deriveTimelock(swap.TimeoutBlockHeights.UnilateralRefund),
+		deriveTimelock(swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver),
 	)
 
 	swapDetails := Swap{
@@ -932,4 +926,12 @@ func offchainAddressPkScript(addr string) (string, error) {
 		return "", fmt.Errorf("failed to parse address to p2tr script: %w", err)
 	}
 	return hex.EncodeToString(p2trScript), nil
+}
+
+func deriveTimelock(timelock uint32) arklib.RelativeLocktime {
+	if timelock >= 512 {
+		return arklib.RelativeLocktime{Type: arklib.LocktimeTypeSecond, Value: timelock}
+	}
+
+	return arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: timelock}
 }
