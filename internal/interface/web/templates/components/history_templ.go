@@ -243,7 +243,7 @@ func TransferHistoryLine(tx types.Transfer) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if tx.Status == "pending" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"flex items-center\"><p class=\"bg-orange/20 px-2 py-1 rounded-md text-sm text-orange\">Pending</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"flex items-center\"><p class=\"bg-orange/20 px-2 py-1 rounded-md text-sm text-orange\">Preconfirmed</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

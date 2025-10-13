@@ -557,11 +557,14 @@ func (s *Service) Settle(ctx context.Context) (string, error) {
 }
 
 func (s *Service) scheduleNextSettlement(data *types.Config) error {
-
 	nextExpiry, err := s.computeNextExpiry(context.Background(), data)
 
 	if err != nil {
 		return err
+	}
+
+	if nextExpiry == nil {
+		return nil
 	}
 
 	task := func() {
@@ -1452,7 +1455,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 				Id:          swap.Id,
 				Amount:      amount,
 				Timestamp:   time.Now().Unix(),
-				Status:      domain.SwapPending,
+				Status:      domain.SwapFailed,
 				Type:        domain.SwapRegular,
 				Invoice:     invoice,
 				FundingTxId: txid,
