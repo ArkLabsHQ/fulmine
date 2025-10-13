@@ -19,7 +19,10 @@ func setupMiddleware(engine *gin.Engine, enabled bool) {
 			WaitForDelivery: false, // Don't wait for Sentry to deliver events (non-blocking)
 			Timeout:         5 * time.Second,
 		}))
+
+		log.Info("Sentry error monitoring enabled")
+		return
 	}
 
-	log.Info("Sentry error monitoring enabled")
+	log.Info("Sentry error monitoring disabled")
 }
