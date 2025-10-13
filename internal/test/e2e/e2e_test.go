@@ -63,6 +63,12 @@ func TestSendOffChain(t *testing.T) {
 	balance, err := getBalance()
 	require.NoError(t, err)
 	require.Equal(t, int(initialBalance-1000), int(balance))
+
+	// Test GetVirtualTxs RPC with the txid from the send operation
+	virtualTxs, err := getVirtualTxs([]string{txid})
+	require.NoError(t, err)
+	require.Len(t, virtualTxs, 1, "should return one virtual transaction")
+	require.NotEmpty(t, virtualTxs[0], "virtual transaction hex should not be empty")
 }
 
 func TestSendOnChain(t *testing.T) {
@@ -113,10 +119,10 @@ func TestVHTLC(t *testing.T) {
 	// Get the VHTLC
 	vhtlcs, err := listVHTLC(preimageHash)
 	require.NoError(t, err)
-	require.Len(t, vhtlcs, 1)
+	require.GreaterOrEqual(t, len(vhtlcs), 1)
 
 	// Claim the VHTLC
-	redeemTxid, err := claimVHTLC(hex.EncodeToString(preimage))
+	redeemTxid, err := claimVHTLC(vhtlc.Id, hex.EncodeToString(preimage))
 	require.NoError(t, err)
 	require.NotEmpty(t, redeemTxid)
 }

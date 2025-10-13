@@ -1,0 +1,1 @@
+ALTER TABLE swap ADD COLUMN swap_type INTEGER CHECK(swap_type IN(0,1)) NOT NULL DEFAULT 0;

@@ -3,7 +3,7 @@ FROM golang:1.24.6 AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
-ARG ARKD_VERSION=v0.7.1
+ARG ARKD_VERSION=master
 
 WORKDIR /app
 
@@ -23,7 +23,7 @@ WORKDIR /app
 COPY --from=builder /app/bin/* /app/
 
 ENV PATH="/app:${PATH}"
-ENV ARK_DATADIR=/app/data
+ENV ARKD_DATADIR=/app/data
 
 # Expose volume containing all 'arkd' data
 VOLUME /app/data

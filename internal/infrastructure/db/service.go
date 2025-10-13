@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"embed"
 	"errors"
 	"fmt"
@@ -83,6 +84,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open swap db: %s", err)
 		}
+
 		subscribedScriptRepo, err = badgerdb.NewSubscribedScriptRepository(baseDir, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open subscribed script db: %s", err)
@@ -117,8 +119,27 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 			return nil, fmt.Errorf("failed to create migration instance: %s", err)
 		}
 
-		if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		// ---- STEPWISE MIGRATION ----
+		vhtlcMigrationBegin := uint(20250622101533)
+		_, dirty, verr := m.Version()
+		if verr != nil && !errors.Is(verr, migrate.ErrNilVersion) {
+			return nil, fmt.Errorf("failed to read migration version: %w", verr)
+		}
+		if dirty {
+			return nil, fmt.Errorf("database is in a dirty migration state; manual intervention required")
+		}
+
+		if err := m.Migrate(vhtlcMigrationBegin); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 			return nil, fmt.Errorf("failed to run migrations: %s", err)
+		}
+
+		err = sqlitedb.BackfillVhtlc(context.Background(), db)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			return nil, fmt.Errorf("failed to run remaining migrations: %s", err)
 		}
 
 		settingsRepo, err = sqlitedb.NewSettingsRepository(db)
@@ -137,6 +158,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open swap db: %s", err)
 		}
+
 		subscribedScriptRepo, err = sqlitedb.NewSubscribedScriptRepository(db)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open subscribed script db: %s", err)

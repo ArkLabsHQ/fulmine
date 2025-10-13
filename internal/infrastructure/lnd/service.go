@@ -223,11 +223,12 @@ func (s *service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, e
 	return invoiceResp.State == lnrpc.Invoice_SETTLED, nil
 }
 
-func (s *service) GetBalance(ctx context.Context) (uint64, error) {
+func (s *service) GetBalance(ctx context.Context) (balance uint64, err error) {
 	ctx = getCtx(ctx, s.macaroon)
 	resp, err := s.client.ChannelBalance(ctx, &lnrpc.ChannelBalanceRequest{})
 	if err != nil {
 		return 0, err
 	}
-	return uint64(resp.GetLocalBalance().Msat), nil
+
+	return resp.LocalBalance.Msat, nil
 }

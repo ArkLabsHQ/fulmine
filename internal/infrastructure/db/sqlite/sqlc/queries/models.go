@@ -33,6 +33,7 @@ type Swap struct {
 	ToCurrency   string
 	FromCurrency string
 	Status       int64
+	SwapType     int64
 	Invoice      string
 	FundingTxID  string
 	RedeemTxID   string
@@ -40,6 +41,7 @@ type Swap struct {
 }
 
 type Vhtlc struct {
+	ID                                        string
 	PreimageHash                              string
 	Sender                                    string
 	Receiver                                  string

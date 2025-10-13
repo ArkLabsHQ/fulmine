@@ -16,11 +16,24 @@ type TimeoutBlockHeights struct {
 	UnilateralRefundWithoutReceiver uint32 `json:"unilateralRefundWithoutReceiver"`
 }
 
+type FetchBolt12InvoiceRequest struct {
+	Offer  string `json:"offer"`
+	Amount uint64 `json:"amount,omitempty"`
+	Note   string `json:"note,omitempty"`
+}
+
+type FetchBolt12InvoiceResponse struct {
+	Invoice string `json:"invoice"`
+
+	Error string `json:"error"`
+}
+
 type CreateSwapRequest struct {
 	From            Currency `json:"from"`
 	To              Currency `json:"to"`
 	RefundPublicKey string   `json:"refundPublicKey"`
 	Invoice         string   `json:"invoice,omitempty"`
+	PaymentTimeout  uint32   `json:"paymentTimeout,omitempty"`
 }
 
 type CreateSwapResponse struct {

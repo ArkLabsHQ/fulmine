@@ -8,7 +8,7 @@ type PoolTxs struct {
 }
 
 type Transaction struct {
-	// Kind can be "swap" or "transfer"
+	// Kind can be "swap" or "transfer" or "payment"
 	Kind string `json:"kind"`
 
 	Id string `json:"id"`
@@ -18,9 +18,5 @@ type Transaction struct {
 	// Exactly one of these will be non-nil:
 	Swap     *Swap     `json:"swap,omitempty"`
 	Transfer *Transfer `json:"transfer,omitempty"`
-
-	// If Swap is Outbound, this is the Sent VHTLC
-	VHTLCTransfer *Transfer `json:"vhtlc,omitempty"`
-	// If Swap is Inbound, this is the Redeem Tx, else this is Txn of reclaim Failed Outbound Swap
-	RedeemTransfer *Transfer `json:"redeemTransfer,omitempty"`
+	Payment  *Payment  `json:"payment,omitempty"`
 }

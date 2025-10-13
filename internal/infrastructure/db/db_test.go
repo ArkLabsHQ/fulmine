@@ -3,7 +3,6 @@ package db_test
 import (
 	"context"
 	"crypto/rand"
-	"encoding/hex"
 	"testing"
 	"time"
 
@@ -121,6 +120,7 @@ func testSwapRepository(t *testing.T, svc ports.RepoManager) {
 	t.Run("swap repository", func(t *testing.T) {
 		testAddSwap(t, svc.Swap())
 		testGetAllSwap(t, svc.Swap())
+		testUpdateSwap(t, svc.Swap())
 	})
 }
 
@@ -221,9 +221,9 @@ func testCleanSettings(t *testing.T, repo domain.SettingsRepository) {
 
 func testAddVHTLC(t *testing.T, repo domain.VHTLCRepository) {
 	t.Run("add vHTLC", func(t *testing.T) {
-		opt, err := repo.Get(ctx, hex.EncodeToString(testVHTLC.PreimageHash))
+		vHTLC, err := repo.Get(ctx, testVHTLC.Id)
 		require.Error(t, err)
-		require.Nil(t, opt)
+		require.Nil(t, vHTLC)
 
 		err = repo.Add(ctx, testVHTLC)
 		require.NoError(t, err)
@@ -231,10 +231,10 @@ func testAddVHTLC(t *testing.T, repo domain.VHTLCRepository) {
 		err = repo.Add(ctx, testVHTLC)
 		require.Error(t, err)
 
-		opt, err = repo.Get(ctx, hex.EncodeToString(testVHTLC.PreimageHash))
+		vHTLC, err = repo.Get(ctx, testVHTLC.Id)
 		require.NoError(t, err)
-		require.NotNil(t, opt)
-		require.Equal(t, testVHTLC, *opt)
+		require.NotNil(t, vHTLC)
+		require.Equal(t, testVHTLC, *vHTLC)
 
 		err = repo.Add(ctx, testVHTLC)
 		require.Error(t, err)
@@ -243,21 +243,20 @@ func testAddVHTLC(t *testing.T, repo domain.VHTLCRepository) {
 
 func testGetAllVHTLC(t *testing.T, repo domain.VHTLCRepository) {
 	t.Run("get all vHTLCs", func(t *testing.T) {
-		opts, err := repo.GetAll(ctx)
+		vHTLC, err := repo.GetAll(ctx)
 		require.NoError(t, err)
-		require.Len(t, opts, 1)
+		require.Len(t, vHTLC, 1)
 
 		// Add another vHTLC
-		secondVHTLC := testVHTLC
-		secondVHTLC.PreimageHash = []byte("second_preimage_hash")
+		secondVHTLC := makeVHTLC()
 		err = repo.Add(ctx, secondVHTLC)
 		require.NoError(t, err)
 
 		// Get all vHTLCs
-		opts, err = repo.GetAll(ctx)
+		vhtlcList, err := repo.GetAll(ctx)
 		require.NoError(t, err)
-		require.Len(t, opts, 2)
-		require.Subset(t, []vhtlc.Opts{testVHTLC, secondVHTLC}, opts)
+		require.Len(t, vhtlcList, 2)
+		require.Subset(t, []domain.Vhtlc{testVHTLC, secondVHTLC}, vhtlcList)
 	})
 }
 
@@ -365,6 +364,23 @@ func testGetAllSwap(t *testing.T, repo domain.SwapRepository) {
 	})
 }
 
+func testUpdateSwap(t *testing.T, repo domain.SwapRepository) {
+	t.Run("update swap", func(t *testing.T) {
+		modifiedTestSwap := testSwap
+		modifiedTestSwap.Status = domain.SwapSuccess
+		modifiedTestSwap.RedeemTxId = "redeemed_tx_id"
+
+		err := repo.Update(ctx, modifiedTestSwap)
+		require.NoError(t, err)
+
+		updatedSwap, err := repo.Get(ctx, testSwap.Id)
+		require.NoError(t, err)
+		require.NotNil(t, updatedSwap)
+		require.Equal(t, domain.SwapSuccess, updatedSwap.Status)
+		require.Equal(t, "redeemed_tx_id", updatedSwap.RedeemTxId)
+	})
+}
+
 func testAddSubscribedScripts(t *testing.T, repo domain.SubscribedScriptRepository) {
 	t.Run("add subscribed scripts", func(t *testing.T) {
 		scripts, err := repo.Get(ctx)
@@ -421,7 +437,7 @@ func testDeleteSubscribedScripts(t *testing.T, repo domain.SubscribedScriptRepos
 
 }
 
-func makeVHTLC() vhtlc.Opts {
+func makeVHTLC() domain.Vhtlc {
 	randBytes := make([]byte, 20)
 	_, _ = rand.Read(randBytes)
 
@@ -429,7 +445,7 @@ func makeVHTLC() vhtlc.Opts {
 	senderKey, _ := btcec.NewPrivateKey()
 	receiverKey, _ := btcec.NewPrivateKey()
 
-	return vhtlc.Opts{
+	opts := vhtlc.Opts{
 		PreimageHash:   randBytes,
 		Sender:         senderKey.PubKey(),
 		Receiver:       receiverKey.PubKey(),
@@ -448,6 +464,8 @@ func makeVHTLC() vhtlc.Opts {
 			Value: 500,
 		},
 	}
+
+	return domain.NewVhtlc(opts)
 }
 
 func makeSwap() domain.Swap {
@@ -459,7 +477,7 @@ func makeSwap() domain.Swap {
 		From:        "test_from",
 		Status:      domain.SwapSuccess,
 		Invoice:     "test_invoice",
-		VhtlcOpts:   makeVHTLC(),
+		Vhtlc:       makeVHTLC(),
 		FundingTxId: "funding_tx_id",
 		RedeemTxId:  "redeem_tx_id",
 	}

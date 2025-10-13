@@ -17,7 +17,6 @@ import (
 const (
 	macaroonsLocation = "fulmine"
 	macaroonsDbFile   = "macaroons.db"
-	macaroonsFolder   = "macaroons"
 )
 
 type Service interface {
@@ -42,7 +41,7 @@ type macaroonSvc struct {
 }
 
 func NewService(
-	datadir string, macFiles, whitelistedMethods, allMethods map[string][]bakery.Op,
+	datadir, macaroonsFolder string, macFiles, whitelistedMethods, allMethods map[string][]bakery.Op,
 ) (Service, error) {
 	macDatadir := filepath.Join(datadir, macaroonsFolder)
 	keyStore, err := initKeyStore(macDatadir)
@@ -136,6 +135,7 @@ func (m *macaroonSvc) Auth(ctx context.Context, grpcFullMethodName string) error
 	if !ok {
 		validator = m.svc
 	}
+
 	return validator.ValidateMacaroon(ctx, uriPermissions, grpcFullMethodName)
 }
 
@@ -200,6 +200,7 @@ func initKeyStore(datadir string) (*macaroons.RootKeyStorage, error) {
 		filepath.Join(datadir, macaroonsDbFile),
 		true,
 		kvdb.DefaultDBTimeout,
+		false,
 	)
 	if err != nil {
 		return nil, err

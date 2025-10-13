@@ -39,6 +39,7 @@ type Config struct {
 	UnlockerFilePath string
 	UnlockerPassword string
 	DisableTelemetry bool
+	SwapTimeout      uint32
 
 	LnConnectionOpts *domain.LnConnectionOpts
 
@@ -63,6 +64,7 @@ var (
 	ClnUrl           = "CLN_URL"
 	ClnDatadir       = "CLN_DATADIR"
 	LndDatadir       = "LND_DATADIR"
+	SwapTimeout      = "SWAP_TIMEOUT"
 
 	// Unlocker configuration
 	UnlockerType     = "UNLOCKER_TYPE"
@@ -86,6 +88,7 @@ var (
 	defaultClnUrl      = ""
 	defaultClnDatadir  = ""
 	defaultLndDatadir  = ""
+	defaultSwapTimeout = 120 // In seconds
 )
 
 func LoadConfig() (*Config, error) {
@@ -105,6 +108,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(ClnUrl, defaultClnUrl)
 	viper.SetDefault(ClnDatadir, defaultClnDatadir)
 	viper.SetDefault(LndDatadir, defaultLndDatadir)
+	viper.SetDefault(SwapTimeout, defaultSwapTimeout)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
@@ -140,6 +144,7 @@ func LoadConfig() (*Config, error) {
 		UnlockerFilePath: viper.GetString(UnlockerFilePath),
 		UnlockerPassword: viper.GetString(UnlockerPassword),
 		DisableTelemetry: viper.GetBool(DisableTelemetry),
+		SwapTimeout:      viper.GetUint32(SwapTimeout),
 
 		LnConnectionOpts: lnConnectionOpts,
 	}
@@ -192,7 +197,7 @@ func (c *Config) initMacaroonService() error {
 
 	if !viper.GetBool(NoMacaroons) {
 		svc, err := macaroon.NewService(
-			viper.GetString(Datadir), macFiles, WhitelistedByMethod(), AllPermissionsByMethod(),
+			c.Datadir, macaroonsFolder, macFiles, WhitelistedByMethod(), AllPermissionsByMethod(),
 		)
 		if err != nil {
 			return err
@@ -331,11 +336,12 @@ func deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir string) (*domain.LnCo
 			return nil, fmt.Errorf("LND URL provided without LND datadir")
 		}
 
-		if _, err := utils.ValidateURL(lndUrl); err != nil {
+		validatedUrl, err := utils.ValidateURL(lndUrl)
+		if err != nil {
 			return nil, fmt.Errorf("invalid LND URL: %v", err)
 		}
 		return &domain.LnConnectionOpts{
-			LnUrl:          lndUrl,
+			LnUrl:          validatedUrl,
 			LnDatadir:      lndDatadir,
 			ConnectionType: domain.LND_CONNECTION,
 		}, nil
@@ -352,12 +358,13 @@ func deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir string) (*domain.LnCo
 		return nil, fmt.Errorf("CLN URL provided without CLN datadir")
 	}
 
-	if _, err := utils.ValidateURL(clnUrl); err != nil {
+	validatedUrl, err := utils.ValidateURL(clnUrl)
+	if err != nil {
 		return nil, fmt.Errorf("invalid CLN URL: %v", err)
 	}
 
 	return &domain.LnConnectionOpts{
-		LnUrl:          clnUrl,
+		LnUrl:          validatedUrl,
 		LnDatadir:      clnDatadir,
 		ConnectionType: domain.CLN_CONNECTION,
 	}, nil

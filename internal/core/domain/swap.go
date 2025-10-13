@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 )
 
 type SwapStatus int
@@ -15,6 +14,13 @@ const (
 	SwapSuccess
 )
 
+type SwapType int
+
+const (
+	SwapRegular SwapType = iota
+	SwapPayment
+)
+
 type Swap struct {
 	Id          string
 	Amount      uint64
@@ -22,8 +28,9 @@ type Swap struct {
 	To          boltz.Currency
 	From        boltz.Currency
 	Status      SwapStatus
+	Type        SwapType
 	Invoice     string
-	VhtlcOpts   vhtlc.Opts
+	Vhtlc       Vhtlc
 	FundingTxId string // the txid of the virtual tx that funded the vhtlc
 	RedeemTxId  string // the txid of the virtual tx that redeemed the funds, by either "claiming" or "refunding"
 }
@@ -33,5 +40,6 @@ type SwapRepository interface {
 	GetAll(ctx context.Context) ([]Swap, error)
 	Get(ctx context.Context, swapId string) (*Swap, error)
 	Add(ctx context.Context, swap Swap) error
+	Update(ctx context.Context, swap Swap) error
 	Close()
 }

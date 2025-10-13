@@ -84,7 +84,7 @@ services:
       - ARKD_LIVE_STORE_TYPE=inmemory
       - ARKD_EVENT_DB_TYPE=badger
       - ARKD_DB_TYPE=sqlite
-      - ARKD_ROUND_INTERVAL=10
+      - ARKD_SESSION_DURATION=10
     volumes:
       - type: tmpfs
         target: /app/data
@@ -105,6 +105,7 @@ services:
       - FULMINE_NO_MACAROONS=true
       - FULMINE_LOG_LEVEL=5
       - FULMINE_DISABLE_TELEMETRY=true
+      - FULMINE_SWAP_TIMEOUT=30
     ports:
       - "7000:7000"
       - "7001:7001"

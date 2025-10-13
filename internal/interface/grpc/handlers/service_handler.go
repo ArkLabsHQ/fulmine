@@ -7,6 +7,8 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/pkg/swap"
+	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/arkade-os/go-sdk/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -221,7 +223,12 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 		return nil, status.Error(codes.InvalidArgument, "invalid preimage")
 	}
 
-	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes)
+	vhtlcId := req.GetVhtlcId()
+	if vhtlcId == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
+	}
+
+	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes, vhtlcId)
 	if err != nil {
 		return nil, err
 	}
@@ -230,14 +237,14 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 }
 
 func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb.RefundVHTLCWithoutReceiverRequest) (*pb.RefundVHTLCWithoutReceiverResponse, error) {
-	preimageHash, err := parsePreimageHash(req.GetPreimageHash())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+	vhtlcId := req.GetVhtlcId()
+	if vhtlcId == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
 	}
 	withReceiver := true
 	withoutReceiver := !withReceiver
 
-	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", preimageHash, withoutReceiver)
+	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", vhtlcId, withoutReceiver)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +253,7 @@ func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb
 }
 
 func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest) (*pb.ListVHTLCResponse, error) {
-	vtxos, _, err := h.svc.ListVHTLC(ctx, req.GetPreimageHashFilter())
+	vtxos, _, err := h.svc.ListVHTLC(ctx, req.GetVhtlcId())
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +312,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
 	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
 
-	addr, vhtlcScript, _, err := h.svc.GetVHTLC(
+	addr, vhtlc_id, vhtlcScript, _, err := h.svc.GetVHTLC(
 		ctx,
 		receiverPubkey,
 		senderPubkey,
@@ -320,6 +327,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	}
 
 	return &pb.CreateVHTLCResponse{
+		Id:                                   vhtlc_id,
 		Address:                              addr,
 		ClaimPubkey:                          hex.EncodeToString(vhtlcScript.Receiver.SerializeCompressed()[1:]),
 		RefundPubkey:                         hex.EncodeToString(vhtlcScript.Sender.SerializeCompressed()[1:]),
@@ -340,13 +348,13 @@ func (h *serviceHandler) GetInvoice(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	invoice, err := h.svc.GetInvoice(ctx, amount)
+	resp, err := h.svc.GetInvoice(ctx, amount)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.GetInvoiceResponse{
-		Invoice: invoice,
+		Invoice: resp.Invoice,
 	}, nil
 }
 
@@ -358,12 +366,24 @@ func (h *serviceHandler) PayInvoice(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	txid, err := h.svc.PayInvoice(ctx, invoice)
-	if err != nil {
-		return nil, err
+	// Handle BOLT11 and BOLT12
+	if utils.IsValidInvoice(invoice) {
+		resp, err := h.svc.PayInvoice(ctx, invoice)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "paying invoice failed: %v", err)
+		}
+		return &pb.PayInvoiceResponse{Txid: resp.TxId}, nil
 	}
 
-	return &pb.PayInvoiceResponse{Txid: txid}, nil
+	if swap.IsBolt12Offer(invoice) {
+		resp, err := h.svc.PayOffer(ctx, invoice)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "paying offer failed: %v", err)
+		}
+		return &pb.PayInvoiceResponse{Txid: resp.TxId}, nil
+	}
+
+	return nil, status.Error(codes.InvalidArgument, "invoice string is neither valid BOLT11 nor BOLT12 offer")
 }
 
 func (h *serviceHandler) IsInvoiceSettled(
@@ -443,5 +463,35 @@ func (h *serviceHandler) ListWatchedAddresses(
 
 	return &pb.ListWatchedAddressesResponse{
 		Addresses: rolloverAddresses,
+	}, nil
+}
+
+func (h *serviceHandler) GetVirtualTxs(
+	ctx context.Context, req *pb.GetVirtualTxsRequest,
+) (*pb.GetVirtualTxsResponse, error) {
+	txids := req.GetTxids()
+
+	// Filter out empty strings
+	filteredTxids := make([]string, 0, len(txids))
+	for _, txid := range txids {
+		if txid != "" {
+			filteredTxids = append(filteredTxids, txid)
+		}
+	}
+
+	// If no valid txids, return empty list
+	if len(filteredTxids) == 0 {
+		return &pb.GetVirtualTxsResponse{
+			Txs: []string{},
+		}, nil
+	}
+
+	txs, err := h.svc.GetVirtualTxs(ctx, filteredTxids)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetVirtualTxsResponse{
+		Txs: txs,
 	}, nil
 }

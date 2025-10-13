@@ -23,14 +23,14 @@ SELECT * FROM settings WHERE id = 1;
 -- VHTLC queries
 -- name: InsertVHTLC :exec
 INSERT INTO vhtlc (
-    preimage_hash, sender, receiver, server, refund_locktime,
+    id, preimage_hash, sender, receiver, server, refund_locktime,
     unilateral_claim_delay_type, unilateral_claim_delay_value,
     unilateral_refund_delay_type, unilateral_refund_delay_value,
     unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetVHTLC :one
-SELECT * FROM vhtlc WHERE preimage_hash = ?;
+SELECT * FROM vhtlc WHERE id = ?;
 
 -- name: ListVHTLC :many
 SELECT * FROM vhtlc;
@@ -54,20 +54,26 @@ DELETE FROM vtxo_rollover WHERE address = ?;
 -- Swap queries
 -- name: CreateSwap :exec
 INSERT INTO swap (
-  id, amount, timestamp, to_currency, from_currency, status, invoice, funding_tx_id, redeem_tx_id, vhtlc_id
-) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );
+  id, amount, timestamp, to_currency, from_currency, swap_type, status, invoice, funding_tx_id, redeem_tx_id, vhtlc_id
+) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );
 
 -- name: GetSwap :one
 SELECT  sqlc.embed(swap),
         sqlc.embed(vhtlc)
 FROM swap
-  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash
-WHERE id = ?;
+  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.id
+WHERE swap.id = ?;
 
 -- name: ListSwaps :many
 SELECT  sqlc.embed(swap), sqlc.embed(vhtlc)
 FROM swap
-  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash;
+  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.id;
+
+-- name: UpdateSwap :exec
+UPDATE swap 
+SET status = ?,
+redeem_tx_id = ?
+WHERE id = ?;
 
 -- SubscribedScript queries
 -- name: InsertSubscribedScript :exec

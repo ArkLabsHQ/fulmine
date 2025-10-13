@@ -12,8 +12,8 @@ import (
 
 const createSwap = `-- name: CreateSwap :exec
 INSERT INTO swap (
-  id, amount, timestamp, to_currency, from_currency, status, invoice, funding_tx_id, redeem_tx_id, vhtlc_id
-) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+  id, amount, timestamp, to_currency, from_currency, swap_type, status, invoice, funding_tx_id, redeem_tx_id, vhtlc_id
+) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 `
 
 type CreateSwapParams struct {
@@ -22,6 +22,7 @@ type CreateSwapParams struct {
 	Timestamp    int64
 	ToCurrency   string
 	FromCurrency string
+	SwapType     int64
 	Status       int64
 	Invoice      string
 	FundingTxID  string
@@ -37,6 +38,7 @@ func (q *Queries) CreateSwap(ctx context.Context, arg CreateSwapParams) error {
 		arg.Timestamp,
 		arg.ToCurrency,
 		arg.FromCurrency,
+		arg.SwapType,
 		arg.Status,
 		arg.Invoice,
 		arg.FundingTxID,
@@ -107,11 +109,11 @@ func (q *Queries) GetSubscribedScript(ctx context.Context, script string) (strin
 }
 
 const getSwap = `-- name: GetSwap :one
-SELECT  swap.id, swap.amount, swap.timestamp, swap.to_currency, swap.from_currency, swap.status, swap.invoice, swap.funding_tx_id, swap.redeem_tx_id, swap.vhtlc_id,
-        vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value
+SELECT  swap.id, swap.amount, swap.timestamp, swap.to_currency, swap.from_currency, swap.status, swap.swap_type, swap.invoice, swap.funding_tx_id, swap.redeem_tx_id, swap.vhtlc_id,
+        vhtlc.id, vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value
 FROM swap
-  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash
-WHERE id = ?
+  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.id
+WHERE swap.id = ?
 `
 
 type GetSwapRow struct {
@@ -129,10 +131,12 @@ func (q *Queries) GetSwap(ctx context.Context, id string) (GetSwapRow, error) {
 		&i.Swap.ToCurrency,
 		&i.Swap.FromCurrency,
 		&i.Swap.Status,
+		&i.Swap.SwapType,
 		&i.Swap.Invoice,
 		&i.Swap.FundingTxID,
 		&i.Swap.RedeemTxID,
 		&i.Swap.VhtlcID,
+		&i.Vhtlc.ID,
 		&i.Vhtlc.PreimageHash,
 		&i.Vhtlc.Sender,
 		&i.Vhtlc.Receiver,
@@ -149,13 +153,14 @@ func (q *Queries) GetSwap(ctx context.Context, id string) (GetSwapRow, error) {
 }
 
 const getVHTLC = `-- name: GetVHTLC :one
-SELECT preimage_hash, sender, receiver, server, refund_locktime, unilateral_claim_delay_type, unilateral_claim_delay_value, unilateral_refund_delay_type, unilateral_refund_delay_value, unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value FROM vhtlc WHERE preimage_hash = ?
+SELECT id, preimage_hash, sender, receiver, server, refund_locktime, unilateral_claim_delay_type, unilateral_claim_delay_value, unilateral_refund_delay_type, unilateral_refund_delay_value, unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value FROM vhtlc WHERE id = ?
 `
 
-func (q *Queries) GetVHTLC(ctx context.Context, preimageHash string) (Vhtlc, error) {
-	row := q.db.QueryRowContext(ctx, getVHTLC, preimageHash)
+func (q *Queries) GetVHTLC(ctx context.Context, id string) (Vhtlc, error) {
+	row := q.db.QueryRowContext(ctx, getVHTLC, id)
 	var i Vhtlc
 	err := row.Scan(
+		&i.ID,
 		&i.PreimageHash,
 		&i.Sender,
 		&i.Receiver,
@@ -195,14 +200,15 @@ func (q *Queries) InsertSubscribedScript(ctx context.Context, script string) err
 
 const insertVHTLC = `-- name: InsertVHTLC :exec
 INSERT INTO vhtlc (
-    preimage_hash, sender, receiver, server, refund_locktime,
+    id, preimage_hash, sender, receiver, server, refund_locktime,
     unilateral_claim_delay_type, unilateral_claim_delay_value,
     unilateral_refund_delay_type, unilateral_refund_delay_value,
     unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertVHTLCParams struct {
+	ID                                        string
 	PreimageHash                              string
 	Sender                                    string
 	Receiver                                  string
@@ -219,6 +225,7 @@ type InsertVHTLCParams struct {
 // VHTLC queries
 func (q *Queries) InsertVHTLC(ctx context.Context, arg InsertVHTLCParams) error {
 	_, err := q.db.ExecContext(ctx, insertVHTLC,
+		arg.ID,
 		arg.PreimageHash,
 		arg.Sender,
 		arg.Receiver,
@@ -262,9 +269,9 @@ func (q *Queries) ListSubscribedScript(ctx context.Context) ([]string, error) {
 }
 
 const listSwaps = `-- name: ListSwaps :many
-SELECT  swap.id, swap.amount, swap.timestamp, swap.to_currency, swap.from_currency, swap.status, swap.invoice, swap.funding_tx_id, swap.redeem_tx_id, swap.vhtlc_id, vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value
+SELECT  swap.id, swap.amount, swap.timestamp, swap.to_currency, swap.from_currency, swap.status, swap.swap_type, swap.invoice, swap.funding_tx_id, swap.redeem_tx_id, swap.vhtlc_id, vhtlc.id, vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value
 FROM swap
-  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.preimage_hash
+  LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.id
 `
 
 type ListSwapsRow struct {
@@ -288,10 +295,12 @@ func (q *Queries) ListSwaps(ctx context.Context) ([]ListSwapsRow, error) {
 			&i.Swap.ToCurrency,
 			&i.Swap.FromCurrency,
 			&i.Swap.Status,
+			&i.Swap.SwapType,
 			&i.Swap.Invoice,
 			&i.Swap.FundingTxID,
 			&i.Swap.RedeemTxID,
 			&i.Swap.VhtlcID,
+			&i.Vhtlc.ID,
 			&i.Vhtlc.PreimageHash,
 			&i.Vhtlc.Sender,
 			&i.Vhtlc.Receiver,
@@ -318,7 +327,7 @@ func (q *Queries) ListSwaps(ctx context.Context) ([]ListSwapsRow, error) {
 }
 
 const listVHTLC = `-- name: ListVHTLC :many
-SELECT preimage_hash, sender, receiver, server, refund_locktime, unilateral_claim_delay_type, unilateral_claim_delay_value, unilateral_refund_delay_type, unilateral_refund_delay_value, unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value FROM vhtlc
+SELECT id, preimage_hash, sender, receiver, server, refund_locktime, unilateral_claim_delay_type, unilateral_claim_delay_value, unilateral_refund_delay_type, unilateral_refund_delay_value, unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value FROM vhtlc
 `
 
 func (q *Queries) ListVHTLC(ctx context.Context) ([]Vhtlc, error) {
@@ -331,6 +340,7 @@ func (q *Queries) ListVHTLC(ctx context.Context) ([]Vhtlc, error) {
 	for rows.Next() {
 		var i Vhtlc
 		if err := rows.Scan(
+			&i.ID,
 			&i.PreimageHash,
 			&i.Sender,
 			&i.Receiver,
@@ -381,6 +391,24 @@ func (q *Queries) ListVtxoRollover(ctx context.Context) ([]VtxoRollover, error) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateSwap = `-- name: UpdateSwap :exec
+UPDATE swap 
+SET status = ?,
+redeem_tx_id = ?
+WHERE id = ?
+`
+
+type UpdateSwapParams struct {
+	Status     int64
+	RedeemTxID string
+	ID         string
+}
+
+func (q *Queries) UpdateSwap(ctx context.Context, arg UpdateSwapParams) error {
+	_, err := q.db.ExecContext(ctx, updateSwap, arg.Status, arg.RedeemTxID, arg.ID)
+	return err
 }
 
 const upsertSettings = `-- name: UpsertSettings :exec
