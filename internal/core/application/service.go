@@ -1406,7 +1406,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 					go func() {
 						err := s.scheduleSwapRefund(swap.Id, *opts)
 						if err != nil {
-							log.WithError(err).Error("failed to watch swap after expiry")
+							log.WithError(err).Error("failed to schedule refund")
 						}
 					}()
 				}
@@ -1470,7 +1470,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 				err := s.scheduleSwapRefund(swap.Id, *opts)
 
 				if err != nil {
-					log.WithError(err).Error("failed to watch swap after expiry")
+					log.WithError(err).Error("failed to schedule refund")
 					return
 				}
 
