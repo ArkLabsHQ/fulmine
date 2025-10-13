@@ -119,10 +119,10 @@ func TestVHTLC(t *testing.T) {
 	// Get the VHTLC
 	vhtlcs, err := listVHTLC(preimageHash)
 	require.NoError(t, err)
-	require.Len(t, vhtlcs, 1)
+	require.GreaterOrEqual(t, len(vhtlcs), 1)
 
 	// Claim the VHTLC
-	redeemTxid, err := claimVHTLC(hex.EncodeToString(preimage))
+	redeemTxid, err := claimVHTLC(vhtlc.Id, hex.EncodeToString(preimage))
 	require.NoError(t, err)
 	require.NotEmpty(t, redeemTxid)
 }

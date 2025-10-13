@@ -102,23 +102,24 @@ type swapData struct {
 	Status      domain.SwapStatus
 	Type        domain.SwapType
 	Invoice     string
-	VhtlcOpts   vhtlcData
+	Vhtlc       vhtlcData
 	FundingTxId string
 	RedeemTxId  string
 }
 
 func toSwapData(swap domain.Swap) swapData {
-	vhtlcOpts := swap.VhtlcOpts
+	vHTLC := swap.Vhtlc
 
 	vhtlcData := vhtlcData{
-		PreimageHash:                         hex.EncodeToString(vhtlcOpts.PreimageHash),
-		Sender:                               hex.EncodeToString(vhtlcOpts.Sender.SerializeCompressed()),
-		Receiver:                             hex.EncodeToString(vhtlcOpts.Receiver.SerializeCompressed()),
-		Server:                               hex.EncodeToString(vhtlcOpts.Server.SerializeCompressed()),
-		RefundLocktime:                       vhtlcOpts.RefundLocktime,
-		UnilateralClaimDelay:                 vhtlcOpts.UnilateralClaimDelay,
-		UnilateralRefundDelay:                vhtlcOpts.UnilateralRefundDelay,
-		UnilateralRefundWithoutReceiverDelay: vhtlcOpts.UnilateralRefundWithoutReceiverDelay,
+		Id:                                   vHTLC.Id,
+		PreimageHash:                         hex.EncodeToString(vHTLC.PreimageHash),
+		Sender:                               hex.EncodeToString(vHTLC.Sender.SerializeCompressed()),
+		Receiver:                             hex.EncodeToString(vHTLC.Receiver.SerializeCompressed()),
+		Server:                               hex.EncodeToString(vHTLC.Server.SerializeCompressed()),
+		RefundLocktime:                       vHTLC.RefundLocktime,
+		UnilateralClaimDelay:                 vHTLC.UnilateralClaimDelay,
+		UnilateralRefundDelay:                vHTLC.UnilateralRefundDelay,
+		UnilateralRefundWithoutReceiverDelay: vHTLC.UnilateralRefundWithoutReceiverDelay,
 	}
 
 	return swapData{
@@ -130,14 +131,14 @@ func toSwapData(swap domain.Swap) swapData {
 		Status:      swap.Status,
 		Type:        swap.Type,
 		Invoice:     swap.Invoice,
-		VhtlcOpts:   vhtlcData,
+		Vhtlc:       vhtlcData,
 		FundingTxId: swap.FundingTxId,
 		RedeemTxId:  swap.RedeemTxId,
 	}
 }
 
 func (s *swapData) toSwap() (*domain.Swap, error) {
-	vhtlcOps, err := s.VhtlcOpts.toOpts()
+	vHTLC, err := s.Vhtlc.toVhtlc()
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +152,7 @@ func (s *swapData) toSwap() (*domain.Swap, error) {
 		Status:      s.Status,
 		Type:        s.Type,
 		Invoice:     s.Invoice,
-		VhtlcOpts:   *vhtlcOps,
+		Vhtlc:       vHTLC,
 		FundingTxId: s.FundingTxId,
 		RedeemTxId:  s.RedeemTxId,
 	}, nil
