@@ -1367,13 +1367,10 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 		return SwapResponse{}, fmt.Errorf("invalid claim pubkey: %v", err)
 	}
 
-	lockType := arklib.LocktimeTypeBlock
-
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-
-	if refundLocktime.IsSeconds() {
-		lockType = arklib.LocktimeTypeSecond
-	}
+	unilateralClaim := deriveTimelock(swap.TimeoutBlockHeights.UnilateralClaim)
+	unilateralRefund := deriveTimelock(swap.TimeoutBlockHeights.UnilateralRefund)
+	unilaterlRefundWithoutReceiver := deriveTimelock(swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver)
 
 	vhtlcAddress, _, opts, _, err := s.getVHTLC(
 		ctx,
@@ -1381,9 +1378,9 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 		nil,
 		preimageHash,
 		&refundLocktime,
-		&arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralClaim},
-		&arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralRefund},
-		&arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
+		&unilateralClaim,
+		&unilateralRefund,
+		&unilaterlRefundWithoutReceiver,
 	)
 	if err != nil {
 		return SwapResponse{}, fmt.Errorf("failed to verify vHTLC: %v", err)
@@ -1541,13 +1538,10 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, preimage, myPu
 		return "", fmt.Errorf("invalid invoice amount: expected %d, got %d", amount, invoiceAmount)
 	}
 
-	lockType := arklib.LocktimeTypeBlock
-
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
-
-	if refundLocktime.IsSeconds() {
-		lockType = arklib.LocktimeTypeSecond
-	}
+	unilateralClaim := deriveTimelock(swap.TimeoutBlockHeights.UnilateralClaim)
+	unilateralRefund := deriveTimelock(swap.TimeoutBlockHeights.UnilateralRefund)
+	unilaterlRefundWithoutReceiver := deriveTimelock(swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver)
 
 	vhtlcAddress, _, opts, _, err := s.getVHTLC(
 		ctx,
@@ -1555,9 +1549,9 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, preimage, myPu
 		senderPubkey,
 		gotPreimageHash,
 		&refundLocktime,
-		&arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralClaim},
-		&arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralRefund},
-		&arklib.RelativeLocktime{Type: lockType, Value: swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver},
+		&unilateralClaim,
+		&unilateralRefund,
+		&unilaterlRefundWithoutReceiver,
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to verify vHTLC: %v", err)
@@ -2338,4 +2332,12 @@ func toBitcoinNetwork(net arklib.Network) *chaincfg.Params {
 	default:
 		return &chaincfg.MainNetParams
 	}
+}
+
+func deriveTimelock(timelock uint32) arklib.RelativeLocktime {
+	if timelock%512 == 0 {
+		return arklib.RelativeLocktime{Type: arklib.LocktimeTypeSecond, Value: timelock}
+	}
+
+	return arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: timelock}
 }
