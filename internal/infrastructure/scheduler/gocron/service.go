@@ -16,7 +16,6 @@ type heightTask struct {
 	fn     func()
 }
 
-// TODO: (Joshua) add persistence to survive restarts
 type service struct {
 	scheduler      *gocron.Scheduler
 	esploraService esplora.Service
