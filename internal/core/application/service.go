@@ -409,6 +409,8 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 
+	go s.resumePendingSwapRefunds(context.Background())
+
 	_, offchainAddress, boardingAddr, err := s.Receive(ctx)
 	if err != nil {
 		log.WithError(err).Error("failed to get addresses")
@@ -2102,6 +2104,24 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 	}
 
 	return err
+}
+
+func (s *Service) resumePendingSwapRefunds(ctx context.Context) {
+	swaps, err := s.dbSvc.Swap().GetAll(ctx)
+	if err != nil {
+		log.WithError(err).Error("failed to load swaps while rescheduling refunds")
+		return
+	}
+
+	for _, swap := range swaps {
+
+		if swap.Status == domain.SwapFailed && swap.RedeemTxId == "" {
+			if err := s.scheduleSwapRefund(swap.Id, swap.Vhtlc.Opts); err != nil {
+				log.WithError(err).WithField("swap_id", swap.Id).Warn("failed to reschedule refund task")
+			}
+		}
+
+	}
 }
 
 func checkpointExitScript(cfg *types.Config) []byte {
