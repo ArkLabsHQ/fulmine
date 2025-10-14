@@ -98,7 +98,7 @@ func (s *service) ScheduleRefundAtHeight(target uint32, refund func()) error {
 		return fmt.Errorf("failed to get current block height: %w", err)
 	}
 	if uint32(currentHeight) >= target {
-		refund()
+		go refund()
 		return nil
 	}
 	tsk := &heightTask{target: target, fn: refund}
@@ -108,14 +108,14 @@ func (s *service) ScheduleRefundAtHeight(target uint32, refund func()) error {
 	return nil
 }
 
-func (s *service) ScheduleRefundAtTime(at time.Time, refundFunc func()) error {
+func (s *service) ScheduleRefundAtTime(at time.Time, refund func()) error {
 	if at.IsZero() {
 		return fmt.Errorf("invalid schedule time")
 	}
 
 	delay := time.Until(at)
 	if delay <= 0 {
-		refundFunc()
+		go refund()
 		return nil
 	}
 
@@ -123,7 +123,7 @@ func (s *service) ScheduleRefundAtTime(at time.Time, refundFunc func()) error {
 	defer s.mu.Unlock()
 
 	_, err := s.scheduler.Every(delay).WaitForSchedule().LimitRunsTo(1).Do(func() {
-		refundFunc()
+		refund()
 		s.mu.Lock()
 		defer s.mu.Unlock()
 	})
