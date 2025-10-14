@@ -115,7 +115,8 @@ func (s *service) ScheduleRefundAtTime(at time.Time, refundFunc func()) error {
 
 	delay := time.Until(at)
 	if delay <= 0 {
-		return fmt.Errorf("cannot schedule task in the past")
+		refundFunc()
+		return nil
 	}
 
 	s.mu.Lock()
