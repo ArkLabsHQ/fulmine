@@ -123,7 +123,6 @@ func (h *SwapHandler) PayOffer(ctx context.Context, offer string, lightningUrl s
 	return h.submarineSwap(ctx, response.Invoice, unilateralRefund)
 }
 
-// TODO (Joshua) : Ensure That this is being tracked
 func (h *SwapHandler) GetInvoice(ctx context.Context, amount uint64, postProcess func(swap Swap) error) (Swap, error) {
 	preimage := make([]byte, 32)
 	if _, err := rand.Read(preimage); err != nil {
@@ -223,9 +222,15 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 	for {
 		select {
 		case update, ok := <-ws.Updates:
-			// TODO (Joshua) : This should wait for payment to succeed, even after updates fail
 			if !ok {
-				return swapDetails, fmt.Errorf("updates closed")
+				oldWs := ws
+				nextWs := h.boltzSvc.NewWebsocket()
+				if err := nextWs.ConnectAndSubscribe(ctx, []string{swap.Id}, 5*time.Second); err != nil {
+					continue
+				}
+				_ = oldWs.Close()
+				ws = nextWs
+				continue
 			}
 			switch boltz.ParseEvent(update.Status) {
 			case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
@@ -580,7 +585,14 @@ func (h *SwapHandler) waitAndClaimVHTLC(
 		select {
 		case update, ok := <-ws.Updates:
 			if !ok {
-				return "", fmt.Errorf("updates closed")
+				oldWs := ws
+				nextWs := h.boltzSvc.NewWebsocket()
+				if err := nextWs.ConnectAndSubscribe(ctx, []string{swapId}, 5*time.Second); err != nil {
+					continue
+				}
+				_ = oldWs.Close()
+				ws = nextWs
+				continue
 			}
 			parsedStatus := boltz.ParseEvent(update.Status)
 
