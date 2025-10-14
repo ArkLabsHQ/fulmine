@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -409,27 +410,29 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 
-	_, offchainAddress, boardingAddr, err := s.Receive(ctx)
+	// Get all derived addresses so far.
+	_, offchainAddresses, boardingAddresses, _, err := s.GetAddresses(ctx)
 	if err != nil {
 		log.WithError(err).Error("failed to get addresses")
 		return err
 	}
 
-	offchainPkScript, err := offchainAddressPkScript(offchainAddress)
+	// Parse to out scripts.
+	offchainPkScripts, err := offchainAddressesPkScripts(offchainAddresses)
 	if err != nil {
 		log.WithError(err).Error("failed to get offchain address")
 		return err
 	}
 
+	// Re-subscribe for all existing addresses.
 	s.internalSubscription = newSubscriptionHandler(
-		settings.ServerUrl,
-		internalScriptsStore(offchainPkScript),
+		settings.ServerUrl, internalScriptsStore(offchainPkScripts),
 		s.handleInternalAddressEventChannel,
 	)
 
+	// Re-subscribed for all external tracked addresses.
 	s.externalSubscription = newSubscriptionHandler(
-		settings.ServerUrl,
-		s.dbSvc.SubscribedScript(),
+		settings.ServerUrl, s.dbSvc.SubscribedScript(),
 		s.handleAddressEventChannel(arkConfig),
 	)
 
@@ -443,7 +446,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 
 	if arkConfig.UtxoMaxAmount != 0 {
-		go s.subscribeForBoardingEvent(ctx, boardingAddr, arkConfig)
+		go s.subscribeForBoardingEvent(ctx, boardingAddresses, arkConfig)
 	}
 
 	go func() {
@@ -835,14 +838,9 @@ func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string)
 		return err
 	}
 
-	scripts := make([]string, 0, len(addresses))
-	for _, addr := range addresses {
-		pkScript, err := offchainAddressPkScript(addr)
-		if err != nil {
-			return fmt.Errorf("failed to parse address to p2tr script: %w", err)
-		}
-
-		scripts = append(scripts, pkScript)
+	scripts, err := offchainAddressesPkScripts(addresses)
+	if err != nil {
+		return err
 	}
 
 	return s.externalSubscription.subscribe(ctx, scripts)
@@ -853,13 +851,9 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 		return err
 	}
 
-	scripts := make([]string, 0, len(addresses))
-	for _, addr := range addresses {
-		pkScript, err := offchainAddressPkScript(addr)
-		if err != nil {
-			return fmt.Errorf("failed to parse address to p2tr script: %w", err)
-		}
-		scripts = append(scripts, pkScript)
+	scripts, err := offchainAddressesPkScripts(addresses)
+	if err != nil {
+		return err
 	}
 
 	return s.externalSubscription.unsubscribe(ctx, scripts)
@@ -1154,9 +1148,9 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 
 // subscribeForBoardingEvent aims to update the scheduled settlement
 // by checking for spent and new vtxos on the given boarding address
-func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string, cfg *types.Config) {
+func (s *Service) subscribeForBoardingEvent(ctx context.Context, addresses []string, cfg *types.Config) {
 	eventsCh := s.GetUtxoEventChannel(ctx)
-	boardingScript, err := onchainAddressPkScript(address, cfg.Network)
+	boardingScripts, err := onchainAddressesPkScripts(addresses, cfg.Network)
 	if err != nil {
 		log.WithError(err).Error("failed to get output script")
 		return
@@ -1180,7 +1174,7 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, address string,
 					continue
 				}
 
-				if utxo.Script == boardingScript {
+				if slices.Contains(boardingScripts, utxo.Script) {
 					filteredUtxos = append(filteredUtxos, utxo)
 				}
 			}
@@ -1330,11 +1324,7 @@ func (s *Service) handleInternalAddressEventChannel(event *indexer.ScriptEvent) 
 // otherwise the VHTLC is refunded if necessary.
 func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapResponse, error) {
 	// Get our pubkey
-	_, _, _, _, pk, err := s.GetAddress(ctx, 0)
-	if err != nil {
-		return SwapResponse{}, fmt.Errorf("failed to get pubkey: %v", err)
-	}
-	myPubkey, _ := hex.DecodeString(pk)
+	myPubkey := s.publicKey.SerializeCompressed()
 
 	var preimageHash []byte
 
@@ -1824,7 +1814,7 @@ func (s *Service) claimVHTLC(
 	}
 
 	// self send output
-	_, myAddr, _, _, _, err := s.GetAddress(ctx, 0)
+	myAddr, err := s.NewOffchainAddress(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -1966,20 +1956,19 @@ func (s *Service) refundVHTLC(
 		return "", err
 	}
 
-	_, offchainAddress, _, err := s.Receive(ctx)
+	offchainAddr, err := s.NewOffchainAddress(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	offchainPkScript, err := offchainAddressPkScript(offchainAddress)
+	decodedAddr, err := arklib.DecodeAddressV0(offchainAddr)
 	if err != nil {
-
-		return "", err
+		return "", fmt.Errorf("failed to decode address %s: %w", offchainAddr, err)
 	}
 
-	dest, err := hex.DecodeString(offchainPkScript)
+	dest, err := txscript.PayToTaprootScript(decodedAddr.VtxoTapKey)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to parse address %s to p2tr script: %w", offchainAddr, err)
 	}
 
 	amount, err := safecast.ToInt64(vtxo.Amount)
@@ -2275,36 +2264,45 @@ func verifyFinalArkTx(finalArkTx string, arkSigner *btcec.PublicKey, expectedTap
 	return nil
 }
 
-func offchainAddressPkScript(addr string) (string, error) {
-	decodedAddress, err := arklib.DecodeAddressV0(addr)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode address %s: %w", addr, err)
-	}
+func offchainAddressesPkScripts(addresses []string) ([]string, error) {
+	scripts := make([]string, 0, len(addresses))
+	for _, addr := range addresses {
+		decodedAddress, err := arklib.DecodeAddressV0(addr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode address %s: %w", addr, err)
+		}
 
-	p2trScript, err := txscript.PayToTaprootScript(decodedAddress.VtxoTapKey)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse address to p2tr script: %w", err)
+		p2trScript, err := txscript.PayToTaprootScript(decodedAddress.VtxoTapKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse address to p2tr script: %w", err)
+		}
+
+		scripts = append(scripts, hex.EncodeToString(p2trScript))
 	}
-	return hex.EncodeToString(p2trScript), nil
+	return scripts, nil
 }
 
-func onchainAddressPkScript(addr string, network arklib.Network) (string, error) {
-	btcAddress, err := btcutil.DecodeAddress(addr, toBitcoinNetwork(network))
-	if err != nil {
-		return "", fmt.Errorf("failed to decode address %s: %w", addr, err)
-	}
+func onchainAddressesPkScripts(addresses []string, network arklib.Network) ([]string, error) {
+	scripts := make([]string, 0, len(addresses))
+	for _, addr := range addresses {
+		btcAddress, err := btcutil.DecodeAddress(addr, toBitcoinNetwork(network))
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode address %s: %w", addr, err)
+		}
 
-	script, err := txscript.PayToAddrScript(btcAddress)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse address to p2tr script: %w", err)
+		script, err := txscript.PayToAddrScript(btcAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse address to p2tr script: %w", err)
+		}
+		scripts = append(scripts, hex.EncodeToString(script))
 	}
-	return hex.EncodeToString(script), nil
+	return scripts, nil
 }
 
-type internalScriptsStore string
+type internalScriptsStore []string
 
 func (s internalScriptsStore) Get(ctx context.Context) ([]string, error) {
-	return []string{string(s)}, nil
+	return s, nil
 }
 
 func (s internalScriptsStore) Add(ctx context.Context, scripts []string) (int, error) {

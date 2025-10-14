@@ -357,7 +357,7 @@ func (h *SwapHandler) refundVHTLC(
 		return "", err
 	}
 
-	_, offchainAddress, _, err := h.arkClient.Receive(ctx)
+	offchainAddress, err := h.arkClient.NewOffchainAddress(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -671,7 +671,7 @@ func (h *SwapHandler) claimVHTLC(
 	}
 
 	// self send output
-	_, myAddr, _, err := h.arkClient.Receive(ctx)
+	myAddr, err := h.arkClient.NewOffchainAddress(ctx)
 	if err != nil {
 		return "", err
 	}
