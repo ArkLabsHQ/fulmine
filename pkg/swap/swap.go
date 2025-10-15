@@ -523,7 +523,7 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 		TimeoutInfo:  swap.TimeoutBlockHeights,
 		Timestamp:    time.Now().Unix(),
 		Status:       SwapPending,
-		Amount:       amount,
+		Amount:       swap.OnchainAmount,
 		Opts:         vhtlcOpts,
 	}
 
