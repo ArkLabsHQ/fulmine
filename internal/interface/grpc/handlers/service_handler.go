@@ -228,7 +228,7 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
 	}
 
-	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes, vhtlcId)
+	redeemTxid, err := h.svc.ClaimSwapVHTLC(ctx, preimageBytes, vhtlcId)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +244,7 @@ func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb
 	withReceiver := true
 	withoutReceiver := !withReceiver
 
-	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", vhtlcId, withoutReceiver)
+	redeemTxid, err := h.svc.RefundSwapVHTLC(ctx, "", vhtlcId, withoutReceiver)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +253,7 @@ func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb
 }
 
 func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest) (*pb.ListVHTLCResponse, error) {
-	vtxos, _, err := h.svc.ListVHTLC(ctx, req.GetVhtlcId())
+	vtxos, _, err := h.svc.ListSwapVHTLC(ctx, req.GetVhtlcId())
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +312,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
 	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
 
-	addr, vhtlc_id, vhtlcScript, _, err := h.svc.GetVHTLC(
+	addr, vhtlc_id, vhtlcScript, err := h.svc.GetSwapVHTLC(
 		ctx,
 		receiverPubkey,
 		senderPubkey,

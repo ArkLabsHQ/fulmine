@@ -238,7 +238,7 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 				withReceiver := true
 				swapDetails.Status = SwapFailed
 
-				txid, err := h.refundVHTLC(
+				txid, err := h.RefundSwap(
 					context.Background(), swap.Id, withReceiver, *vhtlcOpts)
 
 				if err != nil {
@@ -323,7 +323,7 @@ func (h *SwapHandler) getVHTLC(
 	return encodedAddr, vHTLC, &opts, nil
 }
 
-func (h *SwapHandler) refundVHTLC(
+func (h *SwapHandler) RefundSwap(
 	ctx context.Context, swapId string, withReceiver bool, vhtlcOpts vhtlc.Opts,
 ) (string, error) {
 	cfg, err := h.arkClient.GetConfigData(ctx)
@@ -331,7 +331,7 @@ func (h *SwapHandler) refundVHTLC(
 		return "", err
 	}
 
-	vtxos, err := h.getVHTLCFunds(ctx, vhtlcOpts)
+	vtxos, err := h.GetVHTLCFunds(ctx, []vhtlc.Opts{vhtlcOpts})
 	if err != nil {
 		return "", err
 	}
@@ -404,12 +404,15 @@ func (h *SwapHandler) refundVHTLC(
 		return "", err
 	}
 
-	refundTxStr, err := refundTx.B64Encode()
-	if err != nil {
-		return "", err
+	signTransaction := func(tx *psbt.Packet) (string, error) {
+		encoded, err := tx.B64Encode()
+		if err != nil {
+			return "", err
+		}
+		return h.arkClient.SignTransaction(ctx, encoded)
 	}
 
-	signedRefundTx, err := h.arkClient.SignTransaction(ctx, refundTxStr)
+	signedRefundTx, err := signTransaction(refundTx)
 	if err != nil {
 		return "", err
 	}
@@ -440,15 +443,7 @@ func (h *SwapHandler) refundVHTLC(
 	}
 
 	// verify and sign the checkpoints
-	signCheckpoint := func(tx *psbt.Packet) (string, error) {
-		encoded, err := tx.B64Encode()
-		if err != nil {
-			return "", err
-		}
-		return h.arkClient.SignTransaction(ctx, encoded)
-	}
-
-	finalCheckpoints, err := verifyAndSignCheckpoints(signedCheckpoints, checkpointPtxs, cfg.SignerPubKey, signCheckpoint)
+	finalCheckpoints, err := verifyAndSignCheckpoints(signedCheckpoints, checkpointPtxs, cfg.SignerPubKey, signTransaction)
 	if err != nil {
 		return "", err
 	}
@@ -608,7 +603,7 @@ func (h *SwapHandler) waitAndClaimVHTLC(
 				log.Debug("claiming VHTLC with preimage...")
 				if err := Retry(ctx, interval, func(ctx context.Context) (bool, error) {
 					var err error
-					txid, err = h.claimVHTLC(ctx, preimage, *vhtlcOpts)
+					txid, err = h.ClaimVHTLC(ctx, preimage, *vhtlcOpts)
 					if err != nil {
 						if errors.Is(err, ErrorNoVtxosFound) {
 							return false, nil
@@ -631,38 +626,43 @@ func (h *SwapHandler) waitAndClaimVHTLC(
 
 }
 
-func (h *SwapHandler) getVHTLCFunds(ctx context.Context, vhtlcOpts vhtlc.Opts) ([]types.Vtxo, error) {
-	vHTLC, err := vhtlc.NewVHTLCScript(vhtlcOpts)
-	if err != nil {
-		return nil, err
+func (h *SwapHandler) GetVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]types.Vtxo, error) {
+	var allVtxos []types.Vtxo
+
+	for _, v := range vhtlcOpts {
+		vHTLC, err := vhtlc.NewVHTLCScript(v)
+		if err != nil {
+			return nil, err
+		}
+
+		tapKey, _, err := vHTLC.TapTree()
+		if err != nil {
+			return nil, err
+		}
+
+		outScript, err := script.P2TRScript(tapKey)
+		if err != nil {
+			return nil, err
+		}
+
+		vtxosRequest := indexer.GetVtxosRequestOption{}
+		if err := vtxosRequest.WithScripts([]string{hex.EncodeToString(outScript)}); err != nil {
+			return nil, err
+		}
+		resp, err := h.indexerClient.GetVtxos(ctx, vtxosRequest)
+		if err != nil {
+			return nil, err
+		}
+		allVtxos = append(allVtxos, resp.Vtxos...)
 	}
 
-	tapKey, _, err := vHTLC.TapTree()
-	if err != nil {
-		return nil, err
-	}
-
-	outScript, err := script.P2TRScript(tapKey)
-	if err != nil {
-		return nil, err
-	}
-
-	vtxosRequest := indexer.GetVtxosRequestOption{}
-	if err := vtxosRequest.WithScripts([]string{hex.EncodeToString(outScript)}); err != nil {
-		return nil, err
-	}
-	resp, err := h.indexerClient.GetVtxos(ctx, vtxosRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp.Vtxos, nil
+	return allVtxos, nil
 }
 
-func (h *SwapHandler) claimVHTLC(
+func (h *SwapHandler) ClaimVHTLC(
 	ctx context.Context, preimage []byte, vhtlcOpts vhtlc.Opts,
 ) (string, error) {
-	vtxos, err := h.getVHTLCFunds(ctx, vhtlcOpts)
+	vtxos, err := h.GetVHTLCFunds(ctx, []vhtlc.Opts{vhtlcOpts})
 	if err != nil {
 		return "", err
 	}
