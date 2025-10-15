@@ -85,7 +85,7 @@ message AddWebhookRequest {
   string endpoint = 1;
   // The event type for which the webhook should be registered.
   WebhookEventType event_type = 2;
-  // The secret to use for signign a JWT token for an authenticated request
+  // The secret to use for signing a JWT token for an authenticated request
   // to the external service.
   string secret = 3;
 }
@@ -105,7 +105,7 @@ message ListWebhooksRequest {
   WebhookEventType event_type = 1;
 }
 message ListWebhooksResponse {
-  // The list of info about the webhooks regitered for an action.
+  // The list of info about the webhooks registered for an action.
   repeated WebhookInfo webhook_info = 1;
 }
 
