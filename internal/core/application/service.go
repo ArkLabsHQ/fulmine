@@ -1425,7 +1425,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 				go func() {
 					if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
 						Id:          swap.Id,
-						Amount:      amount,
+						Amount:      swap.ExpectedAmount,
 						Timestamp:   time.Now().Unix(),
 						Status:      domain.SwapFailed,
 						Type:        domain.SwapRegular,
@@ -1446,7 +1446,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 				go func() {
 					if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
 						Id:          swap.Id,
-						Amount:      amount,
+						Amount:      swap.ExpectedAmount,
 						Timestamp:   time.Now().Unix(),
 						Status:      domain.SwapSuccess,
 						Invoice:     invoice,
@@ -1565,7 +1565,7 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, preimage, myPu
 	go func() {
 		if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
 			Id:         swap.Id,
-			Amount:     amount,
+			Amount:     swap.OnchainAmount,
 			Timestamp:  time.Now().Unix(),
 			Invoice:    swap.Invoice,
 			To:         boltz.CurrencyArk,
