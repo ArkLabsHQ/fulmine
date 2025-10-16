@@ -574,13 +574,30 @@ func (s *Service) scheduleNextSettlement(at time.Time, data *types.Config) error
 		}
 	}
 
-	// TODO: Fetch GetInfo to know the next market hour start, if any, and schedule the
-	// settlement for the one closest to the vtxo expiry.
-
+	// TODO: Fetch GetInfo to know if there's any scheduled session close to "at",
+	// otherwise keep this as fallback strategy, ie. schedule the settlement 2 session durations
+	// before "at"
 	sessionDuration := time.Duration(data.SessionDuration) * time.Second
-	at = at.Add(-2 * sessionDuration) // schedule 2 rounds before the expiry
+	at = at.Add(-2 * sessionDuration)
+	now := time.Now()
 
-	return s.schedulerSvc.ScheduleNextSettlement(at, task)
+	// Checking if "at" is after now is a safe guard against buggish time values.
+	if at.After(now) && at.After(s.schedulerSvc.WhenNextSettlement()) {
+		log.Debugf(
+			"scheduling next settlement at %s skipped - one already set at %s",
+			s.schedulerSvc.WhenNextSettlement().Format(time.RFC3339), at.Format(time.RFC3339),
+		)
+		return nil
+	}
+
+	if err := s.schedulerSvc.ScheduleNextSettlement(at, task); err != nil {
+		return err
+	}
+	// If at is before now the settlement is executed immediately and no logs need to be printed.
+	if at.After(now) {
+		log.Debugf("scheduled next settlement at %s", at.Format(time.RFC3339))
+	}
+	return nil
 }
 
 func (s *Service) WhenNextSettlement(ctx context.Context) time.Time {
@@ -1279,17 +1296,16 @@ func (s *Service) handleInternalAddressEventChannel(event *indexer.ScriptEvent) 
 	log.Infof("received internal address event (%d spent vtxos, %d new vtxos)", len(event.SpentVtxos), len(event.NewVtxos))
 
 	// if some vtxos were spent, schedule a settlement to soonest expiry among new vtxos / boarding UTXOs set
-	if len(event.SpentVtxos) > 0 {
-		nextExpiry, err := s.computeNextExpiry(ctx, data)
-		if err != nil {
-			log.WithError(err).Error("failed to compute next expiry")
-			return
+	if len(event.NewVtxos) > 0 {
+		minVtxoExpiry := event.NewVtxos[0].ExpiresAt
+		for _, vtxo := range event.NewVtxos {
+			if vtxo.ExpiresAt.Before(minVtxoExpiry) {
+				minVtxoExpiry = vtxo.ExpiresAt
+			}
 		}
 
-		if nextExpiry != nil {
-			if err := s.scheduleNextSettlement(*nextExpiry, data); err != nil {
-				log.WithError(err).Info("schedule next claim failed")
-			}
+		if err := s.scheduleNextSettlement(minVtxoExpiry, data); err != nil {
+			log.WithError(err).Info("schedule next claim failed")
 		}
 
 		return
