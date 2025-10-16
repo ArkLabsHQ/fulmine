@@ -574,14 +574,14 @@ func (s *Service) scheduleNextSettlement(at time.Time, data *types.Config) error
 		}
 	}
 
-	// TODO: Fetch GetInfo to know if there's any scheduled session close to "at"",
+	// TODO: Fetch GetInfo to know if there's any scheduled session close to "at",
 	// otherwise keep this as fallback strategy, ie. schedule the settlement 2 session durations
 	// before "at"
 	sessionDuration := time.Duration(data.SessionDuration) * time.Second
 	at = at.Add(-2 * sessionDuration)
 	now := time.Now()
 
-	// Checking if at if after now is a safe guard against buggish at time values.
+	// Checking if "at" is after now is a safe guard against buggish time values.
 	if !at.After(s.schedulerSvc.WhenNextSettlement()) && at.After(now) {
 		log.Debugf(
 			"scheduling next settlement at %s skipped - one already set at %s",
