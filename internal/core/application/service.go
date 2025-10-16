@@ -582,7 +582,7 @@ func (s *Service) scheduleNextSettlement(at time.Time, data *types.Config) error
 	now := time.Now()
 
 	// Checking if "at" is after now is a safe guard against buggish time values.
-	if !at.After(s.schedulerSvc.WhenNextSettlement()) && at.After(now) {
+	if at.After(now) && at.After(s.schedulerSvc.WhenNextSettlement()) {
 		log.Debugf(
 			"scheduling next settlement at %s skipped - one already set at %s",
 			s.schedulerSvc.WhenNextSettlement().Format(time.RFC3339), at.Format(time.RFC3339),
