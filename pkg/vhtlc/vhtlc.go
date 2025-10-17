@@ -310,3 +310,166 @@ func (v *VHTLCScript) RefundTapscript(withReceiver bool) (*waddrmgr.Tapscript, e
 		ControlBlock:   ctrlBlock,
 	}, nil
 }
+
+func (v *VHTLCScript) DeriveOpts() Opts {
+	return Opts{
+		Sender:                               v.Sender,
+		Receiver:                             v.Receiver,
+		Server:                               v.Server,
+		PreimageHash:                         v.preimageConditionScript[2 : 2+hash160Len],
+		RefundLocktime:                       v.RefundWithoutReceiverClosure.Locktime,
+		UnilateralClaimDelay:                 v.UnilateralClaimClosure.Locktime,
+		UnilateralRefundDelay:                v.UnilateralRefundClosure.Locktime,
+		UnilateralRefundWithoutReceiverDelay: v.UnilateralRefundWithoutReceiverClosure.Locktime,
+	}
+}
+
+func GetVhtlcScript(server *btcec.PublicKey, preimageHash, claimLeaf, refundLeaf, refundWithoutReceiverLeaf, unilateralClaimLeaf, unilateralRefundLeaf, unilateralRefundWithoutReceiverLeaf string) (*VHTLCScript, error) {
+	decodedPreimagehash, err := hex.DecodeString(preimageHash)
+	if err != nil {
+		return nil, err
+	}
+
+	preimageCondition, err := makePreimageConditionScript(decodedPreimagehash)
+	if err != nil {
+		return nil, err
+	}
+
+	decodedClaimLeaf, err := hex.DecodeString(claimLeaf)
+	if err != nil {
+		return nil, err
+	}
+
+	claimClosure := script.ConditionMultisigClosure{}
+	isDecoded, err := claimClosure.Decode(decodedClaimLeaf)
+	if err != nil {
+		return nil, err
+	}
+
+	if !isDecoded {
+		return nil, fmt.Errorf("failed to decoded Claim Script")
+	}
+
+	decodedRefundLeaf, err := hex.DecodeString(refundLeaf)
+	if err != nil {
+		return nil, err
+	}
+
+	refundClosure := script.MultisigClosure{}
+	isDecoded, err = refundClosure.Decode(decodedRefundLeaf)
+	if err != nil {
+		return nil, err
+	}
+
+	if !isDecoded {
+		return nil, fmt.Errorf("failed to decode Refund Script")
+	}
+
+	decodedRefundWithoutReceiverLeaf, err := hex.DecodeString(refundWithoutReceiverLeaf)
+	if err != nil {
+		return nil, err
+	}
+
+	refundWithoutReceiverClosure := script.CLTVMultisigClosure{}
+	isDecoded, err = refundWithoutReceiverClosure.Decode(decodedRefundWithoutReceiverLeaf)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !isDecoded {
+		return nil, fmt.Errorf("failed to decode refundWithoutReceiverClosure")
+	}
+
+	decodedUnilateralClaimLeaf, err := hex.DecodeString(unilateralClaimLeaf)
+	if err != nil {
+		return nil, err
+	}
+
+	unilateralClaimClosure := script.ConditionCSVMultisigClosure{}
+	isDecoded, err = unilateralClaimClosure.Decode(decodedUnilateralClaimLeaf)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !isDecoded {
+		return nil, fmt.Errorf("failed to decode Unilateral Claim Script")
+	}
+
+	decodedUnilateralRefundClosure, err := hex.DecodeString(unilateralRefundLeaf)
+	if err != nil {
+		return nil, err
+	}
+
+	unilateralRefundClosure := script.CSVMultisigClosure{}
+	isDecoded, err = unilateralRefundClosure.Decode(decodedUnilateralRefundClosure)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !isDecoded {
+		return nil, fmt.Errorf("failed to decode Unilateral Refund Script")
+	}
+
+	decodedUnilateralRefundWithoutReceiverClosure, err := hex.DecodeString(unilateralRefundWithoutReceiverLeaf)
+	if err != nil {
+		return nil, err
+	}
+
+	unilateralRefundWithoutReceiverClosure := script.CSVMultisigClosure{}
+	isDecoded, err = unilateralRefundWithoutReceiverClosure.Decode(decodedUnilateralRefundWithoutReceiverClosure)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !isDecoded {
+		return nil, fmt.Errorf("failed to decode Unilateral Refund Without Receiver Script")
+	}
+
+	var receiver *btcec.PublicKey
+	var sender *btcec.PublicKey
+
+	for _, pk := range claimClosure.PubKeys {
+		if pk.IsEqual(server) {
+			continue
+		}
+		receiver = pk
+	}
+
+	for _, pk := range refundWithoutReceiverClosure.PubKeys {
+		if pk.IsEqual(server) {
+			continue
+		}
+		sender = pk
+	}
+
+	vhtlc := &VHTLCScript{
+		TapscriptsVtxoScript: script.TapscriptsVtxoScript{
+			Closures: []script.Closure{
+				// Collaborative paths
+				&claimClosure,
+				&refundClosure,
+				&refundWithoutReceiverClosure,
+				// Exit paths
+				&unilateralClaimClosure,
+				&unilateralRefundClosure,
+				&unilateralRefundWithoutReceiverClosure,
+			},
+		},
+		preimageConditionScript:                preimageCondition,
+		Receiver:                               receiver,
+		Sender:                                 sender,
+		Server:                                 server,
+		ClaimClosure:                           &claimClosure,
+		RefundClosure:                          &refundClosure,
+		RefundWithoutReceiverClosure:           &refundWithoutReceiverClosure,
+		UnilateralClaimClosure:                 &unilateralClaimClosure,
+		UnilateralRefundClosure:                &unilateralRefundClosure,
+		UnilateralRefundWithoutReceiverClosure: &unilateralRefundWithoutReceiverClosure,
+	}
+
+	return vhtlc, nil
+}

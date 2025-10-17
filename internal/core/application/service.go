@@ -310,6 +310,14 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	s.IndexerClient = indexerClient
 	s.isReady = true
 
+	// Revitilise all Swaps If Present
+	err = s.RestoreSwapHistory(ctx)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("this is my privatekey", hex.EncodeToString(prvKey.Serialize()))
+
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: WalletInit, Password: password}
 	}()
@@ -1077,6 +1085,91 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (SwapResponse, err
 	}()
 
 	return SwapResponse{TxId: swapDetails.TxId, SwapStatus: swapStatus, Invoice: swapDetails.Invoice}, err
+}
+
+func (s *Service) RestoreSwapHistory(ctx context.Context) error {
+	configData, err := s.GetConfigData(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get config data: %v", err)
+	}
+
+	boltzApi := s.boltzSvc
+
+	if configData.Network.Name == arklib.BitcoinRegTest.Name {
+		boltzUrl, err := url.Parse(s.boltzSvc.URL)
+		if err != nil {
+			return err
+		}
+		host := boltzUrl.Hostname()
+		boltzUrl.Host = fmt.Sprintf("%s:%d", host, 9005)
+		boltzApi.URL = boltzUrl.String()
+
+	}
+
+	publicKey := hex.EncodeToString(s.publicKey.SerializeCompressed())
+
+	swapHistoryResponse, err := boltzApi.FetchSwapHistory(publicKey)
+	if err != nil {
+		return err
+	}
+
+	serverKey := configData.SignerPubKey
+
+	swap := make([]domain.Swap, len(*swapHistoryResponse))
+
+	for i, swapHistory := range *swapHistoryResponse {
+		var swapDetails *boltz.SwapDetails
+		if swapHistory.ClaimDetails != nil {
+			swapDetails = swapHistory.ClaimDetails
+		} else {
+			swapDetails = swapHistory.RefundDetails
+		}
+
+		preimageHash := swapDetails.PreimageHash
+		claimLeaf := swapDetails.Tree.ClaimLeaf.Output
+		refundLeaf := swapDetails.Tree.RefundLeaf.Output
+		refundWithoutReceiverLeaf := swapDetails.Tree.RefundLeafWithoutReceiver.Output
+		unilateralClaimLeaf := swapDetails.Tree.UnilateralClaimLeaf.Output
+		unilateralRefundLeaf := swapDetails.Tree.UnilateralRefundLeaf.Output
+		unilateralRefundWithoutReceiverLeaf := swapDetails.Tree.UnilateralRefundWithoutReceiver.Output
+
+		vhtlcScript, err := vhtlc.GetVhtlcScript(serverKey, preimageHash, claimLeaf, refundLeaf, refundWithoutReceiverLeaf, unilateralClaimLeaf, unilateralRefundLeaf, unilateralRefundWithoutReceiverLeaf)
+		if err != nil {
+			return err
+		}
+
+		vhltcOps := vhtlcScript.DeriveOpts()
+
+		var fundingTxId string
+		var redeemTxId string
+
+		if swapHistory.To == boltz.CurrencyBtc && swapHistory.From == boltz.CurrencyArk {
+			fundingTxId = swapDetails.Transaction.ID
+		} else {
+			redeemTxId = swapDetails.Transaction.ID
+		}
+
+		swap[i] = domain.Swap{
+			Id:          swapHistory.Id,
+			Status:      convertSwapStatus(swapHistory.Status),
+			Timestamp:   int64(swapHistory.CreateAt),
+			Amount:      swapDetails.Amount,
+			To:          swapHistory.To,
+			From:        swapHistory.From,
+			Type:        domain.SwapPayment,
+			Vhtlc:       domain.NewVhtlc(vhltcOps),
+			FundingTxId: fundingTxId,
+			RedeemTxId:  redeemTxId,
+		}
+
+		dbErr := s.dbSvc.Swap().Add(context.Background(), swap[i])
+		if dbErr != nil {
+			log.WithError(dbErr).Error("failed to add swap to db")
+			return dbErr
+		}
+	}
+
+	return nil
 }
 
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
@@ -2338,4 +2431,18 @@ func deriveTimelock(timelock uint32) arklib.RelativeLocktime {
 	}
 
 	return arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: timelock}
+}
+
+func convertSwapStatus(swapStatus string) domain.SwapStatus {
+	mappedStatus := boltz.ParseEvent(swapStatus)
+	if mappedStatus == boltz.TransactionClaimed || mappedStatus == boltz.InvoiceSettled {
+		return domain.SwapSuccess
+	}
+
+	if mappedStatus == boltz.TransactionClaimPending || mappedStatus == boltz.InvoicePending {
+		return domain.SwapPending
+	}
+
+	return domain.SwapFailed
+
 }

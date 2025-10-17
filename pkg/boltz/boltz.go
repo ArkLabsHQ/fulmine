@@ -89,6 +89,20 @@ func (boltz *Api) RevealPreimage(swapId string, preimage string) (*RevealPreimag
 	return resp, nil
 }
 
+func (boltz *Api) FetchSwapHistory(pubkey string) (*FetchSwapHistoryResponse, error) {
+	url := fmt.Sprintf("/swap/restore")
+	request := struct {
+		PublicKey string `json:"publicKey"`
+	}{
+		PublicKey: pubkey,
+	}
+	resp, err := sendPostRequest[FetchSwapHistoryResponse](boltz, url, request)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 const defaultHTTPTimeout = 15 * time.Second
 
 func withTimeoutCtx() (context.Context, context.CancelFunc) {
@@ -134,6 +148,19 @@ func sendPostRequest[T any](boltz *Api, endpoint string, requestBody any) (*T, e
 		return nil, fmt.Errorf("POST %s: %w", endpoint, err)
 
 	}
+
+	// body, err := io.ReadAll(res.Body)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to read response body: %w", err)
+	// }
+
+	// // Pretty print JSON
+	// var pretty bytes.Buffer
+	// if err := json.Indent(&pretty, body, "", "  "); err != nil {
+	// 	fmt.Printf("Raw response (not JSON): %s\n", string(body))
+	// } else {
+	// 	fmt.Printf("Response JSON:\n%s\n", pretty.String())
+	// }
 
 	return unmarshalJson[T](res.Body)
 }
