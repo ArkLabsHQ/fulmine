@@ -1,4 +1,4 @@
-# Fulmine Configuration Examples
+# Esplora/Electrum Configuration Examples
 
 # Example 1: Using Electrum Protocol with blockstream.info (Recommended for Mainnet)
 FULMINE_ESPLORA_URL=blockstream.info:700
