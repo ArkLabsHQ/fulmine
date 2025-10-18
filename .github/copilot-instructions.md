@@ -148,13 +148,19 @@ Virtual HTLCs are a key innovation in Fulmine for optimized Lightning operations
 
 ## Environment Variables
 
-Key configuration options (see README for complete list):
+Complete list of configuration options:
 
-- `FULMINE_DATADIR`: Data directory location
+- `FULMINE_DATADIR`: Data directory location (default: `/app/data` in Docker, `~/.fulmine` otherwise)
 - `FULMINE_HTTP_PORT`: Web UI/REST API port (default: 7001)
 - `FULMINE_GRPC_PORT`: gRPC service port (default: 7000)
-- `FULMINE_ARK_SERVER`: Ark server URL
-- `FULMINE_ESPLORA_URL`: Bitcoin blockchain explorer URL
+- `FULMINE_ARK_SERVER`: Ark server URL (pre-fills with default)
+- `FULMINE_ESPLORA_URL`: Bitcoin blockchain explorer URL (pre-fills with default)
+- `FULMINE_UNLOCKER_TYPE`: Auto-unlock method (`file` or `env`, not set by default)
+- `FULMINE_UNLOCKER_FILE_PATH`: Path to password file for file-based unlocker
+- `FULMINE_UNLOCKER_PASSWORD`: Password string for environment-based unlocker
+- `FULMINE_BOLTZ_URL`: Custom Boltz backend URL for swaps
+- `FULMINE_BOLTZ_WS_URL`: Custom Boltz WebSocket backend URL for swap events
+- `FULMINE_DISABLE_TELEMETRY`: Opt out of telemetry logs (default: false)
 - `FULMINE_LOG_LEVEL`: Logging verbosity (5 = debug)
 - `FULMINE_NO_MACAROONS`: Disable macaroon authentication (dev only)
 
