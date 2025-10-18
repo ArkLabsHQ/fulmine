@@ -1125,7 +1125,7 @@ func (s *Service) RestoreSwapHistory(ctx context.Context) error {
 			swapDetails = swapHistory.RefundDetails
 		}
 
-		preimageHash := swapDetails.PreimageHash
+		preimageHash := swapHistory.PreimageHash
 		claimLeaf := swapDetails.Tree.ClaimLeaf.Output
 		refundLeaf := swapDetails.Tree.RefundLeaf.Output
 		refundWithoutReceiverLeaf := swapDetails.Tree.RefundLeafWithoutReceiver.Output

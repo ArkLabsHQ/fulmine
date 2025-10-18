@@ -125,7 +125,6 @@ type SwapDetails struct {
 	Transaction        TransactionRef `json:"transaction,omitempty"`
 	LockupAddress      string         `json:"lockupAddress"`
 	TimeoutBlockHeight uint32         `json:"timeoutBlockHeight"`
-	PreimageHash       string         `json:"preimageHash,omitempty"`
 }
 
 type FetchSwapHistoryResponse = []struct {
@@ -135,6 +134,7 @@ type FetchSwapHistoryResponse = []struct {
 	From          Currency     `json:"from"`
 	To            Currency     `json:"to"`
 	CreateAt      uint32       `json:"createdAt"`
+	PreimageHash  string       `json:"preimageHash"`
 	ClaimDetails  *SwapDetails `json:"claimDetails,omitempty"`
 	RefundDetails *SwapDetails `json:"refundDetails,omitempty"`
 }

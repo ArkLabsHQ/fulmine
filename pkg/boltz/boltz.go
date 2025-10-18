@@ -149,19 +149,6 @@ func sendPostRequest[T any](boltz *Api, endpoint string, requestBody any) (*T, e
 
 	}
 
-	// body, err := io.ReadAll(res.Body)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to read response body: %w", err)
-	// }
-
-	// // Pretty print JSON
-	// var pretty bytes.Buffer
-	// if err := json.Indent(&pretty, body, "", "  "); err != nil {
-	// 	fmt.Printf("Raw response (not JSON): %s\n", string(body))
-	// } else {
-	// 	fmt.Printf("Response JSON:\n%s\n", pretty.String())
-	// }
-
 	return unmarshalJson[T](res.Body)
 }
 
