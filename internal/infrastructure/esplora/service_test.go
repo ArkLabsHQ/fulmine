@@ -114,3 +114,36 @@ func TestService_DetectsElectrumVsHTTP(t *testing.T) {
 		})
 	}
 }
+
+func TestElectrumClient_TLSDetection(t *testing.T) {
+	tests := []struct {
+		name    string
+		address string
+		useTLS  bool
+	}{
+		{
+			name:    "Port 700 should use TLS",
+			address: "blockstream.info:700",
+			useTLS:  true,
+		},
+		{
+			name:    "Port 50002 should use TLS",
+			address: "server.example.com:50002",
+			useTLS:  true,
+		},
+		{
+			name:    "Port 50001 should not use TLS",
+			address: "server.example.com:50001",
+			useTLS:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := NewElectrumClient(tt.address, 10*time.Second)
+			if client.useTLS != tt.useTLS {
+				t.Errorf("Expected useTLS=%v, got %v", tt.useTLS, client.useTLS)
+			}
+		})
+	}
+}

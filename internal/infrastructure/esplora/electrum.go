@@ -3,9 +3,11 @@ package esplora
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"time"
 )
@@ -17,6 +19,7 @@ type ElectrumClient struct {
 	mu      sync.Mutex
 	reqID   uint64
 	timeout time.Duration
+	useTLS  bool
 }
 
 // ElectrumRequest represents a JSON-RPC request
@@ -40,14 +43,30 @@ type ElectrumError struct {
 }
 
 // NewElectrumClient creates a new Electrum client
+// useTLS should be true for SSL/TLS ports (e.g., 700, 50002)
 func NewElectrumClient(address string, timeout time.Duration) *ElectrumClient {
 	if timeout == 0 {
 		timeout = 10 * time.Second
 	}
+	
+	// Auto-detect TLS based on common Electrum ports
+	useTLS := shouldUseTLS(address)
+	
 	return &ElectrumClient{
 		address: address,
 		timeout: timeout,
+		useTLS:  useTLS,
 	}
+}
+
+// shouldUseTLS determines if TLS should be used based on the port
+func shouldUseTLS(address string) bool {
+	// Common Electrum SSL/TLS ports: 700 (blockstream), 50002
+	if strings.Contains(address, ":700") || strings.Contains(address, ":50002") {
+		return true
+	}
+	// Non-TLS ports: 50001, 50003
+	return false
 }
 
 // connect establishes a connection to the Electrum server
@@ -63,7 +82,20 @@ func (c *ElectrumClient) connect(ctx context.Context) error {
 		Timeout: c.timeout,
 	}
 
-	conn, err := dialer.DialContext(ctx, "tcp", c.address)
+	var conn net.Conn
+	var err error
+
+	if c.useTLS {
+		// Use TLS for secure connection
+		tlsConfig := &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
+		conn, err = tls.DialWithDialer(dialer, "tcp", c.address, tlsConfig)
+	} else {
+		// Plain TCP connection
+		conn, err = dialer.DialContext(ctx, "tcp", c.address)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to connect to %s: %w", c.address, err)
 	}
