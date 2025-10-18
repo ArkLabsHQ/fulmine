@@ -40,12 +40,12 @@ func TestService_GetBlockHeight_Electrum(t *testing.T) {
 	}
 
 	// Test with Electrum server
-	svc := NewService("blockstream.info:700")
+	svc := NewService("", "blockstream.info:700")
 	
 	ctx := context.Background()
 	height, err := svc.GetBlockHeight(ctx)
 	if err != nil {
-		t.Logf("GetBlockHeight failed (expected in CI): %v", err)
+		t.Logf("GetBlockchainHeight failed (expected in CI): %v", err)
 		t.Skip("Network test skipped due to connectivity issues")
 		return
 	}
@@ -64,7 +64,7 @@ func TestService_GetBlockHeight_HTTP(t *testing.T) {
 	}
 
 	// Test with HTTP Esplora API (for comparison)
-	svc := NewService("https://blockstream.info/api")
+	svc := NewService("https://blockstream.info/api", "")
 	
 	ctx := context.Background()
 	height, err := svc.GetBlockHeight(ctx)
@@ -82,32 +82,36 @@ func TestService_GetBlockHeight_HTTP(t *testing.T) {
 	t.Logf("Current blockchain height via HTTP: %d", height)
 }
 
-func TestService_DetectsElectrumVsHTTP(t *testing.T) {
+func TestService_PrioritizesElectrum(t *testing.T) {
 	tests := []struct {
 		name        string
-		url         string
+		esploraURL  string
+		electrumURL string
 		useElectrum bool
 	}{
 		{
-			name:        "Electrum server without protocol",
-			url:         "blockstream.info:700",
+			name:        "Electrum URL provided - uses Electrum",
+			esploraURL:  "https://mempool.space/api",
+			electrumURL: "blockstream.info:700",
 			useElectrum: true,
 		},
 		{
-			name:        "HTTP URL with https",
-			url:         "https://blockstream.info/api",
+			name:        "Only Esplora URL provided - uses HTTP",
+			esploraURL:  "https://blockstream.info/api",
+			electrumURL: "",
 			useElectrum: false,
 		},
 		{
-			name:        "HTTP URL with http",
-			url:         "http://localhost:3000",
-			useElectrum: false,
+			name:        "Both provided - prioritizes Electrum",
+			esploraURL:  "https://mempool.space/api",
+			electrumURL: "blockstream.info:700",
+			useElectrum: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := NewService(tt.url)
+			svc := NewService(tt.esploraURL, tt.electrumURL)
 			if svc.useElectrum != tt.useElectrum {
 				t.Errorf("Expected useElectrum=%v, got %v", tt.useElectrum, svc.useElectrum)
 			}

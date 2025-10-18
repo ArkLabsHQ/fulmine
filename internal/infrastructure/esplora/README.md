@@ -6,23 +6,25 @@ This package now supports both HTTP Esplora API and Electrum protocol for fetchi
 
 ### Electrum Protocol (recommended for mainnet)
 ```go
-svc := esplora.NewService("blockstream.info:700")
+svc := esplora.NewService("", "blockstream.info:700")
 height, err := svc.GetBlockHeight(ctx)
 ```
 
 ### HTTP Esplora API (backward compatible)
 ```go
-svc := esplora.NewService("https://mempool.space/api")
+svc := esplora.NewService("https://mempool.space/api", "")
 height, err := svc.GetBlockHeight(ctx)
 ```
 
 ## Configuration
 
-Set the `FULMINE_ESPLORA_URL` environment variable:
+Set the environment variables to configure the blockchain data source:
 
-- For Electrum (mainnet): `blockstream.info:700`
-- For HTTP (mempool.space): `https://mempool.space/api`
-- For HTTP (blockstream.info): `https://blockstream.info/api`
+- **For Electrum (mainnet)**: Set `FULMINE_ELECTRUM_URL=blockstream.info:700`
+- **For HTTP (mempool.space)**: Set `FULMINE_ESPLORA_URL=https://mempool.space/api`
+- **For HTTP (blockstream.info)**: Set `FULMINE_ESPLORA_URL=https://blockstream.info/api`
+
+**Note**: If both `FULMINE_ELECTRUM_URL` and `FULMINE_ESPLORA_URL` are set, Electrum takes priority.
 
 ## Testing
 
@@ -38,9 +40,9 @@ go test -v ./internal/infrastructure/esplora/... -timeout 30s
 
 ## Implementation Details
 
-The service auto-detects whether to use Electrum or HTTP based on the URL format:
-- URLs with `http://` or `https://` prefix use HTTP REST API
-- URLs without protocol (e.g., `host:port`) use Electrum protocol
+The service prioritizes protocols in this order:
+1. **Electrum** - If `electrumURL` parameter is provided, use Electrum protocol
+2. **HTTP** - Otherwise, use HTTP REST API with `esploraURL` parameter
 
 The Electrum client uses:
 - JSON-RPC over TCP

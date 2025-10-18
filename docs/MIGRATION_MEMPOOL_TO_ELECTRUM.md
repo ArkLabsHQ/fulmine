@@ -71,12 +71,18 @@ Automatically enabled for:
 
 ### Using Electrum (Recommended)
 ```bash
-export FULMINE_ESPLORA_URL="blockstream.info:700"
+export FULMINE_ELECTRUM_URL="blockstream.info:700"
 ```
 
 ### Using HTTP (Backward Compatible)
 ```bash
 export FULMINE_ESPLORA_URL="https://mempool.space/api"
+```
+
+### Using Both (Electrum takes priority)
+```bash
+export FULMINE_ESPLORA_URL="https://mempool.space/api"
+export FULMINE_ELECTRUM_URL="blockstream.info:700"
 ```
 
 ## Benefits

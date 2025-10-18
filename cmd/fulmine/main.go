@@ -104,11 +104,11 @@ func main() {
 		Date:    date,
 	}
 
-	schedulerSvc := scheduler.NewScheduler(cfg.EsploraURL)
+	schedulerSvc := scheduler.NewScheduler(cfg.EsploraURL, cfg.ElectrumURL)
 
 	appSvc, err := application.NewService(
 		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc,
-		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout, cfg.LnConnectionOpts,
+		cfg.EsploraURL, cfg.ElectrumURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout, cfg.LnConnectionOpts,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init application service")

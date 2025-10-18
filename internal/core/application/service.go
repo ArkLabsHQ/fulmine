@@ -90,9 +90,10 @@ type Service struct {
 
 	publicKey *btcec.PublicKey
 
-	esploraUrl string
-	boltzUrl   string
-	boltzWSUrl string
+	esploraUrl   string
+	electrumUrl  string
+	boltzUrl     string
+	boltzWSUrl   string
 
 	swapTimeout uint32
 
@@ -129,7 +130,7 @@ func NewService(
 	storeSvc types.Store,
 	dbSvc ports.RepoManager,
 	schedulerSvc ports.SchedulerService,
-	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
+	esploraUrl, electrumUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 	connectionOpts *domain.LnConnectionOpts,
 ) (*Service, error) {
 	opts := make([]arksdk.ClientOption, 0)
@@ -167,6 +168,7 @@ func NewService(
 			notifications:             make(chan Notification),
 			stopBoardingEventListener: make(chan struct{}),
 			esploraUrl:                data.ExplorerURL,
+			electrumUrl:               electrumUrl,
 			boltzUrl:                  boltzUrl,
 			boltzWSUrl:                boltzWSUrl,
 			swapTimeout:               swapTimeout,
@@ -212,6 +214,7 @@ func NewService(
 		notifications:             make(chan Notification),
 		stopBoardingEventListener: make(chan struct{}),
 		esploraUrl:                esploraUrl,
+		electrumUrl:               electrumUrl,
 		boltzUrl:                  boltzUrl,
 		boltzWSUrl:                boltzWSUrl,
 		swapTimeout:               swapTimeout,

@@ -21,23 +21,21 @@ type service struct {
 }
 
 // NewService creates a new esplora/electrum service
-// If the URL is an Electrum server (host:port format without http/https), it uses Electrum protocol
-// Otherwise, it uses the HTTP REST API
-func NewService(url string) *service {
-	// Check if this is an Electrum server (format: host:port)
-	// If it doesn't have http:// or https:// prefix, assume it's Electrum
-	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
-		// This is an Electrum server
+// If electrumURL is provided, it uses Electrum protocol
+// Otherwise, it falls back to HTTP REST API with esploraURL
+func NewService(esploraURL, electrumURL string) *service {
+	// Prioritize Electrum if provided
+	if electrumURL != "" {
 		return &service{
-			baseUrl:        url,
-			electrumClient: NewElectrumClient(url, 10*time.Second),
+			baseUrl:        electrumURL,
+			electrumClient: NewElectrumClient(electrumURL, 10*time.Second),
 			useElectrum:    true,
 		}
 	}
 
-	// This is an HTTP REST API (Esplora)
+	// Fall back to HTTP REST API (Esplora)
 	return &service{
-		baseUrl:     url,
+		baseUrl:     esploraURL,
 		useElectrum: false,
 	}
 }

@@ -26,9 +26,9 @@ type service struct {
 	tasks          []*heightTask
 }
 
-func NewScheduler(esplorerUrl string) ports.SchedulerService {
+func NewScheduler(esploraURL, electrumURL string) ports.SchedulerService {
 	svc := gocron.NewScheduler(time.UTC)
-	esplorerService := esplora.NewService(esplorerUrl)
+	esplorerService := esplora.NewService(esploraURL, electrumURL)
 	return &service{svc, esplorerService, nil, &sync.Mutex{}, nil, nil}
 }
 

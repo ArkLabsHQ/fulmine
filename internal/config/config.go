@@ -24,16 +24,17 @@ const (
 )
 
 type Config struct {
-	Datadir    string
-	DbType     string
-	GRPCPort   uint32
-	HTTPPort   uint32
-	WithTLS    bool
-	LogLevel   uint32
-	ArkServer  string
-	EsploraURL string
-	BoltzURL   string
-	BoltzWSURL string
+	Datadir      string
+	DbType       string
+	GRPCPort     uint32
+	HTTPPort     uint32
+	WithTLS      bool
+	LogLevel     uint32
+	ArkServer    string
+	EsploraURL   string
+	ElectrumURL  string
+	BoltzURL     string
+	BoltzWSURL   string
 
 	UnlockerType     string
 	UnlockerFilePath string
@@ -56,6 +57,7 @@ var (
 	LogLevel         = "LOG_LEVEL"
 	ArkServer        = "ARK_SERVER"
 	EsploraURL       = "ESPLORA_URL"
+	ElectrumURL      = "ELECTRUM_URL"
 	BoltzURL         = "BOLTZ_URL"
 	BoltzWSURL       = "BOLTZ_WS_URL"
 	DisableTelemetry = "DISABLE_TELEMETRY"
@@ -138,6 +140,7 @@ func LoadConfig() (*Config, error) {
 		LogLevel:         viper.GetUint32(LogLevel),
 		ArkServer:        viper.GetString(ArkServer),
 		EsploraURL:       viper.GetString(EsploraURL),
+		ElectrumURL:      viper.GetString(ElectrumURL),
 		BoltzURL:         viper.GetString(BoltzURL),
 		BoltzWSURL:       viper.GetString(BoltzWSURL),
 		UnlockerType:     viper.GetString(UnlockerType),
