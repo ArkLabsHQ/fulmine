@@ -71,7 +71,7 @@ The following environment variables can be configured:
 | `FULMINE_HTTP_PORT` | HTTP port for the web UI and REST API | `7001` |
 | `FULMINE_GRPC_PORT` | gRPC port for service communication | `7000` |
 | `FULMINE_ARK_SERVER` | URL of the Ark server to connect to | It pre-fills with the default Ark server |
-| `FULMINE_ESPLORA_URL` | URL of the Esplora server to connect to | It pre-fills with the default Esplora server |
+| `FULMINE_ESPLORA_URL` | URL of the blockchain data source. Supports both HTTP Esplora API (e.g., `https://mempool.space/api`) and Electrum protocol (e.g., `blockstream.info:700` for mainnet) | It pre-fills with the default server |
 | `FULMINE_UNLOCKER_TYPE` | Type of unlocker to use for auto-unlock (`file` or `env`) | Not set by default (no auto-unlock) |
 | `FULMINE_UNLOCKER_FILE_PATH` | Path to the file containing the wallet password (when using `file` unlocker) | Not set by default |
 | `FULMINE_UNLOCKER_PASSWORD` | Password string to use for unlocking (when using `env` unlocker) | Not set by default |
@@ -87,7 +87,7 @@ docker run -d \
   -p 7001:7001 \
   -e FULMINE_HTTP_PORT=7001 \
   -e FULMINE_ARK_SERVER="https://server.example.com" \
-  -e FULMINE_ESPLORA_URL="https://mempool.space/api" \
+  -e FULMINE_ESPLORA_URL="blockstream.info:700" \
   -e FULMINE_UNLOCKER_TYPE="file" \
   -e FULMINE_UNLOCKER_FILE_PATH="/app/password.txt" \
   -v fulmine-data:/app/data \
