@@ -1,6 +1,6 @@
 module github.com/ArkLabsHQ/fulmine
 
-go 1.24.6
+go 1.25
 
 replace github.com/ArkLabsHQ/fulmine/pkg/vhtlc => ./pkg/vhtlc
 
