@@ -1,6 +1,6 @@
 # ⚡️fulmine
 
-[![Go Version](https://img.shields.io/badge/Go-1.25.3-blue.svg)](https://golang.org/doc/go1.24)
+[![Go Version](https://img.shields.io/badge/Go-1.25.3-blue.svg)](https://golang.org/doc/go1.25)
 [![GitHub Release](https://img.shields.io/github/v/release/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/releases/latest)
 [![License](https://img.shields.io/github/license/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/blob/main/LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/stargazers)
