@@ -199,7 +199,7 @@ func (s *service) Start() error {
 func (s *service) autoUnlock() error {
 	ctx := context.Background()
 
-	if !s.appSvc.IsReady() {
+	if !s.appSvc.IsInitialized() {
 		log.Debug("wallet not initialized, skipping auto unlock")
 		return nil
 	}

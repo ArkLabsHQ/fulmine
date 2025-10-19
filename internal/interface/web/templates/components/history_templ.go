@@ -803,7 +803,7 @@ func HistoryBodyContent(transactions []types.Transaction, lastId string, loadMor
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "\" hx-trigger=\"sse:TXS_ADDED, sse:TXS_CONFIRMED, sse:TXS_REPLACED\" hx-swap=\"outerHTML\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "\" hx-trigger=\"sse:SYNCED, sse:TXS_ADDED, sse:TXS_CONFIRMED, sse:TXS_REPLACED\" hx-swap=\"outerHTML\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

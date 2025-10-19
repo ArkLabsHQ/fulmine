@@ -1,15 +1,33 @@
-package scheduler
+package scheduler_test
 
 import (
 	"testing"
 	"time"
 
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
+	scheduler "github.com/ArkLabsHQ/fulmine/internal/infrastructure/scheduler/gocron"
 	"github.com/stretchr/testify/require"
 )
 
+const pollInterval = 5 * time.Second
+
+var schedulerTypes = map[string]func() ports.SchedulerService{
+	"gocron": func() ports.SchedulerService {
+		return scheduler.NewScheduler("", pollInterval)
+	},
+}
+
 func TestSchedulerService(t *testing.T) {
+	for schedulerType, factory := range schedulerTypes {
+		t.Run(schedulerType, func(t *testing.T) {
+			testScheduler(t, factory)
+		})
+	}
+}
+
+func testScheduler(t *testing.T, newScheduler func() ports.SchedulerService) {
 	t.Run("Schedule Next Settlement", func(t *testing.T) {
-		svc := NewScheduler("")
+		svc := newScheduler()
 		svc.Start()
 		defer svc.Stop()
 
@@ -52,7 +70,7 @@ func TestSchedulerService(t *testing.T) {
 	})
 
 	t.Run("Schedule in Past", func(t *testing.T) {
-		svc := NewScheduler("")
+		svc := newScheduler()
 		svc.Start()
 		defer svc.Stop()
 
@@ -69,7 +87,7 @@ func TestSchedulerService(t *testing.T) {
 	})
 
 	t.Run("Schedule Immediate Execution", func(t *testing.T) {
-		svc := NewScheduler("")
+		svc := newScheduler()
 		svc.Start()
 		defer svc.Stop()
 
@@ -87,6 +105,45 @@ func TestSchedulerService(t *testing.T) {
 			// Job executed successfully
 		case <-time.After(1 * time.Second):
 			require.Fail(t, "job did not execute within expected time")
+		}
+	})
+	t.Run("Schedule Next Settlement", func(t *testing.T) {
+		svc := newScheduler()
+		svc.Start()
+		defer svc.Stop()
+
+		// Test scheduling in the future
+		done := make(chan bool)
+		settleFunc := func() {
+			go func() {
+				done <- true
+			}()
+		}
+
+		// Schedule 5 second in the future
+		nextTime := time.Now().Add(5 * time.Second)
+		now := time.Now()
+		err := svc.ScheduleNextSettlement(nextTime, settleFunc)
+		require.NoError(t, err)
+
+		// Verify next settlement time
+		nextSettlement := svc.WhenNextSettlement()
+		require.False(t, nextSettlement.IsZero())
+		require.True(t, nextSettlement.After(now))
+		require.True(t, nextSettlement.Before(now.Add(5*time.Second).Add(1*time.Millisecond)))
+
+		time.Sleep(time.Second)
+
+		svc.CancelNextSettlement()
+		nextSettlement = svc.WhenNextSettlement()
+		require.True(t, nextSettlement.IsZero())
+
+		// Wait for the job to execute
+		select {
+		case <-done:
+			require.Fail(t, "job shouldn't have been executed")
+		case <-time.After(10 * time.Second):
+			// Job did not execute because it was indeed cancelled.
 		}
 	})
 }

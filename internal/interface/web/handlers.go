@@ -95,18 +95,25 @@ func (s *service) events(c *gin.Context) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 
-	channel := s.svc.GetTransactionEventChannel(c.Request.Context())
+	readyCh := s.svc.GetSyncedUpdate()
+	txsCh := s.svc.GetTransactionEventChannel(c.Request.Context())
 	for {
 		select {
 		case <-s.stopCh:
 			return
 		case <-c.Request.Context().Done():
 			return
-		case event, ok := <-channel:
+		case event, ok := <-txsCh:
 			if !ok {
 				return
 			}
 			c.SSEvent(event.Type.String(), event)
+			c.Writer.Flush()
+		case event, ok := <-readyCh:
+			if !ok {
+				return
+			}
+			c.SSEvent("SYNCED", event)
 			c.Writer.Flush()
 		}
 	}
@@ -114,11 +121,13 @@ func (s *service) events(c *gin.Context) {
 
 func (s *service) index(c *gin.Context) {
 	bodyContent := pages.Welcome()
-	if s.svc.IsReady() {
-		if s.svc.IsLocked(c) {
-			bodyContent = pages.Unlock()
-		} else {
-			bodyContent = pages.IndexBodyContent()
+	if s.svc.IsInitialized() {
+		{
+			if s.svc.IsLocked(c) {
+				bodyContent = pages.Unlock()
+			} else {
+				bodyContent = pages.IndexBodyContent()
+			}
 		}
 	}
 	s.pageViewHandler(bodyContent, c)
@@ -864,6 +873,17 @@ func (s *service) getTxs(c *gin.Context) {
 		return
 	}
 
+	isSynced, err := s.svc.IsSynced()
+	if err != nil {
+		// TODO: Render error
+	}
+	if !isSynced {
+		// TODO: Render placeholder
+		bodyContent := components.HistoryBodyContent(nil, "0", false)
+		partialViewHandler(bodyContent, c)
+		return
+	}
+
 	lastId := c.Param("lastId")
 	loadMore := false
 	txsPerPage := 10
@@ -1171,6 +1191,20 @@ func (s *service) lnConnectInfoModal(c *gin.Context) {
 
 func (s *service) getHero(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	isSynced, err := s.svc.IsSynced()
+	if err != nil {
+		// TODO: Render error
+		partialContent := components.Hero("ERROR", false)
+		partialViewHandler(partialContent, c)
+		return
+	}
+	if !isSynced {
+		// TODO: Render placeholder
+		partialContent := components.Hero("PLACEHOLDER", false)
+		partialViewHandler(partialContent, c)
 		return
 	}
 
