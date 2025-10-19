@@ -875,6 +875,7 @@ func (s *service) getTxs(c *gin.Context) {
 
 	isSynced, err := s.svc.IsSynced()
 	if err != nil {
+		// nolint
 		// TODO: Render error
 	}
 	if !isSynced {
