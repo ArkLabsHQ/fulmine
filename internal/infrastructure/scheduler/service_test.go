@@ -26,7 +26,7 @@ func TestSchedulerService(t *testing.T) {
 }
 
 func testScheduler(t *testing.T, newScheduler func() ports.SchedulerService) {
-	t.Run("Schedule Next Settlement", func(t *testing.T) {
+	t.Run("schedule next settlement", func(t *testing.T) {
 		svc := newScheduler()
 		svc.Start()
 		defer svc.Stop()
@@ -69,7 +69,7 @@ func testScheduler(t *testing.T, newScheduler func() ports.SchedulerService) {
 
 	})
 
-	t.Run("Schedule in Past", func(t *testing.T) {
+	t.Run("schedule settlement in the past", func(t *testing.T) {
 		svc := newScheduler()
 		svc.Start()
 		defer svc.Stop()
@@ -86,7 +86,7 @@ func testScheduler(t *testing.T, newScheduler func() ports.SchedulerService) {
 		require.False(t, executed)
 	})
 
-	t.Run("Schedule Immediate Execution", func(t *testing.T) {
+	t.Run("schedule settlement for now", func(t *testing.T) {
 		svc := newScheduler()
 		svc.Start()
 		defer svc.Stop()
@@ -107,7 +107,7 @@ func testScheduler(t *testing.T, newScheduler func() ports.SchedulerService) {
 			require.Fail(t, "job did not execute within expected time")
 		}
 	})
-	t.Run("Schedule Next Settlement", func(t *testing.T) {
+	t.Run("cancel next settlement", func(t *testing.T) {
 		svc := newScheduler()
 		svc.Start()
 		defer svc.Stop()
