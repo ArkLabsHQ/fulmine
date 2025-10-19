@@ -90,7 +90,7 @@ var (
 	defaultClnUrl                = ""
 	defaultClnDatadir            = ""
 	defaultLndDatadir            = ""
-	defaultSwapTimeout           = 120 // In seconds
+	defaultSwapTimeout           = 15  // In seconds
 	defaultSchedulerPollInterval = 600 // 10 minutes
 )
 
