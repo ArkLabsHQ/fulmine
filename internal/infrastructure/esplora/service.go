@@ -2,86 +2,44 @@ package esplora
 
 import (
 	"context"
-	"fmt"
-	"io"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
+// TransactionItem represents a transaction in history
+type TransactionItem struct {
+	Height int64  // Block height (-1 for unconfirmed)
+	TxHash string // Transaction hash
+	Fee    int64  // Transaction fee in satoshis
+}
+
+// Service defines the interface for blockchain data retrieval
+// Both Electrum and HTTP implementations conform to this interface
 type Service interface {
+	// GetBlockHeight returns the current blockchain height
 	GetBlockHeight(ctx context.Context) (int64, error)
+
+	// GetScriptHashHistory retrieves transaction history for a script hash (Electrum) or address (HTTP)
+	// For Electrum: pass the script hash
+	// For HTTP: pass the Bitcoin address
+	GetScriptHashHistory(ctx context.Context, scriptHashOrAddress string) ([]TransactionItem, error)
+
+	// SubscribeScriptHash subscribes to notifications for a script hash (Electrum only)
+	// For HTTP: returns an error as subscriptions are not supported
+	// Returns the current status hash
+	SubscribeScriptHash(ctx context.Context, scriptHashOrAddress string) (string, error)
+
+	// Close closes any open connections or resources
+	Close() error
 }
 
-type service struct {
-	baseUrl        string
-	electrumClient *ElectrumClient
-	useElectrum    bool
-}
-
-// NewService creates a new esplora/electrum service
-// If electrumURL is provided, it uses Electrum protocol
-// Otherwise, it falls back to HTTP REST API with esploraURL
-func NewService(esploraURL, electrumURL string) *service {
+// NewService creates a new blockchain service
+// If electrumURL is provided, it uses Electrum protocol implementation
+// Otherwise, it falls back to HTTP REST API (Esplora) implementation
+func NewService(esploraURL, electrumURL string) Service {
 	// Prioritize Electrum if provided
 	if electrumURL != "" {
-		return &service{
-			baseUrl:        electrumURL,
-			electrumClient: NewElectrumClient(electrumURL, 10*time.Second),
-			useElectrum:    true,
-		}
+		return NewElectrumService(electrumURL)
 	}
 
 	// Fall back to HTTP REST API (Esplora)
-	return &service{
-		baseUrl:     esploraURL,
-		useElectrum: false,
-	}
-}
-
-func (s *service) GetBlockHeight(ctx context.Context) (int64, error) {
-	if s.useElectrum {
-		return s.getBlockHeightElectrum(ctx)
-	}
-	return s.getBlockHeightHTTP(ctx)
-}
-
-func (s *service) getBlockHeightElectrum(ctx context.Context) (int64, error) {
-	height, err := s.electrumClient.GetBlockchainHeight(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("electrum get height: %w", err)
-	}
-	return height, nil
-}
-
-func (s *service) getBlockHeightHTTP(ctx context.Context) (int64, error) {
-	url := strings.TrimRight(s.baseUrl, "/") + "/blocks/tip/height"
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return 0, err
-	}
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return 0, fmt.Errorf("get height: %w", err)
-	}
-	defer resp.Body.Close()
-
-	b, err := io.ReadAll(io.LimitReader(resp.Body, 64))
-	if err != nil {
-		return 0, fmt.Errorf("read body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
-	}
-
-	n, err := strconv.ParseInt(strings.TrimSpace(string(b)), 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("parse height: %w", err)
-	}
-	return n, nil
+	return NewHTTPService(esploraURL)
 }

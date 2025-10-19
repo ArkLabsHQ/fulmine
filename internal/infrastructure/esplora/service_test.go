@@ -2,6 +2,7 @@ package esplora
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 )
@@ -84,36 +85,58 @@ func TestService_GetBlockHeight_HTTP(t *testing.T) {
 
 func TestService_PrioritizesElectrum(t *testing.T) {
 	tests := []struct {
-		name        string
-		esploraURL  string
-		electrumURL string
-		useElectrum bool
+		name           string
+		esploraURL     string
+		electrumURL    string
+		expectedType   string
+		supportsSubcr  bool
 	}{
 		{
-			name:        "Electrum URL provided - uses Electrum",
-			esploraURL:  "https://mempool.space/api",
-			electrumURL: "blockstream.info:700",
-			useElectrum: true,
+			name:           "Electrum URL provided - uses Electrum",
+			esploraURL:     "https://mempool.space/api",
+			electrumURL:    "blockstream.info:700",
+			expectedType:   "*esplora.electrumService",
+			supportsSubcr:  true,
 		},
 		{
-			name:        "Only Esplora URL provided - uses HTTP",
-			esploraURL:  "https://blockstream.info/api",
-			electrumURL: "",
-			useElectrum: false,
+			name:           "Only Esplora URL provided - uses HTTP",
+			esploraURL:     "https://blockstream.info/api",
+			electrumURL:    "",
+			expectedType:   "*esplora.httpService",
+			supportsSubcr:  false,
 		},
 		{
-			name:        "Both provided - prioritizes Electrum",
-			esploraURL:  "https://mempool.space/api",
-			electrumURL: "blockstream.info:700",
-			useElectrum: true,
+			name:           "Both provided - prioritizes Electrum",
+			esploraURL:     "https://mempool.space/api",
+			electrumURL:    "blockstream.info:700",
+			expectedType:   "*esplora.electrumService",
+			supportsSubcr:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := NewService(tt.esploraURL, tt.electrumURL)
-			if svc.useElectrum != tt.useElectrum {
-				t.Errorf("Expected useElectrum=%v, got %v", tt.useElectrum, svc.useElectrum)
+			
+			// Verify the service was created
+			if svc == nil {
+				t.Fatal("Service should not be nil")
+			}
+
+			// Test that subscription returns appropriate result
+			ctx := context.Background()
+			_, err := svc.SubscribeScriptHash(ctx, "test")
+			
+			if tt.supportsSubcr {
+				// Electrum service - expect network error or connection error, not "not supported"
+				if err != nil && strings.Contains(err.Error(), "not supported") {
+					t.Errorf("Electrum service should support subscriptions, got: %v", err)
+				}
+			} else {
+				// HTTP service - expect "not supported" error
+				if err == nil || !strings.Contains(err.Error(), "not supported") {
+					t.Errorf("HTTP service should not support subscriptions, got: %v", err)
+				}
 			}
 		})
 	}
