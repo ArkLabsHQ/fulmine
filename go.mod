@@ -1,6 +1,6 @@
 module github.com/ArkLabsHQ/fulmine
 
-go 1.25
+go 1.25.3
 
 replace github.com/ArkLabsHQ/fulmine/pkg/vhtlc => ./pkg/vhtlc
 
@@ -23,7 +23,6 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-migrate/migrate/v4 v4.18.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1
 	github.com/johnbellone/grpc-middleware-sentry v0.4.0
 	github.com/nbd-wtf/go-nostr v0.40.1
@@ -48,7 +47,7 @@ require (
 	github.com/arkade-os/arkd/pkg/ark-lib v0.7.2-0.20251019021702-9f025345fd28
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/go-sdk v0.7.2-0.20251019022206-8205e570d8bf
+	github.com/arkade-os/go-sdk v0.7.2-0.20251019033106-9414e96dcf07
 	gopkg.in/macaroon.v2 v2.1.0
 )
 
