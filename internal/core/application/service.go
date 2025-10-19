@@ -648,7 +648,7 @@ func (s *Service) SendOnChain(ctx context.Context, addr string, amount uint64) (
 		return "", err
 	}
 
-	commitmentTxid, err := s.ArkClient.CollaborativeExit(ctx, addr, amount, false)
+	commitmentTxid, err := s.CollaborativeExit(ctx, addr, amount, false)
 	if err != nil {
 		return "", err
 	}
