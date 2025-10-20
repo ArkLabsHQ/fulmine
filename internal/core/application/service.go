@@ -229,8 +229,6 @@ func (s *Service) IsInitialized() bool {
 }
 
 func (s *Service) IsSynced() (bool, error) {
-	// s.syncLock.RLock()
-	// defer s.syncLock.RUnlock()
 	if s.syncEvent == nil {
 		return false, nil
 	}
@@ -294,7 +292,6 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 
 	pollingInterval := 5 * time.Minute
 	if infos.Network == "regtest" {
-		log.Info("using faster polling interval for regtest")
 		pollingInterval = 5 * time.Second
 	}
 

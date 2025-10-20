@@ -95,7 +95,7 @@ func (s *service) events(c *gin.Context) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 
-	readyCh := s.svc.GetSyncedUpdate()
+	syncedCh := s.svc.GetSyncedUpdate()
 	txsCh := s.svc.GetTransactionEventChannel(c.Request.Context())
 	for {
 		select {
@@ -109,9 +109,9 @@ func (s *service) events(c *gin.Context) {
 			}
 			c.SSEvent(event.Type.String(), event)
 			c.Writer.Flush()
-		case event, ok := <-readyCh:
+		case event, ok := <-syncedCh:
 			if !ok {
-				return
+				continue
 			}
 			c.SSEvent("SYNCED", event)
 			c.Writer.Flush()
