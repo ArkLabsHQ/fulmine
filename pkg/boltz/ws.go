@@ -232,10 +232,13 @@ func (boltz *Websocket) Reconnect() error {
 
 func (boltz *Websocket) ConnectAndSubscribe(ctx context.Context, swapIds []string, retryInterval time.Duration) error {
 	err := Retry(ctx, 5*time.Second, func(ctx context.Context) (bool, error) {
+		fmt.Println("CONNECT")
 		err := boltz.Connect()
 		if err != nil {
+			fmt.Println("CONNECT ERR", err)
 			return false, nil
 		}
+		fmt.Println("CONNECT DONE")
 		return true, nil
 	})
 
