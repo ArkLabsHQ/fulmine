@@ -1203,9 +1203,8 @@ func (s *service) getHero(c *gin.Context) {
 		return
 	}
 	if !isSynced {
-		// TODO: Render placeholder
-		partialContent := components.Hero("PLACEHOLDER", false)
-		partialViewHandler(partialContent, c)
+		spinnerContent := components.FullscreenLoader("syncing", true)
+		s.pageViewHandler(spinnerContent, c)
 		return
 	}
 
