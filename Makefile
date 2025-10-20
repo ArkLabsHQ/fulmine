@@ -43,16 +43,22 @@ lint:
 ## run: run in dev mode
 run: clean build-static-assets
 	@echo "Running fulmine in dev mode..."
-	@export FULMINE_NO_MACAROONS=true; \
+	@export FULMINE_DATADIR=./datadir; \
+	export FULMINE_NO_MACAROONS=true; \
 	export FULMINE_LOG_LEVEL=5; \
+	export FULMINE_SCHEDULER_POLL_INTERVAL=10; \
+	export FULMINE_DISABLE_TELEMETRY=true; \
 	go run ./cmd/fulmine
 
-run-cln: clean build-static-assets
+run-2: clean build-static-assets
 	@echo "Running fulmine in dev mode with CLN support..."
-	@export FULMINE_GRPC_PORT=7008; \
+	@export FULMINE_DATADIR=./datadir-2; \
+	export FULMINE_NO_MACAROONS=true; \
+	export FULMINE_LOG_LEVEL=5; \
+	export FULMINE_SCHEDULER_POLL_INTERVAL=10; \
+	export FULMINE_DISABLE_TELEMETRY=true; \
+	export FULMINE_GRPC_PORT=7008; \
 	export FULMINE_HTTP_PORT=7009; \
-	export FULMINE_DATADIR="./node-cln"; \
-	export FULMINE_CLN_DATADIR="~/Library/Application Support/Nigiri/volumes/lightningd/regtest/"; \
 	go run ./cmd/fulmine
 
 ## test: runs all tests

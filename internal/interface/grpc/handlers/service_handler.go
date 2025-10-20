@@ -190,7 +190,7 @@ func (h *serviceHandler) SendOnChain(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	txid, err := h.svc.CollaborativeExit(ctx, address, amount, false)
+	txid, err := h.svc.SendOnChain(ctx, address, amount)
 	if err != nil {
 		return nil, err
 	}
