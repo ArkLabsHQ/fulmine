@@ -201,11 +201,21 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 		return Swap{}, err
 	}
 
-	// Fund the VHTLC
-	receivers := []types.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
-	txid, err := h.arkClient.SendOffChain(ctx, false, receivers)
+	var txid string
+	for range 3 {
+		// Fund the VHTLC
+		receivers := []types.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
+		txid, err = h.arkClient.SendOffChain(ctx, false, receivers)
+		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
+				continue
+			}
+			return Swap{}, fmt.Errorf("failed to pay to vHTLC address: %v", err)
+		}
+	}
 	if err != nil {
-		return Swap{}, fmt.Errorf("failed to pay to vHTLC address: %v", err)
+		log.WithError(err).Error("failed to pay to vHTLC address")
+		return Swap{}, fmt.Errorf("something went wrong, please retry")
 	}
 
 	swapDetails := Swap{
