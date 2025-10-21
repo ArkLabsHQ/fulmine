@@ -56,7 +56,7 @@ const (
 var ErrorNoVtxosFound = fmt.Errorf("no vtxos found for the given vhtlc opts")
 
 var boltzURLByNetwork = map[string]string{
-	arklib.Bitcoin.Name:          "https://api.boltz.exchange",
+	arklib.Bitcoin.Name:          "https://api.ark.boltz.exchange",
 	arklib.BitcoinTestNet.Name:   "https://api.testnet.boltz.exchange",
 	arklib.BitcoinMutinyNet.Name: "https://api.boltz.mutinynet.arkade.sh",
 	arklib.BitcoinRegTest.Name:   "http://localhost:9001",
