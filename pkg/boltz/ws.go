@@ -247,10 +247,13 @@ func (boltz *Websocket) ConnectAndSubscribe(ctx context.Context, swapIds []strin
 	}
 
 	err = Retry(ctx, retryInterval, func(ctx context.Context) (bool, error) {
+		fmt.Println("SUBSCRIBE")
 		err = boltz.Subscribe(swapIds)
 		if err != nil {
+			fmt.Println("SUBSCRIBE ERR", err)
 			return false, nil
 		}
+		fmt.Println("SUBSCRIBE DONE")
 		return true, nil
 	})
 
