@@ -464,9 +464,23 @@ func (s *service) sendConfirm(c *gin.Context) {
 	receivers := []sdktypes.Receiver{{To: address, Amount: value}}
 
 	if utils.IsValidArkAddress(address) {
-		txId, err = s.svc.SendOffChain(c, false, receivers)
+		for range 3 {
+			txId, err = s.svc.SendOffChain(c, false, receivers)
+			if err != nil {
+				if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
+					continue
+				}
+				toast := components.Toast(err.Error(), true)
+				toastHandler(toast, c)
+				return
+			}
+		}
 		if err != nil {
+			log.WithError(err).Error("failed to pay to vHTLC address")
 			toast := components.Toast(err.Error(), true)
+			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
+				toast = components.Toast("something went wrong, please try again", true)
+			}
 			toastHandler(toast, c)
 			return
 		}
