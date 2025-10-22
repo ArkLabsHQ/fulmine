@@ -113,7 +113,7 @@ func (h *healthHandler) getFulmineStatus(ctx context.Context) grpchealth.HealthC
 	isInitialized := h.svc.IsInitialized()
 	isLocked := h.svc.IsLocked(ctx)
 
-	if isSynced && isInitialized && isLocked {
+	if isSynced && isInitialized && !isLocked {
 		return grpchealth.HealthCheckResponse_SERVING
 	}
 	return grpchealth.HealthCheckResponse_NOT_SERVING
