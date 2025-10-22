@@ -453,6 +453,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 	address := c.PostForm("address")
 	sats := c.PostForm("sats")
 	txId := ""
+	isOnchainTx := false
 
 	value, err := strconv.ParseUint(sats, 10, 64)
 	if err != nil {
@@ -474,6 +475,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 				toastHandler(toast, c)
 				return
 			}
+			break
 		}
 		if err != nil {
 			log.WithError(err).Error("failed to pay to vHTLC address")
@@ -493,26 +495,20 @@ func (s *service) sendConfirm(c *gin.Context) {
 			toastHandler(toast, c)
 			return
 		}
+		isOnchainTx = true
 	}
 
 	if utils.IsValidInvoice(address) {
 		resp, err := s.svc.PayInvoice(c, address)
-		txId = resp.TxId
-
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
 			return
 		}
+		txId = resp.TxId
 
 		if resp.SwapStatus == domain.SwapFailed {
 			bodyContent := pages.SendFailureContent(address, sats)
-			partialViewHandler(bodyContent, c)
-			return
-		}
-
-		if len(txId) == 0 {
-			bodyContent := pages.SendPendingContent(address, sats)
 			partialViewHandler(bodyContent, c)
 			return
 		}
@@ -520,11 +516,16 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	if swap.IsValidBolt12Offer(address) {
 		resp, err := s.svc.PayOffer(c, address)
-		txId = resp.TxId
-
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
+			return
+		}
+		txId = resp.TxId
+
+		if resp.SwapStatus == domain.SwapFailed {
+			bodyContent := pages.SendFailureContent(address, sats)
+			partialViewHandler(bodyContent, c)
 			return
 		}
 	}
@@ -541,9 +542,12 @@ func (s *service) sendConfirm(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	explorerUrl := getExplorerUrl(data.Network.Name)
+	txUrl := fmt.Sprintf("%s/v1/indexer/virtualTxs/%s", getIndexerUrl(data.Network.Name), txId)
+	if isOnchainTx {
+		txUrl = fmt.Sprintf("%s/tx/%s", getExplorerUrl(data.Network.Name), txId)
+	}
 
-	bodyContent := pages.SendSuccessContent(address, sats, txId, explorerUrl)
+	bodyContent := pages.SendSuccessContent(address, sats, txId, txUrl)
 	partialViewHandler(bodyContent, c)
 }
 

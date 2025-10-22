@@ -65,7 +65,8 @@ func NewService(
 	arkServer string,
 ) *service {
 	// Create a new Fiber server.
-	router := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
 
 	// Define HTML renderer for template engine.
 	router.HTMLRender = &TemplRender{}
