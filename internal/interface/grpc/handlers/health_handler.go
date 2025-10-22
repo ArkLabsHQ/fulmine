@@ -18,6 +18,7 @@ const (
 	watchInterval  = time.Minute
 )
 
+// https://github.com/grpc/grpc/blob/master/doc/health-checking.md
 type healthHandler struct {
 	svc *application.Service
 }
@@ -46,7 +47,7 @@ func (h *healthHandler) Check(
 ) (*grpchealth.HealthCheckResponse, error) {
 	serviceName := req.GetService()
 	if err := validateServiceName(serviceName); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		return nil, status.Errorf(codes.NotFound, err.Error())
 	}
 
 	return h.getServiceStatus(ctx, serviceName), nil
@@ -61,7 +62,7 @@ func (h *healthHandler) Watch(
 
 	serviceName := req.GetService()
 	if err := validateServiceName(serviceName); err != nil {
-		return status.Errorf(codes.InvalidArgument, err.Error())
+		return status.Errorf(codes.NotFound, err.Error())
 	}
 
 	status := h.getServiceStatus(stream.Context(), serviceName)
@@ -90,7 +91,7 @@ func (h *healthHandler) Watch(
 
 func (h *healthHandler) getServiceStatus(ctx context.Context, serviceName string) *grpchealth.HealthCheckResponse {
 	status := &grpchealth.HealthCheckResponse{
-		Status: grpchealth.HealthCheckResponse_NOT_SERVING,
+		Status: grpchealth.HealthCheckResponse_UNKNOWN,
 	}
 	switch serviceName {
 	case serviceFulmine:
@@ -104,8 +105,8 @@ func (h *healthHandler) getServiceStatus(ctx context.Context, serviceName string
 func (h *healthHandler) getFulmineStatus(ctx context.Context) grpchealth.HealthCheckResponse_ServingStatus {
 	isSynced, err := h.svc.IsSynced()
 	if err != nil {
-		log.WithError(err).Warn("failed to get synced status, sending NOT_SERVING")
-		return grpchealth.HealthCheckResponse_NOT_SERVING
+		log.WithError(err).Warn("failed to get synced status, sending UNKNOWN")
+		return grpchealth.HealthCheckResponse_UNKNOWN
 	}
 	isInitialized := h.svc.IsInitialized()
 	isLocked := h.svc.IsLocked(ctx)
