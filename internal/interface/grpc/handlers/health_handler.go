@@ -57,36 +57,7 @@ func (h *healthHandler) Watch(
 	req *grpchealth.HealthCheckRequest,
 	stream grpchealth.Health_WatchServer,
 ) error {
-	ticker := time.NewTicker(watchInterval)
-	defer ticker.Stop()
-
-	serviceName := req.GetService()
-	if err := validateServiceName(serviceName); err != nil {
-		return status.Errorf(codes.NotFound, err.Error())
-	}
-
-	status := h.getServiceStatus(stream.Context(), serviceName)
-	if err := stream.Send(status); err != nil {
-		log.Errorf("failed to send health check response: %v", err)
-		return err
-	}
-
-	go func() {
-		defer ticker.Stop()
-		for {
-			select {
-			case <-stream.Context().Done():
-				return
-			case <-ticker.C:
-				if err := stream.Send(h.getServiceStatus(stream.Context(), serviceName)); err != nil {
-					log.Errorf("failed to send health check response: %v", err)
-					return
-				}
-			}
-		}
-	}()
-
-	return nil
+	return status.Errorf(codes.Unimplemented, "method Watch is not implemented")
 }
 
 func (h *healthHandler) getServiceStatus(ctx context.Context, serviceName string) *grpchealth.HealthCheckResponse {
