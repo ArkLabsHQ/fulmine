@@ -1536,10 +1536,10 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 
 	vHTLC := domain.NewVhtlc(*opts)
 
+	receivers := []types.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
 	var txid string
 	for range 3 {
 		// Fund the VHTLC
-		receivers := []types.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
 		txid, err = s.SendOffChain(ctx, false, receivers)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {

@@ -199,10 +199,10 @@ func (h *SwapHandler) submarineSwap(
 		return nil, err
 	}
 
+	receivers := []types.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
 	var txid string
 	for range 3 {
 		// Fund the VHTLC
-		receivers := []types.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
 		txid, err = h.arkClient.SendOffChain(ctx, false, receivers)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
