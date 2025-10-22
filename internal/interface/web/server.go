@@ -15,10 +15,6 @@ import (
 //go:embed static/*
 var static embed.FS
 
-func init() {
-	gin.SetMode(gin.ReleaseMode)
-}
-
 // TemplRender implements the render.Render interface.
 type TemplRender struct {
 	Code int
