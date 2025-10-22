@@ -49,18 +49,7 @@ func (h *healthHandler) Check(
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	switch serviceName {
-	case serviceFulmine:
-		return &grpchealth.HealthCheckResponse{
-			Status: h.getFulmineStatus(ctx),
-		}, nil
-	case serviceLN:
-		return &grpchealth.HealthCheckResponse{
-			Status: h.getLNStatus(),
-		}, nil
-	default:
-		return nil, status.Errorf(codes.InvalidArgument, "unknown service: %s", serviceName)
-	}
+	return h.getServiceStatus(ctx, serviceName), nil
 }
 
 func (h *healthHandler) Watch(
@@ -75,33 +64,41 @@ func (h *healthHandler) Watch(
 		return status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
+	status := h.getServiceStatus(stream.Context(), serviceName)
+	if err := stream.Send(status); err != nil {
+		log.Errorf("failed to send health check response: %v", err)
+		return err
+	}
+
 	go func() {
+		defer ticker.Stop()
 		for {
 			select {
 			case <-stream.Context().Done():
 				return
 			case <-ticker.C:
-				switch serviceName {
-				case serviceFulmine:
-					if err := stream.Send(&grpchealth.HealthCheckResponse{
-						Status: h.getFulmineStatus(stream.Context()),
-					}); err != nil {
-						log.Errorf("failed to send health check response: %v", err)
-						return
-					}
-				case serviceLN:
-					if err := stream.Send(&grpchealth.HealthCheckResponse{
-						Status: h.getLNStatus(),
-					}); err != nil {
-						log.Errorf("failed to send health check response: %v", err)
-						return
-					}
+				if err := stream.Send(h.getServiceStatus(stream.Context(), serviceName)); err != nil {
+					log.Errorf("failed to send health check response: %v", err)
+					return
 				}
 			}
 		}
 	}()
 
 	return nil
+}
+
+func (h *healthHandler) getServiceStatus(ctx context.Context, serviceName string) *grpchealth.HealthCheckResponse {
+	status := &grpchealth.HealthCheckResponse{
+		Status: grpchealth.HealthCheckResponse_NOT_SERVING,
+	}
+	switch serviceName {
+	case serviceFulmine:
+		status.Status = h.getFulmineStatus(ctx)
+	case serviceLN:
+		status.Status = h.getLNStatus()
+	}
+	return status
 }
 
 func (h *healthHandler) getFulmineStatus(ctx context.Context) grpchealth.HealthCheckResponse_ServingStatus {
