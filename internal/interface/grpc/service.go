@@ -116,6 +116,7 @@ func NewService(
 			},
 		}),
 	)
+	// nolint
 	gwmux.HandlePath("GET", "/healthz", func(w http.ResponseWriter, r *http.Request, _ map[string]string) {
 		resp, err := healthzHandler.Check(r.Context(), &grpchealth.HealthCheckRequest{Service: "fulmine"})
 		if err != nil {
