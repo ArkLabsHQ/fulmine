@@ -439,6 +439,19 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			}
 		}
 
+		url := s.boltzUrl
+		wsUrl := s.boltzWSUrl
+		if url == "" {
+			url = boltzURLByNetwork[arkConfig.Network.Name]
+		}
+		if wsUrl == "" {
+			wsUrl = boltzURLByNetwork[arkConfig.Network.Name]
+		}
+		s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
+
+		// Resume pending swap refunds.
+		go s.resumePendingSwapRefunds(context.Background())
+
 		// Restore watch of our and tracked addresses.
 		_, offchainAddresses, boardingAddresses, _, err := s.GetAddresses(ctx)
 		if err != nil {
@@ -486,17 +499,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		s.publicKey = pubkey
 	}()
 
-	// This go routine takes care of establishing the LN connection, if configured.
-	// TODO: Improve by handling the error instead of just logging it.
-	go func() {
-		if settings.LnConnectionOpts != nil {
-			log.Debug("connecting to LN node...")
-			if err = s.connectLN(ctx, settings.LnConnectionOpts); err != nil {
-				log.WithError(err).Error("failed to connect to LN node")
-			}
-		}
-	}()
-
 	url := s.boltzUrl
 	wsUrl := s.boltzWSUrl
 	if url == "" {
@@ -507,44 +509,16 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 
-	go s.resumePendingSwapRefunds(context.Background())
-
-	_, offchainAddresses, boardingAddresses, _, err := s.GetAddresses(ctx)
-	if err != nil {
-		log.WithError(err).Error("failed to get addresses")
-		return err
-	}
-
-	offchainPkScript, err := offchainAddressesPkScripts(offchainAddresses)
-	if err != nil {
-		log.WithError(err).Error("failed to get offchain address")
-		return err
-	}
-
-	s.internalSubscription = newSubscriptionHandler(
-		settings.ServerUrl,
-		internalScriptsStore(offchainPkScript),
-		s.handleInternalAddressEventChannel,
-	)
-
-	s.externalSubscription = newSubscriptionHandler(
-		settings.ServerUrl,
-		s.dbSvc.SubscribedScript(),
-		s.handleAddressEventChannel(arkConfig),
-	)
-
-	if err := s.internalSubscription.start(); err != nil {
-		log.WithError(err).Error("failed to start internal subscription")
-		return err
-	}
-	if err := s.externalSubscription.start(); err != nil {
-		log.WithError(err).Error("failed to start external subscription")
-		return err
-	}
-
-	if arkConfig.UtxoMaxAmount != 0 {
-		go s.subscribeForBoardingEvent(ctx, boardingAddresses, arkConfig)
-	}
+	// This go routine takes care of establishing the LN connection, if configured.
+	// TODO: Improve by handling the error instead of just logging it.
+	go func() {
+		if settings.LnConnectionOpts != nil {
+			log.Debug("connecting to LN node...")
+			if err = s.connectLN(ctx, settings.LnConnectionOpts); err != nil {
+				log.WithError(err).Error("failed to connect to LN node")
+			}
+		}
+	}()
 
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: WalletUnlock, Password: password}
