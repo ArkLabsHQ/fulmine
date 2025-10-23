@@ -439,6 +439,21 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			}
 		}
 
+		if s.boltzSvc == nil {
+			url := s.boltzUrl
+			wsUrl := s.boltzWSUrl
+			if url == "" {
+				url = boltzURLByNetwork[arkConfig.Network.Name]
+			}
+			if wsUrl == "" {
+				wsUrl = boltzURLByNetwork[arkConfig.Network.Name]
+			}
+			s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
+		}
+
+		// Resume pending swap refunds.
+		go s.resumePendingSwapRefunds(context.Background())
+
 		// Restore watch of our and tracked addresses.
 		_, offchainAddresses, boardingAddresses, _, err := s.GetAddresses(ctx)
 		if err != nil {
@@ -2254,4 +2269,22 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 	}
 
 	return nil
+}
+
+func (s *Service) resumePendingSwapRefunds(ctx context.Context) {
+	swaps, err := s.dbSvc.Swap().GetAll(ctx)
+	if err != nil {
+		log.WithError(err).Error("failed to load swaps while rescheduling refunds")
+		return
+	}
+
+	for _, swap := range swaps {
+
+		if swap.Status == domain.SwapFailed && swap.RedeemTxId == "" {
+			if err := s.scheduleSwapRefund(swap.Id, swap.Vhtlc.Opts); err != nil {
+				log.WithError(err).WithField("swap_id", swap.Id).Warn("failed to reschedule refund task")
+			}
+		}
+
+	}
 }
