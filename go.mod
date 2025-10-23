@@ -1,6 +1,6 @@
 module github.com/ArkLabsHQ/fulmine
 
-go 1.24.6
+go 1.25.3
 
 replace github.com/ArkLabsHQ/fulmine/pkg/vhtlc => ./pkg/vhtlc
 
@@ -13,7 +13,7 @@ replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-d
 require (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-00010101000000-000000000000
-	github.com/a-h/templ v0.3.943
+	github.com/a-h/templ v0.3.960
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/ccoveille/go-safecast v1.6.1
 	github.com/dgraph-io/badger/v4 v4.6.0
@@ -23,7 +23,6 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-migrate/migrate/v4 v4.18.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1
 	github.com/johnbellone/grpc-middleware-sentry v0.4.0
 	github.com/nbd-wtf/go-nostr v0.40.1
@@ -45,10 +44,10 @@ require (
 
 require (
 	github.com/ArkLabsHQ/fulmine/pkg/swap v0.0.0-00010101000000-000000000000
-	github.com/arkade-os/arkd/pkg/ark-lib v0.7.2-0.20251010142325-5b2f22ddea80
+	github.com/arkade-os/arkd/pkg/ark-lib v0.7.2-0.20251020193908-f401a905e83f
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/go-sdk v0.7.2-0.20251010143855-3ca342862a88
+	github.com/arkade-os/go-sdk v0.8.1-0.20251023073845-2ede04abdceb
 	gopkg.in/macaroon.v2 v2.1.0
 )
 

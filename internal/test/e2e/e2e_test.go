@@ -84,7 +84,7 @@ func TestSendOnChain(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, txid)
 
-	time.Sleep(time.Second)
+	time.Sleep(5 * time.Second)
 
 	balance, err := getBalance()
 	require.NoError(t, err)

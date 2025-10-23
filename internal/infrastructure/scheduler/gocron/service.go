@@ -17,41 +17,41 @@ type heightTask struct {
 }
 
 type service struct {
-	scheduler      *gocron.Scheduler
-	esploraService esplora.Service
-	job            *gocron.Job
-	mu             *sync.Mutex
-	blockCancel    context.CancelFunc
-	tasks          []*heightTask
+	scheduler            *gocron.Scheduler
+	explorer             esplora.Service
+	job                  *gocron.Job
+	stopJob              func()
+	mu                   *sync.Mutex
+	blockCancel          context.CancelFunc
+	tasks                []*heightTask
+	explorerPollInterval time.Duration
 }
 
-func NewScheduler(esplorerUrl string) ports.SchedulerService {
+func NewScheduler(esplorerUrl string, pollInterval time.Duration) ports.SchedulerService {
 	svc := gocron.NewScheduler(time.UTC)
 	esplorerService := esplora.NewService(esplorerUrl)
-	return &service{svc, esplorerService, nil, &sync.Mutex{}, nil, nil}
+	return &service{svc, esplorerService, nil, nil, &sync.Mutex{}, nil, nil, pollInterval}
 }
 
 func (s *service) Start() {
-	s.scheduler.StartAsync()
-
-	pollInterval := 5 * time.Second
-
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Nothing to do if already started
 	if s.blockCancel != nil {
-		s.mu.Unlock()
 		return
 	}
+
+	s.scheduler.StartAsync()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	s.blockCancel = cancel
-	s.mu.Unlock()
 
 	go func() {
-		t := time.NewTicker(pollInterval)
+		t := time.NewTicker(s.explorerPollInterval)
 		defer t.Stop()
 		for {
-			callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-			h, err := s.esploraService.GetBlockHeight(callCtx)
-			cancel()
+			h, err := s.explorer.GetBlockHeight(ctx)
 
 			if err == nil {
 				s.mu.Lock()
@@ -77,15 +77,24 @@ func (s *service) Start() {
 }
 
 func (s *service) Stop() {
-	s.scheduler.Stop()
-
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.scheduler != nil {
+		s.scheduler.Remove(s.job)
+		s.scheduler.Stop()
+		s.scheduler.Clear()
+
+		s.job = nil
+		s.tasks = make([]*heightTask, 0)
+		// Without this
+		// s.scheduler = gocron.NewScheduler(time.UTC)
+	}
 
 	if s.blockCancel != nil {
 		s.blockCancel()
 		s.blockCancel = nil
 	}
-	s.mu.Unlock()
 }
 
 func (s *service) ScheduleRefundAtHeight(target uint32, refund func()) error {
@@ -93,7 +102,7 @@ func (s *service) ScheduleRefundAtHeight(target uint32, refund func()) error {
 		return fmt.Errorf("invalid height: %d", target)
 	}
 
-	currentHeight, err := s.esploraService.GetBlockHeight(context.Background())
+	currentHeight, err := s.explorer.GetBlockHeight(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to get current block height: %w", err)
 	}
@@ -145,18 +154,23 @@ func (s *service) ScheduleNextSettlement(at time.Time, settleFunc func()) error 
 		return fmt.Errorf("cannot schedule task in the past")
 	}
 
+	s.CancelNextSettlement()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	s.scheduler.Remove(s.job)
-	s.job = nil
 
 	if delay == 0 {
 		settleFunc()
 		return nil
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
 	job, err := s.scheduler.Every(delay).WaitForSchedule().LimitRunsTo(1).Do(func() {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 		settleFunc()
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -164,10 +178,12 @@ func (s *service) ScheduleNextSettlement(at time.Time, settleFunc func()) error 
 		s.job = nil
 	})
 	if err != nil {
+		cancel()
 		return err
 	}
 
 	s.job = job
+	s.stopJob = cancel
 
 	return err
 }
@@ -182,4 +198,17 @@ func (s *service) WhenNextSettlement() time.Time {
 	}
 
 	return s.job.NextRun()
+}
+
+func (s *service) CancelNextSettlement() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.job == nil {
+		return
+	}
+
+	s.stopJob()
+	s.scheduler.Remove(s.job)
+	s.job = nil
 }

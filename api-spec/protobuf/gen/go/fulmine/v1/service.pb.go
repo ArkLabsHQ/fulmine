@@ -343,7 +343,7 @@ type GetInfoResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The bitcoin network on which Fulmine is runnig.
+	// The bitcoin network on which Fulmine is running.
 	Network GetInfoResponse_Network `protobuf:"varint,1,opt,name=network,proto3,enum=fulmine.v1.GetInfoResponse_Network" json:"network,omitempty"`
 	// The ark address prefix (ark | tark).
 	AddrPrefix string `protobuf:"bytes,2,opt,name=addr_prefix,json=addrPrefix,proto3" json:"addr_prefix,omitempty"`

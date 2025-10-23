@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS swap (
     funding_tx_id TEXT NOT NULL,
     redeem_tx_id TEXT NOT NULL,
     vhtlc_id TEXT NOT NULL,
-    FOREIGN KEY (vhtlc_id) REFERENCES vhtlc(preimage_hash) ON DELETE CASCADE
+    FOREIGN KEY (vhtlc_id) REFERENCES vhtlc(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS vtxo_rollover (
