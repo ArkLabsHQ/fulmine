@@ -1,5 +1,9 @@
 .PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-cln test test-vhtlc vet proto proto-lint up-test-env setup-arkd down-test-env
 
+GOLANGCI_LINT ?= $(shell \
+	echo "docker run --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v2.5.0 golangci-lint"; \
+)
+
 build-static-assets: build-templates
 	@echo "Generating static assets..."
 	@cd internal/interface/web && rm -rf .parcel-cache && yarn && yarn build
@@ -38,7 +42,7 @@ help:
 ## lint: lint codebase
 lint:
 	@echo "Linting code..."
-	@golangci-lint run --fix --tests=false
+	@$(GOLANGCI_LINT) run --fix --tests=false
 
 ## run: run in dev mode
 run: clean build-static-assets
