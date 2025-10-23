@@ -104,7 +104,8 @@ func main() {
 		Date:    date,
 	}
 
-	schedulerSvc := scheduler.NewScheduler(cfg.EsploraURL)
+	pollInterval := time.Duration(cfg.SchedulerPollInterval) * time.Second
+	schedulerSvc := scheduler.NewScheduler(cfg.EsploraURL, pollInterval)
 
 	appSvc, err := application.NewService(
 		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc,

@@ -78,32 +78,30 @@ func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.Transport
 	}
 }
 
-func (h *SwapHandler) PayInvoice(ctx context.Context, invoice string, unilateralRefund func(swap Swap) error) (Swap, error) {
+func (h *SwapHandler) PayInvoice(ctx context.Context, invoice string, unilateralRefund func(swap Swap) error) (*Swap, error) {
 	if len(invoice) <= 0 {
-		return Swap{}, fmt.Errorf("missing invoice")
+		return nil, fmt.Errorf("missing invoice")
 	}
 
 	return h.submarineSwap(ctx, invoice, unilateralRefund)
 }
 
-func (h *SwapHandler) PayOffer(ctx context.Context, offer string, lightningUrl string, unilateralRefund func(swap Swap) error) (Swap, error) {
+func (h *SwapHandler) PayOffer(ctx context.Context, offer string, lightningUrl string, unilateralRefund func(swap Swap) error) (*Swap, error) {
 	// Decode the offer to get the amount
 	decodedOffer, err := DecodeBolt12Offer(offer)
 	if err != nil {
-		return Swap{}, fmt.Errorf("failed to decode offer: %v", err)
+		return nil, fmt.Errorf("failed to decode offer: %v", err)
 	}
 
 	amountInSats := decodedOffer.AmountInSats
 
 	if amountInSats == 0 {
-		return Swap{}, fmt.Errorf("offer amount is 0")
+		return nil, fmt.Errorf("offer amount is 0")
 	}
 
 	boltzApi := h.boltzSvc
 	if lightningUrl != "" {
-		boltzApi = &boltz.Api{
-			URL: lightningUrl,
-		}
+		boltzApi = &boltz.Api{URL: lightningUrl}
 	}
 
 	response, err := boltzApi.FetchBolt12Invoice(boltz.FetchBolt12InvoiceRequest{
@@ -113,17 +111,16 @@ func (h *SwapHandler) PayOffer(ctx context.Context, offer string, lightningUrl s
 	})
 
 	if err != nil {
-		return Swap{}, fmt.Errorf("failed to fetch invoice: %v", err)
+		return nil, fmt.Errorf("failed to fetch invoice: %v", err)
 	}
 
 	if response.Error != "" {
-		return Swap{}, fmt.Errorf("failed to fetch invoice: %s", response.Error)
+		return nil, fmt.Errorf("failed to fetch invoice: %s", response.Error)
 	}
 
 	return h.submarineSwap(ctx, response.Invoice, unilateralRefund)
 }
 
-// TODO (Joshua) : Ensure That this is being tracked
 func (h *SwapHandler) GetInvoice(ctx context.Context, amount uint64, postProcess func(swap Swap) error) (Swap, error) {
 	preimage := make([]byte, 32)
 	if _, err := rand.Read(preimage); err != nil {
@@ -133,9 +130,14 @@ func (h *SwapHandler) GetInvoice(ctx context.Context, amount uint64, postProcess
 	return h.reverseSwap(ctx, amount, preimage, postProcess)
 }
 
-func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilateralRefund func(swap Swap) error) (Swap, error) {
+func (h *SwapHandler) submarineSwap(
+	ctx context.Context, invoice string, unilateralRefund func(swap Swap) error,
+) (*Swap, error) {
 	if len(invoice) == 0 {
-		return Swap{}, fmt.Errorf("invoice must not be empty")
+		return nil, fmt.Errorf("missing invoice")
+	}
+	if unilateralRefund == nil {
+		return nil, fmt.Errorf("missing callback for unilateral refund")
 	}
 
 	var preimageHash []byte
@@ -143,13 +145,13 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 	if IsBolt12Invoice(invoice) {
 		decodedInvoice, err := DecodeBolt12Invoice(invoice)
 		if err != nil {
-			return Swap{}, fmt.Errorf("failed to decode bolt12 invoice: %v", err)
+			return nil, fmt.Errorf("failed to decode bolt12 invoice: %v", err)
 		}
 		preimageHash = decodedInvoice.PaymentHash160
 	} else {
 		_, hash, err := DecodeInvoice(invoice)
 		if err != nil {
-			return Swap{}, fmt.Errorf("failed to decode invoice: %v", err)
+			return nil, fmt.Errorf("failed to decode invoice: %v", err)
 		}
 		preimageHash = hash
 	}
@@ -163,12 +165,12 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 		PaymentTimeout:  h.timeout,
 	})
 	if err != nil {
-		return Swap{}, fmt.Errorf("failed to make submarine swap: %v", err)
+		return nil, fmt.Errorf("failed to make submarine swap: %v", err)
 	}
 
 	receiverPubkey, err := parsePubkey(swap.ClaimPublicKey)
 	if err != nil {
-		return Swap{}, fmt.Errorf("invalid claim pubkey: %v", err)
+		return nil, fmt.Errorf("invalid claim pubkey: %v", err)
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
@@ -184,31 +186,37 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 		deriveTimelock(swap.TimeoutBlockHeights.UnilateralRefundWithoutReceiver),
 	)
 	if err != nil {
-		return Swap{}, fmt.Errorf("failed to verify vHTLC: %v", err)
+		return nil, fmt.Errorf("failed to verify vHTLC: %v", err)
 	}
 	if swap.Address != vhtlcAddress {
-		return Swap{}, fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
+		return nil, fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
-
-	contextTimeout := time.Second * time.Duration(h.timeout*2)
 
 	ws := h.boltzSvc.NewWebsocket()
-	ctx, cancel := context.WithTimeout(ctx, contextTimeout)
-	defer cancel()
-
 	err = ws.ConnectAndSubscribe(ctx, []string{swap.Id}, 5*time.Second)
 	if err != nil {
-		return Swap{}, err
+		return nil, err
 	}
 
-	// Fund the VHTLC
 	receivers := []types.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
-	txid, err := h.arkClient.SendOffChain(ctx, false, receivers)
+	var txid string
+	for range 3 {
+		// Fund the VHTLC
+		txid, err = h.arkClient.SendOffChain(ctx, false, receivers)
+		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
+				continue
+			}
+			return nil, fmt.Errorf("failed to pay to vHTLC address: %v", err)
+		}
+		break
+	}
 	if err != nil {
-		return Swap{}, fmt.Errorf("failed to pay to vHTLC address: %v", err)
+		log.WithError(err).Error("failed to pay to vHTLC address")
+		return nil, fmt.Errorf("something went wrong, please retry")
 	}
 
-	swapDetails := Swap{
+	swapDetails := &Swap{
 		Id:           swap.Id,
 		Invoice:      invoice,
 		TxId:         txid,
@@ -220,25 +228,36 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 		Amount:       swap.ExpectedAmount,
 	}
 
+	contextTimeout := time.Second * time.Duration(h.timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, contextTimeout)
+	defer cancel()
+	ctx = timeoutCtx
+
 	for {
 		select {
 		case update, ok := <-ws.Updates:
-			// TODO (Joshua) : This should wait for payment to succeed, even after updates fail
 			if !ok {
-				return swapDetails, fmt.Errorf("updates closed")
+				oldWs := ws
+				nextWs := h.boltzSvc.NewWebsocket()
+				if err := nextWs.ConnectAndSubscribe(ctx, []string{swap.Id}, 5*time.Second); err != nil {
+					continue
+				}
+				_ = oldWs.Close()
+				ws = nextWs
+				continue
 			}
+
 			switch boltz.ParseEvent(update.Status) {
 			case boltz.TransactionLockupFailed, boltz.InvoiceFailedToPay:
 				// Refund the VHTLC if the swap fails
 				withReceiver := true
 				swapDetails.Status = SwapFailed
 
-				txid, err := h.refundVHTLC(
-					context.Background(), swap.Id, withReceiver, *vhtlcOpts)
-
+				txid, err := h.refundVHTLC(context.Background(), swap.Id, withReceiver, *vhtlcOpts)
 				if err != nil {
+					log.WithError(err).Warn("failed to refund vhtlc collaboratively")
 					go func() {
-						err := unilateralRefund(swapDetails)
+						err := unilateralRefund(*swapDetails)
 						if err != nil {
 							log.WithError(err).Error("failed to do unilateral refund")
 						}
@@ -253,14 +272,20 @@ func (h *SwapHandler) submarineSwap(ctx context.Context, invoice string, unilate
 				return swapDetails, nil
 			}
 		case <-ctx.Done():
+			withReceiver := true
 			swapDetails.Status = SwapFailed
 
-			go func() {
-				err := unilateralRefund(swapDetails)
-				if err != nil {
-					log.WithError(err).Error("failed to do unilateral refund")
-				}
-			}()
+			txid, err := h.refundVHTLC(context.Background(), swap.Id, withReceiver, *vhtlcOpts)
+			if err != nil {
+				log.WithError(err).Warn("failed to refund vhtlc collaboratively")
+				go func() {
+					err := unilateralRefund(*swapDetails)
+					if err != nil {
+						log.WithError(err).Error("failed to do unilateral refund")
+					}
+				}()
+			}
+			swapDetails.RedeemTxid = txid
 
 			return swapDetails, nil
 		}
@@ -523,7 +548,7 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 		TimeoutInfo:  swap.TimeoutBlockHeights,
 		Timestamp:    time.Now().Unix(),
 		Status:       SwapPending,
-		Amount:       amount,
+		Amount:       swap.OnchainAmount,
 		Opts:         vhtlcOpts,
 	}
 
@@ -580,7 +605,14 @@ func (h *SwapHandler) waitAndClaimVHTLC(
 		select {
 		case update, ok := <-ws.Updates:
 			if !ok {
-				return "", fmt.Errorf("updates closed")
+				oldWs := ws
+				nextWs := h.boltzSvc.NewWebsocket()
+				if err := nextWs.ConnectAndSubscribe(ctx, []string{swapId}, 5*time.Second); err != nil {
+					continue
+				}
+				_ = oldWs.Close()
+				ws = nextWs
+				continue
 			}
 			parsedStatus := boltz.ParseEvent(update.Status)
 

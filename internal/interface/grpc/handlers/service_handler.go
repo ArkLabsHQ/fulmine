@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/hex"
+	"strings"
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
@@ -170,13 +171,23 @@ func (h *serviceHandler) SendOffChain(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	receivers := []types.Receiver{{To: address, Amount: amount}}
 
-	arkTxId, err := h.svc.SendOffChain(ctx, false, receivers)
+	receivers := []types.Receiver{{To: address, Amount: amount}}
+	var arkTxid string
+	for range 3 {
+		arkTxid, err = h.svc.SendOffChain(ctx, true, receivers)
+		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
+				continue
+			}
+			return nil, err
+		}
+		break
+	}
 	if err != nil {
 		return nil, err
 	}
-	return &pb.SendOffChainResponse{Txid: arkTxId}, nil
+	return &pb.SendOffChainResponse{Txid: arkTxid}, nil
 }
 
 func (h *serviceHandler) SendOnChain(
@@ -190,7 +201,7 @@ func (h *serviceHandler) SendOnChain(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	txid, err := h.svc.CollaborativeExit(ctx, address, amount, false)
+	txid, err := h.svc.SendOnChain(ctx, address, amount)
 	if err != nil {
 		return nil, err
 	}

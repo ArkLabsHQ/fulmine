@@ -882,7 +882,7 @@
       "properties": {
         "network": {
           "$ref": "#/definitions/GetInfoResponseNetwork",
-          "description": "The bitcoin network on which Fulmine is runnig."
+          "description": "The bitcoin network on which Fulmine is running."
         },
         "addrPrefix": {
           "type": "string",

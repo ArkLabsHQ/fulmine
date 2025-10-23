@@ -95,14 +95,33 @@ func (s *service) events(c *gin.Context) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 
-	channel := s.svc.GetTransactionEventChannel(c.Request.Context())
+	if isSynced, _ := s.svc.IsSynced(); !isSynced {
+		syncedCh := s.svc.GetSyncedUpdate()
+		for {
+			select {
+			case <-s.stopCh:
+				return
+			case <-c.Request.Context().Done():
+				return
+			case event, ok := <-syncedCh:
+				if !ok {
+					continue
+				}
+				c.SSEvent("SYNCED", event)
+				c.Writer.Flush()
+			}
+		}
+
+	}
+
+	txsCh := s.svc.GetTransactionEventChannel(c.Request.Context())
 	for {
 		select {
 		case <-s.stopCh:
 			return
 		case <-c.Request.Context().Done():
 			return
-		case event, ok := <-channel:
+		case event, ok := <-txsCh:
 			if !ok {
 				return
 			}
@@ -114,11 +133,13 @@ func (s *service) events(c *gin.Context) {
 
 func (s *service) index(c *gin.Context) {
 	bodyContent := pages.Welcome()
-	if s.svc.IsReady() {
-		if s.svc.IsLocked(c) {
-			bodyContent = pages.Unlock()
-		} else {
-			bodyContent = pages.IndexBodyContent()
+	if s.svc.IsInitialized() {
+		{
+			if s.svc.IsLocked(c) {
+				bodyContent = pages.Unlock()
+			} else {
+				bodyContent = pages.IndexBodyContent()
+			}
 		}
 	}
 	s.pageViewHandler(bodyContent, c)
@@ -455,9 +476,24 @@ func (s *service) sendConfirm(c *gin.Context) {
 	receivers := []sdktypes.Receiver{{To: address, Amount: value}}
 
 	if utils.IsValidArkAddress(address) {
-		txId, err = s.svc.SendOffChain(c, false, receivers)
+		for range 3 {
+			txId, err = s.svc.SendOffChain(c, false, receivers)
+			if err != nil {
+				if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
+					continue
+				}
+				toast := components.Toast(err.Error(), true)
+				toastHandler(toast, c)
+				return
+			}
+			break
+		}
 		if err != nil {
+			log.WithError(err).Error("failed to pay to vHTLC address")
 			toast := components.Toast(err.Error(), true)
+			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
+				toast = components.Toast("something went wrong, please try again", true)
+			}
 			toastHandler(toast, c)
 			return
 		}
@@ -474,22 +510,15 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	if utils.IsValidInvoice(address) {
 		resp, err := s.svc.PayInvoice(c, address)
-		txId = resp.TxId
-
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
 			return
 		}
+		txId = resp.TxId
 
 		if resp.SwapStatus == domain.SwapFailed {
 			bodyContent := pages.SendFailureContent(address, sats)
-			partialViewHandler(bodyContent, c)
-			return
-		}
-
-		if len(txId) == 0 {
-			bodyContent := pages.SendPendingContent(address, sats)
 			partialViewHandler(bodyContent, c)
 			return
 		}
@@ -497,11 +526,16 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	if swap.IsValidBolt12Offer(address) {
 		resp, err := s.svc.PayOffer(c, address)
-		txId = resp.TxId
-
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
+			return
+		}
+		txId = resp.TxId
+
+		if resp.SwapStatus == domain.SwapFailed {
+			bodyContent := pages.SendFailureContent(address, sats)
+			partialViewHandler(bodyContent, c)
 			return
 		}
 	}
@@ -864,6 +898,18 @@ func (s *service) getTxs(c *gin.Context) {
 		return
 	}
 
+	isSynced, err := s.svc.IsSynced()
+	// nolint
+	if err != nil {
+		// TODO: Render error
+	}
+	if !isSynced {
+		// TODO: Render placeholder
+		bodyContent := components.HistoryBodyContent(nil, "0", false)
+		partialViewHandler(bodyContent, c)
+		return
+	}
+
 	lastId := c.Param("lastId")
 	loadMore := false
 	txsPerPage := 10
@@ -1171,6 +1217,20 @@ func (s *service) lnConnectInfoModal(c *gin.Context) {
 
 func (s *service) getHero(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	isSynced, err := s.svc.IsSynced()
+	if err != nil {
+		// TODO: Render error
+		partialContent := components.Hero("ERROR", false)
+		partialViewHandler(partialContent, c)
+		return
+	}
+	if !isSynced {
+		// TODO: Render placeholder
+		partialContent := components.Hero("PLACEHOLDER", false)
+		partialViewHandler(partialContent, c)
 		return
 	}
 

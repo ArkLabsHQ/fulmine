@@ -198,7 +198,7 @@
             "type": "object",
             "$ref": "#/definitions/v1WebhookInfo"
           },
-          "description": "The list of info about the webhooks regitered for an action."
+          "description": "The list of info about the webhooks registered for an action."
         }
       }
     },

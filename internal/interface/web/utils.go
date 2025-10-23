@@ -13,18 +13,12 @@ import (
 
 func getExplorerUrl(network string) string {
 	switch network {
-	case "liquid":
-		return "https://liquid.network"
 	case "bitcoin":
 		return "https://mempool.space"
 	case "mutinynet":
 		return "https://mutinynet.com"
 	case "signet":
 		return "https://mempool.space/signet"
-	case "liquidtestnet":
-		return "https://liquid.network/testnet"
-	case "liquidregtest":
-		return "http://localhost:5001"
 	default:
 		return "http://localhost:5000"
 	}

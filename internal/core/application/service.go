@@ -1,7 +1,6 @@
 package application
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -12,6 +11,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
@@ -35,9 +35,7 @@ import (
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
-	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
-	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
@@ -58,7 +56,7 @@ const (
 var ErrorNoVtxosFound = fmt.Errorf("no vtxos found for the given vhtlc opts")
 
 var boltzURLByNetwork = map[string]string{
-	arklib.Bitcoin.Name:          "https://api.boltz.exchange",
+	arklib.Bitcoin.Name:          "https://api.ark.boltz.exchange",
 	arklib.BitcoinTestNet.Name:   "https://api.testnet.boltz.exchange",
 	arklib.BitcoinMutinyNet.Name: "https://api.boltz.mutinynet.arkade.sh",
 	arklib.BitcoinRegTest.Name:   "http://localhost:9001",
@@ -76,17 +74,17 @@ type WalletUpdate struct {
 }
 
 type Service struct {
-	BuildInfo     BuildInfo
-	IndexerClient indexer.Indexer
+	BuildInfo BuildInfo
 
 	arksdk.ArkClient
-	storeCfg     store.Config
-	storeRepo    types.Store
-	dbSvc        ports.RepoManager
-	grpcClient   client.TransportClient
-	schedulerSvc ports.SchedulerService
-	lnSvc        ports.LnService
-	boltzSvc     *boltz.Api
+	storeCfg      store.Config
+	storeRepo     types.Store
+	dbSvc         ports.RepoManager
+	grpcClient    client.TransportClient
+	indexerClient indexer.Indexer
+	schedulerSvc  ports.SchedulerService
+	lnSvc         ports.LnService
+	boltzSvc      *boltz.Api
 
 	publicKey *btcec.PublicKey
 
@@ -96,7 +94,10 @@ type Service struct {
 
 	swapTimeout uint32
 
-	isReady bool
+	isInitialized bool
+	syncLock      *sync.RWMutex
+	syncEvent     *types.SyncEvent
+	syncCh        chan types.SyncEvent
 
 	internalSubscription *subscriptionHandler
 	externalSubscription *subscriptionHandler
@@ -160,10 +161,10 @@ func NewService(
 			storeRepo:                 storeSvc,
 			dbSvc:                     dbSvc,
 			grpcClient:                grpcClient,
-			IndexerClient:             indexerClient,
+			indexerClient:             indexerClient,
 			schedulerSvc:              schedulerSvc,
 			publicKey:                 nil,
-			isReady:                   true,
+			isInitialized:             true,
 			notifications:             make(chan Notification),
 			stopBoardingEventListener: make(chan struct{}),
 			esploraUrl:                data.ExplorerURL,
@@ -171,6 +172,7 @@ func NewService(
 			boltzWSUrl:                boltzWSUrl,
 			swapTimeout:               swapTimeout,
 			walletUpdates:             make(chan WalletUpdate),
+			syncLock:                  &sync.RWMutex{},
 		}
 
 		return svc, nil
@@ -216,20 +218,40 @@ func NewService(
 		boltzWSUrl:                boltzWSUrl,
 		swapTimeout:               swapTimeout,
 		walletUpdates:             make(chan WalletUpdate),
+		syncLock:                  &sync.RWMutex{},
 	}
 
 	return svc, nil
 }
 
-func (s *Service) IsReady() bool {
-	return s.isReady
+func (s *Service) IsInitialized() bool {
+	return s.isInitialized
+}
+
+func (s *Service) IsSynced() (bool, error) {
+	if s.syncEvent == nil {
+		return false, nil
+	}
+	return s.syncEvent.Synced, s.syncEvent.Err
+}
+
+func (s *Service) GetSyncedUpdate() <-chan types.SyncEvent {
+	if s.syncEvent != nil {
+		ch := make(chan types.SyncEvent, 1)
+		go func() { ch <- *s.syncEvent }()
+		return ch
+	}
+
+	return s.syncCh
 }
 
 func (s *Service) GetWalletUpdates() <-chan WalletUpdate {
 	return s.walletUpdates
 }
 
-func (s *Service) SetupFromMnemonic(ctx context.Context, serverUrl, password, mnemonic string) error {
+func (s *Service) SetupFromMnemonic(
+	ctx context.Context, serverUrl, password, mnemonic string,
+) error {
 	privateKey, err := utils.PrivateKeyFromMnemonic(mnemonic)
 	if err != nil {
 		return err
@@ -238,6 +260,10 @@ func (s *Service) SetupFromMnemonic(ctx context.Context, serverUrl, password, mn
 }
 
 func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey string) (err error) {
+	if s.isInitialized {
+		return errors.New("wallet already initialized")
+	}
+
 	privKeyBytes, err := hex.DecodeString(privateKey)
 	if err != nil {
 		return err
@@ -266,7 +292,6 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 
 	pollingInterval := 5 * time.Minute
 	if infos.Network == "regtest" {
-		log.Info("using faster polling interval for regtest")
 		pollingInterval = 5 * time.Second
 	}
 
@@ -307,8 +332,8 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	s.esploraUrl = config.ExplorerURL
 	s.publicKey = prvKey.PubKey()
 	s.grpcClient = client
-	s.IndexerClient = indexerClient
-	s.isReady = true
+	s.indexerClient = indexerClient
+	s.isInitialized = true
 
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: WalletInit, Password: password}
@@ -338,6 +363,12 @@ func (s *Service) LockNode(ctx context.Context) error {
 	close(s.stopBoardingEventListener)
 	s.stopBoardingEventListener = make(chan struct{})
 
+	s.syncEvent = nil
+	if s.syncCh != nil {
+		close(s.syncCh)
+		s.syncCh = nil
+	}
+
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: "lock"}
 	}()
@@ -346,9 +377,25 @@ func (s *Service) LockNode(ctx context.Context) error {
 }
 
 func (s *Service) UnlockNode(ctx context.Context, password string) error {
-	if !s.isReady {
+	if !s.isInitialized {
 		return fmt.Errorf("service not initialized")
 	}
+	if !s.ArkClient.IsLocked(ctx) {
+		return nil
+	}
+
+	s.syncCh = make(chan types.SyncEvent, 1)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		s.syncLock.Lock()
+		defer s.syncLock.Unlock()
+		ev := <-s.ArkClient.IsSynced(context.Background())
+		s.syncEvent = &ev
+		s.syncCh <- ev
+		wg.Done()
+	}()
 
 	if err := s.Unlock(ctx, password); err != nil {
 		return err
@@ -361,44 +408,109 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if err != nil {
 		return err
 	}
-
-	nextExpiry, err := s.computeNextExpiry(ctx, arkConfig)
-	if err != nil {
-		log.WithError(err).Error("failed to compute next expiry")
-	}
-
-	if nextExpiry != nil {
-		if err := s.scheduleNextSettlement(*nextExpiry, arkConfig); err != nil {
-			log.WithError(err).Error("failed to schedule next settlement")
-		}
-	}
-
-	prvkeyStr, err := s.Dump(ctx)
-	if err != nil {
-		return err
-	}
-
-	buf, err := hex.DecodeString(prvkeyStr)
-	if err != nil {
-		return err
-	}
-
-	_, pubkey := btcec.PrivKeyFromBytes(buf)
-	s.publicKey = pubkey
-
 	settings, err := s.dbSvc.Settings().GetSettings(ctx)
 	if err != nil {
 		log.WithError(err).Warn("failed to get settings")
 		return err
 	}
 
-	if settings.LnConnectionOpts != nil {
-		log.Debug("connecting to LN node...")
-		if err = s.connectLN(ctx, settings.LnConnectionOpts); err != nil {
-			log.WithError(err).Error("failed to connect to LN node")
-			return err
+	// This go routine takes care of scheduling the next settlement and restore the watch
+	// for the subscribed addresses.
+	// All operations that require the sdk client to be synced must stay here.
+	// TODO: Improve by handling the errors instead of just logging them.
+	go func() {
+		// We must wait for the client to be synced before doing anything.
+		wg.Wait()
+
+		// Do nothing here if restore failed.
+		if s.syncEvent == nil {
+			return
 		}
-	}
+
+		// Schedule next settlement for the current vtxo set.
+		nextExpiry, err := s.computeNextExpiry(ctx, arkConfig)
+		if err != nil {
+			log.WithError(err).Error("failed to compute next expiry")
+		}
+
+		if nextExpiry != nil {
+			if err := s.scheduleNextSettlement(*nextExpiry, arkConfig); err != nil {
+				log.WithError(err).Error("failed to schedule next settlement")
+			}
+		}
+
+		if s.boltzSvc == nil {
+			url := s.boltzUrl
+			wsUrl := s.boltzWSUrl
+			if url == "" {
+				url = boltzURLByNetwork[arkConfig.Network.Name]
+			}
+			if wsUrl == "" {
+				wsUrl = boltzURLByNetwork[arkConfig.Network.Name]
+			}
+			s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
+		}
+
+		// Resume pending swap refunds.
+		go s.resumePendingSwapRefunds(context.Background())
+
+		// Restore watch of our and tracked addresses.
+		_, offchainAddresses, boardingAddresses, _, err := s.GetAddresses(ctx)
+		if err != nil {
+			log.WithError(err).Error("failed to get addresses")
+		}
+
+		offchainPkScripts, err := offchainAddressesPkScripts(offchainAddresses)
+		if err != nil {
+			log.WithError(err).Error("failed to get offchain address")
+		}
+
+		s.internalSubscription = newSubscriptionHandler(
+			settings.ServerUrl, internalScriptsStore(offchainPkScripts),
+			s.handleInternalAddressEventChannel,
+		)
+
+		s.externalSubscription = newSubscriptionHandler(
+			settings.ServerUrl, s.dbSvc.SubscribedScript(),
+			s.handleAddressEventChannel(arkConfig),
+		)
+
+		if err := s.internalSubscription.start(); err != nil {
+			log.WithError(err).Error("failed to start internal subscription")
+		}
+		if err := s.externalSubscription.start(); err != nil {
+			log.WithError(err).Error("failed to start external subscription")
+		}
+
+		if arkConfig.UtxoMaxAmount != 0 {
+			go s.subscribeForBoardingEvent(ctx, boardingAddresses, arkConfig)
+		}
+
+		// Load delegate signer key.
+		prvkeyStr, err := s.Dump(ctx)
+		if err != nil {
+			log.WithError(err).Error("failed to get delegate signer key")
+		}
+
+		buf, err := hex.DecodeString(prvkeyStr)
+		if err != nil {
+			log.WithError(err).Error("failed to decode delegate signer key")
+		}
+
+		_, pubkey := btcec.PrivKeyFromBytes(buf)
+		s.publicKey = pubkey
+	}()
+
+	// This go routine takes care of establishing the LN connection, if configured.
+	// TODO: Improve by handling the error instead of just logging it.
+	go func() {
+		if settings.LnConnectionOpts != nil {
+			log.Debug("connecting to LN node...")
+			if err = s.connectLN(ctx, settings.LnConnectionOpts); err != nil {
+				log.WithError(err).Error("failed to connect to LN node")
+			}
+		}
+	}()
 
 	url := s.boltzUrl
 	wsUrl := s.boltzWSUrl
@@ -409,45 +521,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		wsUrl = boltzURLByNetwork[arkConfig.Network.Name]
 	}
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
-
-	// Get all derived addresses so far.
-	_, offchainAddresses, boardingAddresses, _, err := s.GetAddresses(ctx)
-	if err != nil {
-		log.WithError(err).Error("failed to get addresses")
-		return err
-	}
-
-	// Parse to out scripts.
-	offchainPkScripts, err := offchainAddressesPkScripts(offchainAddresses)
-	if err != nil {
-		log.WithError(err).Error("failed to get offchain address")
-		return err
-	}
-
-	// Re-subscribe for all existing addresses.
-	s.internalSubscription = newSubscriptionHandler(
-		settings.ServerUrl, internalScriptsStore(offchainPkScripts),
-		s.handleInternalAddressEventChannel,
-	)
-
-	// Re-subscribed for all external tracked addresses.
-	s.externalSubscription = newSubscriptionHandler(
-		settings.ServerUrl, s.dbSvc.SubscribedScript(),
-		s.handleAddressEventChannel(arkConfig),
-	)
-
-	if err := s.internalSubscription.start(); err != nil {
-		log.WithError(err).Error("failed to start internal subscription")
-		return err
-	}
-	if err := s.externalSubscription.start(); err != nil {
-		log.WithError(err).Error("failed to start external subscription")
-		return err
-	}
-
-	if arkConfig.UtxoMaxAmount != 0 {
-		go s.subscribeForBoardingEvent(ctx, boardingAddresses, arkConfig)
-	}
 
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: WalletUnlock, Password: password}
@@ -462,6 +535,12 @@ func (s *Service) ResetWallet(ctx context.Context) error {
 	}
 	// reset wallet (cleans all repos)
 	s.Reset(ctx)
+	s.isInitialized = false
+	s.syncEvent = nil
+	if s.syncCh != nil {
+		close(s.syncCh)
+		s.syncCh = nil
+	}
 	// TODO: Maybe drop?
 	// nolint:all
 	s.dbSvc.Settings().AddDefaultSettings(ctx)
@@ -542,15 +621,18 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 }
 
 func (s *Service) GetRound(ctx context.Context, roundId string) (*indexer.CommitmentTx, error) {
-	return s.IndexerClient.GetCommitmentTx(ctx, roundId)
+	if !s.isInitialized {
+		return nil, fmt.Errorf("service not initialized")
+	}
+	return s.indexerClient.GetCommitmentTx(ctx, roundId)
 }
 
 func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return nil, err
+	if !s.isInitialized {
+		return nil, fmt.Errorf("service not initialized")
 	}
 
-	resp, err := s.IndexerClient.GetVirtualTxs(ctx, txids)
+	resp, err := s.indexerClient.GetVirtualTxs(ctx, txids)
 	if err != nil {
 		return nil, err
 	}
@@ -563,24 +645,29 @@ func (s *Service) Settle(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	return s.ArkClient.Settle(ctx)
-}
-
-func (s *Service) scheduleNextSettlement(at time.Time, data *types.Config) error {
-	task := func() {
-		_, err := s.Settle(context.Background())
-		if err != nil {
-			log.WithError(err).Warn("failed to auto claim")
-		}
+	commitmentTxid, err := s.ArkClient.Settle(ctx)
+	if err != nil {
+		return "", err
 	}
 
-	// TODO: Fetch GetInfo to know the next market hour start, if any, and schedule the
-	// settlement for the one closest to the vtxo expiry.
+	s.schedulerSvc.CancelNextSettlement()
 
-	sessionDuration := time.Duration(data.SessionDuration) * time.Second
-	at = at.Add(-2 * sessionDuration) // schedule 2 rounds before the expiry
+	return commitmentTxid, nil
+}
 
-	return s.schedulerSvc.ScheduleNextSettlement(at, task)
+func (s *Service) SendOnChain(ctx context.Context, addr string, amount uint64) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	commitmentTxid, err := s.CollaborativeExit(ctx, addr, amount, false)
+	if err != nil {
+		return "", err
+	}
+
+	s.schedulerSvc.CancelNextSettlement()
+
+	return commitmentTxid, nil
 }
 
 func (s *Service) WhenNextSettlement(ctx context.Context) time.Time {
@@ -650,22 +737,6 @@ func (s *Service) GetLnConnectUrl() string {
 	return s.lnSvc.GetLnConnectUrl()
 }
 
-func (s *Service) connectLN(ctx context.Context, lnOpts *domain.LnConnectionOpts) error {
-	data, err := s.GetConfigData(ctx)
-	if err != nil {
-		return err
-	}
-
-	connectionOpts := lnOpts
-	if connectionOpts.ConnectionType == domain.CLN_CONNECTION {
-		s.lnSvc = cln.NewService()
-	} else {
-		s.lnSvc = lnd.NewService()
-	}
-
-	return s.lnSvc.Connect(ctx, connectionOpts, data.Network.Name)
-}
-
 func (s *Service) IsPreConfiguredLN() bool {
 	settings, err := s.dbSvc.Settings().GetSettings(context.Background())
 	if err != nil {
@@ -729,7 +800,9 @@ func (s *Service) GetVHTLC(
 	return addr, vhtlcId, vhtlcScript, opts, nil
 }
 
-func (s *Service) ListVHTLC(ctx context.Context, vhtlc_id string) ([]types.Vtxo, []domain.Vhtlc, error) {
+func (s *Service) ListVHTLC(
+	ctx context.Context, vhtlc_id string,
+) ([]types.Vtxo, []domain.Vhtlc, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return nil, nil, err
 	}
@@ -760,7 +833,9 @@ func (s *Service) ListVHTLC(ctx context.Context, vhtlc_id string) ([]types.Vtxo,
 	return vtxos, vhtlcList, nil
 }
 
-func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte, vhtlc_id string) (string, error) {
+func (s *Service) ClaimVHTLC(
+	ctx context.Context, preimage []byte, vhtlc_id string,
+) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
@@ -773,7 +848,9 @@ func (s *Service) ClaimVHTLC(ctx context.Context, preimage []byte, vhtlc_id stri
 	return s.claimVHTLC(ctx, preimage, *vhtlc)
 }
 
-func (s *Service) RefundVHTLC(ctx context.Context, swapId, vhtlc_id string, withReceiver bool) (string, error) {
+func (s *Service) RefundVHTLC(
+	ctx context.Context, swapId, vhtlc_id string, withReceiver bool,
+) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
@@ -825,7 +902,9 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 }
 
 // ark -> ln (submarine swap)
-func (s *Service) IncreaseOutboundCapacity(ctx context.Context, amount uint64) (SwapResponse, error) {
+func (s *Service) IncreaseOutboundCapacity(
+	ctx context.Context, amount uint64,
+) (SwapResponse, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return SwapResponse{}, err
 	}
@@ -869,13 +948,15 @@ func (s *Service) GetDelegatePublicKey(ctx context.Context) (string, error) {
 	}
 
 	if s.publicKey == nil {
-		return "", fmt.Errorf("service not initialized")
+		return "", fmt.Errorf("delegate service not initialized")
 	}
 
 	return hex.EncodeToString(s.publicKey.SerializeCompressed()), nil
 }
 
-func (s *Service) WatchAddressForRollover(ctx context.Context, address, destinationAddress string, taprootTree []string) error {
+func (s *Service) WatchAddressForRollover(
+	ctx context.Context, address, destinationAddress string, taprootTree []string,
+) error {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return err
 	}
@@ -933,7 +1014,9 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 	}
 
 	boltzApi := s.boltzSvc
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.IndexerClient, boltzApi, s.publicKey, s.swapTimeout)
+	swapHandler := swap.NewSwapHandler(
+		s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout,
+	)
 
 	postProcess := func(swapData swap.Swap) error {
 		if swapData.Status != swap.SwapSuccess {
@@ -971,14 +1054,14 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 
 }
 
-func (s *Service) PayInvoice(ctx context.Context, invoice string) (SwapResponse, error) {
+func (s *Service) PayInvoice(ctx context.Context, invoice string) (*SwapResponse, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return SwapResponse{}, err
+		return nil, err
 	}
 
 	boltzApi := s.boltzSvc
 
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.IndexerClient, boltzApi, s.publicKey, s.swapTimeout)
+	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
 
 	unilateralRefund := func(swapData swap.Swap) error {
 		err := s.scheduleSwapRefund(swapData.Id, *swapData.Opts)
@@ -986,9 +1069,8 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (SwapResponse,
 	}
 
 	swapDetails, err := swapHandler.PayInvoice(ctx, invoice, unilateralRefund)
-
 	if err != nil {
-		return SwapResponse{}, err
+		return nil, err
 	}
 
 	swapStatus := domain.SwapStatus(swapDetails.Status)
@@ -1004,6 +1086,7 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (SwapResponse,
 			To:          boltz.CurrencyBtc,
 			Vhtlc:       vHTLC,
 			FundingTxId: swapDetails.TxId,
+			RedeemTxId:  swapDetails.RedeemTxid,
 			Status:      swapStatus,
 		})
 
@@ -1014,17 +1097,21 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (SwapResponse,
 
 	}()
 
-	return SwapResponse{TxId: swapDetails.TxId, SwapStatus: swapStatus, Invoice: swapDetails.Invoice}, err
+	return &SwapResponse{
+		TxId:       swapDetails.TxId,
+		SwapStatus: swapStatus,
+		Invoice:    swapDetails.Invoice,
+	}, err
 }
 
-func (s *Service) PayOffer(ctx context.Context, offer string) (SwapResponse, error) {
+func (s *Service) PayOffer(ctx context.Context, offer string) (*SwapResponse, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return SwapResponse{}, err
+		return nil, err
 	}
 
 	configData, err := s.GetConfigData(ctx)
 	if err != nil {
-		return SwapResponse{}, fmt.Errorf("failed to get config data: %v", err)
+		return nil, fmt.Errorf("failed to get config data: %v", err)
 	}
 
 	boltzApi := s.boltzSvc
@@ -1033,14 +1120,16 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (SwapResponse, err
 	if configData.Network.Name == arklib.BitcoinRegTest.Name {
 		boltzUrl, err := url.Parse(s.boltzSvc.URL)
 		if err != nil {
-			return SwapResponse{}, err
+			return nil, err
 		}
 		host := boltzUrl.Hostname()
 		boltzUrl.Host = fmt.Sprintf("%s:%d", host, 9005)
 		lightningUrl = boltzUrl.String()
 	}
 
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.IndexerClient, boltzApi, s.publicKey, s.swapTimeout)
+	swapHandler := swap.NewSwapHandler(
+		s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout,
+	)
 
 	unilateralRefund := func(swapData swap.Swap) error {
 		err := s.scheduleSwapRefund(swapData.Id, *swapData.Opts)
@@ -1050,7 +1139,7 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (SwapResponse, err
 	swapDetails, err := swapHandler.PayOffer(ctx, offer, lightningUrl, unilateralRefund)
 
 	if err != nil {
-		return SwapResponse{}, err
+		return nil, err
 	}
 
 	swapStatus := domain.SwapStatus(swapDetails.Status)
@@ -1065,6 +1154,7 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (SwapResponse, err
 			To:          boltz.CurrencyBtc,
 			Vhtlc:       vHTLC,
 			FundingTxId: swapDetails.TxId,
+			RedeemTxId:  swapDetails.RedeemTxid,
 			Timestamp:   swapDetails.Timestamp,
 			Status:      swapStatus,
 		})
@@ -1076,11 +1166,30 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (SwapResponse, err
 
 	}()
 
-	return SwapResponse{TxId: swapDetails.TxId, SwapStatus: swapStatus, Invoice: swapDetails.Invoice}, err
+	return &SwapResponse{
+		TxId:       swapDetails.TxId,
+		SwapStatus: swapStatus,
+		Invoice:    swapDetails.Invoice,
+	}, err
+}
+
+func (s *Service) GetSwapHistory(ctx context.Context) ([]domain.Swap, error) {
+	all, err := s.dbSvc.Swap().GetAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get swap history: %w", err)
+	}
+	if len(all) == 0 {
+		return all, nil
+	}
+	// sort swaps by timestamp descending
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].Timestamp > all[j].Timestamp
+	})
+	return all, nil
 }
 
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
-	if !s.isReady {
+	if !s.isInitialized {
 		return fmt.Errorf("service not initialized")
 	}
 
@@ -1144,6 +1253,41 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 	}
 
 	return expiry, nil
+}
+
+func (s *Service) scheduleNextSettlement(at time.Time, data *types.Config) error {
+	task := func() {
+		_, err := s.Settle(context.Background())
+		if err != nil {
+			log.WithError(err).Warn("failed to auto claim")
+		}
+	}
+
+	// TODO: Fetch GetInfo to know if there's any scheduled session close to "at",
+	// otherwise keep this as fallback strategy, ie. schedule the settlement 2 session durations
+	// before "at"
+	sessionDuration := time.Duration(data.SessionDuration) * time.Second
+	at = at.Add(-2 * sessionDuration)
+	now := time.Now()
+	nextSettlement := s.schedulerSvc.WhenNextSettlement()
+
+	// Checking if "at" is after now is a safe guard against buggish time values.
+	if !nextSettlement.IsZero() && at.After(now) && at.After(s.schedulerSvc.WhenNextSettlement()) {
+		log.Debugf(
+			"scheduling next settlement at %s skipped - one already set at %s",
+			at.Format(time.RFC3339), s.schedulerSvc.WhenNextSettlement().Format(time.RFC3339),
+		)
+		return nil
+	}
+
+	if err := s.schedulerSvc.ScheduleNextSettlement(at, task); err != nil {
+		return err
+	}
+	// If at is before now the settlement is executed immediately and no logs need to be printed.
+	if at.After(now) {
+		log.Debugf("scheduled next settlement at %s", at.Format(time.RFC3339))
+	}
+	return nil
 }
 
 // subscribeForBoardingEvent aims to update the scheduled settlement
@@ -1279,17 +1423,15 @@ func (s *Service) handleInternalAddressEventChannel(event *indexer.ScriptEvent) 
 	log.Infof("received internal address event (%d spent vtxos, %d new vtxos)", len(event.SpentVtxos), len(event.NewVtxos))
 
 	// if some vtxos were spent, schedule a settlement to soonest expiry among new vtxos / boarding UTXOs set
-	if len(event.SpentVtxos) > 0 {
-		nextExpiry, err := s.computeNextExpiry(ctx, data)
-		if err != nil {
-			log.WithError(err).Error("failed to compute next expiry")
-			return
-		}
-
-		if nextExpiry != nil {
-			if err := s.scheduleNextSettlement(*nextExpiry, data); err != nil {
-				log.WithError(err).Info("schedule next claim failed")
+	if len(event.NewVtxos) > 0 {
+		minVtxoExpiry := event.NewVtxos[0].ExpiresAt
+		for _, vtxo := range event.NewVtxos {
+			if vtxo.ExpiresAt.Before(minVtxoExpiry) {
+				minVtxoExpiry = vtxo.ExpiresAt
 			}
+		}
+		if err := s.scheduleNextSettlement(minVtxoExpiry, data); err != nil {
+			log.WithError(err).Info("schedule next claim failed")
 		}
 
 		return
@@ -1315,6 +1457,22 @@ func (s *Service) handleInternalAddressEventChannel(event *indexer.ScriptEvent) 
 			}
 		}
 	}
+}
+
+func (s *Service) connectLN(ctx context.Context, lnOpts *domain.LnConnectionOpts) error {
+	data, err := s.GetConfigData(ctx)
+	if err != nil {
+		return err
+	}
+
+	connectionOpts := lnOpts
+	if connectionOpts.ConnectionType == domain.CLN_CONNECTION {
+		s.lnSvc = cln.NewService()
+	} else {
+		s.lnSvc = lnd.NewService()
+	}
+
+	return s.lnSvc.Connect(ctx, connectionOpts, data.Network.Name)
 }
 
 // swap takes care of interacting with the Boltz server to make a submarine swap.
@@ -1379,12 +1537,13 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 		return SwapResponse{}, fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
-	contextTimeout := time.Second * time.Duration(s.swapTimeout*2)
+	contextTimeout := time.Second * time.Duration(s.swapTimeout)
 
 	wsClient := s.boltzSvc
 	ws := wsClient.NewWebsocket()
-	ctx, cancel := context.WithTimeout(ctx, contextTimeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, contextTimeout)
 	defer cancel()
+	ctx = timeoutCtx
 
 	err = ws.ConnectAndSubscribe(ctx, []string{swap.Id}, 5*time.Second)
 	if err != nil {
@@ -1393,11 +1552,22 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 
 	vHTLC := domain.NewVhtlc(*opts)
 
-	// Fund the VHTLC
 	receivers := []types.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
-	txid, err := s.SendOffChain(ctx, false, receivers)
+	var txid string
+	for range 3 {
+		// Fund the VHTLC
+		txid, err = s.SendOffChain(ctx, false, receivers)
+		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
+				continue
+			}
+			return SwapResponse{}, fmt.Errorf("failed to pay to vHTLC address: %v", err)
+		}
+		break
+	}
 	if err != nil {
-		return SwapResponse{}, fmt.Errorf("failed to pay to vHTLC address: %v", err)
+		log.WithError(err).Error("failed to pay to vHTLC address")
+		return SwapResponse{}, fmt.Errorf("something went wrong, please retry")
 	}
 
 	for {
@@ -1426,7 +1596,7 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 				go func() {
 					if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
 						Id:          swap.Id,
-						Amount:      amount,
+						Amount:      swap.ExpectedAmount,
 						Timestamp:   time.Now().Unix(),
 						Status:      domain.SwapFailed,
 						Type:        domain.SwapRegular,
@@ -1447,9 +1617,10 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 				go func() {
 					if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
 						Id:          swap.Id,
-						Amount:      amount,
+						Amount:      swap.ExpectedAmount,
 						Timestamp:   time.Now().Unix(),
 						Status:      domain.SwapSuccess,
+						Type:        domain.SwapRegular,
 						Invoice:     invoice,
 						FundingTxId: txid,
 						To:          boltz.CurrencyBtc,
@@ -1566,8 +1737,9 @@ func (s *Service) reverseSwap(ctx context.Context, amount uint64, preimage, myPu
 	go func() {
 		if err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
 			Id:         swap.Id,
-			Amount:     amount,
+			Amount:     swap.OnchainAmount,
 			Timestamp:  time.Now().Unix(),
+			Type:       domain.SwapRegular,
 			Invoice:    swap.Invoice,
 			To:         boltz.CurrencyArk,
 			From:       boltz.CurrencyBtc,
@@ -1780,7 +1952,7 @@ func (s *Service) getVHTLCFunds(ctx context.Context, vhtlcList []domain.Vhtlc) (
 		if err := vtxosRequest.WithScripts([]string{hex.EncodeToString(outScript)}); err != nil {
 			return nil, err
 		}
-		resp, err := s.IndexerClient.GetVtxos(ctx, vtxosRequest)
+		resp, err := s.indexerClient.GetVtxos(ctx, vtxosRequest)
 		if err != nil {
 			return nil, err
 		}
@@ -2084,258 +2256,35 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 	refundLT := opts.RefundLocktime
 
 	if refundLT.IsSeconds() {
-		err = s.schedulerSvc.ScheduleRefundAtTime(time.Unix(int64(refundLT), 0), unilateral)
+		at := time.Unix(int64(refundLT), 0)
+		if err := s.schedulerSvc.ScheduleRefundAtTime(at, unilateral); err != nil {
+			return err
+		}
+		log.Debugf("scheduled refund of swap %s at %s", swapId, at.Format(time.RFC3339))
 	} else {
-		log.Infof("scheduling vhtlc refund at height %d", refundLT)
-		err = s.schedulerSvc.ScheduleRefundAtHeight(uint32(refundLT), unilateral)
-	}
-
-	return err
-}
-
-func checkpointExitScript(cfg *types.Config) []byte {
-	buf, _ := hex.DecodeString(cfg.CheckpointTapscript)
-	return buf
-}
-
-func parsePubkey(pubkey string) (*btcec.PublicKey, error) {
-	if len(pubkey) <= 0 {
-		return nil, nil
-	}
-
-	dec, err := hex.DecodeString(pubkey)
-	if err != nil {
-		return nil, fmt.Errorf("invalid pubkey: %s", err)
-	}
-
-	pk, err := btcec.ParsePubKey(dec)
-	if err != nil {
-		return nil, fmt.Errorf("invalid pubkey: %s", err)
-	}
-
-	return pk, nil
-}
-
-func (s *Service) GetSwapHistory(ctx context.Context) ([]domain.Swap, error) {
-	all, err := s.dbSvc.Swap().GetAll(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get swap history: %w", err)
-	}
-	if len(all) == 0 {
-		return all, nil
-	}
-	// sort swaps by timestamp descending
-	sort.Slice(all, func(i, j int) bool {
-		return all[i].Timestamp > all[j].Timestamp
-	})
-	return all, nil
-}
-
-// verifyInputSignatures checks that all inputs have a signature for the given pubkey
-// and the signature is correct for the given tapscript leaf
-func verifyInputSignatures(tx *psbt.Packet, pubkey *btcec.PublicKey, tapLeaves map[int]txscript.TapLeaf) error {
-	xOnlyPubkey := schnorr.SerializePubKey(pubkey)
-
-	prevouts := make(map[wire.OutPoint]*wire.TxOut)
-	sigsToVerify := make(map[int]*psbt.TaprootScriptSpendSig)
-
-	for inputIndex, input := range tx.Inputs {
-		// collect previous outputs
-		if input.WitnessUtxo == nil {
-			return fmt.Errorf("input %d has no witness utxo, cannot verify signature", inputIndex)
+		if err := s.schedulerSvc.ScheduleRefundAtHeight(uint32(refundLT), unilateral); err != nil {
+			return err
 		}
-
-		outpoint := tx.UnsignedTx.TxIn[inputIndex].PreviousOutPoint
-		prevouts[outpoint] = input.WitnessUtxo
-
-		tapLeaf, ok := tapLeaves[inputIndex]
-		if !ok {
-			return fmt.Errorf("input %d has no tapscript leaf, cannot verify signature", inputIndex)
-		}
-
-		tapLeafHash := tapLeaf.TapHash()
-
-		// check if pubkey has a tapscript sig
-		hasSig := false
-		for _, sig := range input.TaprootScriptSpendSig {
-			if bytes.Equal(sig.XOnlyPubKey, xOnlyPubkey) && bytes.Equal(sig.LeafHash, tapLeafHash[:]) {
-				hasSig = true
-				sigsToVerify[inputIndex] = sig
-				break
-			}
-		}
-
-		if !hasSig {
-			return fmt.Errorf("input %d has no signature for pubkey %x", inputIndex, xOnlyPubkey)
-		}
-	}
-
-	prevoutFetcher := txscript.NewMultiPrevOutFetcher(prevouts)
-	txSigHashes := txscript.NewTxSigHashes(tx.UnsignedTx, prevoutFetcher)
-
-	for inputIndex, sig := range sigsToVerify {
-		msgHash, err := txscript.CalcTapscriptSignaturehash(
-			txSigHashes,
-			sig.SigHash,
-			tx.UnsignedTx,
-			inputIndex,
-			prevoutFetcher,
-			tapLeaves[inputIndex],
-		)
-		if err != nil {
-			return fmt.Errorf("failed to calculate tapscript signature hash: %w", err)
-		}
-
-		signature, err := schnorr.ParseSignature(sig.Signature)
-		if err != nil {
-			return fmt.Errorf("failed to parse signature: %w", err)
-		}
-
-		if !signature.Verify(msgHash, pubkey) {
-			return fmt.Errorf("input %d: invalid signature", inputIndex)
-		}
+		log.Debugf("scheduled refund of swap %s at block height %d", swapId, refundLT)
 	}
 
 	return nil
 }
 
-// GetInputTapLeaves returns a map of input index to tapscript leaf
-// if the input has no tapscript leaf, it is not included in the map
-func getInputTapLeaves(tx *psbt.Packet) map[int]txscript.TapLeaf {
-	tapLeaves := make(map[int]txscript.TapLeaf)
-	for inputIndex, input := range tx.Inputs {
-		if input.TaprootLeafScript == nil {
-			continue
-		}
-		tapLeaves[inputIndex] = txscript.NewBaseTapLeaf(input.TaprootLeafScript[0].Script)
+func (s *Service) resumePendingSwapRefunds(ctx context.Context) {
+	swaps, err := s.dbSvc.Swap().GetAll(ctx)
+	if err != nil {
+		log.WithError(err).Error("failed to load swaps while rescheduling refunds")
+		return
 	}
-	return tapLeaves
-}
 
-func verifyAndSignCheckpoints(signedCheckpoints []string, myCheckpoints []*psbt.Packet, arkSigner *btcec.PublicKey, sign func(tx *psbt.Packet) (string, error)) ([]string, error) {
-	finalCheckpoints := make([]string, 0, len(signedCheckpoints))
-	for _, checkpoint := range signedCheckpoints {
-		signedCheckpointPtx, err := psbt.NewFromRawBytes(strings.NewReader(checkpoint), true)
-		if err != nil {
-			return nil, err
-		}
+	for _, swap := range swaps {
 
-		// search for the checkpoint tx we initially created
-		var myCheckpointTx *psbt.Packet
-		for _, chk := range myCheckpoints {
-			if chk.UnsignedTx.TxID() == signedCheckpointPtx.UnsignedTx.TxID() {
-				myCheckpointTx = chk
-				break
+		if swap.Status == domain.SwapFailed && swap.RedeemTxId == "" {
+			if err := s.scheduleSwapRefund(swap.Id, swap.Vhtlc.Opts); err != nil {
+				log.WithError(err).WithField("swap_id", swap.Id).Warn("failed to reschedule refund task")
 			}
 		}
-		if myCheckpointTx == nil {
-			return nil, fmt.Errorf("checkpoint tx not found")
-		}
 
-		// verify the server has signed the checkpoint tx
-		err = verifyInputSignatures(signedCheckpointPtx, arkSigner, getInputTapLeaves(myCheckpointTx))
-		if err != nil {
-			return nil, err
-		}
-
-		finalCheckpoint, err := sign(signedCheckpointPtx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to sign checkpoint transaction: %w", err)
-		}
-
-		finalCheckpoints = append(finalCheckpoints, finalCheckpoint)
 	}
-
-	return finalCheckpoints, nil
-}
-
-func verifyFinalArkTx(finalArkTx string, arkSigner *btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf) error {
-	finalArkPtx, err := psbt.NewFromRawBytes(strings.NewReader(finalArkTx), true)
-	if err != nil {
-		return err
-	}
-
-	// verify that the ark signer has signed the ark tx
-	err = verifyInputSignatures(finalArkPtx, arkSigner, expectedTapLeaves)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func offchainAddressesPkScripts(addresses []string) ([]string, error) {
-	scripts := make([]string, 0, len(addresses))
-	for _, addr := range addresses {
-		decodedAddress, err := arklib.DecodeAddressV0(addr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode address %s: %w", addr, err)
-		}
-
-		p2trScript, err := txscript.PayToTaprootScript(decodedAddress.VtxoTapKey)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse address to p2tr script: %w", err)
-		}
-
-		scripts = append(scripts, hex.EncodeToString(p2trScript))
-	}
-	return scripts, nil
-}
-
-func onchainAddressesPkScripts(addresses []string, network arklib.Network) ([]string, error) {
-	scripts := make([]string, 0, len(addresses))
-	for _, addr := range addresses {
-		btcAddress, err := btcutil.DecodeAddress(addr, toBitcoinNetwork(network))
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode address %s: %w", addr, err)
-		}
-
-		script, err := txscript.PayToAddrScript(btcAddress)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse address to p2tr script: %w", err)
-		}
-		scripts = append(scripts, hex.EncodeToString(script))
-	}
-	return scripts, nil
-}
-
-type internalScriptsStore []string
-
-func (s internalScriptsStore) Get(ctx context.Context) ([]string, error) {
-	return s, nil
-}
-
-func (s internalScriptsStore) Add(ctx context.Context, scripts []string) (int, error) {
-	return 0, fmt.Errorf("cannot add scripts to internal subscription")
-}
-
-func (s internalScriptsStore) Delete(ctx context.Context, scripts []string) (int, error) {
-	return 0, fmt.Errorf("cannot delete scripts from internal subscription")
-}
-
-func toBitcoinNetwork(net arklib.Network) *chaincfg.Params {
-	switch net.Name {
-	case arklib.Bitcoin.Name:
-		return &chaincfg.MainNetParams
-	case arklib.BitcoinTestNet.Name:
-		return &chaincfg.TestNet3Params
-	//case arklib.BitcoinTestNet4.Name: //TODO uncomment once supported
-	//	return chaincfg.TestNet4Params
-	case arklib.BitcoinSigNet.Name:
-		return &chaincfg.SigNetParams
-	case arklib.BitcoinMutinyNet.Name:
-		return &arklib.MutinyNetSigNetParams
-	case arklib.BitcoinRegTest.Name:
-		return &chaincfg.RegressionNetParams
-	default:
-		return &chaincfg.MainNetParams
-	}
-}
-
-func deriveTimelock(timelock uint32) arklib.RelativeLocktime {
-	if timelock >= 512 {
-		return arklib.RelativeLocktime{Type: arklib.LocktimeTypeSecond, Value: timelock}
-	}
-
-	return arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: timelock}
 }

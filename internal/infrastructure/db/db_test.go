@@ -476,6 +476,7 @@ func makeSwap() domain.Swap {
 		To:          "test_to",
 		From:        "test_from",
 		Status:      domain.SwapSuccess,
+		Type:        domain.SwapPayment,
 		Invoice:     "test_invoice",
 		Vhtlc:       makeVHTLC(),
 		FundingTxId: "funding_tx_id",

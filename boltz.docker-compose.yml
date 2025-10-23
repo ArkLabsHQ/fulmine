@@ -141,7 +141,7 @@ services:
         chain=1440
         swapMinimal = 1440
         swapMaximal = 2880
-        swapTaproot = 10080
+        swapTaproot = 2880
 
         [[currencies]]
         symbol = "BTC"
@@ -218,6 +218,8 @@ services:
       - FULMINE_ESPLORA_URL=http://chopsticks:3000
       - FULMINE_NO_MACAROONS=true
       - FULMINE_LOG_LEVEL=5
+      - FULMINE_DISABLE_TELEMETRY=true
+      - FULMINE_SCHEDULER_POLL_INTERVAL=10
     ports:
       - 7002:7000
       - 7003:7001
