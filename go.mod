@@ -8,8 +8,6 @@ replace github.com/ArkLabsHQ/fulmine/pkg/boltz => ./pkg/boltz
 
 replace github.com/ArkLabsHQ/fulmine/pkg/swap => ./pkg/swap
 
-replace github.com/arkade-os/go-sdk => ../go-sdk
-
 replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-display v1.30.0-hex-display
 
 require (
