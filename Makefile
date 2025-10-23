@@ -48,6 +48,9 @@ run: clean build-static-assets
 	export FULMINE_LOG_LEVEL=5; \
 	export FULMINE_SCHEDULER_POLL_INTERVAL=10; \
 	export FULMINE_DISABLE_TELEMETRY=true; \
+	export FULMINE_SWAP_TIMEOUT=15; \
+	export FULMINE_BOLTZ_URL=http://localhost:9001; \
+    export FULMINE_BOLTZ_WS_URL=ws://localhost:9004; \
 	go run ./cmd/fulmine
 
 run-2: clean build-static-assets
@@ -57,6 +60,9 @@ run-2: clean build-static-assets
 	export FULMINE_LOG_LEVEL=5; \
 	export FULMINE_SCHEDULER_POLL_INTERVAL=10; \
 	export FULMINE_DISABLE_TELEMETRY=true; \
+	export FULMINE_SWAP_TIMEOUT=15; \
+	export FULMINE_BOLTZ_URL=http://localhost:9001; \
+    export FULMINE_BOLTZ_WS_URL=ws://localhost:9004; \
 	export FULMINE_GRPC_PORT=7008; \
 	export FULMINE_HTTP_PORT=7009; \
 	go run ./cmd/fulmine

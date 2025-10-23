@@ -95,7 +95,25 @@ func (s *service) events(c *gin.Context) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 
-	syncedCh := s.svc.GetSyncedUpdate()
+	if isSynced, _ := s.svc.IsSynced(); !isSynced {
+		syncedCh := s.svc.GetSyncedUpdate()
+		for {
+			select {
+			case <-s.stopCh:
+				return
+			case <-c.Request.Context().Done():
+				return
+			case event, ok := <-syncedCh:
+				if !ok {
+					continue
+				}
+				c.SSEvent("SYNCED", event)
+				c.Writer.Flush()
+			}
+		}
+
+	}
+
 	txsCh := s.svc.GetTransactionEventChannel(c.Request.Context())
 	for {
 		select {
@@ -108,12 +126,6 @@ func (s *service) events(c *gin.Context) {
 				return
 			}
 			c.SSEvent(event.Type.String(), event)
-			c.Writer.Flush()
-		case event, ok := <-syncedCh:
-			if !ok {
-				continue
-			}
-			c.SSEvent("SYNCED", event)
 			c.Writer.Flush()
 		}
 	}
@@ -474,6 +486,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 				toastHandler(toast, c)
 				return
 			}
+			break
 		}
 		if err != nil {
 			log.WithError(err).Error("failed to pay to vHTLC address")
@@ -497,22 +510,15 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	if utils.IsValidInvoice(address) {
 		resp, err := s.svc.PayInvoice(c, address)
-		txId = resp.TxId
-
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
 			return
 		}
+		txId = resp.TxId
 
 		if resp.SwapStatus == domain.SwapFailed {
 			bodyContent := pages.SendFailureContent(address, sats)
-			partialViewHandler(bodyContent, c)
-			return
-		}
-
-		if len(txId) == 0 {
-			bodyContent := pages.SendPendingContent(address, sats)
 			partialViewHandler(bodyContent, c)
 			return
 		}
@@ -520,11 +526,16 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	if swap.IsValidBolt12Offer(address) {
 		resp, err := s.svc.PayOffer(c, address)
-		txId = resp.TxId
-
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
+			return
+		}
+		txId = resp.TxId
+
+		if resp.SwapStatus == domain.SwapFailed {
+			bodyContent := pages.SendFailureContent(address, sats)
+			partialViewHandler(bodyContent, c)
 			return
 		}
 	}
