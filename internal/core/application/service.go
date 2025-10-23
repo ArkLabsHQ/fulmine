@@ -439,15 +439,17 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			}
 		}
 
-		url := s.boltzUrl
-		wsUrl := s.boltzWSUrl
-		if url == "" {
-			url = boltzURLByNetwork[arkConfig.Network.Name]
+		if s.boltzSvc == nil {
+			url := s.boltzUrl
+			wsUrl := s.boltzWSUrl
+			if url == "" {
+				url = boltzURLByNetwork[arkConfig.Network.Name]
+			}
+			if wsUrl == "" {
+				wsUrl = boltzURLByNetwork[arkConfig.Network.Name]
+			}
+			s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 		}
-		if wsUrl == "" {
-			wsUrl = boltzURLByNetwork[arkConfig.Network.Name]
-		}
-		s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 
 		// Resume pending swap refunds.
 		go s.resumePendingSwapRefunds(context.Background())
@@ -499,16 +501,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		s.publicKey = pubkey
 	}()
 
-	url := s.boltzUrl
-	wsUrl := s.boltzWSUrl
-	if url == "" {
-		url = boltzURLByNetwork[arkConfig.Network.Name]
-	}
-	if wsUrl == "" {
-		wsUrl = boltzURLByNetwork[arkConfig.Network.Name]
-	}
-	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
-
 	// This go routine takes care of establishing the LN connection, if configured.
 	// TODO: Improve by handling the error instead of just logging it.
 	go func() {
@@ -519,6 +511,16 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			}
 		}
 	}()
+
+	url := s.boltzUrl
+	wsUrl := s.boltzWSUrl
+	if url == "" {
+		url = boltzURLByNetwork[arkConfig.Network.Name]
+	}
+	if wsUrl == "" {
+		wsUrl = boltzURLByNetwork[arkConfig.Network.Name]
+	}
+	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: WalletUnlock, Password: password}
