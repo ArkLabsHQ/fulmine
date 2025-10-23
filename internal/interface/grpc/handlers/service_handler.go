@@ -182,6 +182,7 @@ func (h *serviceHandler) SendOffChain(
 			}
 			return nil, err
 		}
+		break
 	}
 	if err != nil {
 		return nil, err
