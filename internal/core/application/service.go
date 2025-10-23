@@ -1522,12 +1522,13 @@ func (s *Service) submarineSwap(ctx context.Context, amount uint64) (SwapRespons
 		return SwapResponse{}, fmt.Errorf("boltz is trying to scam us, vHTLCs do not match")
 	}
 
-	contextTimeout := time.Second * time.Duration(s.swapTimeout*2)
+	contextTimeout := time.Second * time.Duration(s.swapTimeout)
 
 	wsClient := s.boltzSvc
 	ws := wsClient.NewWebsocket()
-	ctx, cancel := context.WithTimeout(ctx, contextTimeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, contextTimeout)
 	defer cancel()
+	ctx = timeoutCtx
 
 	err = ws.ConnectAndSubscribe(ctx, []string{swap.Id}, 5*time.Second)
 	if err != nil {

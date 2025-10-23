@@ -230,8 +230,9 @@ func (h *SwapHandler) submarineSwap(
 	}
 
 	contextTimeout := time.Second * time.Duration(h.timeout)
-	ctx, cancel := context.WithTimeout(ctx, contextTimeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, contextTimeout)
 	defer cancel()
+	ctx = timeoutCtx
 
 	for {
 		select {

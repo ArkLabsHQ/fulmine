@@ -47,7 +47,7 @@ require (
 	github.com/arkade-os/arkd/pkg/ark-lib v0.7.2-0.20251020193908-f401a905e83f
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/go-sdk v0.8.1-0.20251022230505-15f6b83c1ddd
+	github.com/arkade-os/go-sdk v0.8.1-0.20251023073845-2ede04abdceb
 	gopkg.in/macaroon.v2 v2.1.0
 )
 
