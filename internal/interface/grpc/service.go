@@ -102,9 +102,10 @@ func NewService(
 			return key, false
 		}
 	}
+	healthzHandler := grpchealth.NewHealthClient(conn)
 	gwmux := runtime.NewServeMux(
 		runtime.WithIncomingHeaderMatcher(authHeaderMatcher),
-		runtime.WithHealthzEndpoint(grpchealth.NewHealthClient(conn)),
+		runtime.WithHealthzEndpoint(healthzHandler),
 		runtime.WithMarshalerOption("application/json+pretty", &runtime.JSONPb{
 			MarshalOptions: protojson.MarshalOptions{
 				Indent:    "  ",
@@ -115,6 +116,25 @@ func NewService(
 			},
 		}),
 	)
+	gwmux.HandlePath("GET", "/healthz", func(w http.ResponseWriter, r *http.Request, _ map[string]string) {
+		resp, err := healthzHandler.Check(r.Context(), &grpchealth.HealthCheckRequest{Service: "fulmine"})
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+			return
+		}
+
+		switch resp.Status {
+		case grpchealth.HealthCheckResponse_SERVING:
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("ok"))
+		case grpchealth.HealthCheckResponse_NOT_SERVING:
+			http.Error(w, "unhealthy", http.StatusServiceUnavailable)
+		case grpchealth.HealthCheckResponse_SERVICE_UNKNOWN:
+			http.Error(w, "unknown service", http.StatusNotFound)
+		default:
+			http.Error(w, "unavailable", http.StatusServiceUnavailable)
+		}
+	})
 	ctx := context.Background()
 	if err := pb.RegisterServiceHandler(
 		ctx, gwmux, conn,

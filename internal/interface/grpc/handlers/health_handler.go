@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	log "github.com/sirupsen/logrus"
@@ -15,7 +14,6 @@ import (
 const (
 	serviceFulmine = "fulmine"
 	serviceLN      = "ln"
-	watchInterval  = time.Minute
 )
 
 // https://github.com/grpc/grpc/blob/master/doc/health-checking.md
@@ -27,7 +25,9 @@ func NewHealthHandler(svc *application.Service) grpchealth.HealthServer {
 	return &healthHandler{svc}
 }
 
-func (h *healthHandler) List(ctx context.Context, _ *grpchealth.HealthListRequest) (*grpchealth.HealthListResponse, error) {
+func (h *healthHandler) List(
+	ctx context.Context, _ *grpchealth.HealthListRequest,
+) (*grpchealth.HealthListResponse, error) {
 	statuses := make(map[string]*grpchealth.HealthCheckResponse)
 	statuses[serviceFulmine] = &grpchealth.HealthCheckResponse{
 		Status: h.getFulmineStatus(ctx),
@@ -42,25 +42,25 @@ func (h *healthHandler) List(ctx context.Context, _ *grpchealth.HealthListReques
 }
 
 func (h *healthHandler) Check(
-	ctx context.Context,
-	req *grpchealth.HealthCheckRequest,
+	ctx context.Context, req *grpchealth.HealthCheckRequest,
 ) (*grpchealth.HealthCheckResponse, error) {
 	serviceName := req.GetService()
 	if err := validateServiceName(serviceName); err != nil {
-		return nil, status.Errorf(codes.NotFound, err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	return h.getServiceStatus(ctx, serviceName), nil
 }
 
 func (h *healthHandler) Watch(
-	req *grpchealth.HealthCheckRequest,
-	stream grpchealth.Health_WatchServer,
+	req *grpchealth.HealthCheckRequest, stream grpchealth.Health_WatchServer,
 ) error {
-	return status.Errorf(codes.Unimplemented, "method Watch is not implemented")
+	return status.Error(codes.Unimplemented, "method Watch is not implemented")
 }
 
-func (h *healthHandler) getServiceStatus(ctx context.Context, serviceName string) *grpchealth.HealthCheckResponse {
+func (h *healthHandler) getServiceStatus(
+	ctx context.Context, serviceName string,
+) *grpchealth.HealthCheckResponse {
 	status := &grpchealth.HealthCheckResponse{
 		Status: grpchealth.HealthCheckResponse_UNKNOWN,
 	}
@@ -77,7 +77,7 @@ func (h *healthHandler) getFulmineStatus(ctx context.Context) grpchealth.HealthC
 	isSynced, err := h.svc.IsSynced()
 	if err != nil {
 		log.WithError(err).Warn("failed to get synced status, sending UNKNOWN")
-		return grpchealth.HealthCheckResponse_UNKNOWN
+		return grpchealth.HealthCheckResponse_NOT_SERVING
 	}
 	isInitialized := h.svc.IsInitialized()
 	isLocked := h.svc.IsLocked(ctx)
@@ -99,6 +99,8 @@ func validateServiceName(requested string) error {
 	switch requested {
 	case serviceFulmine, serviceLN:
 		return nil
+	case "":
+		return fmt.Errorf("missing service name")
 	default:
 		return fmt.Errorf("invalid service name: %s", requested)
 	}
