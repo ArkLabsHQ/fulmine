@@ -122,6 +122,24 @@ func getInputTapLeaves(tx *psbt.Packet) map[int]txscript.TapLeaf {
 	return tapLeaves
 }
 
+func verifySignedCheckpoints(signedCheckpointTxs []string, signers []*btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf) error {
+	for _, signedCheckpointTx := range signedCheckpointTxs {
+		for _, signer := range signers {
+			finalCheckpointPtx, err := psbt.NewFromRawBytes(strings.NewReader(signedCheckpointTx), true)
+			if err != nil {
+				return err
+			}
+
+			// verify that the ark signer has signed the ark tx
+			err = verifyInputSignatures(finalCheckpointPtx, signer, expectedTapLeaves)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func verifyAndSignCheckpoints(
 	signedCheckpoints []string, myCheckpoints []*psbt.Packet,
 	arkSigner *btcec.PublicKey, sign func(tx *psbt.Packet) (string, error),
@@ -160,6 +178,32 @@ func verifyAndSignCheckpoints(
 	}
 
 	return finalCheckpoints, nil
+}
+
+func combineCheckpointsTxs(signedCheckpoints []*psbt.Packet, serverSignedCheckpoint *psbt.Packet) (string, error) {
+	finalCheckpointUpdater, err := psbt.NewUpdater(serverSignedCheckpoint)
+	if err != nil {
+		return "", fmt.Errorf("failed to init updater for final checkpoint tx: %s", err)
+	}
+
+	for i := range finalCheckpointUpdater.Upsbt.Inputs {
+
+		for _, signedCheckpointPsbt := range signedCheckpoints {
+			boltzIn := signedCheckpointPsbt.Inputs[i]
+			partialSig := boltzIn.PartialSigs[0]
+			if _, err := finalCheckpointUpdater.Sign(
+				i, partialSig.Signature, partialSig.PubKey,
+				boltzIn.RedeemScript, boltzIn.WitnessScript,
+			); err != nil {
+				return "", fmt.Errorf(
+					"failed to combine sigs of input %d for checkpoint tx: %s", i, err,
+				)
+			}
+
+		}
+
+	}
+	return finalCheckpointUpdater.Upsbt.B64Encode()
 }
 
 func verifyFinalArkTx(

@@ -424,43 +424,21 @@ func (h *SwapHandler) refundVHTLC(
 		return "", err
 	}
 
-	refundTxStr, err := refundTx.B64Encode()
+	if len(checkpointPtxs) != 1 {
+		return "", fmt.Errorf(
+			"failed to build refund tx: expected 1 checkpoint tx got %d", len(checkpointPtxs),
+		)
+	}
+	unsignedRefundTx, err := refundTx.B64Encode()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to encode unsigned refund tx: %s", err)
 	}
-
-	signedRefundTx, err := h.arkClient.SignTransaction(ctx, refundTxStr)
+	unsignedCheckpointTx, err := checkpointPtxs[0].B64Encode()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to encode unsigned refund tx: %s", err)
 	}
 
-	if withReceiver {
-		signedRefundTx, err = h.boltzRefundSwap(swapId, signedRefundTx)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	checkpointTxs := make([]string, 0, len(checkpointPtxs))
-	for _, ptx := range checkpointPtxs {
-		tx, err := ptx.B64Encode()
-		if err != nil {
-			return "", err
-		}
-		checkpointTxs = append(checkpointTxs, tx)
-	}
-
-	arkTxid, finalArkTx, signedCheckpoints, err := h.transportClient.SubmitTx(ctx, signedRefundTx, checkpointTxs)
-	if err != nil {
-		return "", err
-	}
-
-	if err := verifyFinalArkTx(finalArkTx, cfg.SignerPubKey, getInputTapLeaves(refundTx)); err != nil {
-		return "", err
-	}
-
-	// verify and sign the checkpoints
-	signCheckpoint := func(tx *psbt.Packet) (string, error) {
+	signTransaction := func(tx *psbt.Packet) (string, error) {
 		encoded, err := tx.B64Encode()
 		if err != nil {
 			return "", err
@@ -468,12 +446,110 @@ func (h *SwapHandler) refundVHTLC(
 		return h.arkClient.SignTransaction(ctx, encoded)
 	}
 
-	finalCheckpoints, err := verifyAndSignCheckpoints(signedCheckpoints, checkpointPtxs, cfg.SignerPubKey, signCheckpoint)
+	// user signing
+	signedRefundTx, err := signTransaction(refundTx)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign refund tx: %s", err)
+	}
+	signedCheckpointTx, err := signTransaction(checkpointPtxs[0])
+	if err != nil {
+		return "", fmt.Errorf("failed to sign refund tx: %s", err)
+	}
+
+	signedRefundPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedRefundTx), true)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode refund tx signed by us: %s", err)
+	}
+
+	signedCheckpointPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedCheckpointTx), true)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode refund tx signed by us: %s", err)
+	}
+
+	finalRefundUpdater, err := psbt.NewUpdater(signedRefundPsbt)
+	if err != nil {
+		return "", fmt.Errorf("failed to init updater for final refund tx: %s", err)
+	}
+
+	checkpointsList := make([]*psbt.Packet, 0)
+
+	checkpointsList = append(checkpointsList, signedCheckpointPsbt)
+
+	if withReceiver {
+		res, err := h.boltzSvc.RefundSubmarine(
+			swapId, boltz.RefundSwapRequest{Transaction: unsignedRefundTx,
+				Checkpoint: unsignedCheckpointTx,
+			})
+
+		if err != nil {
+			return "", err
+		}
+
+		boltzSignedRefundTx := res.Transaction
+		boltzSignedCheckpointTx := res.Checkpoint
+
+		boltzSignedRefundPsbt, err := psbt.NewFromRawBytes(strings.NewReader(boltzSignedRefundTx), true)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode refund tx signed by boltz: %s", err)
+		}
+		boltzSignedCheckpointPsbt, err := psbt.NewFromRawBytes(
+			strings.NewReader(boltzSignedCheckpointTx), true,
+		)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode refund tx signed by boltz: %s", err)
+		}
+
+		for i := range finalRefundUpdater.Upsbt.Inputs {
+			boltzIn := boltzSignedRefundPsbt.Inputs[i]
+			partialSig := boltzIn.PartialSigs[0]
+			if _, err := finalRefundUpdater.Sign(
+				i, partialSig.Signature, partialSig.PubKey,
+				boltzIn.RedeemScript, boltzIn.WitnessScript,
+			); err != nil {
+				return "", fmt.Errorf(
+					"failed to combine sigs of input %d for refund tx: %s", i, err,
+				)
+			}
+		}
+
+		checkpointsList = append(checkpointsList, boltzSignedCheckpointPsbt)
+
+	}
+
+	signedRefund, err := finalRefundUpdater.Upsbt.B64Encode()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode final refund tx: %s", err)
+	}
+
+	arkTxid, finalRefundTx, serverSignedCheckpoints, err := h.transportClient.SubmitTx(
+		ctx, signedRefund, []string{unsignedCheckpointTx},
+	)
 	if err != nil {
 		return "", err
 	}
 
-	err = h.transportClient.FinalizeTx(ctx, arkTxid, finalCheckpoints)
+	serverCheckpointPtx, err := psbt.NewFromRawBytes(strings.NewReader(serverSignedCheckpoints[0]), true)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode refund tx signed by us: %s", err)
+	}
+
+	if err := verifyFinalArkTx(finalRefundTx, cfg.SignerPubKey, getInputTapLeaves(refundTx)); err != nil {
+		return "", err
+	}
+
+	// combine checkpoint Transactions
+	finalCheckpointTx, err := combineCheckpointsTxs(checkpointsList, serverCheckpointPtx)
+
+	err = verifySignedCheckpoints([]string{finalCheckpointTx}, []*btcec.PublicKey{cfg.SignerPubKey}, getInputTapLeaves(serverCheckpointPtx))
+	if err != nil {
+		return "", err
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("failed to combine checkpoint txs: %s", err)
+	}
+
+	err = h.transportClient.FinalizeTx(ctx, arkTxid, []string{finalCheckpointTx})
 	if err != nil {
 		return "", fmt.Errorf("failed to finalize redeem transaction: %w", err)
 	}
@@ -481,15 +557,15 @@ func (h *SwapHandler) refundVHTLC(
 	return arkTxid, nil
 }
 
-func (h *SwapHandler) boltzRefundSwap(swapId, refundTx string) (string, error) {
+func (h *SwapHandler) boltzRefundSwap(swapId, refundTx, checkpointTx string) (string, string, error) {
 	tx, err := h.boltzSvc.RefundSubmarine(swapId, boltz.RefundSwapRequest{
 		Transaction: refundTx,
 	})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return tx.Transaction, nil
+	return tx.Transaction, tx.Checkpoint, nil
 }
 
 func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage []byte, postProcess func(swap Swap) error) (Swap, error) {
@@ -966,4 +1042,48 @@ func deriveTimelock(timelock uint32) arklib.RelativeLocktime {
 	}
 
 	return arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: timelock}
+}
+
+func combineCheckpointsTxs(signedCheckpoints []*psbt.Packet, serverSignedCheckpoint *psbt.Packet) (string, error) {
+	finalCheckpointUpdater, err := psbt.NewUpdater(serverSignedCheckpoint)
+	if err != nil {
+		return "", fmt.Errorf("failed to init updater for final checkpoint tx: %s", err)
+	}
+
+	for i := range finalCheckpointUpdater.Upsbt.Inputs {
+
+		for _, signedCheckpointPsbt := range signedCheckpoints {
+			boltzIn := signedCheckpointPsbt.Inputs[i]
+			partialSig := boltzIn.PartialSigs[0]
+			if _, err := finalCheckpointUpdater.Sign(
+				i, partialSig.Signature, partialSig.PubKey,
+				boltzIn.RedeemScript, boltzIn.WitnessScript,
+			); err != nil {
+				return "", fmt.Errorf(
+					"failed to combine sigs of input %d for checkpoint tx: %s", i, err,
+				)
+			}
+
+		}
+
+	}
+	return finalCheckpointUpdater.Upsbt.B64Encode()
+}
+
+func verifySignedCheckpoints(signedCheckpointTxs []string, signers []*btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf) error {
+	for _, signedCheckpointTx := range signedCheckpointTxs {
+		for _, signer := range signers {
+			finalCheckpointPtx, err := psbt.NewFromRawBytes(strings.NewReader(signedCheckpointTx), true)
+			if err != nil {
+				return err
+			}
+
+			// verify that the ark signer has signed the ark tx
+			err = verifyInputSignatures(finalCheckpointPtx, signer, expectedTapLeaves)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

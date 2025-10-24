@@ -93,9 +93,11 @@ type RevealPreimageResponse struct {
 
 type RefundSwapRequest struct {
 	Transaction string `json:"transaction"`
+	Checkpoint  string `json:"checkpoint"`
 }
 
 type RefundSwapResponse struct {
 	Transaction string `json:"transaction"`
+	Checkpoint  string `json:"checkpoint"`
 	Error       string `json:"error"`
 }
