@@ -459,7 +459,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		s.externalSubscription = newSubscriptionHandler(
-			s.indexerClient, s.dbSvc.SubscribedScript(), s.handleAddressEventChannel(arkConfig),
+			settings.ServerUrl, s.dbSvc.SubscribedScript(), s.handleAddressEventChannel(arkConfig),
 		)
 
 		if err := s.externalSubscription.start(); err != nil {
