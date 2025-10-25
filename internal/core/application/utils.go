@@ -2,7 +2,6 @@ package application
 
 import (
 	"bytes"
-	"context"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -239,18 +238,4 @@ func deriveTimelock(timelock uint32) arklib.RelativeLocktime {
 	}
 
 	return arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: timelock}
-}
-
-type internalScriptsStore []string
-
-func (s internalScriptsStore) Get(ctx context.Context) ([]string, error) {
-	return s, nil
-}
-
-func (s internalScriptsStore) Add(ctx context.Context, scripts []string) (int, error) {
-	return 0, fmt.Errorf("cannot add scripts to internal subscription")
-}
-
-func (s internalScriptsStore) Delete(ctx context.Context, scripts []string) (int, error) {
-	return 0, fmt.Errorf("cannot delete scripts from internal subscription")
 }
