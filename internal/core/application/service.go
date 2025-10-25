@@ -351,10 +351,14 @@ func (s *Service) LockNode(ctx context.Context) error {
 		return err
 	}
 
-	s.schedulerSvc.Stop()
-	log.Info("scheduler stopped")
+	if s.schedulerSvc != nil {
+		s.schedulerSvc.Stop()
+		log.Info("scheduler stopped")
+	}
 
-	s.externalSubscription.stop()
+	if s.externalSubscription != nil {
+		s.externalSubscription.stop()
+	}
 
 	// close boarding event listener
 	s.stopBoardingEventListener <- struct{}{}
@@ -520,10 +524,14 @@ func (s *Service) ResetWallet(ctx context.Context) error {
 	// reset wallet (cleans all repos)
 	s.Reset(ctx)
 
-	s.schedulerSvc.Stop()
-	log.Info("scheduler stopped")
+	if s.schedulerSvc != nil {
+		s.schedulerSvc.Stop()
+		log.Info("scheduler stopped")
+	}
 
-	s.externalSubscription.stop()
+	if s.externalSubscription != nil {
+		s.externalSubscription.stop()
+	}
 
 	s.isInitialized = false
 	s.syncEvent = nil
