@@ -1402,61 +1402,6 @@ func (s *Service) handleAddressEventChannel(config *types.Config) func(event *in
 	}
 }
 
-// handleInternalAddressEventChannel is used to handle address events from the internal address event channel
-// it is used to schedule next settlement when a VTXO is spent or created
-func (s *Service) handleInternalAddressEventChannel(event *indexer.ScriptEvent) {
-	if event.Err != nil {
-		log.WithError(event.Err).Error("AddressEvent subscription error")
-		return
-	}
-
-	ctx := context.Background()
-
-	data, err := s.GetConfigData(ctx)
-	if err != nil {
-		log.WithError(err).Error("failed to get config data")
-		return
-	}
-
-	log.Infof("received internal address event (%d spent vtxos, %d new vtxos)", len(event.SpentVtxos), len(event.NewVtxos))
-
-	// if some vtxos were spent, schedule a settlement to soonest expiry among new vtxos / boarding UTXOs set
-	if len(event.NewVtxos) > 0 {
-		minVtxoExpiry := event.NewVtxos[0].ExpiresAt
-		for _, vtxo := range event.NewVtxos {
-			if vtxo.ExpiresAt.Before(minVtxoExpiry) {
-				minVtxoExpiry = vtxo.ExpiresAt
-			}
-		}
-		if err := s.scheduleNextSettlement(minVtxoExpiry, data); err != nil {
-			log.WithError(err).Info("schedule next claim failed")
-		}
-
-		return
-	}
-
-	// if some vtxos were created, schedule a settlement to the soonest expiry among new vtxos
-	if len(event.NewVtxos) > 0 {
-		nextScheduledSettlement := s.WhenNextSettlement(ctx)
-
-		needSchedule := false
-
-		for _, vtxo := range event.NewVtxos {
-			log.Infof("new vtxo: %s, expires at: %s", vtxo.Txid, vtxo.ExpiresAt.Format(time.RFC3339))
-			if nextScheduledSettlement.IsZero() || vtxo.ExpiresAt.Before(nextScheduledSettlement) {
-				nextScheduledSettlement = vtxo.ExpiresAt
-				needSchedule = true
-			}
-		}
-
-		if needSchedule {
-			if err := s.scheduleNextSettlement(nextScheduledSettlement, data); err != nil {
-				log.WithError(err).Info("schedule next claim failed")
-			}
-		}
-	}
-}
-
 func (s *Service) connectLN(ctx context.Context, lnOpts *domain.LnConnectionOpts) error {
 	data, err := s.GetConfigData(ctx)
 	if err != nil {
