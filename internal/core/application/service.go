@@ -99,7 +99,6 @@ type Service struct {
 	syncEvent     *types.SyncEvent
 	syncCh        chan types.SyncEvent
 
-	internalSubscription *subscriptionHandler
 	externalSubscription *subscriptionHandler
 
 	walletUpdates chan WalletUpdate
@@ -355,7 +354,6 @@ func (s *Service) LockNode(ctx context.Context) error {
 	s.schedulerSvc.Stop()
 	log.Info("scheduler stopped")
 
-	s.internalSubscription.stop()
 	s.externalSubscription.stop()
 
 	// close boarding event listener
@@ -455,29 +453,15 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		go s.resumePendingSwapRefunds(context.Background())
 
 		// Restore watch of our and tracked addresses.
-		_, offchainAddresses, boardingAddresses, _, err := s.GetAddresses(ctx)
+		_, _, boardingAddresses, _, err := s.GetAddresses(ctx)
 		if err != nil {
 			log.WithError(err).Error("failed to get addresses")
 		}
 
-		offchainPkScripts, err := offchainAddressesPkScripts(offchainAddresses)
-		if err != nil {
-			log.WithError(err).Error("failed to get offchain address")
-		}
-
-		s.internalSubscription = newSubscriptionHandler(
-			settings.ServerUrl, internalScriptsStore(offchainPkScripts),
-			s.handleInternalAddressEventChannel,
-		)
-
 		s.externalSubscription = newSubscriptionHandler(
-			settings.ServerUrl, s.dbSvc.SubscribedScript(),
-			s.handleAddressEventChannel(arkConfig),
+			s.indexerClient, s.dbSvc.SubscribedScript(), s.handleAddressEventChannel(arkConfig),
 		)
 
-		if err := s.internalSubscription.start(); err != nil {
-			log.WithError(err).Error("failed to start internal subscription")
-		}
 		if err := s.externalSubscription.start(); err != nil {
 			log.WithError(err).Error("failed to start external subscription")
 		}
@@ -535,6 +519,12 @@ func (s *Service) ResetWallet(ctx context.Context) error {
 	}
 	// reset wallet (cleans all repos)
 	s.Reset(ctx)
+
+	s.schedulerSvc.Stop()
+	log.Info("scheduler stopped")
+
+	s.externalSubscription.stop()
+
 	s.isInitialized = false
 	s.syncEvent = nil
 	if s.syncCh != nil {

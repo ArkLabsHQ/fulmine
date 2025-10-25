@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"encoding/hex"
-	"fmt"
 	"strings"
 	"time"
 
@@ -176,9 +175,7 @@ func (h *serviceHandler) SendOffChain(
 	receivers := []types.Receiver{{To: address, Amount: amount}}
 	var arkTxid string
 	for range 3 {
-		fmt.Println("ATTEMPT 1")
 		arkTxid, err = h.svc.SendOffChain(ctx, true, receivers)
-		fmt.Println(arkTxid, err)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
 				continue
