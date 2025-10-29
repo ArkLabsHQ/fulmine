@@ -35,7 +35,7 @@ type Config struct {
 	BoltzURL              string
 	BoltzWSURL            string
 	SchedulerPollInterval int64
-	ProflingEnabled       bool
+	ProfilingEnabled      bool
 
 	UnlockerType     string
 	UnlockerFilePath string
@@ -157,7 +157,7 @@ func LoadConfig() (*Config, error) {
 		DisableTelemetry:      viper.GetBool(DisableTelemetry),
 		SwapTimeout:           viper.GetUint32(SwapTimeout),
 		SchedulerPollInterval: viper.GetInt64(SchedulerPollInterval),
-		ProflingEnabled:       viper.GetBool(ProfilingEnabled),
+		ProfilingEnabled:      viper.GetBool(ProfilingEnabled),
 
 		LnConnectionOpts: lnConnectionOpts,
 	}

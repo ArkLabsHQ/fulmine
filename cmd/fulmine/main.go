@@ -43,7 +43,7 @@ func main() {
 	log.SetLevel(log.Level(cfg.LogLevel))
 
 	// Start pprof server
-	if cfg.ProflingEnabled {
+	if cfg.ProfilingEnabled {
 		go func() {
 			pprofAddr := ":6060"
 			log.Infof("starting pprof server on %s", pprofAddr)
