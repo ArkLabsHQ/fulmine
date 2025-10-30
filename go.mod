@@ -65,6 +65,7 @@ require (
 	github.com/containerd/continuity v0.4.3 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
+	github.com/creack/pty v1.1.24 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.1.0 // indirect
 	github.com/docker/cli v27.3.1+incompatible // indirect
 	github.com/docker/docker v27.3.1+incompatible // indirect

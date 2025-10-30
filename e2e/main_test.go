@@ -14,6 +14,7 @@ import (
 
 	arksetup "github.com/ArkLabsHQ/fulmine/e2e/setup/arkd"
 	fulminesetup "github.com/ArkLabsHQ/fulmine/e2e/setup/fulmine"
+	lightningsetup "github.com/ArkLabsHQ/fulmine/e2e/setup/lightning"
 )
 
 const (
@@ -130,10 +131,14 @@ func provisionServices(ctx context.Context) error {
 	if err := arksetup.EnsureReady(ctx); err != nil {
 		return fmt.Errorf("arkd: %w", err)
 	}
+
 	// ensure client fulmine is ready
 	clientFulmine := fulminesetup.NewTestFulmine("http://localhost:7001/api/v1")
 	if err := clientFulmine.EnsureReady(ctx); err != nil {
 		return fmt.Errorf("fulmine: %w", err)
+	}
+	if err := lightningsetup.EnsureConnectivity(ctx); err != nil {
+		return fmt.Errorf("lightning: %w", err)
 	}
 	return nil
 }

@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os/exec"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -17,9 +20,13 @@ import (
 const (
 	baseURL = "http://localhost:7001/api/v1"
 
-	defaultPassword = "secret"
-	waitAttempts    = 30
-	waitDelay       = 2 * time.Second
+	defaultPassword   = "secret"
+	waitAttempts      = 30
+	waitDelay         = 2 * time.Second
+	fundingThreshold  = uint64(150_000)
+	fundingAmountSats = uint64(100_000)
+	fundingAmountBtc  = "0.001"
+	fundingRounds     = 3
 )
 
 var logger = logrus.StandardLogger()
@@ -52,6 +59,9 @@ func (f *TestFulmine) EnsureReady(ctx context.Context) error {
 		return fmt.Errorf("check wallet status: %w", err)
 	}
 	if initialized && unlocked && synced {
+		if err := f.ensureFunding(ctx); err != nil {
+			return fmt.Errorf("fund wallet: %w", err)
+		}
 		logger.Info("Fulmine wallet already initialised")
 		return nil
 	}
@@ -72,6 +82,10 @@ func (f *TestFulmine) EnsureReady(ctx context.Context) error {
 
 	if err := f.waitForWalletReady(ctx, waitAttempts, waitDelay); err != nil {
 		return fmt.Errorf("wallet not ready: %w", err)
+	}
+
+	if err := f.ensureFunding(ctx); err != nil {
+		return fmt.Errorf("fund wallet: %w", err)
 	}
 
 	if err := f.logServerInfo(ctx); err != nil {
@@ -143,6 +157,9 @@ func (f *TestFulmine) createWallet(ctx context.Context, password string) error {
 	}
 
 	createWalletEndpoint := baseURL + "/wallet/create"
+	if len(f.baseURL) > 0 {
+		createWalletEndpoint = f.baseURL + "/wallet/create"
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, createWalletEndpoint, bytes.NewReader(body))
 	if err != nil {
@@ -217,4 +234,139 @@ func (f *TestFulmine) logServerInfo(ctx context.Context) error {
 
 	logger.WithField("pubkey", serverInfo.Pubkey).Info("Fulmine server info")
 	return nil
+}
+
+func (f *TestFulmine) ensureFunding(ctx context.Context) error {
+	balance, err := f.getBalance(ctx)
+	if err != nil {
+		return err
+	}
+	if balance >= fundingThreshold {
+		return nil
+	}
+
+	for i := 0; i < fundingRounds; i++ {
+		address, err := f.getOnboardAddress(ctx, fundingAmountSats)
+		if err != nil {
+			return err
+		}
+		if err := nigiriFaucet(ctx, address, fundingAmountBtc); err != nil {
+			return err
+		}
+	}
+
+	if err := nigiriGenerate(ctx, 1); err != nil {
+		return err
+	}
+
+	time.Sleep(11 * time.Second)
+
+	if err := f.settle(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (f *TestFulmine) getBalance(ctx context.Context) (uint64, error) {
+	endpoint := f.baseURL + "/balance"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return 0, err
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	var body struct {
+		Amount string `json:"amount"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return 0, err
+	}
+	value, err := strconv.ParseUint(body.Amount, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return value, nil
+}
+
+func (f *TestFulmine) getOnboardAddress(ctx context.Context, amount uint64) (string, error) {
+	payload := map[string]uint64{"amount": amount}
+	buf, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+
+	endpoint := f.baseURL + "/onboard"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(buf))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("onboard failed: %s %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+
+	var body struct {
+		Address string `json:"address"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return "", err
+	}
+	return body.Address, nil
+}
+
+func (f *TestFulmine) settle(ctx context.Context) error {
+	endpoint := f.baseURL + "/settle"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("settle failed: %s %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
+func nigiriFaucet(ctx context.Context, address, amount string) error {
+	if address == "" {
+		return fmt.Errorf("empty faucet address")
+	}
+	_, err := runNigiri(ctx, "faucet", address, amount)
+	return err
+}
+
+func nigiriGenerate(ctx context.Context, blocks int) error {
+	if blocks <= 0 {
+		return nil
+	}
+	_, err := runNigiri(ctx, "rpc", "--generate", strconv.Itoa(blocks))
+	return err
+}
+
+func runNigiri(ctx context.Context, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "nigiri", args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("nigiri %s: %w (output: %s)", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+	}
+	return out, nil
 }
