@@ -272,20 +272,13 @@ func (h *SwapHandler) submarineSwap(
 				return swapDetails, nil
 			}
 		case <-ctx.Done():
-			withReceiver := true
 			swapDetails.Status = SwapFailed
-
-			txid, err := h.refundVHTLC(context.Background(), swap.Id, withReceiver, *vhtlcOpts)
-			if err != nil {
-				log.WithError(err).Warn("failed to refund vhtlc collaboratively")
-				go func() {
-					err := unilateralRefund(*swapDetails)
-					if err != nil {
-						log.WithError(err).Error("failed to do unilateral refund")
-					}
-				}()
-			}
-			swapDetails.RedeemTxid = txid
+			go func() {
+				err := unilateralRefund(*swapDetails)
+				if err != nil {
+					log.WithError(err).Error("failed to do unilateral refund")
+				}
+			}()
 
 			return swapDetails, nil
 		}

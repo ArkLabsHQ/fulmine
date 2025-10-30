@@ -2337,12 +2337,12 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 		if err := s.schedulerSvc.ScheduleRefundAtTime(at, unilateral); err != nil {
 			return err
 		}
-		log.Debugf("scheduled refund of swap %s at %s", swapId, at.Format(time.RFC3339))
+		log.Debugf("scheduled unilateral refund of swap %s at %s", swapId, at.Format(time.RFC3339))
 	} else {
 		if err := s.schedulerSvc.ScheduleRefundAtHeight(uint32(refundLT), unilateral); err != nil {
 			return err
 		}
-		log.Debugf("scheduled refund of swap %s at block height %d", swapId, refundLT)
+		log.Debugf("scheduled unilateral refund of swap %s at block height %d", swapId, refundLT)
 	}
 
 	return nil
