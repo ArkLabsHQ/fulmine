@@ -1,4 +1,4 @@
-package e2e_test
+package e2e
 
 import (
 	"bytes"
@@ -14,7 +14,9 @@ import (
 
 const baseUrl = "http://localhost:7001/api/v1"
 
-var httpClient = &http.Client{}
+var httpClient = &http.Client{
+	Timeout: 15 * time.Second,
+}
 
 func faucetOffchain(address string, amount string) error {
 	cmd := exec.Command(

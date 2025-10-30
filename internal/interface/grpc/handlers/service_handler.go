@@ -54,6 +54,10 @@ func (h *serviceHandler) GetInfo(
 		return nil, err
 	}
 
+	if h.svc.IsLocked(ctx) {
+		return nil, status.Error(codes.FailedPrecondition, "wallet is locked")
+	}
+
 	_, _, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
 	if err != nil {
 		return nil, err
