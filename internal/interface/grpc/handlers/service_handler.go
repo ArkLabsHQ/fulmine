@@ -282,6 +282,12 @@ func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest
 			ArkTxid:         vtxo.ArkTxid,
 			CommitmentTxids: vtxo.CommitmentTxids,
 			ExpiresAt:       vtxo.ExpiresAt.Unix(),
+			CreatedAt:       vtxo.CreatedAt.Unix(),
+			IsPreconfirmed:  vtxo.Preconfirmed,
+			IsSwept:         vtxo.Swept,
+			IsUnrolled:      vtxo.Unrolled,
+			IsSpent:         vtxo.Spent,
+			SettledBy:       vtxo.SettledBy,
 		})
 	}
 
