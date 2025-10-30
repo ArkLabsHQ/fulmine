@@ -269,29 +269,7 @@ func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest
 		return nil, err
 	}
 
-	vhtlcs := make([]*pb.Vtxo, 0, len(vtxos))
-	for _, vtxo := range vtxos {
-		vhtlcs = append(vhtlcs, &pb.Vtxo{
-			Outpoint: &pb.Input{
-				Txid: vtxo.Txid,
-				Vout: vtxo.VOut,
-			},
-			Script:          vtxo.Script,
-			Amount:          vtxo.Amount,
-			SpentBy:         vtxo.SpentBy,
-			ArkTxid:         vtxo.ArkTxid,
-			CommitmentTxids: vtxo.CommitmentTxids,
-			ExpiresAt:       vtxo.ExpiresAt.Unix(),
-			CreatedAt:       vtxo.CreatedAt.Unix(),
-			IsPreconfirmed:  vtxo.Preconfirmed,
-			IsSwept:         vtxo.Swept,
-			IsUnrolled:      vtxo.Unrolled,
-			IsSpent:         vtxo.Spent,
-			SettledBy:       vtxo.SettledBy,
-		})
-	}
-
-	return &pb.ListVHTLCResponse{Vhtlcs: vhtlcs}, nil
+	return &pb.ListVHTLCResponse{Vhtlcs: toVtxosProto(vtxos)}, nil
 }
 
 func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCRequest) (*pb.CreateVHTLCResponse, error) {
