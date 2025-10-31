@@ -209,7 +209,7 @@ services:
       context: .
       dockerfile: Dockerfile
     healthcheck:
-      test: ["CMD-SHELL", "! curl -s http://localhost:7001/api/v1/info | jq -e .code > /dev/null"]
+      test: ["CMD-SHELL", "curl -s http://localhost:7001/api/v1/info | jq -e '((.code // 0) == 0)'"]
       interval: 30s
       timeout: 3s
       retries: 30

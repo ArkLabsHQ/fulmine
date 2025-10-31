@@ -18,7 +18,7 @@ const (
 	defaultArkdExec    = "docker exec arkd"
 	defaultPassword    = "secret"
 	waitAttempts       = 30
-	waitDelay          = 2 * time.Second
+	waitDelay          = 10 * time.Second
 	serverInfoURL      = "http://localhost:7070/v1/info"
 	setupFundingRounds = 4
 	redeemNoteAmount   = "21000000"
@@ -102,10 +102,8 @@ func waitForWalletReady(ctx context.Context, arkdExec string, maxRetries int, re
 			return ctx.Err()
 		default:
 		}
-		initialized, unlocked, synced, err := checkWalletStatus(ctx, arkdExec)
-		if err != nil {
-			continue
-		}
+		initialized, unlocked, synced, _ := checkWalletStatus(ctx, arkdExec)
+
 		if initialized && unlocked && synced {
 			return nil
 		}

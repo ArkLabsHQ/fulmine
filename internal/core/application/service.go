@@ -1000,7 +1000,7 @@ func (s *Service) ListWatchedAddresses(ctx context.Context) ([]domain.VtxoRollov
 
 func (s *Service) IsLocked(ctx context.Context) bool {
 	if s.ArkClient == nil {
-		return false
+		return true
 	}
 
 	return s.ArkClient.IsLocked(ctx)

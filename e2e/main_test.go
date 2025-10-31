@@ -20,7 +20,7 @@ import (
 const (
 	defaultComposeFile = "test.docker-compose.yml"
 	boltzComposeFile   = "boltz.docker-compose.yml"
-	defaultTimeout     = 5 * time.Minute
+	defaultTimeout     = 20 * time.Minute
 )
 
 func TestMain(m *testing.M) {
@@ -37,8 +37,13 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	if err := composeUp(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to start e2e stack: %v\n", err)
+	if err := setupArkd(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to start arkd stack: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err := setUpBoltz(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to start boltz stack: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -61,10 +66,36 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
-func composeUp(ctx context.Context) error {
+func setupArkd(ctx context.Context) error {
 	if err := runComposeCommand(ctx, defaultComposeFile, "up", "-d", "--wait"); err != nil {
 		return err
 	}
+
+	for {
+		err := arksetup.EnsureReady(ctx)
+		if err == nil {
+			break
+		}
+
+		fmt.Fprintf(os.Stderr, "waiting for arkd to be ready: %v\n", err)
+		time.Sleep(5 * time.Second)
+
+		// Wait or cancel
+		select {
+		case <-time.After(5 * time.Second):
+			// retry
+		case <-ctx.Done():
+			fmt.Fprintf(os.Stderr, "context cancelled while waiting for boltz fulmine to be ready: %v\n", ctx.Err())
+			return ctx.Err()
+		}
+
+	}
+
+	return nil
+
+}
+
+func setUpBoltz(ctx context.Context) error {
 
 	go func() {
 		boltzFulmine := fulminesetup.NewTestFulmine("http://localhost:7003/api/v1")
@@ -128,10 +159,6 @@ func projectRoot() string {
 }
 
 func provisionServices(ctx context.Context) error {
-	if err := arksetup.EnsureReady(ctx); err != nil {
-		return fmt.Errorf("arkd: %w", err)
-	}
-
 	// ensure client fulmine is ready
 	clientFulmine := fulminesetup.NewTestFulmine("http://localhost:7001/api/v1")
 	if err := clientFulmine.EnsureReady(ctx); err != nil {

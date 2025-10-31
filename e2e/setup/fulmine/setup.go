@@ -125,10 +125,8 @@ func (f *TestFulmine) waitForWalletReady(ctx context.Context, maxRetries int, re
 		default:
 		}
 
-		initialized, unlocked, synced, err := f.checkWalletStatus(ctx)
-		if err != nil {
-			return err
-		}
+		initialized, unlocked, synced, _ := f.checkWalletStatus(ctx)
+
 		if initialized && unlocked && synced {
 			return nil
 		}

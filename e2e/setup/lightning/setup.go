@@ -142,6 +142,24 @@ func ensureChannel(ctx context.Context, pubKey string) error {
 		return fmt.Errorf("confirm blocks: %w", err)
 	}
 
+	// give the channel a moment to activate
+	time.Sleep(5 * time.Second)
+
+	// createa an invoice
+	invoice, _, err := NigiriAddInvoice(ctx, 30000)
+	if err != nil {
+		return fmt.Errorf("create invoice: %w", err)
+	}
+
+	// pay the invoice to activate the channel
+	_, err = run(
+		ctx, "docker", "exec", boltzLndContainer, lncliBinary, "--network=regtest",
+		"payinvoice", "--force", invoice,
+	)
+	if err != nil {
+		return fmt.Errorf("activate channel: %w", err)
+	}
+
 	return nil
 }
 
@@ -155,7 +173,7 @@ func ensureFunds(ctx context.Context) error {
 		return nil
 	}
 
-	addrResp, err := newBoltzAddress(ctx)
+	addrResp, err := newAddress(ctx)
 	if err != nil {
 		return err
 	}
@@ -219,7 +237,7 @@ func boltzWalletBalance(ctx context.Context) (int64, error) {
 	return value, nil
 }
 
-func newBoltzAddress(ctx context.Context) (newAddressResponse, error) {
+func newAddress(ctx context.Context) (newAddressResponse, error) {
 	var resp newAddressResponse
 	out, err := run(ctx, "docker", "exec", boltzLndContainer, lncliBinary, "--network=regtest", "newaddress", "p2wkh")
 	if err != nil {
@@ -260,4 +278,47 @@ func run(ctx context.Context, command string, args ...string) ([]byte, error) {
 	case <-done:
 		return out.Bytes(), cmd.Wait()
 	}
+}
+
+func NigiriAddInvoice(ctx context.Context, sats int) (string, string, error) {
+	out, err := run(ctx, "nigiri", "lnd", "addinvoice", "--amt", strconv.Itoa(sats))
+	if err != nil {
+		return "", "", err
+	}
+
+	var resp struct {
+		PaymentRequest string `json:"payment_request"`
+		RHash          string `json:"r_hash"`
+	}
+	if err := json.Unmarshal(out, &resp); err != nil {
+		return "", "", fmt.Errorf("parse addinvoice response: %w", err)
+	}
+	if resp.PaymentRequest == "" || resp.RHash == "" {
+		return "", "", fmt.Errorf("incomplete invoice response: %s", strings.TrimSpace(string(out)))
+	}
+	return resp.PaymentRequest, resp.RHash, nil
+}
+
+func NigiriLookupInvoice(ctx context.Context, rHash string) (bool, error) {
+	output, err := run(ctx, "nigiri", "lnd", "lookupinvoice", rHash)
+	if err != nil {
+		return false, fmt.Errorf("lookupinvoice: %w (output: %s)", err, strings.TrimSpace(string(output)))
+	}
+	var resp struct {
+		Settled bool `json:"settled"`
+	}
+	if err := json.Unmarshal(output, &resp); err != nil {
+		return false, fmt.Errorf("parse lookupinvoice response: %w", err)
+	}
+	return resp.Settled, nil
+}
+
+func NigiriPayInvoice(ctx context.Context, invoice string) error {
+	// run the payment with --force so lncli does not wait for interactive confirmation
+	output, err := run(ctx, "nigiri", "lnd", "payinvoice", "--force", invoice)
+	if err != nil {
+		return fmt.Errorf("payinvoice: %w (output: %s)", err, strings.TrimSpace(string(output)))
+	}
+
+	return nil
 }
