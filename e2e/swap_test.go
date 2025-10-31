@@ -75,7 +75,7 @@ func TestPayInvoice(t *testing.T) {
 	require.True(t, settled, "invoice should settle via nigiri lnd")
 }
 
-func TestReverseSwapInvoice(t *testing.T) {
+func TestGetSwapInvoice(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 
