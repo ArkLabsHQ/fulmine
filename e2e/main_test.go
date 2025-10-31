@@ -47,17 +47,13 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), defaultTimeout)
-	defer cancel()
-	if err := provisionServices(ctx); err != nil {
+	if err := setupClient(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to provision services: %v\n", err)
 		os.Exit(1)
 	}
 
 	exitCode := m.Run()
 
-	ctx, cancel = context.WithTimeout(context.Background(), defaultTimeout)
-	defer cancel()
 	if err := composeDown(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to stop e2e stack: %v\n", err)
 		// keep the original exit code so we do not mask test failures
@@ -123,7 +119,39 @@ func setUpBoltz(ctx context.Context) error {
 		return err
 	}
 
+	if err := lightningsetup.EnsureConnectivity(ctx); err != nil {
+		return fmt.Errorf("lightning: %w", err)
+	}
+
 	return nil
+}
+
+func setupClient(ctx context.Context) error {
+	// ensure client fulmine is ready
+	clientFulmine := fulminesetup.NewTestFulmine("http://localhost:7001/api/v1")
+	if err := clientFulmine.EnsureReady(ctx); err != nil {
+		return fmt.Errorf("fulmine: %w", err)
+	}
+	return nil
+}
+
+func runComposeCommand(ctx context.Context, composeFile string, args ...string) error {
+	cmdArgs := append([]string{"compose", "-f", composeFile}, args...)
+	err := runCommand(ctx, "docker", cmdArgs...)
+	if err == nil {
+		return nil
+	}
+	if strings.Contains(err.Error(), "unknown flag: --wait") {
+		withoutWait := make([]string, 0, len(args)-1)
+		for _, arg := range args {
+			if arg != "--wait" {
+				withoutWait = append(withoutWait, arg)
+			}
+		}
+		cmdArgs = append([]string{"compose", "-f", composeFile}, withoutWait...)
+		return runCommand(ctx, "docker", cmdArgs...)
+	}
+	return err
 }
 
 func composeDown(ctx context.Context) error {
@@ -156,35 +184,4 @@ func projectRoot() string {
 		return "."
 	}
 	return filepath.Clean(filepath.Join(filepath.Dir(filename), ".."))
-}
-
-func provisionServices(ctx context.Context) error {
-	// ensure client fulmine is ready
-	clientFulmine := fulminesetup.NewTestFulmine("http://localhost:7001/api/v1")
-	if err := clientFulmine.EnsureReady(ctx); err != nil {
-		return fmt.Errorf("fulmine: %w", err)
-	}
-	if err := lightningsetup.EnsureConnectivity(ctx); err != nil {
-		return fmt.Errorf("lightning: %w", err)
-	}
-	return nil
-}
-
-func runComposeCommand(ctx context.Context, composeFile string, args ...string) error {
-	cmdArgs := append([]string{"compose", "-f", composeFile}, args...)
-	err := runCommand(ctx, "docker", cmdArgs...)
-	if err == nil {
-		return nil
-	}
-	if strings.Contains(err.Error(), "unknown flag: --wait") {
-		withoutWait := make([]string, 0, len(args)-1)
-		for _, arg := range args {
-			if arg != "--wait" {
-				withoutWait = append(withoutWait, arg)
-			}
-		}
-		cmdArgs = append([]string{"compose", "-f", composeFile}, withoutWait...)
-		return runCommand(ctx, "docker", cmdArgs...)
-	}
-	return err
 }

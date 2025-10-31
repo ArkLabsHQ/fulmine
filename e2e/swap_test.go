@@ -2,17 +2,14 @@ package e2e
 
 import (
 	"context"
-	"errors"
-	"strings"
 	"testing"
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
-	"github.com/ArkLabsHQ/fulmine/e2e/setup/lightning"
+	"github.com/ArkLabsHQ/fulmine/e2e/setup/nigiri"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
 )
 
 const (
@@ -24,13 +21,8 @@ func TestPayInvoice(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	invoice, rHash, err := lightning.NigiriAddInvoice(ctx, 3000)
-	if err != nil {
-		if shouldSkipCommand(err) {
-			t.Skipf("nigiri not available: %v", err)
-		}
-		require.NoError(t, err, "add invoice")
-	}
+	invoice, rHash, err := nigiri.AddInvoice(ctx, swapInvoiceSats)
+	require.NoError(t, err, "add invoice")
 
 	conn, err := grpc.DialContext(
 		ctx, grpcAddr,
@@ -45,12 +37,7 @@ func TestPayInvoice(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	swapResp, err := client.PayInvoice(ctx, &pb.PayInvoiceRequest{Invoice: invoice})
-	if err != nil {
-		if shouldSkipSwap(err) {
-			t.Skipf("swap infrastructure not ready: %v", err)
-		}
-		require.NoError(t, err, "PayInvoice")
-	}
+	require.NoError(t, err, "PayInvoice")
 
 	require.NotNil(t, swapResp)
 	require.NotEmpty(t, swapResp.Txid)
@@ -58,13 +45,9 @@ func TestPayInvoice(t *testing.T) {
 	deadline := time.Now().Add(2 * time.Minute)
 	settled := false
 	for time.Now().Before(deadline) {
-		ok, lookupErr := lightning.NigiriLookupInvoice(ctx, rHash)
-		if lookupErr != nil {
-			if shouldSkipCommand(lookupErr) {
-				t.Skipf("nigiri not available: %v", lookupErr)
-			}
-			t.Logf("waiting for invoice settlement: %v", lookupErr)
-		}
+		ok, lookupErr := nigiri.LookupInvoice(ctx, rHash)
+		require.NoError(t, lookupErr, "lookup invoice")
+
 		if ok {
 			settled = true
 			break
@@ -93,23 +76,12 @@ func TestGetSwapInvoice(t *testing.T) {
 	require.NoError(t, err)
 
 	resp, err := client.GetInvoice(ctx, &pb.GetInvoiceRequest{Amount: swapInvoiceSats})
-	if err != nil {
-		if shouldSkipSwap(err) {
-			t.Skipf("swap infrastructure not ready: %v", err)
-		}
-		require.NoError(t, err, "GetInvoice")
-
-	}
+	require.NoError(t, err, "GetInvoice")
 
 	require.NotEmpty(t, resp.GetInvoice(), "invoice")
 
-	err = lightning.NigiriPayInvoice(ctx, resp.GetInvoice())
-	if err != nil {
-		if shouldSkipCommand(err) {
-			t.Skipf("nigiri not available: %v", err)
-		}
-		require.NoError(t, err, "pay reverse swap invoice")
-	}
+	err = nigiri.PayInvoice(ctx, resp.GetInvoice())
+	require.NoError(t, err, "pay invoice")
 
 	// allow some time for the settlement to be processed
 	time.Sleep(1 * time.Minute)
@@ -122,26 +94,4 @@ func TestGetSwapInvoice(t *testing.T) {
 	require.NoError(t, err)
 
 	require.GreaterOrEqual(t, newBalance.Amount, balance.Amount+2_000)
-}
-
-func shouldSkipSwap(err error) bool {
-	st, ok := status.FromError(err)
-	if !ok {
-		return false
-	}
-	if st.Message() == "" {
-		return false
-	}
-	return errors.Is(err, context.DeadlineExceeded) ||
-		strings.Contains(strings.ToLower(st.Message()), "boltz") ||
-		strings.Contains(strings.ToLower(st.Message()), "connection refused") ||
-		strings.Contains(strings.ToLower(st.Message()), "timeout")
-}
-
-func shouldSkipCommand(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "permission denied") && strings.Contains(msg, "docker")
 }
