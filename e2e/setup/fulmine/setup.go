@@ -18,8 +18,6 @@ import (
 )
 
 const (
-	baseURL = "http://localhost:7001/api/v1"
-
 	defaultPassword   = "secret"
 	waitAttempts      = 30
 	waitDelay         = 2 * time.Second

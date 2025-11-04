@@ -118,7 +118,7 @@ down-test-env:
 ## integrationtest: runs e2e tests
 integrationtest:
 	@echo "Running e2e tests..."
-	@go test -v -count=1 -race -p=1 ./internal/test/e2e/...
+	@go test -v -count=1 -timeout=20m -race -p=1 ./e2e/...
 
 # --- SQLite and SQLC commands ---
 

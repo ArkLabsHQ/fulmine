@@ -90,8 +90,8 @@ func testGetSwapInvoice(t *testing.T) {
 	err = nigiri.PayInvoice(ctx, resp.GetInvoice())
 	require.NoError(t, err, "pay invoice")
 
-	// allow some time for the settlement to be processed
-	time.Sleep(1 * time.Minute)
+	// allow some time for Payment To be processed
+	time.Sleep(10 * time.Second)
 
 	// try to settle
 	_, err = client.Settle(ctx, &pb.SettleRequest{})
