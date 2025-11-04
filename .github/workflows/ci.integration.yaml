@@ -22,17 +22,7 @@ jobs:
         uses: vulpemventures/nigiri-github-action@v1
         with:
           use_liquid: false
-          use_ln: false
-
-      - name: Build test environment
-        run: make build-test-env
-      
-      - name: Start test environment
-        run: make up-test-env
-      
-      - name: Setup test environment
-        run: make setup-test-env
-      
+          use_ln: false   
       - name: Run integration tests
         run: make integrationtest
       
