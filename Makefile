@@ -96,15 +96,21 @@ proto-lint:
 	@echo "Linting protos..."
 	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace bufbuild/buf lint --exclude-path ./api-spec/protobuf/cln
 
-build-test-env:
+pull-test-env:
+	@echo "Pulling latest base images..."
+	@docker compose -f test.docker-compose.yml pull
+	@docker compose -f boltz.docker-compose.yml pull
+
+build-test-env: pull-test-env
 	@echo "Building test environment..."
-	@docker compose -f test.docker-compose.yml build --no-cache --pull
-	@docker compose -f boltz.docker-compose.yml build --no-cache --pull
+	@docker compose -f test.docker-compose.yml build --no-cache
+	@docker compose -f boltz.docker-compose.yml build --no-cache
 
 ## up-test-env: starts test environment
 up-test-env:
 	@echo "Starting test environment..."
 	@docker compose -f test.docker-compose.yml up -d
+	@docker compose -f boltz.docker-compose.yml up -d
 
 ## setup-arkd: sets up the ARK server
 setup-test-env:
@@ -115,6 +121,7 @@ setup-test-env:
 down-test-env:
 	@echo "Stopping test environment..."
 	@docker compose -f test.docker-compose.yml down
+	@docker compose -f boltz.docker-compose.yml down -v
 
 ## integrationtest: runs e2e tests
 integrationtest:
