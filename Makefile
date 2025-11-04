@@ -98,7 +98,8 @@ proto-lint:
 
 build-test-env:
 	@echo "Building test environment..."
-	@docker compose -f test.docker-compose.yml build --no-cache
+	@docker compose -f test.docker-compose.yml build --no-cache - pull
+	@docker compose -f boltz.docker-compose.yml build --no-cache - pull
 
 ## up-test-env: starts test environment
 up-test-env:
