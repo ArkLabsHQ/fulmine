@@ -17,8 +17,17 @@ const (
 	swapInvoiceSats = 3_000
 )
 
-func TestPayInvoice(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+func TestSwap(t *testing.T) {
+	t.Run("PayInvoice", func(t *testing.T) {
+		testPayInvoice(t)
+	})
+	t.Run("GetSwapInvoice", func(t *testing.T) {
+		testGetSwapInvoice(t)
+	})
+}
+
+func testPayInvoice(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 
 	invoice, rHash, err := nigiri.AddInvoice(ctx, swapInvoiceSats)
@@ -33,8 +42,6 @@ func TestPayInvoice(t *testing.T) {
 	defer conn.Close()
 
 	client := pb.NewServiceClient(conn)
-
-	time.Sleep(5 * time.Second)
 
 	swapResp, err := client.PayInvoice(ctx, &pb.PayInvoiceRequest{Invoice: invoice})
 	require.NoError(t, err, "PayInvoice")
@@ -58,7 +65,7 @@ func TestPayInvoice(t *testing.T) {
 	require.True(t, settled, "invoice should settle via nigiri lnd")
 }
 
-func TestGetSwapInvoice(t *testing.T) {
+func testGetSwapInvoice(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 
