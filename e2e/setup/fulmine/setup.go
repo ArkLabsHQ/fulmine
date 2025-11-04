@@ -110,6 +110,11 @@ func (f *TestFulmine) checkWalletStatus(ctx context.Context) (bool, bool, bool, 
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return false, false, false, fmt.Errorf("wallet status check failed: %s %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+
 	var status walletStatus
 	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
 		return false, false, false, err
@@ -125,7 +130,13 @@ func (f *TestFulmine) waitForWalletReady(ctx context.Context, maxRetries int, re
 		default:
 		}
 
-		initialized, unlocked, synced, _ := f.checkWalletStatus(ctx)
+		initialized, unlocked, synced, err := f.checkWalletStatus(ctx)
+
+		if err != nil {
+			logger.WithError(err).Warn("error checking wallet status, will retry")
+			time.Sleep(retryDelay)
+			continue
+		}
 
 		if initialized && unlocked && synced {
 			return nil
@@ -154,10 +165,7 @@ func (f *TestFulmine) createWallet(ctx context.Context, password string) error {
 		return err
 	}
 
-	createWalletEndpoint := baseURL + "/wallet/create"
-	if len(f.baseURL) > 0 {
-		createWalletEndpoint = f.baseURL + "/wallet/create"
-	}
+	createWalletEndpoint := f.baseURL + "/wallet/create"
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, createWalletEndpoint, bytes.NewReader(body))
 	if err != nil {
@@ -223,6 +231,11 @@ func (f *TestFulmine) logServerInfo(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("fetch server info failed: %s %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+
 	var serverInfo struct {
 		Pubkey string `json:"pubkey"`
 	}
@@ -277,6 +290,11 @@ func (f *TestFulmine) getBalance(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return 0, fmt.Errorf("get balance failed: %s %s", resp.Status, strings.TrimSpace(string(body)))
+	}
 
 	var body struct {
 		Amount string `json:"amount"`

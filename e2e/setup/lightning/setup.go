@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/e2e/setup/nigiri"
@@ -143,7 +144,7 @@ func ensureChannel(ctx context.Context, pubKey string) error {
 	// give the channel a moment to activate
 	time.Sleep(5 * time.Second)
 
-	// createa an invoice
+	// create an invoice
 	invoice, _, err := nigiri.AddInvoice(ctx, 30000)
 	if err != nil {
 		return fmt.Errorf("create invoice: %w", err)
@@ -262,21 +263,24 @@ func run(ctx context.Context, command string, args ...string) ([]byte, error) {
 	}()
 
 	var out bytes.Buffer
-	done := make(chan struct{})
+	done := make(chan error, 1)
 	go func() {
 		_, err := io.Copy(&out, ptmx)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "pty copy error: %v\n", err)
-		}
-		close(done)
+		done <- err
 	}()
 
 	select {
 	case <-ctx.Done():
 		_ = cmd.Process.Kill()
-		<-done
+		copyErr := <-done
+		if copyErr != nil && !errors.Is(copyErr, syscall.EIO) {
+			return out.Bytes(), fmt.Errorf("read command output: %w", copyErr)
+		}
 		return out.Bytes(), ctx.Err()
-	case <-done:
+	case copyErr := <-done:
+		if copyErr != nil && !errors.Is(copyErr, syscall.EIO) {
+			return out.Bytes(), fmt.Errorf("read command output: %w", copyErr)
+		}
 		return out.Bytes(), cmd.Wait()
 	}
 }
