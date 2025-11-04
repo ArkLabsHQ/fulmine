@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -83,7 +84,10 @@ func run(ctx context.Context, command string, args ...string) ([]byte, error) {
 	var out bytes.Buffer
 	done := make(chan struct{})
 	go func() {
-		io.Copy(&out, ptmx)
+		_, err := io.Copy(&out, ptmx)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "pty copy error: %v\n", err)
+		}
 		close(done)
 	}()
 
