@@ -74,7 +74,8 @@ run-2: clean build-static-assets
 ## test: runs all tests
 test:
 	@echo "Running all tests..."
-	@go test -v -race --count=1 $(shell go list ./... | grep -v *e2e*)
+		@go test -v -race --count=1 $(shell go list ./... | grep -v *internal/test/e2e*)
+
 
 ## test-vhtlc: runs tests for the VHTLC package
 test-vhtlc:
@@ -126,7 +127,7 @@ down-test-env:
 ## integrationtest: runs e2e tests
 integrationtest:
 	@echo "Running e2e tests..."
-	@go test -v -count=1 -timeout=20m -race -p=1 ./e2e/...
+	@go test -v -count=1 -timeout=20m -race -p=1 ./internal/test/e2e/...
 
 # --- SQLite and SQLC commands ---
 

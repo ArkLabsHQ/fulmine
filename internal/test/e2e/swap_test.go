@@ -7,7 +7,7 @@ import (
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
-	"github.com/ArkLabsHQ/fulmine/e2e/setup/nigiri"
+	"github.com/ArkLabsHQ/fulmine/internal/test/e2e/setup/nigiri"
 	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"

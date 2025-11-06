@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ArkLabsHQ/fulmine/e2e/setup/nigiri"
+	"github.com/ArkLabsHQ/fulmine/internal/test/e2e/setup/nigiri"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/sirupsen/logrus"
 )

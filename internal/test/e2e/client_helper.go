@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ArkLabsHQ/fulmine/e2e/setup/nigiri"
+	"github.com/ArkLabsHQ/fulmine/internal/test/e2e/setup/nigiri"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	arksdk "github.com/arkade-os/go-sdk"

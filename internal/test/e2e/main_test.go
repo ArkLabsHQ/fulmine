@@ -12,14 +12,14 @@ import (
 	"testing"
 	"time"
 
-	arksetup "github.com/ArkLabsHQ/fulmine/e2e/setup/arkd"
-	fulminesetup "github.com/ArkLabsHQ/fulmine/e2e/setup/fulmine"
-	lightningsetup "github.com/ArkLabsHQ/fulmine/e2e/setup/lightning"
+	arksetup "github.com/ArkLabsHQ/fulmine/internal/test/e2e/setup/arkd"
+	fulminesetup "github.com/ArkLabsHQ/fulmine/internal/test/e2e/setup/fulmine"
+	lightningsetup "github.com/ArkLabsHQ/fulmine/internal/test/e2e/setup/lightning"
 )
 
 const (
-	defaultComposeFile = "test.docker-compose.yml"
-	boltzComposeFile   = "boltz.docker-compose.yml"
+	defaultComposeFile = "../../test.docker-compose.yml"
+	boltzComposeFile   = "../../boltz.docker-compose.yml"
 	defaultTimeout     = 20 * time.Minute
 )
 
