@@ -51,6 +51,7 @@ const (
 	defaultUnilateralRefundDelay                = 1024
 	defaultUnilateralRefundWithoutReceiverDelay = 2048
 	defaultRefundLocktime                       = time.Hour * 24
+	refreshDbInterval                           = 2 * time.Minute
 )
 
 var ErrorNoVtxosFound = fmt.Errorf("no vtxos found for the given vhtlc opts")
@@ -136,6 +137,9 @@ func NewService(
 	if log.IsLevelEnabled(log.DebugLevel) {
 		opts = append(opts, arksdk.WithVerbose())
 	}
+
+	// force rescan transactions history and (u/v)txos set every refreshDbInterval
+	opts = append(opts, arksdk.WithRefreshDb(refreshDbInterval))
 
 	if arkClient, err := arksdk.LoadArkClient(storeSvc, opts...); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
