@@ -297,7 +297,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 
 	pollingInterval := 5 * time.Minute
 	if infos.Network == "regtest" {
-		pollingInterval = 5 * time.Second
+		pollingInterval = 2 * time.Second
 	}
 
 	if err := s.Init(ctx, arksdk.InitArgs{
