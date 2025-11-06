@@ -131,10 +131,16 @@ func NewService(
 	schedulerSvc ports.SchedulerService,
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 	connectionOpts *domain.LnConnectionOpts,
+	refreshDbInterval int64,
 ) (*Service, error) {
 	opts := make([]arksdk.ClientOption, 0)
 	if log.IsLevelEnabled(log.DebugLevel) {
 		opts = append(opts, arksdk.WithVerbose())
+	}
+
+	// force rescan transactions history and (u/v)txos set every refreshDbInterval
+	if refreshDbInterval > 0 {
+		opts = append(opts, arksdk.WithRefreshDb(time.Duration(refreshDbInterval)*time.Second))
 	}
 
 	if arkClient, err := arksdk.LoadArkClient(storeSvc, opts...); err == nil {
