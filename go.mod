@@ -21,6 +21,7 @@ require (
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
 	github.com/arkade-os/go-sdk v0.8.2-0.20251031161906-b15cd87b76d1
 	github.com/ccoveille/go-safecast v1.6.1
+	github.com/creack/pty v1.1.18
 	github.com/dgraph-io/badger/v4 v4.6.0
 	github.com/getsentry/sentry-go v0.32.0
 	github.com/getsentry/sentry-go/gin v0.32.0
