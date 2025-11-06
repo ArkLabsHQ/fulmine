@@ -26,11 +26,8 @@ const (
 func TestMain(m *testing.M) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer func() {
-		// Clean up any existing e2e stack before starting new one
-		_ = composeDown(ctx)
 		cancel()
 	}()
-	// Clean up any existing e2e stack before starting new one
 	err := composeDown(ctx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to clean up e2e stack: %v\n", err)
@@ -56,7 +53,6 @@ func TestMain(m *testing.M) {
 
 	if err := composeDown(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to stop e2e stack: %v\n", err)
-		// keep the original exit code so we do not mask test failures
 	}
 
 	os.Exit(exitCode)
@@ -76,19 +72,14 @@ func setupArkd(ctx context.Context) error {
 		fmt.Fprintf(os.Stderr, "waiting for arkd to be ready: %v\n", err)
 		time.Sleep(5 * time.Second)
 
-		// Wait or cancel
 		select {
 		case <-time.After(5 * time.Second):
-			// retry
 		case <-ctx.Done():
 			fmt.Fprintf(os.Stderr, "context cancelled while waiting for boltz fulmine to be ready: %v\n", ctx.Err())
 			return ctx.Err()
 		}
-
 	}
-
 	return nil
-
 }
 
 func setUpBoltz(ctx context.Context) error {
@@ -104,10 +95,8 @@ func setUpBoltz(ctx context.Context) error {
 			fmt.Fprintf(os.Stderr, "waiting for boltz fulmine to be ready: %v\n", err)
 			time.Sleep(5 * time.Second)
 
-			// Wait or cancel
 			select {
 			case <-time.After(5 * time.Second):
-				// retry
 			case <-ctx.Done():
 				fmt.Fprintf(os.Stderr, "context cancelled while waiting for boltz fulmine to be ready: %v\n", ctx.Err())
 				return
@@ -127,7 +116,6 @@ func setUpBoltz(ctx context.Context) error {
 }
 
 func setupClient(ctx context.Context) error {
-	// ensure client fulmine is ready
 	clientFulmine := fulminesetup.NewTestFulmine("http://localhost:7001/api/v1")
 	if err := clientFulmine.EnsureReady(ctx); err != nil {
 		return fmt.Errorf("fulmine: %w", err)

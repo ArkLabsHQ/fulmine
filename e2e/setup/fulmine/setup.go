@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ArkLabsHQ/fulmine/e2e/setup/nigiri"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/sirupsen/logrus"
 )
@@ -259,12 +259,12 @@ func (f *TestFulmine) ensureFunding(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if err := nigiriFaucet(ctx, address, fundingAmountBtc); err != nil {
+		if err := nigiri.Faucet(ctx, address, fundingAmountBtc); err != nil {
 			return err
 		}
 	}
 
-	if err := nigiriGenerate(ctx, 1); err != nil {
+	if err := nigiri.MineBlocks(ctx, 1); err != nil {
 		return err
 	}
 
@@ -358,29 +358,4 @@ func (f *TestFulmine) settle(ctx context.Context) error {
 		return fmt.Errorf("settle failed: %s %s", resp.Status, strings.TrimSpace(string(body)))
 	}
 	return nil
-}
-
-func nigiriFaucet(ctx context.Context, address, amount string) error {
-	if address == "" {
-		return fmt.Errorf("empty faucet address")
-	}
-	_, err := runNigiri(ctx, "faucet", address, amount)
-	return err
-}
-
-func nigiriGenerate(ctx context.Context, blocks int) error {
-	if blocks <= 0 {
-		return nil
-	}
-	_, err := runNigiri(ctx, "rpc", "--generate", strconv.Itoa(blocks))
-	return err
-}
-
-func runNigiri(ctx context.Context, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, "nigiri", args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("nigiri %s: %w (output: %s)", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
-	}
-	return out, nil
 }

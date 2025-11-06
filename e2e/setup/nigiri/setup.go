@@ -68,7 +68,14 @@ func MineBlocks(ctx context.Context, blocks int) error {
 	}
 
 	return nil
+}
 
+func Faucet(ctx context.Context, address, amount string) error {
+	if address == "" {
+		return fmt.Errorf("empty faucet address")
+	}
+	_, err := run(ctx, nigiriBinary, "faucet", address, amount)
+	return err
 }
 
 func run(ctx context.Context, command string, args ...string) ([]byte, error) {
