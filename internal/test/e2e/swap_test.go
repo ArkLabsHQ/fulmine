@@ -27,6 +27,7 @@ func TestBasicSwap(t *testing.T) {
 	t.Run("FulmineInvoice", func(t *testing.T) {
 		testFulminePayInvoice(t)
 		testFulmineGetInvoice(t)
+		testFulmineRefundInvoice(t)
 	})
 }
 
