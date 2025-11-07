@@ -479,9 +479,9 @@ func (h *SwapHandler) refundVHTLC(
 
 		for i := range signedRefundPsbt.Inputs {
 			boltzIn := boltzSignedRefundPtx.Inputs[i]
-			partialSig := boltzIn.PartialSigs[0]
-			signedRefundPsbt.Inputs[i].PartialSigs =
-				append(signedRefundPsbt.Inputs[i].PartialSigs, partialSig)
+			partialSig := boltzIn.TaprootScriptSpendSig[0]
+			signedRefundPsbt.Inputs[i].TaprootScriptSpendSig =
+				append(signedRefundPsbt.Inputs[i].TaprootScriptSpendSig, partialSig)
 		}
 
 		checkpointsList = append(checkpointsList, boltzSignedCheckpointPtx)
@@ -634,9 +634,9 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 		return swapDetails, fmt.Errorf("failed to decode invoice: %v", err)
 	}
 
-	go func(swapDetails Swap) {
+	go func() {
 		if reedeemTxId, err := h.waitAndClaimVHTLC(
-			inv.Expiry, swapDetails.Id, preimage, vhtlcOpts,
+			inv.Expiry, swap.Id, preimage, vhtlcOpts,
 		); err != nil {
 			swapDetails.Status = SwapFailed
 			log.WithError(err).Error("failed to claim VHTLC")
@@ -649,7 +649,7 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 		if err != nil {
 			log.WithError(err).Error("failed to post process swap")
 		}
-	}(swapDetails)
+	}()
 	return swapDetails, nil
 }
 
@@ -1042,10 +1042,9 @@ func combineTapscripts(signedPackets []*psbt.Packet) (*psbt.Packet, error) {
 
 	for i := range finalCheckpoint.Inputs {
 		scriptSigs := make([]*psbt.TaprootScriptSpendSig, len(signedPackets))
-		for _, signedCheckpointPsbt := range signedPackets {
+		for j, signedCheckpointPsbt := range signedPackets {
 			boltzIn := signedCheckpointPsbt.Inputs[i]
-			partialSig := boltzIn.TaprootScriptSpendSig[0]
-			scriptSigs = append(scriptSigs, partialSig)
+			scriptSigs[j] = boltzIn.TaprootScriptSpendSig[0]
 		}
 		finalCheckpoint.Inputs[i].TaprootScriptSpendSig = scriptSigs
 	}
