@@ -122,16 +122,11 @@ func getInputTapLeaves(tx *psbt.Packet) map[int]txscript.TapLeaf {
 	return tapLeaves
 }
 
-func verifySignedCheckpoints(signedCheckpointTxs []string, signers []*btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf) error {
+func verifySignatures(signedCheckpointTxs []*psbt.Packet, signers []*btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf) error {
 	for _, signedCheckpointTx := range signedCheckpointTxs {
 		for _, signer := range signers {
-			finalCheckpointPtx, err := psbt.NewFromRawBytes(strings.NewReader(signedCheckpointTx), true)
-			if err != nil {
-				return err
-			}
-
 			// verify that the ark signer has signed the ark tx
-			err = verifyInputSignatures(finalCheckpointPtx, signer, expectedTapLeaves)
+			err := verifyInputSignatures(signedCheckpointTx, signer, expectedTapLeaves)
 			if err != nil {
 				return err
 			}
@@ -180,30 +175,19 @@ func verifyAndSignCheckpoints(
 	return finalCheckpoints, nil
 }
 
-func combineCheckpointsTxs(signedCheckpoints []*psbt.Packet, serverSignedCheckpoint *psbt.Packet) (string, error) {
-	finalCheckpointUpdater, err := psbt.NewUpdater(serverSignedCheckpoint)
-	if err != nil {
-		return "", fmt.Errorf("failed to init updater for final checkpoint tx: %s", err)
-	}
+func combineSignedCheckpointsTxs(signedCheckpoints []*psbt.Packet) (*psbt.Packet, error) {
+	finalCheckpoint := signedCheckpoints[0]
 
-	for i := range finalCheckpointUpdater.Upsbt.Inputs {
-
+	for i := range finalCheckpoint.Inputs {
+		scriptSigs := make([]*psbt.TaprootScriptSpendSig, len(signedCheckpoints))
 		for _, signedCheckpointPsbt := range signedCheckpoints {
 			boltzIn := signedCheckpointPsbt.Inputs[i]
-			partialSig := boltzIn.PartialSigs[0]
-			if _, err := finalCheckpointUpdater.Sign(
-				i, partialSig.Signature, partialSig.PubKey,
-				boltzIn.RedeemScript, boltzIn.WitnessScript,
-			); err != nil {
-				return "", fmt.Errorf(
-					"failed to combine sigs of input %d for checkpoint tx: %s", i, err,
-				)
-			}
-
+			partialSig := boltzIn.TaprootScriptSpendSig[0]
+			scriptSigs = append(scriptSigs, partialSig)
 		}
-
+		finalCheckpoint.Inputs[i].TaprootScriptSpendSig = scriptSigs
 	}
-	return finalCheckpointUpdater.Upsbt.B64Encode()
+	return finalCheckpoint, nil
 }
 
 func verifyFinalArkTx(
