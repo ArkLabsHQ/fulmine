@@ -74,7 +74,8 @@ run-2: clean build-static-assets
 ## test: runs all tests
 test:
 	@echo "Running all tests..."
-	@go test -v -race --count=1 $(shell go list ./... | grep -v *internal/test/e2e*)
+		@go test -v -race --count=1 $(shell go list ./... | grep -v *internal/test/e2e*)
+
 
 ## test-vhtlc: runs tests for the VHTLC package
 test-vhtlc:
@@ -96,14 +97,21 @@ proto-lint:
 	@echo "Linting protos..."
 	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace bufbuild/buf lint --exclude-path ./api-spec/protobuf/cln
 
-build-test-env:
+pull-test-env:
+	@echo "Pulling latest base images..."
+	@docker compose -f test.docker-compose.yml pull
+	@docker compose -f boltz.docker-compose.yml pull
+
+build-test-env: pull-test-env
 	@echo "Building test environment..."
 	@docker compose -f test.docker-compose.yml build --no-cache
+	@docker compose -f boltz.docker-compose.yml build --no-cache
 
 ## up-test-env: starts test environment
 up-test-env:
 	@echo "Starting test environment..."
 	@docker compose -f test.docker-compose.yml up -d
+	@docker compose -f boltz.docker-compose.yml up -d
 
 ## setup-arkd: sets up the ARK server
 setup-test-env:
@@ -114,11 +122,12 @@ setup-test-env:
 down-test-env:
 	@echo "Stopping test environment..."
 	@docker compose -f test.docker-compose.yml down
+	@docker compose -f boltz.docker-compose.yml down -v
 
 ## integrationtest: runs e2e tests
 integrationtest:
 	@echo "Running e2e tests..."
-	@go test -v -count=1 -race -p=1 ./internal/test/e2e/...
+	@go test -v -count=1 -timeout=20m -race -p=1 ./internal/test/e2e/...
 
 # --- SQLite and SQLC commands ---
 

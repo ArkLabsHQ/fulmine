@@ -229,6 +229,7 @@ func (h *subscriptionHandler) start() error {
 			for !stopped {
 				select {
 				case <-ctx.Done():
+					log.Debug("closed to due to context end")
 					return
 				case event := <-subscriptionChannel:
 					if event.Err != nil {

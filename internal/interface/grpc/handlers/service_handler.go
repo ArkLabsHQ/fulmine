@@ -54,6 +54,10 @@ func (h *serviceHandler) GetInfo(
 		return nil, err
 	}
 
+	if h.svc.IsLocked(ctx) {
+		return nil, status.Error(codes.FailedPrecondition, "wallet is locked")
+	}
+
 	_, _, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
 	if err != nil {
 		return nil, err
@@ -175,7 +179,7 @@ func (h *serviceHandler) SendOffChain(
 	receivers := []types.Receiver{{To: address, Amount: amount}}
 	var arkTxid string
 	for range 3 {
-		arkTxid, err = h.svc.SendOffChain(ctx, true, receivers)
+		arkTxid, err = h.svc.SendOffChain(ctx, false, receivers)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
 				continue
@@ -269,23 +273,7 @@ func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest
 		return nil, err
 	}
 
-	vhtlcs := make([]*pb.Vtxo, 0, len(vtxos))
-	for _, vtxo := range vtxos {
-		vhtlcs = append(vhtlcs, &pb.Vtxo{
-			Outpoint: &pb.Input{
-				Txid: vtxo.Txid,
-				Vout: vtxo.VOut,
-			},
-			Script:          vtxo.Script,
-			Amount:          vtxo.Amount,
-			SpentBy:         vtxo.SpentBy,
-			ArkTxid:         vtxo.ArkTxid,
-			CommitmentTxids: vtxo.CommitmentTxids,
-			ExpiresAt:       vtxo.ExpiresAt.Unix(),
-		})
-	}
-
-	return &pb.ListVHTLCResponse{Vhtlcs: vhtlcs}, nil
+	return &pb.ListVHTLCResponse{Vhtlcs: toVtxosProto(vtxos)}, nil
 }
 
 func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCRequest) (*pb.CreateVHTLCResponse, error) {

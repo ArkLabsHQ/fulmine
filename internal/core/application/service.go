@@ -99,7 +99,6 @@ type Service struct {
 	syncEvent     *types.SyncEvent
 	syncCh        chan types.SyncEvent
 
-	internalSubscription *subscriptionHandler
 	externalSubscription *subscriptionHandler
 
 	walletUpdates chan WalletUpdate
@@ -132,10 +131,16 @@ func NewService(
 	schedulerSvc ports.SchedulerService,
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 	connectionOpts *domain.LnConnectionOpts,
+	refreshDbInterval int64,
 ) (*Service, error) {
 	opts := make([]arksdk.ClientOption, 0)
 	if log.IsLevelEnabled(log.DebugLevel) {
 		opts = append(opts, arksdk.WithVerbose())
+	}
+
+	// force rescan transactions history and (u/v)txos set every refreshDbInterval
+	if refreshDbInterval > 0 {
+		opts = append(opts, arksdk.WithRefreshDb(time.Duration(refreshDbInterval)*time.Second))
 	}
 
 	if arkClient, err := arksdk.LoadArkClient(storeSvc, opts...); err == nil {
@@ -352,11 +357,14 @@ func (s *Service) LockNode(ctx context.Context) error {
 		return err
 	}
 
-	s.schedulerSvc.Stop()
-	log.Info("scheduler stopped")
+	if s.schedulerSvc != nil {
+		s.schedulerSvc.Stop()
+		log.Info("scheduler stopped")
+	}
 
-	s.internalSubscription.stop()
-	s.externalSubscription.stop()
+	if s.externalSubscription != nil {
+		s.externalSubscription.stop()
+	}
 
 	// close boarding event listener
 	s.stopBoardingEventListener <- struct{}{}
@@ -428,7 +436,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		// Schedule next settlement for the current vtxo set.
-		nextExpiry, err := s.computeNextExpiry(ctx, arkConfig)
+		nextExpiry, err := s.computeNextExpiry(context.Background(), arkConfig)
 		if err != nil {
 			log.WithError(err).Error("failed to compute next expiry")
 		}
@@ -455,29 +463,27 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		go s.resumePendingSwapRefunds(context.Background())
 
 		// Restore watch of our and tracked addresses.
-		_, offchainAddresses, boardingAddresses, _, err := s.GetAddresses(ctx)
+		_, offchainAddrses, boardingAddresses, _, err := s.GetAddresses(context.Background())
 		if err != nil {
 			log.WithError(err).Error("failed to get addresses")
 		}
 
-		offchainPkScripts, err := offchainAddressesPkScripts(offchainAddresses)
+		scripts, err := offchainAddressesPkScripts(offchainAddrses)
 		if err != nil {
-			log.WithError(err).Error("failed to get offchain address")
+			log.WithError(err).Error("failed to decode offchain address")
 		}
 
-		s.internalSubscription = newSubscriptionHandler(
-			settings.ServerUrl, internalScriptsStore(offchainPkScripts),
-			s.handleInternalAddressEventChannel,
-		)
+		log.Debugf("len of scripts %d", len(scripts))
+
+		_, err = s.dbSvc.SubscribedScript().Add(context.Background(), scripts)
+		if err != nil {
+			log.Debugf("cannot listen to scripts %+v", err)
+		}
 
 		s.externalSubscription = newSubscriptionHandler(
-			settings.ServerUrl, s.dbSvc.SubscribedScript(),
-			s.handleAddressEventChannel(arkConfig),
+			settings.ServerUrl, s.dbSvc.SubscribedScript(), s.handleAddressEventChannel(arkConfig),
 		)
 
-		if err := s.internalSubscription.start(); err != nil {
-			log.WithError(err).Error("failed to start internal subscription")
-		}
 		if err := s.externalSubscription.start(); err != nil {
 			log.WithError(err).Error("failed to start external subscription")
 		}
@@ -487,7 +493,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		// Load delegate signer key.
-		prvkeyStr, err := s.Dump(ctx)
+		prvkeyStr, err := s.Dump(context.Background())
 		if err != nil {
 			log.WithError(err).Error("failed to get delegate signer key")
 		}
@@ -535,6 +541,16 @@ func (s *Service) ResetWallet(ctx context.Context) error {
 	}
 	// reset wallet (cleans all repos)
 	s.Reset(ctx)
+
+	if s.schedulerSvc != nil {
+		s.schedulerSvc.Stop()
+		log.Info("scheduler stopped")
+	}
+
+	if s.externalSubscription != nil {
+		s.externalSubscription.stop()
+	}
+
 	s.isInitialized = false
 	s.syncEvent = nil
 	if s.syncCh != nil {
@@ -1002,7 +1018,7 @@ func (s *Service) ListWatchedAddresses(ctx context.Context) ([]domain.VtxoRollov
 
 func (s *Service) IsLocked(ctx context.Context) bool {
 	if s.ArkClient == nil {
-		return false
+		return true
 	}
 
 	return s.ArkClient.IsLocked(ctx)
@@ -1402,61 +1418,6 @@ func (s *Service) handleAddressEventChannel(config *types.Config) func(event *in
 				TxData:      indexer.TxData{Tx: event.Tx, Txid: event.Txid},
 			}
 		}(event)
-	}
-}
-
-// handleInternalAddressEventChannel is used to handle address events from the internal address event channel
-// it is used to schedule next settlement when a VTXO is spent or created
-func (s *Service) handleInternalAddressEventChannel(event *indexer.ScriptEvent) {
-	if event.Err != nil {
-		log.WithError(event.Err).Error("AddressEvent subscription error")
-		return
-	}
-
-	ctx := context.Background()
-
-	data, err := s.GetConfigData(ctx)
-	if err != nil {
-		log.WithError(err).Error("failed to get config data")
-		return
-	}
-
-	log.Infof("received internal address event (%d spent vtxos, %d new vtxos)", len(event.SpentVtxos), len(event.NewVtxos))
-
-	// if some vtxos were spent, schedule a settlement to soonest expiry among new vtxos / boarding UTXOs set
-	if len(event.NewVtxos) > 0 {
-		minVtxoExpiry := event.NewVtxos[0].ExpiresAt
-		for _, vtxo := range event.NewVtxos {
-			if vtxo.ExpiresAt.Before(minVtxoExpiry) {
-				minVtxoExpiry = vtxo.ExpiresAt
-			}
-		}
-		if err := s.scheduleNextSettlement(minVtxoExpiry, data); err != nil {
-			log.WithError(err).Info("schedule next claim failed")
-		}
-
-		return
-	}
-
-	// if some vtxos were created, schedule a settlement to the soonest expiry among new vtxos
-	if len(event.NewVtxos) > 0 {
-		nextScheduledSettlement := s.WhenNextSettlement(ctx)
-
-		needSchedule := false
-
-		for _, vtxo := range event.NewVtxos {
-			log.Infof("new vtxo: %s, expires at: %s", vtxo.Txid, vtxo.ExpiresAt.Format(time.RFC3339))
-			if nextScheduledSettlement.IsZero() || vtxo.ExpiresAt.Before(nextScheduledSettlement) {
-				nextScheduledSettlement = vtxo.ExpiresAt
-				needSchedule = true
-			}
-		}
-
-		if needSchedule {
-			if err := s.scheduleNextSettlement(nextScheduledSettlement, data); err != nil {
-				log.WithError(err).Info("schedule next claim failed")
-			}
-		}
 	}
 }
 

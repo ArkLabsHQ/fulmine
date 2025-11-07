@@ -634,9 +634,9 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 		return swapDetails, fmt.Errorf("failed to decode invoice: %v", err)
 	}
 
-	go func() {
+	go func(swapDetails Swap) {
 		if reedeemTxId, err := h.waitAndClaimVHTLC(
-			inv.Expiry, swap.Id, preimage, vhtlcOpts,
+			inv.Expiry, swapDetails.Id, preimage, vhtlcOpts,
 		); err != nil {
 			swapDetails.Status = SwapFailed
 			log.WithError(err).Error("failed to claim VHTLC")
@@ -649,7 +649,7 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 		if err != nil {
 			log.WithError(err).Error("failed to post process swap")
 		}
-	}()
+	}(swapDetails)
 	return swapDetails, nil
 }
 
