@@ -62,6 +62,14 @@ func PayInvoice(ctx context.Context, invoice string) error {
 	return nil
 }
 
+func CancelInvoice(ctx context.Context, rHash string) error {
+	output, err := run(ctx, nigiriBinary, "lnd", "cancelinvoice", rHash)
+	if err != nil {
+		return fmt.Errorf("cancelinvoice: %w (output: %s)", err, strings.TrimSpace(string(output)))
+	}
+	return nil
+}
+
 func MineBlocks(ctx context.Context, blocks int) error {
 	if _, err := run(ctx, nigiriBinary, "rpc", "--generate", strconv.Itoa(blocks)); err != nil {
 		return fmt.Errorf("confirm blocks: %w", err)

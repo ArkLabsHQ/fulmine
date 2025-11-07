@@ -75,6 +75,16 @@ func TestFulmineConcurrent(t *testing.T) {
 	})
 }
 
+func TestFulmineRefund(t *testing.T) {
+	client := newSwapTestClient(t, "tester")
+
+	client.ensureFunding(t)
+
+	t.Run("RefundInvoice", func(t *testing.T) {
+		testRefundSwapInvoice(t, client)
+	})
+}
+
 func testPayInvoice(t *testing.T, c *swapTestClient) {
 	t.Helper()
 
@@ -139,6 +149,30 @@ func testGetSwapInvoice(t *testing.T, c *swapTestClient) {
 
 	require.Equal(t, int(swap.SwapSuccess), int(final.Status), "%s: expected successful reverse swap", c.name)
 	require.NotEmpty(t, final.RedeemTxid, "%s: missing redeem txid", c.name)
+}
+
+func testRefundSwapInvoice(t *testing.T, c *swapTestClient) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	defer cancel()
+
+	invoice, rHash, err := nigiri.AddInvoice(ctx, swapInvoiceSats)
+	require.NoError(t, err, "%s: add invoice", c.name)
+
+	err = nigiri.CancelInvoice(ctx, rHash)
+	require.NoError(t, err, "cancel invoice")
+
+	swapDetails, err := c.handler.PayInvoice(ctx, invoice, func(s swap.Swap) error {
+		return nil
+	})
+	require.NoError(t, err, "%s: pay invoice via swap handler", c.name)
+	require.NotNil(t, swapDetails, "%s: swap response", c.name)
+	require.Equal(t, swap.SwapFailed, swapDetails.Status, "%s: expected failed swap", c.name)
+
+	require.NotEmpty(t, swapDetails.RedeemTxid, "%s: missing refund txid", c.name)
+	require.Equal(t, swapDetails.Status, swap.SwapFailed, "%s: expected failed swap status", c.name)
+
 }
 
 func testFulminePayInvoice(t *testing.T) {
@@ -216,6 +250,43 @@ func testFulmineGetInvoice(t *testing.T) {
 	require.NoError(t, err)
 
 	require.GreaterOrEqual(t, newBalance.Amount, balance.Amount+2_000)
+}
+
+func testFulmineRefundInvoice(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+	defer cancel()
+
+	invoice, rHash, err := nigiri.AddInvoice(ctx, swapInvoiceSats)
+	require.NoError(t, err, "add invoice")
+
+	err = nigiri.CancelInvoice(ctx, rHash)
+	require.NoError(t, err, "cancel invoice")
+
+	conn, err := grpc.DialContext(
+		ctx, fulmineGrpcAddress,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
+	)
+
+	require.NoError(t, err, "dial fulmine gRPC")
+	defer conn.Close()
+
+	client := pb.NewServiceClient(conn)
+
+	balance, err := client.GetBalance(ctx, &pb.GetBalanceRequest{})
+	require.NoError(t, err)
+
+	swapResp, err := client.PayInvoice(ctx, &pb.PayInvoiceRequest{Invoice: invoice})
+	require.NoError(t, err, "PayInvoice")
+
+	require.NotNil(t, swapResp)
+	require.NotEmpty(t, swapResp.Txid)
+
+	newBalance, err := client.GetBalance(ctx, &pb.GetBalanceRequest{})
+	require.NoError(t, err)
+
+	require.Equal(t, newBalance.Amount, balance.Amount)
+
 }
 
 func makeClients(t *testing.T) []*swapTestClient {
