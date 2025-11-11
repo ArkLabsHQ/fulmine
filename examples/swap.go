@@ -1,3 +1,5 @@
+// Package examples hosts runnable snippets for Fulmine primitives.
+// swap.go shows how to bootstrap a SwapHandler and drive pay/receive flows.
 package examples
 
 import (
@@ -19,11 +21,16 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 )
 
-type swapExampleClient struct {
-	handler *swap.SwapHandler
+// SwapExampleClient wraps swap.SwapHandler to provide a tiny, self-contained
+// harness for exercising swap flows in documentation or demos.
+type SwapExampleClient struct {
+	arkClient arksdk.ArkClient
+	handler   *swap.SwapHandler
 }
 
-func newSwapExampleClient(ctx context.Context, serverUrl, explorerUrl, boltzUrl, boltzWsUrl string, swapTimeout uint32) (*swapExampleClient, error) {
+// NewSwapExampleClient bootstraps an ephemeral wallet, transport clients, and a
+// Boltz API client so the example can run without any preexisting state.
+func NewSwapExampleClient(ctx context.Context, serverUrl, explorerUrl, boltzUrl, boltzWsUrl string, swapTimeout uint32) (*SwapExampleClient, error) {
 	tempDir := os.TempDir()
 
 	defaultPassword := "secret"
@@ -50,6 +57,7 @@ func newSwapExampleClient(ctx context.Context, serverUrl, explorerUrl, boltzUrl,
 	}
 
 	seed := hex.EncodeToString(privateKey.Serialize())
+	// Minimal init: single key wallet, gRPC transport, polling explorer feed.
 	err = arkClient.Init(ctx, arksdk.InitArgs{
 		ClientType:           arksdk.GrpcClient,
 		WalletType:           arksdk.SingleKeyWallet,
@@ -88,16 +96,20 @@ func newSwapExampleClient(ctx context.Context, serverUrl, explorerUrl, boltzUrl,
 		},
 	}
 
-	clientInstance := &swapExampleClient{
-		handler: swap.NewSwapHandler(arkClient, transportClient, indexerClient, boltzAPI, privateKey.PubKey(), swapTimeout),
+	clientInstance := &SwapExampleClient{
+		arkClient: arkClient,
+		handler:   swap.NewSwapHandler(arkClient, transportClient, indexerClient, boltzAPI, privateKey.PubKey(), swapTimeout),
 	}
 
 	return clientInstance, nil
 }
 
-func (c *swapExampleClient) PayInvoice(ctx context.Context, invoice string) (*swap.Swap, error) {
+// PayInvoice settles a Lightning invoice through the swap handler and wires a
+// refund fallback that triggers shortly after the HTLC locktime.
+func (c *SwapExampleClient) PayInvoice(ctx context.Context, invoice string) (*swap.Swap, error) {
 	return c.handler.PayInvoice(ctx, invoice, func(s swap.Swap) error {
-		// schedule Unilateral Refund
+		// Schedule a unilateral refund slightly past the locktime in case the
+		// counterparty never fulfills the swap.
 		go func() {
 			locktime := arklib.AbsoluteLocktime(s.TimeoutInfo.RefundLocktime)
 			if locktime.IsSeconds() {
@@ -115,7 +127,9 @@ func (c *swapExampleClient) PayInvoice(ctx context.Context, invoice string) (*sw
 	})
 }
 
-func (c *swapExampleClient) GetSwapInvoice(ctx context.Context, amountSats uint64) (string, error) {
+// GetSwapInvoice requests a swap invoice for the given amount and logs the final
+// status through the callback used by SwapHandler.
+func (c *SwapExampleClient) GetSwapInvoice(ctx context.Context, amountSats uint64) (string, error) {
 	swapDetails, err := c.handler.GetInvoice(ctx, amountSats, func(s swap.Swap) error {
 		if s.Status == swap.SwapSuccess {
 			fmt.Printf("Swap %s succeeded!\n", s.Id)
@@ -130,4 +144,31 @@ func (c *swapExampleClient) GetSwapInvoice(ctx context.Context, amountSats uint6
 	}
 
 	return swapDetails.Invoice, nil
+}
+
+// GetAddress fetches fresh on-chain and off-chain receive addresses from the
+// underlying Ark client.
+func (c *SwapExampleClient) GetAddress(ctx context.Context) (string, string, error) {
+	onchainAddr, offchainAddr, _, err := c.arkClient.Receive(ctx)
+
+	if err != nil {
+		return "", "", err
+	}
+
+	return onchainAddr, offchainAddr, nil
+}
+
+// Balance returns the total off-chain balance after forcing a quick settle so
+// pending transfers are accounted for.
+func (c *SwapExampleClient) Balance(ctx context.Context) (uint64, error) {
+	c.arkClient.Settle(ctx)
+
+	time.Sleep(10 * time.Second)
+
+	balance, err := c.arkClient.Balance(ctx, false)
+	if err != nil {
+		return 0, err
+	}
+
+	return balance.OffchainBalance.Total, nil
 }
