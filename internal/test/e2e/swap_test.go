@@ -283,6 +283,9 @@ func testFulmineRefundInvoice(t *testing.T) {
 	require.NotNil(t, swapResp)
 	require.NotEmpty(t, swapResp.Txid)
 
+	// allow some time for Refund To be processed
+	time.Sleep(10 * time.Second)
+
 	newBalance, err := client.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
 
