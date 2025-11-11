@@ -121,6 +121,19 @@ func getInputTapLeaves(tx *psbt.Packet) map[int]txscript.TapLeaf {
 	return tapLeaves
 }
 
+func verifySignatures(signedCheckpointTxs []*psbt.Packet, signers []*btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf) error {
+	for _, signedCheckpointTx := range signedCheckpointTxs {
+		for _, signer := range signers {
+			// verify that the ark signer has signed the ark tx
+			err := verifyInputSignatures(signedCheckpointTx, signer, expectedTapLeaves)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func verifyAndSignCheckpoints(
 	signedCheckpoints []string, myCheckpoints []*psbt.Packet,
 	arkSigner *btcec.PublicKey, sign func(tx *psbt.Packet) (string, error),
@@ -159,6 +172,21 @@ func verifyAndSignCheckpoints(
 	}
 
 	return finalCheckpoints, nil
+}
+
+func combineSignedCheckpointsTxs(signedCheckpoints []*psbt.Packet) (*psbt.Packet, error) {
+	finalCheckpoint := signedCheckpoints[0]
+
+	for i := range finalCheckpoint.Inputs {
+		scriptSigs := make([]*psbt.TaprootScriptSpendSig, len(signedCheckpoints))
+		for _, signedCheckpointPsbt := range signedCheckpoints {
+			boltzIn := signedCheckpointPsbt.Inputs[i]
+			partialSig := boltzIn.TaprootScriptSpendSig[0]
+			scriptSigs = append(scriptSigs, partialSig)
+		}
+		finalCheckpoint.Inputs[i].TaprootScriptSpendSig = scriptSigs
+	}
+	return finalCheckpoint, nil
 }
 
 func verifyFinalArkTx(

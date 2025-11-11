@@ -1216,15 +1216,16 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) boltzRefundSwap(swapId, refundTx string) (string, error) {
+func (s *Service) boltzRefundSwap(swapId, refundTx, checkpointTx string) (string, string, error) {
 	tx, err := s.boltzSvc.RefundSubmarine(swapId, boltz.RefundSwapRequest{
 		Transaction: refundTx,
+		Checkpoint:  checkpointTx,
 	})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return tx.Transaction, nil
+	return tx.Transaction, tx.Checkpoint, nil
 }
 
 func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*time.Time, error) {
@@ -2130,6 +2131,20 @@ func (s *Service) refundVHTLC(
 		return "", err
 	}
 
+	if len(checkpointPtxs) != 1 {
+		return "", fmt.Errorf(
+			"failed to build refund tx: expected 1 checkpoint tx got %d", len(checkpointPtxs),
+		)
+	}
+	unsignedRefundTx, err := refundTx.B64Encode()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode unsigned refund tx: %s", err)
+	}
+	unsignedCheckpointTx, err := checkpointPtxs[0].B64Encode()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode unsigned checkpoint tx: %s", err)
+	}
+
 	signTransaction := func(tx *psbt.Packet) (string, error) {
 		encoded, err := tx.B64Encode()
 		if err != nil {
@@ -2138,43 +2153,111 @@ func (s *Service) refundVHTLC(
 		return s.SignTransaction(ctx, encoded)
 	}
 
+	// user signing
 	signedRefundTx, err := signTransaction(refundTx)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to sign refund tx: %s", err)
 	}
+	signedCheckpointTx, err := signTransaction(checkpointPtxs[0])
+	if err != nil {
+		return "", fmt.Errorf("failed to sign checkpoint tx: %s", err)
+	}
+
+	signedRefundPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedRefundTx), true)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode refund tx signed by us: %s", err)
+	}
+
+	signedCheckpointPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedCheckpointTx), true)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode checkpoint tx signed by us: %s", err)
+	}
+
+	vhtlcOpts := vHTLC.Opts
+
+	pubKeysToVerify := []*btcec.PublicKey{vhtlcOpts.Sender, vhtlcOpts.Server}
+
+	checkpointsList := make([]*psbt.Packet, 0)
+
+	checkpointsList = append(checkpointsList, signedCheckpointPsbt)
 
 	if withReceiver {
-		signedRefundTx, err = s.boltzRefundSwap(swapId, signedRefundTx)
+		pubKeysToVerify = append(pubKeysToVerify, vhtlcOpts.Receiver)
+
+		boltzSignedRefundTx, boltzSignedCheckpointTx, err := s.boltzRefundSwap(
+			swapId, unsignedRefundTx, unsignedCheckpointTx,
+		)
 		if err != nil {
 			return "", err
 		}
-	}
 
-	checkpointTxs := make([]string, 0, len(checkpointPtxs))
-	for _, ptx := range checkpointPtxs {
-		tx, err := ptx.B64Encode()
+		boltzSignedRefundPsbt, err := psbt.NewFromRawBytes(strings.NewReader(boltzSignedRefundTx), true)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to decode refund tx signed by boltz: %s", err)
 		}
-		checkpointTxs = append(checkpointTxs, tx)
+		boltzSignedCheckpointPsbt, err := psbt.NewFromRawBytes(
+			strings.NewReader(boltzSignedCheckpointTx), true,
+		)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode refund tx signed by boltz: %s", err)
+		}
+
+		for i := range signedRefundPsbt.Inputs {
+			boltzIn := boltzSignedRefundPsbt.Inputs[i]
+			partialSig := boltzIn.PartialSigs[0]
+			signedRefundPsbt.Inputs[i].PartialSigs =
+				append(signedRefundPsbt.Inputs[i].PartialSigs, partialSig)
+		}
+
+		checkpointsList = append(checkpointsList, boltzSignedCheckpointPsbt)
+
 	}
 
-	arkTxid, finalArkTx, signedCheckpoints, err := s.grpcClient.SubmitTx(ctx, signedRefundTx, checkpointTxs)
+	signedRefund, err := signedRefundPsbt.B64Encode()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode final refund tx: %s", err)
+	}
+
+	arkTxid, finalRefundTx, serverSignedCheckpoints, err := s.grpcClient.SubmitTx(
+		ctx, signedRefund, []string{unsignedCheckpointTx},
+	)
 	if err != nil {
 		return "", err
 	}
 
-	if err := verifyFinalArkTx(finalArkTx, cfg.SignerPubKey, getInputTapLeaves(refundTx)); err != nil {
+	finalRefundPtx, err := psbt.NewFromRawBytes(strings.NewReader(finalRefundTx), true)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode refund tx signed by server: %s", err)
+	}
+
+	serverCheckpointPtx, err := psbt.NewFromRawBytes(strings.NewReader(serverSignedCheckpoints[0]), true)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode checkpoint tx signed by us: %s", err)
+	}
+
+	if err := verifySignatures([]*psbt.Packet{finalRefundPtx}, pubKeysToVerify, getInputTapLeaves(refundTx)); err != nil {
 		return "", err
 	}
 
-	// verify and sign the checkpoints
-	finalCheckpoints, err := verifyAndSignCheckpoints(signedCheckpoints, checkpointPtxs, cfg.SignerPubKey, signTransaction)
+	// combine checkpoint Transactions
+	checkpointsList = append(checkpointsList, serverCheckpointPtx)
+	finalCheckpointPtx, err := combineSignedCheckpointsTxs(checkpointsList)
+
+	if err != nil {
+		return "", fmt.Errorf("failed to combine checkpoint txs: %s", err)
+	}
+
+	err = verifySignatures([]*psbt.Packet{finalCheckpointPtx}, []*btcec.PublicKey{cfg.SignerPubKey}, getInputTapLeaves(serverCheckpointPtx))
 	if err != nil {
 		return "", err
 	}
 
-	err = s.grpcClient.FinalizeTx(ctx, arkTxid, finalCheckpoints)
+	finalCheckpointTx, err := finalCheckpointPtx.B64Encode()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode final checkpoint tx: %s", err)
+	}
+
+	err = s.grpcClient.FinalizeTx(ctx, arkTxid, []string{finalCheckpointTx})
 	if err != nil {
 		return "", fmt.Errorf("failed to finalize redeem transaction: %w", err)
 	}
@@ -2221,12 +2304,12 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 		if err := s.schedulerSvc.ScheduleRefundAtTime(at, unilateral); err != nil {
 			return err
 		}
-		log.Debugf("scheduled refund of swap %s at %s", swapId, at.Format(time.RFC3339))
+		log.Debugf("scheduled unilateral refund of swap %s at %s", swapId, at.Format(time.RFC3339))
 	} else {
 		if err := s.schedulerSvc.ScheduleRefundAtHeight(uint32(refundLT), unilateral); err != nil {
 			return err
 		}
-		log.Debugf("scheduled refund of swap %s at block height %d", swapId, refundLT)
+		log.Debugf("scheduled unilateral refund of swap %s at block height %d", swapId, refundLT)
 	}
 
 	return nil
