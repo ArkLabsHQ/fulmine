@@ -19,7 +19,7 @@ require (
 	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251029114835-d33f27e11343
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/go-sdk v0.8.2-0.20251106163016-cf6d1c0a04da
+	github.com/arkade-os/go-sdk v0.8.2-0.20251110150555-3fea8eb154d1
 	github.com/ccoveille/go-safecast v1.6.1
 	github.com/dgraph-io/badger/v4 v4.6.0
 	github.com/getsentry/sentry-go v0.32.0
