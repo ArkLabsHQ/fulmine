@@ -253,7 +253,7 @@ func (h *SwapHandler) submarineSwap(
 				withReceiver := true
 				swapDetails.Status = SwapFailed
 
-				txid, err := h.refundVHTLC(context.Background(), swap.Id, withReceiver, *vhtlcOpts)
+				txid, err := h.RefundVHTLC(context.Background(), swap.Id, withReceiver, *vhtlcOpts)
 				if err != nil {
 					log.WithError(err).Warn("failed to refund vhtlc collaboratively")
 					go func() {
@@ -275,7 +275,7 @@ func (h *SwapHandler) submarineSwap(
 			withReceiver := true
 			swapDetails.Status = SwapFailed
 
-			txid, err := h.refundVHTLC(context.Background(), swap.Id, withReceiver, *vhtlcOpts)
+			txid, err := h.RefundVHTLC(context.Background(), swap.Id, withReceiver, *vhtlcOpts)
 			if err != nil {
 				log.WithError(err).Warn("failed to refund vhtlc collaboratively")
 				go func() {
@@ -343,7 +343,7 @@ func (h *SwapHandler) getVHTLC(
 	return encodedAddr, vHTLC, &opts, nil
 }
 
-func (h *SwapHandler) refundVHTLC(
+func (h *SwapHandler) RefundVHTLC(
 	ctx context.Context, swapId string, withReceiver bool, vhtlcOpts vhtlc.Opts,
 ) (string, error) {
 	cfg, err := h.arkClient.GetConfigData(ctx)
