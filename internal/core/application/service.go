@@ -1,7 +1,6 @@
 package application
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -31,10 +30,8 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
-	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
-	"github.com/btcsuite/btcd/wire"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -1607,74 +1604,6 @@ func (s *Service) GetSwapHistory(ctx context.Context) ([]domain.Swap, error) {
 		return all[i].Timestamp > all[j].Timestamp
 	})
 	return all, nil
-}
-
-// verifyInputSignatures checks that all inputs have a signature for the given pubkey
-// and the signature is correct for the given tapscript leaf
-func verifyInputSignatures(tx *psbt.Packet, pubkey *btcec.PublicKey, tapLeaves map[int]txscript.TapLeaf) error {
-	xOnlyPubkey := schnorr.SerializePubKey(pubkey)
-
-	prevouts := make(map[wire.OutPoint]*wire.TxOut)
-	sigsToVerify := make(map[int]*psbt.TaprootScriptSpendSig)
-
-	for inputIndex, input := range tx.Inputs {
-		// collect previous outputs
-		if input.WitnessUtxo == nil {
-			return fmt.Errorf("input %d has no witness utxo, cannot verify signature", inputIndex)
-		}
-
-		outpoint := tx.UnsignedTx.TxIn[inputIndex].PreviousOutPoint
-		prevouts[outpoint] = input.WitnessUtxo
-
-		tapLeaf, ok := tapLeaves[inputIndex]
-		if !ok {
-			return fmt.Errorf("input %d has no tapscript leaf, cannot verify signature", inputIndex)
-		}
-
-		tapLeafHash := tapLeaf.TapHash()
-
-		// check if pubkey has a tapscript sig
-		hasSig := false
-		for _, sig := range input.TaprootScriptSpendSig {
-			if bytes.Equal(sig.XOnlyPubKey, xOnlyPubkey) && bytes.Equal(sig.LeafHash, tapLeafHash[:]) {
-				hasSig = true
-				sigsToVerify[inputIndex] = sig
-				break
-			}
-		}
-
-		if !hasSig {
-			return fmt.Errorf("input %d has no signature for pubkey %x", inputIndex, xOnlyPubkey)
-		}
-	}
-
-	prevoutFetcher := txscript.NewMultiPrevOutFetcher(prevouts)
-	txSigHashes := txscript.NewTxSigHashes(tx.UnsignedTx, prevoutFetcher)
-
-	for inputIndex, sig := range sigsToVerify {
-		msgHash, err := txscript.CalcTapscriptSignaturehash(
-			txSigHashes,
-			sig.SigHash,
-			tx.UnsignedTx,
-			inputIndex,
-			prevoutFetcher,
-			tapLeaves[inputIndex],
-		)
-		if err != nil {
-			return fmt.Errorf("failed to calculate tapscript signature hash: %w", err)
-		}
-
-		signature, err := schnorr.ParseSignature(sig.Signature)
-		if err != nil {
-			return fmt.Errorf("failed to parse signature: %w", err)
-		}
-
-		if !signature.Verify(msgHash, pubkey) {
-			return fmt.Errorf("input %d: invalid signature", inputIndex)
-		}
-	}
-
-	return nil
 }
 
 func offchainAddressPkScript(addr string) (string, error) {
