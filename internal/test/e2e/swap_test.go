@@ -24,13 +24,16 @@ const (
 
 func TestBasicSwap(t *testing.T) {
 
-	t.Run("FulmineInvoice", func(t *testing.T) {
-		testFulminePayInvoice(t)
-		testFulmineGetInvoice(t)
+	t.Run("Fulmine Swaps", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+		defer cancel()
+
+		testFulminePayInvoice(t, ctx)
+		testFulmineGetInvoice(t, ctx)
 	})
 }
 
-func TestFulmineConcurrent(t *testing.T) {
+func TestConcurrentSwap(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 
@@ -49,7 +52,10 @@ func TestFulmineConcurrent(t *testing.T) {
 	}
 
 	// TODO: Not really Concurrent yet, needs to be adjusted
-	t.Run("ConcurrentRequests", func(t *testing.T) {
+	t.Run("Concurrent Swaps", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
+		defer cancel()
+
 		//maxParallel := max(2, runtime.GOMAXPROCS(0)*2)
 		maxParallel := 1
 
@@ -65,9 +71,9 @@ func TestFulmineConcurrent(t *testing.T) {
 				defer func() { <-sem }()
 
 				if i%2 == 0 {
-					testPayInvoice(t, c)
+					testPayInvoice(t, ctx, c)
 				} else {
-					testGetSwapInvoice(t, c)
+					testGetSwapInvoice(t, ctx, c)
 				}
 			}(i)
 		}
@@ -75,11 +81,8 @@ func TestFulmineConcurrent(t *testing.T) {
 	})
 }
 
-func testPayInvoice(t *testing.T, c *swapTestClient) {
+func testPayInvoice(t *testing.T, ctx context.Context, c *swapTestClient) {
 	t.Helper()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
-	defer cancel()
 
 	invoice, rHash, err := nigiri.AddInvoice(ctx, swapInvoiceSats)
 	require.NoError(t, err, "%s: add invoice", c.name)
@@ -113,11 +116,8 @@ func testPayInvoice(t *testing.T, c *swapTestClient) {
 
 }
 
-func testGetSwapInvoice(t *testing.T, c *swapTestClient) {
+func testGetSwapInvoice(t *testing.T, ctx context.Context, c *swapTestClient) {
 	t.Helper()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
-	defer cancel()
 
 	resultCh := make(chan swap.Swap, 1)
 	swapDetails, err := c.handler.GetInvoice(ctx, swapInvoiceSats, func(s swap.Swap) error {
@@ -141,9 +141,7 @@ func testGetSwapInvoice(t *testing.T, c *swapTestClient) {
 	require.NotEmpty(t, final.RedeemTxid, "%s: missing redeem txid", c.name)
 }
 
-func testFulminePayInvoice(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
-	defer cancel()
+func testFulminePayInvoice(t *testing.T, ctx context.Context) {
 
 	invoice, rHash, err := nigiri.AddInvoice(ctx, swapInvoiceSats)
 	require.NoError(t, err, "add invoice")
@@ -180,9 +178,7 @@ func testFulminePayInvoice(t *testing.T) {
 	require.True(t, settled, "invoice should settle via nigiri lnd")
 }
 
-func testFulmineGetInvoice(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
-	defer cancel()
+func testFulmineGetInvoice(t *testing.T, ctx context.Context) {
 
 	conn, err := grpc.DialContext(
 		ctx, fulmineGrpcAddress,
