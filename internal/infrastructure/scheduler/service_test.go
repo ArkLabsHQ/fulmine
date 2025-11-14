@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
-	scheduler "github.com/ArkLabsHQ/fulmine/internal/infrastructure/scheduler/gocron"
+	scheduler "github.com/ArkLabsHQ/fulmine/internal/infrastructure/scheduler"
 	"github.com/stretchr/testify/require"
 )
 
