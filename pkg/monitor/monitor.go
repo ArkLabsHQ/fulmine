@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-// TaskState describes the lifecycle state of a monitored goroutine.
 type TaskState string
 
 const (
@@ -21,7 +20,6 @@ const (
 	TaskStatePanicked  TaskState = "panicked"
 )
 
-// TaskStatus captures the latest snapshot for a monitored goroutine.
 type TaskStatus struct {
 	Name             string    `json:"name"`
 	State            TaskState `json:"state"`
@@ -33,21 +31,17 @@ type TaskStatus struct {
 	HeartbeatStalled bool      `json:"heartbeat_stalled"`
 }
 
-// MonitorStatus aggregates the current status of every task.
 type MonitorStatus struct {
 	StartedAt time.Time    `json:"started_at"`
 	Tasks     []TaskStatus `json:"tasks"`
 }
 
-// TaskFunc defines the function signature executed under Monitor.Go.
 type TaskFunc func(ctx context.Context, hb Heartbeat) error
 
-// Heartbeat is used by monitored goroutines to notify the monitor they are still alive.
 type Heartbeat interface {
 	Tick()
 }
 
-// Monitor supervises long-running goroutines, tracking heartbeats and surfacing crashes.
 type Monitor struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -65,7 +59,6 @@ type Monitor struct {
 	stallHandler   func(TaskStatus)
 }
 
-// Logger is the subset used by the monitor for structured messages.
 type Logger interface {
 	Infof(format string, args ...any)
 	Warnf(format string, args ...any)
@@ -119,7 +112,6 @@ func (l *DefaultLogger) Errorf(format string, args ...any) {
 	log.Printf("[ERROR] "+format, args...)
 }
 
-// New creates a Monitor with reasonable defaults.
 func New(opts ...Option) *Monitor {
 	ctx, cancel := context.WithCancel(context.Background())
 	logger := &DefaultLogger{}
@@ -141,7 +133,6 @@ func New(opts ...Option) *Monitor {
 	return m
 }
 
-// TaskHandle exposes limited control over a monitored goroutine.
 type TaskHandle struct {
 	Name   string
 	cancel context.CancelFunc
@@ -149,24 +140,20 @@ type TaskHandle struct {
 	mon    *Monitor
 }
 
-// Stop signal cancels the goroutine context.
 func (h TaskHandle) Stop() {
 	if h.cancel != nil {
 		h.cancel()
 	}
 }
 
-// Done is closed when the goroutine exits.
 func (h TaskHandle) Done() <-chan struct{} {
 	return h.done
 }
 
-// Status reads the latest status for the task.
 func (h TaskHandle) Status() TaskStatus {
 	return h.mon.taskStatus(h.Name)
 }
 
-// Go runs fn in its own goroutine, tracking heartbeats and state transitions.
 func (m *Monitor) Go(name string, fn TaskFunc) TaskHandle {
 	if name == "" {
 		name = fmt.Sprintf("task-%d", atomic.AddUint64(&m.seq, 1))
