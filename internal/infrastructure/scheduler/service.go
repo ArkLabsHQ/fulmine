@@ -25,12 +25,13 @@ type service struct {
 	blockCancel          context.CancelFunc
 	tasks                []*heightTask
 	explorerPollInterval time.Duration
+	callbacks            ports.SchedulerCallbacks
 }
 
 func NewScheduler(esplorerUrl string, pollInterval time.Duration) ports.SchedulerService {
 	svc := gocron.NewScheduler(time.UTC)
 	esplorerService := esplora.NewService(esplorerUrl)
-	return &service{svc, esplorerService, nil, nil, &sync.Mutex{}, nil, nil, pollInterval}
+	return &service{svc, esplorerService, nil, nil, &sync.Mutex{}, nil, nil, pollInterval, ports.SchedulerCallbacks{}}
 }
 
 func (s *service) Start() {
@@ -64,7 +65,14 @@ func (s *service) Start() {
 					keep = append(keep, tsk)
 				}
 				s.tasks = keep
+				if cb := s.callbacks.OnHeartbeat; cb != nil {
+					cb()
+				}
 				s.mu.Unlock()
+			} else {
+				if cb := s.callbacks.OnError; cb != nil {
+					cb(err)
+				}
 			}
 
 			select {
@@ -95,6 +103,12 @@ func (s *service) Stop() {
 		s.blockCancel()
 		s.blockCancel = nil
 	}
+}
+
+func (s *service) SetCallbacks(cb ports.SchedulerCallbacks) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.callbacks = cb
 }
 
 func (s *service) ScheduleRefundAtHeight(target uint32, refund func()) error {

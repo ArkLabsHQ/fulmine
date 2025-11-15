@@ -1,0 +1,360 @@
+package monitor
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+	"sync"
+	"sync/atomic"
+	"time"
+)
+
+type TaskState string
+
+const (
+	TaskStateRunning   TaskState = "running"
+	TaskStateCompleted TaskState = "completed"
+	TaskStateFailed    TaskState = "failed"
+	TaskStateCanceled  TaskState = "canceled"
+	TaskStatePanicked  TaskState = "panicked"
+)
+
+type TaskStatus struct {
+	Name             string    `json:"name"`
+	State            TaskState `json:"state"`
+	StartTime        time.Time `json:"start_time"`
+	EndTime          time.Time `json:"end_time"`
+	LastHeartbeat    time.Time `json:"last_heartbeat"`
+	Error            string    `json:"error"`
+	Panic            string    `json:"panic"`
+	HeartbeatStalled bool      `json:"heartbeat_stalled"`
+}
+
+type MonitorStatus struct {
+	StartedAt time.Time    `json:"started_at"`
+	Tasks     []TaskStatus `json:"tasks"`
+}
+
+type TaskFunc func(ctx context.Context, hb Heartbeat) error
+
+type Heartbeat interface {
+	Tick()
+}
+
+type Monitor struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	mu    sync.RWMutex
+	tasks map[string]*taskRecord
+	wg    sync.WaitGroup
+
+	seq uint64
+
+	stallThreshold time.Duration
+	checkInterval  time.Duration
+	logger         Logger
+	startedAt      time.Time
+	stallHandler   func(TaskStatus)
+}
+
+type Logger interface {
+	Infof(format string, args ...any)
+	Warnf(format string, args ...any)
+	Errorf(format string, args ...any)
+}
+
+// Option customizes a Monitor.
+type Option func(*Monitor)
+
+// WithStallThreshold overrides the duration allowed between heartbeats before a warning is raised.
+func WithStallThreshold(d time.Duration) Option {
+	return func(m *Monitor) {
+		m.stallThreshold = d
+	}
+}
+
+// WithCheckInterval adjusts how often the watchdog inspects tasks.
+func WithCheckInterval(d time.Duration) Option {
+	return func(m *Monitor) {
+		m.checkInterval = d
+	}
+}
+
+// WithLogger uses the provided logger instead of the default stdlib logger.
+func WithLogger(l Logger) Option {
+	return func(m *Monitor) {
+		if l != nil {
+			m.logger = l
+		}
+	}
+}
+
+// WithStallHandler registers a callback invoked when a task newly enters a stalled state.
+func WithStallHandler(fn func(TaskStatus)) Option {
+	return func(m *Monitor) {
+		m.stallHandler = fn
+	}
+}
+
+type DefaultLogger struct{}
+
+func (l *DefaultLogger) Infof(format string, args ...any) {
+	log.Printf("[INFO] "+format, args...)
+}
+
+func (l *DefaultLogger) Warnf(format string, args ...any) {
+	log.Printf("[WARN] "+format, args...)
+}
+
+func (l *DefaultLogger) Errorf(format string, args ...any) {
+	log.Printf("[ERROR] "+format, args...)
+}
+
+func New(opts ...Option) *Monitor {
+	ctx, cancel := context.WithCancel(context.Background())
+	logger := &DefaultLogger{}
+	m := &Monitor{
+		ctx:            ctx,
+		cancel:         cancel,
+		tasks:          make(map[string]*taskRecord),
+		stallThreshold: 2 * time.Minute,
+		checkInterval:  5 * time.Second,
+		logger:         logger,
+		startedAt:      time.Now(),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	if m.checkInterval > 0 && m.stallThreshold > 0 {
+		go m.watchdog()
+	}
+	return m
+}
+
+type TaskHandle struct {
+	Name   string
+	cancel context.CancelFunc
+	done   chan struct{}
+	mon    *Monitor
+}
+
+func (h TaskHandle) Stop() {
+	if h.cancel != nil {
+		h.cancel()
+	}
+}
+
+func (h TaskHandle) Done() <-chan struct{} {
+	return h.done
+}
+
+func (h TaskHandle) Status() TaskStatus {
+	return h.mon.taskStatus(h.Name)
+}
+
+func (m *Monitor) Go(name string, fn TaskFunc) TaskHandle {
+	if name == "" {
+		name = fmt.Sprintf("task-%d", atomic.AddUint64(&m.seq, 1))
+	}
+	taskCtx, cancel := context.WithCancel(m.ctx)
+	record := newTaskRecord(name)
+	m.mu.Lock()
+	m.tasks[name] = record
+	m.mu.Unlock()
+
+	done := make(chan struct{})
+	hb := &heartbeat{task: record}
+
+	m.wg.Add(1)
+	go func() {
+		defer close(done)
+		defer m.wg.Done()
+		defer func() {
+			if r := recover(); r != nil {
+				record.markPanicked(fmt.Sprint(r))
+				m.logger.Errorf("monitor: task %s panicked: %v", name, r)
+			}
+			cancel()
+		}()
+
+		if err := fn(taskCtx, hb); err != nil {
+			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				record.markCanceled(err)
+			} else {
+				record.markFailed(err)
+				m.logger.Errorf("monitor: task %s failed: %v", name, err)
+			}
+			return
+		}
+		if taskCtx.Err() != nil {
+			record.markCanceled(taskCtx.Err())
+		} else {
+			record.markCompleted()
+		}
+	}()
+
+	return TaskHandle{
+		Name:   name,
+		cancel: cancel,
+		done:   done,
+		mon:    m,
+	}
+}
+
+// Snapshot returns a point-in-time view of monitored goroutines.
+func (m *Monitor) Snapshot() MonitorStatus {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	status := MonitorStatus{
+		StartedAt: m.startedAt,
+		Tasks:     make([]TaskStatus, 0, len(m.tasks)),
+	}
+
+	for _, task := range m.tasks {
+		status.Tasks = append(status.Tasks, task.status())
+	}
+	return status
+}
+
+// Stop cancels all tasks and waits for them to exit.
+func (m *Monitor) Stop() {
+	m.cancel()
+	m.wg.Wait()
+}
+
+func (m *Monitor) taskStatus(name string) TaskStatus {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if task, ok := m.tasks[name]; ok {
+		return task.status()
+	}
+	return TaskStatus{Name: name}
+}
+
+func (m *Monitor) watchdog() {
+	ticker := time.NewTicker(m.checkInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-ticker.C:
+			m.inspectTasks()
+		}
+	}
+}
+
+func (m *Monitor) inspectTasks() {
+	now := time.Now()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, task := range m.tasks {
+		var notify bool
+		task.mu.Lock()
+		if task.state == TaskStateRunning {
+			since := now.Sub(task.lastHeartbeat)
+			if m.stallThreshold > 0 && since > m.stallThreshold {
+				if !task.heartbeatStalled {
+					task.heartbeatStalled = true
+					m.logger.Errorf("monitor: task %s stalled (%s without heartbeat)", task.name, since.Truncate(time.Millisecond))
+					notify = true
+				}
+			} else if task.heartbeatStalled {
+				task.heartbeatStalled = false
+				m.logger.Errorf("monitor: task %s recovered after stall", task.name)
+			}
+		}
+		task.mu.Unlock()
+		if notify && m.stallHandler != nil {
+			m.stallHandler(task.status())
+		}
+	}
+}
+
+type heartbeat struct {
+	task *taskRecord
+}
+
+func (h *heartbeat) Tick() {
+	h.task.touch()
+}
+
+type taskRecord struct {
+	name             string
+	start            time.Time
+	end              time.Time
+	lastHeartbeat    time.Time
+	state            TaskState
+	errMsg           string
+	panicMsg         string
+	heartbeatStalled bool
+	mu               sync.RWMutex
+}
+
+func newTaskRecord(name string) *taskRecord {
+	now := time.Now()
+	return &taskRecord{
+		name:          name,
+		start:         now,
+		lastHeartbeat: now,
+		state:         TaskStateRunning,
+	}
+}
+
+func (t *taskRecord) touch() {
+	t.mu.Lock()
+	t.lastHeartbeat = time.Now()
+	t.mu.Unlock()
+}
+
+func (t *taskRecord) markFailed(err error) {
+	t.mu.Lock()
+	t.state = TaskStateFailed
+	t.end = time.Now()
+	t.errMsg = err.Error()
+	t.mu.Unlock()
+}
+
+func (t *taskRecord) markCompleted() {
+	t.mu.Lock()
+	t.state = TaskStateCompleted
+	t.end = time.Now()
+	t.mu.Unlock()
+}
+
+func (t *taskRecord) markCanceled(err error) {
+	t.mu.Lock()
+	t.state = TaskStateCanceled
+	t.end = time.Now()
+	if err != nil {
+		t.errMsg = err.Error()
+	}
+	t.mu.Unlock()
+}
+
+func (t *taskRecord) markPanicked(msg string) {
+	t.mu.Lock()
+	t.state = TaskStatePanicked
+	t.end = time.Now()
+	t.panicMsg = msg
+	t.mu.Unlock()
+}
+
+func (t *taskRecord) status() TaskStatus {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return TaskStatus{
+		Name:             t.name,
+		State:            t.state,
+		StartTime:        t.start,
+		EndTime:          t.end,
+		LastHeartbeat:    t.lastHeartbeat,
+		Error:            t.errMsg,
+		Panic:            t.panicMsg,
+		HeartbeatStalled: t.heartbeatStalled,
+	}
+}
