@@ -110,11 +110,19 @@ type Service struct {
 
 	stopBoardingEventListener chan struct{}
 
-	goroutineMon  *monitor.Monitor
+	supervisor    *monitor.Monitor
 	boardingTask  *monitor.TaskHandle
 	addressTask   *monitor.TaskHandle
 	schedulerTask *monitor.TaskHandle
-	lnTask        *monitor.TaskHandle
+}
+
+func newServiceMonitor() *monitor.Monitor {
+	return monitor.New(
+		monitor.WithLogger(log.StandardLogger()),
+		monitor.WithStallHandler(func(status monitor.TaskStatus) {
+			log.WithField("task", status.Name).Warnf("monitor detected stall (last heartbeat %s)", status.LastHeartbeat.Format(time.RFC3339))
+		}),
+	)
 }
 
 type Notification struct {
@@ -186,7 +194,7 @@ func NewService(
 			swapTimeout:               swapTimeout,
 			walletUpdates:             make(chan WalletUpdate),
 			syncLock:                  &sync.RWMutex{},
-			goroutineMon:              monitor.New(),
+			supervisor:                newServiceMonitor(),
 		}
 
 		return svc, nil
@@ -233,7 +241,7 @@ func NewService(
 		swapTimeout:               swapTimeout,
 		walletUpdates:             make(chan WalletUpdate),
 		syncLock:                  &sync.RWMutex{},
-		goroutineMon:              monitor.New(),
+		supervisor:                newServiceMonitor(),
 	}
 
 	return svc, nil
@@ -267,22 +275,23 @@ func (s *Service) stopAddressTask() {
 }
 
 func (s *Service) stopSchedulerTask() {
-	if s.goroutineMon == nil {
-		if s.schedulerSvc != nil {
-			s.schedulerSvc.Stop()
-			log.Info("scheduler stopped")
-		}
+	if s.schedulerSvc == nil {
 		return
 	}
-	s.stopTask(&s.schedulerTask)
-}
 
-func (s *Service) stopLNTask() {
-	s.stopTask(&s.lnTask)
+	if s.supervisor == nil {
+		s.schedulerSvc.Stop()
+		s.schedulerSvc.SetCallbacks(ports.SchedulerCallbacks{})
+		log.Info("scheduler stopped")
+		return
+	}
+
+	s.stopTask(&s.schedulerTask)
+	s.schedulerSvc.SetCallbacks(ports.SchedulerCallbacks{})
 }
 
 func (s *Service) startBoardingMonitor(addresses []string, cfg *types.Config) {
-	if s.goroutineMon == nil || len(addresses) == 0 {
+	if s.supervisor == nil || len(addresses) == 0 {
 		return
 	}
 
@@ -294,14 +303,14 @@ func (s *Service) startBoardingMonitor(addresses []string, cfg *types.Config) {
 
 	s.stopBoardingTask()
 
-	handle := s.goroutineMon.Go("boarding-events", func(ctx context.Context, hb monitor.Heartbeat) error {
+	handle := s.supervisor.Go("boarding-events", func(ctx context.Context, hb monitor.Heartbeat) error {
 		return s.subscribeForBoardingEvent(ctx, hb, scripts, cfg)
 	})
 	s.boardingTask = &handle
 }
 
 func (s *Service) startAddressMonitor(serverURL string, cfg *types.Config) error {
-	if s.goroutineMon == nil {
+	if s.supervisor == nil {
 		handler := s.handleAddressEventChannel(cfg, nil)
 		s.externalSubscription = newSubscriptionHandler(serverURL, s.dbSvc.SubscribedScript(), handler)
 		return s.externalSubscription.start()
@@ -309,13 +318,13 @@ func (s *Service) startAddressMonitor(serverURL string, cfg *types.Config) error
 
 	s.stopAddressTask()
 
+	subscription := newSubscriptionHandler(serverURL, s.dbSvc.SubscribedScript(), nil)
 	ready := make(chan error, 1)
-	handle := s.goroutineMon.Go("address-events", func(ctx context.Context, hb monitor.Heartbeat) error {
+	handle := s.supervisor.Go("address-events", func(ctx context.Context, hb monitor.Heartbeat) error {
 		handler := s.handleAddressEventChannel(cfg, hb)
-		sub := newSubscriptionHandler(serverURL, s.dbSvc.SubscribedScript(), handler)
-		s.externalSubscription = sub
+		subscription.onEvent = handler
 
-		if err := sub.start(); err != nil {
+		if err := subscription.start(); err != nil {
 			ready <- err
 			return err
 		}
@@ -330,7 +339,7 @@ func (s *Service) startAddressMonitor(serverURL string, cfg *types.Config) error
 		for {
 			select {
 			case <-ctx.Done():
-				sub.stop()
+				subscription.stop()
 				return ctx.Err()
 			case <-ticker.C:
 				if hb != nil {
@@ -346,6 +355,7 @@ func (s *Service) startAddressMonitor(serverURL string, cfg *types.Config) error
 		return err
 	}
 
+	s.externalSubscription = subscription
 	s.addressTask = &handle
 	return nil
 }
@@ -355,7 +365,12 @@ func (s *Service) startSchedulerMonitor() {
 		return
 	}
 
-	if s.goroutineMon == nil {
+	if s.supervisor == nil {
+		s.schedulerSvc.SetCallbacks(ports.SchedulerCallbacks{
+			OnError: func(err error) {
+				log.WithError(err).Warn("scheduler error")
+			},
+		})
 		s.schedulerSvc.Start()
 		log.Info("scheduler started")
 		return
@@ -363,7 +378,18 @@ func (s *Service) startSchedulerMonitor() {
 
 	s.stopTask(&s.schedulerTask)
 
-	handle := s.goroutineMon.Go("scheduler-service", func(ctx context.Context, hb monitor.Heartbeat) error {
+	handle := s.supervisor.Go("scheduler-service", func(ctx context.Context, hb monitor.Heartbeat) error {
+		s.schedulerSvc.SetCallbacks(ports.SchedulerCallbacks{
+			OnHeartbeat: func() {
+				if hb != nil {
+					hb.Tick()
+				}
+			},
+			OnError: func(err error) {
+				log.WithError(err).Warn("scheduler error")
+			},
+		})
+
 		s.schedulerSvc.Start()
 		log.Info("scheduler started")
 
@@ -449,7 +475,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	}
 
 	pollingInterval := 5 * time.Minute
-	if infos.Network == "regtest" {
+	if infos.Network == arklib.BitcoinRegTest.Name {
 		pollingInterval = 5 * time.Second
 	}
 
@@ -493,9 +519,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	s.indexerClient = indexerClient
 	s.isInitialized = true
 
-	go func() {
-		s.walletUpdates <- WalletUpdate{Type: WalletInit, Password: password}
-	}()
+	s.walletUpdates <- WalletUpdate{Type: WalletInit, Password: password}
 
 	return nil
 }
@@ -511,8 +535,6 @@ func (s *Service) LockNode(ctx context.Context) error {
 	}
 
 	s.stopSchedulerTask()
-	s.stopLNTask()
-
 	s.stopBoardingTask()
 	s.stopAddressTask()
 
@@ -531,9 +553,7 @@ func (s *Service) LockNode(ctx context.Context) error {
 		s.syncCh = nil
 	}
 
-	go func() {
-		s.walletUpdates <- WalletUpdate{Type: "lock"}
-	}()
+	s.walletUpdates <- WalletUpdate{Type: "lock"}
 
 	return nil
 }
@@ -673,9 +693,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
 
-	go func() {
-		s.walletUpdates <- WalletUpdate{Type: WalletUnlock, Password: password}
-	}()
+	s.walletUpdates <- WalletUpdate{Type: WalletUnlock, Password: password}
 
 	return nil
 }
@@ -688,7 +706,6 @@ func (s *Service) ResetWallet(ctx context.Context) error {
 	s.Reset(ctx)
 
 	s.stopSchedulerTask()
-	s.stopLNTask()
 
 	if s.externalSubscription != nil {
 		s.externalSubscription.stop()
@@ -845,7 +862,6 @@ func (s *Service) ConnectLN(ctx context.Context, lnUrl string) error {
 			return fmt.Errorf("no LN connection options found, please provide a valid LN Connect URL")
 		}
 
-		s.stopLNTask()
 		if err := s.connectLN(ctx, settings.LnConnectionOpts); err != nil {
 			return err
 		}
@@ -867,7 +883,6 @@ func (s *Service) ConnectLN(ctx context.Context, lnUrl string) error {
 		ConnectionType: lnConnectionType,
 	}
 
-	s.stopLNTask()
 	err := s.connectLN(ctx, lnConnctionOpts)
 	if err != nil {
 		return fmt.Errorf("failed to connect to LN node: %w", err)
@@ -884,7 +899,6 @@ func (s *Service) ConnectLN(ctx context.Context, lnUrl string) error {
 }
 
 func (s *Service) DisconnectLN() {
-	s.stopLNTask()
 	s.lnSvc.Disconnect()
 }
 
@@ -953,14 +967,11 @@ func (s *Service) GetVHTLC(
 		return "", "", nil, nil, err
 	}
 
-	go func() {
-		if err := s.dbSvc.VHTLC().Add(context.Background(), domain.NewVhtlc(*opts)); err != nil {
-			log.WithError(err).Error("failed to add vhtlc")
-			return
-		}
+	if err := s.dbSvc.VHTLC().Add(ctx, domain.NewVhtlc(*opts)); err != nil {
+		return "", "", nil, nil, fmt.Errorf("failed to add vhtlc: %w", err)
+	}
 
-		log.Debugf("added new vhtlc %s", vhtlcId)
-	}()
+	log.Debugf("added new vhtlc %s", vhtlcId)
 
 	return addr, vhtlcId, vhtlcScript, opts, nil
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/config"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db"
-	scheduler "github.com/ArkLabsHQ/fulmine/internal/infrastructure/scheduler/gocron"
+	scheduler "github.com/ArkLabsHQ/fulmine/internal/infrastructure/scheduler"
 	grpcservice "github.com/ArkLabsHQ/fulmine/internal/interface/grpc"
 	"github.com/arkade-os/go-sdk/store"
 	"github.com/arkade-os/go-sdk/types"

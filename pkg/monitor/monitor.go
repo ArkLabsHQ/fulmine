@@ -62,11 +62,14 @@ type Monitor struct {
 	checkInterval  time.Duration
 	logger         Logger
 	startedAt      time.Time
+	stallHandler   func(TaskStatus)
 }
 
 // Logger is the subset used by the monitor for structured messages.
 type Logger interface {
-	Printf(format string, args ...any)
+	Infof(format string, args ...any)
+	Warnf(format string, args ...any)
+	Errorf(format string, args ...any)
 }
 
 // Option customizes a Monitor.
@@ -95,16 +98,38 @@ func WithLogger(l Logger) Option {
 	}
 }
 
+// WithStallHandler registers a callback invoked when a task newly enters a stalled state.
+func WithStallHandler(fn func(TaskStatus)) Option {
+	return func(m *Monitor) {
+		m.stallHandler = fn
+	}
+}
+
+type DefaultLogger struct{}
+
+func (l *DefaultLogger) Infof(format string, args ...any) {
+	log.Printf("[INFO] "+format, args...)
+}
+
+func (l *DefaultLogger) Warnf(format string, args ...any) {
+	log.Printf("[WARN] "+format, args...)
+}
+
+func (l *DefaultLogger) Errorf(format string, args ...any) {
+	log.Printf("[ERROR] "+format, args...)
+}
+
 // New creates a Monitor with reasonable defaults.
 func New(opts ...Option) *Monitor {
 	ctx, cancel := context.WithCancel(context.Background())
+	logger := &DefaultLogger{}
 	m := &Monitor{
 		ctx:            ctx,
 		cancel:         cancel,
 		tasks:          make(map[string]*taskRecord),
 		stallThreshold: 2 * time.Minute,
 		checkInterval:  5 * time.Second,
-		logger:         log.Default(),
+		logger:         logger,
 		startedAt:      time.Now(),
 	}
 	for _, opt := range opts {
@@ -162,7 +187,7 @@ func (m *Monitor) Go(name string, fn TaskFunc) TaskHandle {
 		defer func() {
 			if r := recover(); r != nil {
 				record.markPanicked(fmt.Sprint(r))
-				m.logger.Printf("monitor: task %s panicked: %v", name, r)
+				m.logger.Errorf("monitor: task %s panicked: %v", name, r)
 			}
 			cancel()
 		}()
@@ -172,7 +197,7 @@ func (m *Monitor) Go(name string, fn TaskFunc) TaskHandle {
 				record.markCanceled(err)
 			} else {
 				record.markFailed(err)
-				m.logger.Printf("monitor: task %s failed: %v", name, err)
+				m.logger.Errorf("monitor: task %s failed: %v", name, err)
 			}
 			return
 		}
@@ -241,20 +266,25 @@ func (m *Monitor) inspectTasks() {
 	defer m.mu.Unlock()
 
 	for _, task := range m.tasks {
+		var notify bool
 		task.mu.Lock()
 		if task.state == TaskStateRunning {
 			since := now.Sub(task.lastHeartbeat)
 			if m.stallThreshold > 0 && since > m.stallThreshold {
 				if !task.heartbeatStalled {
 					task.heartbeatStalled = true
-					m.logger.Printf("monitor: task %s stalled (%s without heartbeat)", task.name, since.Truncate(time.Millisecond))
+					m.logger.Errorf("monitor: task %s stalled (%s without heartbeat)", task.name, since.Truncate(time.Millisecond))
+					notify = true
 				}
 			} else if task.heartbeatStalled {
 				task.heartbeatStalled = false
-				m.logger.Printf("monitor: task %s recovered after stall", task.name)
+				m.logger.Errorf("monitor: task %s recovered after stall", task.name)
 			}
 		}
 		task.mu.Unlock()
+		if notify && m.stallHandler != nil {
+			m.stallHandler(task.status())
+		}
 	}
 }
 
