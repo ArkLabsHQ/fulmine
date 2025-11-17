@@ -31,7 +31,9 @@ func TestSubmarineSwap(t *testing.T) {
 		balanceAfter, err := client.GetBalance(t.Context(), &pb.GetBalanceRequest{})
 		require.NoError(t, err)
 		require.NotNil(t, balanceAfter)
-		require.GreaterOrEqual(t, int(balance.GetAmount()-balanceAfter.GetAmount()), invoiceAmount)
+		before := int64(balance.GetAmount())
+		after := int64(balanceAfter.GetAmount())
+		require.GreaterOrEqual(t, before-after, int64(invoiceAmount))
 	})
 
 	t.Run("bolt12", func(t *testing.T) {
@@ -52,7 +54,9 @@ func TestSubmarineSwap(t *testing.T) {
 		balanceAfter, err := client.GetBalance(t.Context(), &pb.GetBalanceRequest{})
 		require.NoError(t, err)
 		require.NotNil(t, balanceAfter)
-		require.GreaterOrEqual(t, int(balance.GetAmount()-balanceAfter.GetAmount()), invoiceAmount)
+		before := int64(balance.GetAmount())
+		after := int64(balanceAfter.GetAmount())
+		require.GreaterOrEqual(t, before-after, int64(invoiceAmount))
 	})
 
 	// TODO: uncomment this in PR#330
@@ -78,7 +82,9 @@ func TestSubmarineSwap(t *testing.T) {
 	// 	balanceAfter, err := client.GetBalance(t.Context(), &pb.GetBalanceRequest{})
 	// 	require.NoError(t, err)
 	// 	require.NotNil(t, balanceAfter)
-	// 	require.Zero(t, int(balance.GetAmount()-balanceAfter.GetAmount()))
+	// 	before := int64(balance.GetAmount())
+	// 	after := int64(balanceAfter.GetAmount())
+	// 	require.Zero(t, before-after)
 	// })
 }
 
@@ -107,7 +113,9 @@ func TestReverseSwap(t *testing.T) {
 		balanceAfter, err := client.GetBalance(t.Context(), &pb.GetBalanceRequest{})
 		require.NoError(t, err)
 		require.NotNil(t, balanceAfter)
-		require.LessOrEqual(t, int(balanceAfter.GetAmount()-balance.GetAmount()), invoiceAmount)
+		before := int64(balance.GetAmount())
+		after := int64(balanceAfter.GetAmount())
+		require.LessOrEqual(t, after-before, int64(invoiceAmount))
 	})
 }
 
