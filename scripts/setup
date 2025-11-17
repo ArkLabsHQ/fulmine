@@ -20,6 +20,8 @@ compose="docker compose -f $composeFile"
 arkd="docker exec arkd arkd"
 lndBoltz="docker exec boltz-lnd lncli --network=regtest"
 clnBoltz="docker exec boltz-cln lightning-cli --network=regtest"
+lndClient="docker exec lnd lncli --network=regtest"
+clnClient="docker exec cln lightning-cli --network=regtest"
 
 run_quiet() {
     local output status
@@ -155,7 +157,7 @@ else
 fi
 
 echo "provisioning LN..."
-lndPubkey=$(nigiri lnd getinfo | jq -r .identity_pubkey)
+lndPubkey=$($lndClient getinfo | jq -r .identity_pubkey)
 lndBoltzPubkey=$($lndBoltz getinfo | jq -r .identity_pubkey)
 
 err=$($lndBoltz connect $lndPubkey@lnd:9735)
@@ -166,7 +168,7 @@ else
 fi
 sleep 10
 
-clnPubkey=$(nigiri cln getinfo | jq -r .id)
+clnPubkey=$($clnClient getinfo | jq -r .id)
 clnBoltzPubkey=$($clnBoltz getinfo | jq -r .id)
 
 err=$($clnBoltz connect $clnPubkey cln 9935)
@@ -212,7 +214,7 @@ if [ $? -ne 0 ]; then
 fi
 sleep 1
 
-retry nigiri lnd openchannel --node_key=$lndBoltzPubkey --local_amt=$channelAmount
+retry $lndClient openchannel --node_key=$lndBoltzPubkey --local_amt=$channelAmount
 if [ $? -ne 0 ]; then
     exit "  ❌ failed to open channel boltz-lnd <- lnd (status=$status) (err=$err)"
 else 
@@ -226,7 +228,7 @@ if [ $? -ne 0 ]; then
 fi
 sleep 1
 
-retry nigiri cln fundchannel id=$clnBoltzPubkey amount=$channelAmount
+retry $clnClient fundchannel id=$clnBoltzPubkey amount=$channelAmount
 if [ $? -ne 0 ]; then
     exit "  ❌ failed to open channel boltz-cln <- cln (status=$status) (err=$err)"
 else 
@@ -239,7 +241,7 @@ if [ $? -ne 0 ]; then
 fi
 sleep 10
 
-invoice=$(nigiri lnd addinvoice --amt $invoiceAmount | jq -r .payment_request)
+invoice=$($lndClient addinvoice --amt $invoiceAmount | jq -r .payment_request)
 retry $lndBoltz payinvoice $invoice --force
 if [ $? -ne 0 ]; then
     exit "  ❌ failed to pay lnd invoice (invoice=$invoice) (status=$status) (err=$err)"
@@ -247,14 +249,14 @@ fi
 sleep 1
 
 invoice=$($lndBoltz addinvoice --amt $invoiceAmount | jq -r .payment_request)
-retry nigiri lnd payinvoice $invoice --force
+retry $lndClient payinvoice $invoice --force
 if [ $? -ne 0 ]; then
     exit "  ❌ failed to pay boltz-lnd invoice (invoice=$invoice) (status=$status) (err=$err)"
 else
     echo "  ✅ paid invoices boltz-lnd <-> lnd"
 fi
 
-invoice=$(nigiri cln invoice $invoiceAmountMsat "$now" "" | jq -r .bolt11)
+invoice=$($clnClient invoice $invoiceAmountMsat "$now" "" | jq -r .bolt11)
 retry $clnBoltz pay $invoice
 if [ $? -ne 0 ]; then
     exit "  ❌ failed to pay cln invoice (invoice=$invoice) (status=$status) (err=$err)"
@@ -262,7 +264,7 @@ fi
 sleep 1
 
 invoice=$($clnBoltz invoice $invoiceAmountMsat "$now" "" | jq -r .bolt11)
-retry nigiri cln pay $invoice
+retry $clnClient pay $invoice
 if [ $? -ne 0 ]; then
     exit "  ❌ failed to pay boltz-cln invoice (invoice=$invoice) (status=$status) (err=$err)"
 else
