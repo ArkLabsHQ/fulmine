@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -21,6 +20,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+const (
+	lnd = "docker exec lnd lncli --network=regtest"
+	cln = "docker exec cln lightning-cli --network=regtest"
+)
+
 func newFulmineClient(url string) (pb.ServiceClient, error) {
 	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
 	conn, err := grpc.NewClient(url, opts)
@@ -31,7 +35,7 @@ func newFulmineClient(url string) (pb.ServiceClient, error) {
 }
 
 func lndAddInvoice(ctx context.Context, sats int) (string, string, error) {
-	command := fmt.Sprintf("nigiri lnd addinvoice --amt %d", sats)
+	command := fmt.Sprintf("%s addinvoice --amt %d", lnd, sats)
 	out, err := runCommand(ctx, command)
 	if err != nil {
 		return "", "", err
@@ -48,20 +52,20 @@ func lndAddInvoice(ctx context.Context, sats int) (string, string, error) {
 }
 
 func lndPayInvoice(ctx context.Context, invoice string) error {
-	command := fmt.Sprintf("nigiri lnd payinvoice --force %s", invoice)
+	command := fmt.Sprintf("%s payinvoice --force %s", lnd, invoice)
 	_, err := runCommand(ctx, command)
 	return err
 }
 
 func lndCancelInvoice(ctx context.Context, rHash string) error {
-	command := fmt.Sprintf("nigiri lnd cancelinvoice %s", rHash)
+	command := fmt.Sprintf("%s cancelinvoice %s", lnd, rHash)
 	_, err := runCommand(ctx, command)
 	return err
 }
 
 func clnAddOffer(ctx context.Context, sats int) (string, string, error) {
 	label := fmt.Sprintf("funding-%s", time.Now().Format(time.RFC3339))
-	command := fmt.Sprintf(`nigiri cln offer %d "%s"`, sats, label)
+	command := fmt.Sprintf(`%s offer %d "%s"`, cln, sats, label)
 	out, err := runCommand(ctx, command)
 	if err != nil {
 		return "", "", err
@@ -75,12 +79,6 @@ func clnAddOffer(ctx context.Context, sats int) (string, string, error) {
 		return "", "", err
 	}
 	return resp.Bolt11, resp.PaymentHash, nil
-}
-
-func clnPayInvoice(ctx context.Context, invoice string) error {
-	command := fmt.Sprintf("nigiri cln pay %s", invoice)
-	_, err := runCommand(ctx, command)
-	return err
 }
 
 func faucet(ctx context.Context, address string, amount float64) error {
@@ -127,28 +125,4 @@ func projectRoot() string {
 		return "."
 	}
 	return filepath.Clean(filepath.Join(filepath.Dir(filename), ".."))
-}
-
-func doHttpRequest(ctx context.Context, url, method string, body io.Reader) ([]byte, error) {
-	httpClient := &http.Client{
-		Timeout: 15 * time.Second,
-	}
-	req, err := http.NewRequestWithContext(ctx, method, url, body)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("resp status %s - body %s", resp.Status, string(respBody))
-	}
-	return respBody, nil
 }
