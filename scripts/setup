@@ -24,7 +24,7 @@ lndClient="docker exec lnd lncli --network=regtest"
 clnClient="docker exec cln lightning-cli --network=regtest"
 
 run_quiet() {
-    local output status
+    local output
 
     # capture both stdout and stderr and return status without relying on errexit
     output=$("$@" 2>&1)

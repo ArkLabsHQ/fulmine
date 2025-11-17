@@ -40,8 +40,7 @@ services:
         target: /datadir
     depends_on:
       pgnbxplorer:
-        condition: service_healthy
-    
+        condition: service_healthy 
   arkd-wallet:
     restart: unless-stopped
     build:
@@ -73,11 +72,10 @@ services:
     environment:
       - ARKD_LOG_LEVEL=6
       - ARKD_NO_MACAROONS=true
-      - ARKD_VTXO_TREE_EXPIRY=200
-      - ARKD_SCHEDULER_TYPE=block
+      - ARKD_VTXO_TREE_EXPIRY=1024
       - ARKD_UNILATERAL_EXIT_DELAY=512
       - ARKD_PUBLIC_UNILATERAL_EXIT_DELAY=512
-      - ARKD_BOARDING_EXIT_DELAY=1024
+      - ARKD_BOARDING_EXIT_DELAY=2048
       - ARKD_CHECKPOINT_EXIT_DELAY=10
       - ARKD_WALLET_ADDR=arkd-wallet:6060
       - ARKD_ESPLORA_URL=http://chopsticks:3000
@@ -85,7 +83,7 @@ services:
       - ARKD_LIVE_STORE_TYPE=inmemory
       - ARKD_EVENT_DB_TYPE=badger
       - ARKD_DB_TYPE=sqlite
-      - ARKD_SESSION_DURATION=10
+      - ARKD_SESSION_DURATION=30
     volumes:
       - type: tmpfs
         target: /app/data
