@@ -1,4 +1,4 @@
-.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-cln test test-vhtlc vet proto proto-lint up-test-env setup-arkd down-test-env
+.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-cln test vet proto proto-lint setup-arkd down-test-env
 
 GOLANGCI_LINT ?= $(shell \
 	echo "docker run --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v2.5.0 golangci-lint"; \
@@ -74,13 +74,8 @@ run-2: clean build-static-assets
 ## test: runs all tests
 test:
 	@echo "Running all tests..."
-		@go test -v -race --count=1 $(shell go list ./... | grep -v *internal/test/e2e*)
-
-
-## test-vhtlc: runs tests for the VHTLC package
-test-vhtlc:
-	@echo "Running VHTLC tests..."
-	@cd pkg/vhtlc && go test -v
+	@go test -v -race --count=1 $(shell go list ./... | grep -v *internal/test/e2e*)
+	@find ./pkg -name go.mod -execdir go test -v ./... \;
 
 ## vet: code analysis
 vet:
@@ -98,31 +93,21 @@ proto-lint:
 	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace bufbuild/buf lint --exclude-path ./api-spec/protobuf/cln
 
 pull-test-env:
-	@echo "Pulling latest base images..."
+	@echo "Updating test env images..."
 	@docker compose -f test.docker-compose.yml pull
-	@docker compose -f boltz.docker-compose.yml pull
 
 build-test-env: pull-test-env
 	@echo "Building test environment..."
 	@docker compose -f test.docker-compose.yml build --no-cache
-	@docker compose -f boltz.docker-compose.yml build --no-cache
-
-## up-test-env: starts test environment
-up-test-env:
-	@echo "Starting test environment..."
-	@docker compose -f test.docker-compose.yml up -d
-	@docker compose -f boltz.docker-compose.yml up -d
 
 ## setup-arkd: sets up the ARK server
 setup-test-env:
-	@go run ./internal/test/e2e/setup/arkd/setup_ark.go
-	@go run ./internal/test/e2e/setup/fulmine/setup_fulmine.go
+	@bash ./scripts/setup
 
 ## down-test-env: stops test environment
 down-test-env:
 	@echo "Stopping test environment..."
-	@docker compose -f test.docker-compose.yml down
-	@docker compose -f boltz.docker-compose.yml down -v
+	@docker compose -f test.docker-compose.yml down -v
 
 ## integrationtest: runs e2e tests
 integrationtest:

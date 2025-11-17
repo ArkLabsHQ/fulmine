@@ -27,5 +27,8 @@ jobs:
       - name: Build test environment
         run: make build-test-env
 
+      - name: Setup test environment
+        run: make setup-test-env
+
       - name: Run integration tests
         run: make integrationtest

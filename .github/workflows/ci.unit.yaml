@@ -33,9 +33,6 @@ jobs:
       - name: Run main tests
         run: make test
 
-      - name: Run VHTLC tests
-        run: cd pkg/vhtlc && go test -v -count=1 -race
-
       # Security check with minimal output
       - name: Security Check
         uses: securego/gosec@v2.22.2
