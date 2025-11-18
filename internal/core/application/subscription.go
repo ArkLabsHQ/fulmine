@@ -230,7 +230,13 @@ func (h *subscriptionHandler) start() error {
 				select {
 				case <-ctx.Done():
 					return
-				case event := <-subscriptionChannel:
+				case event, ok := <-subscriptionChannel:
+					if !ok {
+						log.Warnf("subscription channel closed, retrying...")
+						stopped = true
+						continue
+					}
+
 					if event.Err != nil {
 						onError(event.Err)
 						stopped = true
