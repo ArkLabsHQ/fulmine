@@ -33,6 +33,18 @@ func TestVHTLC(t *testing.T) {
 	vhtlc, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
 		PreimageHash:   preimageHash,
 		ReceiverPubkey: info.GetPubkey(),
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 1024,
+		},
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, vhtlc.Address)

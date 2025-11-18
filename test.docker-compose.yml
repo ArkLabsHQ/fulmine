@@ -210,6 +210,10 @@ services:
         host = "boltz-fulmine"
         port = 7000
         useLocktimeSeconds = true
+        [ark.unilateralDelays]
+        claim = 10 # 10 mins
+        refund = 10 # 10 mins
+        refundWithoutReceiver = 20 # 20 mins
         
         [api]
         host = "0.0.0.0"

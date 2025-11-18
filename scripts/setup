@@ -4,8 +4,8 @@ set -o pipefail
 # vars
 composeFile="test.docker-compose.yml"
 password="password"
-fulmineBoltzUrl="http://localhost:7003/api/v1"
-fulmineUrl="http://localhost:7001/api/v1"
+fulmineBoltzUrl="http://127.0.0.1:7003/api/v1"
+fulmineUrl="http://127.0.0.1:7001/api/v1"
 arkdUrl="http://arkd:7070"
 channelAmount=1000000
 invoiceAmount=300000
