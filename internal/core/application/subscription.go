@@ -232,7 +232,7 @@ func (h *subscriptionHandler) start() error {
 					return
 				case event, ok := <-subscriptionChannel:
 					if !ok {
-						log.Warnf("subscription channel closed, retrying...")
+						onError(fmt.Errorf("subscription channel closed"))
 						stopped = true
 						continue
 					}
