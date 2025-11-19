@@ -27,8 +27,8 @@ github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBA
 github.com/angelofallars/htmx-go v0.5.0 h1:L7M48cCH7nX8cV5wRYn04pN6AE4qNdh86iTbuKxhnIo=
 github.com/angelofallars/htmx-go v0.5.0/go.mod h1:izXk6A+Jllc3vXs1dUvxUJs/jE0weiEC07ZPlCVi4cc=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
-github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251029114835-d33f27e11343 h1:zIA6+5sEEWTNHMegBxuLf+6GG7uvST9Gh8juyE2XQ7c=
-github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251029114835-d33f27e11343/go.mod h1:EIGiZNKRyIkkbu8ZfmMVO4Mij/Iz9/xzbS6jhGRbrVQ=
+github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251119163300-38b7bf6a4010 h1:imcGbr6jNnjgw2ZLrMHl7z/3YfpxRsgUe8RueQKoWUQ=
+github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251119163300-38b7bf6a4010/go.mod h1:EIGiZNKRyIkkbu8ZfmMVO4Mij/Iz9/xzbS6jhGRbrVQ=
 github.com/arkade-os/arkd/pkg/kvdb v0.7.0 h1:+XN0FeUEilKLuNHarP/mpwsCWla2iAHc6z9H0rsh+HY=
 github.com/arkade-os/arkd/pkg/kvdb v0.7.0/go.mod h1:8SEm4dAIcGtnGqZ8+QRk58Z1VjIIctl6bZJLQwaOePo=
 github.com/arkade-os/arkd/pkg/macaroons v0.7.0 h1:BZfaeCDGNu/u/efnlesDjzzEPMYpCQO//jeE4d/3CwY=

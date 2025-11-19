@@ -3,6 +3,7 @@ package e2e_test
 import (
 	"sync"
 	"testing"
+	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/stretchr/testify/require"
@@ -60,33 +61,35 @@ func TestSubmarineSwap(t *testing.T) {
 		require.GreaterOrEqual(t, before-after, int64(invoiceAmount))
 	})
 
-	// TODO: uncomment this in PR#330
-	// t.Run("refund", func(t *testing.T) {
-	// 	invoice, rHash, err := lndAddInvoice(t.Context(), 5000)
-	// 	require.NoError(t, err)
-	// 	require.NotEmpty(t, invoice)
-	// 	require.NotEmpty(t, rHash)
+	t.Run("refund", func(t *testing.T) {
+		invoice, rHash, err := lndAddInvoice(t.Context(), 5000)
+		require.NoError(t, err)
+		require.NotEmpty(t, invoice)
+		require.NotEmpty(t, rHash)
 
-	// 	err = lndCancelInvoice(t.Context(), rHash)
-	// 	require.NoError(t, err)
+		err = lndCancelInvoice(t.Context(), rHash)
+		require.NoError(t, err)
 
-	// 	balance, err := client.GetBalance(t.Context(), &pb.GetBalanceRequest{})
-	// 	require.NoError(t, err)
-	// 	require.NotNil(t, balance)
-	// 	require.Greater(t, int(balance.GetAmount()), 5000)
+		balance, err := client.GetBalance(t.Context(), &pb.GetBalanceRequest{})
+		require.NoError(t, err)
+		require.NotNil(t, balance)
+		require.Greater(t, int(balance.GetAmount()), 5000)
 
-	// 	_, err = client.PayInvoice(t.Context(), &pb.PayInvoiceRequest{
-	// 		Invoice: invoice,
-	// 	})
-	// 	require.NoError(t, err)
+		_, err = client.PayInvoice(t.Context(), &pb.PayInvoiceRequest{
+			Invoice: invoice,
+		})
+		require.NoError(t, err)
 
-	// 	balanceAfter, err := client.GetBalance(t.Context(), &pb.GetBalanceRequest{})
-	// 	require.NoError(t, err)
-	// 	require.NotNil(t, balanceAfter)
-	// 	before := int64(balance.GetAmount())
-	// 	after := int64(balanceAfter.GetAmount())
-	// 	require.Zero(t, before-after)
-	// })
+		// Give the time to update after the refund
+		time.Sleep(5 * time.Second)
+
+		balanceAfter, err := client.GetBalance(t.Context(), &pb.GetBalanceRequest{})
+		require.NoError(t, err)
+		require.NotNil(t, balanceAfter)
+		before := int64(balance.GetAmount())
+		after := int64(balanceAfter.GetAmount())
+		require.Zero(t, before-after)
+	})
 }
 
 func TestReverseSwap(t *testing.T) {

@@ -161,6 +161,21 @@ func verifyAndSignCheckpoints(
 	return finalCheckpoints, nil
 }
 
+func combineSignedCheckpointsTxs(signedCheckpoints []*psbt.Packet) (*psbt.Packet, error) {
+	finalCheckpoint := signedCheckpoints[0]
+
+	for i := range finalCheckpoint.Inputs {
+		scriptSigs := make([]*psbt.TaprootScriptSpendSig, 0, len(signedCheckpoints))
+		for _, signedCheckpointPsbt := range signedCheckpoints {
+			boltzIn := signedCheckpointPsbt.Inputs[i]
+			partialSig := boltzIn.TaprootScriptSpendSig[0]
+			scriptSigs = append(scriptSigs, partialSig)
+		}
+		finalCheckpoint.Inputs[i].TaprootScriptSpendSig = scriptSigs
+	}
+	return finalCheckpoint, nil
+}
+
 func verifyFinalArkTx(
 	finalArkTx string, arkSigner *btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf,
 ) error {
