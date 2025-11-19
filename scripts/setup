@@ -43,14 +43,18 @@ exit() {
 }
 
 retry() {
+    local rc
     for i in {1..6}; do
         err=$("$@" 2>&1)
-        if [ $? -eq 0 ]; then
+        rc=$?
+        if [ "$rc" -eq 0 ]; then
+            status=0
             return 0
         fi
+        status="$rc"
         sleep 6
     done
-    return 1
+    return "$status"
 }
 
 echo "starting bitcoin stack..."
@@ -98,14 +102,20 @@ fi
 sleep 1
 
 addr=$($arkd wallet address)
+if [ $? -ne 0 ] || [ -z "$addr" ]; then
+    exit "  ❌ failed to get wallet address"
+fi
+
+funded_count=0
 for i in {1..5}; do
     err=$(nigiri faucet $addr)
     if [ $? -ne 0 ]; then
         exit "  ❌ failed to fund (status=$status) (err=$err)"
     fi
+    funded_count=$((funded_count + 1))
     sleep 1
 done
-echo "  ✅ funded onchain with 5 BTC"
+echo "  ✅ funded onchain with $funded_count BTC"
 
 echo "setting up Boltz stack..."
 if ! run_quiet $compose up -d boltz; then

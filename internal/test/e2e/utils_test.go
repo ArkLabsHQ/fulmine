@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -89,7 +87,6 @@ func faucet(ctx context.Context, address string, amount float64) error {
 
 func runCommand(ctx context.Context, command string) (string, error) {
 	cmd := exec.CommandContext(ctx, "sh", "-c", command)
-	cmd.Dir = projectRoot()
 
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
@@ -117,12 +114,4 @@ func runCommand(ctx context.Context, command string) (string, error) {
 		}
 		return out.String(), nil
 	}
-}
-
-func projectRoot() string {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		return "."
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), ".."))
 }
