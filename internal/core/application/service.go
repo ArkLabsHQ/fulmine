@@ -297,7 +297,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 
 	pollingInterval := 5 * time.Minute
 	if infos.Network == "regtest" {
-		pollingInterval = 5 * time.Second
+		pollingInterval = 2 * time.Second
 	}
 
 	if err := s.Init(ctx, arksdk.InitArgs{
@@ -1257,8 +1257,8 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 	// check for unsettled boarding UTXOs
 	for _, tx := range txs {
 		if len(tx.BoardingTxid) > 0 && !tx.Settled {
-			// TODO replace by boardingExitDelay https://github.com/ark-network/ark/pull/501
-			boardingExpiry := tx.CreatedAt.Add(time.Duration(data.UnilateralExitDelay.Seconds()*2) * time.Second)
+			boardingDelay := time.Duration(data.BoardingExitDelay.Seconds()) * time.Second
+			boardingExpiry := tx.CreatedAt.Add(boardingDelay)
 			if boardingExpiry.Before(time.Now()) {
 				continue
 			}

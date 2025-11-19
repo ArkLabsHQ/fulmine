@@ -1,175 +1,107 @@
-package e2e
+package e2e_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"runtime"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	arksetup "github.com/ArkLabsHQ/fulmine/internal/test/e2e/setup/arkd"
-	fulminesetup "github.com/ArkLabsHQ/fulmine/internal/test/e2e/setup/fulmine"
-	lightningsetup "github.com/ArkLabsHQ/fulmine/internal/test/e2e/setup/lightning"
-)
-
-const (
-	defaultComposeFile = "../../test.docker-compose.yml"
-	boltzComposeFile   = "../../boltz.docker-compose.yml"
-	defaultTimeout     = 20 * time.Minute
+	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 )
 
 func TestMain(m *testing.M) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
-	defer func() {
-		cancel()
-	}()
-	err := composeDown(ctx)
+	ctx := context.Background()
+
+	if err := refillArkd(ctx); err != nil {
+		log.Fatalf("❌ failed to refill Arkade server: %s", err)
+	}
+
+	if err := refillFulmineBoltz(ctx); err != nil {
+		log.Fatalf("❌ failed to refill Fulmine used by Boltz: %s", err)
+	}
+
+	if err := refillFulmineClient(ctx); err != nil {
+		log.Fatalf("❌ failed to refill Fulmine used by Client: %s", err)
+	}
+
+	os.Exit(m.Run())
+}
+
+func refillArkd(ctx context.Context) error {
+	arkdExec := "docker exec arkd arkd"
+	balanceThreshold := 5.0
+
+	command := fmt.Sprintf("%s wallet balance", arkdExec)
+	out, err := runCommand(ctx, command)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to clean up e2e stack: %v\n", err)
-		os.Exit(1)
-	}
-
-	if err := setupArkd(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to start arkd stack: %v\n", err)
-		os.Exit(1)
-	}
-
-	if err := setUpBoltz(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to start boltz stack: %v\n", err)
-		os.Exit(1)
-	}
-
-	if err := setupClient(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to provision services: %v\n", err)
-		os.Exit(1)
-	}
-
-	exitCode := m.Run()
-
-	if err := composeDown(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to stop e2e stack: %v\n", err)
-	}
-
-	os.Exit(exitCode)
-}
-
-func setupArkd(ctx context.Context) error {
-	if err := runComposeCommand(ctx, defaultComposeFile, "up", "-d", "--wait"); err != nil {
 		return err
 	}
 
-	for {
-		err := arksetup.EnsureReady(ctx)
-		if err == nil {
-			break
-		}
-
-		fmt.Fprintf(os.Stderr, "waiting for arkd to be ready: %v\n", err)
-		time.Sleep(5 * time.Second)
-
-		select {
-		case <-time.After(5 * time.Second):
-		case <-ctx.Done():
-			fmt.Fprintf(os.Stderr, "context cancelled while waiting for boltz fulmine to be ready: %v\n", ctx.Err())
-			return ctx.Err()
-		}
-	}
-	return nil
-}
-
-func setUpBoltz(ctx context.Context) error {
-
-	go func() {
-		boltzFulmine := fulminesetup.NewTestFulmine("http://localhost:7003/api/v1")
-
-		for {
-			err := boltzFulmine.EnsureReady(context.Background())
-			if err == nil {
-				break
-			}
-			fmt.Fprintf(os.Stderr, "waiting for boltz fulmine to be ready: %v\n", err)
-			time.Sleep(5 * time.Second)
-
-			select {
-			case <-time.After(5 * time.Second):
-			case <-ctx.Done():
-				fmt.Fprintf(os.Stderr, "context cancelled while waiting for boltz fulmine to be ready: %v\n", ctx.Err())
-				return
-			}
-		}
-	}()
-
-	if err := runComposeCommand(ctx, boltzComposeFile, "up", "-d", "--wait"); err != nil {
+	re := regexp.MustCompile(`available:\s*([0-9]+\.[0-9]+)`)
+	balance, err := strconv.ParseFloat(re.FindStringSubmatch(out)[1], 64)
+	if err != nil {
 		return err
 	}
 
-	if err := lightningsetup.EnsureConnectivity(ctx); err != nil {
-		return fmt.Errorf("lightning: %w", err)
+	if delta := balanceThreshold - balance; delta >= 1 {
+		command := fmt.Sprintf("%s wallet address", arkdExec)
+		address, err := runCommand(ctx, command)
+		if err != nil {
+			return err
+		}
+
+		for range int(delta) {
+			if err := faucet(ctx, strings.TrimSpace(address), 1); err != nil {
+				return err
+			}
+		}
 	}
 
+	time.Sleep(5 * time.Second)
 	return nil
 }
 
-func setupClient(ctx context.Context) error {
-	clientFulmine := fulminesetup.NewTestFulmine("http://localhost:7001/api/v1")
-	if err := clientFulmine.EnsureReady(ctx); err != nil {
-		return fmt.Errorf("fulmine: %w", err)
-	}
-	return nil
+func refillFulmineBoltz(ctx context.Context) error {
+	return refillFulmine(ctx, "localhost:7000")
 }
 
-func runComposeCommand(ctx context.Context, composeFile string, args ...string) error {
-	cmdArgs := append([]string{"compose", "-f", composeFile}, args...)
-	err := runCommand(ctx, "docker", cmdArgs...)
-	if err == nil {
+func refillFulmineClient(ctx context.Context) error {
+	return refillFulmine(ctx, "localhost:7002")
+}
+
+func refillFulmine(ctx context.Context, url string) error {
+	balanceThreshold := 100000
+
+	f, err := newFulmineClient(url)
+	if err != nil {
+		return err
+	}
+
+	balance, err := f.GetBalance(ctx, &pb.GetBalanceRequest{})
+	if err != nil {
+		return err
+	}
+	if int(balance.GetAmount()) >= balanceThreshold {
 		return nil
 	}
-	if strings.Contains(err.Error(), "unknown flag: --wait") {
-		withoutWait := make([]string, 0, len(args)-1)
-		for _, arg := range args {
-			if arg != "--wait" {
-				withoutWait = append(withoutWait, arg)
-			}
+
+	if delta := balanceThreshold - int(balance.GetAmount()); delta > 0 {
+		address, err := f.GetOnboardAddress(ctx, &pb.GetOnboardAddressRequest{})
+		if err != nil {
+			return err
 		}
-		cmdArgs = append([]string{"compose", "-f", composeFile}, withoutWait...)
-		return runCommand(ctx, "docker", cmdArgs...)
+		amountInBtc := float64(delta) / 100000000
+		if err := faucet(ctx, address.GetAddress(), amountInBtc); err != nil {
+			return err
+		}
 	}
+
+	time.Sleep(5 * time.Second)
+	_, err = f.Settle(ctx, &pb.SettleRequest{})
 	return err
-}
-
-func composeDown(ctx context.Context) error {
-	var combined error
-	if err := runComposeCommand(ctx, boltzComposeFile, "down", "-v"); err != nil {
-		combined = errors.Join(combined, err)
-	}
-	if err := runComposeCommand(ctx, defaultComposeFile, "down"); err != nil {
-		combined = errors.Join(combined, err)
-	}
-	return combined
-}
-
-func runCommand(ctx context.Context, command string, args ...string) error {
-	cmd := exec.CommandContext(ctx, command, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Dir = projectRoot()
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%s %v: %w", command, args, err)
-	}
-
-	return nil
-}
-
-func projectRoot() string {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		return "."
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), ".."))
 }

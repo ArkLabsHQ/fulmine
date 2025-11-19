@@ -46,11 +46,9 @@ The project follows a clean architecture pattern:
 ### Testing
 
 - **Unit tests**: `make test` - Runs all unit tests excluding e2e
-- **VHTLC tests**: `make test-vhtlc` - Runs VHTLC-specific tests
 - **Integration tests**: Requires test environment:
   ```bash
   make build-test-env    # Build Docker images
-  make up-test-env       # Start test containers
   make setup-test-env    # Initialize test environment
   make integrationtest   # Run e2e tests
   make down-test-env     # Stop test environment
@@ -137,7 +135,6 @@ The project follows a clean architecture pattern:
 
 Virtual HTLCs are a key innovation in Fulmine for optimized Lightning operations:
 - Located in `pkg/vhtlc/`
-- Special test suite: `make test-vhtlc`
 - Used for efficient channel management without constant on-chain operations
 
 ### Swap Integration
