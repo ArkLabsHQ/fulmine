@@ -1,7 +1,6 @@
 package e2e_test
 
 import (
-	"fmt"
 	"sync"
 	"testing"
 
@@ -238,7 +237,6 @@ func TestConcurrentSwaps(t *testing.T) {
 			errCount := 0
 			for _, err := range errs.errs {
 				if err != nil {
-					fmt.Println("AAAA", err)
 					errCount++
 				}
 			}
