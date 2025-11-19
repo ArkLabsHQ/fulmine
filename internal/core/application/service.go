@@ -2120,7 +2120,7 @@ func (s *Service) refundVHTLC(
 		return "", err
 	}
 
-	refundTx, checkpointPtxs, err := offchain.BuildTxs(
+	refundTx, checkpointTxs, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
 				RevealedTapscripts: vtxoScript.GetRevealedTapscripts(),
@@ -2141,16 +2141,12 @@ func (s *Service) refundVHTLC(
 		return "", err
 	}
 
-	if len(checkpointPtxs) != 1 {
+	if len(checkpointTxs) != 1 {
 		return "", fmt.Errorf(
-			"failed to build refund tx: expected 1 checkpoint tx got %d", len(checkpointPtxs),
+			"failed to build refund tx: expected 1 checkpoint tx got %d", len(checkpointTxs),
 		)
 	}
-	unsignedRefundTx, err := refundTx.B64Encode()
-	if err != nil {
-		return "", fmt.Errorf("failed to encode unsigned refund tx: %s", err)
-	}
-	unsignedCheckpointTx, err := checkpointPtxs[0].B64Encode()
+	unsignedCheckpointTx, err := checkpointTxs[0].B64Encode()
 	if err != nil {
 		return "", fmt.Errorf("failed to encode unsigned checkpoint tx: %s", err)
 	}
@@ -2168,7 +2164,7 @@ func (s *Service) refundVHTLC(
 	if err != nil {
 		return "", fmt.Errorf("failed to sign refund tx: %s", err)
 	}
-	signedCheckpointTx, err := signTransaction(checkpointPtxs[0])
+	signedCheckpointTx, err := signTransaction(checkpointTxs[0])
 	if err != nil {
 		return "", fmt.Errorf("failed to sign checkpoint tx: %s", err)
 	}
@@ -2183,13 +2179,14 @@ func (s *Service) refundVHTLC(
 		return "", fmt.Errorf("failed to decode checkpoint tx signed by us: %s", err)
 	}
 
-	vhtlcOpts := vHTLC.Opts
-	pubKeysToVerify := []*btcec.PublicKey{vhtlcOpts.Sender, vhtlcOpts.Server}
 	checkpointsList := make([]*psbt.Packet, 0)
 	checkpointsList = append(checkpointsList, signedCheckpointPsbt)
 
 	if withReceiver {
-		pubKeysToVerify = append(pubKeysToVerify, vhtlcOpts.Receiver)
+		unsignedRefundTx, err := refundTx.B64Encode()
+		if err != nil {
+			return "", fmt.Errorf("failed to encode unsigned refund tx: %s", err)
+		}
 
 		boltzSignedRefundTx, boltzSignedCheckpointTx, err := s.boltzRefundSwap(
 			swapId, unsignedRefundTx, unsignedCheckpointTx,
@@ -2231,7 +2228,12 @@ func (s *Service) refundVHTLC(
 		return "", fmt.Errorf("failed to decode checkpoint tx signed by us: %s", err)
 	}
 
-	if err := verifySignatures([]*psbt.Packet{finalRefundPtx}, pubKeysToVerify, getInputTapLeaves(refundTx)); err != nil {
+	prevoutFetcher, err := txutils.GetPrevOutputFetcher(refundTx)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := txutils.VerifyTapscriptSigs(finalRefundPtx, prevoutFetcher); err != nil {
 		return "", err
 	}
 
@@ -2243,11 +2245,11 @@ func (s *Service) refundVHTLC(
 		return "", fmt.Errorf("failed to combine checkpoint txs: %s", err)
 	}
 
-	err = verifySignatures(
-		[]*psbt.Packet{finalCheckpointPtx}, []*btcec.PublicKey{cfg.SignerPubKey},
-		getInputTapLeaves(serverCheckpointPtx),
-	)
+	cpPrevoutFetcher, err := txutils.GetPrevOutputFetcher(checkpointTxs[0])
 	if err != nil {
+		return "", err
+	}
+	if _, err := txutils.VerifyTapscriptSigs(finalCheckpointPtx, cpPrevoutFetcher); err != nil {
 		return "", err
 	}
 

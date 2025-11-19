@@ -121,19 +121,6 @@ func getInputTapLeaves(tx *psbt.Packet) map[int]txscript.TapLeaf {
 	return tapLeaves
 }
 
-func verifySignatures(signedCheckpointTxs []*psbt.Packet, signers []*btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf) error {
-	for _, signedCheckpointTx := range signedCheckpointTxs {
-		for _, signer := range signers {
-			// verify that the ark signer has signed the ark tx
-			err := verifyInputSignatures(signedCheckpointTx, signer, expectedTapLeaves)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func verifyAndSignCheckpoints(
 	signedCheckpoints []string, myCheckpoints []*psbt.Packet,
 	arkSigner *btcec.PublicKey, sign func(tx *psbt.Packet) (string, error),
