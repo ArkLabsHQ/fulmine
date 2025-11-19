@@ -436,7 +436,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		// Schedule next settlement for the current vtxo set.
-		nextExpiry, err := s.computeNextExpiry(ctx, arkConfig)
+		nextExpiry, err := s.computeNextExpiry(context.Background(), arkConfig)
 		if err != nil {
 			log.WithError(err).Error("failed to compute next expiry")
 		}
@@ -463,9 +463,21 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		go s.resumePendingSwapRefunds(context.Background())
 
 		// Restore watch of our and tracked addresses.
-		_, _, boardingAddresses, _, err := s.GetAddresses(ctx)
+		_, offchainAddrses, boardingAddresses, _, err := s.GetAddresses(context.Background())
 		if err != nil {
 			log.WithError(err).Error("failed to get addresses")
+		}
+
+		scripts, err := offchainAddressesPkScripts(offchainAddrses)
+		if err != nil {
+			log.WithError(err).Error("failed to decode offchain address")
+		}
+
+		log.Debugf("len of scripts %d", len(scripts))
+
+		_, err = s.dbSvc.SubscribedScript().Add(context.Background(), scripts)
+		if err != nil {
+			log.Debugf("cannot listen to scripts %+v", err)
 		}
 
 		s.externalSubscription = newSubscriptionHandler(
@@ -481,7 +493,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		// Load delegate signer key.
-		prvkeyStr, err := s.Dump(ctx)
+		prvkeyStr, err := s.Dump(context.Background())
 		if err != nil {
 			log.WithError(err).Error("failed to get delegate signer key")
 		}
@@ -1006,7 +1018,7 @@ func (s *Service) ListWatchedAddresses(ctx context.Context) ([]domain.VtxoRollov
 
 func (s *Service) IsLocked(ctx context.Context) bool {
 	if s.ArkClient == nil {
-		return false
+		return true
 	}
 
 	return s.ArkClient.IsLocked(ctx)

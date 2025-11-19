@@ -21,6 +21,7 @@ require (
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
 	github.com/arkade-os/go-sdk v0.8.2-0.20251110150555-3fea8eb154d1
 	github.com/ccoveille/go-safecast v1.6.1
+	github.com/creack/pty v1.1.18
 	github.com/dgraph-io/badger/v4 v4.6.0
 	github.com/getsentry/sentry-go v0.32.0
 	github.com/getsentry/sentry-go/gin v0.32.0
@@ -258,7 +259,7 @@ require (
 	golang.org/x/arch v0.8.0 // indirect
 	golang.org/x/crypto v0.42.0 // indirect
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
-	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sync v0.17.0
 	golang.org/x/term v0.35.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250804133106-a7a43d27e69b // indirect

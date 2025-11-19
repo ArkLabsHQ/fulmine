@@ -257,15 +257,9 @@ Run all unit tests:
 make test
 ```
 
-Run VHTLC-specific unit tests:
-```bash
-make test-vhtlc
-```
-
 Run integration tests:
 ```bash
 make build-test-env
-make up-test-env
 make setup-test-env
 make integrationtest
 make down-test-env

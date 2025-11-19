@@ -169,8 +169,9 @@ func (s *service) PayInvoice(
 	}
 
 	sendRequest := &routerrpc.SendPaymentRequest{
-		PaymentRequest: invoice,
-		TimeoutSeconds: 120,
+		PaymentRequest:   invoice,
+		TimeoutSeconds:   120,
+		AllowSelfPayment: true,
 	}
 	stream, err := s.routerClient.SendPaymentV2(ctx, sendRequest)
 	if err != nil {
