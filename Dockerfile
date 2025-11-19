@@ -26,8 +26,6 @@ FROM alpine:3.20
 
 WORKDIR /app
 
-RUN apk add --no-cache curl jq
-
 COPY --from=go-builder /app/bin/* /app
 
 ENV PATH="/app:${PATH}"

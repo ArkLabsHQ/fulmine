@@ -1216,16 +1216,26 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) boltzRefundSwap(swapId, refundTx, checkpointTx string) (string, string, error) {
+func (s *Service) boltzRefundSwap(
+	swapId, refundTx, checkpointTx string,
+) (*psbt.Packet, *psbt.Packet, error) {
 	tx, err := s.boltzSvc.RefundSubmarine(swapId, boltz.RefundSwapRequest{
 		Transaction: refundTx,
 		Checkpoint:  checkpointTx,
 	})
 	if err != nil {
-		return "", "", err
+		return nil, nil, err
+	}
+	refundPtx, err := psbt.NewFromRawBytes(strings.NewReader(tx.Transaction), true)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decode refund tx signed by boltz: %s", err)
+	}
+	checkpointPtx, err := psbt.NewFromRawBytes(strings.NewReader(tx.Checkpoint), true)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decode refund checkpoint tx signed by boltz: %s", err)
 	}
 
-	return tx.Transaction, tx.Checkpoint, nil
+	return refundPtx, checkpointPtx, nil
 }
 
 func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*time.Time, error) {
@@ -2174,11 +2184,8 @@ func (s *Service) refundVHTLC(
 	}
 
 	vhtlcOpts := vHTLC.Opts
-
 	pubKeysToVerify := []*btcec.PublicKey{vhtlcOpts.Sender, vhtlcOpts.Server}
-
 	checkpointsList := make([]*psbt.Packet, 0)
-
 	checkpointsList = append(checkpointsList, signedCheckpointPsbt)
 
 	if withReceiver {
@@ -2191,25 +2198,14 @@ func (s *Service) refundVHTLC(
 			return "", err
 		}
 
-		boltzSignedRefundPsbt, err := psbt.NewFromRawBytes(strings.NewReader(boltzSignedRefundTx), true)
-		if err != nil {
-			return "", fmt.Errorf("failed to decode refund tx signed by boltz: %s", err)
-		}
-		boltzSignedCheckpointPsbt, err := psbt.NewFromRawBytes(
-			strings.NewReader(boltzSignedCheckpointTx), true,
-		)
-		if err != nil {
-			return "", fmt.Errorf("failed to decode refund tx signed by boltz: %s", err)
-		}
-
 		for i := range signedRefundPsbt.Inputs {
-			boltzIn := boltzSignedRefundPsbt.Inputs[i]
-			partialSig := boltzIn.PartialSigs[0]
-			signedRefundPsbt.Inputs[i].PartialSigs =
-				append(signedRefundPsbt.Inputs[i].PartialSigs, partialSig)
+			boltzIn := boltzSignedRefundTx.Inputs[i]
+			partialSig := boltzIn.TaprootScriptSpendSig[0]
+			signedRefundPsbt.Inputs[i].TaprootScriptSpendSig =
+				append(signedRefundPsbt.Inputs[i].TaprootScriptSpendSig, partialSig)
 		}
 
-		checkpointsList = append(checkpointsList, boltzSignedCheckpointPsbt)
+		checkpointsList = append(checkpointsList, boltzSignedCheckpointTx)
 
 	}
 
@@ -2247,7 +2243,10 @@ func (s *Service) refundVHTLC(
 		return "", fmt.Errorf("failed to combine checkpoint txs: %s", err)
 	}
 
-	err = verifySignatures([]*psbt.Packet{finalCheckpointPtx}, []*btcec.PublicKey{cfg.SignerPubKey}, getInputTapLeaves(serverCheckpointPtx))
+	err = verifySignatures(
+		[]*psbt.Packet{finalCheckpointPtx}, []*btcec.PublicKey{cfg.SignerPubKey},
+		getInputTapLeaves(serverCheckpointPtx),
+	)
 	if err != nil {
 		return "", err
 	}

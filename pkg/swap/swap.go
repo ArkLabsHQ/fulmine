@@ -428,7 +428,7 @@ func (h *SwapHandler) refundVHTLC(
 	}
 	unsignedCheckpointTx, err := checkpointPtxs[0].B64Encode()
 	if err != nil {
-		return "", fmt.Errorf("failed to encode unsigned refund tx: %s", err)
+		return "", fmt.Errorf("failed to encode unsigned refund checkpoint tx: %s", err)
 	}
 
 	signTransaction := func(tx *psbt.Packet) (string, error) {
@@ -446,7 +446,7 @@ func (h *SwapHandler) refundVHTLC(
 	}
 	signedCheckpointTx, err := signTransaction(checkpointPtxs[0])
 	if err != nil {
-		return "", fmt.Errorf("failed to sign refund tx: %s", err)
+		return "", fmt.Errorf("failed to sign refund checkpoint tx: %s", err)
 	}
 
 	signedRefundPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedRefundTx), true)

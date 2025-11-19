@@ -178,7 +178,7 @@ func combineSignedCheckpointsTxs(signedCheckpoints []*psbt.Packet) (*psbt.Packet
 	finalCheckpoint := signedCheckpoints[0]
 
 	for i := range finalCheckpoint.Inputs {
-		scriptSigs := make([]*psbt.TaprootScriptSpendSig, len(signedCheckpoints))
+		scriptSigs := make([]*psbt.TaprootScriptSpendSig, 0, len(signedCheckpoints))
 		for _, signedCheckpointPsbt := range signedCheckpoints {
 			boltzIn := signedCheckpointPsbt.Inputs[i]
 			partialSig := boltzIn.TaprootScriptSpendSig[0]

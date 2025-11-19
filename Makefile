@@ -99,7 +99,6 @@ pull-test-env:
 build-test-env: pull-test-env
 	@echo "Building test environment..."
 	@docker compose -f test.docker-compose.yml build --no-cache
-	@docker compose -f boltz.docker-compose.yml build --no-cache
 
 ## setup-arkd: sets up the ARK server
 setup-test-env:
