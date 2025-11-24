@@ -76,7 +76,7 @@ func (r *swapRepository) AddAll(ctx context.Context, swaps []domain.Swap) error 
 			if err := querierWithTx.InsertVHTLC(ctx, vhtlcRow); err != nil {
 				if sqlErr, ok := err.(*sqlite.Error); ok {
 					if sqlErr.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
-						logrus.Errorf("vHTLC with id %s already exists", vhtlcRow.ID)
+						logrus.Warnf("vHTLC with id %s already exists", vhtlcRow.ID)
 						continue
 					}
 				}
