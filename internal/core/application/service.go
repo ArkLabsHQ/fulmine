@@ -346,8 +346,6 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		return err
 	}
 
-	fmt.Printf("this is my privatekey", hex.EncodeToString(prvKey.Serialize()))
-
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: WalletInit, Password: password}
 	}()
