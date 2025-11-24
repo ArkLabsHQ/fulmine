@@ -31,7 +31,6 @@ import (
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
-	"github.com/btcsuite/btcd/btcutil/psbt"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -1360,28 +1359,6 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (s *Service) boltzRefundSwap(
-	swapId, refundTx, checkpointTx string,
-) (*psbt.Packet, *psbt.Packet, error) {
-	tx, err := s.boltzSvc.RefundSubmarine(swapId, boltz.RefundSwapRequest{
-		Transaction: refundTx,
-		Checkpoint:  checkpointTx,
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	refundPtx, err := psbt.NewFromRawBytes(strings.NewReader(tx.Transaction), true)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decode refund tx signed by boltz: %s", err)
-	}
-	checkpointPtx, err := psbt.NewFromRawBytes(strings.NewReader(tx.Checkpoint), true)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decode refund checkpoint tx signed by boltz: %s", err)
-	}
-
-	return refundPtx, checkpointPtx, nil
 }
 
 func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*time.Time, error) {
