@@ -820,8 +820,8 @@ func (s *Service) GetSwapVHTLC(
 	}
 
 	opts := vhtlc.Opts{
-		Sender:                               senderPubkey,
-		Receiver:                             receiverPubkey,
+		Sender:                               senderKey,
+		Receiver:                             receiverKey,
 		Server:                               cfg.SignerPubKey,
 		PreimageHash:                         preimageHash,
 		RefundLocktime:                       refundLocktime,

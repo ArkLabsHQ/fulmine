@@ -29,8 +29,16 @@ type Opts struct {
 }
 
 func (o Opts) validate() error {
-	if o.Sender == nil || o.Receiver == nil || o.Server == nil {
-		return fmt.Errorf("sender, receiver, and server are required")
+	if o.Sender == nil {
+		return fmt.Errorf("sender required")
+	}
+
+	if o.Receiver == nil {
+		return fmt.Errorf("receiver required")
+	}
+
+	if o.Server == nil {
+		return fmt.Errorf("server required")
 	}
 
 	if len(o.PreimageHash) != hash160Len {
