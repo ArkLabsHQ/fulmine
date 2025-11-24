@@ -90,7 +90,8 @@ func (boltz *Api) RevealPreimage(swapId string, preimage string) (*RevealPreimag
 }
 
 func (boltz *Api) FetchSwapHistory(pubkey string) (*FetchSwapHistoryResponse, error) {
-	url := fmt.Sprintf("/swap/restore")
+	url := "/swap/restore"
+
 	request := struct {
 		PublicKey string `json:"publicKey"`
 	}{

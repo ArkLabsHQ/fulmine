@@ -1236,9 +1236,15 @@ func (s *Service) RestoreSwapHistory(ctx context.Context) error {
 		return err
 	}
 
+	if swapHistoryResponse == nil {
+		return nil
+	}
+
 	serverKey := configData.SignerPubKey
 
-	swap := make([]domain.Swap, len(*swapHistoryResponse))
+	swapList := make([]domain.Swap, len(*swapHistoryResponse))
+
+	failedSubmarineSwapMap := make(map[string]domain.Swap, 0)
 
 	for i, swapHistory := range *swapHistoryResponse {
 		var swapDetails *boltz.SwapDetails
@@ -1272,7 +1278,7 @@ func (s *Service) RestoreSwapHistory(ctx context.Context) error {
 			redeemTxId = swapDetails.Transaction.ID
 		}
 
-		swap[i] = domain.Swap{
+		swap := domain.Swap{
 			Id:          swapHistory.Id,
 			Status:      convertSwapStatus(swapHistory.Status),
 			Timestamp:   int64(swapHistory.CreateAt),
@@ -1285,11 +1291,78 @@ func (s *Service) RestoreSwapHistory(ctx context.Context) error {
 			RedeemTxId:  redeemTxId,
 		}
 
-		dbErr := s.dbSvc.Swap().Add(context.Background(), swap[i])
-		if dbErr != nil {
-			log.WithError(dbErr).Error("failed to add swap to db")
-			return dbErr
+		if swap.Status == domain.SwapFailed && swap.From == boltz.CurrencyArk {
+			swapScript, err := vhtlc.NewVHTLCScript(swap.Vhtlc.Opts)
+			if err != nil {
+				log.WithError(err).Error("failed to create vhtlc script")
+				continue
+			}
+			tapKey, _, err := swapScript.TapTree()
+			if err != nil {
+				log.WithError(err).Error("failed to get taproot key")
+				continue
+			}
+
+			p2trScript, err := txscript.PayToTaprootScript(tapKey)
+			if err != nil {
+				return fmt.Errorf("failed to parse address to p2tr script: %w", err)
+			}
+
+			failedSubmarineSwapMap[hex.EncodeToString(p2trScript)] = swap
+		} else {
+			swapList[i] = swap
 		}
+
+	}
+
+	dbErr := s.dbSvc.Swap().AddAll(context.Background(), swapList)
+	if dbErr != nil {
+		log.WithError(dbErr).Error("failed to add swap to db")
+		return nil
+	}
+
+	if len(failedSubmarineSwapMap) == 0 {
+		return nil
+	}
+
+	failedSwapScripts := make([]string, 0, len(failedSubmarineSwapMap))
+
+	for script, _ := range failedSubmarineSwapMap {
+		failedSwapScripts = append(failedSwapScripts, script)
+	}
+
+	option := indexer.GetVtxosRequestOption{}
+	option.WithScripts(failedSwapScripts)
+
+	vtxoResponse, err := s.indexerClient.GetVtxos(ctx, option)
+	if err != nil {
+		log.WithError(err).Error("failed to get vtxos for swap refund")
+		return nil
+	}
+
+	for _, vtxo := range vtxoResponse.Vtxos {
+		if !vtxo.Spent {
+			continue
+		}
+		scriptHex := vtxo.Script
+		swp, exists := failedSubmarineSwapMap[scriptHex]
+		if !exists {
+			continue
+		}
+
+		swp.RedeemTxId = vtxo.SpentBy
+		failedSubmarineSwapMap[scriptHex] = swp
+	}
+
+	// persist updated failed swaps
+	failedSwaps := make([]domain.Swap, 0, len(failedSubmarineSwapMap))
+	for _, swp := range failedSubmarineSwapMap {
+		failedSwaps = append(failedSwaps, swp)
+	}
+
+	if err := s.dbSvc.Swap().AddAll(ctx, failedSwaps); err != nil {
+		log.WithError(err).Error("failed to add failed swaps to db")
+		return err
 	}
 
 	return nil
