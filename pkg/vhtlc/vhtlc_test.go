@@ -281,6 +281,84 @@ func TestVHTLC(t *testing.T) {
 	})
 }
 
+func TestGetVhtlcScript(t *testing.T) {
+	senderKey := generatePrivateKey(t)
+	receiverKey := generatePrivateKey(t)
+	serverKey := generatePrivateKey(t)
+	preimage := generatePreimage(t)
+	preimageHash := calculatePreimageHash(preimage)
+
+	opts := vhtlc.Opts{
+		Sender:                               senderKey.PubKey(),
+		Receiver:                             receiverKey.PubKey(),
+		Server:                               serverKey.PubKey(),
+		PreimageHash:                         preimageHash,
+		RefundLocktime:                       arklib.AbsoluteLocktime(time.Now().Add(24 * time.Hour).Unix()),
+		UnilateralClaimDelay:                 arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: 144},
+		UnilateralRefundDelay:                arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: 72},
+		UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: 288},
+	}
+
+	original, err := vhtlc.NewVHTLCScript(opts)
+	require.NoError(t, err)
+
+	claimScript, err := original.ClaimClosure.Script()
+	require.NoError(t, err)
+	refundScript, err := original.RefundClosure.Script()
+	require.NoError(t, err)
+	refundWithoutReceiverScript, err := original.RefundWithoutReceiverClosure.Script()
+	require.NoError(t, err)
+	unilateralClaimScript, err := original.UnilateralClaimClosure.Script()
+	require.NoError(t, err)
+	unilateralRefundScript, err := original.UnilateralRefundClosure.Script()
+	require.NoError(t, err)
+	unilateralRefundWithoutReceiverScript, err := original.UnilateralRefundWithoutReceiverClosure.Script()
+	require.NoError(t, err)
+
+	recovered, err := vhtlc.GetVhtlcScript(
+		opts.Server,
+		hex.EncodeToString(opts.PreimageHash),
+		hex.EncodeToString(claimScript),
+		hex.EncodeToString(refundScript),
+		hex.EncodeToString(refundWithoutReceiverScript),
+		hex.EncodeToString(unilateralClaimScript),
+		hex.EncodeToString(unilateralRefundScript),
+		hex.EncodeToString(unilateralRefundWithoutReceiverScript),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, recovered)
+
+	derived := recovered.DeriveOpts()
+	require.True(t, derived.Sender.IsEqual(opts.Sender))
+	require.True(t, derived.Receiver.IsEqual(opts.Receiver))
+	require.True(t, derived.Server.IsEqual(opts.Server))
+	require.Equal(t, opts.PreimageHash, derived.PreimageHash)
+	require.Equal(t, opts.RefundLocktime, derived.RefundLocktime)
+	require.Equal(t, opts.UnilateralClaimDelay, derived.UnilateralClaimDelay)
+	require.Equal(t, opts.UnilateralRefundDelay, derived.UnilateralRefundDelay)
+	require.Equal(t, opts.UnilateralRefundWithoutReceiverDelay, derived.UnilateralRefundWithoutReceiverDelay)
+
+	recoveredClaimScript, err := recovered.ClaimClosure.Script()
+	require.NoError(t, err)
+	recoveredRefundScript, err := recovered.RefundClosure.Script()
+	require.NoError(t, err)
+	recoveredRefundWithoutReceiverScript, err := recovered.RefundWithoutReceiverClosure.Script()
+	require.NoError(t, err)
+	recoveredUnilateralClaimScript, err := recovered.UnilateralClaimClosure.Script()
+	require.NoError(t, err)
+	recoveredUnilateralRefundScript, err := recovered.UnilateralRefundClosure.Script()
+	require.NoError(t, err)
+	recoveredUnilateralRefundWithoutReceiverScript, err := recovered.UnilateralRefundWithoutReceiverClosure.Script()
+	require.NoError(t, err)
+
+	require.Equal(t, hex.EncodeToString(claimScript), hex.EncodeToString(recoveredClaimScript))
+	require.Equal(t, hex.EncodeToString(refundScript), hex.EncodeToString(recoveredRefundScript))
+	require.Equal(t, hex.EncodeToString(refundWithoutReceiverScript), hex.EncodeToString(recoveredRefundWithoutReceiverScript))
+	require.Equal(t, hex.EncodeToString(unilateralClaimScript), hex.EncodeToString(recoveredUnilateralClaimScript))
+	require.Equal(t, hex.EncodeToString(unilateralRefundScript), hex.EncodeToString(recoveredUnilateralRefundScript))
+	require.Equal(t, hex.EncodeToString(unilateralRefundWithoutReceiverScript), hex.EncodeToString(recoveredUnilateralRefundWithoutReceiverScript))
+}
+
 // Helper function to generate a random private key
 func generatePrivateKey(t *testing.T) *btcec.PrivateKey {
 	t.Helper()
