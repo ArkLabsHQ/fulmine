@@ -311,7 +311,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
 	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
 
-	addr, vhtlc_id, vhtlcScript, _, err := h.svc.GetVHTLC(
+	addr, vhtlc_id, vhtlcScript, err := h.svc.GetSwapVHTLC(
 		ctx,
 		receiverPubkey,
 		senderPubkey,
