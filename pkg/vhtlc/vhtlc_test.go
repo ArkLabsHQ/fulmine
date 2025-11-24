@@ -329,8 +329,8 @@ func TestGetVhtlcScript(t *testing.T) {
 	require.NotNil(t, recovered)
 
 	derived := recovered.DeriveOpts()
-	require.True(t, derived.Sender.IsEqual(opts.Sender))
-	require.True(t, derived.Receiver.IsEqual(opts.Receiver))
+	require.Equal(t, schnorr.SerializePubKey(opts.Sender), schnorr.SerializePubKey(derived.Sender))
+	require.Equal(t, schnorr.SerializePubKey(opts.Receiver), schnorr.SerializePubKey(derived.Receiver))
 	require.True(t, derived.Server.IsEqual(opts.Server))
 	require.Equal(t, opts.PreimageHash, derived.PreimageHash)
 	require.Equal(t, opts.RefundLocktime, derived.RefundLocktime)

@@ -135,7 +135,7 @@ type FetchSwapHistoryResponse = []struct {
 	Status        string       `json:"status"`
 	From          Currency     `json:"from"`
 	To            Currency     `json:"to"`
-	CreateAt      uint32       `json:"createdAt"`
+	CreatedAt     uint32       `json:"createdAt"`
 	PreimageHash  string       `json:"preimageHash"`
 	ClaimDetails  *SwapDetails `json:"claimDetails,omitempty"`
 	RefundDetails *SwapDetails `json:"refundDetails,omitempty"`

@@ -1280,7 +1280,7 @@ func (s *Service) RestoreSwapHistory(ctx context.Context) error {
 		swap := domain.Swap{
 			Id:          swapHistory.Id,
 			Status:      convertSwapStatus(swapHistory.Status),
-			Timestamp:   int64(swapHistory.CreateAt),
+			Timestamp:   int64(swapHistory.CreatedAt),
 			Amount:      swapDetails.Amount,
 			To:          swapHistory.To,
 			From:        swapHistory.From,
@@ -1313,7 +1313,11 @@ func (s *Service) RestoreSwapHistory(ctx context.Context) error {
 
 	if len(failedSubmarineScripts) != 0 {
 		option := indexer.GetVtxosRequestOption{}
-		option.WithScripts(failedSubmarineScripts)
+		err := option.WithScripts(failedSubmarineScripts)
+		if err != nil {
+			log.WithError(err).Error("failed to create vtxo request option for swap refund")
+			return nil
+		}
 
 		vtxoResponse, err := s.indexerClient.GetVtxos(ctx, option)
 		if err != nil {
@@ -1346,7 +1350,11 @@ func (s *Service) RestoreSwapHistory(ctx context.Context) error {
 
 	if len(successfulReverseScripts) != 0 {
 		option := indexer.GetVtxosRequestOption{}
-		option.WithScripts(successfulReverseScripts)
+		err := option.WithScripts(successfulReverseScripts)
+		if err != nil {
+			log.WithError(err).Error("failed to create vtxo request option for swap refund")
+			return nil
+		}
 
 		vtxoResponse, err := s.indexerClient.GetVtxos(ctx, option)
 		if err != nil {
