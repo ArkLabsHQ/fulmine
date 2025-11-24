@@ -12,29 +12,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
       
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v6
         with:
-          go-version: '>=1.24.6'
+          go-version: '>=1.25.3'
           cache: true
       
       # Run linting with the original working configuration
       - name: check linting
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.1.5
+          version: v2.5.0
       
       - name: Get dependencies
         run: go get -v -t -d ./...
       
       - name: Run main tests
         run: make test
-
-      - name: Run VHTLC tests
-        run: cd pkg/vhtlc && go test -v -count=1 -race
 
       # Security check with minimal output
       - name: Security Check

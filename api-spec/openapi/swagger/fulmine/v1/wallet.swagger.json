@@ -320,7 +320,7 @@
       "properties": {
         "currentPassword": {
           "type": "string",
-          "description": "The current password used to encrypt the walley."
+          "description": "The current password used to encrypt the wallet."
         },
         "newPassword": {
           "type": "string",

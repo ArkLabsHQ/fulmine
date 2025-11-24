@@ -14,10 +14,10 @@ github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da h1:KjTM2ks9d14ZYCvmH
 github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da/go.mod h1:eHEWzANqSiWQsof+nXEI9bUVUyV6F53Fp89EuCh2EAA=
 github.com/aead/siphash v1.0.1 h1:FwHfE/T45KPKYuuSAKyyvE+oPWcaQ+CUmFW0bPlM+kg=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
-github.com/arkade-os/arkd/pkg/ark-lib v0.7.2-0.20251010142325-5b2f22ddea80 h1:EAuphsqU2rZNKE6HP92NbY70YhuXfCdtEiHKqq5rnbw=
-github.com/arkade-os/arkd/pkg/ark-lib v0.7.2-0.20251010142325-5b2f22ddea80/go.mod h1:WtND6j3BA5KcYWCCHkI5k5UZS2UU+GZHDwqMVn6SD2s=
-github.com/arkade-os/go-sdk v0.7.2-0.20251010143855-3ca342862a88 h1:jKIdK7T+Z9cQEMZWqLuO+LN4o66jNY+fwdK1fDRk62I=
-github.com/arkade-os/go-sdk v0.7.2-0.20251010143855-3ca342862a88/go.mod h1:erufo1yuGDDNn+2HBufMwgNAeebPqgT8ibRfJJrM5bs=
+github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251119163300-38b7bf6a4010 h1:imcGbr6jNnjgw2ZLrMHl7z/3YfpxRsgUe8RueQKoWUQ=
+github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251119163300-38b7bf6a4010/go.mod h1:EIGiZNKRyIkkbu8ZfmMVO4Mij/Iz9/xzbS6jhGRbrVQ=
+github.com/arkade-os/go-sdk v0.8.2-0.20251110150555-3fea8eb154d1 h1:F8rDCgTxWDatfeHebIczm/ZkgLZCBB3Gcz7mpultYBM=
+github.com/arkade-os/go-sdk v0.8.2-0.20251110150555-3fea8eb154d1/go.mod h1:C0Kkb9/Ew2Y86TiVEbx3wBn7XZqKqQYB2BqRFHnxQwo=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=

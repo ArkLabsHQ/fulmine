@@ -266,6 +266,12 @@ func toVtxosProto(vtxos []types.Vtxo) []*pb.Vtxo {
 			ExpiresAt:       vtxo.ExpiresAt.Unix(),
 			CommitmentTxids: vtxo.CommitmentTxids,
 			ArkTxid:         vtxo.ArkTxid,
+			CreatedAt:       vtxo.CreatedAt.Unix(),
+			IsPreconfirmed:  vtxo.Preconfirmed,
+			IsSwept:         vtxo.Swept,
+			IsUnrolled:      vtxo.Unrolled,
+			IsSpent:         vtxo.Spent,
+			SettledBy:       vtxo.SettledBy,
 		})
 	}
 	return list
