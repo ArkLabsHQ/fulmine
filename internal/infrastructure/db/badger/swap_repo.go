@@ -83,6 +83,24 @@ func (r *swapRepository) Add(ctx context.Context, swap domain.Swap) error {
 	return nil
 }
 
+func (r *swapRepository) AddAll(ctx context.Context, swaps []domain.Swap) error {
+	if len(swaps) == 0 {
+		return nil
+	}
+
+	for _, swap := range swaps {
+		swapData := toSwapData(swap)
+		if err := r.store.Insert(swap.Id, swapData); err != nil {
+			if errors.Is(err, badgerhold.ErrKeyExists) {
+				continue
+			}
+			return fmt.Errorf("failed to insert swap %s: %w", swap.Id, err)
+		}
+	}
+
+	return nil
+}
+
 func (r *swapRepository) Update(ctx context.Context, swap domain.Swap) error {
 	swapData := toSwapData(swap)
 	return r.store.Update(swap.Id, swapData)

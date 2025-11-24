@@ -340,6 +340,12 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	s.indexerClient = indexerClient
 	s.isInitialized = true
 
+	// Revitilise all Swaps If Present
+	err = s.RestoreSwapHistory(ctx)
+	if err != nil {
+		return err
+	}
+
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: WalletInit, Password: password}
 	}()
@@ -1202,6 +1208,191 @@ func (s *Service) GetSwapHistory(ctx context.Context) ([]domain.Swap, error) {
 		return all[i].Timestamp > all[j].Timestamp
 	})
 	return all, nil
+}
+
+func (s *Service) RestoreSwapHistory(ctx context.Context) error {
+	configData, err := s.GetConfigData(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get config data: %v", err)
+	}
+
+	boltzApi := s.boltzSvc
+
+	if configData.Network.Name == arklib.BitcoinRegTest.Name {
+		boltzUrl, err := url.Parse(s.boltzSvc.URL)
+		if err != nil {
+			return err
+		}
+		host := boltzUrl.Hostname()
+		boltzUrl.Host = fmt.Sprintf("%s:%d", host, 9005)
+		boltzApi.URL = boltzUrl.String()
+
+	}
+
+	publicKey := hex.EncodeToString(s.publicKey.SerializeCompressed())
+
+	swapHistoryResponse, err := boltzApi.FetchSwapHistory(publicKey)
+	if err != nil {
+		return err
+	}
+
+	if swapHistoryResponse == nil {
+		return nil
+	}
+
+	serverKey := configData.SignerPubKey
+
+	submarineMap := make(map[string]domain.Swap, 0)
+	reverseMap := make(map[string]domain.Swap, 0)
+
+	for _, swapHistory := range *swapHistoryResponse {
+		var swapDetails *boltz.SwapDetails
+		if swapHistory.ClaimDetails != nil {
+			swapDetails = swapHistory.ClaimDetails
+		} else {
+			swapDetails = swapHistory.RefundDetails
+		}
+
+		preimageHash := swapHistory.PreimageHash
+		claimLeaf := swapDetails.Tree.ClaimLeaf.Output
+		refundLeaf := swapDetails.Tree.RefundLeaf.Output
+		refundWithoutReceiverLeaf := swapDetails.Tree.RefundLeafWithoutReceiver.Output
+		unilateralClaimLeaf := swapDetails.Tree.UnilateralClaimLeaf.Output
+		unilateralRefundLeaf := swapDetails.Tree.UnilateralRefundLeaf.Output
+		unilateralRefundWithoutReceiverLeaf := swapDetails.Tree.UnilateralRefundWithoutReceiver.Output
+
+		vhtlcScript, err := vhtlc.GetVhtlcScript(serverKey, preimageHash, claimLeaf, refundLeaf, refundWithoutReceiverLeaf, unilateralClaimLeaf, unilateralRefundLeaf, unilateralRefundWithoutReceiverLeaf)
+		if err != nil {
+			return err
+		}
+
+		vhltcOps := vhtlcScript.DeriveOpts()
+
+		var fundingTxId string
+		var redeemTxId string
+
+		if swapHistory.To == boltz.CurrencyBtc && swapHistory.From == boltz.CurrencyArk {
+			fundingTxId = swapDetails.Transaction.ID
+		} else {
+			redeemTxId = swapDetails.Transaction.ID
+		}
+
+		swap := domain.Swap{
+			Id:          swapHistory.Id,
+			Status:      convertSwapStatus(swapHistory.Status),
+			Timestamp:   int64(swapHistory.CreatedAt),
+			Amount:      swapDetails.Amount,
+			To:          swapHistory.To,
+			From:        swapHistory.From,
+			Type:        domain.SwapPayment,
+			Vhtlc:       domain.NewVhtlc(vhltcOps),
+			FundingTxId: fundingTxId,
+			RedeemTxId:  redeemTxId,
+		}
+
+		swapScript, err := offchainAddressesPkScripts([]string{swapDetails.LockupAddress})
+		if err != nil {
+			log.WithError(err).Error("failed to create vhtlc script")
+			continue
+		}
+
+		if swap.From == boltz.CurrencyArk {
+			submarineMap[swapScript[0]] = swap
+		} else {
+			reverseMap[swapScript[0]] = swap
+		}
+	}
+
+	failedSubmarineScripts := make([]string, 0)
+	for script, swp := range submarineMap {
+		if swp.Status == domain.SwapStatus(swap.SwapSuccess) {
+			continue
+		}
+		failedSubmarineScripts = append(failedSubmarineScripts, script)
+	}
+
+	if len(failedSubmarineScripts) != 0 {
+		option := indexer.GetVtxosRequestOption{}
+		err := option.WithScripts(failedSubmarineScripts)
+		if err != nil {
+			log.WithError(err).Error("failed to create vtxo request option for swap refund")
+			return nil
+		}
+
+		vtxoResponse, err := s.indexerClient.GetVtxos(ctx, option)
+		if err != nil {
+			log.WithError(err).Error("failed to get vtxos for swap refund")
+			return nil
+		}
+
+		for _, vtxo := range vtxoResponse.Vtxos {
+			if !vtxo.Spent {
+				continue
+			}
+			scriptHex := vtxo.Script
+			swp, exists := submarineMap[scriptHex]
+			if !exists {
+				continue
+			}
+
+			swp.RedeemTxId = vtxo.ArkTxid
+			submarineMap[scriptHex] = swp
+		}
+	}
+
+	successfulReverseScripts := make([]string, 0)
+	for script, swp := range reverseMap {
+		if swp.Status != domain.SwapStatus(swap.SwapSuccess) {
+			continue
+		}
+		successfulReverseScripts = append(successfulReverseScripts, script)
+	}
+
+	if len(successfulReverseScripts) != 0 {
+		option := indexer.GetVtxosRequestOption{}
+		err := option.WithScripts(successfulReverseScripts)
+		if err != nil {
+			log.WithError(err).Error("failed to create vtxo request option for swap refund")
+			return nil
+		}
+
+		vtxoResponse, err := s.indexerClient.GetVtxos(ctx, option)
+		if err != nil {
+			log.WithError(err).Error("failed to get vtxos for swap funding tx")
+			return nil
+		}
+
+		for _, vtxo := range vtxoResponse.Vtxos {
+			if !vtxo.Spent {
+				continue
+			}
+			scriptHex := vtxo.Script
+			swp, exists := reverseMap[scriptHex]
+			if !exists {
+				continue
+			}
+
+			swp.RedeemTxId = vtxo.ArkTxid
+			reverseMap[scriptHex] = swp
+		}
+	}
+
+	// persist all swaps
+	allswaps := make([]domain.Swap, 0)
+	for _, swp := range submarineMap {
+		allswaps = append(allswaps, swp)
+	}
+	for _, swp := range reverseMap {
+		allswaps = append(allswaps, swp)
+	}
+
+	dbErr := s.dbSvc.Swap().AddAll(ctx, allswaps)
+	if dbErr != nil {
+		log.WithError(dbErr).Error("failed to add swaps to db")
+		return nil
+	}
+
+	return nil
 }
 
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
@@ -2332,4 +2523,18 @@ func (s *Service) resumePendingSwapRefunds(ctx context.Context) {
 		}
 
 	}
+}
+
+func convertSwapStatus(swapStatus string) domain.SwapStatus {
+	mappedStatus := boltz.ParseEvent(swapStatus)
+	if mappedStatus == boltz.TransactionClaimed || mappedStatus == boltz.InvoiceSettled {
+		return domain.SwapSuccess
+	}
+
+	if mappedStatus == boltz.TransactionClaimPending || mappedStatus == boltz.InvoicePending {
+		return domain.SwapPending
+	}
+
+	return domain.SwapFailed
+
 }
