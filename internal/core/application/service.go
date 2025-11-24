@@ -452,7 +452,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		// Resume pending swap refunds.
-		go s.resumePendingSwapRefunds(context.Background())
+		go s.resumePendingSwapRefunds(ctx)
 
 		// Restore watch of our and tracked addresses.
 		_, offchainAddrses, boardingAddresses, _, err := s.GetAddresses(context.Background())
@@ -1692,7 +1692,7 @@ func (s *Service) resumePendingSwapRefunds(ctx context.Context) {
 
 	for _, swap := range swaps {
 
-		if swap.Status == domain.SwapFailed && swap.RedeemTxId == "" {
+		if swap.Status == domain.SwapFailed && swap.RedeemTxId == "" && swap.From == boltz.CurrencyArk {
 			if err := s.scheduleSwapRefund(swapHandler, swap.Id, swap.Vhtlc.Opts); err != nil {
 				log.WithError(err).WithField("swap_id", swap.Id).Warn("failed to reschedule refund task")
 			}
