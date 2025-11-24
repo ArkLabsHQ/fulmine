@@ -1,9 +1,9 @@
 module github.com/ArkLabsHQ/fulmine/pkg/vhtlc
 
-go 1.24.6
+go 1.25
 
 require (
-	github.com/arkade-os/arkd/pkg/ark-lib v0.7.2-0.20251009125746-5b22d8b77b79
+	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251119163300-38b7bf6a4010
 	github.com/btcsuite/btcd v0.24.3-0.20250318170759-4f4ea81776d6
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0

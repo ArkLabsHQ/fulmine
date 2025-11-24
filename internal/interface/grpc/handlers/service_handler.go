@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/hex"
+	"strings"
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
@@ -51,6 +52,10 @@ func (h *serviceHandler) GetInfo(
 	config, err := h.svc.GetConfigData(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	if h.svc.IsLocked(ctx) {
+		return nil, status.Error(codes.FailedPrecondition, "wallet is locked")
 	}
 
 	_, _, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
@@ -170,13 +175,23 @@ func (h *serviceHandler) SendOffChain(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	receivers := []types.Receiver{{To: address, Amount: amount}}
 
-	arkTxId, err := h.svc.SendOffChain(ctx, false, receivers)
+	receivers := []types.Receiver{{To: address, Amount: amount}}
+	var arkTxid string
+	for range 3 {
+		arkTxid, err = h.svc.SendOffChain(ctx, false, receivers)
+		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
+				continue
+			}
+			return nil, err
+		}
+		break
+	}
 	if err != nil {
 		return nil, err
 	}
-	return &pb.SendOffChainResponse{Txid: arkTxId}, nil
+	return &pb.SendOffChainResponse{Txid: arkTxid}, nil
 }
 
 func (h *serviceHandler) SendOnChain(
@@ -190,7 +205,7 @@ func (h *serviceHandler) SendOnChain(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	txid, err := h.svc.CollaborativeExit(ctx, address, amount, false)
+	txid, err := h.svc.SendOnChain(ctx, address, amount)
 	if err != nil {
 		return nil, err
 	}
@@ -258,23 +273,7 @@ func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest
 		return nil, err
 	}
 
-	vhtlcs := make([]*pb.Vtxo, 0, len(vtxos))
-	for _, vtxo := range vtxos {
-		vhtlcs = append(vhtlcs, &pb.Vtxo{
-			Outpoint: &pb.Input{
-				Txid: vtxo.Txid,
-				Vout: vtxo.VOut,
-			},
-			Script:          vtxo.Script,
-			Amount:          vtxo.Amount,
-			SpentBy:         vtxo.SpentBy,
-			ArkTxid:         vtxo.ArkTxid,
-			CommitmentTxids: vtxo.CommitmentTxids,
-			ExpiresAt:       vtxo.ExpiresAt.Unix(),
-		})
-	}
-
-	return &pb.ListVHTLCResponse{Vhtlcs: vhtlcs}, nil
+	return &pb.ListVHTLCResponse{Vhtlcs: toVtxosProto(vtxos)}, nil
 }
 
 func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCRequest) (*pb.CreateVHTLCResponse, error) {

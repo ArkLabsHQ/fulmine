@@ -24,16 +24,19 @@ const (
 )
 
 type Config struct {
-	Datadir    string
-	DbType     string
-	GRPCPort   uint32
-	HTTPPort   uint32
-	WithTLS    bool
-	LogLevel   uint32
-	ArkServer  string
-	EsploraURL string
-	BoltzURL   string
-	BoltzWSURL string
+	Datadir               string
+	DbType                string
+	GRPCPort              uint32
+	HTTPPort              uint32
+	WithTLS               bool
+	LogLevel              uint32
+	ArkServer             string
+	EsploraURL            string
+	BoltzURL              string
+	BoltzWSURL            string
+	SchedulerPollInterval int64
+	ProfilingEnabled      bool
+	RefreshDbInterval     int64
 
 	UnlockerType     string
 	UnlockerFilePath string
@@ -48,23 +51,26 @@ type Config struct {
 }
 
 var (
-	Datadir          = "DATADIR"
-	DbType           = "DB_TYPE"
-	GRPCPort         = "GRPC_PORT"
-	HTTPPort         = "HTTP_PORT"
-	WithTLS          = "WITH_TLS"
-	LogLevel         = "LOG_LEVEL"
-	ArkServer        = "ARK_SERVER"
-	EsploraURL       = "ESPLORA_URL"
-	BoltzURL         = "BOLTZ_URL"
-	BoltzWSURL       = "BOLTZ_WS_URL"
-	DisableTelemetry = "DISABLE_TELEMETRY"
-	NoMacaroons      = "NO_MACAROONS"
-	LndUrl           = "LND_URL"
-	ClnUrl           = "CLN_URL"
-	ClnDatadir       = "CLN_DATADIR"
-	LndDatadir       = "LND_DATADIR"
-	SwapTimeout      = "SWAP_TIMEOUT"
+	Datadir               = "DATADIR"
+	DbType                = "DB_TYPE"
+	GRPCPort              = "GRPC_PORT"
+	HTTPPort              = "HTTP_PORT"
+	WithTLS               = "WITH_TLS"
+	LogLevel              = "LOG_LEVEL"
+	ArkServer             = "ARK_SERVER"
+	EsploraURL            = "ESPLORA_URL"
+	BoltzURL              = "BOLTZ_URL"
+	BoltzWSURL            = "BOLTZ_WS_URL"
+	DisableTelemetry      = "DISABLE_TELEMETRY"
+	NoMacaroons           = "NO_MACAROONS"
+	LndUrl                = "LND_URL"
+	ClnUrl                = "CLN_URL"
+	ClnDatadir            = "CLN_DATADIR"
+	LndDatadir            = "LND_DATADIR"
+	SwapTimeout           = "SWAP_TIMEOUT"
+	SchedulerPollInterval = "SCHEDULER_POLL_INTERVAL"
+	ProfilingEnabled      = "PROFILING_ENABLED"
+	RefreshDbInterval     = "REFRESH_DB_INTERVAL"
 
 	// Unlocker configuration
 	UnlockerType     = "UNLOCKER_TYPE"
@@ -83,12 +89,15 @@ var (
 		sqliteDb: {},
 		badgerDb: {},
 	}
-	defaultNoMacaroons = false
-	defaultLndUrl      = ""
-	defaultClnUrl      = ""
-	defaultClnDatadir  = ""
-	defaultLndDatadir  = ""
-	defaultSwapTimeout = 120 // In seconds
+	defaultNoMacaroons           = false
+	defaultLndUrl                = ""
+	defaultClnUrl                = ""
+	defaultClnDatadir            = ""
+	defaultLndDatadir            = ""
+	defaultSwapTimeout           = 15  // In seconds
+	defaultSchedulerPollInterval = 600 // 10 minutes
+	defaultProfilingEnabled      = false
+	defaultRefreshDbInterval     = 0
 )
 
 func LoadConfig() (*Config, error) {
@@ -109,6 +118,9 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(ClnDatadir, defaultClnDatadir)
 	viper.SetDefault(LndDatadir, defaultLndDatadir)
 	viper.SetDefault(SwapTimeout, defaultSwapTimeout)
+	viper.SetDefault(SchedulerPollInterval, defaultSchedulerPollInterval)
+	viper.SetDefault(ProfilingEnabled, defaultProfilingEnabled)
+	viper.SetDefault(RefreshDbInterval, defaultRefreshDbInterval)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
@@ -128,23 +140,29 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error deriving lightning connection config: %w", err)
 	}
+	if viper.GetInt64(SchedulerPollInterval) < 1 {
+		return nil, fmt.Errorf("scheduler poll interval must be at least 1 second")
+	}
 
 	config := &Config{
-		Datadir:          viper.GetString(Datadir),
-		DbType:           viper.GetString(DbType),
-		GRPCPort:         viper.GetUint32(GRPCPort),
-		HTTPPort:         viper.GetUint32(HTTPPort),
-		WithTLS:          viper.GetBool(WithTLS),
-		LogLevel:         viper.GetUint32(LogLevel),
-		ArkServer:        viper.GetString(ArkServer),
-		EsploraURL:       viper.GetString(EsploraURL),
-		BoltzURL:         viper.GetString(BoltzURL),
-		BoltzWSURL:       viper.GetString(BoltzWSURL),
-		UnlockerType:     viper.GetString(UnlockerType),
-		UnlockerFilePath: viper.GetString(UnlockerFilePath),
-		UnlockerPassword: viper.GetString(UnlockerPassword),
-		DisableTelemetry: viper.GetBool(DisableTelemetry),
-		SwapTimeout:      viper.GetUint32(SwapTimeout),
+		Datadir:               viper.GetString(Datadir),
+		DbType:                viper.GetString(DbType),
+		GRPCPort:              viper.GetUint32(GRPCPort),
+		HTTPPort:              viper.GetUint32(HTTPPort),
+		WithTLS:               viper.GetBool(WithTLS),
+		LogLevel:              viper.GetUint32(LogLevel),
+		ArkServer:             viper.GetString(ArkServer),
+		EsploraURL:            viper.GetString(EsploraURL),
+		BoltzURL:              viper.GetString(BoltzURL),
+		BoltzWSURL:            viper.GetString(BoltzWSURL),
+		UnlockerType:          viper.GetString(UnlockerType),
+		UnlockerFilePath:      viper.GetString(UnlockerFilePath),
+		UnlockerPassword:      viper.GetString(UnlockerPassword),
+		DisableTelemetry:      viper.GetBool(DisableTelemetry),
+		SwapTimeout:           viper.GetUint32(SwapTimeout),
+		SchedulerPollInterval: viper.GetInt64(SchedulerPollInterval),
+		ProfilingEnabled:      viper.GetBool(ProfilingEnabled),
+		RefreshDbInterval:     viper.GetInt64(RefreshDbInterval),
 
 		LnConnectionOpts: lnConnectionOpts,
 	}
