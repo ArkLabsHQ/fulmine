@@ -24,9 +24,18 @@ func main() {
 		if !f.IsExported() {
 			continue
 		}
-		key := "FULMINE_" + f.Tag.Get("mapstructure")
+		mapTag := f.Tag.Get("mapstructure")
+		if mapTag == "" {
+			panic(fmt.Sprintf("field %s missing mapstructure tag", f.Name))
+		}
+
+		key := "FULMINE_" + mapTag
 		def := f.Tag.Get("envDefault")
 		info := f.Tag.Get("envInfo")
+		if info == "" {
+			panic(fmt.Sprintf("field %s missing envInfo tag", f.Name))
+		}
+
 		envType := f.Type.String()
 
 		md += fmt.Sprintf("| `%s` | `%s` | `%s` | %s |\n", key, def, envType, info)
