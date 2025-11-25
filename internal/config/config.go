@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"unicode"
@@ -24,147 +25,59 @@ const (
 )
 
 type Config struct {
-	Datadir               string
-	DbType                string
-	GRPCPort              uint32
-	HTTPPort              uint32
-	WithTLS               bool
-	LogLevel              uint32
-	ArkServer             string
-	EsploraURL            string
-	BoltzURL              string
-	BoltzWSURL            string
-	SchedulerPollInterval int64
-	ProfilingEnabled      bool
-	RefreshDbInterval     int64
+	Datadir    string `mapstructure:"DATADIR" envDefault:"fulmine" envInfo:"Data directory for Fulmine state"`
+	DbType     string `mapstructure:"DB_TYPE" envDefault:"sqlite" envInfo:"Database backend: sqlite | badger"`
+	GRPCPort   uint32 `mapstructure:"GRPC_PORT" envDefault:"7000" envInfo:"gRPC server port"`
+	HTTPPort   uint32 `mapstructure:"HTTP_PORT" envDefault:"7001" envInfo:"HTTP server port"`
+	WithTLS    bool   `mapstructure:"WITH_TLS" envDefault:"false" envInfo:"Enable TLS on server"`
+	LogLevel   uint32 `mapstructure:"LOG_LEVEL" envDefault:"4" envInfo:"Log verbosity (higher = more verbose)"`
+	ArkServer  string `mapstructure:"ARK_SERVER" envDefault:"" envInfo:"Ark server address (e.g., arkd:7070)"`
+	EsploraURL string `mapstructure:"ESPLORA_URL" envDefault:"" envInfo:"Esplora base URL (e.g., http://chopsticks:3000)"`
+	BoltzURL   string `mapstructure:"BOLTZ_URL" envDefault:"" envInfo:"Boltz HTTP endpoint (e.g., http://boltz:9001)"`
+	BoltzWSURL string `mapstructure:"BOLTZ_WS_URL" envDefault:"" envInfo:"Boltz WebSocket endpoint (e.g., ws://boltz:9002)"`
 
-	UnlockerType     string
-	UnlockerFilePath string
-	UnlockerPassword string
-	DisableTelemetry bool
-	SwapTimeout      uint32
+	UnlockerType          string `mapstructure:"UNLOCKER_TYPE" envDefault:"" envInfo:"Unlocker type: file | env"`
+	UnlockerFilePath      string `mapstructure:"UNLOCKER_FILE_PATH" envDefault:"" envInfo:"Path to unlocker file"`
+	UnlockerPassword      string `mapstructure:"UNLOCKER_PASSWORD" envDefault:"" envInfo:"Unlocker password (if using env unlocker)"`
+	DisableTelemetry      bool   `mapstructure:"DISABLE_TELEMETRY" envDefault:"false" envInfo:"Disable telemetry"`
+	NoMacaroons           bool   `mapstructure:"NO_MACAROONS" envDefault:"false" envInfo:"Disable macaroons"`
+	SwapTimeout           uint32 `mapstructure:"SWAP_TIMEOUT" envDefault:"120" envInfo:"Swap timeout in seconds"`
+	SchedulerPollInterval int64  `mapstructure:"SCHEDULER_POLL_INTERVAL" envDefault:"60" envInfo:"Scheduler polling interval in seconds"`
+	ProfilingEnabled      bool   `mapstructure:"PROFILING_ENABLED" envDefault:"false" envInfo:"Enable profiling endpoints"`
+	RefreshDbInterval     int64  `mapstructure:"REFRESH_DB_INTERVAL" envDefault:"300" envInfo:"Interval in seconds to refresh the database with latest blockchain data"`
 
-	LnConnectionOpts *domain.LnConnectionOpts
+	LndUrl     string `mapstructure:"LND_URL" envDefault:"" envInfo:"LND connection URL (lndconnect:// or http://host:port)"`
+	ClnUrl     string `mapstructure:"CLN_URL" envDefault:"" envInfo:"CLN connection URL (clnconnect:// or http://host:port)"`
+	ClnDatadir string `mapstructure:"CLN_DATADIR" envDefault:"" envInfo:"CLN data directory (required if not using clnconnect://)"`
+	LndDatadir string `mapstructure:"LND_DATADIR" envDefault:"" envInfo:"LND data directory (required if not using lndconnect://)"`
+
+	lnConnectionOpts *domain.LnConnectionOpts
 
 	unlocker    ports.Unlocker
 	macaroonSvc macaroon.Service
 }
 
-var (
-	Datadir               = "DATADIR"
-	DbType                = "DB_TYPE"
-	GRPCPort              = "GRPC_PORT"
-	HTTPPort              = "HTTP_PORT"
-	WithTLS               = "WITH_TLS"
-	LogLevel              = "LOG_LEVEL"
-	ArkServer             = "ARK_SERVER"
-	EsploraURL            = "ESPLORA_URL"
-	BoltzURL              = "BOLTZ_URL"
-	BoltzWSURL            = "BOLTZ_WS_URL"
-	DisableTelemetry      = "DISABLE_TELEMETRY"
-	NoMacaroons           = "NO_MACAROONS"
-	LndUrl                = "LND_URL"
-	ClnUrl                = "CLN_URL"
-	ClnDatadir            = "CLN_DATADIR"
-	LndDatadir            = "LND_DATADIR"
-	SwapTimeout           = "SWAP_TIMEOUT"
-	SchedulerPollInterval = "SCHEDULER_POLL_INTERVAL"
-	ProfilingEnabled      = "PROFILING_ENABLED"
-	RefreshDbInterval     = "REFRESH_DB_INTERVAL"
-
-	// Unlocker configuration
-	UnlockerType     = "UNLOCKER_TYPE"
-	UnlockerFilePath = "UNLOCKER_FILE_PATH"
-	UnlockerPassword = "UNLOCKER_PASSWORD"
-
-	defaultDatadir          = appDatadir("fulmine", false)
-	dbType                  = sqliteDb
-	defaultGRPCPort         = 7000
-	defaultHTTPPort         = 7001
-	defaultWithTLS          = false
-	defaultLogLevel         = 4
-	defaultArkServer        = ""
-	defaultDisableTelemetry = false
-	supportedDbType         = map[string]struct{}{
-		sqliteDb: {},
-		badgerDb: {},
-	}
-	defaultNoMacaroons           = false
-	defaultLndUrl                = ""
-	defaultClnUrl                = ""
-	defaultClnDatadir            = ""
-	defaultLndDatadir            = ""
-	defaultSwapTimeout           = 15  // In seconds
-	defaultSchedulerPollInterval = 600 // 10 minutes
-	defaultProfilingEnabled      = false
-	defaultRefreshDbInterval     = 0
-)
-
 func LoadConfig() (*Config, error) {
-	viper.SetEnvPrefix("FULMINE")
-	viper.AutomaticEnv()
+	v := viper.New()
 
-	viper.SetDefault(Datadir, defaultDatadir)
-	viper.SetDefault(GRPCPort, defaultGRPCPort)
-	viper.SetDefault(HTTPPort, defaultHTTPPort)
-	viper.SetDefault(WithTLS, defaultWithTLS)
-	viper.SetDefault(LogLevel, defaultLogLevel)
-	viper.SetDefault(ArkServer, defaultArkServer)
-	viper.SetDefault(DisableTelemetry, defaultDisableTelemetry)
-	viper.SetDefault(DbType, dbType)
-	viper.SetDefault(NoMacaroons, defaultNoMacaroons)
-	viper.SetDefault(LndUrl, defaultLndUrl)
-	viper.SetDefault(ClnUrl, defaultClnUrl)
-	viper.SetDefault(ClnDatadir, defaultClnDatadir)
-	viper.SetDefault(LndDatadir, defaultLndDatadir)
-	viper.SetDefault(SwapTimeout, defaultSwapTimeout)
-	viper.SetDefault(SchedulerPollInterval, defaultSchedulerPollInterval)
-	viper.SetDefault(ProfilingEnabled, defaultProfilingEnabled)
-	viper.SetDefault(RefreshDbInterval, defaultRefreshDbInterval)
+	v.SetEnvPrefix("FULMINE")
+	v.AutomaticEnv()
 
-	if err := initDatadir(); err != nil {
-		return nil, fmt.Errorf("error while creating datadir: %s", err)
+	if err := setDefaultConfig(v); err != nil {
+		return nil, fmt.Errorf("error setting default config: %w", err)
 	}
 
-	if _, ok := supportedDbType[viper.GetString(DbType)]; !ok {
-		return nil, fmt.Errorf("unsupported db type: %s", viper.GetString(DbType))
+	var config Config
+	if err := v.Unmarshal(&config); err != nil {
+		return nil, fmt.Errorf("unable to decode into struct, %v", err)
 	}
 
-	lndUrl := viper.GetString(LndUrl)
-	clnUrl := viper.GetString(ClnUrl)
+	if err := config.initDb(); err != nil {
+		return nil, fmt.Errorf("error initializing data directory: %w", err)
+	}
 
-	lndDatadir := cleanAndExpandPath(viper.GetString(LndDatadir))
-	clnDatadir := cleanAndExpandPath(viper.GetString(ClnDatadir))
-
-	lnConnectionOpts, err := deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir)
-	if err != nil {
+	if err := config.deriveLnConfig(); err != nil {
 		return nil, fmt.Errorf("error deriving lightning connection config: %w", err)
-	}
-	if viper.GetInt64(SchedulerPollInterval) < 1 {
-		return nil, fmt.Errorf("scheduler poll interval must be at least 1 second")
-	}
-
-	config := &Config{
-		Datadir:               viper.GetString(Datadir),
-		DbType:                viper.GetString(DbType),
-		GRPCPort:              viper.GetUint32(GRPCPort),
-		HTTPPort:              viper.GetUint32(HTTPPort),
-		WithTLS:               viper.GetBool(WithTLS),
-		LogLevel:              viper.GetUint32(LogLevel),
-		ArkServer:             viper.GetString(ArkServer),
-		EsploraURL:            viper.GetString(EsploraURL),
-		BoltzURL:              viper.GetString(BoltzURL),
-		BoltzWSURL:            viper.GetString(BoltzWSURL),
-		UnlockerType:          viper.GetString(UnlockerType),
-		UnlockerFilePath:      viper.GetString(UnlockerFilePath),
-		UnlockerPassword:      viper.GetString(UnlockerPassword),
-		DisableTelemetry:      viper.GetBool(DisableTelemetry),
-		SwapTimeout:           viper.GetUint32(SwapTimeout),
-		SchedulerPollInterval: viper.GetInt64(SchedulerPollInterval),
-		ProfilingEnabled:      viper.GetBool(ProfilingEnabled),
-		RefreshDbInterval:     viper.GetInt64(RefreshDbInterval),
-
-		LnConnectionOpts: lnConnectionOpts,
 	}
 
 	if err := config.initUnlockerService(); err != nil {
@@ -175,11 +88,112 @@ func LoadConfig() (*Config, error) {
 		return nil, err
 	}
 
-	return config, nil
+	return &config, nil
+
+}
+
+func deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir string) (*domain.LnConnectionOpts, error) {
+	lndDatadir = cleanAndExpandPath(lndDatadir)
+	clnDatadir = cleanAndExpandPath(clnDatadir)
+
+	if lndUrl == "" && clnUrl == "" {
+		return nil, nil
+	}
+
+	if lndUrl != "" && clnUrl != "" {
+		return nil, fmt.Errorf("cannot set both LND and CLN URLs at the same time")
+	}
+
+	if lndDatadir != "" && clnDatadir != "" {
+		return nil, fmt.Errorf("cannot set both LND and CLN datadirs at the same time")
+	}
+
+	if lndUrl != "" {
+		if strings.HasPrefix(lndUrl, "lndconnect://") {
+			return &domain.LnConnectionOpts{
+				LnUrl:          lndUrl,
+				ConnectionType: domain.LND_CONNECTION,
+			}, nil
+		}
+
+		if lndDatadir == "" {
+			return nil, fmt.Errorf("LND URL provided without LND datadir")
+		}
+
+		validatedUrl, err := utils.ValidateURL(lndUrl)
+		if err != nil {
+			return nil, fmt.Errorf("invalid LND URL: %v", err)
+		}
+		return &domain.LnConnectionOpts{
+			LnUrl:          validatedUrl,
+			LnDatadir:      lndDatadir,
+			ConnectionType: domain.LND_CONNECTION,
+		}, nil
+	}
+
+	if strings.HasPrefix(clnUrl, "clnconnect://") {
+		return &domain.LnConnectionOpts{
+			LnUrl:          clnUrl,
+			ConnectionType: domain.CLN_CONNECTION,
+		}, nil
+	}
+
+	if clnDatadir == "" {
+		return nil, fmt.Errorf("CLN URL provided without CLN datadir")
+	}
+
+	validatedUrl, err := utils.ValidateURL(clnUrl)
+	if err != nil {
+		return nil, fmt.Errorf("invalid CLN URL: %v", err)
+	}
+
+	return &domain.LnConnectionOpts{
+		LnUrl:          validatedUrl,
+		LnDatadir:      clnDatadir,
+		ConnectionType: domain.CLN_CONNECTION,
+	}, nil
+}
+
+func (c *Config) deriveLnConfig() error {
+	opts, err := deriveLnConfig(c.LndUrl, c.ClnUrl, c.LndDatadir, c.ClnDatadir)
+	if err != nil {
+		return err
+	}
+
+	c.lnConnectionOpts = opts
+	return nil
 }
 
 func (c *Config) UnlockerService() ports.Unlocker {
 	return c.unlocker
+}
+
+func (c *Config) GetLnConnectionOpts() *domain.LnConnectionOpts {
+	return c.lnConnectionOpts
+}
+
+func (c *Config) initDb() error {
+	supportedDbType := map[string]struct{}{
+		sqliteDb: {},
+		badgerDb: {},
+	}
+
+	if _, ok := supportedDbType[c.DbType]; !ok {
+		return fmt.Errorf("unsupported db type: %s", c.DbType)
+	}
+
+	if c.Datadir == "fulmine" {
+		c.Datadir = appDatadir("fulmine", false)
+	} else {
+		datadir := cleanAndExpandPath(c.Datadir)
+		if err := makeDirectoryIfNotExists(datadir); err != nil {
+			return fmt.Errorf("failed to create data directory: %w", err)
+		}
+		c.Datadir = datadir
+	}
+
+	return nil
+
 }
 
 func (c *Config) initUnlockerService() error {
@@ -213,7 +227,7 @@ func (c *Config) initMacaroonService() error {
 		return nil
 	}
 
-	if !viper.GetBool(NoMacaroons) {
+	if !c.NoMacaroons {
 		svc, err := macaroon.NewService(
 			c.Datadir, macaroonsFolder, macFiles, WhitelistedByMethod(), AllPermissionsByMethod(),
 		)
@@ -227,9 +241,24 @@ func (c *Config) initMacaroonService() error {
 	return nil
 }
 
-func initDatadir() error {
-	datadir := viper.GetString(Datadir)
-	return makeDirectoryIfNotExists(datadir)
+func setDefaultConfig(v *viper.Viper) error {
+	t := reflect.TypeOf(Config{})
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if !f.IsExported() {
+			continue
+		}
+		key := f.Tag.Get("mapstructure")
+		def := f.Tag.Get("envDefault")
+		if def != "" {
+			v.SetDefault(key, def)
+		}
+		err := v.BindEnv(key)
+		if err != nil {
+			return fmt.Errorf("error binding env variable for key %s: %w", key, err)
+		}
+	}
+	return nil
 }
 
 func makeDirectoryIfNotExists(path string) error {
@@ -329,61 +358,4 @@ func cleanAndExpandPath(path string) string {
 	return filepath.Clean(os.ExpandEnv(path))
 }
 
-func deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir string) (*domain.LnConnectionOpts, error) {
-	if lndUrl == "" && clnUrl == "" {
-		return nil, nil
-	}
-
-	if lndUrl != "" && clnUrl != "" {
-		return nil, fmt.Errorf("cannot set both LND and CLN URLs at the same time")
-	}
-
-	if lndDatadir != "" && clnDatadir != "" {
-		return nil, fmt.Errorf("cannot set both LND and CLN datadirs at the same time")
-	}
-
-	if lndUrl != "" {
-		if strings.HasPrefix(lndUrl, "lndconnect://") {
-			return &domain.LnConnectionOpts{
-				LnUrl:          lndUrl,
-				ConnectionType: domain.LND_CONNECTION,
-			}, nil
-		}
-
-		if lndDatadir == "" {
-			return nil, fmt.Errorf("LND URL provided without LND datadir")
-		}
-
-		validatedUrl, err := utils.ValidateURL(lndUrl)
-		if err != nil {
-			return nil, fmt.Errorf("invalid LND URL: %v", err)
-		}
-		return &domain.LnConnectionOpts{
-			LnUrl:          validatedUrl,
-			LnDatadir:      lndDatadir,
-			ConnectionType: domain.LND_CONNECTION,
-		}, nil
-	}
-
-	if strings.HasPrefix(clnUrl, "clnconnect://") {
-		return &domain.LnConnectionOpts{
-			LnUrl:          clnUrl,
-			ConnectionType: domain.CLN_CONNECTION,
-		}, nil
-	}
-
-	if clnDatadir == "" {
-		return nil, fmt.Errorf("CLN URL provided without CLN datadir")
-	}
-
-	validatedUrl, err := utils.ValidateURL(clnUrl)
-	if err != nil {
-		return nil, fmt.Errorf("invalid CLN URL: %v", err)
-	}
-
-	return &domain.LnConnectionOpts{
-		LnUrl:          validatedUrl,
-		LnDatadir:      clnDatadir,
-		ConnectionType: domain.CLN_CONNECTION,
-	}, nil
-}
+//go:generate go run ../../tools/gen-env-doc/main.go
