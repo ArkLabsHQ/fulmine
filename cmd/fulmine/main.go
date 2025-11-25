@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -39,6 +41,17 @@ func main() {
 	}
 
 	log.SetLevel(log.Level(cfg.LogLevel))
+
+	// Start pprof server
+	if cfg.ProfilingEnabled {
+		go func() {
+			pprofAddr := ":6060"
+			log.Infof("starting pprof server on %s", pprofAddr)
+			if err := http.ListenAndServe(pprofAddr, nil); err != nil {
+				log.WithError(err).Error("pprof server failed")
+			}
+		}()
+	}
 
 	sentryEnabled := !cfg.DisableTelemetry && sentryDsn != ""
 
@@ -104,11 +117,12 @@ func main() {
 		Date:    date,
 	}
 
-	schedulerSvc := scheduler.NewScheduler(cfg.EsploraURL)
+	pollInterval := time.Duration(cfg.SchedulerPollInterval) * time.Second
+	schedulerSvc := scheduler.NewScheduler(cfg.EsploraURL, pollInterval)
 
 	appSvc, err := application.NewService(
 		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc,
-		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout, cfg.GetLnConnectionOpts(),
+		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout, cfg.GetLnConnectionOpts(), cfg.RefreshDbInterval,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init application service")

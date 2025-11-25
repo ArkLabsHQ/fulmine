@@ -15,10 +15,6 @@ import (
 //go:embed static/*
 var static embed.FS
 
-func init() {
-	gin.SetMode(gin.ReleaseMode)
-}
-
 // TemplRender implements the render.Render interface.
 type TemplRender struct {
 	Code int
@@ -65,7 +61,8 @@ func NewService(
 	arkServer string,
 ) *service {
 	// Create a new Fiber server.
-	router := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
 
 	// Define HTML renderer for template engine.
 	router.HTMLRender = &TemplRender{}

@@ -1,6 +1,6 @@
 # ⚡️fulmine
 
-[![Go Version](https://img.shields.io/badge/Go-1.24.6-blue.svg)](https://golang.org/doc/go1.24)
+[![Go Version](https://img.shields.io/badge/Go-1.25.3-blue.svg)](https://golang.org/doc/go1.25)
 [![GitHub Release](https://img.shields.io/github/v/release/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/releases/latest)
 [![License](https://img.shields.io/github/license/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/blob/main/LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/stargazers)
@@ -225,7 +225,7 @@ For more detailed information about request and response structures, please refe
 
 ## 👨‍💻 Development
 
-To get started with fulmine development you need Go `1.24.6` or higher and Node.js `18.17.1` or higher.
+To get started with fulmine development you need Go `1.25.3` or higher and Node.js `18.17.1` or higher.
 
 ```bash
 git clone https://github.com/ArkLabsHQ/fulmine.git
@@ -243,15 +243,9 @@ Run all unit tests:
 make test
 ```
 
-Run VHTLC-specific unit tests:
-```bash
-make test-vhtlc
-```
-
 Run integration tests:
 ```bash
 make build-test-env
-make up-test-env
 make setup-test-env
 make integrationtest
 make down-test-env

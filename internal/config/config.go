@@ -36,12 +36,15 @@ type Config struct {
 	BoltzURL   string `mapstructure:"BOLTZ_URL" envDefault:"" envInfo:"Boltz HTTP endpoint (e.g., http://boltz:9001)"`
 	BoltzWSURL string `mapstructure:"BOLTZ_WS_URL" envDefault:"" envInfo:"Boltz WebSocket endpoint (e.g., ws://boltz:9002)"`
 
-	UnlockerType     string `mapstructure:"UNLOCKER_TYPE" envDefault:"" envInfo:"Unlocker type: file | env"`
-	UnlockerFilePath string `mapstructure:"UNLOCKER_FILE_PATH" envDefault:"" envInfo:"Path to unlocker file"`
-	UnlockerPassword string `mapstructure:"UNLOCKER_PASSWORD" envDefault:"" envInfo:"Unlocker password (if using env unlocker)"`
-	DisableTelemetry bool   `mapstructure:"DISABLE_TELEMETRY" envDefault:"false" envInfo:"Disable telemetry"`
-	NoMacaroons      bool   `mapstructure:"NO_MACAROONS" envDefault:"false" envInfo:"Disable macaroons"`
-	SwapTimeout      uint32 `mapstructure:"SWAP_TIMEOUT" envDefault:"120" envInfo:"Swap timeout in seconds"`
+	UnlockerType          string `mapstructure:"UNLOCKER_TYPE" envDefault:"" envInfo:"Unlocker type: file | env"`
+	UnlockerFilePath      string `mapstructure:"UNLOCKER_FILE_PATH" envDefault:"" envInfo:"Path to unlocker file"`
+	UnlockerPassword      string `mapstructure:"UNLOCKER_PASSWORD" envDefault:"" envInfo:"Unlocker password (if using env unlocker)"`
+	DisableTelemetry      bool   `mapstructure:"DISABLE_TELEMETRY" envDefault:"false" envInfo:"Disable telemetry"`
+	NoMacaroons           bool   `mapstructure:"NO_MACAROONS" envDefault:"false" envInfo:"Disable macaroons"`
+	SwapTimeout           uint32 `mapstructure:"SWAP_TIMEOUT" envDefault:"120" envInfo:"Swap timeout in seconds"`
+	SchedulerPollInterval int64  `mapstructure:"SCHEDULER_POLL_INTERVAL" envDefault:"60" envInfo:"Scheduler polling interval in seconds"`
+	ProfilingEnabled      bool   `mapstructure:"PROFILING_ENABLED" envDefault:"false" envInfo:"Enable profiling endpoints"`
+	RefreshDbInterval     int64  `mapstructure:"REFRESH_DB_INTERVAL" envDefault:"300" envInfo:"Interval in seconds to refresh the database with latest blockchain data"`
 
 	LndUrl     string `mapstructure:"LND_URL" envDefault:"" envInfo:"LND connection URL (lndconnect:// or http://host:port)"`
 	ClnUrl     string `mapstructure:"CLN_URL" envDefault:"" envInfo:"CLN connection URL (clnconnect:// or http://host:port)"`

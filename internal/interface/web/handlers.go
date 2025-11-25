@@ -95,14 +95,33 @@ func (s *service) events(c *gin.Context) {
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("Connection", "keep-alive")
 
-	channel := s.svc.GetTransactionEventChannel(c.Request.Context())
+	if isSynced, _ := s.svc.IsSynced(); !isSynced {
+		syncedCh := s.svc.GetSyncedUpdate()
+		for {
+			select {
+			case <-s.stopCh:
+				return
+			case <-c.Request.Context().Done():
+				return
+			case event, ok := <-syncedCh:
+				if !ok {
+					continue
+				}
+				c.SSEvent("SYNCED", event)
+				c.Writer.Flush()
+			}
+		}
+
+	}
+
+	txsCh := s.svc.GetTransactionEventChannel(c.Request.Context())
 	for {
 		select {
 		case <-s.stopCh:
 			return
 		case <-c.Request.Context().Done():
 			return
-		case event, ok := <-channel:
+		case event, ok := <-txsCh:
 			if !ok {
 				return
 			}
@@ -114,11 +133,13 @@ func (s *service) events(c *gin.Context) {
 
 func (s *service) index(c *gin.Context) {
 	bodyContent := pages.Welcome()
-	if s.svc.IsReady() {
-		if s.svc.IsLocked(c) {
-			bodyContent = pages.Unlock()
-		} else {
-			bodyContent = pages.IndexBodyContent()
+	if s.svc.IsInitialized() {
+		{
+			if s.svc.IsLocked(c) {
+				bodyContent = pages.Unlock()
+			} else {
+				bodyContent = pages.IndexBodyContent()
+			}
 		}
 	}
 	s.pageViewHandler(bodyContent, c)
@@ -455,9 +476,24 @@ func (s *service) sendConfirm(c *gin.Context) {
 	receivers := []sdktypes.Receiver{{To: address, Amount: value}}
 
 	if utils.IsValidArkAddress(address) {
-		txId, err = s.svc.SendOffChain(c, false, receivers)
+		for range 3 {
+			txId, err = s.svc.SendOffChain(c, false, receivers)
+			if err != nil {
+				if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
+					continue
+				}
+				toast := components.Toast(err.Error(), true)
+				toastHandler(toast, c)
+				return
+			}
+			break
+		}
 		if err != nil {
+			log.WithError(err).Error("failed to pay to vHTLC address")
 			toast := components.Toast(err.Error(), true)
+			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
+				toast = components.Toast("something went wrong, please try again", true)
+			}
 			toastHandler(toast, c)
 			return
 		}
@@ -474,22 +510,15 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	if utils.IsValidInvoice(address) {
 		resp, err := s.svc.PayInvoice(c, address)
-		txId = resp.TxId
-
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
 			return
 		}
+		txId = resp.TxId
 
 		if resp.SwapStatus == domain.SwapFailed {
 			bodyContent := pages.SendFailureContent(address, sats)
-			partialViewHandler(bodyContent, c)
-			return
-		}
-
-		if len(txId) == 0 {
-			bodyContent := pages.SendPendingContent(address, sats)
 			partialViewHandler(bodyContent, c)
 			return
 		}
@@ -497,11 +526,16 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	if swap.IsValidBolt12Offer(address) {
 		resp, err := s.svc.PayOffer(c, address)
-		txId = resp.TxId
-
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
+			return
+		}
+		txId = resp.TxId
+
+		if resp.SwapStatus == domain.SwapFailed {
+			bodyContent := pages.SendFailureContent(address, sats)
+			partialViewHandler(bodyContent, c)
 			return
 		}
 	}
@@ -864,6 +898,18 @@ func (s *service) getTxs(c *gin.Context) {
 		return
 	}
 
+	isSynced, err := s.svc.IsSynced()
+	// nolint
+	if err != nil {
+		// TODO: Render error
+	}
+	if !isSynced {
+		// TODO: Render placeholder
+		bodyContent := components.HistoryBodyContent(nil, "0", false)
+		partialViewHandler(bodyContent, c)
+		return
+	}
+
 	lastId := c.Param("lastId")
 	loadMore := false
 	txsPerPage := 10
@@ -941,12 +987,6 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 	if err != nil {
 		return nil, err
 	}
-	data, err := s.svc.GetConfigData(c)
-	if err != nil {
-		return nil, err
-	}
-	// TODO: use tx.ExpiresAt when it will be available
-	treeExpiryValue := int64(data.VtxoTreeExpiry.Value)
 
 	// Get Swap Transaction
 	swapTxs, err := s.svc.GetSwapHistory(c)
@@ -971,7 +1011,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedSendTransfer := toTransfer(sendTransfer, treeExpiryValue)
+				modifiedSendTransfer := toTransfer(sendTransfer)
 				transformedSwap.VHTLCTransfer = &modifiedSendTransfer
 			}
 
@@ -980,7 +1020,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			})
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
+				modifiedReceiveTransfer := toTransfer(receiveTransfer)
 				transformedSwap.RedeemTransfer = &modifiedReceiveTransfer
 			}
 
@@ -991,7 +1031,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
+				modifiedReceiveTransfer := toTransfer(receiveTransfer)
 				transformedSwap.RedeemTransfer = &modifiedReceiveTransfer
 			}
 		}
@@ -1017,7 +1057,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedSendTransfer := toTransfer(sendTransfer, treeExpiryValue)
+				modifiedSendTransfer := toTransfer(sendTransfer)
 				transformedPayment.PaymentTransfer = &modifiedSendTransfer
 			}
 
@@ -1027,7 +1067,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
+				modifiedReceiveTransfer := toTransfer(receiveTransfer)
 				transformedPayment.ReclaimTransfer = &modifiedReceiveTransfer
 			}
 		} else {
@@ -1037,7 +1077,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 			if ok {
 				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer, treeExpiryValue)
+				modifiedReceiveTransfer := toTransfer(receiveTransfer)
 				transformedPayment.PaymentTransfer = &modifiedReceiveTransfer
 			}
 		}
@@ -1053,7 +1093,7 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 
 	for _, tx := range transferTxns {
 
-		modifiedTransfer := toTransfer(tx, treeExpiryValue)
+		modifiedTransfer := toTransfer(tx)
 
 		transaction := types.Transaction{
 			Kind:        "transfer",
@@ -1145,7 +1185,7 @@ func (s *service) claimTx(c *gin.Context) {
 	txid := c.Param("txid")
 	var tx types.Transfer
 	for _, transaction := range transferTxns {
-		transfer := toTransfer(transaction, int64(data.VtxoTreeExpiry.Value))
+		transfer := toTransfer(transaction)
 		if transfer.Txid == txid {
 			tx = transfer
 			break
@@ -1177,6 +1217,20 @@ func (s *service) lnConnectInfoModal(c *gin.Context) {
 
 func (s *service) getHero(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	isSynced, err := s.svc.IsSynced()
+	if err != nil {
+		// TODO: Render error
+		partialContent := components.Hero("ERROR", false)
+		partialViewHandler(partialContent, c)
+		return
+	}
+	if !isSynced {
+		// TODO: Render placeholder
+		partialContent := components.Hero("PLACEHOLDER", false)
+		partialViewHandler(partialContent, c)
 		return
 	}
 
@@ -1301,7 +1355,7 @@ func toSwap(swap domain.Swap) types.Swap {
 
 	var refundLocktime types.LockTime
 
-	refundLT := swap.VhtlcOpts.RefundLocktime
+	refundLT := swap.Vhtlc.RefundLocktime
 	if refundLT.IsSeconds() {
 		refundLocktime = types.LockTime{
 			Timelock:  prettyUnixTimestamp(int64(refundLT)),
@@ -1359,7 +1413,7 @@ func toPayment(payment domain.Swap) types.Payment {
 
 	var refundLocktime types.LockTime
 
-	refundLT := payment.VhtlcOpts.RefundLocktime
+	refundLT := payment.Vhtlc.RefundLocktime
 	if refundLT.IsSeconds() {
 		refundLocktime = types.LockTime{
 			Timelock:  prettyUnixTimestamp(int64(refundLT)),
@@ -1384,7 +1438,7 @@ func toPayment(payment domain.Swap) types.Payment {
 
 }
 
-func toTransfer(tx sdktypes.Transaction, treeExpiryValue int64) types.Transfer {
+func toTransfer(tx sdktypes.Transaction) types.Transfer {
 	// amount
 	amount := strconv.FormatUint(tx.Amount, 10)
 	if tx.Type == sdktypes.TxSent {
@@ -1392,8 +1446,6 @@ func toTransfer(tx sdktypes.Transaction, treeExpiryValue int64) types.Transfer {
 	}
 	// date of creation
 	dateCreated := tx.CreatedAt.Unix()
-	// TODO: use tx.ExpiresAt when it will be available
-	expiresAt := tx.CreatedAt.Unix() + treeExpiryValue
 	// status of tx
 	status := "pending"
 	if tx.Settled {
@@ -1419,7 +1471,6 @@ func toTransfer(tx sdktypes.Transaction, treeExpiryValue int64) types.Transfer {
 		Amount:     amount,
 		CreatedAt:  prettyUnixTimestamp(dateCreated),
 		Day:        prettyDay(dateCreated),
-		ExpiresAt:  prettyUnixTimestamp(expiresAt),
 		Explorable: explorable,
 		Hour:       prettyHour(dateCreated),
 		Kind:       strings.ToLower(string(tx.Type)),

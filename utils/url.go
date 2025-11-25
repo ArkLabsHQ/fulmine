@@ -46,5 +46,12 @@ func ValidateURL(s string) (string, error) {
 		return "", fmt.Errorf("url missing host")
 	}
 
-	return strings.TrimSuffix(s, "/"), nil
+	// If port is specified, return only host:port (gRPC doesn't expect scheme with port)
+	// If no port, return the full URL so gRPC can add its default port
+	if u.Port() != "" {
+		return u.Host, nil
+	}
+	
+	// No port specified, return full URL
+	return s, nil
 }

@@ -175,20 +175,6 @@ func parseTransaction(tx string) (string, error) {
 	return tx, nil
 }
 
-func parsePreimageHash(hash string) (string, error) {
-	if len(hash) <= 0 {
-		return "", fmt.Errorf("missing preimage hash")
-	}
-	buf, err := hex.DecodeString(hash)
-	if err != nil {
-		return "", fmt.Errorf("invalid preimage hash")
-	}
-	if len(buf) != 20 {
-		return "", fmt.Errorf("invalid preimage hash length")
-	}
-	return hash, nil
-}
-
 func toNetworkProto(net string) pb.GetInfoResponse_Network {
 	switch net {
 	case "regtest":
@@ -280,6 +266,12 @@ func toVtxosProto(vtxos []types.Vtxo) []*pb.Vtxo {
 			ExpiresAt:       vtxo.ExpiresAt.Unix(),
 			CommitmentTxids: vtxo.CommitmentTxids,
 			ArkTxid:         vtxo.ArkTxid,
+			CreatedAt:       vtxo.CreatedAt.Unix(),
+			IsPreconfirmed:  vtxo.Preconfirmed,
+			IsSwept:         vtxo.Swept,
+			IsUnrolled:      vtxo.Unrolled,
+			IsSpent:         vtxo.Spent,
+			SettledBy:       vtxo.SettledBy,
 		})
 	}
 	return list

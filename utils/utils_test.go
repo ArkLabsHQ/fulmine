@@ -20,7 +20,8 @@ func TestUtils(t *testing.T) {
 	testBip21(t)
 	testNotes(t)
 	testSecrets(t)
-	testUrls(t)
+	testIsValidUrls(t)
+	testValidateUrls(t)
 }
 
 func testAddresses(t *testing.T) {
@@ -106,30 +107,62 @@ func testSecrets(t *testing.T) {
 	})
 }
 
-func testUrls(t *testing.T) {
-	t.Run("urls", func(t *testing.T) {
-		res := utils.IsValidURL("acme")
-		require.Equal(t, false, res)
+func testIsValidUrls(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{name: "empty", input: "", want: false},
+		{name: "no host", input: "acme", want: false},
+		{name: "hostname only", input: "acme.com", want: false},
+		{name: "host and port", input: "acme.com:7070", want: true},
+		{name: "localhost port", input: "localhost:7070", want: true},
+		{name: "http", input: "http://acme.com", want: true},
+		{name: "https", input: "https://acme.com", want: true},
+		{name: "http with port", input: "http://acme.com:7070", want: true},
+		{name: "https with port", input: "https://acme.com:7070", want: true},
+		{name: "ftp scheme", input: "ftp://acme.com", want: true},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, utils.IsValidURL(tc.input))
+		})
+	}
+}
 
-		res = utils.IsValidURL("acme.com")
-		require.Equal(t, false, res)
+func testValidateUrls(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expect      string
+		errContains string
+	}{
+		{name: "with scheme and port", input: "http://boltz-lnd:10009", expect: "boltz-lnd:10009"},
+		{name: "https with port", input: "https://acme.com:7070", expect: "acme.com:7070"},
+		{name: "localhost with port", input: "localhost:7000", expect: "localhost:7000"},
+		{name: "hostname with port", input: "acme.com:8080", expect: "acme.com:8080"},
+		{name: "http without port", input: "http://acme.com", expect: "http://acme.com"},
+		{name: "https without port", input: "https://example.com", expect: "https://example.com"},
+		{name: "no scheme adds http", input: "acme.com", expect: "http://acme.com"},
+		{name: "trims whitespace", input: "  https://trim.me  ", expect: "https://trim.me"},
+		{name: "empty", input: "", errContains: "url is empty"},
+		{name: "unsupported scheme", input: "ftp://acme.com", errContains: "unsupported scheme"},
+		{name: "missing host", input: "http://", errContains: "missing host"},
+	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			validated, err := utils.ValidateURL(tc.input)
+			if tc.errContains != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, tc.errContains)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.expect, validated)
+		})
+	}
 
-		res = utils.IsValidURL("acme.com:7070")
-		require.Equal(t, true, res)
-
-		res = utils.IsValidURL("localhost:7070")
-		require.Equal(t, true, res)
-
-		res = utils.IsValidURL("http://acme.com")
-		require.Equal(t, true, res)
-
-		res = utils.IsValidURL("https://acme.com")
-		require.Equal(t, true, res)
-
-		res = utils.IsValidURL("http://acme.com:7070")
-		require.Equal(t, true, res)
-
-		res = utils.IsValidURL("https://acme.com:7070")
-		require.Equal(t, true, res)
-	})
 }

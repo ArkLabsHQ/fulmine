@@ -32,7 +32,7 @@ type Invoice struct {
 	PaymentHash160 []byte
 }
 
-// BOLT12 TLV types as Go constants
+// BOLT12 TLV types
 const (
 	OFFER_CHAINS          uint64 = 2
 	OFFER_METADATA        uint64 = 4
@@ -138,9 +138,7 @@ func DecodeBolt12Offer(offer string) (*Offer, error) {
 	return offerData, nil
 }
 
-// Remove formatting characters and return cleaned string
 func cleanBech32String(bech32String string) string {
-	// Remove "+" followed by any whitespace, globally
 	var cleaned strings.Builder
 	skip := false
 	for _, r := range bech32String {
@@ -157,12 +155,10 @@ func cleanBech32String(bech32String string) string {
 	return cleaned.String()
 }
 
-// Parse and decode Bech32 data part into 5-bit words
 func bech32ToWords(bech32String string, hrp string) (payload []byte, err error) {
-	// 1. Remove formatting and make lowercase
 	cleanString := strings.ToLower(cleanBech32String(bech32String))
 
-	// 2. Split into prefix and data by first '1'
+	// Split into prefix and data by first '1'
 	parts := strings.SplitN(cleanString, "1", 2)
 	if len(parts) != 2 {
 		return nil, errors.New("invalid BOLT12 format: missing separator")
@@ -193,7 +189,6 @@ func bech32ToWords(bech32String string, hrp string) (payload []byte, err error) 
 }
 
 func IsBolt12Offer(offer string) bool {
-	// BOLT12 offers start with "lno" prefix
 	return strings.HasPrefix(strings.ToLower(offer), "lno")
 }
 

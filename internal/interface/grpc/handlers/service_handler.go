@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/hex"
+	"strings"
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
@@ -51,6 +52,10 @@ func (h *serviceHandler) GetInfo(
 	config, err := h.svc.GetConfigData(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	if h.svc.IsLocked(ctx) {
+		return nil, status.Error(codes.FailedPrecondition, "wallet is locked")
 	}
 
 	_, _, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
@@ -170,13 +175,23 @@ func (h *serviceHandler) SendOffChain(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	receivers := []types.Receiver{{To: address, Amount: amount}}
 
-	arkTxId, err := h.svc.SendOffChain(ctx, false, receivers)
+	receivers := []types.Receiver{{To: address, Amount: amount}}
+	var arkTxid string
+	for range 3 {
+		arkTxid, err = h.svc.SendOffChain(ctx, false, receivers)
+		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
+				continue
+			}
+			return nil, err
+		}
+		break
+	}
 	if err != nil {
 		return nil, err
 	}
-	return &pb.SendOffChainResponse{Txid: arkTxId}, nil
+	return &pb.SendOffChainResponse{Txid: arkTxid}, nil
 }
 
 func (h *serviceHandler) SendOnChain(
@@ -190,7 +205,7 @@ func (h *serviceHandler) SendOnChain(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	txid, err := h.svc.CollaborativeExit(ctx, address, amount, false)
+	txid, err := h.svc.SendOnChain(ctx, address, amount)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +238,12 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 		return nil, status.Error(codes.InvalidArgument, "invalid preimage")
 	}
 
-	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes)
+	vhtlcId := req.GetVhtlcId()
+	if vhtlcId == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
+	}
+
+	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes, vhtlcId)
 	if err != nil {
 		return nil, err
 	}
@@ -232,14 +252,14 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 }
 
 func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb.RefundVHTLCWithoutReceiverRequest) (*pb.RefundVHTLCWithoutReceiverResponse, error) {
-	preimageHash, err := parsePreimageHash(req.GetPreimageHash())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+	vhtlcId := req.GetVhtlcId()
+	if vhtlcId == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
 	}
 	withReceiver := true
 	withoutReceiver := !withReceiver
 
-	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", preimageHash, withoutReceiver)
+	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", vhtlcId, withoutReceiver)
 	if err != nil {
 		return nil, err
 	}
@@ -248,28 +268,12 @@ func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb
 }
 
 func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest) (*pb.ListVHTLCResponse, error) {
-	vtxos, _, err := h.svc.ListVHTLC(ctx, req.GetPreimageHashFilter())
+	vtxos, _, err := h.svc.ListVHTLC(ctx, req.GetVhtlcId())
 	if err != nil {
 		return nil, err
 	}
 
-	vhtlcs := make([]*pb.Vtxo, 0, len(vtxos))
-	for _, vtxo := range vtxos {
-		vhtlcs = append(vhtlcs, &pb.Vtxo{
-			Outpoint: &pb.Input{
-				Txid: vtxo.Txid,
-				Vout: vtxo.VOut,
-			},
-			Script:          vtxo.Script,
-			Amount:          vtxo.Amount,
-			SpentBy:         vtxo.SpentBy,
-			ArkTxid:         vtxo.ArkTxid,
-			CommitmentTxids: vtxo.CommitmentTxids,
-			ExpiresAt:       vtxo.ExpiresAt.Unix(),
-		})
-	}
-
-	return &pb.ListVHTLCResponse{Vhtlcs: vhtlcs}, nil
+	return &pb.ListVHTLCResponse{Vhtlcs: toVtxosProto(vtxos)}, nil
 }
 
 func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCRequest) (*pb.CreateVHTLCResponse, error) {
@@ -307,7 +311,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
 	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
 
-	addr, vhtlcScript, _, err := h.svc.GetVHTLC(
+	addr, vhtlc_id, vhtlcScript, _, err := h.svc.GetVHTLC(
 		ctx,
 		receiverPubkey,
 		senderPubkey,
@@ -322,6 +326,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	}
 
 	return &pb.CreateVHTLCResponse{
+		Id:                                   vhtlc_id,
 		Address:                              addr,
 		ClaimPubkey:                          hex.EncodeToString(vhtlcScript.Receiver.SerializeCompressed()[1:]),
 		RefundPubkey:                         hex.EncodeToString(vhtlcScript.Sender.SerializeCompressed()[1:]),
@@ -457,5 +462,35 @@ func (h *serviceHandler) ListWatchedAddresses(
 
 	return &pb.ListWatchedAddressesResponse{
 		Addresses: rolloverAddresses,
+	}, nil
+}
+
+func (h *serviceHandler) GetVirtualTxs(
+	ctx context.Context, req *pb.GetVirtualTxsRequest,
+) (*pb.GetVirtualTxsResponse, error) {
+	txids := req.GetTxids()
+
+	// Filter out empty strings
+	filteredTxids := make([]string, 0, len(txids))
+	for _, txid := range txids {
+		if txid != "" {
+			filteredTxids = append(filteredTxids, txid)
+		}
+	}
+
+	// If no valid txids, return empty list
+	if len(filteredTxids) == 0 {
+		return &pb.GetVirtualTxsResponse{
+			Txs: []string{},
+		}, nil
+	}
+
+	txs, err := h.svc.GetVirtualTxs(ctx, filteredTxids)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetVirtualTxsResponse{
+		Txs: txs,
 	}, nil
 }

@@ -394,7 +394,7 @@ type AddWebhookRequest struct {
 	Endpoint string `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
 	// The event type for which the webhook should be registered.
 	EventType WebhookEventType `protobuf:"varint,2,opt,name=event_type,json=eventType,proto3,enum=fulmine.v1.WebhookEventType" json:"event_type,omitempty"`
-	// The secret to use for signign a JWT token for an authenticated request
+	// The secret to use for signing a JWT token for an authenticated request
 	// to the external service.
 	Secret string `protobuf:"bytes,3,opt,name=secret,proto3" json:"secret,omitempty"`
 }
@@ -639,7 +639,7 @@ type ListWebhooksResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The list of info about the webhooks regitered for an action.
+	// The list of info about the webhooks registered for an action.
 	WebhookInfo []*WebhookInfo `protobuf:"bytes,1,rep,name=webhook_info,json=webhookInfo,proto3" json:"webhook_info,omitempty"`
 }
 

@@ -109,7 +109,7 @@ message LockRequest{
 message LockResponse{}
 
 message ChangePasswordRequest{
-  // The current password used to encrypt the walley.
+  // The current password used to encrypt the wallet.
   string current_password = 1;
 
   // The new password replacing the current one.
