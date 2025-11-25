@@ -20,6 +20,9 @@ Generated from `config Structure`. **Do not edit manually.**
 | `FULMINE_DISABLE_TELEMETRY` | `false` | `bool` | Disable telemetry |
 | `FULMINE_NO_MACAROONS` | `false` | `bool` | Disable macaroons |
 | `FULMINE_SWAP_TIMEOUT` | `120` | `uint32` | Swap timeout in seconds |
+| `FULMINE_SCHEDULER_POLL_INTERVAL` | `60` | `int64` | Scheduler polling interval in seconds |
+| `FULMINE_PROFILING_ENABLED` | `false` | `bool` | Enable profiling endpoints |
+| `FULMINE_REFRESH_DB_INTERVAL` | `300` | `int64` | Interval in seconds to refresh the database with latest blockchain data |
 | `FULMINE_LND_URL` | `` | `string` | LND connection URL (lndconnect:// or http://host:port) |
 | `FULMINE_CLN_URL` | `` | `string` | CLN connection URL (clnconnect:// or http://host:port) |
 | `FULMINE_CLN_DATADIR` | `` | `string` | CLN data directory (required if not using clnconnect://) |
