@@ -1224,6 +1224,11 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 	return nil
 }
 
+// restoreSwapHistory gets the swap history from Boltz svc, then:
+//   - for every refunded swap, gets the refund txid from the indexer
+//   - for every completed reverse swap, gets the claim txid from the indexer
+//
+// And persists the swaps in the db
 func (s *Service) restoreSwapHistory(ctx context.Context) error {
 	configData, err := s.GetConfigData(ctx)
 	if err != nil {
