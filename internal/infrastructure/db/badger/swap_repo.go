@@ -70,35 +70,24 @@ func (r *swapRepository) Get(ctx context.Context, swapId string) (*domain.Swap, 
 	return swap, nil
 }
 
-// Add stores a new Swap in the database
-func (r *swapRepository) Add(ctx context.Context, swap domain.Swap) error {
-	swapData := toSwapData(swap)
-
-	if err := r.store.Insert(swap.Id, swapData); err != nil {
-		if errors.Is(err, badgerhold.ErrKeyExists) {
-			return fmt.Errorf("swap %s already exists", swap.Id)
-		}
-		return err
-	}
-	return nil
-}
-
-func (r *swapRepository) AddAll(ctx context.Context, swaps []domain.Swap) error {
+func (r *swapRepository) Add(ctx context.Context, swaps []domain.Swap) (int, error) {
 	if len(swaps) == 0 {
-		return nil
+		return -1, nil
 	}
 
+	count := 0
 	for _, swap := range swaps {
 		swapData := toSwapData(swap)
 		if err := r.store.Insert(swap.Id, swapData); err != nil {
 			if errors.Is(err, badgerhold.ErrKeyExists) {
 				continue
 			}
-			return fmt.Errorf("failed to insert swap %s: %w", swap.Id, err)
+			return -1, fmt.Errorf("failed to insert swap %s: %w", swap.Id, err)
 		}
+		count++
 	}
 
-	return nil
+	return count, nil
 }
 
 func (r *swapRepository) Update(ctx context.Context, swap domain.Swap) error {

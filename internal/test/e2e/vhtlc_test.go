@@ -30,7 +30,7 @@ func TestVHTLC(t *testing.T) {
 	sha256Hash := sha256.Sum256(preimage)
 	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
 
-	vhtlc, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+	req := &pb.CreateVHTLCRequest{
 		PreimageHash:   preimageHash,
 		ReceiverPubkey: info.GetPubkey(),
 		UnilateralClaimDelay: &pb.RelativeLocktime{
@@ -45,12 +45,20 @@ func TestVHTLC(t *testing.T) {
 			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
 			Value: 1024,
 		},
-	})
+	}
+	vhtlc, err := f.CreateVHTLC(ctx, req)
 	require.NoError(t, err)
 	require.NotEmpty(t, vhtlc.Address)
 	require.NotEmpty(t, vhtlc.ClaimPubkey)
 	require.NotEmpty(t, vhtlc.RefundPubkey)
 	require.NotEmpty(t, vhtlc.ServerPubkey)
+
+	// Ensure duplication are not allowed
+	{
+		vhtlc, err := f.CreateVHTLC(ctx, req)
+		require.Error(t, err)
+		require.Nil(t, vhtlc)
+	}
 
 	// Fund the VHTLC
 	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
