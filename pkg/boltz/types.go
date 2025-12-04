@@ -129,7 +129,7 @@ type SwapDetails struct {
 	TimeoutBlockHeight uint32         `json:"timeoutBlockHeight"`
 }
 
-type FetchSwapHistoryResponse = []struct {
+type Swap struct {
 	Id            string       `json:"id"`
 	Type          string       `json:"type"`
 	Status        string       `json:"status"`

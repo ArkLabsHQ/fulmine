@@ -77,7 +77,7 @@ func TestVHTLCAddress(t *testing.T) {
 				refundWithoutReceiverDelayType := parseTimelockType(unilateralRefundWithoutReceiverDelay["type"].(string))
 
 				// Create VHTLC script
-				script, err := vhtlc.NewVHTLCScript(vhtlc.Opts{
+				script, err := vhtlc.NewVHTLCScriptFromOpts(vhtlc.Opts{
 					Sender:                               senderPubKey,
 					Receiver:                             receiverPubKey,
 					Server:                               serverPubKey,
@@ -109,7 +109,7 @@ func TestVHTLCAddress(t *testing.T) {
 				}
 
 				// Generate address
-				address, err := script.Address("tark", serverPubKey)
+				address, err := script.Address("tark")
 				require.NoError(t, err)
 				require.Equal(t, expectedAddress, address)
 			})
@@ -165,7 +165,7 @@ func TestVHTLCAddress(t *testing.T) {
 				refundWithoutReceiverDelayType := parseTimelockType(unilateralRefundWithoutReceiverDelay["type"].(string))
 
 				// Create VHTLC script - this should fail
-				_, err = vhtlc.NewVHTLCScript(vhtlc.Opts{
+				_, err = vhtlc.NewVHTLCScriptFromOpts(vhtlc.Opts{
 					Sender:                               senderKey,
 					Receiver:                             receiverKey,
 					Server:                               serverKey,
@@ -191,7 +191,7 @@ func TestVHTLC(t *testing.T) {
 	preimageHash := calculatePreimageHash(preimage)
 
 	// Create VHTLC
-	script, err := vhtlc.NewVHTLCScript(vhtlc.Opts{
+	script, err := vhtlc.NewVHTLCScriptFromOpts(vhtlc.Opts{
 		Sender:                               senderKey.PubKey(),
 		Receiver:                             receiverKey.PubKey(),
 		Server:                               serverKey.PubKey(),
@@ -299,7 +299,7 @@ func TestGetVhtlcScript(t *testing.T) {
 		UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: 288},
 	}
 
-	original, err := vhtlc.NewVHTLCScript(opts)
+	original, err := vhtlc.NewVHTLCScriptFromOpts(opts)
 	require.NoError(t, err)
 
 	claimScript, err := original.ClaimClosure.Script()
@@ -315,8 +315,7 @@ func TestGetVhtlcScript(t *testing.T) {
 	unilateralRefundWithoutReceiverScript, err := original.UnilateralRefundWithoutReceiverClosure.Script()
 	require.NoError(t, err)
 
-	recovered, err := vhtlc.GetVhtlcScript(
-		opts.Server,
+	recovered, err := vhtlc.NewVhtlcScript(
 		hex.EncodeToString(opts.PreimageHash),
 		hex.EncodeToString(claimScript),
 		hex.EncodeToString(refundScript),
@@ -328,10 +327,10 @@ func TestGetVhtlcScript(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, recovered)
 
-	derived := recovered.DeriveOpts()
+	derived := recovered.Opts()
 	require.Equal(t, schnorr.SerializePubKey(opts.Sender), schnorr.SerializePubKey(derived.Sender))
 	require.Equal(t, schnorr.SerializePubKey(opts.Receiver), schnorr.SerializePubKey(derived.Receiver))
-	require.True(t, derived.Server.IsEqual(opts.Server))
+	require.Equal(t, schnorr.SerializePubKey(opts.Server), schnorr.SerializePubKey(derived.Server))
 	require.Equal(t, opts.PreimageHash, derived.PreimageHash)
 	require.Equal(t, opts.RefundLocktime, derived.RefundLocktime)
 	require.Equal(t, opts.UnilateralClaimDelay, derived.UnilateralClaimDelay)

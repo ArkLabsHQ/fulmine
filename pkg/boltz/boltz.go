@@ -89,7 +89,7 @@ func (boltz *Api) RevealPreimage(swapId string, preimage string) (*RevealPreimag
 	return resp, nil
 }
 
-func (boltz *Api) FetchSwapHistory(pubkey string) (*FetchSwapHistoryResponse, error) {
+func (boltz *Api) GetSwapHistory(pubkey string) ([]Swap, error) {
 	url := "/swap/restore"
 
 	request := struct {
@@ -97,11 +97,11 @@ func (boltz *Api) FetchSwapHistory(pubkey string) (*FetchSwapHistoryResponse, er
 	}{
 		PublicKey: pubkey,
 	}
-	resp, err := sendPostRequest[FetchSwapHistoryResponse](boltz, url, request)
+	resp, err := sendPostRequest[[]Swap](boltz, url, request)
 	if err != nil {
 		return nil, err
 	}
-	return resp, nil
+	return *resp, nil
 }
 
 const defaultHTTPTimeout = 15 * time.Second
