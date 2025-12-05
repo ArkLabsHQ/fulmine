@@ -131,6 +131,7 @@ func main() {
 
 	svc, err := grpcservice.NewService(
 		svcConfig, appSvc, cfg.UnlockerService(), sentryEnabled, cfg.MacaroonSvc(), cfg.ArkServer,
+		cfg.OtelCollectorEndpoint, cfg.OtelPushInterval, cfg.PyroscopeServerURL,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init interface service")
