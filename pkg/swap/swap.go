@@ -66,8 +66,10 @@ type Swap struct {
 	Amount       uint64
 }
 
-func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.TransportClient, indexerClient indexer.Indexer, boltzSvc *boltz.Api, publicKey *btcec.PublicKey, timeout uint32) *SwapHandler {
-
+func NewSwapHandler(
+	arkClient arksdk.ArkClient, transportClient client.TransportClient,
+	indexerClient indexer.Indexer, boltzSvc *boltz.Api, publicKey *btcec.PublicKey, timeout uint32,
+) *SwapHandler {
 	return &SwapHandler{
 		arkClient:       arkClient,
 		transportClient: transportClient,
@@ -78,7 +80,9 @@ func NewSwapHandler(arkClient arksdk.ArkClient, transportClient client.Transport
 	}
 }
 
-func (h *SwapHandler) PayInvoice(ctx context.Context, invoice string, unilateralRefund func(swap Swap) error) (*Swap, error) {
+func (h *SwapHandler) PayInvoice(
+	ctx context.Context, invoice string, unilateralRefund func(swap Swap) error,
+) (*Swap, error) {
 	if len(invoice) <= 0 {
 		return nil, fmt.Errorf("missing invoice")
 	}
@@ -86,7 +90,9 @@ func (h *SwapHandler) PayInvoice(ctx context.Context, invoice string, unilateral
 	return h.submarineSwap(ctx, invoice, unilateralRefund)
 }
 
-func (h *SwapHandler) PayOffer(ctx context.Context, offer string, lightningUrl string, unilateralRefund func(swap Swap) error) (*Swap, error) {
+func (h *SwapHandler) PayOffer(
+	ctx context.Context, offer string, lightningUrl string, unilateralRefund func(swap Swap) error,
+) (*Swap, error) {
 	// Decode the offer to get the amount
 	decodedOffer, err := DecodeBolt12Offer(offer)
 	if err != nil {
@@ -121,7 +127,9 @@ func (h *SwapHandler) PayOffer(ctx context.Context, offer string, lightningUrl s
 	return h.submarineSwap(ctx, response.Invoice, unilateralRefund)
 }
 
-func (h *SwapHandler) GetInvoice(ctx context.Context, amount uint64, postProcess func(swap Swap) error) (Swap, error) {
+func (h *SwapHandler) GetInvoice(
+	ctx context.Context, amount uint64, postProcess func(swap Swap) error,
+) (Swap, error) {
 	preimage := make([]byte, 32)
 	if _, err := rand.Read(preimage); err != nil {
 		return Swap{}, fmt.Errorf("failed to generate preimage: %w", err)
@@ -239,7 +247,9 @@ func (h *SwapHandler) submarineSwap(
 			if !ok {
 				oldWs := ws
 				nextWs := h.boltzSvc.NewWebsocket()
-				if err := nextWs.ConnectAndSubscribe(ctx, []string{swap.Id}, 5*time.Second); err != nil {
+				if err := nextWs.ConnectAndSubscribe(
+					ctx, []string{swap.Id}, 5*time.Second,
+				); err != nil {
 					continue
 				}
 				_ = oldWs.Close()
@@ -323,12 +333,12 @@ func (h *SwapHandler) getVHTLC(
 		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
 	}
 
-	vHTLC, err := vhtlc.NewVHTLCScript(opts)
+	vHTLC, err := vhtlc.NewVHTLCScriptFromOpts(opts)
 	if err != nil {
 		return "", nil, nil, err
 	}
 
-	encodedAddr, err := vHTLC.Address(config.Network.Addr, config.SignerPubKey)
+	encodedAddr, err := vHTLC.Address(config.Network.Addr)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -365,7 +375,7 @@ func (h *SwapHandler) refundVHTLC(
 		Index: vtxo.VOut,
 	}
 
-	vtxoScript, err := vhtlc.NewVHTLCScript(vhtlcOpts)
+	vtxoScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
 	if err != nil {
 		return "", err
 	}
@@ -505,12 +515,16 @@ func (h *SwapHandler) refundVHTLC(
 		return "", fmt.Errorf("failed to decode refund tx signed by server: %s", err)
 	}
 
-	serverCheckpointPtx, err := psbt.NewFromRawBytes(strings.NewReader(serverSignedCheckpoints[0]), true)
+	serverCheckpointPtx, err := psbt.NewFromRawBytes(
+		strings.NewReader(serverSignedCheckpoints[0]), true,
+	)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode checkpoint tx signed by us: %s", err)
 	}
 
-	if err := verifySignatures([]*psbt.Packet{finalRefundPtx}, pubKeysToVerify, getInputTapLeaves(refundTx)); err != nil {
+	if err := verifySignatures(
+		[]*psbt.Packet{finalRefundPtx}, pubKeysToVerify, getInputTapLeaves(refundTx),
+	); err != nil {
 		return "", err
 	}
 
@@ -521,7 +535,10 @@ func (h *SwapHandler) refundVHTLC(
 		return "", fmt.Errorf("failed to combine checkpoint txs: %s", err)
 	}
 
-	err = verifySignatures([]*psbt.Packet{finalCheckpointPtx}, pubKeysToVerify, getInputTapLeaves(serverCheckpointPtx))
+	err = verifySignatures(
+		[]*psbt.Packet{finalCheckpointPtx}, pubKeysToVerify,
+		getInputTapLeaves(serverCheckpointPtx),
+	)
 	if err != nil {
 		return "", err
 	}
@@ -539,7 +556,9 @@ func (h *SwapHandler) refundVHTLC(
 	return arkTxid, nil
 }
 
-func (h *SwapHandler) boltzRefundSwap(swapId, refundTx, checkpointTx string) (*psbt.Packet, *psbt.Packet, error) {
+func (h *SwapHandler) boltzRefundSwap(
+	swapId, refundTx, checkpointTx string,
+) (*psbt.Packet, *psbt.Packet, error) {
 	tx, err := h.boltzSvc.RefundSubmarine(swapId, boltz.RefundSwapRequest{
 		Transaction: refundTx,
 		Checkpoint:  checkpointTx,
@@ -561,7 +580,9 @@ func (h *SwapHandler) boltzRefundSwap(swapId, refundTx, checkpointTx string) (*p
 	return refundPtx, checkpointPtx, nil
 }
 
-func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage []byte, postProcess func(swap Swap) error) (Swap, error) {
+func (h *SwapHandler) reverseSwap(
+	ctx context.Context, amount uint64, preimage []byte, postProcess func(swap Swap) error,
+) (Swap, error) {
 	var preimageHash []byte
 	buf := sha256.Sum256(preimage)
 	preimageHash = input.Ripemd160H(buf[:])
@@ -591,10 +612,14 @@ func (h *SwapHandler) reverseSwap(ctx context.Context, amount uint64, preimage [
 	}
 
 	if !bytes.Equal(preimageHash, gotPreimageHash) {
-		return Swap{}, fmt.Errorf("invalid preimage hash: expected %x, got %x", preimageHash, gotPreimageHash)
+		return Swap{}, fmt.Errorf(
+			"invalid preimage hash: expected %x, got %x", preimageHash, gotPreimageHash,
+		)
 	}
 	if invoiceAmount != amount {
-		return Swap{}, fmt.Errorf("invalid invoice amount: expected %d, got %d", amount, invoiceAmount)
+		return Swap{}, fmt.Errorf(
+			"invalid invoice amount: expected %d, got %d", amount, invoiceAmount,
+		)
 	}
 
 	refundLocktime := arklib.AbsoluteLocktime(swap.TimeoutBlockHeights.RefundLocktime)
@@ -676,7 +701,9 @@ func (h *SwapHandler) waitAndClaimVHTLC(
 			if !ok {
 				oldWs := ws
 				nextWs := h.boltzSvc.NewWebsocket()
-				if err := nextWs.ConnectAndSubscribe(ctx, []string{swapId}, 5*time.Second); err != nil {
+				if err := nextWs.ConnectAndSubscribe(
+					ctx, []string{swapId}, 5*time.Second,
+				); err != nil {
 					continue
 				}
 				_ = oldWs.Close()
@@ -720,8 +747,10 @@ func (h *SwapHandler) waitAndClaimVHTLC(
 
 }
 
-func (h *SwapHandler) getVHTLCFunds(ctx context.Context, vhtlcOpts vhtlc.Opts) ([]types.Vtxo, error) {
-	vHTLC, err := vhtlc.NewVHTLCScript(vhtlcOpts)
+func (h *SwapHandler) getVHTLCFunds(
+	ctx context.Context, vhtlcOpts vhtlc.Opts,
+) ([]types.Vtxo, error) {
+	vHTLC, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -797,7 +826,7 @@ func (h *SwapHandler) claimVHTLC(
 		return "", fmt.Errorf("failed to get config data: %w", err)
 	}
 
-	vtxoScript, err := vhtlc.NewVHTLCScript(vhtlcOpts)
+	vtxoScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
 	if err != nil {
 		return "", err
 	}
@@ -830,7 +859,9 @@ func (h *SwapHandler) claimVHTLC(
 
 	signTransaction := func(tx *psbt.Packet) (string, error) {
 		// add the preimage to the checkpoint input
-		if err := txutils.SetArkPsbtField(tx, 0, txutils.ConditionWitnessField, wire.TxWitness{preimage}); err != nil {
+		if err := txutils.SetArkPsbtField(
+			tx, 0, txutils.ConditionWitnessField, wire.TxWitness{preimage},
+		); err != nil {
 			return "", err
 		}
 
@@ -856,7 +887,9 @@ func (h *SwapHandler) claimVHTLC(
 		checkpointTxs = append(checkpointTxs, tx)
 	}
 
-	arkTxid, finalArkTx, signedCheckpoints, err := h.transportClient.SubmitTx(ctx, signedArkTx, checkpointTxs)
+	arkTxid, finalArkTx, signedCheckpoints, err := h.transportClient.SubmitTx(
+		ctx, signedArkTx, checkpointTxs,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -865,7 +898,9 @@ func (h *SwapHandler) claimVHTLC(
 		return "", err
 	}
 
-	finalCheckpoints, err := verifyAndSignCheckpoints(signedCheckpoints, checkpoints, cfg.SignerPubKey, signTransaction)
+	finalCheckpoints, err := verifyAndSignCheckpoints(
+		signedCheckpoints, checkpoints, cfg.SignerPubKey, signTransaction,
+	)
 	if err != nil {
 		return "", err
 	}
@@ -885,7 +920,9 @@ func checkpointExitScript(cfg *types.Config) []byte {
 
 // verifyInputSignatures checks that all inputs have a signature for the given pubkey
 // and the signature is correct for the given tapscript leaf
-func verifyInputSignatures(tx *psbt.Packet, pubkey *btcec.PublicKey, tapLeaves map[int]txscript.TapLeaf) error {
+func verifyInputSignatures(
+	tx *psbt.Packet, pubkey *btcec.PublicKey, tapLeaves map[int]txscript.TapLeaf,
+) error {
 	xOnlyPubkey := schnorr.SerializePubKey(pubkey)
 
 	prevouts := make(map[wire.OutPoint]*wire.TxOut)
@@ -902,7 +939,9 @@ func verifyInputSignatures(tx *psbt.Packet, pubkey *btcec.PublicKey, tapLeaves m
 
 		tapLeaf, ok := tapLeaves[inputIndex]
 		if !ok {
-			return fmt.Errorf("input %d has no tapscript leaf, cannot verify signature", inputIndex)
+			return fmt.Errorf(
+				"input %d has no tapscript leaf, cannot verify signature", inputIndex,
+			)
 		}
 
 		tapLeafHash := tapLeaf.TapHash()
@@ -910,7 +949,8 @@ func verifyInputSignatures(tx *psbt.Packet, pubkey *btcec.PublicKey, tapLeaves m
 		// check if pubkey has a tapscript sig
 		hasSig := false
 		for _, sig := range input.TaprootScriptSpendSig {
-			if bytes.Equal(sig.XOnlyPubKey, xOnlyPubkey) && bytes.Equal(sig.LeafHash, tapLeafHash[:]) {
+			if bytes.Equal(sig.XOnlyPubKey, xOnlyPubkey) &&
+				bytes.Equal(sig.LeafHash, tapLeafHash[:]) {
 				hasSig = true
 				sigsToVerify[inputIndex] = sig
 				break
@@ -964,7 +1004,10 @@ func getInputTapLeaves(tx *psbt.Packet) map[int]txscript.TapLeaf {
 	return tapLeaves
 }
 
-func verifyAndSignCheckpoints(signedCheckpoints []string, myCheckpoints []*psbt.Packet, arkSigner *btcec.PublicKey, sign func(tx *psbt.Packet) (string, error)) ([]string, error) {
+func verifyAndSignCheckpoints(
+	signedCheckpoints []string, myCheckpoints []*psbt.Packet,
+	arkSigner *btcec.PublicKey, sign func(tx *psbt.Packet) (string, error,
+	)) ([]string, error) {
 	finalCheckpoints := make([]string, 0, len(signedCheckpoints))
 	for _, checkpoint := range signedCheckpoints {
 		signedCheckpointPtx, err := psbt.NewFromRawBytes(strings.NewReader(checkpoint), true)
@@ -985,7 +1028,9 @@ func verifyAndSignCheckpoints(signedCheckpoints []string, myCheckpoints []*psbt.
 		}
 
 		// verify the server has signed the checkpoint tx
-		err = verifyInputSignatures(signedCheckpointPtx, arkSigner, getInputTapLeaves(myCheckpointTx))
+		err = verifyInputSignatures(
+			signedCheckpointPtx, arkSigner, getInputTapLeaves(myCheckpointTx),
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -1001,7 +1046,9 @@ func verifyAndSignCheckpoints(signedCheckpoints []string, myCheckpoints []*psbt.
 	return finalCheckpoints, nil
 }
 
-func verifyFinalArkTx(finalArkTx string, arkSigner *btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf) error {
+func verifyFinalArkTx(
+	finalArkTx string, arkSigner *btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf,
+) error {
 	finalArkPtx, err := psbt.NewFromRawBytes(strings.NewReader(finalArkTx), true)
 	if err != nil {
 		return err
@@ -1051,7 +1098,10 @@ func combineTapscripts(signedPackets []*psbt.Packet) (*psbt.Packet, error) {
 	return finalCheckpoint, nil
 }
 
-func verifySignatures(signedCheckpointTxs []*psbt.Packet, pubkeys []*btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf) error {
+func verifySignatures(
+	signedCheckpointTxs []*psbt.Packet, pubkeys []*btcec.PublicKey,
+	expectedTapLeaves map[int]txscript.TapLeaf,
+) error {
 	for _, signedCheckpointTx := range signedCheckpointTxs {
 		for _, signer := range pubkeys {
 			// verify that the ark signer has signed the ark tx

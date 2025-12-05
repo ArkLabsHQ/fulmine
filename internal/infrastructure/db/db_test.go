@@ -329,19 +329,18 @@ func testAddSwap(t *testing.T, repo domain.SwapRepository) {
 		require.Error(t, err)
 		require.Nil(t, swap)
 
-		err = repo.Add(ctx, testSwap)
+		count, err := repo.Add(ctx, []domain.Swap{testSwap})
 		require.NoError(t, err)
+		require.Equal(t, 1, count)
 
-		err = repo.Add(ctx, testSwap)
-		require.Error(t, err)
+		count, err = repo.Add(ctx, []domain.Swap{testSwap})
+		require.NoError(t, err)
+		require.LessOrEqual(t, 0, count)
 
 		swap, err = repo.Get(ctx, testSwap.Id)
 		require.NoError(t, err)
 		require.NotNil(t, swap)
 		require.Equal(t, *swap, testSwap)
-
-		err = repo.Add(ctx, testSwap)
-		require.Error(t, err)
 	})
 }
 
@@ -353,8 +352,13 @@ func testGetAllSwap(t *testing.T, repo domain.SwapRepository) {
 
 		// Add another swap
 
-		err = repo.Add(ctx, secondSwap)
+		count, err := repo.Add(ctx, []domain.Swap{testSwap, secondSwap})
 		require.NoError(t, err)
+		require.Equal(t, 1, count)
+
+		count, err = repo.Add(ctx, []domain.Swap{testSwap, secondSwap})
+		require.NoError(t, err)
+		require.LessOrEqual(t, 0, count)
 
 		// Get all swaps
 		swaps, err = repo.GetAll(ctx)

@@ -89,6 +89,21 @@ func (boltz *Api) RevealPreimage(swapId string, preimage string) (*RevealPreimag
 	return resp, nil
 }
 
+func (boltz *Api) GetSwapHistory(pubkey string) ([]Swap, error) {
+	url := "/swap/restore"
+
+	request := struct {
+		PublicKey string `json:"publicKey"`
+	}{
+		PublicKey: pubkey,
+	}
+	resp, err := sendPostRequest[[]Swap](boltz, url, request)
+	if err != nil {
+		return nil, err
+	}
+	return *resp, nil
+}
+
 const defaultHTTPTimeout = 15 * time.Second
 
 func withTimeoutCtx() (context.Context, context.CancelFunc) {
