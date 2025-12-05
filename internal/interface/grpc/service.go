@@ -6,16 +6,20 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
+	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/telemetry"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/grpc/handlers"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/grpc/interceptors"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web"
 	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
@@ -26,14 +30,16 @@ import (
 )
 
 type service struct {
-	cfg         Config
-	appSvc      *application.Service
-	httpServer  *http.Server
-	grpcServer  *grpc.Server
-	unlockerSvc ports.Unlocker
-	macaroonSvc macaroon.Service
-	appStopCh   chan struct{}
-	feStopCh    chan struct{}
+	cfg               Config
+	appSvc            *application.Service
+	httpServer        *http.Server
+	grpcServer        *grpc.Server
+	unlockerSvc       ports.Unlocker
+	macaroonSvc       macaroon.Service
+	appStopCh         chan struct{}
+	feStopCh          chan struct{}
+	otelShutdown      func(context.Context) error
+	pyroscopeShutdown func() error
 }
 
 func NewService(
@@ -43,6 +49,9 @@ func NewService(
 	sentryEnabled bool,
 	macaroonSvc macaroon.Service,
 	arkServer string,
+	otelCollectorEndpoint string,
+	otelPushInterval int64,
+	pyroscopeServerURL string,
 ) (*service, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %s", err)
@@ -57,6 +66,39 @@ func NewService(
 		interceptors.UnaryInterceptor(sentryEnabled),
 		interceptors.StreamInterceptor(sentryEnabled),
 	}
+
+	// Initialize OTel and Pyroscope telemetry
+	var otelShutdown func(context.Context) error
+	var pyroscopeShutdown func() error
+
+	if otelCollectorEndpoint != "" {
+		log.AddHook(telemetry.NewOTelHook())
+
+		pushInterval := time.Duration(otelPushInterval) * time.Second
+		shutdown, err := telemetry.InitOtelSDK(
+			context.Background(),
+			otelCollectorEndpoint,
+			pushInterval,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize otel sdk: %s", err)
+		}
+		otelShutdown = shutdown
+
+		otelHandler := otelgrpc.NewServerHandler(
+			otelgrpc.WithTracerProvider(otel.GetTracerProvider()),
+		)
+		grpcConfig = append(grpcConfig, grpc.StatsHandler(otelHandler))
+
+		if pyroscopeServerURL != "" {
+			shutdown, err := telemetry.InitPyroscope(pyroscopeServerURL)
+			if err != nil {
+				return nil, fmt.Errorf("failed to initialize pyroscope: %s", err)
+			}
+			pyroscopeShutdown = shutdown
+		}
+	}
+
 	if cfg.WithTLS {
 		return nil, fmt.Errorf("tls termination not supported yet")
 	}
@@ -172,14 +214,16 @@ func NewService(
 	}
 
 	svc := &service{
-		cfg,
-		appSvc,
-		httpServer,
-		grpcServer,
-		unlockerSvc,
-		macaroonSvc,
-		appStopCh,
-		feStopCh,
+		cfg:               cfg,
+		appSvc:            appSvc,
+		httpServer:        httpServer,
+		grpcServer:        grpcServer,
+		unlockerSvc:       unlockerSvc,
+		macaroonSvc:       macaroonSvc,
+		appStopCh:         appStopCh,
+		feStopCh:          feStopCh,
+		otelShutdown:      otelShutdown,
+		pyroscopeShutdown: pyroscopeShutdown,
 	}
 
 	if macaroonSvc != nil {
@@ -247,6 +291,19 @@ func (s *service) Stop() {
 	// nolint:all
 	s.httpServer.Shutdown(context.Background())
 	log.Info("stopped http server")
+
+	if s.pyroscopeShutdown != nil {
+		if err := s.pyroscopeShutdown(); err != nil {
+			log.WithError(err).Error("failed to shutdown pyroscope")
+		}
+		log.Info("shutdown pyroscope")
+	}
+	if s.otelShutdown != nil {
+		if err := s.otelShutdown(context.Background()); err != nil {
+			log.WithError(err).Error("failed to shutdown otel")
+		}
+		log.Info("shutdown otel")
+	}
 }
 
 func (s *service) listenToWalletUpdates() {

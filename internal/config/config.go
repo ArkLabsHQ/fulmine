@@ -41,8 +41,11 @@ type Config struct {
 	UnlockerType     string
 	UnlockerFilePath string
 	UnlockerPassword string
-	DisableTelemetry bool
-	SwapTimeout      uint32
+	DisableTelemetry      bool
+	SwapTimeout           uint32
+	OtelCollectorEndpoint string
+	OtelPushInterval      int64
+	PyroscopeServerURL    string
 
 	LnConnectionOpts *domain.LnConnectionOpts
 
@@ -63,6 +66,9 @@ var (
 	BoltzWSURL            = "BOLTZ_WS_URL"
 	DisableTelemetry      = "DISABLE_TELEMETRY"
 	NoMacaroons           = "NO_MACAROONS"
+	OtelCollectorEndpoint = "OTEL_COLLECTOR_ENDPOINT"
+	OtelPushInterval      = "OTEL_PUSH_INTERVAL"
+	PyroscopeServerURL    = "PYROSCOPE_SERVER_URL"
 	LndUrl                = "LND_URL"
 	ClnUrl                = "CLN_URL"
 	ClnDatadir            = "CLN_DATADIR"
@@ -98,6 +104,7 @@ var (
 	defaultSchedulerPollInterval = 600 // 10 minutes
 	defaultProfilingEnabled      = false
 	defaultRefreshDbInterval     = 0
+	defaultOtelPushInterval      = 10 // 10 seconds
 )
 
 func LoadConfig() (*Config, error) {
@@ -121,6 +128,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(SchedulerPollInterval, defaultSchedulerPollInterval)
 	viper.SetDefault(ProfilingEnabled, defaultProfilingEnabled)
 	viper.SetDefault(RefreshDbInterval, defaultRefreshDbInterval)
+	viper.SetDefault(OtelPushInterval, defaultOtelPushInterval)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
@@ -163,6 +171,9 @@ func LoadConfig() (*Config, error) {
 		SchedulerPollInterval: viper.GetInt64(SchedulerPollInterval),
 		ProfilingEnabled:      viper.GetBool(ProfilingEnabled),
 		RefreshDbInterval:     viper.GetInt64(RefreshDbInterval),
+		OtelCollectorEndpoint: viper.GetString(OtelCollectorEndpoint),
+		OtelPushInterval:      viper.GetInt64(OtelPushInterval),
+		PyroscopeServerURL:    viper.GetString(PyroscopeServerURL),
 
 		LnConnectionOpts: lnConnectionOpts,
 	}
