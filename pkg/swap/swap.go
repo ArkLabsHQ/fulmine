@@ -263,7 +263,9 @@ func (h *SwapHandler) submarineSwap(
 				withReceiver := true
 				swapDetails.Status = SwapFailed
 
-				txid, err := h.refundVHTLC(context.Background(), swap.Id, withReceiver, *vhtlcOpts)
+				txid, err := h.RefundSwap(
+					context.Background(), swap.Id, withReceiver, *vhtlcOpts)
+
 				if err != nil {
 					log.WithError(err).Warn("failed to refund vhtlc collaboratively")
 					go func() {
@@ -346,7 +348,7 @@ func (h *SwapHandler) getVHTLC(
 	return encodedAddr, vHTLC, &opts, nil
 }
 
-func (h *SwapHandler) refundVHTLC(
+func (h *SwapHandler) RefundSwap(
 	ctx context.Context, swapId string, withReceiver bool, vhtlcOpts vhtlc.Opts,
 ) (string, error) {
 	cfg, err := h.arkClient.GetConfigData(ctx)
@@ -354,7 +356,7 @@ func (h *SwapHandler) refundVHTLC(
 		return "", err
 	}
 
-	vtxos, err := h.getVHTLCFunds(ctx, vhtlcOpts)
+	vtxos, err := h.GetVHTLCFunds(ctx, []vhtlc.Opts{vhtlcOpts})
 	if err != nil {
 		return "", err
 	}
@@ -724,7 +726,7 @@ func (h *SwapHandler) waitAndClaimVHTLC(
 				log.Debug("claiming VHTLC with preimage...")
 				if err := Retry(ctx, interval, func(ctx context.Context) (bool, error) {
 					var err error
-					txid, err = h.claimVHTLC(ctx, preimage, *vhtlcOpts)
+					txid, err = h.ClaimVHTLC(ctx, preimage, *vhtlcOpts)
 					if err != nil {
 						if errors.Is(err, ErrorNoVtxosFound) {
 							return false, nil
@@ -747,40 +749,43 @@ func (h *SwapHandler) waitAndClaimVHTLC(
 
 }
 
-func (h *SwapHandler) getVHTLCFunds(
-	ctx context.Context, vhtlcOpts vhtlc.Opts,
-) ([]types.Vtxo, error) {
-	vHTLC, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
-	if err != nil {
-		return nil, err
+func (h *SwapHandler) GetVHTLCFunds(ctx context.Context, vhtlcOpts []vhtlc.Opts) ([]types.Vtxo, error) {
+	var allVtxos []types.Vtxo
+
+	for _, v := range vhtlcOpts {
+		vHTLC, err := vhtlc.NewVHTLCScriptFromOpts(v)
+		if err != nil {
+			return nil, err
+		}
+
+		tapKey, _, err := vHTLC.TapTree()
+		if err != nil {
+			return nil, err
+		}
+
+		outScript, err := script.P2TRScript(tapKey)
+		if err != nil {
+			return nil, err
+		}
+
+		vtxosRequest := indexer.GetVtxosRequestOption{}
+		if err := vtxosRequest.WithScripts([]string{hex.EncodeToString(outScript)}); err != nil {
+			return nil, err
+		}
+		resp, err := h.indexerClient.GetVtxos(ctx, vtxosRequest)
+		if err != nil {
+			return nil, err
+		}
+		allVtxos = append(allVtxos, resp.Vtxos...)
 	}
 
-	tapKey, _, err := vHTLC.TapTree()
-	if err != nil {
-		return nil, err
-	}
-
-	outScript, err := script.P2TRScript(tapKey)
-	if err != nil {
-		return nil, err
-	}
-
-	vtxosRequest := indexer.GetVtxosRequestOption{}
-	if err := vtxosRequest.WithScripts([]string{hex.EncodeToString(outScript)}); err != nil {
-		return nil, err
-	}
-	resp, err := h.indexerClient.GetVtxos(ctx, vtxosRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp.Vtxos, nil
+	return allVtxos, nil
 }
 
-func (h *SwapHandler) claimVHTLC(
+func (h *SwapHandler) ClaimVHTLC(
 	ctx context.Context, preimage []byte, vhtlcOpts vhtlc.Opts,
 ) (string, error) {
-	vtxos, err := h.getVHTLCFunds(ctx, vhtlcOpts)
+	vtxos, err := h.GetVHTLCFunds(ctx, []vhtlc.Opts{vhtlcOpts})
 	if err != nil {
 		return "", err
 	}
