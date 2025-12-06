@@ -9,6 +9,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
+	"github.com/sirupsen/logrus"
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
 )
@@ -29,38 +30,50 @@ func NewSwapRepository(db *sql.DB) (domain.SwapRepository, error) {
 	}, nil
 }
 
-func (r *swapRepository) Add(ctx context.Context, swap domain.Swap) error {
+func (r *swapRepository) Add(ctx context.Context, swaps []domain.Swap) (int, error) {
+	if len(swaps) == 0 {
+		return -1, nil
+	}
+
+	count := 0
 	txBody := func(querierWithTx *queries.Queries) error {
-		vhtlcRow := toVhtlcRow(swap.Vhtlc)
+		for _, swap := range swaps {
+			vhtlcRow := toVhtlcRow(swap.Vhtlc)
 
-		if err := querierWithTx.InsertVHTLC(ctx, vhtlcRow); err != nil {
-			if sqlErr, ok := err.(*sqlite.Error); ok {
-				if sqlErr.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
-					return fmt.Errorf("vHTLC with id %s already exists", vhtlcRow.ID)
+			if err := querierWithTx.InsertVHTLC(ctx, vhtlcRow); err != nil {
+				if sqlErr, ok := err.(*sqlite.Error); ok {
+					if sqlErr.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
+						logrus.Warnf("vHTLC with id %s already exists", vhtlcRow.ID)
+						continue
+					}
 				}
+				return fmt.Errorf("failed to insert vhtlc: %s", err)
 			}
-			return fmt.Errorf("failed to insert vhtlc: %s", err)
-		}
 
-		if err := querierWithTx.CreateSwap(ctx, queries.CreateSwapParams{
-			ID:           swap.Id,
-			Amount:       int64(swap.Amount),
-			Timestamp:    swap.Timestamp,
-			ToCurrency:   string(swap.To),
-			FromCurrency: string(swap.From),
-			Status:       int64(swap.Status),
-			Invoice:      swap.Invoice,
-			FundingTxID:  swap.FundingTxId,
-			RedeemTxID:   swap.RedeemTxId,
-			VhtlcID:      vhtlcRow.ID,
-			SwapType:     int64(swap.Type),
-		}); err != nil {
-			return fmt.Errorf("failed to insert swap: %s", err)
+			if err := querierWithTx.CreateSwap(ctx, queries.CreateSwapParams{
+				ID:           swap.Id,
+				Amount:       int64(swap.Amount),
+				Timestamp:    swap.Timestamp,
+				ToCurrency:   string(swap.To),
+				FromCurrency: string(swap.From),
+				Status:       int64(swap.Status),
+				Invoice:      swap.Invoice,
+				FundingTxID:  swap.FundingTxId,
+				RedeemTxID:   swap.RedeemTxId,
+				VhtlcID:      vhtlcRow.ID,
+				SwapType:     int64(swap.Type),
+			}); err != nil {
+				return fmt.Errorf("failed to insert swap: %s", err)
+			}
+			count++
 		}
 		return nil
 	}
 
-	return execTx(ctx, r.db, txBody)
+	if err := execTx(ctx, r.db, txBody); err != nil {
+		return -1, err
+	}
+	return count, nil
 }
 
 func (r *swapRepository) Get(ctx context.Context, swapId string) (*domain.Swap, error) {

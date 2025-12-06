@@ -77,7 +77,7 @@ func TestVHTLCAddress(t *testing.T) {
 				refundWithoutReceiverDelayType := parseTimelockType(unilateralRefundWithoutReceiverDelay["type"].(string))
 
 				// Create VHTLC script
-				script, err := vhtlc.NewVHTLCScript(vhtlc.Opts{
+				script, err := vhtlc.NewVHTLCScriptFromOpts(vhtlc.Opts{
 					Sender:                               senderPubKey,
 					Receiver:                             receiverPubKey,
 					Server:                               serverPubKey,
@@ -109,7 +109,7 @@ func TestVHTLCAddress(t *testing.T) {
 				}
 
 				// Generate address
-				address, err := script.Address("tark", serverPubKey)
+				address, err := script.Address("tark")
 				require.NoError(t, err)
 				require.Equal(t, expectedAddress, address)
 			})
@@ -165,7 +165,7 @@ func TestVHTLCAddress(t *testing.T) {
 				refundWithoutReceiverDelayType := parseTimelockType(unilateralRefundWithoutReceiverDelay["type"].(string))
 
 				// Create VHTLC script - this should fail
-				_, err = vhtlc.NewVHTLCScript(vhtlc.Opts{
+				_, err = vhtlc.NewVHTLCScriptFromOpts(vhtlc.Opts{
 					Sender:                               senderKey,
 					Receiver:                             receiverKey,
 					Server:                               serverKey,
@@ -191,7 +191,7 @@ func TestVHTLC(t *testing.T) {
 	preimageHash := calculatePreimageHash(preimage)
 
 	// Create VHTLC
-	script, err := vhtlc.NewVHTLCScript(vhtlc.Opts{
+	script, err := vhtlc.NewVHTLCScriptFromOpts(vhtlc.Opts{
 		Sender:                               senderKey.PubKey(),
 		Receiver:                             receiverKey.PubKey(),
 		Server:                               serverKey.PubKey(),
@@ -279,6 +279,83 @@ func TestVHTLC(t *testing.T) {
 		require.NotEmpty(t, witness[3], "Refund script should not be empty")
 		require.NotEmpty(t, witness[4], "Control block should not be empty")
 	})
+}
+
+func TestGetVhtlcScript(t *testing.T) {
+	senderKey := generatePrivateKey(t)
+	receiverKey := generatePrivateKey(t)
+	serverKey := generatePrivateKey(t)
+	preimage := generatePreimage(t)
+	preimageHash := calculatePreimageHash(preimage)
+
+	opts := vhtlc.Opts{
+		Sender:                               senderKey.PubKey(),
+		Receiver:                             receiverKey.PubKey(),
+		Server:                               serverKey.PubKey(),
+		PreimageHash:                         preimageHash,
+		RefundLocktime:                       arklib.AbsoluteLocktime(time.Now().Add(24 * time.Hour).Unix()),
+		UnilateralClaimDelay:                 arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: 144},
+		UnilateralRefundDelay:                arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: 72},
+		UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: 288},
+	}
+
+	original, err := vhtlc.NewVHTLCScriptFromOpts(opts)
+	require.NoError(t, err)
+
+	claimScript, err := original.ClaimClosure.Script()
+	require.NoError(t, err)
+	refundScript, err := original.RefundClosure.Script()
+	require.NoError(t, err)
+	refundWithoutReceiverScript, err := original.RefundWithoutReceiverClosure.Script()
+	require.NoError(t, err)
+	unilateralClaimScript, err := original.UnilateralClaimClosure.Script()
+	require.NoError(t, err)
+	unilateralRefundScript, err := original.UnilateralRefundClosure.Script()
+	require.NoError(t, err)
+	unilateralRefundWithoutReceiverScript, err := original.UnilateralRefundWithoutReceiverClosure.Script()
+	require.NoError(t, err)
+
+	recovered, err := vhtlc.NewVhtlcScript(
+		hex.EncodeToString(opts.PreimageHash),
+		hex.EncodeToString(claimScript),
+		hex.EncodeToString(refundScript),
+		hex.EncodeToString(refundWithoutReceiverScript),
+		hex.EncodeToString(unilateralClaimScript),
+		hex.EncodeToString(unilateralRefundScript),
+		hex.EncodeToString(unilateralRefundWithoutReceiverScript),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, recovered)
+
+	derived := recovered.Opts()
+	require.Equal(t, schnorr.SerializePubKey(opts.Sender), schnorr.SerializePubKey(derived.Sender))
+	require.Equal(t, schnorr.SerializePubKey(opts.Receiver), schnorr.SerializePubKey(derived.Receiver))
+	require.Equal(t, schnorr.SerializePubKey(opts.Server), schnorr.SerializePubKey(derived.Server))
+	require.Equal(t, opts.PreimageHash, derived.PreimageHash)
+	require.Equal(t, opts.RefundLocktime, derived.RefundLocktime)
+	require.Equal(t, opts.UnilateralClaimDelay, derived.UnilateralClaimDelay)
+	require.Equal(t, opts.UnilateralRefundDelay, derived.UnilateralRefundDelay)
+	require.Equal(t, opts.UnilateralRefundWithoutReceiverDelay, derived.UnilateralRefundWithoutReceiverDelay)
+
+	recoveredClaimScript, err := recovered.ClaimClosure.Script()
+	require.NoError(t, err)
+	recoveredRefundScript, err := recovered.RefundClosure.Script()
+	require.NoError(t, err)
+	recoveredRefundWithoutReceiverScript, err := recovered.RefundWithoutReceiverClosure.Script()
+	require.NoError(t, err)
+	recoveredUnilateralClaimScript, err := recovered.UnilateralClaimClosure.Script()
+	require.NoError(t, err)
+	recoveredUnilateralRefundScript, err := recovered.UnilateralRefundClosure.Script()
+	require.NoError(t, err)
+	recoveredUnilateralRefundWithoutReceiverScript, err := recovered.UnilateralRefundWithoutReceiverClosure.Script()
+	require.NoError(t, err)
+
+	require.Equal(t, hex.EncodeToString(claimScript), hex.EncodeToString(recoveredClaimScript))
+	require.Equal(t, hex.EncodeToString(refundScript), hex.EncodeToString(recoveredRefundScript))
+	require.Equal(t, hex.EncodeToString(refundWithoutReceiverScript), hex.EncodeToString(recoveredRefundWithoutReceiverScript))
+	require.Equal(t, hex.EncodeToString(unilateralClaimScript), hex.EncodeToString(recoveredUnilateralClaimScript))
+	require.Equal(t, hex.EncodeToString(unilateralRefundScript), hex.EncodeToString(recoveredUnilateralRefundScript))
+	require.Equal(t, hex.EncodeToString(unilateralRefundWithoutReceiverScript), hex.EncodeToString(recoveredUnilateralRefundWithoutReceiverScript))
 }
 
 // Helper function to generate a random private key

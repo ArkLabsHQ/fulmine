@@ -39,7 +39,7 @@ type Swap struct {
 type SwapRepository interface {
 	GetAll(ctx context.Context) ([]Swap, error)
 	Get(ctx context.Context, swapId string) (*Swap, error)
-	Add(ctx context.Context, swap Swap) error
+	Add(ctx context.Context, swaps []Swap) (int, error)
 	Update(ctx context.Context, swap Swap) error
 	Close()
 }

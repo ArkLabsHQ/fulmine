@@ -64,7 +64,9 @@ func DecodeBolt12Invoice(invoice string) (*Invoice, error) {
 
 	tlvStream := tlv.MustNewStream(
 		tlv.MakePrimitiveRecord(tlv.Type(INVOICE_PAYMENT_HASH), &invoiceData.PaymentHash),
-		tlv.MakeDynamicRecord(tlv.Type(INVOICE_AMOUNT), &invoiceData.Amount, sizeFunc, tlv.ETUint64, tlv.DTUint64),
+		tlv.MakeDynamicRecord(
+			tlv.Type(INVOICE_AMOUNT), &invoiceData.Amount, sizeFunc, tlv.ETUint64, tlv.DTUint64,
+		),
 	)
 
 	err = tlvStream.Decode(bytes.NewReader(payload))
@@ -104,9 +106,14 @@ func DecodeBolt12Offer(offer string) (*Offer, error) {
 	}
 
 	tlvStream := tlv.MustNewStream(
-		tlv.MakeDynamicRecord(tlv.Type(OFFER_AMOUNT), &offerData.Amount, sizeFunc, tlv.ETUint64, tlv.DTUint64),
+		tlv.MakeDynamicRecord(
+			tlv.Type(OFFER_AMOUNT), &offerData.Amount, sizeFunc, tlv.ETUint64, tlv.DTUint64,
+		),
 		tlv.MakePrimitiveRecord(tlv.Type(OFFER_DESCRIPTION), &offerData.Description),
-		tlv.MakeDynamicRecord(tlv.Type(OFFER_ABSOLUTE_EXPIRY), &offerData.AbsoluteExpiry, sizeFunc, tlv.ETUint64, tlv.DTUint64),
+		tlv.MakeDynamicRecord(
+			tlv.Type(OFFER_ABSOLUTE_EXPIRY), &offerData.AbsoluteExpiry,
+			sizeFunc, tlv.ETUint64, tlv.DTUint64,
+		),
 		tlv.MakePrimitiveRecord(tlv.Type(OFFER_QUANTITY_MAX), &offerData.QuantityMax),
 	)
 

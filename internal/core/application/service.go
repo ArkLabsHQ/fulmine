@@ -22,6 +22,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/client"
 	grpcclient "github.com/arkade-os/go-sdk/client/grpc"
@@ -331,6 +332,11 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	s.indexerClient = indexerClient
 	s.isInitialized = true
 
+	// Revitilise all Swaps If Present
+	if err := s.restoreSwapHistory(ctx); err != nil {
+		log.WithError(err).Warnf("failed to restore swap history")
+	}
+
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: WalletInit, Password: password}
 	}()
@@ -463,8 +469,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		if err != nil {
 			log.WithError(err).Error("failed to decode offchain address")
 		}
-
-		log.Debugf("len of scripts %d", len(scripts))
 
 		_, err = s.dbSvc.SubscribedScript().Add(context.Background(), scripts)
 		if err != nil {
@@ -829,12 +833,12 @@ func (s *Service) GetSwapVHTLC(
 		UnilateralRefundDelay:                unilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
 	}
-	vHTLCScript, err := vhtlc.NewVHTLCScript(opts)
+	vHTLCScript, err := vhtlc.NewVHTLCScriptFromOpts(opts)
 	if err != nil {
 		return "", "", nil, err
 	}
 
-	encodedAddr, err := vHTLCScript.Address(cfg.Network.Addr, cfg.SignerPubKey)
+	encodedAddr, err := vHTLCScript.Address(cfg.Network.Addr)
 	if err != nil {
 		return "", "", nil, err
 	}
@@ -978,7 +982,7 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 
 		vHTLC := domain.NewVhtlc(*swapData.Opts)
 
-		err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+		_, err := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
 			Id:         swapData.Id,
 			Type:       domain.SwapRegular,
 			Amount:     swapData.Amount,
@@ -988,7 +992,7 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 			Timestamp:  swapData.Timestamp,
 			RedeemTxId: swapData.RedeemTxid,
 			Status:     domain.SwapStatus(swapData.Status),
-		})
+		}})
 
 		return err
 
@@ -1051,7 +1055,7 @@ func (s *Service) IncreaseOutboundCapacity(
 	vHTLC := domain.NewVhtlc(*swapDetails.Opts)
 
 	go func() {
-		dbErr := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+		_, dbErr := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
 			Id:          swapDetails.Id,
 			Type:        domain.SwapRegular,
 			Amount:      swapDetails.Amount,
@@ -1061,7 +1065,7 @@ func (s *Service) IncreaseOutboundCapacity(
 			Vhtlc:       vHTLC,
 			FundingTxId: swapDetails.TxId,
 			Status:      swapStatus,
-		})
+		}})
 
 		if dbErr != nil {
 			log.WithError(dbErr).Error("failed to add swap to db")
@@ -1186,7 +1190,7 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 
 		vHTLC := domain.NewVhtlc(*swapData.Opts)
 
-		err := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+		count, err := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
 			Id:         swapData.Id,
 			Type:       domain.SwapPayment,
 			Amount:     swapData.Amount,
@@ -1196,7 +1200,10 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 			Timestamp:  swapData.Timestamp,
 			RedeemTxId: swapData.RedeemTxid,
 			Status:     domain.SwapStatus(swapData.Status),
-		})
+		}})
+		if count > 0 {
+			log.Debugf("added swap %s", swapData.Id)
+		}
 
 		return err
 
@@ -1238,7 +1245,7 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (*SwapResponse
 	vHTLC := domain.NewVhtlc(*swapDetails.Opts)
 
 	go func() {
-		dbErr := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+		count, err := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
 			Id:          swapDetails.Id,
 			Type:        domain.SwapPayment,
 			Amount:      swapDetails.Amount,
@@ -1249,13 +1256,14 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (*SwapResponse
 			FundingTxId: swapDetails.TxId,
 			RedeemTxId:  swapDetails.RedeemTxid,
 			Status:      swapStatus,
-		})
-
-		if dbErr != nil {
-			log.WithError(dbErr).Error("failed to add swap to db")
+		}})
+		if err != nil {
+			log.WithError(err).Error("failed to add swap to db")
 			return
 		}
-
+		if count > 0 {
+			log.Debugf("added swap %s", swapDetails.Id)
+		}
 	}()
 
 	return &SwapResponse{
@@ -1307,7 +1315,7 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (*SwapResponse, er
 	vHTLC := domain.NewVhtlc(*swapDetails.Opts)
 
 	go func() {
-		dbErr := s.dbSvc.Swap().Add(context.Background(), domain.Swap{
+		count, err := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
 			Id:          swapDetails.Id,
 			Type:        domain.SwapPayment,
 			Amount:      swapDetails.Amount,
@@ -1318,13 +1326,14 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (*SwapResponse, er
 			RedeemTxId:  swapDetails.RedeemTxid,
 			Timestamp:   swapDetails.Timestamp,
 			Status:      swapStatus,
-		})
-
-		if dbErr != nil {
-			log.WithError(dbErr).Error("failed to add swap to db")
+		}})
+		if err != nil {
+			log.WithError(err).Error("failed to add swap to db")
 			return
 		}
-
+		if count > 0 {
+			log.Debugf("added swap %s", swapDetails.Id)
+		}
 	}()
 
 	return &SwapResponse{
@@ -1356,6 +1365,189 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 
 	if s.IsLocked(ctx) {
 		return fmt.Errorf("service is locked")
+	}
+
+	return nil
+}
+
+// restoreSwapHistory gets the swap history from Boltz svc, then:
+//   - for every refunded swap, gets the refund txid from the indexer
+//   - for every completed reverse swap, gets the claim txid from the indexer
+//
+// And persists the swaps in the db
+func (s *Service) restoreSwapHistory(ctx context.Context) error {
+	configData, err := s.GetConfigData(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get config data: %v", err)
+	}
+
+	boltzApi := s.boltzSvc
+
+	if configData.Network.Name == arklib.BitcoinRegTest.Name {
+		boltzUrl, err := url.Parse(s.boltzSvc.URL)
+		if err != nil {
+			return err
+		}
+		host := boltzUrl.Hostname()
+		boltzUrl.Host = fmt.Sprintf("%s:%d", host, 9005)
+		boltzApi.URL = boltzUrl.String()
+
+	}
+
+	myPubkey := hex.EncodeToString(s.publicKey.SerializeCompressed())
+	history, err := boltzApi.GetSwapHistory(myPubkey)
+	if err != nil {
+		return err
+	}
+
+	if len(history) <= 0 {
+		return nil
+	}
+
+	submarineMap := make(map[string]domain.Swap, 0)
+	reverseMap := make(map[string]domain.Swap, 0)
+	refundedSubmarineSwaps := make([]string, 0)
+	successfulReverseSwaps := make([]string, 0)
+	for _, record := range history {
+		swapDetails := record.RefundDetails
+		if record.ClaimDetails != nil {
+			swapDetails = record.ClaimDetails
+		}
+
+		tree := swapDetails.Tree
+
+		vhtlcScript, err := vhtlc.NewVhtlcScript(
+			record.PreimageHash, tree.ClaimLeaf.Output, tree.RefundLeaf.Output,
+			tree.RefundLeafWithoutReceiver.Output, tree.UnilateralClaimLeaf.Output,
+			tree.UnilateralRefundLeaf.Output, tree.UnilateralRefundWithoutReceiver.Output,
+		)
+		if err != nil {
+			return err
+		}
+
+		addr, err := vhtlcScript.Address(configData.Network.Addr)
+		if err != nil {
+			return err
+		}
+		if addr != swapDetails.LockupAddress {
+			return fmt.Errorf(
+				"address mismatch for swap %s: got %s, expected: %s",
+				record.Id, addr, swapDetails.LockupAddress,
+			)
+		}
+
+		// Safe to ignore the error as vhtlcScript.Address calls the same API under the hood
+		// nolint
+		tapKey, _, _ := vhtlcScript.TapTree()
+		buf, err := script.P2TRScript(tapKey)
+		if err != nil {
+			return err
+		}
+		outScript := hex.EncodeToString(buf)
+
+		var fundingTxid, redeemTxid string
+		var isSubmarineSwap, isReverseSwap bool
+		switch {
+		case record.From == boltz.CurrencyArk && record.To == boltz.CurrencyBtc:
+			isSubmarineSwap = true
+			fundingTxid = swapDetails.Transaction.ID
+			if boltz.ParseEvent(record.Status) == boltz.TransactionRefunded {
+				refundedSubmarineSwaps = append(refundedSubmarineSwaps, outScript)
+			}
+		case record.From == boltz.CurrencyBtc && record.To == boltz.CurrencyArk:
+			isReverseSwap = true
+			redeemTxid = swapDetails.Transaction.ID
+			if boltz.ParseEvent(record.Status) == boltz.InvoiceSettled {
+				successfulReverseSwaps = append(successfulReverseSwaps, outScript)
+			}
+		}
+
+		swap := domain.Swap{
+			Id:          record.Id,
+			Status:      convertSwapStatus(record.Status),
+			Timestamp:   int64(record.CreatedAt),
+			Amount:      swapDetails.Amount,
+			To:          record.To,
+			From:        record.From,
+			Type:        domain.SwapPayment,
+			Vhtlc:       domain.NewVhtlc(vhtlcScript.Opts()),
+			FundingTxId: fundingTxid,
+			RedeemTxId:  redeemTxid,
+		}
+
+		if isSubmarineSwap {
+			submarineMap[outScript] = swap
+		}
+		if isReverseSwap {
+			reverseMap[outScript] = swap
+		}
+	}
+
+	if len(refundedSubmarineSwaps) > 0 {
+		option := indexer.GetVtxosRequestOption{}
+		// nolint
+		option.WithScripts(refundedSubmarineSwaps)
+
+		resp, err := s.indexerClient.GetVtxos(ctx, option)
+		if err != nil {
+			return fmt.Errorf("failed to fetch vtxos for refunded swaps: %s", err)
+		}
+
+		for _, vtxo := range resp.Vtxos {
+			if !vtxo.Spent {
+				continue
+			}
+			scriptHex := vtxo.Script
+			swp, exists := submarineMap[scriptHex]
+			if !exists {
+				continue
+			}
+
+			swp.RedeemTxId = vtxo.ArkTxid
+			submarineMap[scriptHex] = swp
+		}
+	}
+
+	if len(successfulReverseSwaps) != 0 {
+		option := indexer.GetVtxosRequestOption{}
+		// nolint
+		option.WithScripts(successfulReverseSwaps)
+
+		resp, err := s.indexerClient.GetVtxos(ctx, option)
+		if err != nil {
+			return fmt.Errorf("failed to fetch vtxos for successful reverse swaps: %s", err)
+		}
+
+		for _, vtxo := range resp.Vtxos {
+			if !vtxo.Spent {
+				continue
+			}
+			scriptHex := vtxo.Script
+			swp, exists := reverseMap[scriptHex]
+			if !exists {
+				continue
+			}
+
+			swp.RedeemTxId = vtxo.ArkTxid
+			reverseMap[scriptHex] = swp
+		}
+	}
+
+	// Persist all swaps
+	allswaps := make([]domain.Swap, 0)
+	for _, swp := range submarineMap {
+		allswaps = append(allswaps, swp)
+	}
+	for _, swp := range reverseMap {
+		allswaps = append(allswaps, swp)
+	}
+
+	count, err := s.dbSvc.Swap().Add(ctx, allswaps)
+	if err != nil {
+		return fmt.Errorf("failed to add swaps to db: %s", err)
+	}
+	if count > 0 {
+		log.Infof("restored %d swaps", count)
 	}
 
 	return nil
@@ -1676,4 +1868,18 @@ func (s *Service) resumePendingSwapRefunds(ctx context.Context) {
 		}
 
 	}
+}
+
+func convertSwapStatus(swapStatus string) domain.SwapStatus {
+	mappedStatus := boltz.ParseEvent(swapStatus)
+	if mappedStatus == boltz.TransactionClaimed || mappedStatus == boltz.InvoiceSettled {
+		return domain.SwapSuccess
+	}
+
+	if mappedStatus == boltz.TransactionClaimPending || mappedStatus == boltz.InvoicePending {
+		return domain.SwapPending
+	}
+
+	return domain.SwapFailed
+
 }
