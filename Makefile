@@ -1,4 +1,4 @@
-.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-cln test vet proto proto-lint setup-arkd down-test-env
+.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-cln test vet proto proto-lint setup-arkd down-test-env pprof
 
 GOLANGCI_LINT ?= $(shell \
 	echo "docker run --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v2.5.0 golangci-lint"; \
@@ -146,3 +146,15 @@ vet_db: mig_up mig_down_yes
 sqlc:
 	@echo "gen sql..."
 	cd ./internal/infrastructure/db/sqlite; sqlc generate
+
+# --- pprof profiling ---
+
+# pprof configuration (requires PROFILING_ENABLED=true and running fulmine)
+PPROF_HOST ?= localhost
+PPROF_PORT ?= 7001
+PPROF_TYPE ?= heap
+
+## pprof: run pprof profiling (TYPE=heap|goroutine|profile|allocs|block|mutex|trace)
+pprof:
+	@echo "Running pprof for $(PPROF_TYPE) profile..."
+	@go tool pprof http://$(PPROF_HOST):$(PPROF_PORT)/debug/pprof/$(PPROF_TYPE)

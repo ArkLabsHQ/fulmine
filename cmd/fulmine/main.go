@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -41,17 +39,6 @@ func main() {
 	}
 
 	log.SetLevel(log.Level(cfg.LogLevel))
-
-	// Start pprof server
-	if cfg.ProfilingEnabled {
-		go func() {
-			pprofAddr := ":6060"
-			log.Infof("starting pprof server on %s", pprofAddr)
-			if err := http.ListenAndServe(pprofAddr, nil); err != nil {
-				log.WithError(err).Error("pprof server failed")
-			}
-		}()
-	}
 
 	sentryEnabled := !cfg.DisableTelemetry && sentryDsn != ""
 
@@ -130,7 +117,7 @@ func main() {
 	}
 
 	svc, err := grpcservice.NewService(
-		svcConfig, appSvc, cfg.UnlockerService(), sentryEnabled, cfg.MacaroonSvc(), cfg.ArkServer,
+		svcConfig, appSvc, cfg.UnlockerService(), sentryEnabled, cfg.MacaroonSvc(), cfg.ArkServer, cfg.ProfilingEnabled,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init interface service")
