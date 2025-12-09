@@ -103,7 +103,7 @@ func verifyInputSignatures(
 func getInputTapLeaves(tx *psbt.Packet) map[int]txscript.TapLeaf {
 	tapLeaves := make(map[int]txscript.TapLeaf)
 	for inputIndex, input := range tx.Inputs {
-		if input.TaprootLeafScript == nil {
+		if len(input.TaprootLeafScript) <= 0 {
 			continue
 		}
 		tapLeaves[inputIndex] = txscript.NewBaseTapLeaf(input.TaprootLeafScript[0].Script)
@@ -186,8 +186,14 @@ func parseLocktime(locktime uint32) arklib.RelativeLocktime {
 }
 
 func combineTapscripts(signedPackets []*psbt.Packet) (*psbt.Packet, error) {
-	finalCheckpoint := signedPackets[0]
+	if len(signedPackets) <= 0 {
+		return nil, errors.New("missing txs to combine")
+	}
+	if len(signedPackets) == 1 {
+		return signedPackets[0], nil
+	}
 
+	finalCheckpoint := signedPackets[0]
 	for i := range finalCheckpoint.Inputs {
 		scriptSigs := make([]*psbt.TaprootScriptSpendSig, len(signedPackets))
 		for j, signedCheckpointPsbt := range signedPackets {
