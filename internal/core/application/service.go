@@ -77,6 +77,7 @@ type Service struct {
 	schedulerSvc  ports.SchedulerService
 	lnSvc         ports.LnService
 	boltzSvc      *boltz.Api
+	swapHandler   *swap.SwapHandler
 
 	publicKey *btcec.PublicKey
 
@@ -500,6 +501,10 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 		_, pubkey := btcec.PrivKeyFromBytes(buf)
 		s.publicKey = pubkey
+		// nolint
+		s.swapHandler, _ = swap.NewSwapHandler(
+			s.ArkClient, s.grpcClient, s.indexerClient, s.boltzSvc, s.publicKey, s.swapTimeout,
+		)
 	}()
 
 	// This go routine takes care of establishing the LN connection, if configured.
@@ -880,15 +885,12 @@ func (s *Service) ListVHTLC(
 		}
 	}
 
-	boltzApi := s.boltzSvc
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
-
 	vhtlcOpts := make([]vhtlc.Opts, 0, len(vhtlcList))
 	for _, v := range vhtlcList {
 		vhtlcOpts = append(vhtlcOpts, v.Opts)
 	}
 
-	vtxos, err := swapHandler.GetVHTLCFunds(ctx, vhtlcOpts)
+	vtxos, err := s.swapHandler.GetVHTLCFunds(ctx, vhtlcOpts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -908,10 +910,7 @@ func (s *Service) ClaimVHTLC(
 		return "", err
 	}
 
-	boltzApi := s.boltzSvc
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
-
-	return swapHandler.ClaimVHTLC(ctx, preimage, vhtlc.Opts)
+	return s.swapHandler.ClaimVHTLC(ctx, preimage, vhtlc.Opts)
 }
 
 func (s *Service) RefundVHTLC(
@@ -926,10 +925,7 @@ func (s *Service) RefundVHTLC(
 		return "", err
 	}
 
-	boltzApi := s.boltzSvc
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
-
-	return swapHandler.RefundSwap(ctx, swapId, withReceiver, vhtlc.Opts)
+	return s.swapHandler.RefundSwap(ctx, swapId, withReceiver, vhtlc.Opts)
 }
 
 func (s *Service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
@@ -967,9 +963,6 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 		return "", fmt.Errorf("failed to generate preimage: %w", err)
 	}
 
-	boltzApi := s.boltzSvc
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -998,7 +991,7 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 
 	}
 
-	swapDetails, err := swapHandler.GetInvoice(ctx, amount, postProcess)
+	swapDetails, err := s.swapHandler.GetInvoice(ctx, amount, postProcess)
 	if err != nil {
 		return "", fmt.Errorf("failed to create reverse swap: %v", err)
 	}
@@ -1025,12 +1018,8 @@ func (s *Service) IncreaseOutboundCapacity(
 		return SwapResponse{}, err
 	}
 
-	boltzApi := s.boltzSvc
-
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
-
 	unilateralRefund := func(swapData swap.Swap) error {
-		err := s.scheduleSwapRefund(swapHandler, swapData.Id, *swapData.Opts)
+		err := s.scheduleSwapRefund(swapData.Id, *swapData.Opts)
 		return err
 	}
 
@@ -1045,7 +1034,7 @@ func (s *Service) IncreaseOutboundCapacity(
 		return SwapResponse{}, fmt.Errorf("failed to decode preimage hash: %v", err)
 	}
 
-	swapDetails, err := swapHandler.PayInvoice(ctx, invoice, unilateralRefund)
+	swapDetails, err := s.swapHandler.PayInvoice(ctx, invoice, unilateralRefund)
 
 	if err != nil {
 		return SwapResponse{}, err
@@ -1178,11 +1167,6 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 		return SwapResponse{}, err
 	}
 
-	boltzApi := s.boltzSvc
-	swapHandler := swap.NewSwapHandler(
-		s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout,
-	)
-
 	postProcess := func(swapData swap.Swap) error {
 		if swapData.Status != swap.SwapSuccess {
 			return nil
@@ -1206,10 +1190,9 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 		}
 
 		return err
-
 	}
 
-	swapDetails, err := swapHandler.GetInvoice(ctx, amount, postProcess)
+	swapDetails, err := s.swapHandler.GetInvoice(ctx, amount, postProcess)
 	if err != nil {
 		if strings.Contains(err.Error(), "out of limits") {
 			return SwapResponse{}, nil
@@ -1227,16 +1210,12 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (*SwapResponse
 		return nil, err
 	}
 
-	boltzApi := s.boltzSvc
-
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
-
 	unilateralRefund := func(swapData swap.Swap) error {
-		err := s.scheduleSwapRefund(swapHandler, swapData.Id, *swapData.Opts)
+		err := s.scheduleSwapRefund(swapData.Id, *swapData.Opts)
 		return err
 	}
 
-	swapDetails, err := swapHandler.PayInvoice(ctx, invoice, unilateralRefund)
+	swapDetails, err := s.swapHandler.PayInvoice(ctx, invoice, unilateralRefund)
 	if err != nil {
 		return nil, err
 	}
@@ -1283,9 +1262,7 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (*SwapResponse, er
 		return nil, fmt.Errorf("failed to get config data: %v", err)
 	}
 
-	boltzApi := s.boltzSvc
 	var lightningUrl string
-
 	if configData.Network.Name == arklib.BitcoinRegTest.Name {
 		boltzUrl, err := url.Parse(s.boltzSvc.URL)
 		if err != nil {
@@ -1296,16 +1273,12 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (*SwapResponse, er
 		lightningUrl = boltzUrl.String()
 	}
 
-	swapHandler := swap.NewSwapHandler(
-		s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout,
-	)
-
 	unilateralRefund := func(swapData swap.Swap) error {
-		err := s.scheduleSwapRefund(swapHandler, swapData.Id, *swapData.Opts)
+		err := s.scheduleSwapRefund(swapData.Id, *swapData.Opts)
 		return err
 	}
 
-	swapDetails, err := swapHandler.PayOffer(ctx, offer, lightningUrl, unilateralRefund)
+	swapDetails, err := s.swapHandler.PayOffer(ctx, offer, lightningUrl, unilateralRefund)
 
 	if err != nil {
 		return nil, err
@@ -1786,9 +1759,9 @@ func (s *Service) payInvoiceLN(ctx context.Context, invoice string) (string, err
 	return s.lnSvc.PayInvoice(ctx, invoice)
 }
 
-func (s *Service) scheduleSwapRefund(swapHandler *swap.SwapHandler, swapId string, opts vhtlc.Opts) (err error) {
+func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error) {
 	unilateral := func() {
-		vtxos, err := swapHandler.GetVHTLCFunds(context.Background(), []vhtlc.Opts{opts})
+		vtxos, err := s.swapHandler.GetVHTLCFunds(context.Background(), []vhtlc.Opts{opts})
 		if err != nil {
 			log.WithError(err).Error("failed to check vhtlc status")
 			return
@@ -1812,7 +1785,7 @@ func (s *Service) scheduleSwapRefund(swapHandler *swap.SwapHandler, swapId strin
 			return
 		}
 
-		txid, err := swapHandler.RefundSwap(context.Background(), swapId, false, opts)
+		txid, err := s.swapHandler.RefundSwap(context.Background(), swapId, false, opts)
 		if err != nil {
 			log.WithError(err).Error("failed to refund vhtlc")
 			return
@@ -1856,13 +1829,10 @@ func (s *Service) resumePendingSwapRefunds(ctx context.Context) {
 		return
 	}
 
-	boltzApi := s.boltzSvc
-	swapHandler := swap.NewSwapHandler(s.ArkClient, s.grpcClient, s.indexerClient, boltzApi, s.publicKey, s.swapTimeout)
-
 	for _, swap := range swaps {
 
 		if swap.Status == domain.SwapFailed && swap.RedeemTxId == "" && swap.From == boltz.CurrencyArk {
-			if err := s.scheduleSwapRefund(swapHandler, swap.Id, swap.Vhtlc.Opts); err != nil {
+			if err := s.scheduleSwapRefund(swap.Id, swap.Vhtlc.Opts); err != nil {
 				log.WithError(err).WithField("swap_id", swap.Id).Warn("failed to reschedule refund task")
 			}
 		}

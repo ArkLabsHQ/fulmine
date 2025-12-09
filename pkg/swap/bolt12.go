@@ -15,6 +15,11 @@ import (
 	"github.com/lightningnetwork/lnd/tlv"
 )
 
+const (
+	bolt12OfferPrefix   = "lno"
+	bolt12InvoicePrefix = "lni"
+)
+
 type Offer struct {
 	ID             string
 	Amount         uint64
@@ -50,10 +55,34 @@ const (
 	INVOICE_AMOUNT       uint64 = 170
 )
 
-func DecodeBolt12Invoice(invoice string) (*Invoice, error) {
-	payload, err := bech32ToWords(invoice, "lni")
+func IsBolt12Offer(offer string) bool {
+	return strings.HasPrefix(strings.ToLower(offer), bolt12OfferPrefix)
+}
+
+func IsBolt12Invoice(invoice string) bool {
+	return strings.HasPrefix(strings.ToLower(invoice), bolt12InvoicePrefix)
+}
+
+func IsValidBolt12Offer(offer string) bool {
+	return SatsFromBolt12Offer(offer) > 0
+}
+
+func SatsFromBolt12Offer(offer string) int {
+	decodedOffer, err := DecodeBolt12Offer(offer)
 	if err != nil {
-		return nil, fmt.Errorf("bech32ToWords: %w", err)
+		return 0
+	}
+	return int(decodedOffer.AmountInSats)
+}
+
+func DecodeBolt12Invoice(invoice string) (*Invoice, error) {
+	if !IsBolt12Invoice(invoice) {
+		return nil, fmt.Errorf("invalid bolt12 invoice prefix")
+	}
+
+	payload, err := bech32ToWords(invoice, bolt12InvoicePrefix)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse bolt12 invoice: %w", err)
 	}
 
 	invoiceData := new(Invoice)
@@ -94,9 +123,13 @@ func DecodeBolt12Invoice(invoice string) (*Invoice, error) {
 }
 
 func DecodeBolt12Offer(offer string) (*Offer, error) {
-	payload, err := bech32ToWords(offer, "lno")
+	if !IsBolt12Offer(offer) {
+		return nil, fmt.Errorf("invalid bolt12 offer prefix")
+	}
+
+	payload, err := bech32ToWords(offer, bolt12OfferPrefix)
 	if err != nil {
-		return nil, fmt.Errorf("bech32ToWords: %w", err)
+		return nil, fmt.Errorf("failed to parse bolt12 offer: %w", err)
 	}
 
 	offerData := new(Offer)
@@ -193,24 +226,4 @@ func bech32ToWords(bech32String string, hrp string) (payload []byte, err error) 
 	}
 
 	return payload, nil
-}
-
-func IsBolt12Offer(offer string) bool {
-	return strings.HasPrefix(strings.ToLower(offer), "lno")
-}
-
-func SatsFromBolt12Offer(offer string) int {
-	decodedOffer, err := DecodeBolt12Offer(offer)
-	if err != nil {
-		return 0
-	}
-	return int(decodedOffer.AmountInSats)
-}
-
-func IsValidBolt12Offer(offer string) bool {
-	return SatsFromBolt12Offer(offer) > 0
-}
-
-func IsBolt12Invoice(invoice string) bool {
-	return strings.HasPrefix(strings.ToLower(invoice), "lni")
 }
