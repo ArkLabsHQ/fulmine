@@ -38,8 +38,8 @@ type service struct {
 	macaroonSvc       macaroon.Service
 	appStopCh         chan struct{}
 	feStopCh          chan struct{}
-	otelShutdown      func(context.Context) error
-	pyroscopeShutdown func() error
+	otelShutdown      func()
+	pyroscopeShutdown func()
 }
 
 func NewService(
@@ -68,8 +68,7 @@ func NewService(
 	}
 
 	// Initialize OTel and Pyroscope telemetry
-	var otelShutdown func(context.Context) error
-	var pyroscopeShutdown func() error
+	var otelShutdown, pyroscopeShutdown func()
 
 	if otelCollectorEndpoint != "" {
 		log.AddHook(telemetry.NewOTelHook())
@@ -293,16 +292,10 @@ func (s *service) Stop() {
 	log.Info("stopped http server")
 
 	if s.pyroscopeShutdown != nil {
-		if err := s.pyroscopeShutdown(); err != nil {
-			log.WithError(err).Error("failed to shutdown pyroscope")
-		}
-		log.Info("shutdown pyroscope")
+		s.pyroscopeShutdown()
 	}
 	if s.otelShutdown != nil {
-		if err := s.otelShutdown(context.Background()); err != nil {
-			log.WithError(err).Error("failed to shutdown otel")
-		}
-		log.Info("shutdown otel")
+		s.otelShutdown()
 	}
 }
 

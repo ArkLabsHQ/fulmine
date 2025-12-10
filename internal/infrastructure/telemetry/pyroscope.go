@@ -12,7 +12,7 @@ const fulmine = "fulmine"
 // InitPyroscope initializes the Pyroscope profiler for continuous profiling.
 // It returns a shutdown function that should be called on application exit.
 // If pyroscopeServerURL is empty, this function does nothing and returns a no-op shutdown function.
-func InitPyroscope(pyroscopeServerURL string) (func() error, error) {
+func InitPyroscope(pyroscopeServerURL string) (func(), error) {
 	if pyroscopeServerURL == "" {
 		return nil, nil
 	}
@@ -43,12 +43,15 @@ func InitPyroscope(pyroscopeServerURL string) (func() error, error) {
 		"service": fulmine,
 	}).Info("pyroscope profiler started successfully")
 
-	shutdown := func() error {
-		if profiler != nil {
-			return profiler.Stop()
+	shutdown := func() {
+		if err := profiler.Stop(); err != nil {
+			log.WithError(err).Warn("failed to stop pyroscope profiler")
+			return
 		}
-		return nil
+		log.Debug("pyroscope profiler shutdown")
 	}
+
+	log.Debug("pyroscope profiler initialized")
 
 	return shutdown, nil
 }

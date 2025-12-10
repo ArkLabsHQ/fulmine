@@ -41,11 +41,11 @@ type Config struct {
 	UnlockerType     string
 	UnlockerFilePath string
 	UnlockerPassword string
-	DisableTelemetry      bool
-	SwapTimeout           uint32
-	OtelCollectorEndpoint string
-	OtelPushInterval      int64
-	PyroscopeServerURL    string
+	DisableTelemetry bool
+	SwapTimeout      uint32
+	OtelCollectorURL string
+	OtelPushInterval int64
+	PyroscopeURL     string
 
 	LnConnectionOpts *domain.LnConnectionOpts
 
@@ -66,9 +66,9 @@ var (
 	BoltzWSURL            = "BOLTZ_WS_URL"
 	DisableTelemetry      = "DISABLE_TELEMETRY"
 	NoMacaroons           = "NO_MACAROONS"
-	OtelCollectorEndpoint = "OTEL_COLLECTOR_ENDPOINT"
+	OtelCollectorURL      = "OTEL_COLLECTOR_URL"
 	OtelPushInterval      = "OTEL_PUSH_INTERVAL"
-	PyroscopeServerURL    = "PYROSCOPE_SERVER_URL"
+	PyroscopeURL          = "PYROSCOPE_URL"
 	LndUrl                = "LND_URL"
 	ClnUrl                = "CLN_URL"
 	ClnDatadir            = "CLN_DATADIR"
@@ -171,9 +171,9 @@ func LoadConfig() (*Config, error) {
 		SchedulerPollInterval: viper.GetInt64(SchedulerPollInterval),
 		ProfilingEnabled:      viper.GetBool(ProfilingEnabled),
 		RefreshDbInterval:     viper.GetInt64(RefreshDbInterval),
-		OtelCollectorEndpoint: viper.GetString(OtelCollectorEndpoint),
+		OtelCollectorURL:      viper.GetString(OtelCollectorURL),
 		OtelPushInterval:      viper.GetInt64(OtelPushInterval),
-		PyroscopeServerURL:    viper.GetString(PyroscopeServerURL),
+		PyroscopeURL:          viper.GetString(PyroscopeURL),
 
 		LnConnectionOpts: lnConnectionOpts,
 	}

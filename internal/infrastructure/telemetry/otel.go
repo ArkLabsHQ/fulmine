@@ -48,63 +48,40 @@ var fulmineRuntimeMetrics = []string{
 }
 
 func InitOtelSDK(
-	ctx context.Context,
-	otelCollectorUrl string,
-	pushInterval time.Duration,
-) (func(context.Context) error, error) {
+	ctx context.Context, otelCollectorUrl string, pushInterval time.Duration,
+) (func(), error) {
 	// TODO: support secure connection in the future
 	otelCollectorUrl = strings.TrimSuffix(otelCollectorUrl, "/")
 	endpoint := strings.TrimPrefix(otelCollectorUrl, "http://")
 	endpoint = strings.TrimPrefix(endpoint, "https://")
 
 	traceExp, err := traceExport.New(
-		ctx,
-		traceExport.WithEndpoint(endpoint),
-		traceExport.WithInsecure(),
+		ctx, traceExport.WithEndpoint(endpoint), traceExport.WithInsecure(),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	res := resource.NewWithAttributes(
-		semconv.SchemaURL,
-		semconv.ServiceName("fulmine"),
-	)
-	tp := trace.NewTracerProvider(
-		trace.WithBatcher(traceExp),
-		trace.WithResource(res),
-	)
+	res := resource.NewWithAttributes(semconv.SchemaURL, semconv.ServiceName("fulmine"))
+	tp := trace.NewTracerProvider(trace.WithBatcher(traceExp), trace.WithResource(res))
 
 	metricExp, err := metricExport.New(
-		ctx,
-		metricExport.WithEndpoint(endpoint),
-		metricExport.WithInsecure(),
+		ctx, metricExport.WithEndpoint(endpoint), metricExport.WithInsecure(),
 	)
 	if err != nil {
 		return nil, err
 	}
-
-	reader := sdkmetric.NewPeriodicReader(
-		metricExp,
-		sdkmetric.WithInterval(pushInterval),
-	)
-
-	mp := sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(reader),
-		sdkmetric.WithResource(res),
-	)
+	reader := sdkmetric.NewPeriodicReader(metricExp, sdkmetric.WithInterval(pushInterval))
+	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader), sdkmetric.WithResource(res))
 
 	logExp, err := otlploghttp.New(
-		ctx,
-		otlploghttp.WithEndpoint(endpoint),
-		otlploghttp.WithInsecure(),
+		ctx, otlploghttp.WithEndpoint(endpoint), otlploghttp.WithInsecure(),
 	)
 	if err != nil {
 		return nil, err
 	}
 	lp := sdklog.NewLoggerProvider(
-		sdklog.WithProcessor(sdklog.NewBatchProcessor(logExp)),
-		sdklog.WithResource(res),
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(logExp)), sdklog.WithResource(res),
 	)
 
 	otel.SetTracerProvider(tp)
@@ -113,32 +90,37 @@ func InitOtelSDK(
 
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
-	go collectGoRuntimeMetrics(context.Background())
+	go collectGoRuntimeMetrics()
 
-	shutdown := func(ctx context.Context) error {
-		err3 := lp.Shutdown(ctx)
-		err1 := tp.Shutdown(ctx)
-		err2 := mp.Shutdown(ctx)
-		if err3 != nil {
-			return err3
+	shutdown := func() {
+		ctx := context.Background()
+		var err error
+		if err = tp.Shutdown(ctx); err != nil {
+			log.WithError(err).Warn("failed to shutdown otel tracer provider")
 		}
-		if err1 != nil {
-			return err1
+		if err = mp.Shutdown(ctx); err != nil {
+			log.WithError(err).Warn("failed to shutdown otel meter provider")
 		}
-		return err2
+		if err = lp.Shutdown(ctx); err != nil {
+			log.WithError(err).Warn("failed to shutdown otel logger provider")
+		}
+		if err == nil {
+			log.Debug("otel client shutdown")
+		}
 	}
 
-	log.Info("otel sdk initialized")
+	log.Info("otel client initialized")
 
 	return shutdown, nil
 }
 
 // collectGoRuntimeMetrics is the main function that sets up the OTEL callback
 // to read runtime/metrics and publish them as OTel metrics.
-func collectGoRuntimeMetrics(ctx context.Context) {
+func collectGoRuntimeMetrics() {
 	m := otel.Meter("fulmine.runtime")
 	inst, err := initFulmineRuntimeInstruments(m)
 	if err != nil {
+		log.WithError(err).Error("failed to init runtime instruments")
 		return
 	}
 
@@ -148,11 +130,10 @@ func collectGoRuntimeMetrics(ctx context.Context) {
 	}
 
 	serviceUpGauge, err := m.Int64ObservableGauge(
-		"fulmine_service_up",
-		metric.WithDescription("1 if fulmine service is up"),
+		"fulmine_service_up", metric.WithDescription("1 if fulmine service is up"),
 	)
 	if err != nil {
-		log.WithError(err).Error("failed to create fulmine_service_up gauge")
+		log.WithError(err).Warn("failed to create fulmine_service_up gauge")
 	}
 
 	instruments := collectInstruments(inst)
@@ -160,7 +141,7 @@ func collectGoRuntimeMetrics(ctx context.Context) {
 		instruments = append(instruments, serviceUpGauge)
 	}
 
-	_, err = m.RegisterCallback(
+	if _, err := m.RegisterCallback(
 		func(ctx context.Context, obs metric.Observer) error {
 			metrics.Read(samples)
 			mu.Lock()
@@ -217,12 +198,12 @@ func collectGoRuntimeMetrics(ctx context.Context) {
 			return nil
 		},
 		instruments...,
-	)
-	if err != nil {
+	); err != nil {
+		log.WithError(err).Error("failed to register otel runtime metrics callback")
 		return
 	}
 
-	log.Info("otel started collecting runtime metrics")
+	log.Info("otel client started collecting runtime metrics")
 }
 
 type metricType int
@@ -286,8 +267,7 @@ func initFulmineRuntimeInstruments(m metric.Meter) (*fulmineInstruments, error) 
 		case asCounter:
 			if s.Value.Kind() == metrics.KindFloat64 {
 				ctr, err := m.Float64ObservableCounter(
-					mName,
-					metric.WithDescription("runtime metric for "+rName),
+					mName, metric.WithDescription("runtime metric for "+rName),
 				)
 				if err != nil {
 					return nil, err
@@ -295,8 +275,7 @@ func initFulmineRuntimeInstruments(m metric.Meter) (*fulmineInstruments, error) 
 				inst.floatCounters[rName] = ctr
 			} else {
 				ctr, err := m.Int64ObservableCounter(
-					mName,
-					metric.WithDescription("runtime metric for "+rName),
+					mName, metric.WithDescription("runtime metric for "+rName),
 				)
 				if err != nil {
 					return nil, err
@@ -306,8 +285,7 @@ func initFulmineRuntimeInstruments(m metric.Meter) (*fulmineInstruments, error) 
 		case asGauge:
 			if s.Value.Kind() == metrics.KindFloat64 {
 				g, err := m.Float64ObservableGauge(
-					mName,
-					metric.WithDescription("runtime metric for "+rName),
+					mName, metric.WithDescription("runtime metric for "+rName),
 				)
 				if err != nil {
 					return nil, err
@@ -315,8 +293,7 @@ func initFulmineRuntimeInstruments(m metric.Meter) (*fulmineInstruments, error) 
 				inst.floatGauges[rName] = g
 			} else {
 				g, err := m.Int64ObservableGauge(
-					mName,
-					metric.WithDescription("runtime metric for "+rName),
+					mName, metric.WithDescription("runtime metric for "+rName),
 				)
 				if err != nil {
 					return nil, err
