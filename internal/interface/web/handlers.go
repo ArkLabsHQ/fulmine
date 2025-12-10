@@ -477,7 +477,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	if utils.IsValidArkAddress(address) {
 		for range 3 {
-			txId, err = s.svc.SendOffChain(c, false, receivers)
+			txId, err = s.svc.SendOffChain(c, true, receivers)
 			if err != nil {
 				if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
 					continue
@@ -500,7 +500,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsValidBtcAddress(address) {
-		txId, err = s.svc.CollaborativeExit(c, address, value, false)
+		txId, err = s.svc.CollaborativeExit(c, address, value)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)

@@ -14,10 +14,10 @@ github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da h1:KjTM2ks9d14ZYCvmH
 github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da/go.mod h1:eHEWzANqSiWQsof+nXEI9bUVUyV6F53Fp89EuCh2EAA=
 github.com/aead/siphash v1.0.1 h1:FwHfE/T45KPKYuuSAKyyvE+oPWcaQ+CUmFW0bPlM+kg=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
-github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251119163300-38b7bf6a4010 h1:imcGbr6jNnjgw2ZLrMHl7z/3YfpxRsgUe8RueQKoWUQ=
-github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251119163300-38b7bf6a4010/go.mod h1:EIGiZNKRyIkkbu8ZfmMVO4Mij/Iz9/xzbS6jhGRbrVQ=
-github.com/arkade-os/go-sdk v0.8.2-0.20251110150555-3fea8eb154d1 h1:F8rDCgTxWDatfeHebIczm/ZkgLZCBB3Gcz7mpultYBM=
-github.com/arkade-os/go-sdk v0.8.2-0.20251110150555-3fea8eb154d1/go.mod h1:C0Kkb9/Ew2Y86TiVEbx3wBn7XZqKqQYB2BqRFHnxQwo=
+github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251125124623-101ae751505f h1:4Iusf+G9BIF5BLvHjWa8E2fXs/IivGW89CHm+FHLtK8=
+github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251125124623-101ae751505f/go.mod h1:EIGiZNKRyIkkbu8ZfmMVO4Mij/Iz9/xzbS6jhGRbrVQ=
+github.com/arkade-os/go-sdk v0.8.2-0.20251203175800-f8dc59ad03c8 h1:nfggv5RoTlcu3nVrcmtMMGw1g2NEDvNl6kxC1ElmM+M=
+github.com/arkade-os/go-sdk v0.8.2-0.20251203175800-f8dc59ad03c8/go.mod h1:RHlDIsvyjjoy5NVv2xaXNImbR+vnXKd9W9dKJ8bJvYA=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
@@ -438,8 +438,8 @@ golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8T
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 google.golang.org/genproto v0.0.0-20240930140551-af27646dc61f h1:mCJ6SGikSxVlt9scCayUl2dMq0msUgmBArqRY6umieI=
 google.golang.org/genproto v0.0.0-20240930140551-af27646dc61f/go.mod h1:xtVODtPkMQRUZ4kqOTgp6JrXQrPevvfCSdk4mJtHUbM=
-google.golang.org/genproto/googleapis/api v0.0.0-20250707201910-8d1bb00bc6a7 h1:FiusG7LWj+4byqhbvmB+Q93B/mOxJLN2DTozDuZm4EU=
-google.golang.org/genproto/googleapis/api v0.0.0-20250707201910-8d1bb00bc6a7/go.mod h1:kXqgZtrWaf6qS3jZOCnCH7WYfrvFjkC51bM8fz3RsCA=
+google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422 h1:GVIKPyP/kLIyVOgOnTwFOrvQaQUzOzGMCxgFUOEmm24=
+google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422/go.mod h1:b6h1vNKhxaSoEI+5jc3PJUCustfli/mRab7295pY7rw=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822 h1:fc6jSaCT0vBduLYZHYrBBNY4dsWuvgyff9noRNDdBeE=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822/go.mod h1:qQ0YXyHHx3XkvlzUtpXDkS29lDSafHMZBAZDc03LQ3A=
 google.golang.org/grpc v1.71.0 h1:kF77BGdPTQ4/JZWMlb9VpJ5pa25aqvVqogsxNHHdeBg=

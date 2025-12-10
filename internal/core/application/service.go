@@ -628,7 +628,7 @@ func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 
-	balance, err := s.Balance(ctx, false)
+	balance, err := s.Balance(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -676,7 +676,7 @@ func (s *Service) SendOnChain(ctx context.Context, addr string, amount uint64) (
 		return "", err
 	}
 
-	commitmentTxid, err := s.CollaborativeExit(ctx, addr, amount, false)
+	commitmentTxid, err := s.CollaborativeExit(ctx, addr, amount)
 	if err != nil {
 		return "", err
 	}

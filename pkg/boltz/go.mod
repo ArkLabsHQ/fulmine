@@ -1,6 +1,6 @@
 module github.com/ArkLabsHQ/fulmine/pkg/boltz
 
-go 1.25
+go 1.25.5
 
 require (
 	github.com/gorilla/websocket v1.5.3
