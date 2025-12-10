@@ -556,7 +556,7 @@ func (h *SwapHandler) submarineSwap(
 	var txid string
 	for range 3 {
 		// Fund the VHTLC
-		txid, err = h.arkClient.SendOffChain(ctx, false, receivers)
+		txid, err = h.arkClient.SendOffChain(ctx, true, receivers)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
 				continue

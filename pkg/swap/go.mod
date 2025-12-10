@@ -1,6 +1,6 @@
 module github.com/ArkLabsHQ/fulmine/pkg/swap
 
-go 1.25.3
+go 1.25.5
 
 require (
 	github.com/nbd-wtf/ln-decodepay v1.13.0
@@ -10,8 +10,8 @@ require (
 require (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-00010101000000-000000000000
-	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251119163300-38b7bf6a4010
-	github.com/arkade-os/go-sdk v0.8.2-0.20251110150555-3fea8eb154d1
+	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251125124623-101ae751505f
+	github.com/arkade-os/go-sdk v0.8.2-0.20251203175800-f8dc59ad03c8
 	github.com/ccoveille/go-safecast v1.6.1
 )
 
