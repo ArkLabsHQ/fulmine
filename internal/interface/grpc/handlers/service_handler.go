@@ -179,7 +179,7 @@ func (h *serviceHandler) SendOffChain(
 	receivers := []types.Receiver{{To: address, Amount: amount}}
 	var arkTxid string
 	for range 3 {
-		arkTxid, err = h.svc.SendOffChain(ctx, false, receivers)
+		arkTxid, err = h.svc.SendOffChain(ctx, receivers)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
 				continue
