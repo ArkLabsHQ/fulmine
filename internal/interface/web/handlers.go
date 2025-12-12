@@ -477,7 +477,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	if utils.IsValidArkAddress(address) {
 		for range 3 {
-			txId, err = s.svc.SendOffChain(c, true, receivers)
+			txId, err = s.svc.SendOffChain(c, receivers)
 			if err != nil {
 				if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
 					continue
