@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -454,7 +453,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			log.WithError(err).Error("failed to get addresses")
 		}
 
-		go s.subscribeForVtxoEvent(ctx, offchainAddrses, arkConfig)
+		go s.subscribeForVtxoEvent(ctx, arkConfig)
 
 		// Schedule next settlement for the current vtxo set.
 		nextExpiry, err := s.computeNextExpiry(context.Background(), arkConfig)
@@ -470,6 +469,10 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 				}
 
 				log.Debugf("settled with recoverable vtxos: %s", commitmentTxId)
+			} else {
+				if err := s.scheduleNextSettlement(*nextExpiry, arkConfig); err != nil {
+					log.WithError(err).Error("failed to schedule next settlement")
+				}
 			}
 		}
 
@@ -1610,13 +1613,8 @@ func (s *Service) scheduleNextSettlement(at time.Time, data *types.Config) error
 
 // subscribeForBoardingEvent aims to update the scheduled settlement
 // by checking for spent and new vtxos on the given boarding address
-func (s *Service) subscribeForVtxoEvent(ctx context.Context, addresses []string, cfg *types.Config) {
+func (s *Service) subscribeForVtxoEvent(ctx context.Context, cfg *types.Config) {
 	eventsCh := s.GetVtxoEventChannel(ctx)
-	boardingScripts, err := onchainAddressesPkScripts(addresses, cfg.Network)
-	if err != nil {
-		log.WithError(err).Error("failed to get output script")
-		return
-	}
 
 	for {
 		select {
@@ -1626,39 +1624,25 @@ func (s *Service) subscribeForVtxoEvent(ctx context.Context, addresses []string,
 			if !ok {
 				return
 			}
-			if event.Type == 0 && len(event.Vtxos) == 0 {
+
+			vtxos := event.Vtxos
+			if event.Type == 0 && len(vtxos) == 0 {
 				continue
 			}
 
-			filteredVtxo := make([]types.Vtxo, 0, len(event.Vtxos))
-			for _, vtxo := range event.Vtxos {
-				if vtxo.Spent {
-					continue
-				}
-
-				if slices.Contains(boardingScripts, vtxo.Script) {
-					filteredVtxo = append(filteredVtxo, vtxo)
+			log.Infof("boarding event detected: %d new confirmed utxos", len(vtxos))
+			nextScheduledSettlement := s.WhenNextSettlement(ctx)
+			needSchedule := false
+			for _, vtxo := range vtxos {
+				if nextScheduledSettlement.IsZero() || vtxo.ExpiresAt.Before(nextScheduledSettlement) {
+					nextScheduledSettlement = vtxo.ExpiresAt
+					needSchedule = true
 				}
 			}
 
-			// if expiry is before the next scheduled settlement, we need to schedule a new one
-			if len(filteredVtxo) > 0 {
-				log.Infof("boarding event detected: %d new confirmed utxos", len(filteredVtxo))
-				nextScheduledSettlement := s.WhenNextSettlement(ctx)
-
-				needSchedule := false
-
-				for _, vtxo := range filteredVtxo {
-					if nextScheduledSettlement.IsZero() || vtxo.ExpiresAt.Before(nextScheduledSettlement) {
-						nextScheduledSettlement = vtxo.ExpiresAt
-						needSchedule = true
-					}
-				}
-
-				if needSchedule {
-					if err := s.scheduleNextSettlement(nextScheduledSettlement, cfg); err != nil {
-						log.WithError(err).Info("schedule next claim failed")
-					}
+			if needSchedule {
+				if err := s.scheduleNextSettlement(nextScheduledSettlement, cfg); err != nil {
+					log.WithError(err).Info("schedule next claim failed")
 				}
 			}
 		}
