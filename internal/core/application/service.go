@@ -447,12 +447,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		// Resume pending swap refunds.
 		go s.resumePendingSwapRefunds(ctx)
 
-		// Restore watch of our and tracked addresses.
-		_, offchainAddrses, _, _, err := s.GetAddresses(context.Background())
-		if err != nil {
-			log.WithError(err).Error("failed to get addresses")
-		}
-
 		go s.subscribeForVtxoEvent(ctx, arkConfig)
 
 		// Schedule next settlement for the current vtxo set.
@@ -462,28 +456,20 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		if nextExpiry != nil {
+			// If the next expiry is in the past, we settle immediately because some vtxos expired.
+			// The next settlement will be scheduled by subscribeForVtxoEvent in this case
 			if nextExpiry.Before(time.Now()) {
-				commitmentTxId, err := s.ArkClient.Settle(ctx, arksdk.WithRecoverableVtxos())
-				if err != nil {
-					log.WithError(err).Error("failed to settle with recoverable vtxos")
-				} else {
-					log.Debugf("settled with recoverable vtxos: %s", commitmentTxId)
+				log.Debug("detected expired vtxos, joining a batch to renew them...")
+				if _, err := s.ArkClient.Settle(ctx, arksdk.WithRecoverableVtxos()); err != nil {
+					log.WithError(err).Error("failed to renew expired vtxos")
 				}
 			} else {
+				// Otherwise, let's schedule the very first next settlement, the future ones will
+				// be handled by subscribeForVtxoEvent
 				if err := s.scheduleNextSettlement(*nextExpiry, arkConfig); err != nil {
 					log.WithError(err).Error("failed to schedule next settlement")
 				}
 			}
-		}
-
-		scripts, err := offchainAddressesPkScripts(offchainAddrses)
-		if err != nil {
-			log.WithError(err).Error("failed to decode offchain address")
-		}
-
-		_, err = s.dbSvc.SubscribedScript().Add(context.Background(), scripts)
-		if err != nil {
-			log.Debugf("cannot listen to scripts %+v", err)
 		}
 
 		s.externalSubscription = newSubscriptionHandler(
@@ -1578,9 +1564,8 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 
 func (s *Service) scheduleNextSettlement(at time.Time, data *types.Config) error {
 	task := func() {
-		_, err := s.Settle(context.Background())
-		if err != nil {
-			log.WithError(err).Warn("failed to auto claim")
+		if _, err := s.Settle(context.Background()); err != nil {
+			log.WithError(err).Warn("failed to renew vtxos")
 		}
 	}
 
@@ -1604,10 +1589,7 @@ func (s *Service) scheduleNextSettlement(at time.Time, data *types.Config) error
 	if err := s.schedulerSvc.ScheduleNextSettlement(at, task); err != nil {
 		return err
 	}
-	// If at is before now the settlement is executed immediately and no logs need to be printed.
-	if at.After(now) {
-		log.Debugf("scheduled next settlement at %s", at.Format(time.RFC3339))
-	}
+	log.Infof("scheduled next settlement at %s", at.Format(time.RFC3339))
 	return nil
 }
 
@@ -1630,7 +1612,6 @@ func (s *Service) subscribeForVtxoEvent(ctx context.Context, cfg *types.Config) 
 				continue
 			}
 
-			log.Infof("boarding event detected: %d new confirmed utxos", len(vtxos))
 			nextScheduledSettlement := s.WhenNextSettlement(ctx)
 			needSchedule := false
 			for _, vtxo := range vtxos {
@@ -1645,7 +1626,6 @@ func (s *Service) subscribeForVtxoEvent(ctx context.Context, cfg *types.Config) 
 					log.WithError(err).Info("schedule next claim failed")
 					return
 				}
-				log.Infof("scheduled next settlement at %s", nextScheduledSettlement.Format(time.RFC3339))
 			}
 		}
 	}
