@@ -1623,7 +1623,7 @@ func (s *Service) subscribeForVtxoEvent(ctx context.Context, cfg *types.Config) 
 
 			if needSchedule {
 				if err := s.scheduleNextSettlement(nextScheduledSettlement, cfg); err != nil {
-					log.WithError(err).Info("schedule next claim failed")
+					log.WithError(err).Error("failed to schedule next settlement")
 					return
 				}
 			}
