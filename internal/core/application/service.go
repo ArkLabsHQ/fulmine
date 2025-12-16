@@ -99,7 +99,7 @@ type Service struct {
 	// Notification channels
 	notifications chan Notification
 
-	stopBoardingEventListener chan struct{}
+	stopVtxoEventListener chan struct{}
 }
 
 type Notification struct {
@@ -153,24 +153,24 @@ func NewService(
 		}
 
 		svc := &Service{
-			BuildInfo:                 buildInfo,
-			ArkClient:                 arkClient,
-			storeCfg:                  storeCfg,
-			storeRepo:                 storeSvc,
-			dbSvc:                     dbSvc,
-			grpcClient:                grpcClient,
-			indexerClient:             indexerClient,
-			schedulerSvc:              schedulerSvc,
-			publicKey:                 nil,
-			isInitialized:             true,
-			notifications:             make(chan Notification),
-			stopBoardingEventListener: make(chan struct{}),
-			esploraUrl:                data.ExplorerURL,
-			boltzUrl:                  boltzUrl,
-			boltzWSUrl:                boltzWSUrl,
-			swapTimeout:               swapTimeout,
-			walletUpdates:             make(chan WalletUpdate),
-			syncLock:                  &sync.RWMutex{},
+			BuildInfo:             buildInfo,
+			ArkClient:             arkClient,
+			storeCfg:              storeCfg,
+			storeRepo:             storeSvc,
+			dbSvc:                 dbSvc,
+			grpcClient:            grpcClient,
+			indexerClient:         indexerClient,
+			schedulerSvc:          schedulerSvc,
+			publicKey:             nil,
+			isInitialized:         true,
+			notifications:         make(chan Notification),
+			stopVtxoEventListener: make(chan struct{}),
+			esploraUrl:            data.ExplorerURL,
+			boltzUrl:              boltzUrl,
+			boltzWSUrl:            boltzWSUrl,
+			swapTimeout:           swapTimeout,
+			walletUpdates:         make(chan WalletUpdate),
+			syncLock:              &sync.RWMutex{},
 		}
 
 		return svc, nil
@@ -202,21 +202,21 @@ func NewService(
 	}
 
 	svc := &Service{
-		BuildInfo:                 buildInfo,
-		ArkClient:                 arkClient,
-		storeCfg:                  storeCfg,
-		storeRepo:                 storeSvc,
-		dbSvc:                     dbSvc,
-		grpcClient:                nil,
-		schedulerSvc:              schedulerSvc,
-		notifications:             make(chan Notification),
-		stopBoardingEventListener: make(chan struct{}),
-		esploraUrl:                esploraUrl,
-		boltzUrl:                  boltzUrl,
-		boltzWSUrl:                boltzWSUrl,
-		swapTimeout:               swapTimeout,
-		walletUpdates:             make(chan WalletUpdate),
-		syncLock:                  &sync.RWMutex{},
+		BuildInfo:             buildInfo,
+		ArkClient:             arkClient,
+		storeCfg:              storeCfg,
+		storeRepo:             storeSvc,
+		dbSvc:                 dbSvc,
+		grpcClient:            nil,
+		schedulerSvc:          schedulerSvc,
+		notifications:         make(chan Notification),
+		stopVtxoEventListener: make(chan struct{}),
+		esploraUrl:            esploraUrl,
+		boltzUrl:              boltzUrl,
+		boltzWSUrl:            boltzWSUrl,
+		swapTimeout:           swapTimeout,
+		walletUpdates:         make(chan WalletUpdate),
+		syncLock:              &sync.RWMutex{},
 	}
 
 	return svc, nil
@@ -365,9 +365,9 @@ func (s *Service) LockNode(ctx context.Context) error {
 	}
 
 	// close boarding event listener
-	s.stopBoardingEventListener <- struct{}{}
-	close(s.stopBoardingEventListener)
-	s.stopBoardingEventListener = make(chan struct{})
+	s.stopVtxoEventListener <- struct{}{}
+	close(s.stopVtxoEventListener)
+	s.stopVtxoEventListener = make(chan struct{})
 
 	s.syncEvent = nil
 	if s.syncCh != nil {
@@ -433,27 +433,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			return
 		}
 
-		// Schedule next settlement for the current vtxo set.
-		nextExpiry, err := s.computeNextExpiry(context.Background(), arkConfig)
-		if err != nil {
-			log.WithError(err).Error("failed to compute next expiry")
-		}
-
-		if nextExpiry != nil {
-			if nextExpiry.Before(time.Now()) {
-				commitmentTxId, err := s.ArkClient.Settle(ctx, arksdk.WithRecoverableVtxos())
-				if err != nil {
-					log.WithError(err).Error("failed to settle with recoverable vtxos")
-				}
-
-				log.Debugf("settled with recoverable vtxos: %s", commitmentTxId)
-			} else {
-				if err := s.scheduleNextSettlement(*nextExpiry, arkConfig); err != nil {
-					log.WithError(err).Error("failed to schedule next settlement")
-				}
-			}
-		}
-
 		if s.boltzSvc == nil {
 			url := s.boltzUrl
 			wsUrl := s.boltzWSUrl
@@ -470,9 +449,28 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		go s.resumePendingSwapRefunds(ctx)
 
 		// Restore watch of our and tracked addresses.
-		_, offchainAddrses, boardingAddresses, _, err := s.GetAddresses(context.Background())
+		_, offchainAddrses, _, _, err := s.GetAddresses(context.Background())
 		if err != nil {
 			log.WithError(err).Error("failed to get addresses")
+		}
+
+		go s.subscribeForVtxoEvent(ctx, offchainAddrses, arkConfig)
+
+		// Schedule next settlement for the current vtxo set.
+		nextExpiry, err := s.computeNextExpiry(context.Background(), arkConfig)
+		if err != nil {
+			log.WithError(err).Error("failed to compute next expiry")
+		}
+
+		if nextExpiry != nil {
+			if nextExpiry.Before(time.Now()) {
+				commitmentTxId, err := s.ArkClient.Settle(ctx, arksdk.WithRecoverableVtxos())
+				if err != nil {
+					log.WithError(err).Error("failed to settle with recoverable vtxos")
+				}
+
+				log.Debugf("settled with recoverable vtxos: %s", commitmentTxId)
+			}
 		}
 
 		scripts, err := offchainAddressesPkScripts(offchainAddrses)
@@ -491,10 +489,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 		if err := s.externalSubscription.start(); err != nil {
 			log.WithError(err).Error("failed to start external subscription")
-		}
-
-		if arkConfig.UtxoMaxAmount != 0 {
-			go s.subscribeForBoardingEvent(ctx, boardingAddresses, arkConfig)
 		}
 
 		// Load delegate signer key.
@@ -1616,8 +1610,8 @@ func (s *Service) scheduleNextSettlement(at time.Time, data *types.Config) error
 
 // subscribeForBoardingEvent aims to update the scheduled settlement
 // by checking for spent and new vtxos on the given boarding address
-func (s *Service) subscribeForBoardingEvent(ctx context.Context, addresses []string, cfg *types.Config) {
-	eventsCh := s.GetUtxoEventChannel(ctx)
+func (s *Service) subscribeForVtxoEvent(ctx context.Context, addresses []string, cfg *types.Config) {
+	eventsCh := s.GetVtxoEventChannel(ctx)
 	boardingScripts, err := onchainAddressesPkScripts(addresses, cfg.Network)
 	if err != nil {
 		log.WithError(err).Error("failed to get output script")
@@ -1626,37 +1620,37 @@ func (s *Service) subscribeForBoardingEvent(ctx context.Context, addresses []str
 
 	for {
 		select {
-		case <-s.stopBoardingEventListener:
+		case <-s.stopVtxoEventListener:
 			return
 		case event, ok := <-eventsCh:
 			if !ok {
 				return
 			}
-			if event.Type == 0 && len(event.Utxos) == 0 {
+			if event.Type == 0 && len(event.Vtxos) == 0 {
 				continue
 			}
 
-			filteredUtxos := make([]types.Utxo, 0, len(event.Utxos))
-			for _, utxo := range event.Utxos {
-				if utxo.Spent || !utxo.IsConfirmed() {
+			filteredVtxo := make([]types.Vtxo, 0, len(event.Vtxos))
+			for _, vtxo := range event.Vtxos {
+				if vtxo.Spent {
 					continue
 				}
 
-				if slices.Contains(boardingScripts, utxo.Script) {
-					filteredUtxos = append(filteredUtxos, utxo)
+				if slices.Contains(boardingScripts, vtxo.Script) {
+					filteredVtxo = append(filteredVtxo, vtxo)
 				}
 			}
 
 			// if expiry is before the next scheduled settlement, we need to schedule a new one
-			if len(filteredUtxos) > 0 {
-				log.Infof("boarding event detected: %d new confirmed utxos", len(filteredUtxos))
+			if len(filteredVtxo) > 0 {
+				log.Infof("boarding event detected: %d new confirmed utxos", len(filteredVtxo))
 				nextScheduledSettlement := s.WhenNextSettlement(ctx)
 
 				needSchedule := false
 
-				for _, utxo := range filteredUtxos {
-					if nextScheduledSettlement.IsZero() || utxo.SpendableAt.Before(nextScheduledSettlement) {
-						nextScheduledSettlement = utxo.SpendableAt
+				for _, vtxo := range filteredVtxo {
+					if nextScheduledSettlement.IsZero() || vtxo.ExpiresAt.Before(nextScheduledSettlement) {
+						nextScheduledSettlement = vtxo.ExpiresAt
 						needSchedule = true
 					}
 				}
