@@ -440,8 +440,17 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		if nextExpiry != nil {
-			if err := s.scheduleNextSettlement(*nextExpiry, arkConfig); err != nil {
-				log.WithError(err).Error("failed to schedule next settlement")
+			if nextExpiry.Before(time.Now()) {
+				commitmentTxId, err := s.ArkClient.Settle(ctx, arksdk.WithRecoverableVtxos())
+				if err != nil {
+					log.WithError(err).Error("failed to settle with recoverable vtxos")
+				}
+
+				log.Debugf("settled with recoverable vtxos: %s", commitmentTxId)
+			} else {
+				if err := s.scheduleNextSettlement(*nextExpiry, arkConfig); err != nil {
+					log.WithError(err).Error("failed to schedule next settlement")
+				}
 			}
 		}
 
@@ -1537,7 +1546,7 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 	if len(spendableVtxos) > 0 {
 		for _, vtxo := range spendableVtxos[:] {
 			if vtxo.ExpiresAt.Before(time.Now()) {
-				continue
+				return &vtxo.ExpiresAt, nil
 			}
 
 			if expiry == nil || vtxo.ExpiresAt.Before(*expiry) {
