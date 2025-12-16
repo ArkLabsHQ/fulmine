@@ -466,9 +466,9 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 				commitmentTxId, err := s.ArkClient.Settle(ctx, arksdk.WithRecoverableVtxos())
 				if err != nil {
 					log.WithError(err).Error("failed to settle with recoverable vtxos")
+				} else {
+					log.Debugf("settled with recoverable vtxos: %s", commitmentTxId)
 				}
-
-				log.Debugf("settled with recoverable vtxos: %s", commitmentTxId)
 			} else {
 				if err := s.scheduleNextSettlement(*nextExpiry, arkConfig); err != nil {
 					log.WithError(err).Error("failed to schedule next settlement")
@@ -1643,7 +1643,9 @@ func (s *Service) subscribeForVtxoEvent(ctx context.Context, cfg *types.Config) 
 			if needSchedule {
 				if err := s.scheduleNextSettlement(nextScheduledSettlement, cfg); err != nil {
 					log.WithError(err).Info("schedule next claim failed")
+					return
 				}
+				log.Infof("scheduled next settlement at %s", nextScheduledSettlement.Format(time.RFC3339))
 			}
 		}
 	}
