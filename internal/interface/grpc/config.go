@@ -46,7 +46,7 @@ func (c Config) httpAddress() string {
 }
 
 func (c Config) gatewayAddress() string {
-	return fmt.Sprintf("localhost:%d", c.GRPCPort)
+	return fmt.Sprintf("127.0.0.1:%d", c.GRPCPort)
 }
 
 func (c Config) tlsConfig() *tls.Config {
