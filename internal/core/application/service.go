@@ -97,6 +97,7 @@ type Service struct {
 
 	// Notification channels
 	notifications chan Notification
+	events        chan FulmineEvent
 
 	stopVtxoEventListener chan struct{}
 }
@@ -107,6 +108,41 @@ type Notification struct {
 	NewVtxos    []types.Vtxo
 	SpentVtxos  []types.Vtxo
 	Checkpoints map[string]indexer.TxData
+}
+
+// EventType represents the type of event emitted by Fulmine
+type EventType int
+
+const (
+	EventTypeUnspecified EventType = iota
+	EventTypeVhtlcCreated
+	EventTypeVhtlcFunded
+	EventTypeVhtlcClaimed
+	EventTypeVhtlcRefunded
+	EventTypeVtxoReceived
+	EventTypeVtxoSpent
+)
+
+// FulmineEvent represents an event emitted by Fulmine for VHTLC and VTXO lifecycle changes
+type FulmineEvent struct {
+	Type      EventType
+	Timestamp time.Time
+	// For VHTLC events
+	Vhtlc *VhtlcEventData
+	// For VTXO events
+	Vtxo *VtxoEventData
+}
+
+type VhtlcEventData struct {
+	ID       string
+	Txid     string
+	Preimage string // hex-encoded, only for CLAIMED events
+}
+
+type VtxoEventData struct {
+	Scripts []string
+	Vtxos   []types.Vtxo
+	Txid    string
 }
 
 type SwapResponse struct {
@@ -163,6 +199,7 @@ func NewService(
 			publicKey:             nil,
 			isInitialized:         true,
 			notifications:         make(chan Notification),
+			events:                make(chan FulmineEvent),
 			stopVtxoEventListener: make(chan struct{}),
 			esploraUrl:            data.ExplorerURL,
 			boltzUrl:              boltzUrl,
@@ -209,6 +246,7 @@ func NewService(
 		grpcClient:            nil,
 		schedulerSvc:          schedulerSvc,
 		notifications:         make(chan Notification),
+		events:                make(chan FulmineEvent),
 		stopVtxoEventListener: make(chan struct{}),
 		esploraUrl:            esploraUrl,
 		boltzUrl:              boltzUrl,
@@ -867,6 +905,14 @@ func (s *Service) GetSwapVHTLC(
 		}
 
 		log.Debugf("added new vhtlc %s", vhtlcId)
+
+		s.emitEvent(FulmineEvent{
+			Type:      EventTypeVhtlcCreated,
+			Timestamp: time.Now(),
+			Vhtlc: &VhtlcEventData{
+				ID: vhtlcId,
+			},
+		})
 	}()
 
 	return encodedAddr, vhtlcId, vHTLCScript, nil
@@ -922,7 +968,22 @@ func (s *Service) ClaimVHTLC(
 		return "", err
 	}
 
-	return s.swapHandler.ClaimVHTLC(ctx, preimage, vhtlc.Opts)
+	redeemTxid, err := s.swapHandler.ClaimVHTLC(ctx, preimage, vhtlc.Opts)
+	if err != nil {
+		return "", err
+	}
+
+	s.emitEvent(FulmineEvent{
+		Type:      EventTypeVhtlcClaimed,
+		Timestamp: time.Now(),
+		Vhtlc: &VhtlcEventData{
+			ID:       vhtlc_id,
+			Txid:     redeemTxid,
+			Preimage: hex.EncodeToString(preimage),
+		},
+	})
+
+	return redeemTxid, nil
 }
 
 func (s *Service) RefundVHTLC(
@@ -937,7 +998,21 @@ func (s *Service) RefundVHTLC(
 		return "", err
 	}
 
-	return s.swapHandler.RefundSwap(ctx, swapId, withReceiver, vhtlc.Opts)
+	redeemTxid, err := s.swapHandler.RefundSwap(ctx, swapId, withReceiver, vhtlc.Opts)
+	if err != nil {
+		return "", err
+	}
+
+	s.emitEvent(FulmineEvent{
+		Type:      EventTypeVhtlcRefunded,
+		Timestamp: time.Now(),
+		Vhtlc: &VhtlcEventData{
+			ID:   vhtlc_id,
+			Txid: redeemTxid,
+		},
+	})
+
+	return redeemTxid, nil
 }
 
 func (s *Service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
@@ -1106,6 +1181,16 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 
 func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification {
 	return s.notifications
+}
+
+func (s *Service) GetEvents(ctx context.Context) <-chan FulmineEvent {
+	return s.events
+}
+
+func (s *Service) emitEvent(event FulmineEvent) {
+	go func() {
+		s.events <- event
+	}()
 }
 
 func (s *Service) GetDelegatePublicKey(ctx context.Context) (string, error) {
@@ -1709,6 +1794,63 @@ func (s *Service) handleAddressEventChannel(config *types.Config) func(event *in
 				TxData:      indexer.TxData{Tx: event.Tx, Txid: event.Txid},
 			}
 		}(event)
+
+		// Emit VTXO events
+		if len(event.NewVtxos) > 0 {
+			s.emitEvent(FulmineEvent{
+				Type:      EventTypeVtxoReceived,
+				Timestamp: time.Now(),
+				Vtxo: &VtxoEventData{
+					Vtxos: event.NewVtxos,
+					Txid:  event.Txid,
+				},
+			})
+		}
+
+		if len(event.SpentVtxos) > 0 {
+			s.emitEvent(FulmineEvent{
+				Type:      EventTypeVtxoSpent,
+				Timestamp: time.Now(),
+				Vtxo: &VtxoEventData{
+					Vtxos: event.SpentVtxos,
+					Txid:  event.Txid,
+				},
+			})
+		}
+
+		// Check if any new VTXOs are at known VHTLC addresses
+		go func(txid string, addrs []string) {
+			vhtlcs, err := s.dbSvc.VHTLC().GetAll(context.Background())
+			if err != nil {
+				log.WithError(err).Debug("failed to get vhtlcs for funded check")
+				return
+			}
+
+			for _, v := range vhtlcs {
+				vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(v.Opts)
+				if err != nil {
+					continue
+				}
+				vhtlcAddr, err := vhtlcScript.Address(config.Network.Addr)
+				if err != nil {
+					continue
+				}
+
+				for _, addr := range addrs {
+					if addr == vhtlcAddr {
+						s.emitEvent(FulmineEvent{
+							Type:      EventTypeVhtlcFunded,
+							Timestamp: time.Now(),
+							Vhtlc: &VhtlcEventData{
+								ID:   v.Id,
+								Txid: txid,
+							},
+						})
+						break
+					}
+				}
+			}
+		}(event.Txid, addresses)
 	}
 }
 
