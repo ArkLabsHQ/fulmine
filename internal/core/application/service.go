@@ -1352,6 +1352,10 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 		return fmt.Errorf("service is locked")
 	}
 
+	if s.syncEvent == nil {
+		return fmt.Errorf("service is syncing")
+	}
+
 	return nil
 }
 
