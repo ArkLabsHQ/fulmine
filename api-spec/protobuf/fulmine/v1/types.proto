@@ -113,3 +113,64 @@ enum TxType {
   TX_TYPE_SENT = 1;
   TX_TYPE_RECEIVED = 2;
 }
+
+// EventType defines the type of lifecycle events emitted by Fulmine.
+// Events are streamed via the GetEvents RPC.
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  // VHTLC_CREATED: A new Virtual HTLC address has been generated.
+  // The vhtlc.id field will be populated.
+  EVENT_TYPE_VHTLC_CREATED = 1;
+  // VHTLC_FUNDED: Funds have been received at a VHTLC address.
+  // The vhtlc.id and vhtlc.txid fields will be populated.
+  EVENT_TYPE_VHTLC_FUNDED = 2;
+  // VHTLC_CLAIMED: A VHTLC has been claimed using the preimage.
+  // The vhtlc.id, vhtlc.txid, and vhtlc.preimage fields will be populated.
+  EVENT_TYPE_VHTLC_CLAIMED = 3;
+  // VHTLC_REFUNDED: A VHTLC has been refunded after timeout.
+  // The vhtlc.id and vhtlc.txid fields will be populated.
+  EVENT_TYPE_VHTLC_REFUNDED = 4;
+  // VTXO_RECEIVED: New VTXOs have been received at subscribed addresses.
+  // The vtxo.vtxos and vtxo.txid fields will be populated.
+  EVENT_TYPE_VTXO_RECEIVED = 5;
+  // VTXO_SPENT: VTXOs at subscribed addresses have been spent.
+  // The vtxo.vtxos and vtxo.txid fields will be populated.
+  EVENT_TYPE_VTXO_SPENT = 6;
+}
+
+// Event represents a lifecycle event for VHTLCs or VTXOs.
+// Subscribe to events via the GetEvents streaming RPC.
+message Event {
+  // The type of event that occurred.
+  EventType type = 1;
+  // Unix timestamp when the event occurred.
+  int64 timestamp_unix = 2;
+  // Event-specific data. Only one of these will be set based on the event type.
+  oneof event_data {
+    // Populated for VHTLC_* event types.
+    VhtlcEventData vhtlc = 3;
+    // Populated for VTXO_* event types.
+    VtxoEventData vtxo = 4;
+  }
+}
+
+// VhtlcEventData contains data specific to VHTLC lifecycle events.
+message VhtlcEventData {
+  // The unique identifier of the VHTLC.
+  string id = 1;
+  // The transaction ID associated with the event (funding, claim, or refund tx).
+  // Empty for VHTLC_CREATED events.
+  string txid = 2;
+  // The preimage used to claim the VHTLC, hex-encoded.
+  // Only populated for VHTLC_CLAIMED events.
+  string preimage = 3;
+}
+
+// VtxoEventData contains data specific to VTXO lifecycle events.
+message VtxoEventData {
+  reserved 1; // previously: repeated string scripts
+  // The VTXOs that were received or spent, with full details.
+  repeated Vtxo vtxos = 2;
+  // The transaction ID associated with the event.
+  string txid = 3;
+}

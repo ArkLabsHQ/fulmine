@@ -42,6 +42,19 @@ service NotificationService {
   // Notifies about events related to wallet transactions.
   rpc RoundNotifications(RoundNotificationsRequest) returns (stream RoundNotificationsResponse);
 
+  // GetEvents streams all VHTLC and VTXO lifecycle events in real-time.
+  //
+  // This is a server-side streaming RPC that emits events whenever:
+  // - A VHTLC is created, funded, claimed, or refunded
+  // - VTXOs are received or spent at subscribed addresses
+  //
+  // Events include the event type, timestamp, and relevant data (VHTLC ID,
+  // transaction IDs, preimages for claims, full VTXO details, etc.).
+  //
+  // Example usage with grpcurl:
+  //   grpcurl -plaintext localhost:7000 fulmine.v1.NotificationService/GetEvents
+  rpc GetEvents(GetEventsRequest) returns (stream GetEventsResponse);
+
   //***************//
   //   WEBHOOKS    //
   //***************//
@@ -78,6 +91,11 @@ message RoundNotificationsResponse{
   string txhex = 2;
   string txid = 3;
   BlockDetails block_details = 4;
+}
+
+message GetEventsRequest {}
+message GetEventsResponse {
+  Event event = 1;
 }
 
 message AddWebhookRequest {
