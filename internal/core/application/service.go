@@ -600,35 +600,39 @@ func (s *Service) UpdateSettings(ctx context.Context, settings domain.Settings) 
 	return s.dbSvc.Settings().UpdateSettings(ctx, settings)
 }
 
-func (s *Service) GetAddress(ctx context.Context, sats uint64) (string, string, string, string, string, error) {
+func (s *Service) GetAddress(
+	ctx context.Context, sats uint64,
+) (bip21Addr, offchainAddr, boardingAddr, invoice, pubkey string, err error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", "", "", "", "", err
 	}
 
-	var invoice string
-	_, offchainAddr, boardingAddr, err := s.Receive(ctx)
+	_, offchainAddr, boardingAddr, err = s.Receive(ctx)
 	if err != nil {
-		return "", "", "", "", "", err
+		return
 	}
 
-	bip21Addr := fmt.Sprintf("bitcoin:%s?ark=%s", boardingAddr, offchainAddr)
+	bip21Addr = fmt.Sprintf("bitcoin:%s?ark=%s", boardingAddr, offchainAddr)
+	pubkey = hex.EncodeToString(s.publicKey.SerializeCompressed())
+
+	if sats == 0 {
+		return
+	}
 
 	invoiceResponse, err := s.GetInvoice(ctx, sats)
+	if err != nil {
+		log.WithError(err).Warn("failed to get boltz invoice")
+	}
 
-	invoice = invoiceResponse.Invoice
-
-	if err == nil && len(invoice) > 0 {
+	if invoiceResponse != nil {
+		invoice = invoiceResponse.Invoice
 		bip21Addr += fmt.Sprintf("&lightning=%s", invoice)
 	}
+	btc := float64(sats) / 100000000.0
+	amount := fmt.Sprintf("%.8f", btc)
+	bip21Addr += fmt.Sprintf("&amount=%s", amount)
 
-	// add amount if passed
-	if sats > 0 {
-		btc := float64(sats) / 100000000.0
-		amount := fmt.Sprintf("%.8f", btc)
-		bip21Addr += fmt.Sprintf("&amount=%s", amount)
-	}
-	pubkey := hex.EncodeToString(s.publicKey.SerializeCompressed())
-	return bip21Addr, offchainAddr, boardingAddr, invoice, pubkey, nil
+	return
 }
 
 func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
@@ -1170,9 +1174,9 @@ func (s *Service) IsLocked(ctx context.Context) bool {
 	return s.ArkClient.IsLocked(ctx)
 }
 
-func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, error) {
+func (s *Service) GetInvoice(ctx context.Context, amount uint64) (*SwapResponse, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return SwapResponse{}, err
+		return nil, err
 	}
 
 	postProcess := func(swapData swap.Swap) error {
@@ -1203,13 +1207,13 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (SwapResponse, 
 	swapDetails, err := s.swapHandler.GetInvoice(ctx, amount, postProcess)
 	if err != nil {
 		if strings.Contains(err.Error(), "out of limits") {
-			return SwapResponse{}, nil
+			return nil, nil
 		}
 
-		return SwapResponse{}, err
+		return nil, err
 	}
 
-	return SwapResponse{Invoice: swapDetails.Invoice, SwapStatus: domain.SwapPending}, err
+	return &SwapResponse{Invoice: swapDetails.Invoice, SwapStatus: domain.SwapPending}, err
 
 }
 
@@ -1346,6 +1350,10 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 
 	if s.IsLocked(ctx) {
 		return fmt.Errorf("service is locked")
+	}
+
+	if s.syncEvent == nil {
+		return fmt.Errorf("service is syncing")
 	}
 
 	return nil
