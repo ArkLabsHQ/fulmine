@@ -78,7 +78,8 @@ type Service struct {
 	boltzSvc      *boltz.Api
 	swapHandler   *swap.SwapHandler
 
-	publicKey *btcec.PublicKey
+	publicKey  *btcec.PublicKey
+	privateKey *btcec.PrivateKey
 
 	esploraUrl string
 	boltzUrl   string
@@ -328,6 +329,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 
 	s.esploraUrl = config.ExplorerURL
 	s.publicKey = prvKey.PubKey()
+	s.privateKey = prvKey
 	s.grpcClient = client
 	s.indexerClient = indexerClient
 	s.isInitialized = true
@@ -507,8 +509,9 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			log.WithError(err).Error("failed to decode delegate signer key")
 		}
 
-		_, pubkey := btcec.PrivKeyFromBytes(buf)
+		privkey, pubkey := btcec.PrivKeyFromBytes(buf)
 		s.publicKey = pubkey
+		s.privateKey = privkey
 		// nolint
 		s.swapHandler, _ = swap.NewSwapHandler(
 			s.ArkClient, s.grpcClient, s.indexerClient, s.boltzSvc, s.publicKey, s.swapTimeout,
@@ -938,6 +941,55 @@ func (s *Service) RefundVHTLC(
 	}
 
 	return s.swapHandler.RefundSwap(ctx, swapId, withReceiver, vhtlc.Opts)
+}
+
+// SettleVhtlcByClaimPath settles a VHTLC via claim path (revealing preimage) in a batch session.
+// This is the service-layer method that the SettleClaim RPC handler should call.
+//
+// It fetches the VHTLC from the database, validates it, and calls the swap handler's
+// SettleVhtlcByClaimPath method which joins a batch session to complete settlement.
+//
+// Returns the commitment transaction ID from the Ark round.
+func (s *Service) SettleVhtlcByClaimPath(ctx context.Context, vhtlcId string, preimage []byte) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	// Fetch VHTLC from database
+	vhtlc, err := s.dbSvc.VHTLC().Get(ctx, vhtlcId)
+	if err != nil {
+		return "", fmt.Errorf("failed to get VHTLC %s: %w", vhtlcId, err)
+	}
+
+	// Call swap handler's batch settlement method
+	return s.swapHandler.SettleVhtlcByClaimPath(ctx, vhtlc.Opts, preimage)
+}
+
+// SettleVhtlcByRefundPath settles a VHTLC via refund path in a batch session.
+// This is the service-layer method that the SettleClaim RPC handler should call.
+//
+// It fetches the VHTLC from the database and calls the swap handler's
+// SettleVhtlcByRefundPath method which joins a batch session to complete settlement.
+//
+// Parameters:
+//   - vhtlcId: VHTLC identifier (from database)
+//   - withReceiver: if true, uses RefundClosure (3-of-3 multisig: Sender+Receiver+Server)
+//     if false, uses RefundWithoutReceiverClosure (2-of-2 multisig: Sender+Server, requires CLTV timeout)
+//
+// Returns the commitment transaction ID from the Ark round.
+func (s *Service) SettleVhtlcByRefundPath(ctx context.Context, vhtlcId string, withReceiver bool) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	// Fetch VHTLC from database
+	vhtlc, err := s.dbSvc.VHTLC().Get(ctx, vhtlcId)
+	if err != nil {
+		return "", fmt.Errorf("failed to get VHTLC %s: %w", vhtlcId, err)
+	}
+
+	// Call swap handler's batch settlement method
+	return s.swapHandler.SettleVhtlcByRefundPath(ctx, vhtlc.Opts, withReceiver)
 }
 
 func (s *Service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {

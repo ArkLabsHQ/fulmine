@@ -96,6 +96,12 @@ service Service {
       body: "*"
     };
   }
+  rpc SettleVHTLC(SettleVHTLCRequest) returns (SettleVHTLCResponse) {
+    option (google.api.http) = {
+      post: "/v1/vhtlc/settle"
+      body: "*"
+    };
+  }
   // ListVHTLC = list all vhtlc OR filter by vhtlc_id
   rpc ListVHTLC(ListVHTLCRequest) returns (ListVHTLCResponse) {
     option (google.api.http) = {
@@ -279,6 +285,26 @@ message RefundVHTLCWithoutReceiverRequest {
 }
 message RefundVHTLCWithoutReceiverResponse {
   string redeem_txid = 1;
+}
+
+message SettleVHTLCRequest {
+  string vhtlc_id = 1;
+  oneof settlement_type {
+    ClaimPath claim = 2;
+    RefundPath refund = 3;
+  }
+}
+
+message ClaimPath {
+  string preimage = 1;  // hex-encoded preimage (32 bytes)
+}
+
+message RefundPath {
+  bool with_receiver = 1;  // true for 3-of-3, false for 2-of-2 after CLTV
+}
+
+message SettleVHTLCResponse {
+  string txid = 1;  // commitment transaction ID from Ark round
 }
 
 message ListVHTLCRequest {

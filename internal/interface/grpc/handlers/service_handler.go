@@ -267,6 +267,51 @@ func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb
 	return &pb.RefundVHTLCWithoutReceiverResponse{RedeemTxid: redeemTxid}, nil
 }
 
+func (h *serviceHandler) SettleVHTLC(ctx context.Context, req *pb.SettleVHTLCRequest) (*pb.SettleVHTLCResponse, error) {
+	vhtlcId := req.GetVhtlcId()
+	if vhtlcId == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
+	}
+
+	var txid string
+	var err error
+
+	switch settlement := req.SettlementType.(type) {
+	case *pb.SettleVHTLCRequest_Claim:
+		// Claim path: requires preimage
+		preimage := settlement.Claim.GetPreimage()
+		if len(preimage) == 0 {
+			return nil, status.Error(codes.InvalidArgument, "missing preimage")
+		}
+
+		preimageBytes, err := hex.DecodeString(preimage)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid preimage: "+err.Error())
+		}
+
+		// Call new service method that routes to pkg/swap.SettleVhtlcByClaimPath
+		txid, err = h.svc.SettleVhtlcByClaimPath(ctx, vhtlcId, preimageBytes)
+		if err != nil {
+			return nil, err
+		}
+
+	case *pb.SettleVHTLCRequest_Refund:
+		// Refund path: with or without receiver
+		withReceiver := settlement.Refund.GetWithReceiver()
+
+		// Call new service method that routes to pkg/swap.SettleVhtlcByRefundPath
+		txid, err = h.svc.SettleVhtlcByRefundPath(ctx, vhtlcId, withReceiver)
+		if err != nil {
+			return nil, err
+		}
+
+	default:
+		return nil, status.Error(codes.InvalidArgument, "settlement_type must be either claim or refund")
+	}
+
+	return &pb.SettleVHTLCResponse{Txid: txid}, nil
+}
+
 func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest) (*pb.ListVHTLCResponse, error) {
 	vtxos, _, err := h.svc.ListVHTLC(ctx, req.GetVhtlcId())
 	if err != nil {
