@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"slices"
@@ -21,7 +20,6 @@ import (
 	"github.com/arkade-os/go-sdk/client"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
-	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -311,101 +309,65 @@ func (h *ClaimBatchHandler) createAndSignClaimForfeits(
 			LeafVersion:  txscript.BaseLeafVersion,
 		}
 
-		// Build forfeit transaction
-		// Convert types.Outpoint to wire.OutPoint
+		// Get forfeit closures to extract locktime (if CLTV-based)
+		forfeitClosures := vtxoScript.ForfeitClosures()
+		if len(forfeitClosures) <= 0 {
+			return nil, fmt.Errorf("no forfeit closures found")
+		}
+
+		forfeitClosure := forfeitClosures[0]
+
+		vtxoLocktime := arklib.AbsoluteLocktime(0)
+		if cltv, ok := forfeitClosure.(*script.CLTVMultisigClosure); ok {
+			vtxoLocktime = cltv.Locktime
+		}
+
+		// Build forfeit transaction using tree.BuildForfeitTx
+		vtxoOutputScript, err := script.P2TRScript(vtxoTapKey)
+		if err != nil {
+			return nil, err
+		}
+
 		vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
 		if err != nil {
-			return nil, fmt.Errorf("invalid vtxo txid %s: %w", vtxo.Txid, err)
+			return nil, err
 		}
-		vtxoOutpoint := wire.OutPoint{
+
+		vtxoInput := &wire.OutPoint{
 			Hash:  *vtxoTxHash,
 			Index: vtxo.VOut,
 		}
 
-		vtxoInput := &wire.TxIn{
-			PreviousOutPoint: vtxoOutpoint,
-			Sequence:         wire.MaxTxInSequenceNum,
-		}
-
-		connectorInput := &wire.TxIn{
-			PreviousOutPoint: *connectorOutpoint,
-			Sequence:         wire.MaxTxInSequenceNum,
-		}
-
-		outputs := []*wire.TxOut{
-			{
-				Value:    int64(vtxo.Amount) + connector.Value,
-				PkScript: forfeitPkScript,
-			},
-			txutils.AnchorOutput(),
-		}
-
-		forfeitTx := &wire.MsgTx{
-			Version:  3,
-			TxIn:     []*wire.TxIn{vtxoInput, connectorInput},
-			TxOut:    outputs,
-			LockTime: 0,
-		}
-
-		forfeitPtx, err := psbt.NewFromUnsignedTx(forfeitTx)
-		if err != nil {
-			return nil, err
-		}
-
-		// Add witness utxo data
-		vtxoPkScript, err := script.P2TRScript(vtxoTapKey)
-		if err != nil {
-			return nil, err
-		}
-
-		forfeitPtx.Inputs[0].WitnessUtxo = &wire.TxOut{
+		vtxoPrevout := &wire.TxOut{
 			Value:    int64(vtxo.Amount),
-			PkScript: vtxoPkScript,
+			PkScript: vtxoOutputScript,
 		}
-		forfeitPtx.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapscript}
-		forfeitPtx.Inputs[0].TaprootInternalKey = schnorr.SerializePubKey(script.UnspendableKey())
-		forfeitPtx.Inputs[1].WitnessUtxo = connector
 
-		// CRITICAL: Inject preimage BEFORE signing
+		vtxoSequence := wire.MaxTxInSequenceNum
+		if vtxoLocktime != 0 {
+			vtxoSequence = wire.MaxTxInSequenceNum - 1
+		}
+
+		forfeitPtx, err := tree.BuildForfeitTx(
+			[]*wire.OutPoint{vtxoInput, connectorOutpoint},
+			[]uint32{vtxoSequence, wire.MaxTxInSequenceNum},
+			[]*wire.TxOut{vtxoPrevout, connector},
+			forfeitPkScript,
+			uint32(vtxoLocktime),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Set tapscript for VHTLC claim path
+		forfeitPtx.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapscript}
+
+		// CRITICAL: Inject preimage BEFORE signing (claim path requirement)
 		if err := txutils.SetArkPsbtField(
 			forfeitPtx, 0, txutils.ConditionWitnessField, wire.TxWitness{h.preimage},
 		); err != nil {
 			return nil, fmt.Errorf("failed to inject preimage: %w", err)
 		}
-
-
-		//vtxoTxHash, err = chainhash.NewHashFromStr(vtxo.Txid)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//
-		//vtxoInput1 := &wire.OutPoint{
-		//	Hash:  *vtxoTxHash,
-		//	Index: vtxo.VOut,
-		//}
-		//
-		//vtxoSequence := wire.MaxTxInSequenceNum
-		//if vtxoLocktime != 0 {
-		//	vtxoSequence = wire.MaxTxInSequenceNum - 1
-		//}
-		//
-		//vtxoPrevout := &wire.TxOut{
-		//	Value:    int64(vtxo.Amount),
-		//	PkScript: vtxoOutputScript,
-		//}
-		//
-		//forfeitTx1, err := tree.BuildForfeitTx(
-		//	[]*wire.OutPoint{vtxoInput1, connectorOutpoint},
-		//	[]uint32{vtxoSequence, wire.MaxTxInSequenceNum},
-		//	[]*wire.TxOut{vtxoOutpoint, connector},
-		//	forfeitPkScript,
-		//	uint32(vtxoLocktime),
-		//)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//
-		//forfeitTx1.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapscript}
 
 		// Sign the forfeit
 		b64, err := forfeitPtx.B64Encode()
@@ -711,90 +673,63 @@ func (h *RefundBatchHandler) createAndSignRefundForfeits(
 			LeafVersion:  txscript.BaseLeafVersion,
 		}
 
-		// Build forfeit transaction
-		// Convert types.Outpoint to wire.OutPoint
+		// Get forfeit closures to extract locktime (if CLTV-based)
+		forfeitClosures := vtxoScript.ForfeitClosures()
+		if len(forfeitClosures) <= 0 {
+			return nil, fmt.Errorf("no forfeit closures found")
+		}
+
+		forfeitClosure := forfeitClosures[0]
+
+		vtxoLocktime := arklib.AbsoluteLocktime(0)
+		if cltv, ok := forfeitClosure.(*script.CLTVMultisigClosure); ok {
+			vtxoLocktime = cltv.Locktime
+		}
+
+		// Build forfeit transaction using tree.BuildForfeitTx
+		vtxoOutputScript, err := script.P2TRScript(vtxoTapKey)
+		if err != nil {
+			return nil, err
+		}
+
 		vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
 		if err != nil {
-			return nil, fmt.Errorf("invalid vtxo txid %s: %w", vtxo.Txid, err)
+			return nil, err
 		}
-		vtxoOutpoint := wire.OutPoint{
+
+		vtxoInput := &wire.OutPoint{
 			Hash:  *vtxoTxHash,
 			Index: vtxo.VOut,
 		}
 
-		vtxoInput := &wire.TxIn{
-			PreviousOutPoint: vtxoOutpoint,
-			Sequence:         wire.MaxTxInSequenceNum,
-		}
-
-		connectorInput := &wire.TxIn{
-			PreviousOutPoint: *connectorOutpoint,
-			Sequence:         wire.MaxTxInSequenceNum,
-		}
-
-		outputs := []*wire.TxOut{
-			{
-				Value:    int64(vtxo.Amount) + connector.Value,
-				PkScript: forfeitPkScript,
-			},
-		}
-
-		forfeitTx := &wire.MsgTx{
-			Version:  2,
-			TxIn:     []*wire.TxIn{vtxoInput, connectorInput},
-			TxOut:    outputs,
-			LockTime: 0,
-		}
-
-		forfeitPtx, err := psbt.NewFromUnsignedTx(forfeitTx)
-		if err != nil {
-			return nil, err
-		}
-
-		// Add witness utxo data
-		rootHash := vtxoTapTree.RootNode.TapHash()
-		vtxoTaprootOutputKey := txscript.ComputeTaprootOutputKey(vtxoTapKey, rootHash[:])
-		vtxoPkScript, err := txscript.PayToTaprootScript(vtxoTaprootOutputKey)
-		if err != nil {
-			return nil, err
-		}
-
-		forfeitPtx.Inputs[0].WitnessUtxo = &wire.TxOut{
+		vtxoPrevout := &wire.TxOut{
 			Value:    int64(vtxo.Amount),
-			PkScript: vtxoPkScript,
+			PkScript: vtxoOutputScript,
 		}
+
+		vtxoSequence := wire.MaxTxInSequenceNum
+		if vtxoLocktime != 0 {
+			vtxoSequence = wire.MaxTxInSequenceNum - 1
+		}
+
+		forfeitPtx, err := tree.BuildForfeitTx(
+			[]*wire.OutPoint{vtxoInput, connectorOutpoint},
+			[]uint32{vtxoSequence, wire.MaxTxInSequenceNum},
+			[]*wire.TxOut{vtxoPrevout, connector},
+			forfeitPkScript,
+			uint32(vtxoLocktime),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Set tapscript for VHTLC refund path
 		forfeitPtx.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapscript}
-		forfeitPtx.Inputs[0].TaprootInternalKey = schnorr.SerializePubKey(vtxoTapKey)
-		forfeitPtx.Inputs[0].TaprootMerkleRoot = rootHash.CloneBytes()
-
-		forfeitPtx.Inputs[1].WitnessUtxo = connector
-
-		// DEBUG: Verify TaprootLeafScript is set before B64Encode (REFUND PATH)
-		log.Debugf("[VHTLC-DEBUG-REFUND] PSBT before B64Encode:")
-		for i, input := range forfeitPtx.Inputs {
-			log.Debugf("[VHTLC-DEBUG-REFUND]   Input %d: TaprootLeafScript count=%d", i, len(input.TaprootLeafScript))
-			if len(input.TaprootLeafScript) > 0 {
-				log.Debugf("[VHTLC-DEBUG-REFUND]     Script: %x", input.TaprootLeafScript[0].Script)
-				log.Debugf("[VHTLC-DEBUG-REFUND]     ControlBlock len: %d", len(input.TaprootLeafScript[0].ControlBlock))
-			}
-			log.Debugf("[VHTLC-DEBUG-REFUND]   Input %d: TaprootInternalKey: %x", i, input.TaprootInternalKey)
-		}
 
 		// Sign the forfeit (no preimage injection for refund path)
 		b64, err := forfeitPtx.B64Encode()
 		if err != nil {
 			return nil, err
-		}
-
-		// DEBUG: Verify TaprootLeafScript survives base64 encoding/decoding (REFUND PATH)
-		decodedBytes, decErr := base64.StdEncoding.DecodeString(b64)
-		if decErr == nil {
-			decoded, decErr := psbt.NewFromRawBytes(bytes.NewReader(decodedBytes), false)
-			if decErr == nil && decoded != nil {
-				for i, input := range decoded.Inputs {
-					log.Debugf("[VHTLC-DEBUG-REFUND] After decode - Input %d: TaprootLeafScript count=%d", i, len(input.TaprootLeafScript))
-				}
-			}
 		}
 
 		signedForfeit, err := h.arkClient.SignTransaction(ctx, b64)
