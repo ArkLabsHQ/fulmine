@@ -33,8 +33,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSettleVHTLCByDelegateRefund tests the VHTLC delegate refund flow:
-// 1. Create a VHTLC between sender (fulmine) and receiver (counterparty)
+// TestSettleVHTLCByDelegateRefund tests the VHTLC delegate refund flow which is applicable in SWAP
+// flow when user sends to VHTLC and if swap fails he can refund
+// 1. Create a VHTLC between sender and receiver boltz's fulmine
 // 2. Fund the VHTLC with offchain funds
 // 3. Counterparty (VHTLC receiver) builds intent proof and partial forfeit
 // 4. Fulmine acts as delegate to complete the refund settlement
@@ -55,7 +56,7 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 	receiverPubKey := info.Pubkey
 	require.NotEmpty(t, info.Pubkey)
 
-	senderArkClient, _, _, _ := setupArkSDK(t)
+	senderArkClient, _, senderPubKey, _ := setupArkSDK(t)
 	_, offchain, boarding, _, err := senderArkClient.GetAddresses(ctx)
 	require.NoError(t, err)
 	err = faucet(ctx, strings.TrimSpace(boarding[0]), 0.001)
@@ -72,7 +73,7 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 
 	vhtlcReq := &pb.CreateVHTLCRequest{
 		PreimageHash:   preimageHash,
-		ReceiverPubkey: receiverPubKey,
+		SenderPubkey:   hex.EncodeToString(senderPubKey.SerializeCompressed()),
 		UnilateralClaimDelay: &pb.RelativeLocktime{
 			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
 			Value: 512,
@@ -178,7 +179,6 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 		VhtlcId: vhtlcAddrInfo.GetId(),
 		SettlementType: &pb.SettleVHTLCRequest_Refund{
 			Refund: &pb.RefundPath{
-				WithReceiver: true, // Use 3-of-3 RefundClosure
 				DelegateParams: &pb.DelegateRefundParams{
 					SignedIntentProof: intentProof,
 					IntentMessage:     intentMessage,

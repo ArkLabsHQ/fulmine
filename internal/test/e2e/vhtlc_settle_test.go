@@ -8,6 +8,7 @@ import (
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/lightningnetwork/lnd/input"
 	"github.com/stretchr/testify/require"
 )
@@ -118,7 +119,8 @@ func TestClaimVhtlcSettlement(t *testing.T) {
 	t.Logf("VHTLC claim settlement test completed successfully")
 }
 
-// TestRefundVhtlcSettlement tests the VHTLC refund path integration:
+// TestRefundVhtlcSettlement tests the VHTLC refund path integration, this can be used by Boltz Fulmine when
+// they want to refund in reverse SWAP without receiver if swap fails
 // 1. Create a VHTLC (submarine swap scenario)
 // 2. Send offchain funds to the VHTLC address
 // 3. Invoke SettleVHTLC with RefundPath (2-of-2 multisig: Sender+Server)
@@ -126,8 +128,6 @@ func TestClaimVhtlcSettlement(t *testing.T) {
 //
 // Note: This test uses a very short refund locktime to avoid waiting
 func TestRefundVhtlcSettlement(t *testing.T) {
-	t.Skip("Skipping refund test - requires specific locktime constraints and environment setup")
-
 	f, err := newFulmineClient("localhost:7000")
 	require.NoError(t, err)
 	require.NotNil(t, f)
@@ -153,13 +153,12 @@ func TestRefundVhtlcSettlement(t *testing.T) {
 	sha256Hash := sha256.Sum256(preimage)
 	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
 
-	// Use a refund locktime in the past to allow immediate refund
-	pastRefundLocktime := uint32(time.Now().Unix() - 3600) // 1 hour ago
+	receiverPrivKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
 
 	req := &pb.CreateVHTLCRequest{
 		PreimageHash:   preimageHash,
-		ReceiverPubkey: info.GetPubkey(),
-		RefundLocktime: pastRefundLocktime,
+		ReceiverPubkey: hex.EncodeToString(receiverPrivKey.PubKey().SerializeCompressed()),
 		UnilateralClaimDelay: &pb.RelativeLocktime{
 			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
 			Value: 512,
@@ -170,17 +169,12 @@ func TestRefundVhtlcSettlement(t *testing.T) {
 		},
 		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
 			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
-			Value: 1024,
+			Value: 512,
 		},
 	}
 	vhtlc, err := f.CreateVHTLC(ctx, req)
 	require.NoError(t, err)
-	require.NotEmpty(t, vhtlc.Address)
-	require.NotEmpty(t, vhtlc.Id)
-	t.Logf("Created VHTLC: id=%s, address=%s, refund_locktime=%d",
-		vhtlc.Id, vhtlc.Address, pastRefundLocktime)
 
-	// Fund the VHTLC with 1000 sats
 	fundAmount := uint64(1000)
 	sendResp, err := f.SendOffChain(ctx, &pb.SendOffChainRequest{
 		Address: vhtlc.Address,
@@ -197,14 +191,14 @@ func TestRefundVhtlcSettlement(t *testing.T) {
 	require.Greater(t, int(vhtlcs.GetVhtlcs()[0].GetAmount()), 0, "VHTLC should have funds")
 	t.Logf("VHTLC has %d sats", vhtlcs.GetVhtlcs()[0].GetAmount())
 
+	time.Sleep(10 * time.Minute)
+
 	// Refund the VHTLC using the SettleVHTLC RPC with RefundPath (without receiver)
 	t.Log("Refunding VHTLC via SettleVHTLC RPC (2-of-2 without receiver)...")
 	settleResp, err := f.SettleVHTLC(ctx, &pb.SettleVHTLCRequest{
 		VhtlcId: vhtlc.Id,
 		SettlementType: &pb.SettleVHTLCRequest_Refund{
-			Refund: &pb.RefundPath{
-				WithReceiver: false, // 2-of-2 multisig without receiver (after CLTV)
-			},
+			Refund: &pb.RefundPath{},
 		},
 	})
 	require.NoError(t, err, "SettleVHTLC with refund path should succeed")

@@ -673,13 +673,15 @@ func (h *RefundBatchHandler) createAndSignRefundForfeits(
 			LeafVersion:  txscript.BaseLeafVersion,
 		}
 
-		// Get forfeit closures to extract locktime (if CLTV-based)
-		forfeitClosures := vtxoScript.ForfeitClosures()
-		if len(forfeitClosures) <= 0 {
-			return nil, fmt.Errorf("no forfeit closures found")
+		// Select forfeit closure based on settlement path (must match refund closure type)
+		// - withReceiver=true → use vhtlcScript.RefundClosure (MultisigClosure, no locktime)
+		// - withReceiver=false → use vhtlcScript.RefundWithoutReceiverClosure (CLTVMultisigClosure, has locktime)
+		var forfeitClosure script.Closure
+		if h.withReceiver {
+			forfeitClosure = vhtlcScript.RefundClosure
+		} else {
+			forfeitClosure = vhtlcScript.RefundWithoutReceiverClosure
 		}
-
-		forfeitClosure := forfeitClosures[0]
 
 		vtxoLocktime := arklib.AbsoluteLocktime(0)
 		if cltv, ok := forfeitClosure.(*script.CLTVMultisigClosure); ok {
@@ -913,21 +915,23 @@ func getBatchExpiryLocktime(batchExpiry uint32) arklib.RelativeLocktime {
 // Parameters:
 //   - vtxos: VTXOs at VHTLC address (queried from indexer)
 //   - vhtlcScript: Parsed VHTLC script with all closures
-//   - claimTapscript: Tapscript for claim or refund path (from vhtlcScript.ClaimTapscript() or RefundTapscript())
+//   - settlementTapscript: Tapscript for settlement path (ClaimTapscript() for claim, RefundTapscript() for refund)
 //   - destinationAddr: Ark offchain address to send settled funds
 //   - totalAmount: Sum of all VTXO amounts
 //   - preimage: Preimage for claim path (nil for refund path)
+//   - isClaimPath: True for claim path (use ConditionMultisigClosure), false for refund path (use CLTVMultisigClosure)
 //
 // Returns intentID for use in batch session.
 func (h *SwapHandler) buildVhtlcIntent(
 	ctx context.Context,
 	vtxos []types.Vtxo,
 	vhtlcScript *vhtlc.VHTLCScript,
-	claimTapscript *waddrmgr.Tapscript,
+	settlementTapscript *waddrmgr.Tapscript,
 	destinationAddr string,
 	totalAmount uint64,
 	signerSession tree.SignerSession,
 	preimage []byte,
+	isClaimPath bool,
 ) (intentID string, err error) {
 	// Get VHTLC taproot key and tree for script computation
 	vhtlcTapKey, vhtlcTapTree, err := vhtlcScript.TapTree()
@@ -947,8 +951,8 @@ func (h *SwapHandler) buildVhtlcIntent(
 		}
 
 		// Get merkle proof for settlement path (claim or refund closure)
-		claimTapscrptLeaf := txscript.NewBaseTapLeaf(claimTapscript.RevealedScript)
-		merkleProof, err := vhtlcTapTree.GetTaprootMerkleProof(claimTapscrptLeaf.TapHash())
+		settlementTapscriptLeaf := txscript.NewBaseTapLeaf(settlementTapscript.RevealedScript)
+		merkleProof, err := vhtlcTapTree.GetTaprootMerkleProof(settlementTapscriptLeaf.TapHash())
 		if err != nil {
 			return "", fmt.Errorf("failed to get taproot merkle proof: %w", err)
 		}
@@ -1044,7 +1048,34 @@ func (h *SwapHandler) buildVhtlcIntent(
 		return "", fmt.Errorf("no forfeit closures found")
 	}
 
-	forfeitClosure := forfeitClosures[0]
+	// Select the correct forfeit closure for Input 0 based on settlement type:
+	// - Claim path: use ConditionMultisigClosure (has preimage condition)
+	// - Refund path: use CLTVMultisigClosure (sweep closure, no condition witness needed)
+	var forfeitClosure script.Closure
+	if isClaimPath {
+		// Claim path: find ConditionMultisigClosure
+		for _, fc := range forfeitClosures {
+			if _, ok := fc.(*script.ConditionMultisigClosure); ok {
+				forfeitClosure = fc
+				break
+			}
+		}
+		if forfeitClosure == nil {
+			return "", fmt.Errorf("ConditionMultisigClosure not found for claim path")
+		}
+	} else {
+		// Refund path: find CLTVMultisigClosure (sweep closure)
+		for _, fc := range forfeitClosures {
+			if _, ok := fc.(*script.CLTVMultisigClosure); ok {
+				forfeitClosure = fc
+				break
+			}
+		}
+		if forfeitClosure == nil {
+			return "", fmt.Errorf("CLTVMultisigClosure not found for refund path")
+		}
+	}
+
 	forfeitScript, err := forfeitClosure.Script()
 	if err != nil {
 		return "", fmt.Errorf("failed to get forfeit script: %w", err)
@@ -1079,10 +1110,12 @@ func (h *SwapHandler) buildVhtlcIntent(
 		}
 	}
 
-	if err := txutils.SetArkPsbtField(
-		&proof.Packet, 1, txutils.ConditionWitnessField, wire.TxWitness{preimage},
-	); err != nil {
-		return "", fmt.Errorf("failed to inject preimage into intent proof: %w", err)
+	if preimage != nil {
+		if err := txutils.SetArkPsbtField(
+			&proof.Packet, 1, txutils.ConditionWitnessField, wire.TxWitness{preimage},
+		); err != nil {
+			return "", fmt.Errorf("failed to inject preimage into intent proof: %w", err)
+		}
 	}
 
 	// Sign the proof with user's key

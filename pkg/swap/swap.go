@@ -967,7 +967,7 @@ func (h *SwapHandler) SettleVhtlcByClaimPath(
 	signerSession := tree.NewTreeSignerSession(ephemeralKey)
 
 	// 8. Register intent with VHTLC claim tapscript (with preimage for claim path)
-	intentID, err := h.buildVhtlcIntent(ctx, vtxos, vhtlcScript, claimTapscript, myAddr, totalAmount, signerSession, preimage)
+	intentID, err := h.buildVhtlcIntent(ctx, vtxos, vhtlcScript, claimTapscript, myAddr, totalAmount, signerSession, preimage, true)
 	if err != nil {
 		return "", fmt.Errorf("failed to build intent: %w", err)
 	}
@@ -1069,7 +1069,7 @@ func (h *SwapHandler) SettleVhtlcByRefundPath(
 	}
 	signerSession := tree.NewTreeSignerSession(ephemeralKey)
 
-	intentID, err := h.buildVhtlcIntent(ctx, vtxos, vhtlcScript, refundTapscript, myAddr, totalAmount, signerSession, nil)
+	intentID, err := h.buildVhtlcIntent(ctx, vtxos, vhtlcScript, refundTapscript, myAddr, totalAmount, signerSession, nil, false)
 	if err != nil {
 		return "", fmt.Errorf("failed to build intent: %w", err)
 	}

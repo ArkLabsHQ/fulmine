@@ -278,7 +278,6 @@ func (h *serviceHandler) SettleVHTLC(ctx context.Context, req *pb.SettleVHTLCReq
 
 	switch settlement := req.SettlementType.(type) {
 	case *pb.SettleVHTLCRequest_Claim:
-		// Claim path: requires preimage
 		preimage := settlement.Claim.GetPreimage()
 		if len(preimage) == 0 {
 			return nil, status.Error(codes.InvalidArgument, "missing preimage")
@@ -289,7 +288,6 @@ func (h *serviceHandler) SettleVHTLC(ctx context.Context, req *pb.SettleVHTLCReq
 			return nil, status.Error(codes.InvalidArgument, "invalid preimage: "+err.Error())
 		}
 
-		// Call new service method that routes to pkg/swap.SettleVhtlcByClaimPath
 		txid, err = h.svc.SettleVhtlcByClaimPath(ctx, vhtlcId, preimageBytes)
 		if err != nil {
 			return nil, err
@@ -298,9 +296,7 @@ func (h *serviceHandler) SettleVHTLC(ctx context.Context, req *pb.SettleVHTLCReq
 	case *pb.SettleVHTLCRequest_Refund:
 		refund := settlement.Refund
 
-		// Check for delegate mode
 		if refund.DelegateParams != nil {
-			// Delegate mode: counterparty submits intent + partial forfeit
 			txid, err = h.svc.SettleVHTLCByDelegateRefund(
 				ctx,
 				vhtlcId,
