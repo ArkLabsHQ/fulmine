@@ -296,13 +296,30 @@ func (h *serviceHandler) SettleVHTLC(ctx context.Context, req *pb.SettleVHTLCReq
 		}
 
 	case *pb.SettleVHTLCRequest_Refund:
-		// Refund path: with or without receiver
-		withReceiver := settlement.Refund.GetWithReceiver()
+		refund := settlement.Refund
 
-		// Call new service method that routes to pkg/swap.SettleVhtlcByRefundPath
-		txid, err = h.svc.SettleVhtlcByRefundPath(ctx, vhtlcId, withReceiver)
-		if err != nil {
-			return nil, err
+		// Check for delegate mode
+		if refund.DelegateParams != nil {
+			// Delegate mode: counterparty submits intent + partial forfeit
+			txid, err = h.svc.SettleVHTLCByDelegateRefund(
+				ctx,
+				vhtlcId,
+				refund.DelegateParams.SignedIntentProof,
+				refund.DelegateParams.IntentMessage,
+				refund.DelegateParams.PartialForfeitTx,
+			)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// Standard refund path: Fulmine as owner
+			withReceiver := refund.GetWithReceiver()
+
+			// Call new service method that routes to pkg/swap.SettleVhtlcByRefundPath
+			txid, err = h.svc.SettleVhtlcByRefundPath(ctx, vhtlcId, withReceiver)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 	default:

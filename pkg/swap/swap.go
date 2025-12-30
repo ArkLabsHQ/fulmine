@@ -1097,12 +1097,19 @@ func (h *SwapHandler) SettleVhtlcByRefundPath(
 	}
 	defer cancel()
 
+	vtxoTapscripts := []client.TapscriptsVtxo{
+		{
+			Vtxo:       vtxos[0],
+			Tapscripts: vhtlcScript.GetRevealedTapscripts(),
+		},
+	}
+
 	// 8. Create refund batch handler
 	refundHandler := NewRefundBatchHandler(
 		h.arkClient,
 		h.transportClient,
 		intentID,
-		[]client.TapscriptsVtxo{}, // Will be populated by SDK
+		vtxoTapscripts,
 		[]types.Receiver{{To: myAddr, Amount: totalAmount}},
 		withReceiver,
 		[]*vhtlc.VHTLCScript{vhtlcScript},
@@ -1118,5 +1125,112 @@ func (h *SwapHandler) SettleVhtlcByRefundPath(
 	}
 
 	log.Debugf("successfully refunded VHTLC in round %s", txid)
+	return txid, nil
+}
+
+// JoinBatchAsDelegate allows Fulmine to act as a delegate for counterparty-initiated refund.
+// This is used when the counterparty (VHTLC receiver) wants to refund the VHTLC but cannot
+// directly interact with arkd. The counterparty creates the intent and partial forfeit,
+// and Fulmine completes the batch session as delegate.
+//
+// Flow:
+// 1. Counterparty creates signed intent proof (using UnilateralClaimClosure as exit path)
+// 2. Counterparty creates partial forfeit (using RefundClosure with SIGHASH_ALL | ANYONECANPAY)
+// 3. Fulmine cosigns the intent proof
+// 4. Fulmine registers intent with arkd
+// 5. Fulmine joins batch session as delegate
+// 6. Fulmine completes forfeit by adding connector and signing
+//
+// Parameters:
+//   - ctx: Context
+//   - intentId: Intent ID returned from RegisterIntent
+//   - vhtlcOpts: VHTLC options (fetched from database by service layer)
+//   - partialForfeitTx: Counterparty's partial forfeit (base64 PSBT with SIGHASH_ALL | ANYONECANPAY)
+//   - signerSession: Ephemeral signer session for musig2 tree signing
+//   - withReceiver: Use RefundClosure (true) or RefundWithoutReceiverClosure (false)
+//
+// Returns the commitment transaction ID from the Ark round.
+func (h *SwapHandler) JoinBatchAsDelegate(
+	ctx context.Context,
+	signerSession tree.SignerSession,
+	intentId string,
+	vhtlcOpts vhtlc.Opts,
+	partialForfeitTx string,
+	withReceiver bool,
+) (string, error) {
+	// 1. Construct VHTLC script
+	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
+	if err != nil {
+		return "", fmt.Errorf("failed to create VHTLC script: %w", err)
+	}
+
+	vhtlcs := []*vhtlc.VHTLCScript{vhtlcScript}
+
+	// 2. Query VTXOs from indexer
+	vtxos, err := h.getVHTLCFunds(ctx, vhtlcs)
+	if err != nil {
+		return "", fmt.Errorf("failed to query VTXOs: %w", err)
+	}
+	if len(vtxos) == 0 {
+		return "", ErrorNoVtxosFound
+	}
+
+	// 3. Calculate total amount
+	var totalAmount uint64
+	for _, vtxo := range vtxos {
+		totalAmount += vtxo.Amount
+	}
+
+	// 4. Get destination address (self-send for settlement)
+	myAddr, err := h.arkClient.NewOffchainAddress(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get offchain address: %w", err)
+	}
+
+	vtxoTapscripts := []client.TapscriptsVtxo{
+		{
+			Vtxo:       vtxos[0],
+			Tapscripts: vhtlcScript.GetRevealedTapscripts(),
+		},
+	}
+
+	// 5. Create delegate refund batch handler
+	// Note: signerSession is nil in delegate mode - Fulmine doesn't sign the tree
+	handler := NewDelegateRefundBatchHandler(
+		h.arkClient,
+		h.transportClient,
+		intentId,
+		vtxoTapscripts,
+		[]types.Receiver{{To: myAddr, Amount: totalAmount}},
+		withReceiver,
+		[]*vhtlc.VHTLCScript{vhtlcScript},
+		h.config,
+		h.publicKey,
+		signerSession,
+		partialForfeitTx,
+	)
+
+	// 6. Get event stream using sender's (counterparty's) ephemeral pubkey
+	// This is critical: arkd publishes events with the cosigner pubkey from the intent,
+	// which is the sender's ephemeral key, NOT Fulmine's key
+	topics := []string{intentId}
+	for _, vtxo := range vtxos {
+		topics = append(topics, fmt.Sprintf("%s:%d", vtxo.Txid, vtxo.VOut))
+	}
+	topics = append(topics, signerSession.GetPublicKey())
+
+	eventsCh, cancel, err := h.transportClient.GetEventStream(ctx, topics)
+	if err != nil {
+		return "", fmt.Errorf("failed to get event stream: %w", err)
+	}
+	defer cancel()
+
+	// 7. Join batch session as delegate
+	txid, err := arksdk.JoinBatchSession(ctx, eventsCh, handler)
+	if err != nil {
+		return "", fmt.Errorf("batch session failed: %w", err)
+	}
+
+	log.Debugf("successfully completed delegate refund in round %s", txid)
 	return txid, nil
 }

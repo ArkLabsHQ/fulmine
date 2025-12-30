@@ -794,8 +794,7 @@
       "type": "object",
       "properties": {
         "preimage": {
-          "type": "string",
-          "title": "hex-encoded preimage (32 bytes)"
+          "type": "string"
         }
       }
     },
@@ -885,6 +884,20 @@
         "unilateralRefundWithoutReceiverDelay": {
           "type": "string",
           "format": "int64"
+        }
+      }
+    },
+    "v1DelegateRefundParams": {
+      "type": "object",
+      "properties": {
+        "signedIntentProof": {
+          "type": "string"
+        },
+        "intentMessage": {
+          "type": "string"
+        },
+        "partialForfeitTx": {
+          "type": "string"
         }
       }
     },
@@ -1093,8 +1106,10 @@
       "type": "object",
       "properties": {
         "withReceiver": {
-          "type": "boolean",
-          "title": "true for 3-of-3, false for 2-of-2 after CLTV"
+          "type": "boolean"
+        },
+        "delegateParams": {
+          "$ref": "#/definitions/v1DelegateRefundParams"
         }
       }
     },
@@ -1226,8 +1241,7 @@
       "type": "object",
       "properties": {
         "txid": {
-          "type": "string",
-          "title": "commitment transaction ID from Ark round"
+          "type": "string"
         }
       }
     },

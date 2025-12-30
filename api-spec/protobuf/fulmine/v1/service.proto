@@ -296,15 +296,22 @@ message SettleVHTLCRequest {
 }
 
 message ClaimPath {
-  string preimage = 1;  // hex-encoded preimage (32 bytes)
+  string preimage = 1;
 }
 
 message RefundPath {
-  bool with_receiver = 1;  // true for 3-of-3, false for 2-of-2 after CLTV
+  bool with_receiver = 1;
+  DelegateRefundParams delegate_params = 2;
+}
+
+message DelegateRefundParams {
+  string signed_intent_proof = 1;
+  string intent_message = 2;
+  string partial_forfeit_tx = 3;
 }
 
 message SettleVHTLCResponse {
-  string txid = 1;  // commitment transaction ID from Ark round
+  string txid = 1;
 }
 
 message ListVHTLCRequest {

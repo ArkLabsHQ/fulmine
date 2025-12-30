@@ -743,6 +743,138 @@ func (h *RefundBatchHandler) createAndSignRefundForfeits(
 	return signedForfeitTxs, nil
 }
 
+// DelegateRefundBatchHandler extends RefundBatchHandler for delegate mode.
+// In delegate mode, the counterparty creates the intent and partial forfeit,
+// and Fulmine acts as delegate to complete the batch session.
+type DelegateRefundBatchHandler struct {
+	RefundBatchHandler
+	partialForfeitTx string // Counterparty's partial forfeit (base64 PSBT)
+}
+
+// NewDelegateRefundBatchHandler creates a new delegate refund batch handler.
+func NewDelegateRefundBatchHandler(
+	arkClient arksdk.ArkClient,
+	transportClient client.TransportClient,
+	intentId string,
+	vtxos []client.TapscriptsVtxo,
+	receivers []types.Receiver,
+	withReceiver bool,
+	vhtlcScripts []*vhtlc.VHTLCScript,
+	config types.Config,
+	publicKey *btcec.PublicKey,
+	signerSession tree.SignerSession,
+	partialForfeitTx string,
+) *DelegateRefundBatchHandler {
+	return &DelegateRefundBatchHandler{
+		RefundBatchHandler: RefundBatchHandler{
+			arkClient:        arkClient,
+			transportClient:  transportClient,
+			intentId:         intentId,
+			vtxos:            vtxos,
+			receivers:        receivers,
+			withReceiver:     withReceiver,
+			vhtlcScripts:     vhtlcScripts,
+			config:           config,
+			publicKey:        publicKey,
+			signerSession:    signerSession,
+			batchSessionId:   "",
+			countSigningDone: 0,
+		},
+		partialForfeitTx: partialForfeitTx,
+	}
+}
+
+// OnBatchFinalization completes the forfeit using counterparty's partial signature.
+// The key difference from standard refund is that we:
+// 1. Load counterparty's partial forfeit (with SIGHASH_ALL | ANYONECANPAY)
+// 2. Add connector input to the forfeit
+// 3. Fulmine signs to complete (signs RefundClosure + connector)
+// 4. Submit to arkd for server cosigning
+func (h *DelegateRefundBatchHandler) OnBatchFinalization(
+	ctx context.Context,
+	event client.BatchFinalizationEvent,
+	vtxoTree, connectorTree *tree.TxTree,
+) error {
+	log.Debug("completing delegate refund forfeit...")
+
+	if connectorTree == nil {
+		return fmt.Errorf("connector tree is nil")
+	}
+
+	// 1. Load counterparty's partial forfeit
+	forfeitPtx, err := psbt.NewFromRawBytes(strings.NewReader(h.partialForfeitTx), true)
+	if err != nil {
+		return fmt.Errorf("failed to decode partial forfeit tx: %w", err)
+	}
+
+	updater, err := psbt.NewUpdater(forfeitPtx)
+	if err != nil {
+		return fmt.Errorf("failed to create PSBT updater: %w", err)
+	}
+
+	// 2. Add connector input to forfeit tx
+	connectors := connectorTree.Leaves()
+	if len(connectors) == 0 {
+		return fmt.Errorf("no connectors in tree")
+	}
+	connector := connectors[0]
+
+	// Extract connector output (skip anchor outputs)
+	var connectorOut *wire.TxOut
+	var connectorIndex uint32
+	for outIndex, output := range connector.UnsignedTx.TxOut {
+		if bytes.Equal(txutils.ANCHOR_PKSCRIPT, output.PkScript) {
+			continue
+		}
+		connectorOut = output
+		connectorIndex = uint32(outIndex)
+		break
+	}
+
+	if connectorOut == nil {
+		return fmt.Errorf("connector output not found")
+	}
+
+	// Add connector as input
+	updater.Upsbt.UnsignedTx.TxIn = append(updater.Upsbt.UnsignedTx.TxIn, &wire.TxIn{
+		PreviousOutPoint: wire.OutPoint{
+			Hash:  connector.UnsignedTx.TxHash(),
+			Index: connectorIndex,
+		},
+		Sequence: wire.MaxTxInSequenceNum,
+	})
+	updater.Upsbt.Inputs = append(updater.Upsbt.Inputs, psbt.PInput{
+		WitnessUtxo: &wire.TxOut{
+			Value:    connectorOut.Value,
+			PkScript: connectorOut.PkScript,
+		},
+	})
+
+	// 3. Set SIGHASH_DEFAULT for connector input (input 1)
+	if err := updater.AddInSighashType(txscript.SigHashDefault, 1); err != nil {
+		return fmt.Errorf("failed to set sighash for connector: %w", err)
+	}
+
+	encodedForfeitTx, err := updater.Upsbt.B64Encode()
+	if err != nil {
+		return fmt.Errorf("failed to encode forfeit tx: %w", err)
+	}
+
+	// 4. Fulmine signs forfeit (signs RefundClosure for VTXO input + connector input)
+	signedForfeitTx, err := h.arkClient.SignTransaction(ctx, encodedForfeitTx)
+	if err != nil {
+		return fmt.Errorf("failed to sign forfeit: %w", err)
+	}
+
+	// 5. Submit signed forfeit to arkd
+	if err := h.transportClient.SubmitSignedForfeitTxs(ctx, []string{signedForfeitTx}, ""); err != nil {
+		return fmt.Errorf("failed to submit signed forfeit: %w", err)
+	}
+
+	log.Debug("delegate refund forfeit submitted successfully")
+	return nil
+}
+
 // getBatchExpiryLocktime converts block height to RelativeLocktime
 func getBatchExpiryLocktime(batchExpiry uint32) arklib.RelativeLocktime {
 	if batchExpiry >= 512 {
