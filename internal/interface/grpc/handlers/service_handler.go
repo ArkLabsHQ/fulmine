@@ -312,11 +312,7 @@ func (h *serviceHandler) SettleVHTLC(ctx context.Context, req *pb.SettleVHTLCReq
 				return nil, err
 			}
 		} else {
-			// Standard refund path: Fulmine as owner
-			withReceiver := refund.GetWithReceiver()
-
-			// Call new service method that routes to pkg/swap.SettleVhtlcByRefundPath
-			txid, err = h.svc.SettleVhtlcByRefundPath(ctx, vhtlcId, withReceiver)
+			txid, err = h.svc.SettleVhtlcByRefundPath(ctx, vhtlcId)
 			if err != nil {
 				return nil, err
 			}

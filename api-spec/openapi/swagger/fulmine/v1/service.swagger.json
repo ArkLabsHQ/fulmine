@@ -1105,9 +1105,6 @@
     "v1RefundPath": {
       "type": "object",
       "properties": {
-        "withReceiver": {
-          "type": "boolean"
-        },
         "delegateParams": {
           "$ref": "#/definitions/v1DelegateRefundParams"
         }

@@ -1035,57 +1035,45 @@ func (h *SwapHandler) SettleVhtlcByClaimPath(
 func (h *SwapHandler) SettleVhtlcByRefundPath(
 	ctx context.Context,
 	vhtlcOpts vhtlc.Opts,
-	withReceiver bool,
 ) (string, error) {
-	// 1. Construct VHTLC script
 	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
 	if err != nil {
 		return "", fmt.Errorf("failed to create VHTLC script: %w", err)
 	}
 
 	vhtlcs := []*vhtlc.VHTLCScript{vhtlcScript}
-	// 2. Query VTXOs from indexer
+
 	vtxos, err := h.getVHTLCFunds(ctx, vhtlcs)
 	if err != nil {
 		return "", fmt.Errorf("failed to query VTXOs: %w", err)
 	}
 
-	// 3. Calculate total amount
 	var totalAmount uint64
 	for _, vtxo := range vtxos {
 		totalAmount += vtxo.Amount
 	}
 
-	// 4. Get destination address (self-send for settlement)
 	myAddr, err := h.arkClient.NewOffchainAddress(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get offchain address: %w", err)
 	}
 
-	// 5. Get refund tapscript for intent proof (always use refundClosure with receiver)
-	// Intent proofs prove ownership, not the spending path.
-	// Always use refundClosure (Sender + Receiver + Server) to allow arkd-wallet to extract server key.
-	// The actual refund path (with/without receiver) is used in forfeit tx building, not intent proof.
-	refundTapscript, err := vhtlcScript.RefundTapscript(true)
+	refundTapscript, err := vhtlcScript.RefundTapscript(false)
 	if err != nil {
 		return "", fmt.Errorf("failed to get refund tapscript for intent: %w", err)
 	}
 
-	// 6. Create ephemeral private key for signer session
-	// The key is ephemeral and only used for this settlement session.
-	// We don't need to persist it or derive it from the wallet's master key.
 	ephemeralKey, err := btcec.NewPrivateKey()
 	if err != nil {
 		return "", fmt.Errorf("failed to create ephemeral key: %w", err)
 	}
 	signerSession := tree.NewTreeSignerSession(ephemeralKey)
-	// 6. Register intent with VHTLC refund tapscript (no preimage for refund path)
+
 	intentID, err := h.buildVhtlcIntent(ctx, vtxos, vhtlcScript, refundTapscript, myAddr, totalAmount, signerSession, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to build intent: %w", err)
 	}
 
-	// 7. Get event stream for this intent
 	topics := []string{intentID}
 	for _, vtxo := range vtxos {
 		topics = append(topics, fmt.Sprintf("%s:%d", vtxo.Txid, vtxo.VOut))
@@ -1104,7 +1092,7 @@ func (h *SwapHandler) SettleVhtlcByRefundPath(
 		},
 	}
 
-	// 8. Create refund batch handler
+	withReceiver := false
 	refundHandler := NewRefundBatchHandler(
 		h.arkClient,
 		h.transportClient,
@@ -1158,7 +1146,6 @@ func (h *SwapHandler) JoinBatchAsDelegate(
 	partialForfeitTx string,
 	withReceiver bool,
 ) (string, error) {
-	// 1. Construct VHTLC script
 	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
 	if err != nil {
 		return "", fmt.Errorf("failed to create VHTLC script: %w", err)
@@ -1166,7 +1153,6 @@ func (h *SwapHandler) JoinBatchAsDelegate(
 
 	vhtlcs := []*vhtlc.VHTLCScript{vhtlcScript}
 
-	// 2. Query VTXOs from indexer
 	vtxos, err := h.getVHTLCFunds(ctx, vhtlcs)
 	if err != nil {
 		return "", fmt.Errorf("failed to query VTXOs: %w", err)
@@ -1175,13 +1161,11 @@ func (h *SwapHandler) JoinBatchAsDelegate(
 		return "", ErrorNoVtxosFound
 	}
 
-	// 3. Calculate total amount
 	var totalAmount uint64
 	for _, vtxo := range vtxos {
 		totalAmount += vtxo.Amount
 	}
 
-	// 4. Get destination address (self-send for settlement)
 	myAddr, err := h.arkClient.NewOffchainAddress(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get offchain address: %w", err)
@@ -1194,8 +1178,6 @@ func (h *SwapHandler) JoinBatchAsDelegate(
 		},
 	}
 
-	// 5. Create delegate refund batch handler
-	// Note: signerSession is nil in delegate mode - Fulmine doesn't sign the tree
 	handler := NewDelegateRefundBatchHandler(
 		h.arkClient,
 		h.transportClient,

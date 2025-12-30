@@ -300,7 +300,6 @@ message ClaimPath {
 }
 
 message RefundPath {
-  bool with_receiver = 1;
   DelegateRefundParams delegate_params = 2;
 }
 

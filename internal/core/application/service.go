@@ -979,7 +979,7 @@ func (s *Service) SettleVhtlcByClaimPath(ctx context.Context, vhtlcId string, pr
 //     if false, uses RefundWithoutReceiverClosure (2-of-2 multisig: Sender+Server, requires CLTV timeout)
 //
 // Returns the commitment transaction ID from the Ark round.
-func (s *Service) SettleVhtlcByRefundPath(ctx context.Context, vhtlcId string, withReceiver bool) (string, error) {
+func (s *Service) SettleVhtlcByRefundPath(ctx context.Context, vhtlcId string) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
@@ -991,7 +991,7 @@ func (s *Service) SettleVhtlcByRefundPath(ctx context.Context, vhtlcId string, w
 	}
 
 	// Call swap handler's batch settlement method
-	return s.swapHandler.SettleVhtlcByRefundPath(ctx, vhtlc.Opts, withReceiver)
+	return s.swapHandler.SettleVhtlcByRefundPath(ctx, vhtlc.Opts)
 }
 
 // SettleVHTLCByDelegateRefund settles a VHTLC via delegate refund path.
@@ -1024,7 +1024,6 @@ func (s *Service) SettleVHTLCByDelegateRefund(
 		return "", err
 	}
 
-	// 1. Fetch VHTLC from database
 	vhtlc, err := s.dbSvc.VHTLC().Get(ctx, vhtlcId)
 	if err != nil {
 		return "", fmt.Errorf("failed to get VHTLC %s: %w", vhtlcId, err)
@@ -1041,7 +1040,7 @@ func (s *Service) SettleVHTLCByDelegateRefund(
 	if err := message.Decode(intentMessage); err != nil {
 		return "", fmt.Errorf("failed to decode intent: %v", err)
 	}
-	// 4. Register intent with arkd
+
 	intentId, err := s.grpcClient.RegisterIntent(ctx, cosignedIntentProof, intentMessage)
 	if err != nil {
 		return "", fmt.Errorf("failed to register intent: %w", err)
