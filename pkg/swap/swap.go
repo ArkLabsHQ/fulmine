@@ -1078,6 +1078,7 @@ func (h *SwapHandler) SettleVhtlcByRefundPath(
 	for _, vtxo := range vtxos {
 		topics = append(topics, fmt.Sprintf("%s:%d", vtxo.Txid, vtxo.VOut))
 	}
+	topics = append(topics, signerSession.GetPublicKey())
 
 	eventsCh, cancel, err := h.transportClient.GetEventStream(ctx, topics)
 	if err != nil {

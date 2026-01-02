@@ -128,20 +128,20 @@ func TestClaimVhtlcSettlement(t *testing.T) {
 //
 // Note: This test uses a very short refund locktime to avoid waiting
 func TestRefundVhtlcSettlement(t *testing.T) {
-	f, err := newFulmineClient("localhost:7000")
+	ffulmineClient, err := newFulmineClient("localhost:7000")
 	require.NoError(t, err)
-	require.NotNil(t, f)
+	require.NotNil(t, ffulmineClient)
 
 	ctx := t.Context()
 
 	// Get initial balance
-	balanceBefore, err := f.GetBalance(ctx, &pb.GetBalanceRequest{})
+	balanceBefore, err := ffulmineClient.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, balanceBefore)
 	t.Logf("Initial balance: %d sats", balanceBefore.GetAmount())
 
 	// For this test, sender = receiver to simulate failed swap scenario
-	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+	info, err := ffulmineClient.GetInfo(ctx, &pb.GetInfoRequest{})
 	require.NoError(t, err)
 	require.NotEmpty(t, info)
 
@@ -156,9 +156,13 @@ func TestRefundVhtlcSettlement(t *testing.T) {
 	receiverPrivKey, err := btcec.NewPrivateKey()
 	require.NoError(t, err)
 
+	// Use a timestamp far in the past (Jan 1, 2020) so CLTV is already expired in regtest
+	// This ensures the refund locktime is before the blockchain's current block time
+	pastRefundLocktime := uint32(1577836800) // Jan 1, 2020 00:00:00 UTC
 	req := &pb.CreateVHTLCRequest{
 		PreimageHash:   preimageHash,
 		ReceiverPubkey: hex.EncodeToString(receiverPrivKey.PubKey().SerializeCompressed()),
+		RefundLocktime: pastRefundLocktime,
 		UnilateralClaimDelay: &pb.RelativeLocktime{
 			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
 			Value: 512,
@@ -172,11 +176,11 @@ func TestRefundVhtlcSettlement(t *testing.T) {
 			Value: 512,
 		},
 	}
-	vhtlc, err := f.CreateVHTLC(ctx, req)
+	vhtlc, err := ffulmineClient.CreateVHTLC(ctx, req)
 	require.NoError(t, err)
 
 	fundAmount := uint64(1000)
-	sendResp, err := f.SendOffChain(ctx, &pb.SendOffChainRequest{
+	sendResp, err := ffulmineClient.SendOffChain(ctx, &pb.SendOffChainRequest{
 		Address: vhtlc.Address,
 		Amount:  fundAmount,
 	})
@@ -184,18 +188,14 @@ func TestRefundVhtlcSettlement(t *testing.T) {
 	t.Logf("Funded VHTLC with %d sats, txid: %s", fundAmount, sendResp.GetTxid())
 
 	// Verify VHTLC has funds
-	vhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
+	vhtlcs, err := ffulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
 	require.NoError(t, err)
 	require.NotNil(t, vhtlcs)
 	require.NotEmpty(t, vhtlcs.GetVhtlcs())
 	require.Greater(t, int(vhtlcs.GetVhtlcs()[0].GetAmount()), 0, "VHTLC should have funds")
 	t.Logf("VHTLC has %d sats", vhtlcs.GetVhtlcs()[0].GetAmount())
 
-	time.Sleep(10 * time.Minute)
-
-	// Refund the VHTLC using the SettleVHTLC RPC with RefundPath (without receiver)
-	t.Log("Refunding VHTLC via SettleVHTLC RPC (2-of-2 without receiver)...")
-	settleResp, err := f.SettleVHTLC(ctx, &pb.SettleVHTLCRequest{
+	settleResp, err := ffulmineClient.SettleVHTLC(ctx, &pb.SettleVHTLCRequest{
 		VhtlcId: vhtlc.Id,
 		SettlementType: &pb.SettleVHTLCRequest_Refund{
 			Refund: &pb.RefundPath{},
@@ -206,12 +206,10 @@ func TestRefundVhtlcSettlement(t *testing.T) {
 	require.NotEmpty(t, settleResp.GetTxid())
 	t.Logf("Refund successful: txid=%s", settleResp.GetTxid())
 
-	// Wait for settlement to complete
-	t.Log("Waiting for batch settlement to finalize...")
-	time.Sleep(5 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	// Verify balance returned to approximately initial value (minus small fees)
-	balanceAfter, err := f.GetBalance(ctx, &pb.GetBalanceRequest{})
+	balanceAfter, err := ffulmineClient.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, balanceAfter)
 	t.Logf("Final balance: %d sats", balanceAfter.GetAmount())

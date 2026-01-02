@@ -245,6 +245,7 @@ func buildDelegateIntentProof(
 				PkScript: senderPkScript,
 			},
 		},
+		0, // locktime - intent never expires
 	)
 	require.NoError(t, err)
 

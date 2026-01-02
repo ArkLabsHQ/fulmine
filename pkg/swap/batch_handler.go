@@ -939,6 +939,58 @@ func (h *SwapHandler) buildVhtlcIntent(
 		return "", fmt.Errorf("failed to get VHTLC tap tree: %w", err)
 	}
 
+	// Parse VHTLC script to extract forfeit closures and locktime BEFORE building inputs
+	vtxoScript, err := script.ParseVtxoScript(vhtlcScript.GetRevealedTapscripts())
+	if err != nil {
+		return "", fmt.Errorf("failed to parse vtxo script: %w", err)
+	}
+
+	forfeitClosures := vtxoScript.ForfeitClosures()
+	if len(forfeitClosures) <= 0 {
+		return "", fmt.Errorf("no forfeit closures found")
+	}
+
+	// Select the correct forfeit closure for locktime extraction based on settlement type:
+	// - Claim path: use ConditionMultisigClosure (no locktime)
+	// - Refund path: use CLTVMultisigClosure (has locktime)
+	var forfeitClosure script.Closure
+	if isClaimPath {
+		// Claim path: find ConditionMultisigClosure
+		for _, fc := range forfeitClosures {
+			if _, ok := fc.(*script.ConditionMultisigClosure); ok {
+				forfeitClosure = fc
+				break
+			}
+		}
+		if forfeitClosure == nil {
+			return "", fmt.Errorf("ConditionMultisigClosure not found for claim path")
+		}
+	} else {
+		// Refund path: find CLTVMultisigClosure (sweep closure)
+		for _, fc := range forfeitClosures {
+			if _, ok := fc.(*script.CLTVMultisigClosure); ok {
+				forfeitClosure = fc
+				break
+			}
+		}
+		if forfeitClosure == nil {
+			return "", fmt.Errorf("CLTVMultisigClosure not found for refund path")
+		}
+	}
+
+	// Extract locktime from forfeit closure if CLTV-based
+	vtxoLocktime := arklib.AbsoluteLocktime(0)
+	if cltv, ok := forfeitClosure.(*script.CLTVMultisigClosure); ok {
+		vtxoLocktime = cltv.Locktime
+	}
+
+	// Determine input sequence based on locktime
+	// For CLTV validation, sequence must be MaxTxInSequenceNum-1 (0xFFFFFFFE)
+	inputSequence := wire.MaxTxInSequenceNum
+	if vtxoLocktime != 0 {
+		inputSequence = wire.MaxTxInSequenceNum - 1
+	}
+
 	// Build intent inputs manually with VHTLC tapscripts
 	inputs := make([]intent.Input, 0, len(vtxos))
 	tapLeaves := make([]*arklib.TaprootMerkleProof, 0, len(vtxos))
@@ -964,13 +1016,13 @@ func (h *SwapHandler) buildVhtlcIntent(
 			return "", fmt.Errorf("failed to create P2TR script: %w", err)
 		}
 
-		// Create intent.Input with VHTLC witness utxo
+		// Create intent.Input with VHTLC witness utxo and locktime-aware sequence
 		inputs = append(inputs, intent.Input{
 			OutPoint: &wire.OutPoint{
 				Hash:  *vtxoTxHash,
 				Index: vtxo.VOut,
 			},
-			Sequence: wire.MaxTxInSequenceNum,
+			Sequence: inputSequence, // Use locktime-aware sequence
 			WitnessUtxo: &wire.TxOut{
 				Value:    int64(vtxo.Amount),
 				PkScript: pkScript,
@@ -1031,49 +1083,11 @@ func (h *SwapHandler) buildVhtlcIntent(
 		})
 	}
 
-	// Build intent proof using intent.New() from arkd
+	// Build intent proof using intent.New() from arkd with locktime
 	// This creates proper BIP-322 proof with toSpend transaction as first input
-	proof, err := intent.New(intentMessage, inputs, outputs)
+	proof, err := intent.New(intentMessage, inputs, outputs, uint32(vtxoLocktime))
 	if err != nil {
 		return "", fmt.Errorf("failed to build intent proof: %w", err)
-	}
-
-	vtxoScript, err := script.ParseVtxoScript(vhtlcScript.GetRevealedTapscripts())
-	if err != nil {
-		return "", fmt.Errorf("failed to parse vtxo script: %w", err)
-	}
-
-	forfeitClosures := vtxoScript.ForfeitClosures()
-	if len(forfeitClosures) <= 0 {
-		return "", fmt.Errorf("no forfeit closures found")
-	}
-
-	// Select the correct forfeit closure for Input 0 based on settlement type:
-	// - Claim path: use ConditionMultisigClosure (has preimage condition)
-	// - Refund path: use CLTVMultisigClosure (sweep closure, no condition witness needed)
-	var forfeitClosure script.Closure
-	if isClaimPath {
-		// Claim path: find ConditionMultisigClosure
-		for _, fc := range forfeitClosures {
-			if _, ok := fc.(*script.ConditionMultisigClosure); ok {
-				forfeitClosure = fc
-				break
-			}
-		}
-		if forfeitClosure == nil {
-			return "", fmt.Errorf("ConditionMultisigClosure not found for claim path")
-		}
-	} else {
-		// Refund path: find CLTVMultisigClosure (sweep closure)
-		for _, fc := range forfeitClosures {
-			if _, ok := fc.(*script.CLTVMultisigClosure); ok {
-				forfeitClosure = fc
-				break
-			}
-		}
-		if forfeitClosure == nil {
-			return "", fmt.Errorf("CLTVMultisigClosure not found for refund path")
-		}
 	}
 
 	forfeitScript, err := forfeitClosure.Script()
