@@ -279,38 +279,6 @@ func (v *VHTLCScript) RefundTapscript(withReceiver bool) (*waddrmgr.Tapscript, e
 	}, nil
 }
 
-// UnilateralClaimTapscript computes the necessary script and control block to spend
-// the unilateral claim exit path (Receiver + Preimage + CSV delay)
-func (v *VHTLCScript) UnilateralClaimTapscript() (*waddrmgr.Tapscript, error) {
-	unilateralClaimClosure := v.UnilateralClaimClosure
-	unilateralClaimScript, err := unilateralClaimClosure.Script()
-	if err != nil {
-		return nil, err
-	}
-
-	_, tapTree, err := v.TapTree()
-	if err != nil {
-		return nil, err
-	}
-
-	leafProof, err := tapTree.GetTaprootMerkleProof(
-		txscript.NewBaseTapLeaf(unilateralClaimScript).TapHash(),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	ctrlBlock, err := txscript.ParseControlBlock(leafProof.ControlBlock)
-	if err != nil {
-		return nil, err
-	}
-
-	return &waddrmgr.Tapscript{
-		RevealedScript: leafProof.Script,
-		ControlBlock:   ctrlBlock,
-	}, nil
-}
-
 func (v *VHTLCScript) Opts() Opts {
 	return Opts{
 		Sender:                               v.Sender,

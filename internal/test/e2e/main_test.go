@@ -18,7 +18,7 @@ func TestMain(m *testing.M) {
 	ctx := context.Background()
 
 	//if err := refillArkd(ctx); err != nil {
-	//	log.Fatalf("❌ failed to refill Arkade server: %s", err)
+	//log.Fatalf("❌ failed to refill Arkade server: %s", err)
 	//}
 
 	if err := refillFulmineBoltz(ctx); err != nil {

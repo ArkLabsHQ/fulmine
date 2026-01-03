@@ -918,101 +918,35 @@ func (s *Service) ListVHTLC(
 func (s *Service) ClaimVHTLC(
 	ctx context.Context, preimage []byte, vhtlc_id string,
 ) (string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
-	}
-
-	vhtlc, err := s.dbSvc.VHTLC().Get(ctx, vhtlc_id)
-	if err != nil {
-		return "", err
-	}
-
-	return s.swapHandler.ClaimVHTLC(ctx, preimage, vhtlc.Opts)
+	return s.withVhtlc(ctx, vhtlc_id, func(opts vhtlc.Opts) (string, error) {
+		return s.swapHandler.ClaimVHTLC(ctx, preimage, opts)
+	})
 }
 
 func (s *Service) RefundVHTLC(
 	ctx context.Context, swapId, vhtlc_id string, withReceiver bool,
 ) (string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
-	}
-
-	vhtlc, err := s.dbSvc.VHTLC().Get(ctx, vhtlc_id)
-	if err != nil {
-		return "", err
-	}
-
-	return s.swapHandler.RefundSwap(ctx, swapId, withReceiver, vhtlc.Opts)
+	return s.withVhtlc(ctx, vhtlc_id, func(opts vhtlc.Opts) (string, error) {
+		return s.swapHandler.RefundSwap(ctx, swapId, withReceiver, opts)
+	})
 }
 
 // SettleVhtlcByClaimPath settles a VHTLC via claim path (revealing preimage) in a batch session.
-// This is the service-layer method that the SettleClaim RPC handler should call.
-//
-// It fetches the VHTLC from the database, validates it, and calls the swap handler's
-// SettleVhtlcByClaimPath method which joins a batch session to complete settlement.
-//
-// Returns the commitment transaction ID from the Ark round.
 func (s *Service) SettleVhtlcByClaimPath(ctx context.Context, vhtlcId string, preimage []byte) (string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
-	}
-
-	// Fetch VHTLC from database
-	vhtlc, err := s.dbSvc.VHTLC().Get(ctx, vhtlcId)
-	if err != nil {
-		return "", fmt.Errorf("failed to get VHTLC %s: %w", vhtlcId, err)
-	}
-
-	// Call swap handler's batch settlement method
-	return s.swapHandler.SettleVhtlcByClaimPath(ctx, vhtlc.Opts, preimage)
+	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
+		return s.swapHandler.SettleVhtlcByClaimPath(ctx, opts, preimage)
+	})
 }
 
 // SettleVhtlcByRefundPath settles a VHTLC via refund path in a batch session.
-// This is the service-layer method that the SettleClaim RPC handler should call.
-//
-// It fetches the VHTLC from the database and calls the swap handler's
-// SettleVhtlcByRefundPath method which joins a batch session to complete settlement.
-//
-// Parameters:
-//   - vhtlcId: VHTLC identifier (from database)
-//   - withReceiver: if true, uses RefundClosure (3-of-3 multisig: Sender+Receiver+Server)
-//     if false, uses RefundWithoutReceiverClosure (2-of-2 multisig: Sender+Server, requires CLTV timeout)
-//
-// Returns the commitment transaction ID from the Ark round.
 func (s *Service) SettleVhtlcByRefundPath(ctx context.Context, vhtlcId string) (string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
-	}
-
-	// Fetch VHTLC from database
-	vhtlc, err := s.dbSvc.VHTLC().Get(ctx, vhtlcId)
-	if err != nil {
-		return "", fmt.Errorf("failed to get VHTLC %s: %w", vhtlcId, err)
-	}
-
-	// Call swap handler's batch settlement method
-	return s.swapHandler.SettleVhtlcByRefundPath(ctx, vhtlc.Opts)
+	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
+		return s.swapHandler.SettleVhtlcByRefundPath(ctx, opts)
+	})
 }
 
 // SettleVHTLCByDelegateRefund settles a VHTLC via delegate refund path.
-// This is used when the counterparty (VHTLC receiver) wants to initiate refund
-// but cannot directly interact with arkd. The counterparty creates the intent
-// and partial forfeit, and Fulmine acts as delegate to complete the batch session.
-//
-// Flow:
-// 1. Validate counterparty's signed intent proof
-// 2. Cosign the intent proof with Fulmine's key
-// 3. Register intent with arkd
-// 4. Join batch as delegate using sender's ephemeral pubkey for topic subscription
-//
-// Parameters:
-//   - vhtlcId: VHTLC identifier (from database)
-//   - signedIntentProof: Base64 PSBT with counterparty signature
-//   - intentMessage: Encoded intent.RegisterMessage
-//   - partialForfeitTx: Base64 PSBT with counterparty signature (SIGHASH_ALL | ANYONECANPAY)
-//   - cosignerPubkey: Sender's ephemeral pubkey for topic subscription (hex compressed)
-//
-// Returns the commitment transaction ID from the Ark round.
+// The counterparty creates the intent and partial forfeit, and Fulmine acts as delegate to complete the batch session.
 func (s *Service) SettleVHTLCByDelegateRefund(
 	ctx context.Context,
 	vhtlcId string,
@@ -1020,44 +954,32 @@ func (s *Service) SettleVHTLCByDelegateRefund(
 	intentMessage string,
 	partialForfeitTx string,
 ) (string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
-	}
+	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
+		cosignedIntentProof, err := s.ArkClient.SignTransaction(ctx, signedIntentProof)
+		if err != nil {
+			return "", fmt.Errorf("failed to cosign intent proof: %w", err)
+		}
 
-	vhtlc, err := s.dbSvc.VHTLC().Get(ctx, vhtlcId)
-	if err != nil {
-		return "", fmt.Errorf("failed to get VHTLC %s: %w", vhtlcId, err)
-	}
+		signerSession := tree.NewTreeSignerSession(s.privateKey)
 
-	cosignedIntentProof, err := s.ArkClient.SignTransaction(ctx, signedIntentProof)
-	if err != nil {
-		return "", fmt.Errorf("failed to cosign intent proof: %w", err)
-	}
+		var message intent.RegisterMessage
+		if err := message.Decode(intentMessage); err != nil {
+			return "", fmt.Errorf("failed to decode intent: %v", err)
+		}
 
-	signerSession := tree.NewTreeSignerSession(s.privateKey)
+		intentId, err := s.grpcClient.RegisterIntent(ctx, cosignedIntentProof, intentMessage)
+		if err != nil {
+			return "", fmt.Errorf("failed to register intent: %w", err)
+		}
 
-	var message intent.RegisterMessage
-	if err := message.Decode(intentMessage); err != nil {
-		return "", fmt.Errorf("failed to decode intent: %v", err)
-	}
-
-	intentId, err := s.grpcClient.RegisterIntent(ctx, cosignedIntentProof, intentMessage)
-	if err != nil {
-		return "", fmt.Errorf("failed to register intent: %w", err)
-	}
-
-	// 5. Join batch session as delegate
-	// Use RefundClosure (3-of-3) for delegate mode
-	// Note: We use the sender's ephemeral cosigner pubkey for topic subscription
-	withReceiver := true
-	return s.swapHandler.JoinBatchAsDelegate(
-		ctx,
-		signerSession,
-		intentId,
-		vhtlc.Opts,
-		partialForfeitTx,
-		withReceiver,
-	)
+		return s.swapHandler.JoinBatchAsDelegate(
+			ctx,
+			signerSession,
+			intentId,
+			opts,
+			partialForfeitTx,
+		)
+	})
 }
 
 func (s *Service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
@@ -1477,6 +1399,29 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// withVhtlc is a helper that performs unlock check and VHTLC fetch, then executes the provided action.
+// This eliminates boilerplate across multiple service methods that operate on VHTLCs.
+//
+// It performs:
+//  1. Unlock check via isInitializedAndUnlocked
+//  2. VHTLC fetch from database
+//  3. Executes the action with the fetched VHTLC opts
+//
+// Returns the result from the action function.
+func (s *Service) withVhtlc(ctx context.Context, vhtlcId string,
+	action func(vhtlc.Opts) (string, error)) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	vhtlc, err := s.dbSvc.VHTLC().Get(ctx, vhtlcId)
+	if err != nil {
+		return "", fmt.Errorf("failed to get VHTLC %s: %w", vhtlcId, err)
+	}
+
+	return action(vhtlc.Opts)
 }
 
 // restoreSwapHistory gets the swap history from Boltz svc, then:

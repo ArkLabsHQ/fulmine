@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/arkade-os/arkd/pkg/kvdb"
@@ -102,9 +101,7 @@ func (m *macaroonSvc) Generate(ctx context.Context) error {
 	for macFilename, macPermissions := range m.macFiles {
 		macFile := filepath.Join(m.datadir, macFilename)
 		if fileNotExists(macFile) {
-			// Extract role from filename (e.g., "admin.macaroon" -> "admin")
-			role := strings.Split(macFilename, ".")[0]
-			mktMacBytes, err := m.svc.BakeMacaroon(ctx, macPermissions, role)
+			mktMacBytes, err := m.svc.BakeMacaroon(ctx, macPermissions)
 			if err != nil {
 				return err
 			}

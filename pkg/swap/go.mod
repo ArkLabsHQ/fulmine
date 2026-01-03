@@ -50,7 +50,7 @@ require (
 	golang.org/x/net v0.46.1-0.20251013234738-63d1a5100f82 // indirect
 	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/tools v0.37.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251022142026-3a174f9686a8 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/grpc v1.77.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	pgregory.net/rapid v1.2.0 // indirect
@@ -65,7 +65,7 @@ require (
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.9
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
 	github.com/btcsuite/btclog v0.0.0-20241017175713-3428138b75c7 // indirect
-	github.com/btcsuite/btcwallet v0.16.14 // indirect
+	github.com/btcsuite/btcwallet v0.16.14
 	github.com/btcsuite/btcwallet/wallet/txauthor v1.3.5 // indirect
 	github.com/btcsuite/btcwallet/wallet/txrules v1.2.2 // indirect
 	github.com/btcsuite/btcwallet/wallet/txsizes v1.2.5 // indirect
@@ -105,4 +105,6 @@ require (
 replace (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz => ../boltz
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc => ../vhtlc
+	github.com/arkade-os/arkd/pkg/ark-lib => /Users/dusansekulic/code/go/ark/pkg/ark-lib
+	github.com/arkade-os/go-sdk => /Users/dusansekulic/code/go/go-sdk
 )

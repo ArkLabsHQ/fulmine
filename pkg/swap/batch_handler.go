@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
@@ -22,23 +21,22 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcwallet/waddrmgr"
 	log "github.com/sirupsen/logrus"
 )
 
-// ClaimBatchHandler handles VHTLC claim settlement (for reverse submarine swaps).
-// It implements the full BatchEventsHandler interface including tree signing with musig2.
-type ClaimBatchHandler struct {
+// BaseBatchHandler contains shared fields and methods for all batch handlers.
+// It implements the common BatchEventsHandler methods (8 out of 9) that are identical
+// across ClaimBatchHandler and RefundBatchHandler.
+type BaseBatchHandler struct {
 	arkClient       arksdk.ArkClient
 	transportClient client.TransportClient
 
 	intentId      string
 	vtxos         []client.TapscriptsVtxo
 	receivers     []types.Receiver
-	preimage      []byte
 	vhtlcScripts  []*vhtlc.VHTLCScript
 	config        types.Config
 	signerSession tree.SignerSession
@@ -49,36 +47,9 @@ type ClaimBatchHandler struct {
 	countSigningDone int
 }
 
-// NewClaimBatchHandler creates a new claim batch handler.
-func NewClaimBatchHandler(
-	arkClient arksdk.ArkClient,
-	transportClient client.TransportClient,
-	intentId string,
-	vtxos []client.TapscriptsVtxo,
-	receivers []types.Receiver,
-	preimage []byte,
-	vhtlcScripts []*vhtlc.VHTLCScript,
-	config types.Config,
-	signerSession tree.SignerSession,
-) *ClaimBatchHandler {
-	return &ClaimBatchHandler{
-		arkClient:        arkClient,
-		transportClient:  transportClient,
-		intentId:         intentId,
-		vtxos:            vtxos,
-		receivers:        receivers,
-		preimage:         preimage,
-		vhtlcScripts:     vhtlcScripts,
-		config:           config,
-		signerSession:    signerSession,
-		batchSessionId:   "",
-		countSigningDone: 0,
-	}
-}
-
 // OnBatchStarted implements BatchEventsHandler.
 // Confirms registration when our intent is included in the batch.
-func (h *ClaimBatchHandler) OnBatchStarted(
+func (h *BaseBatchHandler) OnBatchStarted(
 	ctx context.Context, event client.BatchStartedEvent,
 ) (bool, error) {
 	buf := sha256.Sum256([]byte(h.intentId))
@@ -100,7 +71,7 @@ func (h *ClaimBatchHandler) OnBatchStarted(
 }
 
 // OnBatchFinalized implements BatchEventsHandler.
-func (h *ClaimBatchHandler) OnBatchFinalized(
+func (h *BaseBatchHandler) OnBatchFinalized(
 	ctx context.Context, event client.BatchFinalizedEvent,
 ) error {
 	if event.Id == h.batchSessionId {
@@ -110,21 +81,21 @@ func (h *ClaimBatchHandler) OnBatchFinalized(
 }
 
 // OnBatchFailed implements BatchEventsHandler.
-func (h *ClaimBatchHandler) OnBatchFailed(
+func (h *BaseBatchHandler) OnBatchFailed(
 	ctx context.Context, event client.BatchFailedEvent,
 ) error {
 	return fmt.Errorf("batch failed: %s", event.Reason)
 }
 
 // OnTreeTxEvent implements BatchEventsHandler.
-func (h *ClaimBatchHandler) OnTreeTxEvent(
+func (h *BaseBatchHandler) OnTreeTxEvent(
 	ctx context.Context, event client.TreeTxEvent,
 ) error {
 	return nil
 }
 
 // OnTreeSignatureEvent implements BatchEventsHandler.
-func (h *ClaimBatchHandler) OnTreeSignatureEvent(
+func (h *BaseBatchHandler) OnTreeSignatureEvent(
 	ctx context.Context, event client.TreeSignatureEvent,
 ) error {
 	return nil
@@ -132,7 +103,7 @@ func (h *ClaimBatchHandler) OnTreeSignatureEvent(
 
 // OnTreeSigningStarted implements BatchEventsHandler.
 // Initializes signer sessions and sends nonces for VTXO tree signing.
-func (h *ClaimBatchHandler) OnTreeSigningStarted(
+func (h *BaseBatchHandler) OnTreeSigningStarted(
 	ctx context.Context, event client.TreeSigningStartedEvent, vtxoTree *tree.TxTree,
 ) (bool, error) {
 	myPubkey := h.signerSession.GetPublicKey()
@@ -185,14 +156,14 @@ func (h *ClaimBatchHandler) OnTreeSigningStarted(
 
 // OnTreeNonces implements BatchEventsHandler.
 // Aggregates nonces and signs the VTXO tree.
-func (h *ClaimBatchHandler) OnTreeNonces(
+func (h *BaseBatchHandler) OnTreeNonces(
 	ctx context.Context, event client.TreeNoncesEvent,
 ) (bool, error) {
 	return false, nil
 }
 
 // OnTreeNoncesAggregated implements BatchEventsHandler.
-func (h *ClaimBatchHandler) OnTreeNoncesAggregated(
+func (h *BaseBatchHandler) OnTreeNoncesAggregated(
 	ctx context.Context, event client.TreeNoncesAggregatedEvent,
 ) (bool, error) {
 	h.signerSession.SetAggregatedNonces(event.Nonces)
@@ -211,6 +182,42 @@ func (h *ClaimBatchHandler) OnTreeNoncesAggregated(
 	return err == nil, err
 }
 
+// ClaimBatchHandler handles VHTLC claim settlement (for reverse submarine swaps).
+// It embeds BaseBatchHandler and only implements OnBatchFinalization (claim-specific).
+type ClaimBatchHandler struct {
+	BaseBatchHandler
+	preimage []byte
+}
+
+// NewClaimBatchHandler creates a new claim batch handler.
+func NewClaimBatchHandler(
+	arkClient arksdk.ArkClient,
+	transportClient client.TransportClient,
+	intentId string,
+	vtxos []client.TapscriptsVtxo,
+	receivers []types.Receiver,
+	preimage []byte,
+	vhtlcScripts []*vhtlc.VHTLCScript,
+	config types.Config,
+	signerSession tree.SignerSession,
+) *ClaimBatchHandler {
+	return &ClaimBatchHandler{
+		BaseBatchHandler: BaseBatchHandler{
+			arkClient:        arkClient,
+			transportClient:  transportClient,
+			intentId:         intentId,
+			vtxos:            vtxos,
+			receivers:        receivers,
+			vhtlcScripts:     vhtlcScripts,
+			config:           config,
+			signerSession:    signerSession,
+			batchSessionId:   "",
+			countSigningDone: 0,
+		},
+		preimage: preimage,
+	}
+}
+
 // OnBatchFinalization implements BatchEventsHandler.
 // Builds forfeits with preimage injection for VHTLC claim path.
 func (h *ClaimBatchHandler) OnBatchFinalization(
@@ -224,7 +231,8 @@ func (h *ClaimBatchHandler) OnBatchFinalization(
 		return fmt.Errorf("connector tree is nil")
 	}
 
-	forfeits, err := h.createAndSignClaimForfeits(ctx, connectorTree.Leaves())
+	builder := &ClaimForfeitBuilder{preimage: h.preimage}
+	forfeits, err := h.createAndSignForfeits(ctx, connectorTree.Leaves(), builder)
 	if err != nil {
 		return fmt.Errorf("failed to create and sign claim forfeits: %w", err)
 	}
@@ -238,10 +246,12 @@ func (h *ClaimBatchHandler) OnBatchFinalization(
 	return nil
 }
 
-// createAndSignClaimForfeits builds and signs forfeits for VHTLC claim path.
-// The key difference from normal forfeits is that we inject the preimage BEFORE signing.
-func (h *ClaimBatchHandler) createAndSignClaimForfeits(
-	ctx context.Context, connectorsLeaves []*psbt.Packet,
+// createAndSignForfeits builds and signs forfeits using the provided ForfeitBuilder strategy.
+// This unified method handles both claim and refund paths through the strategy pattern.
+func (h *BaseBatchHandler) createAndSignForfeits(
+	ctx context.Context,
+	connectorsLeaves []*psbt.Packet,
+	builder ForfeitBuilder,
 ) ([]string, error) {
 	parsedForfeitAddr, err := btcutil.DecodeAddress(h.config.ForfeitAddress, nil)
 	if err != nil {
@@ -257,24 +267,10 @@ func (h *ClaimBatchHandler) createAndSignClaimForfeits(
 	for i, vtxo := range h.vtxos {
 		connectorTx := connectorsLeaves[i]
 
-		// Extract connector output (skip anchor outputs)
-		var connector *wire.TxOut
-		var connectorOutpoint *wire.OutPoint
-		for outIndex, output := range connectorTx.UnsignedTx.TxOut {
-			if bytes.Equal(txutils.ANCHOR_PKSCRIPT, output.PkScript) {
-				continue
-			}
-
-			connector = output
-			connectorOutpoint = &wire.OutPoint{
-				Hash:  connectorTx.UnsignedTx.TxHash(),
-				Index: uint32(outIndex),
-			}
-			break
-		}
-
-		if connector == nil {
-			return nil, fmt.Errorf("connector not found for vtxo %s", vtxo.Outpoint.String())
+		// Extract connector output using helper
+		connector, connectorOutpoint, err := extractConnector(connectorTx)
+		if err != nil {
+			return nil, fmt.Errorf("connector not found for vtxo %s: %w", vtxo.Outpoint.String(), err)
 		}
 
 		// Parse VHTLC script from vtxo tapscripts
@@ -288,85 +284,53 @@ func (h *ClaimBatchHandler) createAndSignClaimForfeits(
 			return nil, err
 		}
 
-		// Get the claim closure from VHTLC script
+		// Get settlement closure from strategy (claim or refund)
 		vhtlcScript := h.vhtlcScripts[i]
-		claimClosure := vhtlcScript.ClaimClosure
+		settlementClosure := builder.GetSettlementClosure(vhtlcScript)
 
-		claimScript, err := claimClosure.Script()
+		settlementScript, err := settlementClosure.Script()
 		if err != nil {
 			return nil, err
 		}
 
-		claimLeaf := txscript.NewBaseTapLeaf(claimScript)
-		claimProof, err := vtxoTapTree.GetTaprootMerkleProof(claimLeaf.TapHash())
+		settlementLeaf := txscript.NewBaseTapLeaf(settlementScript)
+		settlementProof, err := vtxoTapTree.GetTaprootMerkleProof(settlementLeaf.TapHash())
 		if err != nil {
-			return nil, fmt.Errorf("failed to get taproot merkle proof for claim: %w", err)
+			return nil, fmt.Errorf("failed to get taproot merkle proof for settlement: %w", err)
 		}
 
 		tapscript := &psbt.TaprootTapLeafScript{
-			ControlBlock: claimProof.ControlBlock,
-			Script:       claimProof.Script,
+			ControlBlock: settlementProof.ControlBlock,
+			Script:       settlementProof.Script,
 			LeafVersion:  txscript.BaseLeafVersion,
 		}
 
-		// Get forfeit closures to extract locktime (if CLTV-based)
-		forfeitClosures := vtxoScript.ForfeitClosures()
-		if len(forfeitClosures) <= 0 {
-			return nil, fmt.Errorf("no forfeit closures found")
+		// Select forfeit closure and extract locktime/sequence using helpers
+		forfeitClosure := selectForfeitClosure(vhtlcScript, true, false)
+		if _, ok := builder.(*RefundForfeitBuilder); ok {
+			refundBuilder := builder.(*RefundForfeitBuilder)
+			forfeitClosure = selectForfeitClosure(vhtlcScript, false, refundBuilder.withReceiver)
 		}
+		vtxoLocktime, vtxoSequence := extractLocktimeAndSequence(forfeitClosure)
 
-		forfeitClosure := forfeitClosures[0]
-
-		vtxoLocktime := arklib.AbsoluteLocktime(0)
-		if cltv, ok := forfeitClosure.(*script.CLTVMultisigClosure); ok {
-			vtxoLocktime = cltv.Locktime
-		}
-
-		// Build forfeit transaction using tree.BuildForfeitTx
-		vtxoOutputScript, err := script.P2TRScript(vtxoTapKey)
-		if err != nil {
-			return nil, err
-		}
-
-		vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
-		if err != nil {
-			return nil, err
-		}
-
-		vtxoInput := &wire.OutPoint{
-			Hash:  *vtxoTxHash,
-			Index: vtxo.VOut,
-		}
-
-		vtxoPrevout := &wire.TxOut{
-			Value:    int64(vtxo.Amount),
-			PkScript: vtxoOutputScript,
-		}
-
-		vtxoSequence := wire.MaxTxInSequenceNum
-		if vtxoLocktime != 0 {
-			vtxoSequence = wire.MaxTxInSequenceNum - 1
-		}
-
-		forfeitPtx, err := tree.BuildForfeitTx(
-			[]*wire.OutPoint{vtxoInput, connectorOutpoint},
-			[]uint32{vtxoSequence, wire.MaxTxInSequenceNum},
-			[]*wire.TxOut{vtxoPrevout, connector},
+		// Build forfeit transaction using helper
+		forfeitPtx, err := buildForfeitTransaction(
+			vtxo,
+			vtxoTapKey,
+			tapscript,
+			connector,
+			connectorOutpoint,
+			vtxoLocktime,
+			vtxoSequence,
 			forfeitPkScript,
-			uint32(vtxoLocktime),
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		// Set tapscript for VHTLC claim path
-		forfeitPtx.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapscript}
-
-		// CRITICAL: Inject preimage BEFORE signing (claim path requirement)
-		if err := txutils.SetArkPsbtField(
-			forfeitPtx, 0, txutils.ConditionWitnessField, wire.TxWitness{h.preimage},
-		); err != nil {
-			return nil, fmt.Errorf("failed to inject preimage: %w", err)
+		// Apply strategy-specific forfeit modifications (preimage injection for claim, nothing for refund)
+		if err := builder.BuildForfeit(forfeitPtx); err != nil {
+			return nil, err
 		}
 
 		// Sign the forfeit
@@ -387,24 +351,11 @@ func (h *ClaimBatchHandler) createAndSignClaimForfeits(
 }
 
 // RefundBatchHandler handles VHTLC refund settlement (for submarine swaps).
-// It implements the full BatchEventsHandler interface including tree signing with musig2.
+// It embeds BaseBatchHandler and only implements OnBatchFinalization (refund-specific).
 type RefundBatchHandler struct {
-	arkClient       arksdk.ArkClient
-	transportClient client.TransportClient
-
-	intentId      string
-	vtxos         []client.TapscriptsVtxo
-	receivers     []types.Receiver
-	withReceiver  bool
-	vhtlcScripts  []*vhtlc.VHTLCScript
-	config        types.Config
-	publicKey     *btcec.PublicKey
-	signerSession tree.SignerSession
-
-	// Batch session state
-	batchSessionId   string
-	batchExpiry      arklib.RelativeLocktime
-	countSigningDone int
+	BaseBatchHandler
+	withReceiver bool
+	publicKey    *btcec.PublicKey
 }
 
 // NewRefundBatchHandler creates a new refund batch handler.
@@ -421,154 +372,21 @@ func NewRefundBatchHandler(
 	signerSession tree.SignerSession,
 ) *RefundBatchHandler {
 	return &RefundBatchHandler{
-		arkClient:        arkClient,
-		transportClient:  transportClient,
-		intentId:         intentId,
-		vtxos:            vtxos,
-		receivers:        receivers,
-		withReceiver:     withReceiver,
-		vhtlcScripts:     vhtlcScripts,
-		config:           config,
-		publicKey:        publicKey,
-		signerSession:    signerSession,
-		batchSessionId:   "",
-		countSigningDone: 0,
+		BaseBatchHandler: BaseBatchHandler{
+			arkClient:        arkClient,
+			transportClient:  transportClient,
+			intentId:         intentId,
+			vtxos:            vtxos,
+			receivers:        receivers,
+			vhtlcScripts:     vhtlcScripts,
+			config:           config,
+			signerSession:    signerSession,
+			batchSessionId:   "",
+			countSigningDone: 0,
+		},
+		withReceiver: withReceiver,
+		publicKey:    publicKey,
 	}
-}
-
-// OnBatchStarted implements BatchEventsHandler.
-// Confirms registration when our intent is included in the batch.
-func (h *RefundBatchHandler) OnBatchStarted(
-	ctx context.Context, event client.BatchStartedEvent,
-) (bool, error) {
-	buf := sha256.Sum256([]byte(h.intentId))
-	hashedIntentId := hex.EncodeToString(buf[:])
-
-	for _, id := range event.HashedIntentIds {
-		if id == hashedIntentId {
-			if err := h.transportClient.ConfirmRegistration(ctx, h.intentId); err != nil {
-				return false, err
-			}
-			h.batchSessionId = event.Id
-			h.batchExpiry = getBatchExpiryLocktime(uint32(event.BatchExpiry))
-			log.Debugf("batch %s started with our intent %s", event.Id, h.intentId)
-			return false, nil
-		}
-	}
-	log.Debug("intent id not found in batch proposal, waiting for next one...")
-	return true, nil
-}
-
-// OnBatchFinalized implements BatchEventsHandler.
-func (h *RefundBatchHandler) OnBatchFinalized(
-	ctx context.Context, event client.BatchFinalizedEvent,
-) error {
-	if event.Id == h.batchSessionId {
-		log.Debugf("batch completed in commitment tx %s", event.Txid)
-	}
-	return nil
-}
-
-// OnBatchFailed implements BatchEventsHandler.
-func (h *RefundBatchHandler) OnBatchFailed(
-	ctx context.Context, event client.BatchFailedEvent,
-) error {
-	return fmt.Errorf("batch failed: %s", event.Reason)
-}
-
-// OnTreeTxEvent implements BatchEventsHandler.
-func (h *RefundBatchHandler) OnTreeTxEvent(
-	ctx context.Context, event client.TreeTxEvent,
-) error {
-	return nil
-}
-
-// OnTreeSignatureEvent implements BatchEventsHandler.
-func (h *RefundBatchHandler) OnTreeSignatureEvent(
-	ctx context.Context, event client.TreeSignatureEvent,
-) error {
-	return nil
-}
-
-// OnTreeSigningStarted implements BatchEventsHandler.
-// Initializes signer sessions and sends nonces for VTXO tree signing.
-func (h *RefundBatchHandler) OnTreeSigningStarted(
-	ctx context.Context, event client.TreeSigningStartedEvent, vtxoTree *tree.TxTree,
-) (bool, error) {
-	myPubkey := h.signerSession.GetPublicKey()
-	if !slices.Contains(event.CosignersPubkeys, myPubkey) {
-		return true, nil
-	}
-
-	// Build sweep closure for batch expiry
-	sweepClosure := script.CSVMultisigClosure{
-		MultisigClosure: script.MultisigClosure{PubKeys: []*btcec.PublicKey{h.config.ForfeitPubKey}},
-		Locktime:        h.batchExpiry,
-	}
-
-	script, err := sweepClosure.Script()
-	if err != nil {
-		return false, err
-	}
-
-	commitmentTx, err := psbt.NewFromRawBytes(strings.NewReader(event.UnsignedCommitmentTx), true)
-	if err != nil {
-		return false, err
-	}
-
-	batchOutput := commitmentTx.UnsignedTx.TxOut[0]
-	batchOutputAmount := batchOutput.Value
-
-	sweepTapLeaf := txscript.NewBaseTapLeaf(script)
-	sweepTapTree := txscript.AssembleTaprootScriptTree(sweepTapLeaf)
-	root := sweepTapTree.RootNode.TapHash()
-
-	generateAndSendNonces := func(session tree.SignerSession) error {
-		if err := session.Init(root.CloneBytes(), batchOutputAmount, vtxoTree); err != nil {
-			return err
-		}
-
-		nonces, err := session.GetNonces()
-		if err != nil {
-			return err
-		}
-
-		return h.transportClient.SubmitTreeNonces(ctx, event.Id, session.GetPublicKey(), nonces)
-	}
-
-	if err := generateAndSendNonces(h.signerSession); err != nil {
-		return false, err
-	}
-
-	return false, nil
-}
-
-// OnTreeNonces implements BatchEventsHandler.
-// Aggregates nonces and signs the VTXO tree.
-func (h *RefundBatchHandler) OnTreeNonces(
-	ctx context.Context, event client.TreeNoncesEvent,
-) (bool, error) {
-	return false, nil
-}
-
-// OnTreeNoncesAggregated implements BatchEventsHandler.
-func (h *RefundBatchHandler) OnTreeNoncesAggregated(
-	ctx context.Context, event client.TreeNoncesAggregatedEvent,
-) (bool, error) {
-	h.signerSession.SetAggregatedNonces(event.Nonces)
-
-	sigs, err := h.signerSession.Sign()
-	if err != nil {
-		return false, err
-	}
-
-	err = h.transportClient.SubmitTreeSignatures(
-		ctx,
-		event.Id,
-		h.signerSession.GetPublicKey(),
-		sigs,
-	)
-	return err == nil, err
 }
 
 // OnBatchFinalization implements BatchEventsHandler.
@@ -584,7 +402,8 @@ func (h *RefundBatchHandler) OnBatchFinalization(
 		return fmt.Errorf("connector tree is nil")
 	}
 
-	forfeits, err := h.createAndSignRefundForfeits(ctx, connectorTree.Leaves())
+	builder := &RefundForfeitBuilder{withReceiver: h.withReceiver}
+	forfeits, err := h.createAndSignForfeits(ctx, connectorTree.Leaves(), builder)
 	if err != nil {
 		return fmt.Errorf("failed to create and sign refund forfeits: %w", err)
 	}
@@ -596,153 +415,6 @@ func (h *RefundBatchHandler) OnBatchFinalization(
 	}
 
 	return nil
-}
-
-// createAndSignRefundForfeits builds and signs forfeits for VHTLC refund path.
-func (h *RefundBatchHandler) createAndSignRefundForfeits(
-	ctx context.Context, connectorsLeaves []*psbt.Packet,
-) ([]string, error) {
-	parsedForfeitAddr, err := btcutil.DecodeAddress(h.config.ForfeitAddress, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	forfeitPkScript, err := txscript.PayToAddrScript(parsedForfeitAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	signedForfeitTxs := make([]string, 0, len(h.vtxos))
-	for i, vtxo := range h.vtxos {
-		connectorTx := connectorsLeaves[i]
-
-		// Extract connector output (skip anchor outputs)
-		var connector *wire.TxOut
-		var connectorOutpoint *wire.OutPoint
-		for outIndex, output := range connectorTx.UnsignedTx.TxOut {
-			if bytes.Equal(txutils.ANCHOR_PKSCRIPT, output.PkScript) {
-				continue
-			}
-
-			connector = output
-			connectorOutpoint = &wire.OutPoint{
-				Hash:  connectorTx.UnsignedTx.TxHash(),
-				Index: uint32(outIndex),
-			}
-			break
-		}
-
-		if connector == nil {
-			return nil, fmt.Errorf("connector not found for vtxo %s", vtxo.Outpoint.String())
-		}
-
-		// Parse VHTLC script from vtxo tapscripts
-		vtxoScript, err := script.ParseVtxoScript(vtxo.Tapscripts)
-		if err != nil {
-			return nil, err
-		}
-
-		vtxoTapKey, vtxoTapTree, err := vtxoScript.TapTree()
-		if err != nil {
-			return nil, err
-		}
-
-		// Get the appropriate refund closure from VHTLC script
-		vhtlcScript := h.vhtlcScripts[i]
-		var refundClosure script.Closure
-		if h.withReceiver {
-			refundClosure = vhtlcScript.RefundClosure
-		} else {
-			refundClosure = vhtlcScript.RefundWithoutReceiverClosure
-		}
-
-		refundScript, err := refundClosure.Script()
-		if err != nil {
-			return nil, err
-		}
-
-		refundLeaf := txscript.NewBaseTapLeaf(refundScript)
-		refundProof, err := vtxoTapTree.GetTaprootMerkleProof(refundLeaf.TapHash())
-		if err != nil {
-			return nil, fmt.Errorf("failed to get taproot merkle proof for refund: %w", err)
-		}
-
-		tapscript := &psbt.TaprootTapLeafScript{
-			ControlBlock: refundProof.ControlBlock,
-			Script:       refundProof.Script,
-			LeafVersion:  txscript.BaseLeafVersion,
-		}
-
-		// Select forfeit closure based on settlement path (must match refund closure type)
-		// - withReceiver=true → use vhtlcScript.RefundClosure (MultisigClosure, no locktime)
-		// - withReceiver=false → use vhtlcScript.RefundWithoutReceiverClosure (CLTVMultisigClosure, has locktime)
-		var forfeitClosure script.Closure
-		if h.withReceiver {
-			forfeitClosure = vhtlcScript.RefundClosure
-		} else {
-			forfeitClosure = vhtlcScript.RefundWithoutReceiverClosure
-		}
-
-		vtxoLocktime := arklib.AbsoluteLocktime(0)
-		if cltv, ok := forfeitClosure.(*script.CLTVMultisigClosure); ok {
-			vtxoLocktime = cltv.Locktime
-		}
-
-		// Build forfeit transaction using tree.BuildForfeitTx
-		vtxoOutputScript, err := script.P2TRScript(vtxoTapKey)
-		if err != nil {
-			return nil, err
-		}
-
-		vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
-		if err != nil {
-			return nil, err
-		}
-
-		vtxoInput := &wire.OutPoint{
-			Hash:  *vtxoTxHash,
-			Index: vtxo.VOut,
-		}
-
-		vtxoPrevout := &wire.TxOut{
-			Value:    int64(vtxo.Amount),
-			PkScript: vtxoOutputScript,
-		}
-
-		vtxoSequence := wire.MaxTxInSequenceNum
-		if vtxoLocktime != 0 {
-			vtxoSequence = wire.MaxTxInSequenceNum - 1
-		}
-
-		forfeitPtx, err := tree.BuildForfeitTx(
-			[]*wire.OutPoint{vtxoInput, connectorOutpoint},
-			[]uint32{vtxoSequence, wire.MaxTxInSequenceNum},
-			[]*wire.TxOut{vtxoPrevout, connector},
-			forfeitPkScript,
-			uint32(vtxoLocktime),
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		// Set tapscript for VHTLC refund path
-		forfeitPtx.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapscript}
-
-		// Sign the forfeit (no preimage injection for refund path)
-		b64, err := forfeitPtx.B64Encode()
-		if err != nil {
-			return nil, err
-		}
-
-		signedForfeit, err := h.arkClient.SignTransaction(ctx, b64)
-		if err != nil {
-			return nil, fmt.Errorf("failed to sign forfeit: %w", err)
-		}
-
-		signedForfeitTxs = append(signedForfeitTxs, signedForfeit)
-	}
-
-	return signedForfeitTxs, nil
 }
 
 // DelegateRefundBatchHandler extends RefundBatchHandler for delegate mode.
@@ -769,18 +441,20 @@ func NewDelegateRefundBatchHandler(
 ) *DelegateRefundBatchHandler {
 	return &DelegateRefundBatchHandler{
 		RefundBatchHandler: RefundBatchHandler{
-			arkClient:        arkClient,
-			transportClient:  transportClient,
-			intentId:         intentId,
-			vtxos:            vtxos,
-			receivers:        receivers,
-			withReceiver:     withReceiver,
-			vhtlcScripts:     vhtlcScripts,
-			config:           config,
-			publicKey:        publicKey,
-			signerSession:    signerSession,
-			batchSessionId:   "",
-			countSigningDone: 0,
+			BaseBatchHandler: BaseBatchHandler{
+				arkClient:        arkClient,
+				transportClient:  transportClient,
+				intentId:         intentId,
+				vtxos:            vtxos,
+				receivers:        receivers,
+				vhtlcScripts:     vhtlcScripts,
+				config:           config,
+				signerSession:    signerSession,
+				batchSessionId:   "",
+				countSigningDone: 0,
+			},
+			withReceiver: withReceiver,
+			publicKey:    publicKey,
 		},
 		partialForfeitTx: partialForfeitTx,
 	}
@@ -891,38 +565,20 @@ func getBatchExpiryLocktime(batchExpiry uint32) arklib.RelativeLocktime {
 	}
 }
 
-// buildVhtlcIntent creates and registers an intent for VHTLC settlement.
+// buildClaimIntent builds and registers an intent for VHTLC claim path settlement.
 //
-// CRITICAL: This function CANNOT use arkClient.RegisterIntent because that method
-// expects VTXOs with wallet-controlled tapscripts. VHTLCs have custom 3-party
-// tapscripts (ConditionMultisigClosure, CLTVMultisigClosure, etc.) that are NOT
-// in the wallet's address set.
+// This function is specialized for the claim path and uses the helpers extracted
+// from buildVhtlcIntent to reduce complexity. It:
+// 1. Parses VHTLC script and selects ConditionMultisigClosure (claim forfeit)
+// 2. Extracts locktime and sequence (should be 0 and 0xFFFFFFFF for claim)
+// 3. Builds intent inputs, message, and outputs using helpers
+// 4. Creates BIP-322 intent proof with locktime
+// 5. Adds forfeit leaf proof
+// 6. Injects preimage into proof
+// 7. Signs and registers intent
 //
-// Instead, we manually build intent.Input structures with VHTLC tapscripts and
-// register directly via transportClient.RegisterIntent.
-//
-// This follows the pattern from ClaimVHTLC (non-batch) in pkg/swap/swap.go:157-245,
-// which correctly builds VHTLC inputs with offchain.BuildTxs.
-//
-// The function:
-// 1. Gets appropriate VHTLC tapscript (claim or refund closure)
-// 2. Builds intent.Input manually with VHTLC-specific tapscript
-// 3. Creates taproot merkle proof for settlement path
-// 4. Builds BIP322 intent proof (exit path signature for ownership)
-// 5. Injects preimage (if provided) for claim path validation
-// 6. Registers intent via transportClient.RegisterIntent
-//
-// Parameters:
-//   - vtxos: VTXOs at VHTLC address (queried from indexer)
-//   - vhtlcScript: Parsed VHTLC script with all closures
-//   - settlementTapscript: Tapscript for settlement path (ClaimTapscript() for claim, RefundTapscript() for refund)
-//   - destinationAddr: Ark offchain address to send settled funds
-//   - totalAmount: Sum of all VTXO amounts
-//   - preimage: Preimage for claim path (nil for refund path)
-//   - isClaimPath: True for claim path (use ConditionMultisigClosure), false for refund path (use CLTVMultisigClosure)
-//
-// Returns intentID for use in batch session.
-func (h *SwapHandler) buildVhtlcIntent(
+// Cyclomatic complexity: ~4 (down from 18 in monolithic buildVhtlcIntent)
+func (h *SwapHandler) buildClaimIntent(
 	ctx context.Context,
 	vtxos []types.Vtxo,
 	vhtlcScript *vhtlc.VHTLCScript,
@@ -931,15 +587,8 @@ func (h *SwapHandler) buildVhtlcIntent(
 	totalAmount uint64,
 	signerSession tree.SignerSession,
 	preimage []byte,
-	isClaimPath bool,
-) (intentID string, err error) {
-	// Get VHTLC taproot key and tree for script computation
-	vhtlcTapKey, vhtlcTapTree, err := vhtlcScript.TapTree()
-	if err != nil {
-		return "", fmt.Errorf("failed to get VHTLC tap tree: %w", err)
-	}
-
-	// Parse VHTLC script to extract forfeit closures and locktime BEFORE building inputs
+) (string, error) {
+	// Parse VHTLC script to extract forfeit closures
 	vtxoScript, err := script.ParseVtxoScript(vhtlcScript.GetRevealedTapscripts())
 	if err != nil {
 		return "", fmt.Errorf("failed to parse vtxo script: %w", err)
@@ -950,167 +599,48 @@ func (h *SwapHandler) buildVhtlcIntent(
 		return "", fmt.Errorf("no forfeit closures found")
 	}
 
-	// Select the correct forfeit closure for locktime extraction based on settlement type:
-	// - Claim path: use ConditionMultisigClosure (no locktime)
-	// - Refund path: use CLTVMultisigClosure (has locktime)
-	var forfeitClosure script.Closure
-	if isClaimPath {
-		// Claim path: find ConditionMultisigClosure
-		for _, fc := range forfeitClosures {
-			if _, ok := fc.(*script.ConditionMultisigClosure); ok {
-				forfeitClosure = fc
-				break
-			}
-		}
-		if forfeitClosure == nil {
-			return "", fmt.Errorf("ConditionMultisigClosure not found for claim path")
-		}
-	} else {
-		// Refund path: find CLTVMultisigClosure (sweep closure)
-		for _, fc := range forfeitClosures {
-			if _, ok := fc.(*script.CLTVMultisigClosure); ok {
-				forfeitClosure = fc
-				break
-			}
-		}
-		if forfeitClosure == nil {
-			return "", fmt.Errorf("CLTVMultisigClosure not found for refund path")
-		}
-	}
-
-	// Extract locktime from forfeit closure if CLTV-based
-	vtxoLocktime := arklib.AbsoluteLocktime(0)
-	if cltv, ok := forfeitClosure.(*script.CLTVMultisigClosure); ok {
-		vtxoLocktime = cltv.Locktime
-	}
-
-	// Determine input sequence based on locktime
-	// For CLTV validation, sequence must be MaxTxInSequenceNum-1 (0xFFFFFFFE)
-	inputSequence := wire.MaxTxInSequenceNum
-	if vtxoLocktime != 0 {
-		inputSequence = wire.MaxTxInSequenceNum - 1
-	}
-
-	// Build intent inputs manually with VHTLC tapscripts
-	inputs := make([]intent.Input, 0, len(vtxos))
-	tapLeaves := make([]*arklib.TaprootMerkleProof, 0, len(vtxos))
-	arkFields := make([][]*psbt.Unknown, 0, len(vtxos))
-
-	for _, vtxo := range vtxos {
-		vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
-		if err != nil {
-			return "", fmt.Errorf("invalid vtxo txid %s: %w", vtxo.Txid, err)
-		}
-
-		// Get merkle proof for settlement path (claim or refund closure)
-		settlementTapscriptLeaf := txscript.NewBaseTapLeaf(settlementTapscript.RevealedScript)
-		merkleProof, err := vhtlcTapTree.GetTaprootMerkleProof(settlementTapscriptLeaf.TapHash())
-		if err != nil {
-			return "", fmt.Errorf("failed to get taproot merkle proof: %w", err)
-		}
-
-		// Use INTERNAL taproot key directly (NOT tweaked)
-		// This matches what arkd stores in vtxo.PubKey
-		pkScript, err := script.P2TRScript(vhtlcTapKey)
-		if err != nil {
-			return "", fmt.Errorf("failed to create P2TR script: %w", err)
-		}
-
-		// Create intent.Input with VHTLC witness utxo and locktime-aware sequence
-		inputs = append(inputs, intent.Input{
-			OutPoint: &wire.OutPoint{
-				Hash:  *vtxoTxHash,
-				Index: vtxo.VOut,
-			},
-			Sequence: inputSequence, // Use locktime-aware sequence
-			WitnessUtxo: &wire.TxOut{
-				Value:    int64(vtxo.Amount),
-				PkScript: pkScript,
-			},
-		})
-
-		// Add merkle proof for signing (exit path, not settlement path)
-		// Intent proof uses exit path to prove ownership, not reveal settlement path
-		tapLeaves = append(tapLeaves, merkleProof)
-
-		// Encode VHTLC tapscripts in custom PSBT field
-		vhtlcTapscripts := vhtlcScript.GetRevealedTapscripts()
-		taptreeField, err := txutils.VtxoTaprootTreeField.Encode(vhtlcTapscripts)
-		if err != nil {
-			return "", fmt.Errorf("failed to encode tapscripts: %w", err)
-		}
-		arkFields = append(arkFields, []*psbt.Unknown{taptreeField})
-	}
-
-	// Build receivers
-	receivers := []types.Receiver{
-		{
-			To:     destinationAddr,
-			Amount: totalAmount,
-		},
-	}
-
-	// Create intent message (RegisterMessage, not generic IntentMessage)
-	validAt := time.Now()
-	intentMessage, err := intent.RegisterMessage{
-		BaseMessage: intent.BaseMessage{
-			Type: intent.IntentMessageTypeRegister,
-		},
-		ExpireAt:            validAt.Add(5 * time.Minute).Unix(),
-		ValidAt:             validAt.Unix(),
-		CosignersPublicKeys: []string{signerSession.GetPublicKey()},
-	}.Encode()
+	// Select ConditionMultisigClosure for claim path
+	forfeitClosure, err := selectForfeitClosureFromScript(forfeitClosures, true)
 	if err != nil {
-		return "", fmt.Errorf("failed to encode intent message: %w", err)
+		return "", err
 	}
 
-	// Build outputs for intent proof
-	outputs := make([]*wire.TxOut, 0, len(receivers))
-	for _, receiver := range receivers {
-		decodedAddr, err := arklib.DecodeAddressV0(receiver.To)
-		if err != nil {
-			return "", fmt.Errorf("failed to decode receiver address: %w", err)
-		}
+	// Extract locktime and sequence (claim has no locktime)
+	vtxoLocktime, inputSequence := extractLocktimeAndSequence(forfeitClosure)
 
-		pkScript, err := script.P2TRScript(decodedAddr.VtxoTapKey)
-		if err != nil {
-			return "", fmt.Errorf("failed to create receiver pkScript: %w", err)
-		}
-
-		outputs = append(outputs, &wire.TxOut{
-			Value:    int64(receiver.Amount),
-			PkScript: pkScript,
-		})
+	// Build intent inputs with helpers
+	inputs, tapLeaves, arkFields, err := buildIntentInputs(vtxos, vhtlcScript, settlementTapscript, inputSequence)
+	if err != nil {
+		return "", err
 	}
 
-	// Build intent proof using intent.New() from arkd with locktime
-	// This creates proper BIP-322 proof with toSpend transaction as first input
+	// Create receivers
+	receivers := []types.Receiver{{To: destinationAddr, Amount: totalAmount}}
+
+	// Create intent message
+	intentMessage, err := createIntentMessage(signerSession)
+	if err != nil {
+		return "", err
+	}
+
+	// Build intent outputs
+	outputs, err := buildIntentOutputs(receivers)
+	if err != nil {
+		return "", err
+	}
+
+	// Build intent proof with locktime
 	proof, err := intent.New(intentMessage, inputs, outputs, uint32(vtxoLocktime))
 	if err != nil {
 		return "", fmt.Errorf("failed to build intent proof: %w", err)
 	}
 
-	forfeitScript, err := forfeitClosure.Script()
-	if err != nil {
-		return "", fmt.Errorf("failed to get forfeit script: %w", err)
+	// Add forfeit leaf proof
+	if err := addForfeitLeafProof(proof, vhtlcScript, forfeitClosure); err != nil {
+		return "", err
 	}
 
-	forfeitLeaf := txscript.NewBaseTapLeaf(forfeitScript)
-	leafProof, err := vhtlcTapTree.GetTaprootMerkleProof(forfeitLeaf.TapHash())
-	if err != nil {
-		return "", fmt.Errorf("failed to get forfeit merkle proof: %w", err)
-	}
-
-	if leafProof != nil {
-		proof.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{
-			{
-				ControlBlock: leafProof.ControlBlock,
-				Script:       leafProof.Script,
-				LeafVersion:  txscript.BaseLeafVersion,
-			},
-		}
-	}
-
+	// Add tap leaves and ark fields to inputs
 	for i := range inputs {
 		proof.Inputs[i+1].Unknowns = arkFields[i]
 		if tapLeaves[i] != nil {
@@ -1124,15 +654,14 @@ func (h *SwapHandler) buildVhtlcIntent(
 		}
 	}
 
-	if preimage != nil {
-		if err := txutils.SetArkPsbtField(
-			&proof.Packet, 1, txutils.ConditionWitnessField, wire.TxWitness{preimage},
-		); err != nil {
-			return "", fmt.Errorf("failed to inject preimage into intent proof: %w", err)
-		}
+	// Inject preimage for claim path validation
+	if err := txutils.SetArkPsbtField(
+		&proof.Packet, 1, txutils.ConditionWitnessField, wire.TxWitness{preimage},
+	); err != nil {
+		return "", fmt.Errorf("failed to inject preimage into intent proof: %w", err)
 	}
 
-	// Sign the proof with user's key
+	// Sign and register intent
 	encodedProof, err := proof.B64Encode()
 	if err != nil {
 		return "", fmt.Errorf("failed to encode proof for signing: %w", err)
@@ -1143,10 +672,115 @@ func (h *SwapHandler) buildVhtlcIntent(
 		return "", fmt.Errorf("failed to sign intent proof: %w", err)
 	}
 
-	// Register intent via transport client (NOT arkClient.RegisterIntent!)
-	intentID, err = h.transportClient.RegisterIntent(ctx, signedProof, intentMessage)
+	intentID, err := h.transportClient.RegisterIntent(ctx, signedProof, intentMessage)
 	if err != nil {
-		return "", fmt.Errorf("failed to register VHTLC intent: %w", err)
+		return "", fmt.Errorf("failed to register VHTLC claim intent: %w", err)
+	}
+
+	return intentID, nil
+}
+
+// buildRefundIntent builds and registers an intent for VHTLC refund path settlement.
+//
+// This function is specialized for the refund path and uses the helpers extracted
+// from buildVhtlcIntent to reduce complexity. It:
+// 1. Parses VHTLC script and selects CLTVMultisigClosure (refund forfeit)
+// 2. Extracts locktime and sequence (CLTV-based, sequence=0xFFFFFFFE)
+// 3. Builds intent inputs, message, and outputs using helpers
+// 4. Creates BIP-322 intent proof with locktime
+// 5. Adds forfeit leaf proof
+// 6. Signs and registers intent (no preimage injection)
+//
+// Cyclomatic complexity: ~4 (down from 18 in monolithic buildVhtlcIntent)
+func (h *SwapHandler) buildRefundIntent(
+	ctx context.Context,
+	vtxos []types.Vtxo,
+	vhtlcScript *vhtlc.VHTLCScript,
+	settlementTapscript *waddrmgr.Tapscript,
+	destinationAddr string,
+	totalAmount uint64,
+	signerSession tree.SignerSession,
+) (string, error) {
+	// Parse VHTLC script to extract forfeit closures
+	vtxoScript, err := script.ParseVtxoScript(vhtlcScript.GetRevealedTapscripts())
+	if err != nil {
+		return "", fmt.Errorf("failed to parse vtxo script: %w", err)
+	}
+
+	forfeitClosures := vtxoScript.ForfeitClosures()
+	if len(forfeitClosures) <= 0 {
+		return "", fmt.Errorf("no forfeit closures found")
+	}
+
+	// Select CLTVMultisigClosure for refund path
+	forfeitClosure, err := selectForfeitClosureFromScript(forfeitClosures, false)
+	if err != nil {
+		return "", err
+	}
+
+	// Extract locktime and sequence (refund has CLTV locktime)
+	vtxoLocktime, inputSequence := extractLocktimeAndSequence(forfeitClosure)
+
+	// Build intent inputs with helpers
+	inputs, tapLeaves, arkFields, err := buildIntentInputs(vtxos, vhtlcScript, settlementTapscript, inputSequence)
+	if err != nil {
+		return "", err
+	}
+
+	// Create receivers
+	receivers := []types.Receiver{{To: destinationAddr, Amount: totalAmount}}
+
+	// Create intent message
+	intentMessage, err := createIntentMessage(signerSession)
+	if err != nil {
+		return "", err
+	}
+
+	// Build intent outputs
+	outputs, err := buildIntentOutputs(receivers)
+	if err != nil {
+		return "", err
+	}
+
+	// Build intent proof with locktime
+	proof, err := intent.New(intentMessage, inputs, outputs, uint32(vtxoLocktime))
+	if err != nil {
+		return "", fmt.Errorf("failed to build intent proof: %w", err)
+	}
+
+	// Add forfeit leaf proof
+	if err := addForfeitLeafProof(proof, vhtlcScript, forfeitClosure); err != nil {
+		return "", err
+	}
+
+	// Add tap leaves and ark fields to inputs
+	for i := range inputs {
+		proof.Inputs[i+1].Unknowns = arkFields[i]
+		if tapLeaves[i] != nil {
+			proof.Inputs[i+1].TaprootLeafScript = []*psbt.TaprootTapLeafScript{
+				{
+					ControlBlock: tapLeaves[i].ControlBlock,
+					Script:       tapLeaves[i].Script,
+					LeafVersion:  txscript.BaseLeafVersion,
+				},
+			}
+		}
+	}
+
+	// Sign and register intent (no preimage for refund path)
+	encodedProof, err := proof.B64Encode()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode proof for signing: %w", err)
+	}
+
+	signedProof, err := h.arkClient.SignTransaction(ctx, encodedProof)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign intent proof: %w", err)
+	}
+
+	intentID, err := h.transportClient.RegisterIntent(ctx, signedProof, intentMessage)
+	if err != nil {
+		return "", fmt.Errorf("failed to register VHTLC refund intent: %w", err)
 	}
 
 	return intentID, nil
