@@ -23,7 +23,6 @@ import (
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
-	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/client"
 	grpcclient "github.com/arkade-os/go-sdk/client/grpc"
@@ -960,8 +959,6 @@ func (s *Service) SettleVHTLCByDelegateRefund(
 			return "", fmt.Errorf("failed to cosign intent proof: %w", err)
 		}
 
-		signerSession := tree.NewTreeSignerSession(s.privateKey)
-
 		var message intent.RegisterMessage
 		if err := message.Decode(intentMessage); err != nil {
 			return "", fmt.Errorf("failed to decode intent: %v", err)
@@ -972,12 +969,12 @@ func (s *Service) SettleVHTLCByDelegateRefund(
 			return "", fmt.Errorf("failed to register intent: %w", err)
 		}
 
-		return s.swapHandler.JoinBatchAsDelegate(
+		return s.swapHandler.SettleVHTLCByDelegateRefund(
 			ctx,
-			signerSession,
-			intentId,
 			opts,
 			partialForfeitTx,
+			intentId,
+			s.privateKey,
 		)
 	})
 }
