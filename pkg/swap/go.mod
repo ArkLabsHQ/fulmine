@@ -105,6 +105,4 @@ require (
 replace (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz => ../boltz
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc => ../vhtlc
-	github.com/arkade-os/arkd/pkg/ark-lib => /Users/dusansekulic/code/go/ark/pkg/ark-lib
-	github.com/arkade-os/go-sdk => /Users/dusansekulic/code/go/go-sdk
 )

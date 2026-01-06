@@ -601,13 +601,10 @@ func (h *SwapHandler) SettleVhtlcByRefundPath(
 }
 
 func (h *SwapHandler) SettleVHTLCByDelegateRefund(
-	ctx context.Context,
-	vhtlcOpts vhtlc.Opts,
-	partialForfeitTx string,
-	intentId string,
-	privateKey *btcec.PrivateKey,
+	ctx context.Context, vhtlcOpts vhtlc.Opts,
+	partialForfeitTx, intentId string, signerSession tree.SignerSession,
 ) (string, error) {
-	session, err := h.setupSettlementSession(ctx, vhtlcOpts, privateKey)
+	session, err := h.setupSettlementSession(ctx, vhtlcOpts, &signerSession)
 	if err != nil {
 		return "", err
 	}
@@ -921,12 +918,10 @@ func (h *SwapHandler) getVHTLCFunds(
 }
 
 func (h *SwapHandler) getVHTLC(
-	ctx context.Context,
-	receiverPubkey, senderPubkey *btcec.PublicKey,
-	preimageHash []byte,
+	_ context.Context,
+	receiverPubkey, senderPubkey *btcec.PublicKey, preimageHash []byte,
 	refundLocktime arklib.AbsoluteLocktime,
-	unilateralClaimDelay arklib.RelativeLocktime,
-	unilateralRefundDelay arklib.RelativeLocktime,
+	unilateralClaimDelay, unilateralRefundDelay, 
 	unilateralRefundWithoutReceiverDelay arklib.RelativeLocktime,
 ) (string, *vhtlc.VHTLCScript, *vhtlc.Opts, error) {
 	receiverPubkeySet := receiverPubkey != nil
@@ -1056,10 +1051,9 @@ func (h *SwapHandler) collaborativeRefund(
 }
 
 // setupSettlementSession performs the common setup operations for both claim and refund settlement paths.
+// if signerSession is nil
 func (h *SwapHandler) setupSettlementSession(
-	ctx context.Context,
-	vhtlcOpts vhtlc.Opts,
-	privateKey *btcec.PrivateKey,
+	ctx context.Context, vhtlcOpts vhtlc.Opts, signerSession *tree.SignerSession,
 ) (*settlementSession, error) {
 	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
 	if err != nil {
@@ -1082,16 +1076,15 @@ func (h *SwapHandler) setupSettlementSession(
 		return nil, fmt.Errorf("failed to get offchain address: %w", err)
 	}
 
-	pk := privateKey
-	if privateKey == nil {
+	if signerSession == nil {
 		ephemeralKey, err := btcec.NewPrivateKey()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create ephemeral key: %w", err)
 		}
 
-		pk = ephemeralKey
+		ephemeralSignerSession := tree.NewTreeSignerSession(ephemeralKey)
+		signerSession = &ephemeralSignerSession
 	}
-	signerSession := tree.NewTreeSignerSession(pk)
 
 	vtxoTapscripts := []client.TapscriptsVtxo{
 		{
@@ -1105,7 +1098,7 @@ func (h *SwapHandler) setupSettlementSession(
 		vtxos:           vtxos,
 		totalAmount:     totalAmount,
 		destinationAddr: myAddr,
-		signerSession:   signerSession,
+		signerSession:   *signerSession,
 		vtxoTapscripts:  vtxoTapscripts,
 	}, nil
 }

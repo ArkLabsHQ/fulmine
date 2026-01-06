@@ -423,8 +423,7 @@ func NewDelegateRefundBatchHandler(
 }
 
 func (h *DelegateRefundBatchHandler) OnBatchFinalization(
-	ctx context.Context,
-	event client.BatchFinalizationEvent,
+	ctx context.Context, event client.BatchFinalizationEvent,
 	vtxoTree, connectorTree *tree.TxTree,
 ) error {
 	log.Debug("completing delegate refund forfeit...")
@@ -514,9 +513,7 @@ func getBatchExpiryLocktime(batchExpiry uint32) arklib.RelativeLocktime {
 }
 
 func (h *SwapHandler) buildClaimIntent(
-	ctx context.Context,
-	session *settlementSession,
-	preimage []byte,
+	ctx context.Context, session *settlementSession, preimage []byte,
 ) (string, error) {
 	vtxoScript, err := script.ParseVtxoScript(session.vhtlcScript.GetRevealedTapscripts())
 	if err != nil {
@@ -559,10 +556,11 @@ func (h *SwapHandler) buildClaimIntent(
 		return "", err
 	}
 
-	proof, err := intent.New(intentMessage, inputs, outputs, uint32(vtxoLocktime))
+	proof, err := intent.New(intentMessage, inputs, outputs)
 	if err != nil {
 		return "", fmt.Errorf("failed to build intent proof: %w", err)
 	}
+	proof.UnsignedTx.LockTime = uint32(vtxoLocktime)
 
 	if err := addForfeitLeafProof(proof, session.vhtlcScript, forfeitClosure); err != nil {
 		return "", err
@@ -606,8 +604,7 @@ func (h *SwapHandler) buildClaimIntent(
 }
 
 func (h *SwapHandler) buildRefundIntent(
-	ctx context.Context,
-	session *settlementSession,
+	ctx context.Context, session *settlementSession,
 ) (string, error) {
 	vtxoScript, err := script.ParseVtxoScript(session.vhtlcScript.GetRevealedTapscripts())
 	if err != nil {
@@ -650,10 +647,11 @@ func (h *SwapHandler) buildRefundIntent(
 		return "", err
 	}
 
-	proof, err := intent.New(intentMessage, inputs, outputs, uint32(vtxoLocktime))
+	proof, err := intent.New(intentMessage, inputs, outputs)
 	if err != nil {
 		return "", fmt.Errorf("failed to build intent proof: %w", err)
 	}
+	proof.UnsignedTx.LockTime = uint32(vtxoLocktime)
 
 	if err := addForfeitLeafProof(proof, session.vhtlcScript, forfeitClosure); err != nil {
 		return "", err

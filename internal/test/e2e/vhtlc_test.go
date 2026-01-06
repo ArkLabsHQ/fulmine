@@ -115,7 +115,7 @@ func TestClaimVhtlcSettlement(t *testing.T) {
 	// Get initial balance
 	balanceBefore, err := f.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
-	t.Logf("Initial balance: %d sats", balanceBefore.GetAmount())
+	require.NotNil(t, balanceBefore)
 
 	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
 	require.NoError(t, err)
@@ -144,7 +144,6 @@ func TestClaimVhtlcSettlement(t *testing.T) {
 	}
 	vhtlc, err := f.CreateVHTLC(ctx, req)
 	require.NoError(t, err)
-	t.Logf("Created VHTLC: id=%s, address=%s", vhtlc.Id, vhtlc.Address)
 
 	fundAmount := uint64(1000)
 	sendResp, err := f.SendOffChain(ctx, &pb.SendOffChainRequest{
@@ -152,14 +151,14 @@ func TestClaimVhtlcSettlement(t *testing.T) {
 		Amount:  fundAmount,
 	})
 	require.NoError(t, err)
-	t.Logf("Funded VHTLC with %d sats, txid: %s", fundAmount, sendResp.GetTxid())
+	require.NotNil(t, sendResp)
 
 	// Verify VHTLC has funds
 	vhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
 	require.NoError(t, err)
-	t.Logf("VHTLC has %d sats", vhtlcs.GetVhtlcs()[0].GetAmount())
+	require.Len(t, vhtlcs.Vhtlcs, 1)
 
-	t.Log("Claiming VHTLC with preimage via SettleVHTLC RPC...")
+	// claim VHTLC
 	settleResp, err := f.SettleVHTLC(ctx, &pb.SettleVHTLCRequest{
 		VhtlcId: vhtlc.Id,
 		SettlementType: &pb.SettleVHTLCRequest_Claim{
@@ -169,14 +168,14 @@ func TestClaimVhtlcSettlement(t *testing.T) {
 		},
 	})
 	require.NoError(t, err, "SettleVHTLC with claim path should succeed")
-	t.Logf("Claim successful: txid=%s", settleResp.GetTxid())
+	require.NotNil(t, settleResp)
 
 	time.Sleep(1 * time.Second)
 
 	// Verify balance changed appropriately
 	balanceAfter, err := f.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
-	t.Logf("Final balance: %d sats", balanceAfter.GetAmount())
+	require.Equal(t, balanceBefore.Amount, balanceAfter.Amount)
 }
 
 // TestRefundVhtlcSettlement tests the VHTLC refund path integration, this can be used by Boltz Fulmine when
@@ -189,7 +188,6 @@ func TestRefundVhtlcSettlement(t *testing.T) {
 
 	balanceBefore, err := fulmineClient.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
-	t.Logf("Initial balance: %d sats", balanceBefore.GetAmount())
 
 	info, err := fulmineClient.GetInfo(ctx, &pb.GetInfoRequest{})
 	require.NoError(t, err)
@@ -233,12 +231,12 @@ func TestRefundVhtlcSettlement(t *testing.T) {
 		Amount:  fundAmount,
 	})
 	require.NoError(t, err)
-	t.Logf("Funded VHTLC with %d sats, txid: %s", fundAmount, sendResp.GetTxid())
+	require.NotNil(t, sendResp)
 
 	// Verify VHTLC has funds
 	vhtlcs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
 	require.NoError(t, err)
-	t.Logf("VHTLC has %d sats", vhtlcs.GetVhtlcs()[0].GetAmount())
+	require.Len(t, vhtlcs.Vhtlcs, 1)
 
 	settleResp, err := fulmineClient.SettleVHTLC(ctx, &pb.SettleVHTLCRequest{
 		VhtlcId: vhtlc.Id,
@@ -247,7 +245,7 @@ func TestRefundVhtlcSettlement(t *testing.T) {
 		},
 	})
 	require.NoError(t, err, "SettleVHTLC with refund path should succeed")
-	t.Logf("Refund successful: txid=%s", settleResp.GetTxid())
+	require.NotNil(t, settleResp)
 
 	time.Sleep(2 * time.Second)
 
@@ -255,7 +253,7 @@ func TestRefundVhtlcSettlement(t *testing.T) {
 	balanceAfter, err := fulmineClient.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, balanceAfter)
-	t.Logf("Final balance: %d sats", balanceAfter.GetAmount())
+	require.Equal(t, balanceBefore.Amount, balanceAfter.Amount)
 }
 
 // TestSettleVHTLCByDelegateRefund tests the VHTLC delegate refund flow which is applicable in SWAP
@@ -289,6 +287,8 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 	err = faucet(ctx, strings.TrimSpace(boarding[0]), 0.001)
 	require.NoError(t, err)
 
+	time.Sleep(5 * time.Second)
+
 	_, err = senderArkClient.Settle(ctx)
 	require.NoError(t, err)
 
@@ -319,7 +319,6 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 
 	senderBalance, err := senderArkClient.Balance(ctx)
 	require.NoError(t, err)
-	t.Logf("Sender Balance: %d", senderBalance.OffchainBalance.Total)
 	senderOffchainBalanceInit := senderBalance.OffchainBalance.Total
 
 	_, err = senderArkClient.SendOffChain(ctx, []types.Receiver{
@@ -334,11 +333,9 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 	require.NoError(t, err)
 
 	vhtlcVtxo := vhtlcs.GetVhtlcs()[0]
-	t.Logf("funded VHTLC address with: %d", vhtlcVtxo.Amount)
 
 	senderBalance, err = senderArkClient.Balance(ctx)
 	require.NoError(t, err)
-	t.Logf("Sender Balance after sending to VHTLC address: %d", senderBalance.OffchainBalance.Total)
 
 	validAt := time.Now()
 	intentMessage, err := intent.RegisterMessage{
@@ -401,7 +398,6 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	t.Log("Calling SettleVHTLC with delegate parameters...")
 	settleResp, err := fulmineClient.SettleVHTLC(ctx, &pb.SettleVHTLCRequest{
 		VhtlcId: vhtlcAddrInfo.GetId(),
 		SettlementType: &pb.SettleVHTLCRequest_Refund{
@@ -415,14 +411,13 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	t.Logf("Delegate refund successful: txid=%s", settleResp.GetTxid())
+	require.NotNil(t, settleResp)
 
 	time.Sleep(2 * time.Second)
 
 	senderBalance, err = senderArkClient.Balance(ctx)
 	require.NoError(t, err)
 	require.Equal(t, senderOffchainBalanceInit, senderBalance.OffchainBalance.Total)
-	t.Logf("Sender Balance after delegate refund: %d", senderBalance.OffchainBalance.Total)
 }
 
 func buildDelegateIntentProof(
@@ -471,7 +466,6 @@ func buildDelegateIntentProof(
 				PkScript: senderPkScript,
 			},
 		},
-		0,
 	)
 	require.NoError(t, err)
 

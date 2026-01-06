@@ -23,6 +23,7 @@ import (
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
+	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/client"
 	grpcclient "github.com/arkade-os/go-sdk/client/grpc"
@@ -954,7 +955,7 @@ func (s *Service) SettleVHTLCByDelegateRefund(
 	partialForfeitTx string,
 ) (string, error) {
 	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
-		cosignedIntentProof, err := s.ArkClient.SignTransaction(ctx, signedIntentProof)
+		cosignedIntentProof, err := s.SignTransaction(ctx, signedIntentProof)
 		if err != nil {
 			return "", fmt.Errorf("failed to cosign intent proof: %w", err)
 		}
@@ -969,12 +970,14 @@ func (s *Service) SettleVHTLCByDelegateRefund(
 			return "", fmt.Errorf("failed to register intent: %w", err)
 		}
 
+		delegatorSignerSession := tree.NewTreeSignerSession(s.privateKey)
+
 		return s.swapHandler.SettleVHTLCByDelegateRefund(
 			ctx,
 			opts,
 			partialForfeitTx,
 			intentId,
-			s.privateKey,
+			delegatorSignerSession,
 		)
 	})
 }
