@@ -228,9 +228,7 @@ func (h *ClaimBatchHandler) OnBatchFinalization(
 }
 
 func (h *BaseBatchHandler) createAndSignForfeits(
-	ctx context.Context,
-	connectorsLeaves []*psbt.Packet,
-	builder forfeitBuilder,
+	ctx context.Context, connectorsLeaves []*psbt.Packet, builder forfeitBuilder,
 ) ([]string, error) {
 	parsedForfeitAddr, err := btcutil.DecodeAddress(h.config.ForfeitAddress, nil)
 	if err != nil {
@@ -240,6 +238,10 @@ func (h *BaseBatchHandler) createAndSignForfeits(
 	forfeitPkScript, err := txscript.PayToAddrScript(parsedForfeitAddr)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(connectorsLeaves) < len(h.vtxos) {
+		return nil, fmt.Errorf("insufficient connectors: got %d, need %d", len(connectorsLeaves), len(h.vtxos))
 	}
 
 	signedForfeitTxs := make([]string, 0, len(h.vtxos))

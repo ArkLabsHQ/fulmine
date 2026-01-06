@@ -1066,6 +1066,10 @@ func (h *SwapHandler) setupSettlementSession(
 		return nil, fmt.Errorf("failed to query VTXOs: %w", err)
 	}
 
+	if len(vtxos) == 0 {
+		return nil, ErrorNoVtxosFound
+	}
+
 	var totalAmount uint64
 	for _, vtxo := range vtxos {
 		totalAmount += vtxo.Amount
