@@ -243,6 +243,9 @@ func (h *BaseBatchHandler) createAndSignForfeits(
 	if len(connectorsLeaves) < len(h.vtxos) {
 		return nil, fmt.Errorf("insufficient connectors: got %d, need %d", len(connectorsLeaves), len(h.vtxos))
 	}
+	if len(h.vhtlcScripts) < len(h.vtxos) {
+		return nil, fmt.Errorf("insufficient vhtlc scripts: got %d, need %d", len(h.vhtlcScripts), len(h.vtxos))
+	}
 
 	signedForfeitTxs := make([]string, 0, len(h.vtxos))
 	for i, vtxo := range h.vtxos {
