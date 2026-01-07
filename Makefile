@@ -1,8 +1,13 @@
-.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-cln test vet proto proto-lint setup-arkd down-test-env
+.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-mutinynet run-2 run-cln test test-vhtlc vet proto proto-lint up-test-env setup-arkd down-test-env
 
 GOLANGCI_LINT ?= $(shell \
 	echo "docker run --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v2.5.0 golangci-lint"; \
 )
+
+define setup_env
+    $(eval include $(1))
+    $(eval export)
+endef
 
 build-static-assets: build-templates
 	@echo "Generating static assets..."
@@ -46,29 +51,15 @@ lint:
 
 ## run: run in dev mode
 run: clean build-static-assets
-	@echo "Running fulmine in dev mode..."
-	@export FULMINE_DATADIR=./datadir; \
-	export FULMINE_NO_MACAROONS=true; \
-	export FULMINE_LOG_LEVEL=5; \
-	export FULMINE_SCHEDULER_POLL_INTERVAL=10; \
-	export FULMINE_DISABLE_TELEMETRY=true; \
-	export FULMINE_SWAP_TIMEOUT=15; \
-	export FULMINE_BOLTZ_URL=http://localhost:9001; \
-    export FULMINE_BOLTZ_WS_URL=ws://localhost:9004; \
+	$(call setup_env, envs/dev.env)
 	go run ./cmd/fulmine
 
 run-2: clean build-static-assets
-	@echo "Running fulmine in dev mode with CLN support..."
-	@export FULMINE_DATADIR=./datadir-2; \
-	export FULMINE_NO_MACAROONS=true; \
-	export FULMINE_LOG_LEVEL=5; \
-	export FULMINE_SCHEDULER_POLL_INTERVAL=10; \
-	export FULMINE_DISABLE_TELEMETRY=true; \
-	export FULMINE_SWAP_TIMEOUT=15; \
-	export FULMINE_BOLTZ_URL=http://localhost:9001; \
-    export FULMINE_BOLTZ_WS_URL=ws://localhost:9004; \
-	export FULMINE_GRPC_PORT=7008; \
-	export FULMINE_HTTP_PORT=7009; \
+	$(call setup_env, envs/dev.2.env)
+	go run ./cmd/fulmine
+
+run-mutinynet: clean build-static-assets
+	$(call setup_env, envs/mutinynet.env)
 	go run ./cmd/fulmine
 
 ## test: runs all tests
