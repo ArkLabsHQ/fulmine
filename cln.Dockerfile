@@ -1,5 +1,5 @@
 # Taken from a Boltz Repository https://github.com/BoltzExchange/boltz-backend/blob/master/docker/c-lightning/Dockerfile
-ARG VERSION=latest
+ARG VERSION=25.09.3
 
 FROM ubuntu:22.04 AS build
 

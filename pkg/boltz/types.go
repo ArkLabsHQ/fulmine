@@ -93,9 +93,50 @@ type RevealPreimageResponse struct {
 
 type RefundSwapRequest struct {
 	Transaction string `json:"transaction"`
+	Checkpoint  string `json:"checkpoint"`
 }
 
 type RefundSwapResponse struct {
 	Transaction string `json:"transaction"`
+	Checkpoint  string `json:"checkpoint"`
 	Error       string `json:"error"`
+}
+
+type TransactionRef struct {
+	ID   string `json:"id"`
+	Vout int    `json:"vout"`
+}
+
+type Leaf struct {
+	Version int    `json:"version"`
+	Output  string `json:"output"`
+}
+
+type Tree struct {
+	ClaimLeaf                       Leaf `json:"claimLeaf"`
+	RefundLeaf                      Leaf `json:"refundLeaf"`
+	RefundLeafWithoutReceiver       Leaf `json:"refundWithoutBoltzLeaf"`
+	UnilateralClaimLeaf             Leaf `json:"unilateralClaimLeaf"`
+	UnilateralRefundLeaf            Leaf `json:"unilateralRefundLeaf"`
+	UnilateralRefundWithoutReceiver Leaf `json:"unilateralRefundWithoutBoltzLeaf"`
+}
+
+type SwapDetails struct {
+	Tree               Tree           `json:"tree"`
+	Amount             uint64         `json:"amount"`
+	Transaction        TransactionRef `json:"transaction,omitempty"`
+	LockupAddress      string         `json:"lockupAddress"`
+	TimeoutBlockHeight uint32         `json:"timeoutBlockHeight"`
+}
+
+type Swap struct {
+	Id            string       `json:"id"`
+	Type          string       `json:"type"`
+	Status        string       `json:"status"`
+	From          Currency     `json:"from"`
+	To            Currency     `json:"to"`
+	CreatedAt     uint32       `json:"createdAt"`
+	PreimageHash  string       `json:"preimageHash"`
+	ClaimDetails  *SwapDetails `json:"claimDetails,omitempty"`
+	RefundDetails *SwapDetails `json:"refundDetails,omitempty"`
 }

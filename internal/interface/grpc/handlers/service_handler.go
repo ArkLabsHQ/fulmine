@@ -54,6 +54,10 @@ func (h *serviceHandler) GetInfo(
 		return nil, err
 	}
 
+	if h.svc.IsLocked(ctx) {
+		return nil, status.Error(codes.FailedPrecondition, "wallet is locked")
+	}
+
 	_, _, _, _, pubkey, err := h.svc.GetAddress(ctx, 0)
 	if err != nil {
 		return nil, err
@@ -175,7 +179,7 @@ func (h *serviceHandler) SendOffChain(
 	receivers := []types.Receiver{{To: address, Amount: amount}}
 	var arkTxid string
 	for range 3 {
-		arkTxid, err = h.svc.SendOffChain(ctx, false, receivers)
+		arkTxid, err = h.svc.SendOffChain(ctx, receivers)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
 				continue
@@ -307,7 +311,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
 	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
 
-	addr, vhtlc_id, vhtlcScript, _, err := h.svc.GetVHTLC(
+	addr, vhtlc_id, vhtlcScript, err := h.svc.GetSwapVHTLC(
 		ctx,
 		receiverPubkey,
 		senderPubkey,

@@ -1,4 +1,4 @@
-.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-mutinynet run-2 test test-vhtlc vet proto proto-lint up-test-env setup-arkd down-test-env
+.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-mutinynet run-2 run-cln test test-vhtlc vet proto proto-lint up-test-env setup-arkd down-test-env
 
 GOLANGCI_LINT ?= $(shell \
 	echo "docker run --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v2.5.0 golangci-lint"; \
@@ -66,11 +66,7 @@ run-mutinynet: clean build-static-assets
 test:
 	@echo "Running all tests..."
 	@go test -v -race --count=1 $(shell go list ./... | grep -v *internal/test/e2e*)
-
-## test-vhtlc: runs tests for the VHTLC package
-test-vhtlc:
-	@echo "Running VHTLC tests..."
-	@cd pkg/vhtlc && go test -v
+	@find ./pkg -name go.mod -execdir go test -v ./... \;
 
 ## vet: code analysis
 vet:
@@ -87,29 +83,27 @@ proto-lint:
 	@echo "Linting protos..."
 	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace bufbuild/buf lint --exclude-path ./api-spec/protobuf/cln
 
-build-test-env:
+pull-test-env:
+	@echo "Updating test env images..."
+	@docker compose -f test.docker-compose.yml pull
+
+build-test-env: pull-test-env
 	@echo "Building test environment..."
 	@docker compose -f test.docker-compose.yml build --no-cache
 
-## up-test-env: starts test environment
-up-test-env:
-	@echo "Starting test environment..."
-	@docker compose -f test.docker-compose.yml up -d
-
 ## setup-arkd: sets up the ARK server
 setup-test-env:
-	@go run ./internal/test/e2e/setup/arkd/setup_ark.go
-	@go run ./internal/test/e2e/setup/fulmine/setup_fulmine.go
+	@bash ./scripts/setup
 
 ## down-test-env: stops test environment
 down-test-env:
 	@echo "Stopping test environment..."
-	@docker compose -f test.docker-compose.yml down
+	@docker compose -f test.docker-compose.yml down -v
 
 ## integrationtest: runs e2e tests
 integrationtest:
 	@echo "Running e2e tests..."
-	@go test -v -count=1 -race -p=1 ./internal/test/e2e/...
+	@go test -v -count=1 -timeout=20m -race -p=1 ./internal/test/e2e/...
 
 # --- SQLite and SQLC commands ---
 

@@ -122,7 +122,8 @@ func main() {
 
 	appSvc, err := application.NewService(
 		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc,
-		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout, cfg.LnConnectionOpts,
+		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout,
+		cfg.LnConnectionOpts, cfg.RefreshDbInterval,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init application service")
@@ -130,6 +131,7 @@ func main() {
 
 	svc, err := grpcservice.NewService(
 		svcConfig, appSvc, cfg.UnlockerService(), sentryEnabled, cfg.MacaroonSvc(), cfg.ArkServer,
+		cfg.OtelCollectorURL, cfg.OtelPushInterval, cfg.PyroscopeURL,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init interface service")

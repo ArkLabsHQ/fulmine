@@ -6,7 +6,7 @@ COPY internal/interface/web .
 RUN rm -rf .parcel-cache && yarn && yarn build
 
 # Build the Go application
-FROM golang:1.25.3 AS go-builder
+FROM golang:1.25.5 AS go-builder
 
 ARG VERSION
 ARG COMMIT

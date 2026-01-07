@@ -18,7 +18,7 @@ jobs:
       
       - uses: actions/setup-go@v6
         with:
-          go-version: '>=1.25.3'
+          go-version: '>=1.25.5'
           cache: true
       
       # Run linting with the original working configuration
@@ -32,9 +32,6 @@ jobs:
       
       - name: Run main tests
         run: make test
-
-      - name: Run VHTLC tests
-        run: cd pkg/vhtlc && go test -v -count=1 -race
 
       # Security check with minimal output
       - name: Security Check
