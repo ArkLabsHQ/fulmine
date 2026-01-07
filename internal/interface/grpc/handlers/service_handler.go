@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"time"
 
@@ -10,7 +11,9 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/utils"
+	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	"github.com/arkade-os/go-sdk/types"
+	"github.com/btcsuite/btcd/btcutil/psbt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -227,7 +230,9 @@ func (h *serviceHandler) SignTransaction(
 	return &pb.SignTransactionResponse{SignedTx: signedTx}, nil
 }
 
-func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCRequest) (*pb.ClaimVHTLCResponse, error) {
+func (h *serviceHandler) ClaimVHTLC(
+	ctx context.Context, req *pb.ClaimVHTLCRequest,
+) (*pb.ClaimVHTLCResponse, error) {
 	preimage := req.GetPreimage()
 	if len(preimage) <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "missing preimage")
@@ -251,7 +256,9 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 	return &pb.ClaimVHTLCResponse{RedeemTxid: redeemTxid}, nil
 }
 
-func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb.RefundVHTLCWithoutReceiverRequest) (*pb.RefundVHTLCWithoutReceiverResponse, error) {
+func (h *serviceHandler) RefundVHTLCWithoutReceiver(
+	ctx context.Context, req *pb.RefundVHTLCWithoutReceiverRequest,
+) (*pb.RefundVHTLCWithoutReceiverResponse, error) {
 	vhtlcId := req.GetVhtlcId()
 	if vhtlcId == "" {
 		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
@@ -267,7 +274,9 @@ func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb
 	return &pb.RefundVHTLCWithoutReceiverResponse{RedeemTxid: redeemTxid}, nil
 }
 
-func (h *serviceHandler) SettleVHTLC(ctx context.Context, req *pb.SettleVHTLCRequest) (*pb.SettleVHTLCResponse, error) {
+func (h *serviceHandler) SettleVHTLC(
+	ctx context.Context, req *pb.SettleVHTLCRequest,
+) (*pb.SettleVHTLCResponse, error) {
 	vhtlcId := req.GetVhtlcId()
 	if vhtlcId == "" {
 		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
@@ -276,7 +285,7 @@ func (h *serviceHandler) SettleVHTLC(ctx context.Context, req *pb.SettleVHTLCReq
 	var txid string
 	var err error
 
-	switch settlement := req.SettlementType.(type) {
+	switch settlement := req.GetSettlementType().(type) {
 	case *pb.SettleVHTLCRequest_Claim:
 		preimage := settlement.Claim.GetPreimage()
 		if len(preimage) == 0 {
@@ -285,37 +294,52 @@ func (h *serviceHandler) SettleVHTLC(ctx context.Context, req *pb.SettleVHTLCReq
 
 		preimageBytes, err := hex.DecodeString(preimage)
 		if err != nil {
-			return nil, status.Error(codes.InvalidArgument, "invalid preimage: "+err.Error())
+			return nil, status.Error(
+				codes.InvalidArgument, fmt.Sprintf("invalid preimage: %v", err),
+			)
 		}
 
-		txid, err = h.svc.SettleVhtlcByClaimPath(ctx, vhtlcId, preimageBytes)
+		txid, err = h.svc.SettleVHTLCWithClaimPath(ctx, vhtlcId, preimageBytes)
 		if err != nil {
 			return nil, err
 		}
-
 	case *pb.SettleVHTLCRequest_Refund:
 		refund := settlement.Refund
 
-		if refund.DelegateParams != nil {
-			txid, err = h.svc.SettleVHTLCByDelegateRefund(
-				ctx,
-				vhtlcId,
-				refund.DelegateParams.SignedIntentProof,
-				refund.DelegateParams.IntentMessage,
-				refund.DelegateParams.PartialForfeitTx,
+		if params := refund.GetDelegateParams(); params != nil {
+			message := params.GetIntentMessage()
+			proof := params.GetSignedIntentProof()
+			forfeitTx := params.GetPartialForfeitTx()
+
+			var buf intent.RegisterMessage
+			if err := buf.Decode(params.GetIntentMessage()); err != nil {
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
+			if _, err := psbt.NewFromRawBytes(strings.NewReader(proof), true); err != nil {
+				return nil, status.Error(
+					codes.InvalidArgument, fmt.Sprintf("invalid signed intent proof: %v", err),
+				)
+			}
+			if _, err := psbt.NewFromRawBytes(strings.NewReader(forfeitTx), true); err != nil {
+				return nil, status.Error(
+					codes.InvalidArgument, fmt.Sprintf("invalid forfeit tx: %v", err),
+				)
+			}
+
+			txid, err = h.svc.SettleVHTLCWithCollaborativeRefundPath(
+				ctx, vhtlcId, proof, message, forfeitTx,
 			)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			txid, err = h.svc.SettleVhtlcByRefundPath(ctx, vhtlcId)
+			txid, err = h.svc.SettleVHTLCWithRefundPath(ctx, vhtlcId)
 			if err != nil {
 				return nil, err
 			}
 		}
-
 	default:
-		return nil, status.Error(codes.InvalidArgument, "settlement_type must be either claim or refund")
+		return nil, status.Error(codes.InvalidArgument, "unknown settlement_type")
 	}
 
 	return &pb.SettleVHTLCResponse{Txid: txid}, nil

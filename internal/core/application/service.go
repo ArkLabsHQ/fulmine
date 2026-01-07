@@ -21,7 +21,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
-	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	arksdk "github.com/arkade-os/go-sdk"
@@ -931,53 +930,33 @@ func (s *Service) RefundVHTLC(
 	})
 }
 
-// SettleVhtlcByClaimPath settles a VHTLC via claim path (revealing preimage) in a batch session.
-func (s *Service) SettleVhtlcByClaimPath(ctx context.Context, vhtlcId string, preimage []byte) (string, error) {
-	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
-		return s.swapHandler.SettleVhtlcByClaimPath(ctx, opts, preimage)
-	})
-}
-
-// SettleVhtlcByRefundPath settles a VHTLC via refund path in a batch session.
-func (s *Service) SettleVhtlcByRefundPath(ctx context.Context, vhtlcId string) (string, error) {
-	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
-		return s.swapHandler.SettleVhtlcByRefundPath(ctx, opts)
-	})
-}
-
-// SettleVHTLCByDelegateRefund settles a VHTLC via delegate refund path.
-// The counterparty creates the intent and partial forfeit, and Fulmine acts as delegate to complete the batch session.
-func (s *Service) SettleVHTLCByDelegateRefund(
-	ctx context.Context,
-	vhtlcId string,
-	signedIntentProof string,
-	intentMessage string,
-	partialForfeitTx string,
+// SettleVHTLCWithClaimPath settles a VHTLC via claim path (revealing preimage) in a batch session.
+func (s *Service) SettleVHTLCWithClaimPath(
+	ctx context.Context, vhtlcId string, preimage []byte,
 ) (string, error) {
 	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
-		cosignedIntentProof, err := s.SignTransaction(ctx, signedIntentProof)
-		if err != nil {
-			return "", fmt.Errorf("failed to cosign intent proof: %w", err)
-		}
+		return s.swapHandler.SettleVHTLCWithClaimPath(ctx, opts, preimage)
+	})
+}
 
-		var message intent.RegisterMessage
-		if err := message.Decode(intentMessage); err != nil {
-			return "", fmt.Errorf("failed to decode intent: %v", err)
-		}
+// SettleVHTLCWithRefundPath settles a VHTLC via refund path in a batch session.
+func (s *Service) SettleVHTLCWithRefundPath(ctx context.Context, vhtlcId string) (string, error) {
+	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
+		return s.swapHandler.SettleVhtlcWithRefundPath(ctx, opts)
+	})
+}
 
-		intentId, err := s.grpcClient.RegisterIntent(ctx, cosignedIntentProof, intentMessage)
-		if err != nil {
-			return "", fmt.Errorf("failed to register intent: %w", err)
-		}
+// SettleVHTLCWithCollaborativeRefundPath settles a VHTLC via delegate refund path.
+// The counterparty creates the intent and partial forfeit, and Fulmine acts as delegate to
+// complete the batch session.
+func (s *Service) SettleVHTLCWithCollaborativeRefundPath(
+	ctx context.Context, vhtlcId, intentProof, intentMessage, partialForfeitTx string,
+) (string, error) {
+	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
 
 		delegatorSignerSession := tree.NewTreeSignerSession(s.privateKey)
-
-		return s.swapHandler.SettleVHTLCByDelegateRefund(
-			ctx,
-			opts,
-			partialForfeitTx,
-			intentId,
-			delegatorSignerSession,
+		return s.swapHandler.SettleVHTLCWithCollaborativeRefundPath(
+			ctx, opts, partialForfeitTx, intentProof, intentMessage, delegatorSignerSession,
 		)
 	})
 }
@@ -1410,8 +1389,9 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 //  3. Executes the action with the fetched VHTLC opts
 //
 // Returns the result from the action function.
-func (s *Service) withVhtlc(ctx context.Context, vhtlcId string,
-	action func(vhtlc.Opts) (string, error)) (string, error) {
+func (s *Service) withVhtlc(
+	ctx context.Context, vhtlcId string, action func(vhtlc.Opts) (string, error),
+) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
 	}
