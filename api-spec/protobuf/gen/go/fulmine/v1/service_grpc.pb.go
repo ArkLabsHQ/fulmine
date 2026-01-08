@@ -33,6 +33,7 @@ const (
 	Service_CreateVHTLC_FullMethodName                = "/fulmine.v1.Service/CreateVHTLC"
 	Service_ClaimVHTLC_FullMethodName                 = "/fulmine.v1.Service/ClaimVHTLC"
 	Service_RefundVHTLCWithoutReceiver_FullMethodName = "/fulmine.v1.Service/RefundVHTLCWithoutReceiver"
+	Service_SettleVHTLC_FullMethodName                = "/fulmine.v1.Service/SettleVHTLC"
 	Service_ListVHTLC_FullMethodName                  = "/fulmine.v1.Service/ListVHTLC"
 	Service_GetInvoice_FullMethodName                 = "/fulmine.v1.Service/GetInvoice"
 	Service_PayInvoice_FullMethodName                 = "/fulmine.v1.Service/PayInvoice"
@@ -74,6 +75,7 @@ type ServiceClient interface {
 	// ClaimVHTLC = self send vHTLC -> VTXO
 	ClaimVHTLC(ctx context.Context, in *ClaimVHTLCRequest, opts ...grpc.CallOption) (*ClaimVHTLCResponse, error)
 	RefundVHTLCWithoutReceiver(ctx context.Context, in *RefundVHTLCWithoutReceiverRequest, opts ...grpc.CallOption) (*RefundVHTLCWithoutReceiverResponse, error)
+	SettleVHTLC(ctx context.Context, in *SettleVHTLCRequest, opts ...grpc.CallOption) (*SettleVHTLCResponse, error)
 	// ListVHTLC = list all vhtlc OR filter by vhtlc_id
 	ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opts ...grpc.CallOption) (*ListVHTLCResponse, error)
 	GetInvoice(ctx context.Context, in *GetInvoiceRequest, opts ...grpc.CallOption) (*GetInvoiceResponse, error)
@@ -239,6 +241,16 @@ func (c *serviceClient) RefundVHTLCWithoutReceiver(ctx context.Context, in *Refu
 	return out, nil
 }
 
+func (c *serviceClient) SettleVHTLC(ctx context.Context, in *SettleVHTLCRequest, opts ...grpc.CallOption) (*SettleVHTLCResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SettleVHTLCResponse)
+	err := c.cc.Invoke(ctx, Service_SettleVHTLC_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *serviceClient) ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opts ...grpc.CallOption) (*ListVHTLCResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListVHTLCResponse)
@@ -359,6 +371,7 @@ type ServiceServer interface {
 	// ClaimVHTLC = self send vHTLC -> VTXO
 	ClaimVHTLC(context.Context, *ClaimVHTLCRequest) (*ClaimVHTLCResponse, error)
 	RefundVHTLCWithoutReceiver(context.Context, *RefundVHTLCWithoutReceiverRequest) (*RefundVHTLCWithoutReceiverResponse, error)
+	SettleVHTLC(context.Context, *SettleVHTLCRequest) (*SettleVHTLCResponse, error)
 	// ListVHTLC = list all vhtlc OR filter by vhtlc_id
 	ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error)
 	GetInvoice(context.Context, *GetInvoiceRequest) (*GetInvoiceResponse, error)
@@ -421,6 +434,9 @@ func (UnimplementedServiceServer) ClaimVHTLC(context.Context, *ClaimVHTLCRequest
 }
 func (UnimplementedServiceServer) RefundVHTLCWithoutReceiver(context.Context, *RefundVHTLCWithoutReceiverRequest) (*RefundVHTLCWithoutReceiverResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RefundVHTLCWithoutReceiver not implemented")
+}
+func (UnimplementedServiceServer) SettleVHTLC(context.Context, *SettleVHTLCRequest) (*SettleVHTLCResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SettleVHTLC not implemented")
 }
 func (UnimplementedServiceServer) ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListVHTLC not implemented")
@@ -713,6 +729,24 @@ func _Service_RefundVHTLCWithoutReceiver_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_SettleVHTLC_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SettleVHTLCRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).SettleVHTLC(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_SettleVHTLC_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).SettleVHTLC(ctx, req.(*SettleVHTLCRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Service_ListVHTLC_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListVHTLCRequest)
 	if err := dec(in); err != nil {
@@ -937,6 +971,10 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RefundVHTLCWithoutReceiver",
 			Handler:    _Service_RefundVHTLCWithoutReceiver_Handler,
+		},
+		{
+			MethodName: "SettleVHTLC",
+			Handler:    _Service_SettleVHTLC_Handler,
 		},
 		{
 			MethodName: "ListVHTLC",

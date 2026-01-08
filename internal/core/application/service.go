@@ -22,6 +22,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
+	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/client"
 	grpcclient "github.com/arkade-os/go-sdk/client/grpc"
@@ -78,7 +79,8 @@ type Service struct {
 	boltzSvc      *boltz.Api
 	swapHandler   *swap.SwapHandler
 
-	publicKey *btcec.PublicKey
+	publicKey  *btcec.PublicKey
+	privateKey *btcec.PrivateKey
 
 	esploraUrl string
 	boltzUrl   string
@@ -328,6 +330,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 
 	s.esploraUrl = config.ExplorerURL
 	s.publicKey = prvKey.PubKey()
+	s.privateKey = prvKey
 	s.grpcClient = client
 	s.indexerClient = indexerClient
 	s.isInitialized = true
@@ -507,8 +510,9 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			log.WithError(err).Error("failed to decode delegate signer key")
 		}
 
-		_, pubkey := btcec.PrivKeyFromBytes(buf)
+		privkey, pubkey := btcec.PrivKeyFromBytes(buf)
 		s.publicKey = pubkey
+		s.privateKey = privkey
 		// nolint
 		s.swapHandler, _ = swap.NewSwapHandler(
 			s.ArkClient, s.grpcClient, s.indexerClient, s.boltzSvc, s.publicKey, s.swapTimeout,
@@ -913,31 +917,48 @@ func (s *Service) ListVHTLC(
 func (s *Service) ClaimVHTLC(
 	ctx context.Context, preimage []byte, vhtlc_id string,
 ) (string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
-	}
-
-	vhtlc, err := s.dbSvc.VHTLC().Get(ctx, vhtlc_id)
-	if err != nil {
-		return "", err
-	}
-
-	return s.swapHandler.ClaimVHTLC(ctx, preimage, vhtlc.Opts)
+	return s.withVhtlc(ctx, vhtlc_id, func(opts vhtlc.Opts) (string, error) {
+		return s.swapHandler.ClaimVHTLC(ctx, preimage, opts)
+	})
 }
 
 func (s *Service) RefundVHTLC(
 	ctx context.Context, swapId, vhtlc_id string, withReceiver bool,
 ) (string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
-	}
+	return s.withVhtlc(ctx, vhtlc_id, func(opts vhtlc.Opts) (string, error) {
+		return s.swapHandler.RefundSwap(ctx, swapId, withReceiver, opts)
+	})
+}
 
-	vhtlc, err := s.dbSvc.VHTLC().Get(ctx, vhtlc_id)
-	if err != nil {
-		return "", err
-	}
+// SettleVHTLCWithClaimPath settles a VHTLC via claim path (revealing preimage) in a batch session.
+func (s *Service) SettleVHTLCWithClaimPath(
+	ctx context.Context, vhtlcId string, preimage []byte,
+) (string, error) {
+	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
+		return s.swapHandler.SettleVHTLCWithClaimPath(ctx, opts, preimage)
+	})
+}
 
-	return s.swapHandler.RefundSwap(ctx, swapId, withReceiver, vhtlc.Opts)
+// SettleVHTLCWithRefundPath settles a VHTLC via refund path in a batch session.
+func (s *Service) SettleVHTLCWithRefundPath(ctx context.Context, vhtlcId string) (string, error) {
+	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
+		return s.swapHandler.SettleVhtlcWithRefundPath(ctx, opts)
+	})
+}
+
+// SettleVHTLCWithCollaborativeRefundPath settles a VHTLC via delegate refund path.
+// The counterparty creates the intent and partial forfeit, and Fulmine acts as delegate to
+// complete the batch session.
+func (s *Service) SettleVHTLCWithCollaborativeRefundPath(
+	ctx context.Context, vhtlcId, intentProof, intentMessage, partialForfeitTx string,
+) (string, error) {
+	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
+
+		delegatorSignerSession := tree.NewTreeSignerSession(s.privateKey)
+		return s.swapHandler.SettleVHTLCWithCollaborativeRefundPath(
+			ctx, opts, partialForfeitTx, intentProof, intentMessage, delegatorSignerSession,
+		)
+	})
 }
 
 func (s *Service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
@@ -1357,6 +1378,30 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// withVhtlc is a helper that performs unlock check and VHTLC fetch, then executes the provided action.
+// This eliminates boilerplate across multiple service methods that operate on VHTLCs.
+//
+// It performs:
+//  1. Unlock check via isInitializedAndUnlocked
+//  2. VHTLC fetch from database
+//  3. Executes the action with the fetched VHTLC opts
+//
+// Returns the result from the action function.
+func (s *Service) withVhtlc(
+	ctx context.Context, vhtlcId string, action func(vhtlc.Opts) (string, error),
+) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	vhtlc, err := s.dbSvc.VHTLC().Get(ctx, vhtlcId)
+	if err != nil {
+		return "", fmt.Errorf("failed to get VHTLC %s: %w", vhtlcId, err)
+	}
+
+	return action(vhtlc.Opts)
 }
 
 // restoreSwapHistory gets the swap history from Boltz svc, then:
