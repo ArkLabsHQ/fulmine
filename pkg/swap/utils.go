@@ -3,19 +3,28 @@ package swap
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
+	"github.com/arkade-os/arkd/pkg/ark-lib/script"
+	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
+	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
+	"github.com/arkade-os/go-sdk/client"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/lightningnetwork/lnd/input"
 	decodepay "github.com/nbd-wtf/ln-decodepay"
 )
@@ -276,4 +285,333 @@ func retry(
 			<-time.After(interval)
 		}
 	}
+}
+
+func validatePreimage(preimage, expectedHash []byte) error {
+	if len(preimage) != 32 {
+		return fmt.Errorf("preimage must be 32 bytes, got %d", len(preimage))
+	}
+
+	buf := sha256.Sum256(preimage)
+	preimageHash := input.Ripemd160H(buf[:])
+	if !bytes.Equal(preimageHash, expectedHash) {
+		return fmt.Errorf(
+			"preimage hash mismatch: expected %x, got %x", expectedHash, preimageHash,
+		)
+	}
+
+	return nil
+}
+
+func getEventTopics(vtxos []client.TapscriptsVtxo, signerPubkey string) []string {
+	topics := make([]string, 0, len(vtxos)+1)
+	for _, vtxo := range vtxos {
+		topics = append(topics, vtxo.Vtxo.Outpoint.String())
+	}
+	topics = append(topics, signerPubkey)
+	return topics
+}
+
+func getClaimIntent(
+	session *batchSessionArgs, preimage []byte,
+) (string, string, error) {
+	vtxoScript, err := script.ParseVtxoScript(session.vhtlcScript.GetRevealedTapscripts())
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse vtxo script: %w", err)
+	}
+
+	forfeitClosures := vtxoScript.ForfeitClosures()
+	if len(forfeitClosures) <= 0 {
+		return "", "", fmt.Errorf("no forfeit closures found")
+	}
+
+	forfeitClosure, err := getClaimClosure(forfeitClosures)
+	if err != nil {
+		return "", "", err
+	}
+
+	vtxoLocktime, inputSequence := extractLocktimeAndSequence(forfeitClosure)
+
+	claimTapscript, err := session.vhtlcScript.ClaimTapscript()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get claim tapscript for intent: %w", err)
+	}
+
+	inputs, tapLeaves, arkFields, err := getIntentInputs(
+		session.vtxos, session.vhtlcScript, claimTapscript, inputSequence,
+	)
+	if err != nil {
+		return "", "", err
+	}
+
+	receivers := []types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}}
+
+	intentMessage, err := getIntentMessage(session.signerSession)
+	if err != nil {
+		return "", "", err
+	}
+
+	outputs, err := getIntentOutputs(receivers)
+	if err != nil {
+		return "", "", err
+	}
+
+	proof, err := intent.New(intentMessage, inputs, outputs)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to build intent proof: %w", err)
+	}
+	proof.UnsignedTx.LockTime = uint32(vtxoLocktime)
+
+	if err := addForfeitLeafProof(proof, session.vhtlcScript, forfeitClosure); err != nil {
+		return "", "", err
+	}
+
+	for i := range inputs {
+		proof.Inputs[i+1].Unknowns = arkFields[i]
+		if tapLeaves[i] != nil {
+			proof.Inputs[i+1].TaprootLeafScript = []*psbt.TaprootTapLeafScript{
+				{
+					ControlBlock: tapLeaves[i].ControlBlock,
+					Script:       tapLeaves[i].Script,
+					LeafVersion:  txscript.BaseLeafVersion,
+				},
+			}
+		}
+	}
+
+	if err := txutils.SetArkPsbtField(
+		&proof.Packet, 1, txutils.ConditionWitnessField, wire.TxWitness{preimage},
+	); err != nil {
+		return "", "", fmt.Errorf("failed to inject preimage into intent proof: %w", err)
+	}
+
+	encodedProof, err := proof.B64Encode()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to encode proof for signing: %w", err)
+	}
+
+	return encodedProof, intentMessage, nil
+}
+
+func getRefundIntent(session *batchSessionArgs) (string, string, error) {
+	vtxoScript, err := script.ParseVtxoScript(session.vhtlcScript.GetRevealedTapscripts())
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse vtxo script: %w", err)
+	}
+
+	forfeitClosures := vtxoScript.ForfeitClosures()
+	if len(forfeitClosures) <= 0 {
+		return "", "", fmt.Errorf("no forfeit closures found")
+	}
+
+	forfeitClosure, err := getRefundClosure(forfeitClosures)
+	if err != nil {
+		return "", "", err
+	}
+
+	vtxoLocktime, inputSequence := extractLocktimeAndSequence(forfeitClosure)
+
+	refundTapscript, err := session.vhtlcScript.RefundTapscript(false)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get refund tapscript for intent: %w", err)
+	}
+
+	inputs, tapLeaves, arkFields, err := getIntentInputs(
+		session.vtxos, session.vhtlcScript, refundTapscript, inputSequence,
+	)
+	if err != nil {
+		return "", "", err
+	}
+
+	receivers := []types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}}
+
+	intentMessage, err := getIntentMessage(session.signerSession)
+	if err != nil {
+		return "", "", err
+	}
+
+	outputs, err := getIntentOutputs(receivers)
+	if err != nil {
+		return "", "", err
+	}
+
+	proof, err := intent.New(intentMessage, inputs, outputs)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to build intent proof: %w", err)
+	}
+	proof.UnsignedTx.LockTime = uint32(vtxoLocktime)
+
+	if err := addForfeitLeafProof(proof, session.vhtlcScript, forfeitClosure); err != nil {
+		return "", "", err
+	}
+
+	for i := range inputs {
+		proof.Inputs[i+1].Unknowns = arkFields[i]
+		if tapLeaves[i] != nil {
+			proof.Inputs[i+1].TaprootLeafScript = []*psbt.TaprootTapLeafScript{
+				{
+					ControlBlock: tapLeaves[i].ControlBlock,
+					Script:       tapLeaves[i].Script,
+					LeafVersion:  txscript.BaseLeafVersion,
+				},
+			}
+		}
+	}
+
+	encodedProof, err := proof.B64Encode()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to encode proof for signing: %w", err)
+	}
+
+	return encodedProof, intentMessage, nil
+}
+
+func extractLocktimeAndSequence(closure script.Closure) (arklib.AbsoluteLocktime, uint32) {
+	if cltv, ok := closure.(*script.CLTVMultisigClosure); ok {
+		return cltv.Locktime, wire.MaxTxInSequenceNum - 1
+	}
+	return arklib.AbsoluteLocktime(0), wire.MaxTxInSequenceNum
+}
+
+// getClaimClosure returns the ConditionMultisigClosure from the list of closures
+func getClaimClosure(forfeitClosures []script.Closure) (script.Closure, error) {
+	for _, fc := range forfeitClosures {
+		if _, ok := fc.(*script.ConditionMultisigClosure); ok {
+			return fc, nil
+		}
+	}
+	return nil, fmt.Errorf("ConditionMultisigClosure not found for claim path")
+}
+
+func getRefundClosure(forfeitClosures []script.Closure) (script.Closure, error) {
+	// Refund path: find CLTVMultisigClosure (sweep closure)
+	for _, fc := range forfeitClosures {
+		if _, ok := fc.(*script.CLTVMultisigClosure); ok {
+			return fc, nil
+		}
+	}
+	return nil, fmt.Errorf("CLTVMultisigClosure not found for refund path")
+}
+
+func getIntentInputs(
+	vtxos []client.TapscriptsVtxo, vhtlcScript *vhtlc.VHTLCScript,
+	settlementTapscript *waddrmgr.Tapscript, inputSequence uint32,
+) ([]intent.Input, []*arklib.TaprootMerkleProof, [][]*psbt.Unknown, error) {
+	vhtlcTapKey, vhtlcTapTree, err := vhtlcScript.TapTree()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to get VHTLC tap tree: %w", err)
+	}
+
+	inputs := make([]intent.Input, 0, len(vtxos))
+	tapLeaves := make([]*arklib.TaprootMerkleProof, 0, len(vtxos))
+	arkFields := make([][]*psbt.Unknown, 0, len(vtxos))
+
+	for _, vtxo := range vtxos {
+		vtxoTxHash, err := chainhash.NewHashFromStr(vtxo.Txid)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("invalid vtxo txid %s: %w", vtxo.Txid, err)
+		}
+
+		settlementTapscriptLeaf := txscript.NewBaseTapLeaf(settlementTapscript.RevealedScript)
+		merkleProof, err := vhtlcTapTree.GetTaprootMerkleProof(settlementTapscriptLeaf.TapHash())
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to get taproot merkle proof: %w", err)
+		}
+
+		pkScript, err := script.P2TRScript(vhtlcTapKey)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to create P2TR script: %w", err)
+		}
+
+		inputs = append(inputs, intent.Input{
+			OutPoint: &wire.OutPoint{
+				Hash:  *vtxoTxHash,
+				Index: vtxo.VOut,
+			},
+			Sequence: inputSequence,
+			WitnessUtxo: &wire.TxOut{
+				Value:    int64(vtxo.Amount),
+				PkScript: pkScript,
+			},
+		})
+
+		tapLeaves = append(tapLeaves, merkleProof)
+		vhtlcTapscripts := vhtlcScript.GetRevealedTapscripts()
+		taptreeField, err := txutils.VtxoTaprootTreeField.Encode(vhtlcTapscripts)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to encode tapscripts: %w", err)
+		}
+		arkFields = append(arkFields, []*psbt.Unknown{taptreeField})
+	}
+
+	return inputs, tapLeaves, arkFields, nil
+}
+
+func getIntentOutputs(receivers []types.Receiver) ([]*wire.TxOut, error) {
+	outputs := make([]*wire.TxOut, 0, len(receivers))
+	for _, receiver := range receivers {
+		decodedAddr, err := arklib.DecodeAddressV0(receiver.To)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode receiver address: %w", err)
+		}
+
+		pkScript, err := script.P2TRScript(decodedAddr.VtxoTapKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create receiver pkScript: %w", err)
+		}
+
+		outputs = append(outputs, &wire.TxOut{
+			Value:    int64(receiver.Amount),
+			PkScript: pkScript,
+		})
+	}
+	return outputs, nil
+}
+
+func getIntentMessage(signerSession tree.SignerSession) (string, error) {
+	validAt := time.Now()
+	intentMessage, err := intent.RegisterMessage{
+		BaseMessage: intent.BaseMessage{
+			Type: intent.IntentMessageTypeRegister,
+		},
+		ExpireAt:            validAt.Add(5 * time.Minute).Unix(),
+		ValidAt:             validAt.Unix(),
+		CosignersPublicKeys: []string{signerSession.GetPublicKey()},
+	}.Encode()
+	if err != nil {
+		return "", fmt.Errorf("failed to encode intent message: %w", err)
+	}
+	return intentMessage, nil
+}
+
+func addForfeitLeafProof(
+	proof *intent.Proof, vhtlcScript *vhtlc.VHTLCScript, forfeitClosure script.Closure,
+) error {
+	_, vhtlcTapTree, err := vhtlcScript.TapTree()
+	if err != nil {
+		return fmt.Errorf("failed to get VHTLC tap tree: %w", err)
+	}
+
+	forfeitScript, err := forfeitClosure.Script()
+	if err != nil {
+		return fmt.Errorf("failed to get forfeit script: %w", err)
+	}
+
+	forfeitLeaf := txscript.NewBaseTapLeaf(forfeitScript)
+	leafProof, err := vhtlcTapTree.GetTaprootMerkleProof(forfeitLeaf.TapHash())
+	if err != nil {
+		return fmt.Errorf("failed to get forfeit merkle proof: %w", err)
+	}
+
+	if leafProof != nil {
+		proof.Packet.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{
+			{
+				ControlBlock: leafProof.ControlBlock,
+				Script:       leafProof.Script,
+				LeafVersion:  txscript.BaseLeafVersion,
+			},
+		}
+	}
+
+	return nil
 }

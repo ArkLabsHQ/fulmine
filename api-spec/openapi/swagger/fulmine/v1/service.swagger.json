@@ -547,6 +547,38 @@
         ]
       }
     },
+    "/v1/vhtlc/settle": {
+      "post": {
+        "operationId": "Service_SettleVHTLC",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SettleVHTLCResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SettleVHTLCRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/virtualTx/{txids}": {
       "get": {
         "summary": "GetVirtualTxs returns the virtual transactions in hex format for the specified txids.",
@@ -646,6 +678,14 @@
         }
       }
     },
+    "v1ClaimPath": {
+      "type": "object",
+      "properties": {
+        "preimage": {
+          "type": "string"
+        }
+      }
+    },
     "v1ClaimVHTLCRequest": {
       "type": "object",
       "properties": {
@@ -732,6 +772,20 @@
         "unilateralRefundWithoutReceiverDelay": {
           "type": "string",
           "format": "int64"
+        }
+      }
+    },
+    "v1DelegateRefundParams": {
+      "type": "object",
+      "properties": {
+        "signedIntentProof": {
+          "type": "string"
+        },
+        "intentMessage": {
+          "type": "string"
+        },
+        "partialForfeitTx": {
+          "type": "string"
         }
       }
     },
@@ -913,6 +967,14 @@
         }
       }
     },
+    "v1RefundPath": {
+      "type": "object",
+      "properties": {
+        "delegateParams": {
+          "$ref": "#/definitions/v1DelegateRefundParams"
+        }
+      }
+    },
     "v1RefundVHTLCWithoutReceiverRequest": {
       "type": "object",
       "properties": {
@@ -999,6 +1061,28 @@
       }
     },
     "v1SettleResponse": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1SettleVHTLCRequest": {
+      "type": "object",
+      "properties": {
+        "vhtlcId": {
+          "type": "string"
+        },
+        "claim": {
+          "$ref": "#/definitions/v1ClaimPath"
+        },
+        "refund": {
+          "$ref": "#/definitions/v1RefundPath"
+        }
+      }
+    },
+    "v1SettleVHTLCResponse": {
       "type": "object",
       "properties": {
         "txid": {
