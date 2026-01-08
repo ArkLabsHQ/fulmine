@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package fulmine.v1;
+
+import "google/api/annotations.proto";
+
+service DelegatorService {
+  // GetDelegateInfo returns info about the delegator contract
+  rpc GetDelegateInfo(GetDelegateInfoRequest) returns (GetDelegateInfoResponse) {
+    option (google.api.http) = {
+      get: "/v1/delegate/info"
+    };
+  };
+
+  rpc Delegate(DelegateRequest) returns (DelegateResponse) {
+    option (google.api.http) = {
+      post: "/v1/delegate"
+      body: "*"
+    };
+  };
+}
+
+message GetDelegateInfoRequest {}
+message GetDelegateInfoResponse {
+  string pubkey = 1;
+  string fee = 2;
+  string delegator_address = 3;
+}
+
+message DelegateRequest {
+  Intent intent = 1;
+  string forfeit = 2;
+}
+message DelegateResponse {}
+
+message Intent {
+  string message = 1;
+  string proof = 2;
+}

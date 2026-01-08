@@ -32,6 +32,7 @@ import (
 type service struct {
 	cfg               Config
 	appSvc            *application.Service
+	delegatorSvc      *application.DelegatorService
 	httpServer        *http.Server
 	grpcServer        *grpc.Server
 	unlockerSvc       ports.Unlocker
@@ -45,6 +46,7 @@ type service struct {
 func NewService(
 	cfg Config,
 	appSvc *application.Service,
+	delegatorSvc *application.DelegatorService,
 	unlockerSvc ports.Unlocker,
 	sentryEnabled bool,
 	macaroonSvc macaroon.Service,
@@ -114,6 +116,9 @@ func NewService(
 
 	serviceHandler := handlers.NewServiceHandler(appSvc)
 	pb.RegisterServiceServer(grpcServer, serviceHandler)
+
+	delegateHandler := handlers.NewDelegatorHandler(delegatorSvc)
+	pb.RegisterDelegatorServiceServer(grpcServer, delegateHandler)
 
 	notificationHandler := handlers.NewNotificationHandler(appSvc, appStopCh)
 	pb.RegisterNotificationServiceServer(grpcServer, notificationHandler)
@@ -215,6 +220,7 @@ func NewService(
 	svc := &service{
 		cfg:               cfg,
 		appSvc:            appSvc,
+		delegatorSvc:      delegatorSvc,
 		httpServer:        httpServer,
 		grpcServer:        grpcServer,
 		unlockerSvc:       unlockerSvc,

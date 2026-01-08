@@ -1108,64 +1108,6 @@ func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification 
 	return s.notifications
 }
 
-func (s *Service) GetDelegatePublicKey(ctx context.Context) (string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
-	}
-
-	if s.publicKey == nil {
-		return "", fmt.Errorf("delegate service not initialized")
-	}
-
-	return hex.EncodeToString(s.publicKey.SerializeCompressed()), nil
-}
-
-func (s *Service) WatchAddressForRollover(
-	ctx context.Context, address, destinationAddress string, taprootTree []string,
-) error {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return err
-	}
-
-	if address == "" {
-		return fmt.Errorf("missing address")
-	}
-	if len(taprootTree) == 0 {
-		return fmt.Errorf("missing taproot tree")
-	}
-	if destinationAddress == "" {
-		return fmt.Errorf("missing destination address")
-	}
-
-	target := domain.VtxoRolloverTarget{
-		Address:            address,
-		TaprootTree:        taprootTree,
-		DestinationAddress: destinationAddress,
-	}
-
-	return s.dbSvc.VtxoRollover().AddTarget(ctx, target)
-}
-
-func (s *Service) UnwatchAddress(ctx context.Context, address string) error {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return err
-	}
-
-	if address == "" {
-		return fmt.Errorf("missing address")
-	}
-
-	return s.dbSvc.VtxoRollover().DeleteTarget(ctx, address)
-}
-
-func (s *Service) ListWatchedAddresses(ctx context.Context) ([]domain.VtxoRolloverTarget, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return nil, err
-	}
-
-	return s.dbSvc.VtxoRollover().GetAllTargets(ctx)
-}
-
 func (s *Service) IsLocked(ctx context.Context) bool {
 	if s.ArkClient == nil {
 		return true
@@ -1801,12 +1743,12 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 
 	if refundLT.IsSeconds() {
 		at := time.Unix(int64(refundLT), 0)
-		if err := s.schedulerSvc.ScheduleRefundAtTime(at, unilateral); err != nil {
+		if err := s.schedulerSvc.ScheduleTaskAtTime(at, unilateral); err != nil {
 			return err
 		}
 		log.Debugf("scheduled unilateral refund of swap %s at %s", swapId, at.Format(time.RFC3339))
 	} else {
-		if err := s.schedulerSvc.ScheduleRefundAtHeight(uint32(refundLT), unilateral); err != nil {
+		if err := s.schedulerSvc.ScheduleTaskAtHeight(uint32(refundLT), unilateral); err != nil {
 			return err
 		}
 		log.Debugf("scheduling vhtlc refund of swap %s at height %d", swapId, int64(refundLT))

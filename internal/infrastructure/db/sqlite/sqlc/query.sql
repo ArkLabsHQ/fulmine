@@ -88,3 +88,23 @@ SELECT * FROM subscribed_script;
 
 -- name: DeleteSubscribedScript :exec
 DELETE FROM subscribed_script WHERE script = ?;
+
+-- name: UpsertDelegateTask :exec
+INSERT INTO delegate_task (
+    id, intent_json, forfeit_tx, inputs_json, fee, delegator_public_key, scheduled_at, status, fail_reason
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    intent_json = excluded.intent_json,
+    forfeit_tx = excluded.forfeit_tx,
+    inputs_json = excluded.inputs_json,
+    fee = excluded.fee,
+    delegator_public_key = excluded.delegator_public_key,
+    scheduled_at = excluded.scheduled_at,
+    status = excluded.status,
+    fail_reason = excluded.fail_reason;
+
+-- name: GetDelegateTask :one
+SELECT * FROM delegate_task WHERE id = ?;
+
+-- name: ListDelegateTaskPending :many
+SELECT id, scheduled_at FROM delegate_task WHERE status = 'pending';

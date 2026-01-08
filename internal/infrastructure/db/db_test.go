@@ -12,6 +12,8 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -33,16 +35,34 @@ var (
 		},
 	}
 
-	testRolloverTarget = domain.VtxoRolloverTarget{
-		Address:            "test_address",
-		TaprootTree:        []string{"tapscript1", "tapscript2"},
-		DestinationAddress: "destination_address",
-	}
-	secondRolloverTarget = domain.VtxoRolloverTarget{
-		Address:            "second_address",
-		TaprootTree:        []string{"other_tapscript1", "other_tapscript2"},
-		DestinationAddress: "other_destination_address",
-	}
+	testDelegateTask = func() domain.DelegateTask {
+		hash1, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000001")
+		return domain.DelegateTask{
+			ID:                "test_task_id",
+			Intent:            domain.Intent{Message: "test_message", Proof: "test_proof"},
+			ForfeitTx:         "forfeit_tx_hex",
+			Inputs:            []wire.OutPoint{{Hash: *hash1, Index: 0}},
+			Fee:               1000,
+			DelegatorPublicKey: "delegator_pubkey",
+			ScheduledAt:       time.Now(),
+			Status:            domain.DelegateTaskStatusPending,
+			FailReason:        "",
+		}
+	}()
+	secondDelegateTask = func() domain.DelegateTask {
+		hash2, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000002")
+		return domain.DelegateTask{
+			ID:                "second_task_id",
+			Intent:            domain.Intent{Message: "second_message", Proof: "second_proof"},
+			ForfeitTx:         "second_forfeit_tx_hex",
+			Inputs:            []wire.OutPoint{{Hash: *hash2, Index: 1}},
+			Fee:               2000,
+			DelegatorPublicKey: "second_delegator_pubkey",
+			ScheduledAt:       time.Now().Add(time.Hour),
+			Status:            domain.DelegateTaskStatusPending,
+			FailReason:        "",
+		}
+	}()
 
 	testVHTLC = makeVHTLC()
 
@@ -109,10 +129,10 @@ func testVHTLCRepository(t *testing.T, svc ports.RepoManager) {
 }
 
 func testVtxoRolloverRepository(t *testing.T, svc ports.RepoManager) {
-	t.Run("vtxo rollover repository", func(t *testing.T) {
-		testAddVtxoRolloverTarget(t, svc.VtxoRollover())
-		testGetAllVtxoRolloverTargets(t, svc.VtxoRollover())
-		testDeleteVtxoRolloverTarget(t, svc.VtxoRollover())
+	t.Run("delegate repository", func(t *testing.T) {
+		testAddOrUpdateDelegateTask(t, svc.Delegate())
+		testGetDelegateTaskByID(t, svc.Delegate())
+		testGetAllPendingDelegateTasks(t, svc.Delegate())
 	})
 }
 
@@ -260,66 +280,103 @@ func testGetAllVHTLC(t *testing.T, repo domain.VHTLCRepository) {
 	})
 }
 
-func testAddVtxoRolloverTarget(t *testing.T, repo domain.VtxoRolloverRepository) {
-	t.Run("add rollover target", func(t *testing.T) {
-		target, err := repo.GetTarget(ctx, testRolloverTarget.Address)
+func testAddOrUpdateDelegateTask(t *testing.T, repo domain.DelegatorRepository) {
+	t.Run("add or update delegate task", func(t *testing.T) {
+		// Task should not exist initially
+		task, err := repo.GetByID(ctx, testDelegateTask.ID)
 		require.Error(t, err)
-		require.Nil(t, target)
+		require.Nil(t, task)
 
-		// Add new target
-		err = repo.AddTarget(ctx, testRolloverTarget)
+		// Add new task
+		err = repo.AddOrUpdate(ctx, testDelegateTask)
 		require.NoError(t, err)
 
-		// Verify the target was added correctly
-		target, err = repo.GetTarget(ctx, testRolloverTarget.Address)
+		// Verify the task was added correctly
+		task, err = repo.GetByID(ctx, testDelegateTask.ID)
 		require.NoError(t, err)
-		require.NotNil(t, target)
-		require.Equal(t, testRolloverTarget, *target)
+		require.NotNil(t, task)
+		require.Equal(t, testDelegateTask.ID, task.ID)
+		require.Equal(t, testDelegateTask.Intent, task.Intent)
+		require.Equal(t, testDelegateTask.Status, task.Status)
 
-		// Try to add the same target again, should not error
-		err = repo.AddTarget(ctx, testRolloverTarget)
+		// Update the task
+		updatedTask := testDelegateTask
+		updatedTask.Status = domain.DelegateTaskStatusDone
+		updatedTask.FailReason = "completed"
+		err = repo.AddOrUpdate(ctx, updatedTask)
 		require.NoError(t, err)
+
+		// Verify the task was updated
+		task, err = repo.GetByID(ctx, testDelegateTask.ID)
+		require.NoError(t, err)
+		require.NotNil(t, task)
+		require.Equal(t, domain.DelegateTaskStatusDone, task.Status)
+		require.Equal(t, "completed", task.FailReason)
 	})
 }
 
-func testGetAllVtxoRolloverTargets(t *testing.T, repo domain.VtxoRolloverRepository) {
-	t.Run("get all rollover targets", func(t *testing.T) {
-		targets, err := repo.GetAllTargets(ctx)
-		require.NoError(t, err)
-		require.Len(t, targets, 1)
-
-		// Add a second target
-		err = repo.AddTarget(ctx, secondRolloverTarget)
+func testGetDelegateTaskByID(t *testing.T, repo domain.DelegatorRepository) {
+	t.Run("get delegate task by id", func(t *testing.T) {
+		// Reset task to pending for this test
+		testTask := testDelegateTask
+		testTask.Status = domain.DelegateTaskStatusPending
+		err := repo.AddOrUpdate(ctx, testTask)
 		require.NoError(t, err)
 
-		// Get all targets
-		targets, err = repo.GetAllTargets(ctx)
+		// Get task by ID
+		task, err := repo.GetByID(ctx, testTask.ID)
 		require.NoError(t, err)
-		require.Len(t, targets, 2)
-		require.Subset(t, []domain.VtxoRolloverTarget{testRolloverTarget, secondRolloverTarget}, targets)
+		require.NotNil(t, task)
+		require.Equal(t, testTask.ID, task.ID)
+		require.Equal(t, testTask.Intent, task.Intent)
+
+		// Try to get non-existent task
+		_, err = repo.GetByID(ctx, "non_existent_id")
+		require.Error(t, err)
 	})
 }
 
-func testDeleteVtxoRolloverTarget(t *testing.T, repo domain.VtxoRolloverRepository) {
-	t.Run("delete rollover target", func(t *testing.T) {
-		// Delete existing targets
-		err := repo.DeleteTarget(ctx, testRolloverTarget.Address)
-		require.NoError(t, err)
-		err = repo.DeleteTarget(ctx, secondRolloverTarget.Address)
+func testGetAllPendingDelegateTasks(t *testing.T, repo domain.DelegatorRepository) {
+	t.Run("get all pending delegate tasks", func(t *testing.T) {
+		// Add a pending task
+		pendingTask := testDelegateTask
+		pendingTask.ID = "pending_task_1"
+		pendingTask.Status = domain.DelegateTaskStatusPending
+		err := repo.AddOrUpdate(ctx, pendingTask)
 		require.NoError(t, err)
 
-		// Verify it was removed
-		target, err := repo.GetTarget(ctx, testRolloverTarget.Address)
-		require.Error(t, err)
-		require.Nil(t, target)
-
-		targets, err := repo.GetAllTargets(ctx)
+		// Add a done task (should not appear in GetAllPending)
+		doneTask := secondDelegateTask
+		doneTask.ID = "done_task_1"
+		doneTask.Status = domain.DelegateTaskStatusDone
+		err = repo.AddOrUpdate(ctx, doneTask)
 		require.NoError(t, err)
-		require.Empty(t, targets)
 
-		// Try to remove it again, should not error
-		err = repo.DeleteTarget(ctx, testRolloverTarget.Address)
+		// Add another pending task
+		anotherPendingTask := secondDelegateTask
+		anotherPendingTask.ID = "pending_task_2"
+		anotherPendingTask.Status = domain.DelegateTaskStatusPending
+		err = repo.AddOrUpdate(ctx, anotherPendingTask)
 		require.NoError(t, err)
+
+		// Get all pending tasks
+		pendingTasks, err := repo.GetAllPending(ctx)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(pendingTasks), 2)
+
+		// Verify specific pending tasks are included
+		taskIDs := make(map[string]bool)
+		for _, pendingTask := range pendingTasks {
+			taskIDs[pendingTask.ID] = true
+			// Verify that we can fetch the full task and it's pending
+			fullTask, err := repo.GetByID(ctx, pendingTask.ID)
+			require.NoError(t, err)
+			require.Equal(t, domain.DelegateTaskStatusPending, fullTask.Status)
+			require.Equal(t, pendingTask.ScheduledAt.Unix(), fullTask.ScheduledAt.Unix())
+		}
+		require.True(t, taskIDs["pending_task_1"])
+		require.True(t, taskIDs["pending_task_2"])
+		require.False(t, taskIDs["done_task_1"])
 	})
 }
 

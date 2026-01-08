@@ -129,9 +129,11 @@ func main() {
 		log.WithError(err).Fatal("failed to init application service")
 	}
 
+	delegatorSvc := application.NewDelegatorService(appSvc, 0)
+
 	svc, err := grpcservice.NewService(
-		svcConfig, appSvc, cfg.UnlockerService(), sentryEnabled, cfg.MacaroonSvc(), cfg.ArkServer,
-		cfg.OtelCollectorURL, cfg.OtelPushInterval, cfg.PyroscopeURL,
+		svcConfig, appSvc, delegatorSvc, cfg.UnlockerService(), sentryEnabled, 
+		cfg.MacaroonSvc(), cfg.ArkServer, cfg.OtelCollectorURL, cfg.OtelPushInterval, cfg.PyroscopeURL,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init interface service")

@@ -97,7 +97,7 @@ func (s *service) Stop() {
 	}
 }
 
-func (s *service) ScheduleRefundAtHeight(target uint32, refund func()) error {
+func (s *service) ScheduleTaskAtHeight(target uint32, refund func()) error {
 	if target <= 0 {
 		return fmt.Errorf("invalid height: %d", target)
 	}
@@ -117,7 +117,7 @@ func (s *service) ScheduleRefundAtHeight(target uint32, refund func()) error {
 	return nil
 }
 
-func (s *service) ScheduleRefundAtTime(at time.Time, refund func()) error {
+func (s *service) ScheduleTaskAtTime(at time.Time, refund func()) error {
 	if at.IsZero() {
 		return fmt.Errorf("invalid schedule time")
 	}

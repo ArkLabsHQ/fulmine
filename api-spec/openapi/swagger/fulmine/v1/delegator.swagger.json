@@ -1,0 +1,144 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "fulmine/v1/delegator.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "DelegatorService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/delegate": {
+      "post": {
+        "operationId": "DelegatorService_Delegate",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DelegateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1DelegateRequest"
+            }
+          }
+        ],
+        "tags": [
+          "DelegatorService"
+        ]
+      }
+    },
+    "/v1/delegate/info": {
+      "get": {
+        "summary": "GetDelegateInfo returns info about the delegator contract",
+        "operationId": "DelegatorService_GetDelegateInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetDelegateInfoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "DelegatorService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1DelegateRequest": {
+      "type": "object",
+      "properties": {
+        "intent": {
+          "$ref": "#/definitions/v1Intent"
+        },
+        "forfeit": {
+          "type": "string"
+        }
+      }
+    },
+    "v1DelegateResponse": {
+      "type": "object"
+    },
+    "v1GetDelegateInfoResponse": {
+      "type": "object",
+      "properties": {
+        "pubkey": {
+          "type": "string"
+        },
+        "fee": {
+          "type": "string"
+        },
+        "delegatorAddress": {
+          "type": "string"
+        }
+      }
+    },
+    "v1Intent": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "proof": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
