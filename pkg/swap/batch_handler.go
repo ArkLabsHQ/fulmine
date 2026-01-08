@@ -47,9 +47,8 @@ type batchSessionHandler struct {
 	config        types.Config
 	signerSession tree.SignerSession
 
-	batchSessionId   string
-	batchExpiry      arklib.RelativeLocktime
-	countSigningDone int
+	batchSessionId string
+	batchExpiry    arklib.RelativeLocktime
 }
 
 func (h *batchSessionHandler) OnBatchStarted(
@@ -289,16 +288,15 @@ func newClaimBatchSessionHandler(
 ) *claimBatchSessionHandler {
 	return &claimBatchSessionHandler{
 		batchSessionHandler: batchSessionHandler{
-			arkClient:        arkClient,
-			transportClient:  transportClient,
-			intentId:         intentId,
-			vtxos:            vtxos,
-			receivers:        receivers,
-			vhtlcScripts:     vhtlcScripts,
-			config:           config,
-			signerSession:    signerSession,
-			batchSessionId:   "",
-			countSigningDone: 0,
+			arkClient:       arkClient,
+			transportClient: transportClient,
+			intentId:        intentId,
+			vtxos:           vtxos,
+			receivers:       receivers,
+			vhtlcScripts:    vhtlcScripts,
+			config:          config,
+			signerSession:   signerSession,
+			batchSessionId:  "",
 		},
 		preimage: preimage,
 	}
@@ -348,16 +346,15 @@ func newRefundBatchSessionHandler(
 ) *refundBatchSessionHandler {
 	return &refundBatchSessionHandler{
 		batchSessionHandler: batchSessionHandler{
-			arkClient:        arkClient,
-			transportClient:  transportClient,
-			intentId:         intentId,
-			vtxos:            vtxos,
-			receivers:        receivers,
-			vhtlcScripts:     vhtlcScripts,
-			config:           config,
-			signerSession:    signerSession,
-			batchSessionId:   "",
-			countSigningDone: 0,
+			arkClient:       arkClient,
+			transportClient: transportClient,
+			intentId:        intentId,
+			vtxos:           vtxos,
+			receivers:       receivers,
+			vhtlcScripts:    vhtlcScripts,
+			config:          config,
+			signerSession:   signerSession,
+			batchSessionId:  "",
 		},
 		withReceiver: withReceiver,
 		publicKey:    publicKey,
@@ -408,16 +405,15 @@ func newCollabRefundBatchSessionHandler(
 	return &collabRefundBatchSessionHandler{
 		refundBatchSessionHandler: refundBatchSessionHandler{
 			batchSessionHandler: batchSessionHandler{
-				arkClient:        arkClient,
-				transportClient:  transportClient,
-				intentId:         intentId,
-				vtxos:            vtxos,
-				receivers:        receivers,
-				vhtlcScripts:     vhtlcScripts,
-				config:           config,
-				signerSession:    signerSession,
-				batchSessionId:   "",
-				countSigningDone: 0,
+				arkClient:       arkClient,
+				transportClient: transportClient,
+				intentId:        intentId,
+				vtxos:           vtxos,
+				receivers:       receivers,
+				vhtlcScripts:    vhtlcScripts,
+				config:          config,
+				signerSession:   signerSession,
+				batchSessionId:  "",
 			},
 			withReceiver: withReceiver,
 		},
