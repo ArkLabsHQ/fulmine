@@ -16,6 +16,7 @@ import (
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/offchain"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
+	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/client"
@@ -486,6 +487,167 @@ func (h *SwapHandler) RefundSwap(
 	return arkTxid, nil
 }
 
+// SettleVHTLCWithClaimPath settles a VHTLC using the claim path (revealing preimage) via batch session.
+// This is used for reverse submarine swaps where Fulmine is the receiver.
+func (h *SwapHandler) SettleVHTLCWithClaimPath(
+	ctx context.Context, vhtlcOpts vhtlc.Opts, preimage []byte,
+) (string, error) {
+	if err := validatePreimage(preimage, vhtlcOpts.PreimageHash); err != nil {
+		return "", err
+	}
+
+	session, err := h.getBatchSessionArgs(ctx, vhtlcOpts, nil)
+	if err != nil {
+		return "", err
+	}
+
+	proof, message, err := getClaimIntent(session, preimage)
+	if err != nil {
+		return "", fmt.Errorf("failed to build claim intent: %w", err)
+	}
+
+	signedProof, err := h.arkClient.SignTransaction(ctx, proof)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign intent proof: %w", err)
+	}
+
+	intentID, err := h.transportClient.RegisterIntent(ctx, signedProof, message)
+	if err != nil {
+		return "", fmt.Errorf("failed to register VHTLC claim intent: %w", err)
+	}
+
+	topics := getEventTopics(session.vtxos, session.signerSession.GetPublicKey())
+	eventsCh, cancel, err := h.transportClient.GetEventStream(ctx, topics)
+	if err != nil {
+		return "", fmt.Errorf("failed to get event stream: %w", err)
+	}
+	defer cancel()
+
+	claimHandler := newClaimBatchSessionHandler(
+		h.arkClient, h.transportClient,
+		intentID,
+		session.vtxos,
+		[]types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
+		preimage,
+		[]*vhtlc.VHTLCScript{session.vhtlcScript},
+		h.config,
+		session.signerSession,
+	)
+
+	txid, err := arksdk.JoinBatchSession(ctx, eventsCh, claimHandler)
+	if err != nil {
+		return "", fmt.Errorf("batch session failed: %w", err)
+	}
+
+	log.Debugf("successfully claimed VHTLC in round %s", txid)
+	return txid, nil
+}
+
+// SettleVhtlcWithRefundPath settles a VHTLC using the refund path via batch session.
+// This is used for submarine swaps where Fulmine is the sender and needs to recover funds.
+func (h *SwapHandler) SettleVhtlcWithRefundPath(
+	ctx context.Context, vhtlcOpts vhtlc.Opts,
+) (string, error) {
+	session, err := h.getBatchSessionArgs(ctx, vhtlcOpts, nil)
+	if err != nil {
+		return "", err
+	}
+
+	proof, message, err := getRefundIntent(session)
+	if err != nil {
+		return "", fmt.Errorf("failed to build refund intent: %w", err)
+	}
+
+	signedProof, err := h.arkClient.SignTransaction(ctx, proof)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign intent proof: %w", err)
+	}
+
+	intentID, err := h.transportClient.RegisterIntent(ctx, signedProof, message)
+	if err != nil {
+		return "", fmt.Errorf("failed to register VHTLC refund intent: %w", err)
+	}
+
+	topics := getEventTopics(session.vtxos, session.signerSession.GetPublicKey())
+	eventsCh, cancel, err := h.transportClient.GetEventStream(ctx, topics)
+	if err != nil {
+		return "", fmt.Errorf("failed to get event stream: %w", err)
+	}
+	defer cancel()
+
+	withReceiver := false
+	refundHandler := newRefundBatchSessionHandler(
+		h.arkClient,
+		h.transportClient,
+		intentID,
+		session.vtxos,
+		[]types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
+		withReceiver,
+		[]*vhtlc.VHTLCScript{session.vhtlcScript},
+		h.config,
+		h.publicKey,
+		session.signerSession,
+	)
+
+	txid, err := arksdk.JoinBatchSession(ctx, eventsCh, refundHandler)
+	if err != nil {
+		return "", fmt.Errorf("batch session failed: %w", err)
+	}
+
+	log.Debugf("successfully refunded VHTLC in round %s", txid)
+	return txid, nil
+}
+
+func (h *SwapHandler) SettleVHTLCWithCollaborativeRefundPath(
+	ctx context.Context, vhtlcOpts vhtlc.Opts,
+	partialForfeitTx, proof, message string, signerSession tree.SignerSession,
+) (string, error) {
+	session, err := h.getBatchSessionArgs(ctx, vhtlcOpts, &signerSession)
+	if err != nil {
+		return "", err
+	}
+
+	signedProof, err := h.arkClient.SignTransaction(ctx, proof)
+	if err != nil {
+		return "", fmt.Errorf("failed to cosign intent proof: %w", err)
+	}
+
+	intentId, err := h.transportClient.RegisterIntent(ctx, signedProof, message)
+	if err != nil {
+		return "", fmt.Errorf("failed to register intent: %w", err)
+	}
+
+	withReceiver := true
+	handler := newCollabRefundBatchSessionHandler(
+		h.arkClient,
+		h.transportClient,
+		intentId,
+		session.vtxos,
+		[]types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
+		withReceiver,
+		[]*vhtlc.VHTLCScript{session.vhtlcScript},
+		h.config,
+		session.signerSession,
+		partialForfeitTx,
+	)
+
+	topics := getEventTopics(session.vtxos, session.signerSession.GetPublicKey())
+
+	eventsCh, cancel, err := h.transportClient.GetEventStream(ctx, topics)
+	if err != nil {
+		return "", fmt.Errorf("failed to get event stream: %w", err)
+	}
+	defer cancel()
+
+	txid, err := arksdk.JoinBatchSession(ctx, eventsCh, handler)
+	if err != nil {
+		return "", fmt.Errorf("batch session failed: %w", err)
+	}
+
+	log.Debugf("successfully completed delegate refund in round %s", txid)
+	return txid, nil
+}
+
 func (h *SwapHandler) submarineSwap(
 	ctx context.Context, invoice string, unilateralRefund func(swap Swap) error,
 ) (*Swap, error) {
@@ -764,12 +926,10 @@ func (h *SwapHandler) getVHTLCFunds(
 }
 
 func (h *SwapHandler) getVHTLC(
-	ctx context.Context,
-	receiverPubkey, senderPubkey *btcec.PublicKey,
-	preimageHash []byte,
+	_ context.Context,
+	receiverPubkey, senderPubkey *btcec.PublicKey, preimageHash []byte,
 	refundLocktime arklib.AbsoluteLocktime,
-	unilateralClaimDelay arklib.RelativeLocktime,
-	unilateralRefundDelay arklib.RelativeLocktime,
+	unilateralClaimDelay, unilateralRefundDelay,
 	unilateralRefundWithoutReceiverDelay arklib.RelativeLocktime,
 ) (string, *vhtlc.VHTLCScript, *vhtlc.Opts, error) {
 	receiverPubkeySet := receiverPubkey != nil
@@ -896,4 +1056,59 @@ func (h *SwapHandler) collaborativeRefund(
 	}
 
 	return refundPtx, checkpointPtx, nil
+}
+
+// getBatchSessionArgs takes care of preparing the arguments for the batch session to either claim
+// or refund a vhtlc.
+// NOTE: signerSession is meant to not be nil only if the collaborative refund path is used.
+func (h *SwapHandler) getBatchSessionArgs(
+	ctx context.Context, vhtlcOpts vhtlc.Opts, signerSession *tree.SignerSession,
+) (*batchSessionArgs, error) {
+	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create VHTLC script: %w", err)
+	}
+
+	vhtlcs := []*vhtlc.VHTLCScript{vhtlcScript}
+	vtxos, err := h.getVHTLCFunds(ctx, vhtlcs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query VTXOs: %w", err)
+	}
+
+	if len(vtxos) == 0 {
+		return nil, ErrorNoVtxosFound
+	}
+
+	var totalAmount uint64
+	for _, vtxo := range vtxos {
+		totalAmount += vtxo.Amount
+	}
+
+	myAddr, err := h.arkClient.NewOffchainAddress(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get offchain address: %w", err)
+	}
+
+	if signerSession == nil {
+		ephemeralKey, err := btcec.NewPrivateKey()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create ephemeral key: %w", err)
+		}
+
+		ephemeralSignerSession := tree.NewTreeSignerSession(ephemeralKey)
+		signerSession = &ephemeralSignerSession
+	}
+
+	vtxoTapscripts := []client.TapscriptsVtxo{{
+		Vtxo:       vtxos[0],
+		Tapscripts: vhtlcScript.GetRevealedTapscripts(),
+	}}
+
+	return &batchSessionArgs{
+		vhtlcScript:     vhtlcScript,
+		totalAmount:     totalAmount,
+		destinationAddr: myAddr,
+		signerSession:   *signerSession,
+		vtxos:           vtxoTapscripts,
+	}, nil
 }

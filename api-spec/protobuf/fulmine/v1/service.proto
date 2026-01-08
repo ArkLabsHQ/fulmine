@@ -96,6 +96,12 @@ service Service {
       body: "*"
     };
   }
+  rpc SettleVHTLC(SettleVHTLCRequest) returns (SettleVHTLCResponse) {
+    option (google.api.http) = {
+      post: "/v1/vhtlc/settle"
+      body: "*"
+    };
+  }
   // ListVHTLC = list all vhtlc OR filter by vhtlc_id
   rpc ListVHTLC(ListVHTLCRequest) returns (ListVHTLCResponse) {
     option (google.api.http) = {
@@ -281,6 +287,32 @@ message RefundVHTLCWithoutReceiverResponse {
   string redeem_txid = 1;
 }
 
+message SettleVHTLCRequest {
+  string vhtlc_id = 1;
+  oneof settlement_type {
+    ClaimPath claim = 2;
+    RefundPath refund = 3;
+  }
+}
+
+message ClaimPath {
+  string preimage = 1;
+}
+
+message RefundPath {
+  DelegateRefundParams delegate_params = 1;
+}
+
+message DelegateRefundParams {
+  string signed_intent_proof = 1;
+  string intent_message = 2;
+  string partial_forfeit_tx = 3;
+}
+
+message SettleVHTLCResponse {
+  string txid = 1;
+}
+
 message ListVHTLCRequest {
   string vhtlc_id = 1;
 }
@@ -353,7 +385,7 @@ message WatchAddressForRolloverRequest {
 message WatchAddressForRolloverResponse {}
 
 message UnwatchAddressRequest {
-  string address = 1;  // The address to stop watching
+  string address = 1; // The address to stop watching
 }
 
 message UnwatchAddressResponse {}
@@ -362,12 +394,12 @@ message ListWatchedAddressesRequest {
 }
 
 message ListWatchedAddressesResponse {
-  repeated RolloverAddress addresses = 1;  // List of all watched addresses
+  repeated RolloverAddress addresses = 1; // List of all watched addresses
 }
 
 message RolloverAddress {
-  string address = 1;            // The watched address
-  Tapscripts taproot_tree = 2;   // Full taproot tree as list of hex tapscripts
+  string address = 1; // The watched address
+  Tapscripts taproot_tree = 2; // Full taproot tree as list of hex tapscripts
   string destination_address = 3; // Where funds will be rolled over to
 }
 
