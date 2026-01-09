@@ -41,23 +41,20 @@ func (r *delegateRepository) AddOrUpdate(ctx context.Context, task domain.Delega
 		return fmt.Errorf("failed to marshal intent: %w", err)
 	}
 
-	outpointsJSON := make([]outpointJSON, len(task.Inputs))
-	for i, op := range task.Inputs {
-		outpointsJSON[i] = outpointJSON{
-			Hash:  op.Hash.String(),
-			Index: op.Index,
-		}
+	opJSON := outpointJSON{
+		Hash:  task.Input.Hash.String(),
+		Index: task.Input.Index,
 	}
-	inputsJSON, err := json.Marshal(outpointsJSON)
+	inputJSON, err := json.Marshal(opJSON)
 	if err != nil {
-		return fmt.Errorf("failed to marshal inputs: %w", err)
+		return fmt.Errorf("failed to marshal input: %w", err)
 	}
 
 	return r.querier.UpsertDelegateTask(ctx, queries.UpsertDelegateTaskParams{
 		ID:                task.ID,
 		IntentJson:        string(intentJSON),
 		ForfeitTx:         task.ForfeitTx,
-		InputsJson:        string(inputsJSON),
+		InputsJson:        string(inputJSON),
 		Fee:               int64(task.Fee),
 		DelegatorPublicKey: task.DelegatorPublicKey,
 		ScheduledAt:       task.ScheduledAt.Unix(),
@@ -80,28 +77,24 @@ func (r *delegateRepository) GetByID(ctx context.Context, id string) (*domain.De
 		return nil, fmt.Errorf("failed to unmarshal intent: %w", err)
 	}
 
-	var outpointsJSON []outpointJSON
-	if err := json.Unmarshal([]byte(row.InputsJson), &outpointsJSON); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal inputs: %w", err)
+	var opJSON outpointJSON
+	if err := json.Unmarshal([]byte(row.InputsJson), &opJSON); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal input: %w", err)
 	}
 
-	inputs := make([]wire.OutPoint, len(outpointsJSON))
-	for i, opJSON := range outpointsJSON {
-		hash, err := chainhash.NewHashFromStr(opJSON.Hash)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse hash: %w", err)
-		}
-		inputs[i] = wire.OutPoint{
-			Hash:  *hash,
-			Index: opJSON.Index,
-		}
+	hash, err := chainhash.NewHashFromStr(opJSON.Hash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse hash: %w", err)
 	}
 
 	return &domain.DelegateTask{
 		ID:                row.ID,
 		Intent:            intent,
 		ForfeitTx:         row.ForfeitTx,
-		Inputs:            inputs,
+		Input:             wire.OutPoint{
+			Hash:  *hash,
+			Index: opJSON.Index,
+		},
 		Fee:               uint64(row.Fee),
 		DelegatorPublicKey: row.DelegatorPublicKey,
 		ScheduledAt:       time.Unix(row.ScheduledAt, 0),

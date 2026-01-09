@@ -31,7 +31,7 @@ type DelegateTask struct {
 	Intent Intent
 	ForfeitTx string
 
-	Inputs []wire.OutPoint
+	Input wire.OutPoint
 	Fee uint64
 	DelegatorPublicKey string
 	ScheduledAt time.Time

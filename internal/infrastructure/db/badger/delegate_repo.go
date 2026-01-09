@@ -46,7 +46,7 @@ type delegateTaskData struct {
 	ID                string
 	IntentJSON        string
 	ForfeitTx         string
-	InputsJSON        string
+	InputJSON         string
 	Fee               uint64
 	DelegatorPublicKey string
 	ScheduledAt       int64
@@ -60,28 +60,24 @@ func (d *delegateTaskData) toDelegateTask() (*domain.DelegateTask, error) {
 		return nil, fmt.Errorf("failed to unmarshal intent: %w", err)
 	}
 
-	var outpointsJSON []outpointJSON
-	if err := json.Unmarshal([]byte(d.InputsJSON), &outpointsJSON); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal inputs: %w", err)
+	var opJSON outpointJSON
+	if err := json.Unmarshal([]byte(d.InputJSON), &opJSON); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal input: %w", err)
 	}
 
-	inputs := make([]wire.OutPoint, len(outpointsJSON))
-	for i, opJSON := range outpointsJSON {
-		hash, err := chainhash.NewHashFromStr(opJSON.Hash)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse hash: %w", err)
-		}
-		inputs[i] = wire.OutPoint{
-			Hash:  *hash,
-			Index: opJSON.Index,
-		}
+	hash, err := chainhash.NewHashFromStr(opJSON.Hash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse hash: %w", err)
 	}
 
 	return &domain.DelegateTask{
 		ID:                d.ID,
 		Intent:            intent,
 		ForfeitTx:         d.ForfeitTx,
-		Inputs:            inputs,
+		Input:             wire.OutPoint{
+			Hash:  *hash,
+			Index: opJSON.Index,
+		},
 		Fee:               d.Fee,
 		DelegatorPublicKey: d.DelegatorPublicKey,
 		ScheduledAt:       time.Unix(d.ScheduledAt, 0),
@@ -93,20 +89,17 @@ func (d *delegateTaskData) toDelegateTask() (*domain.DelegateTask, error) {
 func toDelegateTaskData(task domain.DelegateTask) delegateTaskData {
 	intentJSON, _ := json.Marshal(task.Intent)
 
-	outpointsJSON := make([]outpointJSON, len(task.Inputs))
-	for i, op := range task.Inputs {
-		outpointsJSON[i] = outpointJSON{
-			Hash:  op.Hash.String(),
-			Index: op.Index,
-		}
+	opJSON := outpointJSON{
+		Hash:  task.Input.Hash.String(),
+		Index: task.Input.Index,
 	}
-	inputsJSON, _ := json.Marshal(outpointsJSON)
+	inputJSON, _ := json.Marshal(opJSON)
 
 	return delegateTaskData{
 		ID:                task.ID,
 		IntentJSON:        string(intentJSON),
 		ForfeitTx:         task.ForfeitTx,
-		InputsJSON:        string(inputsJSON),
+		InputJSON:         string(inputJSON),
 		Fee:               task.Fee,
 		DelegatorPublicKey: task.DelegatorPublicKey,
 		ScheduledAt:       task.ScheduledAt.Unix(),
