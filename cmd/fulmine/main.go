@@ -150,7 +150,6 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 	<-sigChan
 
-	log.Info("stopping delegator service...")
 	delegatorSvc.Stop()
 
 	log.Info("shutting down service...")

@@ -120,6 +120,51 @@ func (r *delegateRepository) GetAllPending(ctx context.Context) ([]domain.Pendin
 	return tasks, nil
 }
 
+func (r *delegateRepository) GetPendingTaskByInput(ctx context.Context, input wire.OutPoint) ([]domain.DelegateTask, error) {
+	rows, err := r.querier.GetPendingTaskByInput(ctx, queries.GetPendingTaskByInputParams{
+		InputsJson:   input.Hash.String(),
+		InputsJson_2: fmt.Sprintf("%d", input.Index),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	tasks := make([]domain.DelegateTask, 0, len(rows))
+	for _, row := range rows {
+		var intent domain.Intent
+		if err := json.Unmarshal([]byte(row.IntentJson), &intent); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal intent: %w", err)
+		}
+
+		var opJSON outpointJSON
+		if err := json.Unmarshal([]byte(row.InputsJson), &opJSON); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal input: %w", err)
+		}
+
+		hash, err := chainhash.NewHashFromStr(opJSON.Hash)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse hash: %w", err)
+		}
+
+		tasks = append(tasks, domain.DelegateTask{
+			ID:                row.ID,
+			Intent:            intent,
+			ForfeitTx:         row.ForfeitTx,
+			Input:             wire.OutPoint{
+				Hash:  *hash,
+				Index: opJSON.Index,
+			},
+			Fee:               uint64(row.Fee),
+			DelegatorPublicKey: row.DelegatorPublicKey,
+			ScheduledAt:       time.Unix(row.ScheduledAt, 0),
+			Status:            domain.DelegateTaskStatus(row.Status),
+			FailReason:        row.FailReason,
+		})
+	}
+
+	return tasks, nil
+}
+
 func (r *delegateRepository) Close() {
 	_ = r.db.Close()
 }

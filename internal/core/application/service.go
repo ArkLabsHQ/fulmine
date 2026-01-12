@@ -395,15 +395,13 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	s.syncCh = make(chan types.SyncEvent, 1)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		s.syncLock.Lock()
 		defer s.syncLock.Unlock()
 		ev := <-s.ArkClient.IsSynced(context.Background())
 		s.syncEvent = &ev
 		s.syncCh <- ev
-		wg.Done()
-	}()
+	})
 
 	if err := s.Unlock(ctx, password); err != nil {
 		return err
@@ -429,6 +427,21 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	go func() {
 		// We must wait for the client to be synced before doing anything.
 		wg.Wait()
+
+		// Load delegate signer key.
+		prvkeyStr, err := s.Dump(ctx)
+		if err != nil {
+			log.WithError(err).Error("failed to get delegate signer key")
+		}
+	
+		buf, err := hex.DecodeString(prvkeyStr)
+		if err != nil {
+			log.WithError(err).Error("failed to decode delegate signer key")
+		}
+	
+		privkey, pubkey := btcec.PrivKeyFromBytes(buf)
+		s.publicKey = pubkey
+		s.privateKey = privkey
 
 		// Do nothing here if restore failed.
 		if s.syncEvent == nil {
@@ -499,20 +512,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			log.WithError(err).Error("failed to start external subscription")
 		}
 
-		// Load delegate signer key.
-		prvkeyStr, err := s.Dump(context.Background())
-		if err != nil {
-			log.WithError(err).Error("failed to get delegate signer key")
-		}
-
-		buf, err := hex.DecodeString(prvkeyStr)
-		if err != nil {
-			log.WithError(err).Error("failed to decode delegate signer key")
-		}
-
-		privkey, pubkey := btcec.PrivKeyFromBytes(buf)
-		s.publicKey = pubkey
-		s.privateKey = privkey
 		// nolint
 		s.swapHandler, _ = swap.NewSwapHandler(
 			s.ArkClient, s.grpcClient, s.indexerClient, s.boltzSvc, s.publicKey, s.swapTimeout,

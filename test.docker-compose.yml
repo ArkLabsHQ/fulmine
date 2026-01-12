@@ -68,6 +68,7 @@ services:
     depends_on:
       - arkd-wallet
     ports:
+      - "7071:7071"
       - "7070:7070"
     environment:
       - ARKD_LOG_LEVEL=6

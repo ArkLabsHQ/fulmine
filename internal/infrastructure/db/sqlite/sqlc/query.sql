@@ -108,3 +108,9 @@ SELECT * FROM delegate_task WHERE id = ?;
 
 -- name: ListDelegateTaskPending :many
 SELECT id, scheduled_at FROM delegate_task WHERE status = 'pending';
+
+-- name: GetPendingTaskByInput :many
+SELECT * FROM delegate_task 
+WHERE status = 'pending' 
+  AND json_extract(inputs_json, '$.hash') = ?
+  AND CAST(json_extract(inputs_json, '$.index') AS INTEGER) = ?;

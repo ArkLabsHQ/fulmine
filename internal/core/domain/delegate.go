@@ -77,6 +77,8 @@ type DelegatorRepository interface {
 	AddOrUpdate(ctx context.Context, task DelegateTask) error
 	GetByID(ctx context.Context, id string) (*DelegateTask, error)
 	// return status == pending tasks
-	GetAllPending(ctx context.Context) ([]PendingDelegateTask, error) 
+	GetAllPending(ctx context.Context) ([]PendingDelegateTask, error)
+	// return pending tasks with the given input
+	GetPendingTaskByInput(ctx context.Context, input wire.OutPoint) ([]DelegateTask, error)
 	Close()
 }

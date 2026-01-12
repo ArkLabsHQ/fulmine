@@ -96,6 +96,51 @@ func (q *Queries) GetDelegateTask(ctx context.Context, id string) (DelegateTask,
 	return i, err
 }
 
+const getPendingTaskByInput = `-- name: GetPendingTaskByInput :many
+SELECT id, intent_json, forfeit_tx, inputs_json, fee, delegator_public_key, scheduled_at, status, fail_reason FROM delegate_task 
+WHERE status = 'pending' 
+  AND json_extract(inputs_json, '$.hash') = ?
+  AND CAST(json_extract(inputs_json, '$.index') AS INTEGER) = ?
+`
+
+type GetPendingTaskByInputParams struct {
+	InputsJson   string
+	InputsJson_2 string
+}
+
+func (q *Queries) GetPendingTaskByInput(ctx context.Context, arg GetPendingTaskByInputParams) ([]DelegateTask, error) {
+	rows, err := q.db.QueryContext(ctx, getPendingTaskByInput, arg.InputsJson, arg.InputsJson_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DelegateTask
+	for rows.Next() {
+		var i DelegateTask
+		if err := rows.Scan(
+			&i.ID,
+			&i.IntentJson,
+			&i.ForfeitTx,
+			&i.InputsJson,
+			&i.Fee,
+			&i.DelegatorPublicKey,
+			&i.ScheduledAt,
+			&i.Status,
+			&i.FailReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getSettings = `-- name: GetSettings :one
 SELECT id, api_root, server_url, esplora_url, currency, event_server, full_node, ln_url, unit, ln_datadir, ln_type FROM settings WHERE id = 1
 `
@@ -280,10 +325,7 @@ func (q *Queries) ListDelegateTaskPending(ctx context.Context) ([]ListDelegateTa
 	var items []ListDelegateTaskPendingRow
 	for rows.Next() {
 		var i ListDelegateTaskPendingRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.ScheduledAt,
-		); err != nil {
+		if err := rows.Scan(&i.ID, &i.ScheduledAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -494,7 +536,6 @@ type UpsertDelegateTaskParams struct {
 	FailReason         string
 }
 
-// DelegateTask queries
 func (q *Queries) UpsertDelegateTask(ctx context.Context, arg UpsertDelegateTaskParams) error {
 	_, err := q.db.ExecContext(ctx, upsertDelegateTask,
 		arg.ID,

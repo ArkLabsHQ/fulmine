@@ -3,10 +3,8 @@ package application
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"math"
 	"slices"
 	"strings"
 	"sync"
@@ -17,8 +15,12 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
+	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	"github.com/arkade-os/go-sdk/client"
+	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
@@ -34,7 +36,8 @@ type DelegatorService struct {
 	cachedDelegatorAddress *arklib.Address
 
 	intentsMtx sync.Mutex
-	registeredIntents map[string]string // intent hash -> task id
+	registeredIntents map[string]registeredIntent // intent hash -> task id
+	ctx context.Context
 	cancelFunc context.CancelFunc
 }
 
@@ -48,17 +51,42 @@ func NewDelegatorService(svc *Service, fee uint64) *DelegatorService {
 	s := &DelegatorService{
 		svc: svc,
 		fee: fee,
+		registeredIntents: make(map[string]registeredIntent),
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	s.ctx = ctx
+	s.cancelFunc = cancel
 
+	go func(ctx context.Context) {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := s.svc.isInitializedAndUnlocked(ctx); err != nil {
+					continue
+				}
+				if s.svc.publicKey == nil || s.svc.privateKey == nil {
+					continue
+				}
+				s.start()
+				log.Debug("delegator background handler started")
+				return
+			}
+		}
+	}(ctx)
+
+	return s
+}
+
+func (s *DelegatorService) start() {
 	if err := s.restorePendingTasks(); err != nil {
 		log.WithError(err).Warn("failed to restore pending tasks")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	s.cancelFunc = cancel
-	go s.listenBatchEvents(ctx)
-
-	return s
+	go s.listenBatchStartedEvents(s.ctx)
 }
 
 func (s *DelegatorService) Stop() {
@@ -68,6 +96,7 @@ func (s *DelegatorService) Stop() {
 	}
 }
 
+// GetDelegateInfo returns the data needed to create the intent & forfeit tx for a delegate task.
 func (s *DelegatorService) GetDelegateInfo(ctx context.Context) (*DelegateInfo, error) {
 	offchainAddr, err := s.getDelegatorAddress(ctx)
 	if err != nil {
@@ -86,6 +115,16 @@ func (s *DelegatorService) GetDelegateInfo(ctx context.Context) (*DelegateInfo, 
 	}, nil
 }
 
+// Delegate registers a delegate task and schedules it for execution.
+// it validates:
+// * the intent has exactly 1 input and forfeit is spending a Alice + Delegator tapscript.
+// * the forfeit amount is correct
+// * the forfeit signature is valid and uses sighash type ANYONECANPAY | ALL
+// * the intent input = forfeit input
+// * the forfeit sig is related to tapleaf script
+// * the forfeit script is a multisig closure with 3 pubkeys: Alice, Delegator and Signer
+// * there is no pending task with the same input in DB
+// once validated, the task is saved to DB and scheduled for execution.
 func (s *DelegatorService) Delegate(
 	ctx context.Context, 
 	intentMessage intent.RegisterMessage, intentProof intent.Proof, forfeit *psbt.Packet,
@@ -93,8 +132,74 @@ func (s *DelegatorService) Delegate(
 	if err := s.svc.isInitializedAndUnlocked(ctx); err != nil {
 		return err
 	}
-	// TODO : validate intent
-	// TODO : validate forfeit
+
+	if len(forfeit.Inputs) != 1 || len(forfeit.UnsignedTx.TxIn) != 1 {
+		return fmt.Errorf("invalid number of forfeit inputs: got %d, expected 1", len(forfeit.Inputs))
+	}
+	
+
+	if forfeit.Inputs[0].WitnessUtxo == nil {
+		return fmt.Errorf("forfeit input witness utxo is nil")
+	}
+
+	if len(forfeit.Inputs[0].TaprootScriptSpendSig) != 1 {
+		return fmt.Errorf("forfeit input has no taproot script spend sig")
+	}
+
+
+	if len(forfeit.Inputs[0].TaprootLeafScript) != 1 {
+		return fmt.Errorf("forfeit input has no taproot leaf script")
+	}
+
+	if len(forfeit.UnsignedTx.TxOut) != 2 {
+		return fmt.Errorf("invalid number of forfeit outputs: got %d, expected 2", len(forfeit.UnsignedTx.TxOut))
+	}
+
+	// verify forfeit outputs
+	cfg, err := s.svc.GetConfigData(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get config data: %w", err)
+	}
+
+  addr, err := btcutil.DecodeAddress(cfg.ForfeitAddress, nil)
+	if err != nil {
+		return fmt.Errorf("failed to decode forfeit address: %w", err)
+	}
+
+	forfeitOutputScript, err := txscript.PayToAddrScript(addr)
+	if err != nil {
+		return fmt.Errorf("failed to create forfeit output script: %w", err)
+	}
+
+	// the first should be the forfeit server address
+	if !bytes.Equal(forfeit.UnsignedTx.TxOut[0].PkScript, forfeitOutputScript) {
+		return fmt.Errorf(
+			"wrong forfeit output script, expected %x, got %x", 
+			forfeitOutputScript, forfeit.UnsignedTx.TxOut[0].PkScript,
+		)
+	}
+
+	// the second one should be P2A
+	if !bytes.Equal(forfeit.UnsignedTx.TxOut[1].PkScript, txutils.ANCHOR_PKSCRIPT) {
+		return fmt.Errorf(
+			"wrong anchor output script, expected %x, got %x", 
+			txutils.ANCHOR_PKSCRIPT, forfeit.UnsignedTx.TxOut[1].PkScript,
+		)
+	}
+
+	// verify forfeit amount
+	expectedAmount := int64(cfg.Dust) + forfeit.Inputs[0].WitnessUtxo.Value
+	if expectedAmount != forfeit.UnsignedTx.TxOut[0].Value {
+		return fmt.Errorf(
+			"wrong forfeit amount, expected %d, got %d", 
+			expectedAmount,
+			forfeit.UnsignedTx.TxOut[0].Value,
+		)
+	}
+
+	forfeitOutpoint := forfeit.UnsignedTx.TxIn[0].PreviousOutPoint
+	forfeitSig := forfeit.Inputs[0].TaprootScriptSpendSig[0]
+	forfeitLeafScript := forfeit.Inputs[0].TaprootLeafScript[0]
 
 	task, err := s.newDelegateTask(ctx, intentMessage, intentProof, forfeit)
 	if err != nil {
@@ -106,14 +211,109 @@ func (s *DelegatorService) Delegate(
 		return fmt.Errorf("delegator fee is less than the required fee (expected at least %d, got %d)", s.fee, task.Fee)
 	}
 
+	// verify intent input = forfeit input
+	if !task.Input.Hash.IsEqual(&forfeitOutpoint.Hash) || task.Input.Index != forfeitOutpoint.Index {
+		return fmt.Errorf("intent input does not match forfeit input")
+	}
+
+	// verify forfeit sig is related to tapleaf script
+	tapLeaf := txscript.NewBaseTapLeaf(forfeitLeafScript.Script)
+	tapLeafHash := tapLeaf.TapHash()
+	if !bytes.Equal(forfeitSig.LeafHash, tapLeafHash[:]) {
+		return fmt.Errorf("missing tapleaf script %x", tapLeafHash)
+	}
+
+	// verify the forfeit script 
+	var multisigClosure script.MultisigClosure
+	valid, err := multisigClosure.Decode(forfeitLeafScript.Script); 
+	if err != nil {
+		return fmt.Errorf("failed to decode multisig closure: %w", err)
+	}
+	if !valid {
+		return fmt.Errorf("invalid taproot leaf script, expected multisig closure, got %x", forfeitLeafScript.Script)
+	}
+	if len(multisigClosure.PubKeys) != 3 {
+		return fmt.Errorf("invalid multisig closure, expected 3 pubkeys, got %d", len(multisigClosure.PubKeys))
+	}
+
+	delegatorXonlyKey := schnorr.SerializePubKey(s.svc.publicKey)
+
+	var delegatorFound, signerFound bool
+	for _, pubkey := range multisigClosure.PubKeys {
+		xonlyKey := schnorr.SerializePubKey(pubkey)
+		if bytes.Equal(xonlyKey, delegatorXonlyKey) {
+			delegatorFound = true
+			continue
+		}
+
+		if bytes.Equal(xonlyKey, forfeitSig.XOnlyPubKey) {
+			signerFound = true
+		}
+	}
+	if !delegatorFound {
+		return fmt.Errorf("delegator public key not found in taproot leaf script")
+	}
+	if !signerFound {
+		return fmt.Errorf("signer public key not found in taproot leaf script")
+	}
+
+	// verify the signature (must be valid and use sighash type ANYONECANPAY | ALL)
+	expectedSigHashType := txscript.SigHashAnyOneCanPay | txscript.SigHashAll
+	if forfeitSig.SigHash != expectedSigHashType {
+		return fmt.Errorf("invalid sighash type, expected AnyoneCanPay | All, got %d", forfeitSig.SigHash)
+	}
+
+	prevoutFetcher := txscript.NewMultiPrevOutFetcher(map[wire.OutPoint]*wire.TxOut{
+		forfeitOutpoint: forfeit.Inputs[0].WitnessUtxo,
+	})
+
+	message, err := txscript.CalcTapscriptSignaturehash(
+		txscript.NewTxSigHashes(forfeit.UnsignedTx, prevoutFetcher),
+		expectedSigHashType, forfeit.UnsignedTx, 0, prevoutFetcher, tapLeaf,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to calculate sighash: %w", err)
+	}
+
+	signerPublicKey, err := schnorr.ParsePubKey(forfeitSig.XOnlyPubKey)
+	if err != nil {
+		return fmt.Errorf("failed to parse signer public key: %w", err)
+	}
+
+	sig, err := schnorr.ParseSignature(forfeitSig.Signature)
+	if err != nil {
+		return fmt.Errorf("failed to parse signature: %w", err)
+	}
+
+	if !sig.Verify(message, signerPublicKey) {
+		return fmt.Errorf("invalid forfeit signature")
+	}
+
 	// TODO validate intent fee
 
+	// before saving to databse, verify that there is no pending task with the same input
+	pendingTasks, err := s.svc.dbSvc.Delegate().GetPendingTaskByInput(ctx, task.Input)
+	if err != nil {
+		return err
+	}
+	if len(pendingTasks) > 0 {
+		return fmt.Errorf("pending task with same input already exists")
+	}
+
+	// save task to database
 	err = s.svc.dbSvc.Delegate().AddOrUpdate(ctx, *task)
 	if err != nil {
 		return err
 	}
 
 	// schedule task
+	if err := s.svc.schedulerSvc.ScheduleTaskAtTime(task.ScheduledAt, func() {
+		if err := s.registerDelegate(task.ID); err != nil {
+			log.WithError(err).Warnf("failed to execute delegate task %s", task.ID)
+		}
+	}); err != nil {
+		return fmt.Errorf("failed to schedule delegate task: %w", err)
+	}
 
 	return nil
 }
@@ -205,6 +405,7 @@ func (s *DelegatorService) getDelegatorAddress(ctx context.Context) (*arklib.Add
 	return decodedAddr, nil
 }
 
+// restorePendingTasks restores all pending tasks from DB and schedules them for execution.
 func (s *DelegatorService) restorePendingTasks() error {
 	ctx := context.Background()
 	pendingTasks, err := s.svc.dbSvc.Delegate().GetAllPending(ctx)
@@ -214,7 +415,7 @@ func (s *DelegatorService) restorePendingTasks() error {
 
 	for _, pendingTask := range pendingTasks {
 		if err = s.svc.schedulerSvc.ScheduleTaskAtTime(pendingTask.ScheduledAt, func() {
-			if err := s.executeDelegate(pendingTask.ID); err != nil {
+			if err := s.registerDelegate(pendingTask.ID); err != nil {
 				log.WithError(err).Warnf("failed to execute delegate task %s", pendingTask.ID)
 			}
 		}); err != nil {
@@ -226,7 +427,7 @@ func (s *DelegatorService) restorePendingTasks() error {
 	return nil
 }
 
-func (s *DelegatorService) executeDelegate(id string) error {
+func (s *DelegatorService) registerDelegate(id string) error {
 	ctx := context.Background()
 	repo := s.svc.dbSvc.Delegate()
 	task, err := repo.GetByID(ctx, id)
@@ -236,6 +437,7 @@ func (s *DelegatorService) executeDelegate(id string) error {
 
 	intentId, err := s.svc.grpcClient.RegisterIntent(ctx, task.Intent.Proof, task.Intent.Message)
 	if err != nil {
+		log.WithError(err).Errorf("failed to register intent for delegate task %s", id)
 		if err := task.Fail(err.Error()); err != nil {
 			return err
 		}
@@ -245,73 +447,24 @@ func (s *DelegatorService) executeDelegate(id string) error {
 		return nil
 	}
 
-	buf := sha256.Sum256([]byte(intentId))
-	hashedIntentId := hex.EncodeToString(buf[:])
+	registeredIntent := registeredIntent{
+		taskID: id,
+		intentID: intentId,
+		input: task.Input,
+	}
 
 	s.intentsMtx.Lock()
-	s.registeredIntents[hashedIntentId] = id
+	s.registeredIntents[registeredIntent.intentIDHash()] = registeredIntent
 	s.intentsMtx.Unlock()
+
+	log.Debugf("delegate task %s registered", id)
 
 	return nil
 }
 
-func (s *DelegatorService) reconnectEventStream(ctx context.Context, currentStop func()) (<-chan client.BatchEventChannel, func(), error) {
-	const (
-		initialBackoff = 1 * time.Second
-		maxBackoff     = 5 * time.Minute
-		backoffFactor  = 2.0
-	)
-
-	// Clean up previous connection if any
-	if currentStop != nil {
-		currentStop()
-	}
-
-	backoff := initialBackoff
-	attempt := 0
-
-	for {
-		attempt++
-		log.WithFields(log.Fields{
-			"attempt": attempt,
-			"backoff": backoff,
-		}).Warn("event stream closed, attempting to reconnect...")
-
-		// Try to connect
-		eventsCh, stop, err := s.svc.grpcClient.GetEventStream(ctx, nil)
-		if err == nil {
-			log.WithField("attempt", attempt).Info("successfully reconnected to event stream")
-			return eventsCh, stop, nil
-		}
-
-		log.WithError(err).WithField("attempt", attempt).Warn("failed to reconnect to event stream")
-
-		// Check if context is cancelled
-		select {
-		case <-ctx.Done():
-			log.Info("context cancelled, stopping reconnect attempts")
-			return nil, nil, ctx.Err()
-		default:
-		}
-
-		// Calculate next backoff (exponential increase)
-		nextBackoff := time.Duration(float64(backoff) * backoffFactor)
-		if nextBackoff > maxBackoff {
-			nextBackoff = maxBackoff
-		}
-
-		// Wait before retrying
-		select {
-		case <-ctx.Done():
-			log.Info("context cancelled during backoff, stopping reconnect attempts")
-			return nil, nil, ctx.Err()
-		case <-time.After(nextBackoff):
-			backoff = nextBackoff
-		}
-	}
-}
-
-func (s *DelegatorService) listenBatchEvents(ctx context.Context) {
+// listenBatchStartedEvents check all BatchStartedEvent sent by Ark server and join batch if any include on of the delegated intent.
+func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
+	log.Debug("listening for batch events")
 	var eventsCh <-chan client.BatchEventChannel
 	var stop func()
 
@@ -322,21 +475,6 @@ func (s *DelegatorService) listenBatchEvents(ctx context.Context) {
 		return
 	}
 
-	flatVtxoTree := make([]tree.TxTreeNode, 0)
-	flatConnectorTree := make([]tree.TxTreeNode, 0)
-	var vtxoTree, connectorTree *tree.TxTree
-	type selectedTask struct {
-		id string
-		intentHash string
-	}
-	selectedDelegatorTasks := make([]selectedTask, 0)
-	batchExpiry := arklib.RelativeLocktime{
-		Type: arklib.LocktimeTypeBlock,
-		Value: math.MaxUint32,
-	}
-
-	signerSession := tree.NewTreeSignerSession(s.svc.privateKey)
-
 	for {
 		select {
 		case <-ctx.Done():
@@ -346,11 +484,6 @@ func (s *DelegatorService) listenBatchEvents(ctx context.Context) {
 			return
 		case notify, ok := <-eventsCh:
 			if !ok {
-				flatVtxoTree = make([]tree.TxTreeNode, 0)
-				flatConnectorTree = make([]tree.TxTreeNode, 0)
-				vtxoTree = nil
-				connectorTree = nil
-				
 				newEventsCh, newStop, err := s.reconnectEventStream(ctx, stop)
 				if err != nil {
 					log.WithError(err).Error("failed to reconnect to event stream, stopping listenBatchEvents...")
@@ -365,81 +498,123 @@ func (s *DelegatorService) listenBatchEvents(ctx context.Context) {
 				continue
 			}
 
-			switch event := notify.Event; event.(type) {
-			case client.BatchStartedEvent:
-				flatVtxoTree = make([]tree.TxTreeNode, 0)
-				flatConnectorTree = make([]tree.TxTreeNode, 0)
-				vtxoTree = nil
-				connectorTree = nil
-				selectedDelegatorTasks = make([]selectedTask, 0)
-				signerSession = tree.NewTreeSignerSession(s.svc.privateKey)
-
-				e := event.(client.BatchStartedEvent)
-				s.intentsMtx.Lock()
-				for _, intentHash := range e.HashedIntentIds {
-					if id, ok := s.registeredIntents[intentHash]; ok {
-						selectedDelegatorTasks = append(selectedDelegatorTasks, selectedTask{id: id, intentHash: intentHash})
-					}
-				}
-				s.intentsMtx.Unlock()
-				batchExpiry = parseLocktime(uint32(e.BatchExpiry))
+			event, ok := notify.Event.(client.BatchStartedEvent)
+			if !ok {
 				continue
-			// batch is done, mark tasks as success and remove from registered intents
-			case client.BatchFinalizedEvent:
-				if len(selectedDelegatorTasks) == 0 {
-					continue
-				}
+			}
+			selectedTasks := make([]registeredIntent, 0)
 
+			s.intentsMtx.Lock()
+			for _, intentHash := range event.HashedIntentIds {
+				if registeredIntent, ok := s.registeredIntents[intentHash]; ok {
+					selectedTasks = append(selectedTasks, registeredIntent)
+				}
+			}
+			s.intentsMtx.Unlock()
+			batchExpiry := parseLocktime(uint32(event.BatchExpiry))
+
+			if len(selectedTasks) == 0 {
+				continue
+			}
+
+			go func(tasks []registeredIntent, batchExpiry arklib.RelativeLocktime) {
+				commitmentTxId, err := s.joinDelegatorBatch(ctx, batchExpiry, tasks)
+				if err != nil {
+					log.WithError(err).Warnf("failed to join batch")
+					return
+				}
+				log.Infof("%d vtxos renewed by batch %s", len(selectedTasks), commitmentTxId)
+			}(selectedTasks, batchExpiry)
+			
+			log.Infof("batch started, selected %d delegate tasks", len(selectedTasks))
+		}
+	}
+}
+
+// joinDelegatorBatch is launched after the BatchStartedEvent is received and is reponsible to sign vtxo tree and submit forfeits txs.
+func (s *DelegatorService) joinDelegatorBatch(ctx context.Context, batchExpiry arklib.RelativeLocktime, selectedDelegatorTasks []registeredIntent) (string, error) {
+	flatVtxoTree := make([]tree.TxTreeNode, 0)
+	flatConnectorTree := make([]tree.TxTreeNode, 0)
+	var vtxoTree, connectorTree *tree.TxTree
+
+	signerSession := tree.NewTreeSignerSession(s.svc.privateKey)
+
+	topics := make([]string, 0, len(selectedDelegatorTasks) + 1)
+	topics = append(topics, hex.EncodeToString(s.svc.publicKey.SerializeCompressed()))
+	
+	// confirm registrations and compute topics
+	for _, selectedTask := range selectedDelegatorTasks {
+		if err := s.svc.grpcClient.ConfirmRegistration(ctx, selectedTask.intentID); err != nil {
+			log.WithError(err).Warnf("failed to confirm registration for intent %s", selectedTask.intentID)
+			continue
+		}
+		topics = append(topics, types.Outpoint{
+			Txid: selectedTask.input.Hash.String(),
+			VOut: selectedTask.input.Index,
+		}.String())
+	}
+
+	eventsCh, stop, err := s.svc.grpcClient.GetEventStream(ctx, topics)
+	if err != nil {
+		return "", fmt.Errorf("failed to establish initial connection to event stream with event stream topics: %w", err)
+	}
+	defer stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case event, ok := <-eventsCh:
+			if !ok {
+				return "", fmt.Errorf("event stream closed")
+			}
+			switch event := event.Event.(type) {
+			case client.BatchFinalizedEvent:
 				for _, selectedTask := range selectedDelegatorTasks {
 					repo := s.svc.dbSvc.Delegate()
-					task, err := repo.GetByID(ctx, selectedTask.id)
+					task, err := repo.GetByID(ctx, selectedTask.taskID)
 					if err != nil {
-						log.WithError(err).Warnf("failed to get delegate task %s, cannot mark as done", selectedTask.id)
+						log.WithError(err).Warnf("failed to get delegate task %s, cannot mark as done", selectedTask.taskID)
 						continue
 					}
 					if err := task.Success(); err != nil {
-						log.WithError(err).Warnf("failed to mark delegate task %s as done", selectedTask.id)
+						log.WithError(err).Warnf("failed to mark delegate task %s as done", selectedTask.taskID)
 						continue
 					}
 					if err := repo.AddOrUpdate(ctx, *task); err != nil {
-						log.WithError(err).Warnf("failed to update delegate task %s", selectedTask.id)
+						log.WithError(err).Warnf("failed to update delegate task %s", selectedTask.taskID)
 						continue
 					}
 					s.intentsMtx.Lock()
-					delete(s.registeredIntents, selectedTask.intentHash)
+					delete(s.registeredIntents, selectedTask.intentIDHash())
 					s.intentsMtx.Unlock()
 				}
-
-				selectedDelegatorTasks = make([]selectedTask, 0)
-				continue
+				log.Debugf("batch %s finalized, %d delegate tasks marked as done", event.Txid, len(selectedDelegatorTasks))
+				return event.Txid, nil
 			// batch failed, try to re-register selected intents
 			case client.BatchFailedEvent:
 				 for _, selectedTask := range selectedDelegatorTasks {
-					if err := s.executeDelegate(selectedTask.id); err != nil {
-						log.WithError(err).Warnf("failed to re-register delegate task %s", selectedTask.id)
+					if err := s.registerDelegate(selectedTask.taskID); err != nil {
+						log.WithError(err).Warnf("failed to re-register delegate task %s", selectedTask.taskID)
 						continue
 					}
 				 }
-				selectedDelegatorTasks = make([]selectedTask, 0)
-				continue
+				 log.Warnf("batch failed, %d delegate tasks re-registered", len(selectedDelegatorTasks))
+				return "", fmt.Errorf("batch failed")
 			// we received a tree tx event msg, let's update the vtxo/connector tree.
 			case client.TreeTxEvent:
-				treeTxEvent := event.(client.TreeTxEvent)
-
-				if treeTxEvent.BatchIndex == 0 {
-					flatVtxoTree = append(flatVtxoTree, treeTxEvent.Node)
+				if event.BatchIndex == 0 {
+					flatVtxoTree = append(flatVtxoTree, event.Node)
 				} else {
-					flatConnectorTree = append(flatConnectorTree, treeTxEvent.Node)
+					flatConnectorTree = append(flatConnectorTree, event.Node)
 				}
-
+			
 				continue
 			case client.TreeSignatureEvent:
 				if vtxoTree == nil {
-					return
+					return "", fmt.Errorf("vtxo tree is nil")
 				}
-
-				event := event.(client.TreeSignatureEvent)
-
+			
 				if err := addSignatureToTxTree(event, vtxoTree); err != nil {
 					log.WithError(err).Warnf("failed to add signature to vtxo tree")
 					continue
@@ -450,12 +625,10 @@ func (s *DelegatorService) listenBatchEvents(ctx context.Context) {
 				var err error
 				vtxoTree, err = tree.NewTxTree(flatVtxoTree)
 				if err != nil {
-					return
+					log.WithError(err).Warnf("failed to create vtxo tree")
+					continue
 				}
-
-
-				event := event.(client.TreeSigningStartedEvent)
-
+			
 				if err := s.onTreeSigningStarted(ctx, signerSession, batchExpiry, event, vtxoTree); err != nil {
 					log.WithError(err).Warnf("failed to handle tree signing started event")
 					continue
@@ -464,7 +637,6 @@ func (s *DelegatorService) listenBatchEvents(ctx context.Context) {
 			// we received the fully signed vtxo and connector trees, let's send our signed forfeit
 			// txs and optionally signed boarding utxos included in the commitment tx.
 			case client.TreeNoncesEvent:
-				event := event.(client.TreeNoncesEvent)
 				_, err := s.onTreeNonces(ctx, event, signerSession)
 				if err != nil {
 					log.WithError(err).Warnf("failed to handle tree nonces event")
@@ -478,15 +650,15 @@ func (s *DelegatorService) listenBatchEvents(ctx context.Context) {
 						continue
 					}
 				}
-
+			
 				connectorsLeaves := connectorTree.Leaves()
-
+			
 				// TODO : exclude recoverable coins
 				selectedTasksIds := make([]string, 0, len(selectedDelegatorTasks))
 				for _, selectedTask := range selectedDelegatorTasks {
-					selectedTasksIds = append(selectedTasksIds, selectedTask.id)
+					selectedTasksIds = append(selectedTasksIds, selectedTask.taskID)
 				}
-
+			
 				if err := s.processForfeits(ctx, connectorsLeaves, selectedTasksIds); err != nil {
 					log.WithError(err).Warnf("failed to process forfeits")
 					continue
@@ -495,8 +667,6 @@ func (s *DelegatorService) listenBatchEvents(ctx context.Context) {
 		}
 	}
 }
-
-
 
 func (s *DelegatorService) onTreeSigningStarted(
 	ctx context.Context, signerSession tree.SignerSession, batchExpiry arklib.RelativeLocktime, 
@@ -611,7 +781,7 @@ func (s *DelegatorService) processForfeits(
 			PreviousOutPoint: *connectorOutpoint,
 			Sequence: wire.MaxTxInSequenceNum,
 		})
-		forfeitTx.Inputs[0].SighashType = txscript.SigHashAll
+		forfeitTx.Inputs[0].SighashType = txscript.SigHashDefault
 
 		encodedForfeitTx, err := forfeitTx.B64Encode()
 		if err != nil {
@@ -629,4 +799,58 @@ func (s *DelegatorService) processForfeits(
 	return s.svc.grpcClient.SubmitSignedForfeitTxs(ctx, signedForfeitTxs, "")
 }
 
+func (s *DelegatorService) reconnectEventStream(ctx context.Context, currentStop func()) (<-chan client.BatchEventChannel, func(), error) {
+	const (
+		initialBackoff = 1 * time.Second
+		maxBackoff     = 5 * time.Minute
+		backoffFactor  = 2.0
+	)
 
+	// Clean up previous connection if any
+	if currentStop != nil {
+		currentStop()
+	}
+
+	backoff := initialBackoff
+	attempt := 0
+
+	for {
+		attempt++
+		log.WithFields(log.Fields{
+			"attempt": attempt,
+			"backoff": backoff,
+		}).Warn("event stream closed, attempting to reconnect...")
+
+		// Try to connect
+		eventsCh, stop, err := s.svc.grpcClient.GetEventStream(ctx, nil)
+		if err == nil {
+			log.WithField("attempt", attempt).Info("successfully reconnected to event stream")
+			return eventsCh, stop, nil
+		}
+
+		log.WithError(err).WithField("attempt", attempt).Warn("failed to reconnect to event stream")
+
+		// Check if context is cancelled
+		select {
+		case <-ctx.Done():
+			log.Info("context cancelled, stopping reconnect attempts")
+			return nil, nil, ctx.Err()
+		default:
+		}
+
+		// Calculate next backoff (exponential increase)
+		nextBackoff := time.Duration(float64(backoff) * backoffFactor)
+		if nextBackoff > maxBackoff {
+			nextBackoff = maxBackoff
+		}
+
+		// Wait before retrying
+		select {
+		case <-ctx.Done():
+			log.Info("context cancelled during backoff, stopping reconnect attempts")
+			return nil, nil, ctx.Err()
+		case <-time.After(nextBackoff):
+			backoff = nextBackoff
+		}
+	}
+}

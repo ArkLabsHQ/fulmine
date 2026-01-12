@@ -2,6 +2,7 @@ package application
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 
@@ -82,4 +83,16 @@ func extractConnector(connectorTx *psbt.Packet) (*wire.TxOut, *wire.OutPoint, er
 	}
 
 	return nil, nil, fmt.Errorf("connector output not found")
+}
+
+// a wrapper around delegator task id
+type registeredIntent struct {
+	taskID string
+	intentID string
+	input wire.OutPoint
+}
+
+func (i registeredIntent) intentIDHash() string {
+	buf := sha256.Sum256([]byte(i.intentID))
+	return hex.EncodeToString(buf[:])
 }

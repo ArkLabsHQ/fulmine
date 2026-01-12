@@ -183,6 +183,44 @@ func (r *delegateRepository) GetAllPending(ctx context.Context) ([]domain.Pendin
 	return tasks, nil
 }
 
+func (r *delegateRepository) GetPendingTaskByInput(ctx context.Context, input wire.OutPoint) ([]domain.DelegateTask, error) {
+	var allTasks []delegateTaskData
+	var err error
+
+	if ctx.Value("tx") != nil {
+		tx := ctx.Value("tx").(*badger.Txn)
+		err = r.store.TxFind(tx, &allTasks, badgerhold.Where("Status").Eq(domain.DelegateTaskStatusPending))
+	} else {
+		err = r.store.Find(&allTasks, badgerhold.Where("Status").Eq(domain.DelegateTaskStatusPending))
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	inputHashStr := input.Hash.String()
+	inputIndex := input.Index
+
+	tasks := make([]domain.DelegateTask, 0)
+	for _, data := range allTasks {
+		var opJSON outpointJSON
+		if err := json.Unmarshal([]byte(data.InputJSON), &opJSON); err != nil {
+			continue // skip tasks with invalid input JSON
+		}
+
+		// Check if the input matches
+		if opJSON.Hash == inputHashStr && opJSON.Index == inputIndex {
+			task, err := data.toDelegateTask()
+			if err != nil {
+				continue // skip tasks that can't be converted
+			}
+			tasks = append(tasks, *task)
+		}
+	}
+
+	return tasks, nil
+}
+
 func (r *delegateRepository) Close() {
 	// nolint:all
 	r.store.Close()

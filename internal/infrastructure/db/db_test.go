@@ -133,6 +133,7 @@ func testVtxoRolloverRepository(t *testing.T, svc ports.RepoManager) {
 		testAddOrUpdateDelegateTask(t, svc.Delegate())
 		testGetDelegateTaskByID(t, svc.Delegate())
 		testGetAllPendingDelegateTasks(t, svc.Delegate())
+		testGetPendingTaskByInput(t, svc.Delegate())
 	})
 }
 
@@ -377,6 +378,73 @@ func testGetAllPendingDelegateTasks(t *testing.T, repo domain.DelegatorRepositor
 		require.True(t, taskIDs["pending_task_1"])
 		require.True(t, taskIDs["pending_task_2"])
 		require.False(t, taskIDs["done_task_1"])
+	})
+}
+
+func testGetPendingTaskByInput(t *testing.T, repo domain.DelegatorRepository) {
+	t.Run("get pending task by input", func(t *testing.T) {
+		// Create a unique input for this test
+		hash1, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000003")
+		testInput := wire.OutPoint{Hash: *hash1, Index: 0}
+
+		// Add a pending task with the test input
+		pendingTask1 := testDelegateTask
+		pendingTask1.ID = "pending_by_input_1"
+		pendingTask1.Input = testInput
+		pendingTask1.Status = domain.DelegateTaskStatusPending
+		err := repo.AddOrUpdate(ctx, pendingTask1)
+		require.NoError(t, err)
+
+		// Add another pending task with the same input
+		pendingTask2 := testDelegateTask
+		pendingTask2.ID = "pending_by_input_2"
+		pendingTask2.Input = testInput
+		pendingTask2.Status = domain.DelegateTaskStatusPending
+		err = repo.AddOrUpdate(ctx, pendingTask2)
+		require.NoError(t, err)
+
+		// Add a pending task with a different input (should not be returned)
+		hash2, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000004")
+		differentInput := wire.OutPoint{Hash: *hash2, Index: 0}
+		pendingTask3 := testDelegateTask
+		pendingTask3.ID = "pending_by_input_3"
+		pendingTask3.Input = differentInput
+		pendingTask3.Status = domain.DelegateTaskStatusPending
+		err = repo.AddOrUpdate(ctx, pendingTask3)
+		require.NoError(t, err)
+
+		// Add a done task with the same input (should not be returned)
+		doneTask := testDelegateTask
+		doneTask.ID = "done_by_input_1"
+		doneTask.Input = testInput
+		doneTask.Status = domain.DelegateTaskStatusDone
+		err = repo.AddOrUpdate(ctx, doneTask)
+		require.NoError(t, err)
+
+		// Get pending tasks by input
+		tasks, err := repo.GetPendingTaskByInput(ctx, testInput)
+		require.NoError(t, err)
+		require.Len(t, tasks, 2)
+
+		// Verify the returned tasks
+		taskIDs := make(map[string]bool)
+		for _, task := range tasks {
+			taskIDs[task.ID] = true
+			require.Equal(t, domain.DelegateTaskStatusPending, task.Status)
+			require.Equal(t, testInput.Hash.String(), task.Input.Hash.String())
+			require.Equal(t, testInput.Index, task.Input.Index)
+		}
+		require.True(t, taskIDs["pending_by_input_1"])
+		require.True(t, taskIDs["pending_by_input_2"])
+		require.False(t, taskIDs["pending_by_input_3"])
+		require.False(t, taskIDs["done_by_input_1"])
+
+		// Test with a non-existent input
+		hash3, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000005")
+		nonExistentInput := wire.OutPoint{Hash: *hash3, Index: 0}
+		tasks, err = repo.GetPendingTaskByInput(ctx, nonExistentInput)
+		require.NoError(t, err)
+		require.Len(t, tasks, 0)
 	})
 }
 
