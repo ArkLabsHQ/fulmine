@@ -17,6 +17,7 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	"github.com/arkade-os/go-sdk/client"
+	indexer "github.com/arkade-os/go-sdk/indexer"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -117,6 +118,7 @@ func (s *DelegatorService) GetDelegateInfo(ctx context.Context) (*DelegateInfo, 
 
 // Delegate registers a delegate task and schedules it for execution.
 // it validates:
+// * the intent is not a collaborative exit
 // * the intent has exactly 1 input and forfeit is spending a Alice + Delegator tapscript.
 // * the forfeit amount is correct
 // * the forfeit signature is valid and uses sighash type ANYONECANPAY | ALL
@@ -195,6 +197,11 @@ func (s *DelegatorService) Delegate(
 			expectedAmount,
 			forfeit.UnsignedTx.TxOut[0].Value,
 		)
+	}
+
+	// reject collaborative exit
+	if len(intentMessage.OnchainOutputIndexes) > 0 {
+		return fmt.Errorf("delegated collaborative exit is not supported")
 	}
 
 	forfeitOutpoint := forfeit.UnsignedTx.TxIn[0].PreviousOutPoint
@@ -290,6 +297,30 @@ func (s *DelegatorService) Delegate(
 	}
 
 	// TODO validate intent fee
+
+	// verify the input is a real VTXO and not unrolled or spent
+	opts := indexer.GetVtxosRequestOption{}
+	if err := opts.WithOutpoints([]types.Outpoint{
+		{
+			Txid: task.Input.Hash.String(),
+			VOut: task.Input.Index,
+		},
+	}); err != nil {
+		return fmt.Errorf("failed to get vtxos: %w", err)
+	}
+	vtxos, err := s.svc.indexerClient.GetVtxos(ctx, opts)
+	if err != nil {
+		return fmt.Errorf("failed to get vtxos: %w", err)
+	}
+	if len(vtxos.Vtxos) == 0 {
+		return fmt.Errorf("input is not a VTXO")
+	}
+	if vtxos.Vtxos[0].Spent {
+		return fmt.Errorf("input is already spent")
+	}
+	if vtxos.Vtxos[0].Unrolled {
+		return fmt.Errorf("input is unrolled")
+	}
 
 	// before saving to databse, verify that there is no pending task with the same input
 	pendingTasks, err := s.svc.dbSvc.Delegate().GetPendingTaskByInput(ctx, task.Input)
@@ -653,12 +684,28 @@ func (s *DelegatorService) joinDelegatorBatch(ctx context.Context, batchExpiry a
 			
 				connectorsLeaves := connectorTree.Leaves()
 			
-				// TODO : exclude recoverable coins
 				selectedTasksIds := make([]string, 0, len(selectedDelegatorTasks))
 				for _, selectedTask := range selectedDelegatorTasks {
+					opts := indexer.GetVtxosRequestOption{}
+					if err := opts.WithOutpoints([]types.Outpoint{
+						{
+							Txid: selectedTask.input.Hash.String(),
+							VOut: selectedTask.input.Index,
+						},
+					}); err != nil {
+						log.WithError(err).Warnf("failed to set outpoints for get vtxos request")
+						continue
+					}
+					vtxos, err := s.svc.indexerClient.GetVtxos(ctx, opts)
+					if err == nil && len(vtxos.Vtxos) > 0 {
+						if vtxos.Vtxos[0].IsRecoverable() {
+							continue // exclude recoverable coins, they do not need forfeits
+						}
+					}
+
 					selectedTasksIds = append(selectedTasksIds, selectedTask.taskID)
 				}
-			
+
 				if err := s.processForfeits(ctx, connectorsLeaves, selectedTasksIds); err != nil {
 					log.WithError(err).Warnf("failed to process forfeits")
 					continue
