@@ -527,9 +527,9 @@ func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
 	log.Debug("listening for batch events")
 	var eventsCh <-chan client.BatchEventChannel
 	var stop func()
-
 	var err error
-	eventsCh, stop, err = s.svc.grpcClient.GetEventStream(ctx, nil)
+
+	eventsCh, stop, err = s.connectorEventStreamWithRetry(ctx, nil)
 	if err != nil {
 		log.WithError(err).Error("failed to establish initial connection to event stream")
 		return
@@ -544,7 +544,7 @@ func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
 			return
 		case notify, ok := <-eventsCh:
 			if !ok {
-				newEventsCh, newStop, err := s.reconnectEventStream(ctx, stop)
+				newEventsCh, newStop, err := s.connectorEventStreamWithRetry(ctx, stop)
 				if err != nil {
 					log.WithError(err).Error("failed to reconnect to event stream, stopping listenBatchEvents...")
 					return
@@ -583,7 +583,9 @@ func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
 	}
 }
 
-func (s *DelegatorService) runDelegatorBatch(ctx context.Context, batchExpiry arklib.RelativeLocktime, selectedTasks []registeredIntent) {
+func (s *DelegatorService) runDelegatorBatch(
+	ctx context.Context, batchExpiry arklib.RelativeLocktime, selectedTasks []registeredIntent,
+) {
 	commitmentTxId, err := s.joinDelegatorBatch(ctx, batchExpiry, selectedTasks)
 	if err != nil {
 		log.WithError(err).Warnf("failed to join batch")
@@ -593,7 +595,9 @@ func (s *DelegatorService) runDelegatorBatch(ctx context.Context, batchExpiry ar
 }
 
 // joinDelegatorBatch is launched after the BatchStartedEvent is received and is reponsible to sign vtxo tree and submit forfeits txs.
-func (s *DelegatorService) joinDelegatorBatch(ctx context.Context, batchExpiry arklib.RelativeLocktime, selectedDelegatorTasks []registeredIntent) (string, error) {
+func (s *DelegatorService) joinDelegatorBatch(
+	ctx context.Context, batchExpiry arklib.RelativeLocktime, selectedDelegatorTasks []registeredIntent,
+) (string, error) {
 	flatVtxoTree := make([]tree.TxTreeNode, 0)
 	flatConnectorTree := make([]tree.TxTreeNode, 0)
 	var vtxoTree, connectorTree *tree.TxTree
@@ -617,7 +621,10 @@ func (s *DelegatorService) joinDelegatorBatch(ctx context.Context, batchExpiry a
 
 	eventsCh, stop, err := s.svc.grpcClient.GetEventStream(ctx, topics)
 	if err != nil {
-		return "", fmt.Errorf("failed to establish initial connection to event stream with event stream topics: %w", err)
+		return "", fmt.Errorf(
+			"failed to establish initial connection to event stream with event stream topics: %w", 
+			err,
+		)
 	}
 	defer stop()
 
@@ -635,11 +642,17 @@ func (s *DelegatorService) joinDelegatorBatch(ctx context.Context, batchExpiry a
 					repo := s.svc.dbSvc.Delegate()
 					task, err := repo.GetByID(ctx, selectedTask.taskID)
 					if err != nil {
-						log.WithError(err).Warnf("failed to get delegate task %s, cannot mark as done", selectedTask.taskID)
+						log.WithError(err).Warnf(
+							"failed to get delegate task %s, cannot mark as done", 
+							selectedTask.taskID,
+						)
 						continue
 					}
 					if err := task.Success(); err != nil {
-						log.WithError(err).Warnf("failed to mark delegate task %s as done", selectedTask.taskID)
+						log.WithError(err).Warnf(
+							"failed to mark delegate task %s as done", 
+							selectedTask.taskID,
+						)
 						continue
 					}
 					if err := repo.AddOrUpdate(ctx, *task); err != nil {
@@ -650,7 +663,10 @@ func (s *DelegatorService) joinDelegatorBatch(ctx context.Context, batchExpiry a
 					delete(s.registeredIntents, selectedTask.intentIDHash())
 					s.intentsMtx.Unlock()
 				}
-				log.Debugf("batch %s finalized, %d delegate tasks marked as done", event.Txid, len(selectedDelegatorTasks))
+				log.Debugf(
+					"batch %s finalized, %d delegate tasks marked as done", 
+					event.Txid, len(selectedDelegatorTasks),
+				)
 				return event.Txid, nil
 			// batch failed, try to re-register selected intents
 			case client.BatchFailedEvent:
@@ -843,7 +859,10 @@ func (s *DelegatorService) submitForfeitTransactions(
 	}
 
 	if len(forfeitTxs) > len(connectorsLeaves) {
-		return fmt.Errorf("insufficient connectors: got %d, need %d", len(connectorsLeaves), len(forfeitTxs))
+		return fmt.Errorf(
+			"insufficient connectors: got %d, need %d", 
+			len(connectorsLeaves), len(forfeitTxs),
+		)
 	}
 
 	signedForfeitTxs := make([]string, 0, len(forfeitTxs))
@@ -880,7 +899,9 @@ func (s *DelegatorService) submitForfeitTransactions(
 	return s.svc.grpcClient.SubmitSignedForfeitTxs(ctx, signedForfeitTxs, "")
 }
 
-func (s *DelegatorService) reconnectEventStream(ctx context.Context, currentStop func()) (<-chan client.BatchEventChannel, func(), error) {
+func (s *DelegatorService) connectorEventStreamWithRetry(
+	ctx context.Context, currentStop func(),
+) (<-chan client.BatchEventChannel, func(), error) {
 	const (
 		initialBackoff = 1 * time.Second
 		maxBackoff     = 5 * time.Minute
