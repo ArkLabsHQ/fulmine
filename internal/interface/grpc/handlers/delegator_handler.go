@@ -31,6 +31,7 @@ func (h *delegatorHandler) GetDelegateInfo(
 	return &pb.GetDelegateInfoResponse{
 		Pubkey: info.DelegatorPublicKey,
 		Fee: strconv.FormatUint(info.Fee, 10), // TODO: use CEL?
+		DelegatorAddress: info.DelegatorAddress,
 	}, nil
 }
 

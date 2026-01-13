@@ -35,6 +35,7 @@ type DelegatorService struct {
 	fee uint64
 	
 	cachedDelegatorAddress *arklib.Address
+	delegatorAddrMtx sync.Mutex
 
 	intentsMtx sync.Mutex
 	registeredIntents map[string]registeredIntent // intent hash -> task id
@@ -99,6 +100,10 @@ func (s *DelegatorService) Stop() {
 
 // GetDelegateInfo returns the data needed to create the intent & forfeit tx for a delegate task.
 func (s *DelegatorService) GetDelegateInfo(ctx context.Context) (*DelegateInfo, error) {
+	if s.svc.publicKey == nil {
+		return nil, fmt.Errorf("service not ready")
+	}
+
 	offchainAddr, err := s.getDelegatorAddress(ctx)
 	if err != nil {
 		return nil, err
@@ -413,9 +418,13 @@ func (s *DelegatorService) newDelegateTask(
 }
 
 func (s *DelegatorService) getDelegatorAddress(ctx context.Context) (*arklib.Address, error) {
+	s.delegatorAddrMtx.Lock()
 	if s.cachedDelegatorAddress != nil {
-		return s.cachedDelegatorAddress, nil
+		addr := s.cachedDelegatorAddress
+		s.delegatorAddrMtx.Unlock()
+		return addr, nil
 	}
+	s.delegatorAddrMtx.Unlock()
 
 	if err := s.svc.isInitializedAndUnlocked(ctx); err != nil {
 		return nil, err
@@ -431,7 +440,15 @@ func (s *DelegatorService) getDelegatorAddress(ctx context.Context) (*arklib.Add
 		return nil, err
 	}
 
-	s.cachedDelegatorAddress = decodedAddr
+	s.delegatorAddrMtx.Lock()
+	// Double-check: another goroutine might have set it while we were fetching
+	if s.cachedDelegatorAddress == nil {
+		s.cachedDelegatorAddress = decodedAddr
+	} else {
+		// Use the cached value if it was set by another goroutine
+		decodedAddr = s.cachedDelegatorAddress
+	}
+	s.delegatorAddrMtx.Unlock()
 
 	return decodedAddr, nil
 }
@@ -445,12 +462,13 @@ func (s *DelegatorService) restorePendingTasks() error {
 	}
 
 	for _, pendingTask := range pendingTasks {
+		taskID := pendingTask.ID // capture value
 		if err = s.svc.schedulerSvc.ScheduleTaskAtTime(pendingTask.ScheduledAt, func() {
-			if err := s.registerDelegate(pendingTask.ID); err != nil {
-				log.WithError(err).Warnf("failed to execute delegate task %s", pendingTask.ID)
+			if err := s.registerDelegate(taskID); err != nil {
+				log.WithError(err).Warnf("failed to execute delegate task %s", taskID)
 			}
 		}); err != nil {
-			log.WithError(err).Warnf("failed to schedule delegate task %s", pendingTask.ID)
+			log.WithError(err).Warnf("failed to schedule delegate task %s", taskID)
 			continue
 		}
 	}
@@ -548,18 +566,19 @@ func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
 				continue
 			}
 
-			go func(tasks []registeredIntent, batchExpiry arklib.RelativeLocktime) {
-				commitmentTxId, err := s.joinDelegatorBatch(ctx, batchExpiry, tasks)
-				if err != nil {
-					log.WithError(err).Warnf("failed to join batch")
-					return
-				}
-				log.Infof("%d vtxos renewed by batch %s", len(selectedTasks), commitmentTxId)
-			}(selectedTasks, batchExpiry)
-			
+			go s.runDelegatorBatch(ctx, batchExpiry, selectedTasks)
 			log.Infof("batch started, selected %d delegate tasks", len(selectedTasks))
 		}
 	}
+}
+
+func (s *DelegatorService) runDelegatorBatch(ctx context.Context, batchExpiry arklib.RelativeLocktime, selectedTasks []registeredIntent) {
+	commitmentTxId, err := s.joinDelegatorBatch(ctx, batchExpiry, selectedTasks)
+	if err != nil {
+		log.WithError(err).Warnf("failed to join batch")
+		return
+	}
+	log.Infof("%d vtxos renewed by batch %s", len(selectedTasks), commitmentTxId)
 }
 
 // joinDelegatorBatch is launched after the BatchStartedEvent is received and is reponsible to sign vtxo tree and submit forfeits txs.
@@ -681,6 +700,10 @@ func (s *DelegatorService) joinDelegatorBatch(ctx context.Context, batchExpiry a
 						continue
 					}
 				}
+
+				if connectorTree == nil {
+					continue
+				}
 			
 				connectorsLeaves := connectorTree.Leaves()
 			
@@ -706,7 +729,7 @@ func (s *DelegatorService) joinDelegatorBatch(ctx context.Context, batchExpiry a
 					selectedTasksIds = append(selectedTasksIds, selectedTask.taskID)
 				}
 
-				if err := s.processForfeits(ctx, connectorsLeaves, selectedTasksIds); err != nil {
+				if err := s.submitForfeitTransactions(ctx, connectorsLeaves, selectedTasksIds); err != nil {
 					log.WithError(err).Warnf("failed to process forfeits")
 					continue
 				}
@@ -790,9 +813,9 @@ func (s *DelegatorService) onTreeNonces(
 	return true, nil
 }
 
-func (s *DelegatorService) processForfeits(
+func (s *DelegatorService) submitForfeitTransactions(
 	ctx context.Context, connectorsLeaves []*psbt.Packet, selectedTasksIds []string,
-) (error) {
+) error {
 	repo := s.svc.dbSvc.Delegate()
 	forfeitTxs := make([]*psbt.Packet, 0, len(selectedTasksIds))
 	for _, selectedTaskId := range selectedTasksIds {

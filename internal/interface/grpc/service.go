@@ -198,6 +198,11 @@ func NewService(
 	); err != nil {
 		return nil, err
 	}
+	if err := pb.RegisterDelegatorServiceHandler(
+		ctx, gwmux, conn,
+	); err != nil {
+		return nil, err
+	}
 
 	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled, arkServer)
 

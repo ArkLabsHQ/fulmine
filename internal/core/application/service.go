@@ -432,11 +432,13 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		prvkeyStr, err := s.Dump(ctx)
 		if err != nil {
 			log.WithError(err).Error("failed to get delegate signer key")
+			return
 		}
 	
 		buf, err := hex.DecodeString(prvkeyStr)
 		if err != nil {
 			log.WithError(err).Error("failed to decode delegate signer key")
+			return
 		}
 	
 		privkey, pubkey := btcec.PrivKeyFromBytes(buf)

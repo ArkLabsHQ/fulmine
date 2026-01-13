@@ -147,12 +147,16 @@ func generateNote(t *testing.T, amount uint64) string {
 	if err != nil {
 		t.Fatalf("failed to create note: %s", err)
 	}
+	defer resp.Body.Close()
 
 	var noteResp struct {
 		Notes []string `json:"notes"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&noteResp); err != nil {
 		t.Fatalf("failed to parse response: %s", err)
+	}
+	if len(noteResp.Notes) == 0 {
+		t.Fatalf("no notes returned from admin API")
 	}
 
 	return noteResp.Notes[0]

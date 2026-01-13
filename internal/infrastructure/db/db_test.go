@@ -106,7 +106,7 @@ func TestRepoManager(t *testing.T) {
 
 			testSettingsRepository(t, svc)
 			testVHTLCRepository(t, svc)
-			testVtxoRolloverRepository(t, svc)
+			testDelegateRepository(t, svc)
 			testSwapRepository(t, svc)
 			testSubscribedScriptRepository(t, svc)
 		})
@@ -128,7 +128,7 @@ func testVHTLCRepository(t *testing.T, svc ports.RepoManager) {
 	})
 }
 
-func testVtxoRolloverRepository(t *testing.T, svc ports.RepoManager) {
+func testDelegateRepository(t *testing.T, svc ports.RepoManager) {
 	t.Run("delegate repository", func(t *testing.T) {
 		testAddOrUpdateDelegateTask(t, svc.Delegate())
 		testGetDelegateTaskByID(t, svc.Delegate())

@@ -293,7 +293,7 @@ func TestDelegate(t *testing.T) {
 	spendable, _, err := alice.ListVtxos(ctx)
 	require.NoError(t, err)
 	require.Len(t, spendable, 1)
-	require.Equal(t, 21000, int(aliceVtxo.Amount))
+	require.Equal(t, int(aliceVtxo.Amount), int(spendable[0].Amount))
 	require.False(t, spendable[0].Preconfirmed)
 }
 
