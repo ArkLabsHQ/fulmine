@@ -832,7 +832,7 @@ func (s *DelegatorService) submitForfeitTransactions(
 	}
 
 	if len(forfeitTxs) > len(connectorsLeaves) {
-		return fmt.Errorf("insufficient forfeit txs: got %d, need %d", len(forfeitTxs), len(connectorsLeaves))
+		return fmt.Errorf("insufficient connectors: got %d, need %d", len(connectorsLeaves), len(forfeitTxs))
 	}
 
 	signedForfeitTxs := make([]string, 0, len(forfeitTxs))
