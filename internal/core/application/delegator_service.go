@@ -41,6 +41,8 @@ type DelegatorService struct {
 	registeredIntents map[string]registeredIntent // intent hash -> task id
 	ctx context.Context
 	cancelFunc context.CancelFunc
+
+	pendingTasksMtx sync.Mutex
 }
 
 type DelegateInfo struct {
@@ -327,6 +329,10 @@ func (s *DelegatorService) Delegate(
 		return fmt.Errorf("input is unrolled")
 	}
 
+	// lock to avoid a new task with the same input is created while we are adding it to database
+	s.pendingTasksMtx.Lock()
+	defer s.pendingTasksMtx.Unlock()
+
 	// before saving to databse, verify that there is no pending task with the same input
 	pendingTasks, err := s.svc.dbSvc.Delegate().GetPendingTaskByInput(ctx, task.Input)
 	if err != nil {
@@ -341,6 +347,7 @@ func (s *DelegatorService) Delegate(
 	if err != nil {
 		return err
 	}
+
 
 	// schedule task
 	if err := s.svc.schedulerSvc.ScheduleTaskAtTime(task.ScheduledAt, func() {
@@ -395,7 +402,7 @@ func (s *DelegatorService) newDelegateTask(
 		return nil, fmt.Errorf("invalid valid at")
 	}
 
-	ScheduledAt := time.Unix(message.ValidAt, 0)
+	scheduledAt := time.Unix(message.ValidAt, 0)
 
 	inputs := proof.GetOutpoints()
 	if len(inputs) != 1 {
@@ -412,7 +419,7 @@ func (s *DelegatorService) newDelegateTask(
 		Fee: uint64(feeAmount),
 		DelegatorPublicKey: hex.EncodeToString(s.svc.publicKey.SerializeCompressed()),
 		Input: inputs[0],
-		ScheduledAt: ScheduledAt,
+		ScheduledAt: scheduledAt,
 		Status: domain.DelegateTaskStatusPending,
 	}, nil
 }
@@ -455,13 +462,18 @@ func (s *DelegatorService) getDelegatorAddress(ctx context.Context) (*arklib.Add
 
 // restorePendingTasks restores all pending tasks from DB and schedules them for execution.
 func (s *DelegatorService) restorePendingTasks() error {
-	ctx := context.Background()
-	pendingTasks, err := s.svc.dbSvc.Delegate().GetAllPending(ctx)
+	pendingTasks, err := s.svc.dbSvc.Delegate().GetAllPending(s.ctx)
 	if err != nil {
 		return err
 	}
 
 	for _, pendingTask := range pendingTasks {
+		select {
+		case <-s.ctx.Done(): // context cancelled, stop restoring pending tasks
+			return nil
+		default:
+		}
+
 		taskID := pendingTask.ID // capture value
 		if err = s.svc.schedulerSvc.ScheduleTaskAtTime(pendingTask.ScheduledAt, func() {
 			if err := s.registerDelegate(taskID); err != nil {
@@ -477,20 +489,19 @@ func (s *DelegatorService) restorePendingTasks() error {
 }
 
 func (s *DelegatorService) registerDelegate(id string) error {
-	ctx := context.Background()
 	repo := s.svc.dbSvc.Delegate()
-	task, err := repo.GetByID(ctx, id)
+	task, err := repo.GetByID(s.ctx, id)
 	if err != nil {
 		return err
 	}
 
-	intentId, err := s.svc.grpcClient.RegisterIntent(ctx, task.Intent.Proof, task.Intent.Message)
+	intentId, err := s.svc.grpcClient.RegisterIntent(s.ctx, task.Intent.Proof, task.Intent.Message)
 	if err != nil {
 		log.WithError(err).Errorf("failed to register intent for delegate task %s", id)
 		if err := task.Fail(err.Error()); err != nil {
 			return err
 		}
-		if err := repo.AddOrUpdate(ctx, *task); err != nil {
+		if err := repo.AddOrUpdate(s.ctx, *task); err != nil {
 			return err
 		}
 		return nil
