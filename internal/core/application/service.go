@@ -1823,7 +1823,14 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 			return
 		}
 
-		txid, err := s.swapHandler.RefundSwap(context.Background(), swapId, false, opts)
+		var txid string
+		// Check if VTXO is recoverable (swept but not spent) - needs batch session
+		if vtxos[0].IsRecoverable() {
+			log.Infof("vhtlc %s is recoverable, settling via batch session", hex.EncodeToString(opts.PreimageHash))
+			txid, err = s.swapHandler.SettleVhtlcWithRefundPath(context.Background(), opts)
+		} else {
+			txid, err = s.swapHandler.RefundSwap(context.Background(), swapId, false, opts)
+		}
 		if err != nil {
 			log.WithError(err).Error("failed to refund vhtlc")
 			return

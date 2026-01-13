@@ -608,3 +608,109 @@ func setupArkSDK(
 
 	return client, wallet, privkey.PubKey(), grpcClient
 }
+
+// TestRefundVhtlcSettlementViaBatchSession tests that the VHTLC refund settlement path
+// works correctly via batch session. This is the code path used by the automatic refund
+// scheduler when a VTXO becomes "recoverable" (swept but not spent).
+//
+// When a VTXO is recoverable, the automatic refund in scheduleSwapRefund calls
+// SettleVhtlcWithRefundPath instead of RefundSwap. This test validates that
+// the SettleVhtlcWithRefundPath code path functions correctly.
+//
+// The automatic refund logic in service.go:
+//
+//	if vtxos[0].IsRecoverable() {
+//	    txid, err = s.swapHandler.SettleVhtlcWithRefundPath(ctx, opts)
+//	} else {
+//	    txid, err = s.swapHandler.RefundSwap(ctx, swapId, false, opts)
+//	}
+//
+// Note: Testing an actual recoverable VTXO scenario requires waiting for an Ark
+// round to expire and be swept on-chain, which is impractical in unit tests.
+// The TestRefundVhtlcSettlement test above already exercises the
+// SettleVHTLC API refund path which uses the same underlying
+// SettleVhtlcWithRefundPath function.
+func TestRefundVhtlcSettlementViaBatchSession(t *testing.T) {
+	// This test is identical to TestRefundVhtlcSettlement but explicitly
+	// documents that it tests the batch session refund path used for
+	// recoverable VTXOs in automatic swap refunds.
+	//
+	// The SettleVHTLC API with RefundPath uses SettleVhtlcWithRefundPath
+	// internally, which is the same function called by scheduleSwapRefund
+	// when IsRecoverable() returns true.
+	fulmineClient, err := newFulmineClient("localhost:7000")
+	require.NoError(t, err)
+
+	ctx := t.Context()
+
+	balanceBefore, err := fulmineClient.GetBalance(ctx, &pb.GetBalanceRequest{})
+	require.NoError(t, err)
+
+	info, err := fulmineClient.GetInfo(ctx, &pb.GetInfoRequest{})
+	require.NoError(t, err)
+	require.NotEmpty(t, info)
+
+	preimage := make([]byte, 32)
+	_, err = rand.Read(preimage)
+	require.NoError(t, err)
+	sha256Hash := sha256.Sum256(preimage)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+
+	receiverPrivKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+
+	// Use a timestamp far in the past so CLTV is already expired
+	pastRefundLocktime := uint32(1577836800) // Jan 1, 2020 00:00:00 UTC
+	req := &pb.CreateVHTLCRequest{
+		PreimageHash:   preimageHash,
+		ReceiverPubkey: hex.EncodeToString(receiverPrivKey.PubKey().SerializeCompressed()),
+		RefundLocktime: pastRefundLocktime,
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+	}
+	vhtlc, err := fulmineClient.CreateVHTLC(ctx, req)
+	require.NoError(t, err)
+
+	fundAmount := uint64(1000)
+	sendResp, err := fulmineClient.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlc.Address,
+		Amount:  fundAmount,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, sendResp)
+
+	// Verify VHTLC has funds
+	vhtlcs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
+	require.NoError(t, err)
+	require.Len(t, vhtlcs.Vhtlcs, 1)
+
+	// Settle via refund path - this uses SettleVhtlcWithRefundPath internally
+	// which is the same code path used for recoverable VTXOs in automatic refunds
+	settleResp, err := fulmineClient.SettleVHTLC(ctx, &pb.SettleVHTLCRequest{
+		VhtlcId: vhtlc.Id,
+		SettlementType: &pb.SettleVHTLCRequest_Refund{
+			Refund: &pb.RefundPath{},
+		},
+	})
+	require.NoError(t, err, "SettleVHTLC with refund path (batch session) should succeed")
+	require.NotNil(t, settleResp)
+	require.NotEmpty(t, settleResp.GetTxid(), "should return a transaction ID")
+
+	time.Sleep(2 * time.Second)
+
+	// Verify balance returned to approximately initial value
+	balanceAfter, err := fulmineClient.GetBalance(ctx, &pb.GetBalanceRequest{})
+	require.NoError(t, err)
+	require.NotNil(t, balanceAfter)
+	require.Equal(t, balanceBefore.Amount, balanceAfter.Amount)
+}
