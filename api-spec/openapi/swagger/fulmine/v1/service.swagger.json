@@ -477,6 +477,29 @@
         ]
       }
     },
+    "/v1/settlement/next": {
+      "get": {
+        "summary": "NextSettlement returns the next scheduled settlement time",
+        "operationId": "Service_NextSettlement",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1NextSettlementResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/transaction/sign": {
       "post": {
         "operationId": "Service_SignTransaction",
@@ -1067,6 +1090,15 @@
             "$ref": "#/definitions/v1RolloverAddress"
           },
           "title": "List of all watched addresses"
+        }
+      }
+    },
+    "v1NextSettlementResponse": {
+      "type": "object",
+      "properties": {
+        "nextSettlementAt": {
+          "type": "string",
+          "format": "int64"
         }
       }
     },

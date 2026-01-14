@@ -572,3 +572,11 @@ func (h *serviceHandler) GetVirtualTxs(
 		Txs: txs,
 	}, nil
 }
+
+func (h *serviceHandler) NextSettlement(
+	ctx context.Context, req *pb.NextSettlementRequest,
+) (*pb.NextSettlementResponse, error) {
+	return &pb.NextSettlementResponse{
+		NextSettlementAt: h.svc.WhenNextSettlement(ctx).Unix(),
+	}, nil
+}
