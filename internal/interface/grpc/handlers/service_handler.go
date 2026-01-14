@@ -572,3 +572,29 @@ func (h *serviceHandler) GetVirtualTxs(
 		Txs: txs,
 	}, nil
 }
+
+func (h *serviceHandler) GetVtxos(ctx context.Context, req *pb.GetVtxosRequest) (*pb.GetVtxosResponse, error) {
+	var filterType string
+
+	switch filter := req.GetFilter().(type) {
+	case *pb.GetVtxosRequest_Spendable:
+		filterType = "spendable"
+	case *pb.GetVtxosRequest_Spent:
+		filterType = "spent"
+	case *pb.GetVtxosRequest_Recoverable:
+		filterType = "recoverable"
+	case nil:
+		filterType = "all"
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "unknown filter type: %T", filter)
+	}
+
+	vtxos, err := h.svc.GetVtxos(ctx, filterType)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetVtxosResponse{
+		Vtxos: toVtxosProto(vtxos),
+	}, nil
+}

@@ -672,6 +672,33 @@ func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, 
 	return resp.Txs, nil
 }
 
+func (s *Service) GetVtxos(ctx context.Context, filterType string) ([]types.Vtxo, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil, err
+	}
+
+	option := indexer.GetVtxosRequestOption{}
+
+	switch filterType {
+	case "spendable":
+		option.WithSpendableOnly()
+	case "spent":
+		option.WithSpentOnly()
+	case "recoverable":
+		option.WithRecoverableOnly()
+	case "all":
+	default:
+		return nil, fmt.Errorf("invalid filter type: %s", filterType)
+	}
+
+	resp, err := s.indexerClient.GetVtxos(ctx, option)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Vtxos, nil
+}
+
 func (s *Service) Settle(ctx context.Context) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err

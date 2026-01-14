@@ -157,6 +157,13 @@ service Service {
       get: "/v1/virtualTx/{txids}"
     };
   };
+  // GetVtxos returns VTXOs filtered by the specified filter type.
+  // If no filter is provided, returns all VTXOs.
+  rpc GetVtxos(GetVtxosRequest) returns (GetVtxosResponse) {
+    option (google.api.http) = {
+      get: "/v1/vtxos"
+    };
+  };
 }
 
 message GetAddressRequest {}
@@ -413,4 +420,23 @@ message GetVirtualTxsRequest {
 
 message GetVirtualTxsResponse {
   repeated string txs = 1;
+}
+
+// GetVtxosRequest allows filtering VTXOs by state using oneof for mutual exclusion.
+// If no filter is provided, all VTXOs are returned.
+message GetVtxosRequest {
+  oneof filter {
+    SpendableFilter spendable = 1;  // Filter for spendable VTXOs only
+    SpentFilter spent = 2;           // Filter for spent VTXOs only
+    RecoverableFilter recoverable = 3; // Filter for recoverable VTXOs only
+  }
+}
+
+// Empty message types for oneof filters
+message SpendableFilter {}
+message SpentFilter {}
+message RecoverableFilter {}
+
+message GetVtxosResponse {
+  repeated Vtxo vtxos = 1; // List of VTXOs matching the filter
 }

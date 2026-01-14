@@ -726,6 +726,29 @@
           "Service"
         ]
       }
+    },
+    "/v1/vtxos": {
+      "get": {
+        "summary": "GetVtxos returns VTXOs filtered by the specified filter type.\nIf no filter is provided, returns all VTXOs.",
+        "operationId": "Service_GetVtxos",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetVtxosResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
     }
   },
   "definitions": {
@@ -1025,6 +1048,19 @@
         }
       }
     },
+    "v1GetVtxosResponse": {
+      "type": "object",
+      "properties": {
+        "vtxos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Vtxo"
+          },
+          "title": "List of VTXOs matching the filter"
+        }
+      }
+    },
     "v1Input": {
       "type": "object",
       "properties": {
@@ -1085,6 +1121,9 @@
           "type": "string"
         }
       }
+    },
+    "v1RecoverableFilter": {
+      "type": "object"
     },
     "v1RedeemNoteRequest": {
       "type": "object",
@@ -1257,6 +1296,13 @@
           "type": "string"
         }
       }
+    },
+    "v1SpendableFilter": {
+      "type": "object",
+      "title": "Empty message types for oneof filters"
+    },
+    "v1SpentFilter": {
+      "type": "object"
     },
     "v1TaprootLeaf": {
       "type": "object",
