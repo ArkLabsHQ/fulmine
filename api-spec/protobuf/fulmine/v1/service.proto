@@ -157,6 +157,12 @@ service Service {
       get: "/v1/virtualTx/{txids}"
     };
   };
+  // NextSettlement returns the next scheduled settlement time
+  rpc NextSettlement(NextSettlementRequest) returns (NextSettlementResponse) {
+    option (google.api.http) = {
+      get: "/v1/settlement/next"
+    };
+  };
 }
 
 message GetAddressRequest {}
@@ -413,4 +419,10 @@ message GetVirtualTxsRequest {
 
 message GetVirtualTxsResponse {
   repeated string txs = 1;
+}
+
+message NextSettlementRequest {}
+
+message NextSettlementResponse {
+  int64 next_settlement_at = 1;
 }
