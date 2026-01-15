@@ -1726,7 +1726,8 @@ func (s *Service) subscribeForVtxoEvent(ctx context.Context, cfg *types.Config) 
 			}
 
 			vtxos := event.Vtxos
-			if event.Type == 0 && len(vtxos) == 0 {
+			// If no vtxos were added skip checking for scheduling the next settlement
+			if event.Type != types.VtxosAdded || len(vtxos) == 0 {
 				continue
 			}
 
