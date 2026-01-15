@@ -306,7 +306,8 @@ func (h *claimBatchSessionHandler) OnBatchFinalization(
 	ctx context.Context, event client.BatchFinalizationEvent, vtxoTree, connectorTree *tree.TxTree,
 ) error {
 	if connectorTree == nil {
-		return fmt.Errorf("connector tree is nil")
+		// All vtxos expired, nothing to do
+		return nil
 	}
 
 	builder := &claimForfeitTxBuilder{preimage: h.preimage}
@@ -365,7 +366,8 @@ func (h *refundBatchSessionHandler) OnBatchFinalization(
 	ctx context.Context, event client.BatchFinalizationEvent, vtxoTree, connectorTree *tree.TxTree,
 ) error {
 	if connectorTree == nil {
-		return fmt.Errorf("connector tree is nil")
+		// The vhtlc expired, nothing to do
+		return nil
 	}
 
 	builder := &refundForfeitTxBuilder{withReceiver: h.withReceiver}
@@ -425,7 +427,8 @@ func (h *collabRefundBatchSessionHandler) OnBatchFinalization(
 	ctx context.Context, event client.BatchFinalizationEvent, vtxoTree, connectorTree *tree.TxTree,
 ) error {
 	if connectorTree == nil {
-		return fmt.Errorf("connector tree is nil")
+		// The vhtlc expired, nothing to do
+		return nil
 	}
 
 	forfeitPtx, err := psbt.NewFromRawBytes(strings.NewReader(h.partialForfeitTx), true)
