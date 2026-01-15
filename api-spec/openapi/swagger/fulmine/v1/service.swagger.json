@@ -477,6 +477,29 @@
         ]
       }
     },
+    "/v1/settlement/next": {
+      "get": {
+        "summary": "NextSettlement returns the next scheduled settlement time",
+        "operationId": "Service_NextSettlement",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1NextSettlementResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/transaction/sign": {
       "post": {
         "operationId": "Service_SignTransaction",
@@ -745,6 +768,29 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "spendableOnly",
+            "description": "Filter for spendable VTXOs only",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "spentOnly",
+            "description": "Filter for spent VTXOs only",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "recoverableOnly",
+            "description": "Filter for recoverable VTXOs only",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
         "tags": [
           "Service"
         ]
@@ -1106,6 +1152,15 @@
         }
       }
     },
+    "v1NextSettlementResponse": {
+      "type": "object",
+      "properties": {
+        "nextSettlementAt": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
     "v1PayInvoiceRequest": {
       "type": "object",
       "properties": {
@@ -1121,9 +1176,6 @@
           "type": "string"
         }
       }
-    },
-    "v1RecoverableFilter": {
-      "type": "object"
     },
     "v1RedeemNoteRequest": {
       "type": "object",
@@ -1296,13 +1348,6 @@
           "type": "string"
         }
       }
-    },
-    "v1SpendableFilter": {
-      "type": "object",
-      "title": "Empty message types for oneof filters"
-    },
-    "v1SpentFilter": {
-      "type": "object"
     },
     "v1TaprootLeaf": {
       "type": "object",

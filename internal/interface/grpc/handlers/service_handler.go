@@ -577,11 +577,20 @@ func (h *serviceHandler) GetVtxos(ctx context.Context, req *pb.GetVtxosRequest) 
 	var filterType string
 
 	switch filter := req.GetFilter().(type) {
-	case *pb.GetVtxosRequest_Spendable:
+	case *pb.GetVtxosRequest_SpendableOnly:
+		if !filter.SpendableOnly {
+			return nil, status.Errorf(codes.InvalidArgument, "spendable only cannot be false")
+		}
 		filterType = "spendable"
-	case *pb.GetVtxosRequest_Spent:
+	case *pb.GetVtxosRequest_SpentOnly:
+		if !filter.SpentOnly {
+			return nil, status.Errorf(codes.InvalidArgument, "spent only cannot be false")
+		}
 		filterType = "spent"
-	case *pb.GetVtxosRequest_Recoverable:
+	case *pb.GetVtxosRequest_RecoverableOnly:
+		if !filter.RecoverableOnly {
+			return nil, status.Errorf(codes.InvalidArgument, "recoverable only cannot be false")
+		}
 		filterType = "recoverable"
 	case nil:
 		filterType = "all"
@@ -596,5 +605,19 @@ func (h *serviceHandler) GetVtxos(ctx context.Context, req *pb.GetVtxosRequest) 
 
 	return &pb.GetVtxosResponse{
 		Vtxos: toVtxosProto(vtxos),
+	}, nil
+}
+
+func (h *serviceHandler) NextSettlement(
+	ctx context.Context, req *pb.NextSettlementRequest,
+) (*pb.NextSettlementResponse, error) {
+	nextSettlementUnix := int64(0)
+	nextSettlement := h.svc.WhenNextSettlement(ctx)
+	if !nextSettlement.IsZero() {
+		nextSettlementUnix = nextSettlement.Unix()
+	}
+
+	return &pb.NextSettlementResponse{
+		NextSettlementAt: nextSettlementUnix,
 	}, nil
 }
