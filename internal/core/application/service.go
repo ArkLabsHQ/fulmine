@@ -672,6 +672,55 @@ func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, 
 	return resp.Txs, nil
 }
 
+func (s *Service) GetVtxos(ctx context.Context, filterType string) ([]types.Vtxo, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil, err
+	}
+
+	option := indexer.GetVtxosRequestOption{}
+
+	switch filterType {
+	case "spendable":
+		option.WithSpendableOnly()
+	case "spent":
+		option.WithSpentOnly()
+	case "recoverable":
+		option.WithRecoverableOnly()
+	case "all":
+	default:
+		return nil, fmt.Errorf("invalid filter type: %s", filterType)
+	}
+
+	_, offchainAddrs, _, _, err := s.GetAddresses(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	scripts := make([]string, 0, len(offchainAddrs))
+	for _, addr := range offchainAddrs {
+		decoded, err := arklib.DecodeAddressV0(addr)
+		if err != nil {
+			return nil, err
+		}
+		script, err := script.P2TRScript(decoded.VtxoTapKey)
+		if err != nil {
+			return nil, err
+		}
+		scripts = append(scripts, hex.EncodeToString(script))
+	}
+
+	if err := option.WithScripts(scripts); err != nil {
+		return nil, err
+	}
+
+	resp, err := s.indexerClient.GetVtxos(ctx, option)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Vtxos, nil
+}
+
 func (s *Service) Settle(ctx context.Context) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err

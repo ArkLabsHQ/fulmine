@@ -573,6 +573,41 @@ func (h *serviceHandler) GetVirtualTxs(
 	}, nil
 }
 
+func (h *serviceHandler) GetVtxos(ctx context.Context, req *pb.GetVtxosRequest) (*pb.GetVtxosResponse, error) {
+	var filterType string
+
+	switch filter := req.GetFilter().(type) {
+	case *pb.GetVtxosRequest_SpendableOnly:
+		if !filter.SpendableOnly {
+			return nil, status.Errorf(codes.InvalidArgument, "spendable only cannot be false")
+		}
+		filterType = "spendable"
+	case *pb.GetVtxosRequest_SpentOnly:
+		if !filter.SpentOnly {
+			return nil, status.Errorf(codes.InvalidArgument, "spent only cannot be false")
+		}
+		filterType = "spent"
+	case *pb.GetVtxosRequest_RecoverableOnly:
+		if !filter.RecoverableOnly {
+			return nil, status.Errorf(codes.InvalidArgument, "recoverable only cannot be false")
+		}
+		filterType = "recoverable"
+	case nil:
+		filterType = "all"
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "unknown filter type: %T", filter)
+	}
+
+	vtxos, err := h.svc.GetVtxos(ctx, filterType)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetVtxosResponse{
+		Vtxos: toVtxosProto(vtxos),
+	}, nil
+}
+
 func (h *serviceHandler) NextSettlement(
 	ctx context.Context, req *pb.NextSettlementRequest,
 ) (*pb.NextSettlementResponse, error) {

@@ -749,6 +749,52 @@
           "Service"
         ]
       }
+    },
+    "/v1/vtxos": {
+      "get": {
+        "summary": "GetVtxos returns VTXOs filtered by the specified filter type.\nIf no filter is provided, returns all VTXOs.",
+        "operationId": "Service_GetVtxos",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetVtxosResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "spendableOnly",
+            "description": "Filter for spendable VTXOs only",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "spentOnly",
+            "description": "Filter for spent VTXOs only",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "recoverableOnly",
+            "description": "Filter for recoverable VTXOs only",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
     }
   },
   "definitions": {
@@ -1045,6 +1091,19 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1GetVtxosResponse": {
+      "type": "object",
+      "properties": {
+        "vtxos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Vtxo"
+          },
+          "title": "List of VTXOs matching the filter"
         }
       }
     },
