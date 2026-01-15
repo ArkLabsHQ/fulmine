@@ -39,6 +39,8 @@ const (
 	Service_PayInvoice_FullMethodName                 = "/fulmine.v1.Service/PayInvoice"
 	Service_IsInvoiceSettled_FullMethodName           = "/fulmine.v1.Service/IsInvoiceSettled"
 	Service_GetVirtualTxs_FullMethodName              = "/fulmine.v1.Service/GetVirtualTxs"
+	Service_GetVtxos_FullMethodName                   = "/fulmine.v1.Service/GetVtxos"
+	Service_NextSettlement_FullMethodName             = "/fulmine.v1.Service/NextSettlement"
 )
 
 // ServiceClient is the client API for Service service.
@@ -79,6 +81,11 @@ type ServiceClient interface {
 	IsInvoiceSettled(ctx context.Context, in *IsInvoiceSettledRequest, opts ...grpc.CallOption) (*IsInvoiceSettledResponse, error)
 	// GetVirtualTxs returns the virtual transactions in hex format for the specified txids.
 	GetVirtualTxs(ctx context.Context, in *GetVirtualTxsRequest, opts ...grpc.CallOption) (*GetVirtualTxsResponse, error)
+	// GetVtxos returns VTXOs filtered by the specified filter type.
+	// If no filter is provided, returns all VTXOs.
+	GetVtxos(ctx context.Context, in *GetVtxosRequest, opts ...grpc.CallOption) (*GetVtxosResponse, error)
+	// NextSettlement returns the next scheduled settlement time
+	NextSettlement(ctx context.Context, in *NextSettlementRequest, opts ...grpc.CallOption) (*NextSettlementResponse, error)
 }
 
 type serviceClient struct {
@@ -289,6 +296,26 @@ func (c *serviceClient) GetVirtualTxs(ctx context.Context, in *GetVirtualTxsRequ
 	return out, nil
 }
 
+func (c *serviceClient) GetVtxos(ctx context.Context, in *GetVtxosRequest, opts ...grpc.CallOption) (*GetVtxosResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetVtxosResponse)
+	err := c.cc.Invoke(ctx, Service_GetVtxos_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) NextSettlement(ctx context.Context, in *NextSettlementRequest, opts ...grpc.CallOption) (*NextSettlementResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NextSettlementResponse)
+	err := c.cc.Invoke(ctx, Service_NextSettlement_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServiceServer is the server API for Service service.
 // All implementations should embed UnimplementedServiceServer
 // for forward compatibility
@@ -327,6 +354,11 @@ type ServiceServer interface {
 	IsInvoiceSettled(context.Context, *IsInvoiceSettledRequest) (*IsInvoiceSettledResponse, error)
 	// GetVirtualTxs returns the virtual transactions in hex format for the specified txids.
 	GetVirtualTxs(context.Context, *GetVirtualTxsRequest) (*GetVirtualTxsResponse, error)
+	// GetVtxos returns VTXOs filtered by the specified filter type.
+	// If no filter is provided, returns all VTXOs.
+	GetVtxos(context.Context, *GetVtxosRequest) (*GetVtxosResponse, error)
+	// NextSettlement returns the next scheduled settlement time
+	NextSettlement(context.Context, *NextSettlementRequest) (*NextSettlementResponse, error)
 }
 
 // UnimplementedServiceServer should be embedded to have forward compatible implementations.
@@ -392,6 +424,12 @@ func (UnimplementedServiceServer) IsInvoiceSettled(context.Context, *IsInvoiceSe
 }
 func (UnimplementedServiceServer) GetVirtualTxs(context.Context, *GetVirtualTxsRequest) (*GetVirtualTxsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetVirtualTxs not implemented")
+}
+func (UnimplementedServiceServer) GetVtxos(context.Context, *GetVtxosRequest) (*GetVtxosResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetVtxos not implemented")
+}
+func (UnimplementedServiceServer) NextSettlement(context.Context, *NextSettlementRequest) (*NextSettlementResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NextSettlement not implemented")
 }
 
 // UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -765,6 +803,42 @@ func _Service_GetVirtualTxs_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_GetVtxos_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVtxosRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).GetVtxos(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_GetVtxos_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).GetVtxos(ctx, req.(*GetVtxosRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_NextSettlement_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NextSettlementRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).NextSettlement(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_NextSettlement_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).NextSettlement(ctx, req.(*NextSettlementRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Service_ServiceDesc is the grpc.ServiceDesc for Service service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -851,6 +925,14 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetVirtualTxs",
 			Handler:    _Service_GetVirtualTxs_Handler,
+		},
+		{
+			MethodName: "GetVtxos",
+			Handler:    _Service_GetVtxos_Handler,
+		},
+		{
+			MethodName: "NextSettlement",
+			Handler:    _Service_NextSettlement_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

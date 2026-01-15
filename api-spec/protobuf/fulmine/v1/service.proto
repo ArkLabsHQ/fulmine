@@ -131,6 +131,19 @@ service Service {
       get: "/v1/virtualTx/{txids}"
     };
   };
+  // GetVtxos returns VTXOs filtered by the specified filter type.
+  // If no filter is provided, returns all VTXOs.
+  rpc GetVtxos(GetVtxosRequest) returns (GetVtxosResponse) {
+    option (google.api.http) = {
+      get: "/v1/vtxos"
+    };
+  }
+  // NextSettlement returns the next scheduled settlement time
+  rpc NextSettlement(NextSettlementRequest) returns (NextSettlementResponse) {
+    option (google.api.http) = {
+      get: "/v1/settlement/next"
+    };
+  };
 }
 
 message GetAddressRequest {}
@@ -351,4 +364,22 @@ message GetVirtualTxsRequest {
 
 message GetVirtualTxsResponse {
   repeated string txs = 1;
+}
+
+// GetVtxosRequest allows filtering VTXOs by state using oneof for mutual exclusion.
+// If no filter is provided, all VTXOs are returned.
+message GetVtxosRequest {
+  oneof filter {
+    bool spendable_only = 1; // Filter for spendable VTXOs only
+    bool spent_only = 2; // Filter for spent VTXOs only
+    bool recoverable_only = 3; // Filter for recoverable VTXOs only
+  }
+}
+message GetVtxosResponse {
+  repeated Vtxo vtxos = 1; // List of VTXOs matching the filter
+}
+
+message NextSettlementRequest {}
+message NextSettlementResponse {
+  int64 next_settlement_at = 1;
 }
