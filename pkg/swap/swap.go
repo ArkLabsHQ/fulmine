@@ -174,7 +174,7 @@ func (h *SwapHandler) ClaimVHTLC(
 	vtxo := &vtxos[0]
 
 	//this is safety net for Boltz Fulmine if VTXO is recoverable in the moment of Claim
-	if vtxo.IsRecoverable() {
+	if vtxo.IsRecoverable() && vtxo.Amount >= h.config.Dust {
 		txid, err := h.SettleVHTLCWithClaimPath(ctx, vhtlcOpts, preimage)
 		if err != nil {
 			return "", fmt.Errorf("failed to settle vhtlc with claim path: %w", err)
@@ -320,7 +320,7 @@ func (h *SwapHandler) RefundSwap(
 	vtxo := vtxos[0]
 
 	//this is safety net for Boltz Fulmine if VTXO is recoverable in the moment of Refund
-	if vtxo.IsRecoverable() {
+	if vtxo.IsRecoverable() && vtxo.Amount >= h.config.Dust {
 		txid, err := h.SettleVhtlcWithRefundPath(ctx, vhtlcOpts)
 		if err != nil {
 			return "", fmt.Errorf("failed to settle vhtlc with refund path: %w", err)
