@@ -126,51 +126,34 @@ func (s *DelegatorService) GetDelegateInfo(ctx context.Context) (*DelegateInfo, 
 // Delegate registers a delegate task and schedules it for execution.
 // it validates:
 // * the intent is not a collaborative exit
-// * the intent has exactly 1 input and forfeit is spending a Alice + Delegator tapscript.
+// * the intent has at least 1 input and forfeit has matching number of inputs spending Alice + Delegator tapscript.
 // * the forfeit amount is correct
-// * the forfeit signature is valid and uses sighash type ANYONECANPAY | ALL
-// * the intent input = forfeit input
-// * the forfeit sig is related to tapleaf script
-// * the forfeit script is a multisig closure with 3 pubkeys: Alice, Delegator and Signer
-// * there is no pending task with the same input in DB
+// * the forfeit signatures are valid and use sighash type ANYONECANPAY | ALL
+// * the intent inputs = forfeit inputs
+// * the forfeit sigs are related to tapleaf script
+// * the forfeit scripts are multisig closures with 3 pubkeys: Alice, Delegator and Signer
+// * there is no pending task with any overlapping input in DB
 // once validated, the task is saved to DB and scheduled for execution.
 func (s *DelegatorService) Delegate(
 	ctx context.Context, 
-	intentMessage intent.RegisterMessage, intentProof intent.Proof, forfeit *psbt.Packet,
+	intentMessage intent.RegisterMessage, intentProof intent.Proof, forfeits []*psbt.Packet,
 ) error {
 	if err := s.svc.isInitializedAndUnlocked(ctx); err != nil {
 		return err
 	}
-
-	if len(forfeit.Inputs) != 1 || len(forfeit.UnsignedTx.TxIn) != 1 {
-		return fmt.Errorf("invalid number of forfeit inputs: got %d, expected 1", len(forfeit.Inputs))
-	}
 	
+	// TODO validate intent fee
 
-	if forfeit.Inputs[0].WitnessUtxo == nil {
-		return fmt.Errorf("forfeit input witness utxo is nil")
+	// reject collaborative exit
+	if len(intentMessage.OnchainOutputIndexes) > 0 {
+		return fmt.Errorf("delegated collaborative exit is not supported")
 	}
 
-	if len(forfeit.Inputs[0].TaprootScriptSpendSig) != 1 {
-		return fmt.Errorf("forfeit input has no taproot script spend sig")
-	}
-
-
-	if len(forfeit.Inputs[0].TaprootLeafScript) != 1 {
-		return fmt.Errorf("forfeit input has no taproot leaf script")
-	}
-
-	if len(forfeit.UnsignedTx.TxOut) != 2 {
-		return fmt.Errorf("invalid number of forfeit outputs: got %d, expected 2", len(forfeit.UnsignedTx.TxOut))
-	}
-
-	// verify forfeit outputs
 	cfg, err := s.svc.GetConfigData(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get config data: %w", err)
 	}
-
-  addr, err := btcutil.DecodeAddress(cfg.ForfeitAddress, nil)
+	addr, err := btcutil.DecodeAddress(cfg.ForfeitAddress, nil)
 	if err != nil {
 		return fmt.Errorf("failed to decode forfeit address: %w", err)
 	}
@@ -180,42 +163,140 @@ func (s *DelegatorService) Delegate(
 		return fmt.Errorf("failed to create forfeit output script: %w", err)
 	}
 
-	// the first should be the forfeit server address
-	if !bytes.Equal(forfeit.UnsignedTx.TxOut[0].PkScript, forfeitOutputScript) {
-		return fmt.Errorf(
-			"wrong forfeit output script, expected %x, got %x", 
-			forfeitOutputScript, forfeit.UnsignedTx.TxOut[0].PkScript,
+	for _, forfeit := range forfeits {
+		if len(forfeit.UnsignedTx.TxOut) != 2 {
+			return fmt.Errorf("invalid number of forfeit outputs: got %d, expected 2", len(forfeit.UnsignedTx.TxOut))
+		}
+
+		if len(forfeit.UnsignedTx.TxIn) != 1 {
+			return fmt.Errorf("invalid number of inputs: got %d, expected 1", len(forfeit.UnsignedTx.TxIn))
+		}
+
+		// verify forfeit outputs
+
+		// the first should be the forfeit server address
+		if !bytes.Equal(forfeit.UnsignedTx.TxOut[0].PkScript, forfeitOutputScript) {
+			return fmt.Errorf(
+				"wrong forfeit output script, expected %x, got %x", 
+				forfeitOutputScript, forfeit.UnsignedTx.TxOut[0].PkScript,
+			)
+		}
+
+		// the second one should be P2A
+		if !bytes.Equal(forfeit.UnsignedTx.TxOut[1].PkScript, txutils.ANCHOR_PKSCRIPT) {
+			return fmt.Errorf(
+				"wrong anchor output script, expected %x, got %x", 
+				txutils.ANCHOR_PKSCRIPT, forfeit.UnsignedTx.TxOut[1].PkScript,
+			)
+		}
+
+		// validate each forfeit input
+		totalForfeitAmount := int64(0)
+		if forfeit.Inputs[0].WitnessUtxo == nil {
+			return fmt.Errorf("forfeit input witness utxo is nil")
+		}
+
+		if len(forfeit.Inputs[0].TaprootScriptSpendSig) != 1 {
+			return fmt.Errorf("forfeit input has no taproot script spend sig")
+		}
+
+		if len(forfeit.Inputs[0].TaprootLeafScript) != 1 {
+			return fmt.Errorf("forfeit input has no taproot leaf script")
+		}
+
+		totalForfeitAmount += forfeit.Inputs[0].WitnessUtxo.Value
+
+		// verify forfeit amount (sum of all inputs + dust)
+		expectedAmount := int64(cfg.Dust) + totalForfeitAmount
+		if expectedAmount != forfeit.UnsignedTx.TxOut[0].Value {
+			return fmt.Errorf(
+				"wrong forfeit amount, expected %d, got %d", 
+				expectedAmount,
+				forfeit.UnsignedTx.TxOut[0].Value,
+			)
+		}
+
+		delegatorXonlyKey := schnorr.SerializePubKey(s.svc.publicKey)
+		expectedSigHashType := txscript.SigHashAnyOneCanPay | txscript.SigHashAll
+
+		prevoutMap := make(map[wire.OutPoint]*wire.TxOut)
+		forfeitOutpoint := forfeit.UnsignedTx.TxIn[0].PreviousOutPoint
+		forfeitSig := forfeit.Inputs[0].TaprootScriptSpendSig[0]
+		forfeitLeafScript := forfeit.Inputs[0].TaprootLeafScript[0]
+
+		// verify forfeit sig is related to tapleaf script
+		tapLeaf := txscript.NewBaseTapLeaf(forfeitLeafScript.Script)
+		tapLeafHash := tapLeaf.TapHash()
+		if !bytes.Equal(forfeitSig.LeafHash, tapLeafHash[:]) {
+			return fmt.Errorf("forfeit input: missing tapleaf script %x", tapLeafHash)
+		}
+
+		// verify the forfeit script 
+		var multisigClosure script.MultisigClosure
+		valid, err := multisigClosure.Decode(forfeitLeafScript.Script); 
+		if err != nil {
+			return fmt.Errorf("forfeit input: failed to decode multisig closure: %w", err)
+		}
+		if !valid {
+			return fmt.Errorf("forfeit input: invalid taproot leaf script, expected multisig closure, got %x", forfeitLeafScript.Script)
+		}
+		if len(multisigClosure.PubKeys) != 3 {
+			return fmt.Errorf("forfeit input: invalid multisig closure, expected 3 pubkeys, got %d", len(multisigClosure.PubKeys))
+		}
+
+		var delegatorFound, signerFound bool
+		for _, pubkey := range multisigClosure.PubKeys {
+			xonlyKey := schnorr.SerializePubKey(pubkey)
+			if bytes.Equal(xonlyKey, delegatorXonlyKey) {
+				delegatorFound = true
+				continue
+			}
+
+			if bytes.Equal(xonlyKey, forfeitSig.XOnlyPubKey) {
+				signerFound = true
+			}
+		}
+		if !delegatorFound {
+			return fmt.Errorf("forfeit input: delegator public key not found in taproot leaf script")
+		}
+		if !signerFound {
+			return fmt.Errorf("forfeit input: signer public key not found in taproot leaf script")
+		}
+
+		// verify the signature (must be valid and use sighash type ANYONECANPAY | ALL)
+		if forfeitSig.SigHash != expectedSigHashType {
+			return fmt.Errorf("forfeit input: invalid sighash type, expected AnyoneCanPay | All, got %d", forfeitSig.SigHash)
+		}
+
+		prevoutMap[forfeitOutpoint] = forfeit.Inputs[0].WitnessUtxo
+
+		// verify all signatures
+		prevoutFetcher := txscript.NewMultiPrevOutFetcher(prevoutMap)
+
+		message, err := txscript.CalcTapscriptSignaturehash(
+			txscript.NewTxSigHashes(forfeit.UnsignedTx, prevoutFetcher),
+			expectedSigHashType, forfeit.UnsignedTx, 0, prevoutFetcher, tapLeaf,
 		)
+		if err != nil {
+			return fmt.Errorf("forfeit input: failed to calculate sighash: %w", err)
+		}
+
+		signerPublicKey, err := schnorr.ParsePubKey(forfeitSig.XOnlyPubKey)
+		if err != nil {
+			return fmt.Errorf("forfeit input: failed to parse signer public key: %w", err)
+		}
+
+		sig, err := schnorr.ParseSignature(forfeitSig.Signature)
+		if err != nil {
+			return fmt.Errorf("forfeit input: failed to parse signature: %w", err)
+		}
+
+		if !sig.Verify(message, signerPublicKey) {
+			return fmt.Errorf("forfeit input: invalid forfeit signature")
+		}
 	}
 
-	// the second one should be P2A
-	if !bytes.Equal(forfeit.UnsignedTx.TxOut[1].PkScript, txutils.ANCHOR_PKSCRIPT) {
-		return fmt.Errorf(
-			"wrong anchor output script, expected %x, got %x", 
-			txutils.ANCHOR_PKSCRIPT, forfeit.UnsignedTx.TxOut[1].PkScript,
-		)
-	}
-
-	// verify forfeit amount
-	expectedAmount := int64(cfg.Dust) + forfeit.Inputs[0].WitnessUtxo.Value
-	if expectedAmount != forfeit.UnsignedTx.TxOut[0].Value {
-		return fmt.Errorf(
-			"wrong forfeit amount, expected %d, got %d", 
-			expectedAmount,
-			forfeit.UnsignedTx.TxOut[0].Value,
-		)
-	}
-
-	// reject collaborative exit
-	if len(intentMessage.OnchainOutputIndexes) > 0 {
-		return fmt.Errorf("delegated collaborative exit is not supported")
-	}
-
-	forfeitOutpoint := forfeit.UnsignedTx.TxIn[0].PreviousOutPoint
-	forfeitSig := forfeit.Inputs[0].TaprootScriptSpendSig[0]
-	forfeitLeafScript := forfeit.Inputs[0].TaprootLeafScript[0]
-
-	task, err := s.newDelegateTask(ctx, intentMessage, intentProof, forfeit)
+	task, err := s.newDelegateTask(ctx, intentMessage, intentProof, forfeits)
 	if err != nil {
 		return err
 	}
@@ -225,129 +306,65 @@ func (s *DelegatorService) Delegate(
 		return fmt.Errorf("delegator fee is less than the required fee (expected at least %d, got %d)", s.fee, task.Fee)
 	}
 
-	// verify intent input = forfeit input
-	if !task.Input.Hash.IsEqual(&forfeitOutpoint.Hash) || task.Input.Index != forfeitOutpoint.Index {
-		return fmt.Errorf("intent input does not match forfeit input")
-	}
-
-	// verify forfeit sig is related to tapleaf script
-	tapLeaf := txscript.NewBaseTapLeaf(forfeitLeafScript.Script)
-	tapLeafHash := tapLeaf.TapHash()
-	if !bytes.Equal(forfeitSig.LeafHash, tapLeafHash[:]) {
-		return fmt.Errorf("missing tapleaf script %x", tapLeafHash)
-	}
-
-	// verify the forfeit script 
-	var multisigClosure script.MultisigClosure
-	valid, err := multisigClosure.Decode(forfeitLeafScript.Script); 
-	if err != nil {
-		return fmt.Errorf("failed to decode multisig closure: %w", err)
-	}
-	if !valid {
-		return fmt.Errorf("invalid taproot leaf script, expected multisig closure, got %x", forfeitLeafScript.Script)
-	}
-	if len(multisigClosure.PubKeys) != 3 {
-		return fmt.Errorf("invalid multisig closure, expected 3 pubkeys, got %d", len(multisigClosure.PubKeys))
-	}
-
-	delegatorXonlyKey := schnorr.SerializePubKey(s.svc.publicKey)
-
-	var delegatorFound, signerFound bool
-	for _, pubkey := range multisigClosure.PubKeys {
-		xonlyKey := schnorr.SerializePubKey(pubkey)
-		if bytes.Equal(xonlyKey, delegatorXonlyKey) {
-			delegatorFound = true
-			continue
-		}
-
-		if bytes.Equal(xonlyKey, forfeitSig.XOnlyPubKey) {
-			signerFound = true
+	// verify forfeit input are referenced in the intent
+	for input := range task.ForfeitTxs {
+		if !slices.Contains(task.Inputs, input) {
+			return fmt.Errorf("forfeit input %s:%d is not referenced in the intent", input.Hash.String(), input.Index)
 		}
 	}
-	if !delegatorFound {
-		return fmt.Errorf("delegator public key not found in taproot leaf script")
-	}
-	if !signerFound {
-		return fmt.Errorf("signer public key not found in taproot leaf script")
-	}
 
-	// verify the signature (must be valid and use sighash type ANYONECANPAY | ALL)
-	expectedSigHashType := txscript.SigHashAnyOneCanPay | txscript.SigHashAll
-	if forfeitSig.SigHash != expectedSigHashType {
-		return fmt.Errorf("invalid sighash type, expected AnyoneCanPay | All, got %d", forfeitSig.SigHash)
+	// verify all inputs are real VTXOs and not unrolled or spent
+	outpoints := make([]types.Outpoint, len(task.Inputs))
+	for i, input := range task.Inputs {
+		outpoints[i] = types.Outpoint{
+			Txid: input.Hash.String(),
+			VOut: input.Index,
+		}
 	}
 
-	prevoutFetcher := txscript.NewMultiPrevOutFetcher(map[wire.OutPoint]*wire.TxOut{
-		forfeitOutpoint: forfeit.Inputs[0].WitnessUtxo,
-	})
-
-	message, err := txscript.CalcTapscriptSignaturehash(
-		txscript.NewTxSigHashes(forfeit.UnsignedTx, prevoutFetcher),
-		expectedSigHashType, forfeit.UnsignedTx, 0, prevoutFetcher, tapLeaf,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to calculate sighash: %w", err)
-	}
-
-	signerPublicKey, err := schnorr.ParsePubKey(forfeitSig.XOnlyPubKey)
-	if err != nil {
-		return fmt.Errorf("failed to parse signer public key: %w", err)
-	}
-
-	sig, err := schnorr.ParseSignature(forfeitSig.Signature)
-	if err != nil {
-		return fmt.Errorf("failed to parse signature: %w", err)
-	}
-
-	if !sig.Verify(message, signerPublicKey) {
-		return fmt.Errorf("invalid forfeit signature")
-	}
-
-	// TODO validate intent fee
-
-	// verify the input is a real VTXO and not unrolled or spent
 	opts := indexer.GetVtxosRequestOption{}
-	if err := opts.WithOutpoints([]types.Outpoint{
-		{
-			Txid: task.Input.Hash.String(),
-			VOut: task.Input.Index,
-		},
-	}); err != nil {
+	if err := opts.WithOutpoints(outpoints); err != nil {
 		return fmt.Errorf("failed to get vtxos: %w", err)
 	}
 	vtxos, err := s.svc.indexerClient.GetVtxos(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("failed to get vtxos: %w", err)
 	}
-	if len(vtxos.Vtxos) == 0 {
-		return fmt.Errorf("input is not a VTXO")
-	}
-	if vtxos.Vtxos[0].Spent {
-		return fmt.Errorf("input is already spent")
-	}
-	if vtxos.Vtxos[0].Unrolled {
-		return fmt.Errorf("input is unrolled")
+	if len(vtxos.Vtxos) != len(task.Inputs) {
+		return fmt.Errorf("expected %d vtxos, got %d", len(task.Inputs), len(vtxos.Vtxos))
 	}
 
-	// lock to avoid a new task with the same input is created while we are adding it to database
+	for i, vtxo := range vtxos.Vtxos {
+		if vtxo.Spent {
+			return fmt.Errorf("input %d is already spent", i)
+		}
+		if vtxo.Unrolled {
+			return fmt.Errorf("input %d is unrolled", i)
+		}
+	}
+
+	// lock to avoid a new task with overlapping inputs is created while we are adding it to database
 	s.pendingTasksMtx.Lock()
 	defer s.pendingTasksMtx.Unlock()
 
-	// before saving to databse, verify that there is no pending task with the same input
-	pendingTasks, err := s.svc.dbSvc.Delegate().GetPendingTaskByInput(ctx, task.Input)
+	repo := s.svc.dbSvc.Delegate()
+
+	// before saving to database, verify that there is no pending task with any overlapping input
+	pendingTaskIDs, err := repo.GetPendingTaskIDsByInputs(ctx, task.Inputs)
 	if err != nil {
 		return err
 	}
-	if len(pendingTasks) > 0 {
-		return fmt.Errorf("pending task with same input already exists")
+	if len(pendingTaskIDs) > 0 {
+		// cancel pending tasks with overlapping inputs
+		if err := repo.CancelTasks(ctx, pendingTaskIDs...); err != nil {
+			return fmt.Errorf("failed to cancel pending tasks: %w", err)
+		}
 	}
 
 	// save task to database
-	err = s.svc.dbSvc.Delegate().AddOrUpdate(ctx, *task)
-	if err != nil {
+	if err := repo.Add(ctx, *task); err != nil {
 		return err
 	}
-
 
 	// schedule task
 	if err := s.svc.schedulerSvc.ScheduleTaskAtTime(task.ScheduledAt, func() {
@@ -362,7 +379,7 @@ func (s *DelegatorService) Delegate(
 }
 
 func (s *DelegatorService) newDelegateTask(
-	ctx context.Context, message intent.RegisterMessage, proof intent.Proof, forfeit *psbt.Packet,
+	ctx context.Context, message intent.RegisterMessage, proof intent.Proof, forfeits []*psbt.Packet,
 ) (*domain.DelegateTask, error) {
 	id := uuid.New().String()
 	encodedMessage, err := message.Encode()
@@ -372,10 +389,6 @@ func (s *DelegatorService) newDelegateTask(
 	encodedProof, err := proof.B64Encode()
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode intent proof: %w", err)
-	}
-	encodedForfeit, err := forfeit.B64Encode()
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode forfeit: %w", err)
 	}
 
 	delegatorAddr, err := s.getDelegatorAddress(ctx)
@@ -405,8 +418,21 @@ func (s *DelegatorService) newDelegateTask(
 	scheduledAt := time.Unix(message.ValidAt, 0)
 
 	inputs := proof.GetOutpoints()
-	if len(inputs) != 1 {
-		return nil, fmt.Errorf("invalid number of inputs: got %d, expected 1", len(inputs))
+	if len(inputs) == 0 {
+		return nil, fmt.Errorf("invalid number of inputs: got %d, expected at least 1", len(inputs))
+	}
+
+	forfeitTxs := make(map[wire.OutPoint]string)
+	for _, forfeit := range forfeits {
+		if len(forfeit.UnsignedTx.TxIn) != 1 {
+			return nil, fmt.Errorf("invalid number of inputs: got %d, expected 1", len(forfeit.UnsignedTx.TxIn))
+		}
+
+		encodedForfeit, err := forfeit.B64Encode()
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode forfeit: %w", err)
+		}
+		forfeitTxs[forfeit.UnsignedTx.TxIn[0].PreviousOutPoint] = encodedForfeit
 	}
 
 	return &domain.DelegateTask{
@@ -415,10 +441,10 @@ func (s *DelegatorService) newDelegateTask(
 			Message: encodedMessage,
 			Proof: encodedProof,
 		},
-		ForfeitTx: encodedForfeit,
+		ForfeitTxs: forfeitTxs,
 		Fee: uint64(feeAmount),
 		DelegatorPublicKey: hex.EncodeToString(s.svc.publicKey.SerializeCompressed()),
-		Input: inputs[0],
+		Inputs: inputs,
 		ScheduledAt: scheduledAt,
 		Status: domain.DelegateTaskStatusPending,
 	}, nil
@@ -498,19 +524,13 @@ func (s *DelegatorService) registerDelegate(id string) error {
 	intentId, err := s.svc.grpcClient.RegisterIntent(s.ctx, task.Intent.Proof, task.Intent.Message)
 	if err != nil {
 		log.WithError(err).Errorf("failed to register intent for delegate task %s", id)
-		if err := task.Fail(err.Error()); err != nil {
-			return err
-		}
-		if err := repo.AddOrUpdate(s.ctx, *task); err != nil {
-			return err
-		}
-		return nil
+		return repo.FailTasks(s.ctx, err.Error(), id)
 	}
 
 	registeredIntent := registeredIntent{
 		taskID: id,
 		intentID: intentId,
-		input: task.Input,
+		inputs: task.Inputs,
 	}
 
 	s.intentsMtx.Lock()
@@ -604,7 +624,7 @@ func (s *DelegatorService) joinDelegatorBatch(
 
 	signerSession := tree.NewTreeSignerSession(s.svc.privateKey)
 
-	topics := make([]string, 0, len(selectedDelegatorTasks) + 1)
+	topics := make([]string, 0, len(selectedDelegatorTasks)*2 + 1)
 	topics = append(topics, hex.EncodeToString(s.svc.publicKey.SerializeCompressed()))
 	
 	// confirm registrations and compute topics
@@ -613,10 +633,13 @@ func (s *DelegatorService) joinDelegatorBatch(
 			log.WithError(err).Warnf("failed to confirm registration for intent %s", selectedTask.intentID)
 			continue
 		}
-		topics = append(topics, types.Outpoint{
-			Txid: selectedTask.input.Hash.String(),
-			VOut: selectedTask.input.Index,
-		}.String())
+		// add all inputs from this task as topics
+		for _, input := range selectedTask.inputs {
+			topics = append(topics, types.Outpoint{
+				Txid: input.Hash.String(),
+				VOut: input.Index,
+			}.String())
+		}
 	}
 
 	eventsCh, stop, err := s.svc.grpcClient.GetEventStream(ctx, topics)
@@ -638,30 +661,17 @@ func (s *DelegatorService) joinDelegatorBatch(
 			}
 			switch event := event.Event.(type) {
 			case client.BatchFinalizedEvent:
+				repo := s.svc.dbSvc.Delegate()
+				taskIds := make([]string, 0, len(selectedDelegatorTasks))
 				for _, selectedTask := range selectedDelegatorTasks {
-					repo := s.svc.dbSvc.Delegate()
-					task, err := repo.GetByID(ctx, selectedTask.taskID)
-					if err != nil {
-						log.WithError(err).Warnf(
-							"failed to get delegate task %s, cannot mark as done", 
-							selectedTask.taskID,
-						)
-						continue
-					}
-					if err := task.Success(); err != nil {
-						log.WithError(err).Warnf(
-							"failed to mark delegate task %s as done", 
-							selectedTask.taskID,
-						)
-						continue
-					}
-					if err := repo.AddOrUpdate(ctx, *task); err != nil {
-						log.WithError(err).Warnf("failed to update delegate task %s", selectedTask.taskID)
-						continue
-					}
+					taskIds = append(taskIds, selectedTask.taskID)
 					s.intentsMtx.Lock()
 					delete(s.registeredIntents, selectedTask.intentIDHash())
 					s.intentsMtx.Unlock()
+				}
+				if err := repo.SuccessTasks(ctx, taskIds...); err != nil {
+					log.WithError(err).Warnf("failed to mark delegate tasks as done")
+					continue
 				}
 				log.Debugf(
 					"batch %s finalized, %d delegate tasks marked as done", 
@@ -736,20 +746,30 @@ func (s *DelegatorService) joinDelegatorBatch(
 			
 				selectedTasksIds := make([]string, 0, len(selectedDelegatorTasks))
 				for _, selectedTask := range selectedDelegatorTasks {
+					// check if any input is recoverable - if all are recoverable, skip this task
+					outpoints := make([]types.Outpoint, len(selectedTask.inputs))
+					for i, input := range selectedTask.inputs {
+						outpoints[i] = types.Outpoint{
+							Txid: input.Hash.String(),
+							VOut: input.Index,
+						}
+					}
 					opts := indexer.GetVtxosRequestOption{}
-					if err := opts.WithOutpoints([]types.Outpoint{
-						{
-							Txid: selectedTask.input.Hash.String(),
-							VOut: selectedTask.input.Index,
-						},
-					}); err != nil {
+					if err := opts.WithOutpoints(outpoints); err != nil {
 						log.WithError(err).Warnf("failed to set outpoints for get vtxos request")
 						continue
 					}
 					vtxos, err := s.svc.indexerClient.GetVtxos(ctx, opts)
 					if err == nil && len(vtxos.Vtxos) > 0 {
-						if vtxos.Vtxos[0].IsRecoverable() {
-							continue // exclude recoverable coins, they do not need forfeits
+						allRecoverable := true
+						for _, vtxo := range vtxos.Vtxos {
+							if !vtxo.IsRecoverable() {
+								allRecoverable = false
+								break
+							}
+						}
+						if allRecoverable {
+							continue // exclude tasks where all inputs are recoverable, they do not need forfeits
 						}
 					}
 
@@ -844,18 +864,26 @@ func (s *DelegatorService) submitForfeitTransactions(
 	ctx context.Context, connectorsLeaves []*psbt.Packet, selectedTasksIds []string,
 ) error {
 	repo := s.svc.dbSvc.Delegate()
-	forfeitTxs := make([]*psbt.Packet, 0, len(selectedTasksIds))
+	forfeitTxs := make([]*psbt.Packet, 0)
 	for _, selectedTaskId := range selectedTasksIds {
 		task, err := repo.GetByID(ctx, selectedTaskId)
 		if err != nil {
 			return fmt.Errorf("failed to get delegate task %s: %w", selectedTaskId, err)
 		}
 
-		forfeitPtx, err := psbt.NewFromRawBytes(strings.NewReader(task.ForfeitTx), true)
-		if err != nil {
-			return fmt.Errorf("failed to parse forfeit tx: %w", err)
+		// Get forfeit transactions for inputs that have them (forfeit transactions are optional)
+		for _, input := range task.Inputs {
+			forfeitTxStr, ok := task.ForfeitTxs[input]
+			if !ok {
+				// Skip inputs without forfeit transactions
+				continue
+			}
+			forfeitPtx, err := psbt.NewFromRawBytes(strings.NewReader(forfeitTxStr), true)
+			if err != nil {
+				return fmt.Errorf("failed to parse forfeit tx: %w", err)
+			}
+			forfeitTxs = append(forfeitTxs, forfeitPtx)
 		}
-		forfeitTxs = append(forfeitTxs, forfeitPtx)
 	}
 
 	if len(forfeitTxs) > len(connectorsLeaves) {

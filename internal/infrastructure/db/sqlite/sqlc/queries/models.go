@@ -11,13 +11,18 @@ import (
 type DelegateTask struct {
 	ID                 string
 	IntentJson         string
-	ForfeitTx          string
-	InputsJson         string
 	Fee                int64
 	DelegatorPublicKey string
 	ScheduledAt        int64
 	Status             string
-	FailReason         string
+	FailReason         sql.NullString
+}
+
+type DelegateTaskInput struct {
+	TaskID     string
+	InputHash  string
+	InputIndex int64
+	ForfeitTx  sql.NullString
 }
 
 type Setting struct {

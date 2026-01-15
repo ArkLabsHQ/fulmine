@@ -60,7 +60,7 @@ func (h *delegatorHandler) Delegate(
 
 	intentProof := intent.Proof{Packet: *proofPtx}
 
-	err = h.svc.Delegate(ctx, intentMessage, intentProof, forfeitPtx)
+	err = h.svc.Delegate(ctx, intentMessage, intentProof, []*psbt.Packet{forfeitPtx})
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

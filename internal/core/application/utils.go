@@ -89,7 +89,7 @@ func extractConnector(connectorTx *psbt.Packet) (*wire.TxOut, *wire.OutPoint, er
 type registeredIntent struct {
 	taskID string
 	intentID string
-	input wire.OutPoint
+	inputs []wire.OutPoint
 }
 
 func (i registeredIntent) intentIDHash() string {

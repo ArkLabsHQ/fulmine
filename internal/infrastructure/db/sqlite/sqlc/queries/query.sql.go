@@ -8,7 +8,29 @@ package queries
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
+
+const cancelDelegateTasks = `-- name: CancelDelegateTasks :exec
+UPDATE delegate_task
+SET status = 'cancelled'
+WHERE status = 'pending' AND id IN (/*SLICE:ids*/?)
+`
+
+func (q *Queries) CancelDelegateTasks(ctx context.Context, ids []string) error {
+	query := cancelDelegateTasks
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
 
 const createSwap = `-- name: CreateSwap :exec
 INSERT INTO swap (
@@ -75,59 +97,116 @@ func (q *Queries) DeleteVtxoRollover(ctx context.Context, address string) error 
 	return err
 }
 
-const getDelegateTask = `-- name: GetDelegateTask :one
-SELECT id, intent_json, forfeit_tx, inputs_json, fee, delegator_public_key, scheduled_at, status, fail_reason FROM delegate_task WHERE id = ?
+const failDelegateTasks = `-- name: FailDelegateTasks :exec
+UPDATE delegate_task
+SET status = 'failed', fail_reason = ?
+WHERE status = 'pending' AND id IN (/*SLICE:ids*/?)
 `
 
-func (q *Queries) GetDelegateTask(ctx context.Context, id string) (DelegateTask, error) {
-	row := q.db.QueryRowContext(ctx, getDelegateTask, id)
-	var i DelegateTask
-	err := row.Scan(
-		&i.ID,
-		&i.IntentJson,
-		&i.ForfeitTx,
-		&i.InputsJson,
-		&i.Fee,
-		&i.DelegatorPublicKey,
-		&i.ScheduledAt,
-		&i.Status,
-		&i.FailReason,
-	)
-	return i, err
+type FailDelegateTasksParams struct {
+	FailReason sql.NullString
+	Ids        []string
 }
 
-const getPendingTaskByInput = `-- name: GetPendingTaskByInput :many
-SELECT id, intent_json, forfeit_tx, inputs_json, fee, delegator_public_key, scheduled_at, status, fail_reason FROM delegate_task 
-WHERE status = 'pending' 
-  AND json_extract(inputs_json, '$.hash') = ?
-  AND CAST(json_extract(inputs_json, '$.index') AS INTEGER) = ?
+func (q *Queries) FailDelegateTasks(ctx context.Context, arg FailDelegateTasksParams) error {
+	query := failDelegateTasks
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.FailReason)
+	if len(arg.Ids) > 0 {
+		for _, v := range arg.Ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
+
+const getDelegateTask = `-- name: GetDelegateTask :many
+SELECT 
+    dt.id, 
+    dt.intent_json, 
+    dt.fee, 
+    dt.delegator_public_key, 
+    dt.scheduled_at, 
+    dt.status, 
+    dt.fail_reason,
+    dti.input_hash,
+    dti.input_index,
+    dti.forfeit_tx
+FROM delegate_task dt
+LEFT JOIN delegate_task_input dti ON dt.id = dti.task_id
+WHERE dt.id = ?
 `
 
-type GetPendingTaskByInputParams struct {
-	InputsJson   string
-	InputsJson_2 string
+type GetDelegateTaskRow struct {
+	ID                 string
+	IntentJson         string
+	Fee                int64
+	DelegatorPublicKey string
+	ScheduledAt        int64
+	Status             string
+	FailReason         sql.NullString
+	InputHash          sql.NullString
+	InputIndex         sql.NullInt64
+	ForfeitTx          sql.NullString
 }
 
-func (q *Queries) GetPendingTaskByInput(ctx context.Context, arg GetPendingTaskByInputParams) ([]DelegateTask, error) {
-	rows, err := q.db.QueryContext(ctx, getPendingTaskByInput, arg.InputsJson, arg.InputsJson_2)
+func (q *Queries) GetDelegateTask(ctx context.Context, id string) ([]GetDelegateTaskRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDelegateTask, id)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []DelegateTask
+	var items []GetDelegateTaskRow
 	for rows.Next() {
-		var i DelegateTask
+		var i GetDelegateTaskRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.IntentJson,
-			&i.ForfeitTx,
-			&i.InputsJson,
 			&i.Fee,
 			&i.DelegatorPublicKey,
 			&i.ScheduledAt,
 			&i.Status,
 			&i.FailReason,
+			&i.InputHash,
+			&i.InputIndex,
+			&i.ForfeitTx,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getDelegateTaskInputs = `-- name: GetDelegateTaskInputs :many
+SELECT input_hash, input_index FROM delegate_task_input WHERE task_id = ?
+`
+
+type GetDelegateTaskInputsRow struct {
+	InputHash  string
+	InputIndex int64
+}
+
+func (q *Queries) GetDelegateTaskInputs(ctx context.Context, taskID string) ([]GetDelegateTaskInputsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDelegateTaskInputs, taskID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetDelegateTaskInputsRow
+	for rows.Next() {
+		var i GetDelegateTaskInputsRow
+		if err := rows.Scan(&i.InputHash, &i.InputIndex); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -251,6 +330,53 @@ func (q *Queries) GetVtxoRollover(ctx context.Context, address string) (VtxoRoll
 	var i VtxoRollover
 	err := row.Scan(&i.Address, &i.TaprootTree, &i.DestinationAddress)
 	return i, err
+}
+
+const insertDelegateTask = `-- name: InsertDelegateTask :exec
+INSERT INTO delegate_task (id, intent_json, fee, delegator_public_key, scheduled_at) VALUES (?, ?, ?, ?, ?)
+`
+
+type InsertDelegateTaskParams struct {
+	ID                 string
+	IntentJson         string
+	Fee                int64
+	DelegatorPublicKey string
+	ScheduledAt        int64
+}
+
+func (q *Queries) InsertDelegateTask(ctx context.Context, arg InsertDelegateTaskParams) error {
+	_, err := q.db.ExecContext(ctx, insertDelegateTask,
+		arg.ID,
+		arg.IntentJson,
+		arg.Fee,
+		arg.DelegatorPublicKey,
+		arg.ScheduledAt,
+	)
+	return err
+}
+
+const insertDelegateTaskInput = `-- name: InsertDelegateTaskInput :exec
+INSERT INTO delegate_task_input (task_id, input_hash, input_index, forfeit_tx)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(task_id, input_hash, input_index) DO UPDATE SET
+    forfeit_tx = excluded.forfeit_tx
+`
+
+type InsertDelegateTaskInputParams struct {
+	TaskID     string
+	InputHash  string
+	InputIndex int64
+	ForfeitTx  sql.NullString
+}
+
+func (q *Queries) InsertDelegateTaskInput(ctx context.Context, arg InsertDelegateTaskInputParams) error {
+	_, err := q.db.ExecContext(ctx, insertDelegateTaskInput,
+		arg.TaskID,
+		arg.InputHash,
+		arg.InputIndex,
+		arg.ForfeitTx,
+	)
+	return err
 }
 
 const insertSubscribedScript = `-- name: InsertSubscribedScript :exec
@@ -491,6 +617,27 @@ func (q *Queries) ListVtxoRollover(ctx context.Context) ([]VtxoRollover, error) 
 	return items, nil
 }
 
+const successDelegateTasks = `-- name: SuccessDelegateTasks :exec
+UPDATE delegate_task
+SET status = 'done'
+WHERE status = 'pending' AND id IN (/*SLICE:ids*/?)
+`
+
+func (q *Queries) SuccessDelegateTasks(ctx context.Context, ids []string) error {
+	query := successDelegateTasks
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
+
 const updateSwap = `-- name: UpdateSwap :exec
 UPDATE swap 
 SET status = ?,
@@ -506,48 +653,6 @@ type UpdateSwapParams struct {
 
 func (q *Queries) UpdateSwap(ctx context.Context, arg UpdateSwapParams) error {
 	_, err := q.db.ExecContext(ctx, updateSwap, arg.Status, arg.RedeemTxID, arg.ID)
-	return err
-}
-
-const upsertDelegateTask = `-- name: UpsertDelegateTask :exec
-INSERT INTO delegate_task (
-    id, intent_json, forfeit_tx, inputs_json, fee, delegator_public_key, scheduled_at, status, fail_reason
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id) DO UPDATE SET
-    intent_json = excluded.intent_json,
-    forfeit_tx = excluded.forfeit_tx,
-    inputs_json = excluded.inputs_json,
-    fee = excluded.fee,
-    delegator_public_key = excluded.delegator_public_key,
-    scheduled_at = excluded.scheduled_at,
-    status = excluded.status,
-    fail_reason = excluded.fail_reason
-`
-
-type UpsertDelegateTaskParams struct {
-	ID                 string
-	IntentJson         string
-	ForfeitTx          string
-	InputsJson         string
-	Fee                int64
-	DelegatorPublicKey string
-	ScheduledAt        int64
-	Status             string
-	FailReason         string
-}
-
-func (q *Queries) UpsertDelegateTask(ctx context.Context, arg UpsertDelegateTaskParams) error {
-	_, err := q.db.ExecContext(ctx, upsertDelegateTask,
-		arg.ID,
-		arg.IntentJson,
-		arg.ForfeitTx,
-		arg.InputsJson,
-		arg.Fee,
-		arg.DelegatorPublicKey,
-		arg.ScheduledAt,
-		arg.Status,
-		arg.FailReason,
-	)
 	return err
 }
 
