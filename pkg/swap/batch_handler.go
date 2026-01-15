@@ -250,13 +250,13 @@ func (h *batchSessionHandler) createAndSignForfeits(
 		return nil, err
 	}
 
-	if len(connectorsLeaves) < len(h.vtxosToForfeit) {
+	if len(connectorsLeaves) != len(h.vtxosToForfeit) {
 		return nil, fmt.Errorf(
-			"insufficient connectors: got %d, need %d", len(connectorsLeaves), len(h.vtxos),
+			"insufficient connectors: got %d, need %d", len(connectorsLeaves), len(h.vtxosToForfeit),
 		)
 	}
 
-	signedForfeitTxs := make([]string, 0, len(h.vtxos))
+	signedForfeitTxs := make([]string, 0, len(h.vtxosToForfeit))
 	for i, vtxo := range h.vtxosToForfeit {
 		connectorTx := connectorsLeaves[i]
 
