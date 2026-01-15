@@ -691,16 +691,21 @@ func (s *Service) GetVtxos(ctx context.Context, filterType string) ([]types.Vtxo
 		return nil, fmt.Errorf("invalid filter type: %s", filterType)
 	}
 
-	_, offchainAddrs, _, _, err := s.ArkClient.GetAddresses(ctx)
+	_, offchainAddrs, _, _, err := s.GetAddresses(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	scripts := make([]string, 0, len(offchainAddrs))
 	for _, addr := range offchainAddrs {
-		// nolint
-		decoded, _ := arklib.DecodeAddressV0(addr)
-		script, _ := script.P2TRScript(decoded.VtxoTapKey)
+		decoded, err := arklib.DecodeAddressV0(addr)
+		if err != nil {
+			return nil, err
+		}
+		script, err := script.P2TRScript(decoded.VtxoTapKey)
+		if err != nil {
+			return nil, err
+		}
 		scripts = append(scripts, hex.EncodeToString(script))
 	}
 
