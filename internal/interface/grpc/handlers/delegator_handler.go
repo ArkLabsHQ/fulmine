@@ -41,7 +41,7 @@ func (h *delegatorHandler) Delegate(
 	delegateIntent := req.GetIntent()
 	message := delegateIntent.GetMessage()
 	proof := delegateIntent.GetProof()
-	forfeit := req.GetForfeit()
+	forfeits := req.GetForfeits()
 
 	var intentMessage intent.RegisterMessage
 	if err := intentMessage.Decode(message); err != nil {
@@ -53,14 +53,18 @@ func (h *delegatorHandler) Delegate(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	forfeitPtx, err := psbt.NewFromRawBytes(strings.NewReader(forfeit), true)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+	forfeitPtxs := make([]*psbt.Packet, 0, len(forfeits))
+	for _, forfeit := range forfeits {
+		forfeitPtx, err := psbt.NewFromRawBytes(strings.NewReader(forfeit), true)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		forfeitPtxs = append(forfeitPtxs, forfeitPtx)
 	}
 
 	intentProof := intent.Proof{Packet: *proofPtx}
 
-	err = h.svc.Delegate(ctx, intentMessage, intentProof, []*psbt.Packet{forfeitPtx})
+	err = h.svc.Delegate(ctx, intentMessage, intentProof, forfeitPtxs)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

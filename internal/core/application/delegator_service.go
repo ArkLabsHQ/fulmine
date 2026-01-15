@@ -611,7 +611,11 @@ func (s *DelegatorService) runDelegatorBatch(
 		log.WithError(err).Warnf("failed to join batch")
 		return
 	}
-	log.Infof("%d vtxos renewed by batch %s", len(selectedTasks), commitmentTxId)
+	countVtxos := 0
+	for _, selectedTask := range selectedTasks {
+		countVtxos += len(selectedTask.inputs)
+	}
+	log.WithField("countTasks", len(selectedTasks)).WithField("countVtxos", countVtxos).Infof("batch %s completed", commitmentTxId)
 }
 
 // joinDelegatorBatch is launched after the BatchStartedEvent is received and is reponsible to sign vtxo tree and submit forfeits txs.
@@ -633,7 +637,6 @@ func (s *DelegatorService) joinDelegatorBatch(
 			log.WithError(err).Warnf("failed to confirm registration for intent %s", selectedTask.intentID)
 			continue
 		}
-		// add all inputs from this task as topics
 		for _, input := range selectedTask.inputs {
 			topics = append(topics, types.Outpoint{
 				Txid: input.Hash.String(),
@@ -777,7 +780,7 @@ func (s *DelegatorService) joinDelegatorBatch(
 				}
 
 				if err := s.submitForfeitTransactions(ctx, connectorsLeaves, selectedTasksIds); err != nil {
-					log.WithError(err).Warnf("failed to process forfeits")
+					log.WithError(err).Warnf("failed to submit forfeits")
 					continue
 				}
 			}

@@ -29,7 +29,7 @@ message GetDelegateInfoResponse {
 
 message DelegateRequest {
   Intent intent = 1;
-  string forfeit = 2;
+  repeated string forfeits = 2;
 }
 message DelegateResponse {}
 

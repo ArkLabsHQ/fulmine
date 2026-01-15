@@ -107,8 +107,11 @@
         "intent": {
           "$ref": "#/definitions/v1Intent"
         },
-        "forfeit": {
-          "type": "string"
+        "forfeits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

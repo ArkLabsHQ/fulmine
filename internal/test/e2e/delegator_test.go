@@ -2,6 +2,7 @@ package e2e_test
 
 import (
 	"encoding/hex"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -277,7 +278,7 @@ func TestDelegate(t *testing.T) {
 			Message: encodedIntentMessage,
 			Proof:   encodedIntentProof,
 		},
-		Forfeit: signedPartialForfeitTx,
+		Forfeits: []string{signedPartialForfeitTx},
 	})
 	require.NoError(t, err)
 
@@ -553,7 +554,7 @@ func TestDelegate10Vtxos(t *testing.T) {
 				Message: encodedIntentMessage,
 				Proof:   encodedIntentProof,
 			},
-			Forfeit: signedPartialForfeitTx,
+			Forfeits: []string{signedPartialForfeitTx},
 		})
 	}
 
@@ -581,7 +582,8 @@ func TestDelegate10Vtxos(t *testing.T) {
 	}
 }
 
-// TestDelegateDuplicate test the case where a delegate task with the same input is already pending.
+// TestDelegateSameInput tests the case where a delegate task with the same input is already pending.
+// The delegator should cancel the old task and process the new one instead of returning an error.
 func TestDelegateSameInput(t *testing.T) {
 	ctx := t.Context()
 	// Alice is the user who wants to delegate her VTXO
@@ -865,7 +867,7 @@ func TestDelegateSameInput(t *testing.T) {
 				Message: encodedIntentMessage,
 				Proof:   encodedIntentProof,
 			},
-			Forfeit: signedPartialForfeitTx,
+			Forfeits: []string{signedPartialForfeitTx},
 		}, nil
 	}
 
@@ -882,8 +884,344 @@ func TestDelegateSameInput(t *testing.T) {
 	secondRequest, err := createDelegateRequest()
 	require.NoError(t, err)
 
-	// The second delegation should fail because a pending task with the same input already exists
+	// The second delegation should succeed - it will cancel the old task and process the new one
 	_, err = delegatorClient.Delegate(ctx, secondRequest)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "pending task with same input already exists")
+	require.NoError(t, err)
+
+	// Wait for Fulmine's delegator service to process the delegation
+	// The delegator service will:
+	// 1. Cancel the first pending task
+	// 2. Schedule the second task for registration
+	// 3. Register the intent with the Ark server
+	// 4. Join the batch session and complete it on behalf of Alice
+	time.Sleep(40 * time.Second)
+
+	// Verify the delegate task has been done, vtxo has been refreshed
+	spendable, _, err := alice.ListVtxos(ctx)
+	require.NoError(t, err)
+	require.Len(t, spendable, 1)
+	require.Equal(t, int(aliceVtxo.Amount), int(spendable[0].Amount))
+	require.False(t, spendable[0].Preconfirmed)
+}
+
+// TestDelegateSeveralInputs tests delegating multiple inputs in a single intent.
+func TestDelegateSeveralInputs(t *testing.T) {
+	ctx := t.Context()
+	// Alice is the user who wants to delegate her VTXOs
+	alice, _, alicePubKey, grpcClient := setupArkSDKwithPublicKey(t)
+	defer alice.Stop()
+	defer grpcClient.Close()
+
+	// Get delegator info from Fulmine's delegator service
+	delegatorClient, err := newDelegatorClient("localhost:7000")
+	require.NoError(t, err)
+	require.NotNil(t, delegatorClient)
+
+	delegateInfo, err := delegatorClient.GetDelegateInfo(ctx, &pb.GetDelegateInfoRequest{})
+	require.NoError(t, err)
+	require.NotEmpty(t, delegateInfo.GetPubkey())
+	require.NotEmpty(t, delegateInfo.GetFee())
+
+	// Parse delegator public key from hex string
+	delegatorPubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
+	require.NoError(t, err)
+	delegatorPubKey, err := btcec.ParsePubKey(delegatorPubKeyBytes)
+	require.NoError(t, err)
+	require.NotNil(t, delegatorPubKey)
+
+	_, aliceAddr, _, _, err := alice.GetAddresses(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, aliceAddr)
+
+	aliceArkAddr, err := arklib.DecodeAddressV0(aliceAddr[0])
+	require.NoError(t, err)
+	require.NotNil(t, aliceArkAddr)
+
+	aliceConfig, err := alice.GetConfigData(ctx)
+	require.NoError(t, err)
+
+	signerPubKey := aliceConfig.SignerPubKey
+
+	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
+		// both alice and delegator (Fulmine) must sign the transaction
+		PubKeys: []*btcec.PublicKey{alicePubKey, delegatorPubKey, signerPubKey},
+	}
+
+	exitLocktime := arklib.RelativeLocktime{
+		Type:  arklib.LocktimeTypeSecond,
+		Value: 1024,
+	}
+
+	delegationVtxoScript := script.TapscriptsVtxoScript{
+		Closures: []script.Closure{
+			// delegation script - requires Alice + Delegator (Fulmine) to sign
+			collaborativeAliceDelegatorClosure,
+			// classic collaborative closure, alice only
+			&script.MultisigClosure{
+				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
+			},
+			// alice exit script
+			&script.CSVMultisigClosure{
+				Locktime: exitLocktime,
+				MultisigClosure: script.MultisigClosure{
+					PubKeys: []*btcec.PublicKey{alicePubKey},
+				},
+			},
+		},
+	}
+
+	vtxoTapKey, vtxoTapTree, err := delegationVtxoScript.TapTree()
+	require.NoError(t, err)
+
+	arkAddress := arklib.Address{
+		HRP:        "tark",
+		VtxoTapKey: vtxoTapKey,
+		Signer:     signerPubKey,
+	}
+
+	arkAddressStr, err := arkAddress.EncodeV0()
+	require.NoError(t, err)
+
+	// Faucet Alice with enough funds for several vtxos
+	const numVtxos = 5
+	faucetOffchain(t, alice, 0.00105) // 5 * 0.00021
+
+	delegatePkScript, err := arkAddress.GetPkScript()
+	require.NoError(t, err)
+
+	alicePkScript, err := aliceArkAddr.GetPkScript()
+	require.NoError(t, err)
+
+	exitScript, err := delegationVtxoScript.ExitClosures()[0].Script()
+	require.NoError(t, err)
+
+	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(exitScript).TapHash(),
+	)
+	require.NoError(t, err)
+
+	sequence, err := arklib.BIP68Sequence(exitLocktime)
+	require.NoError(t, err)
+
+	scripts, err := delegationVtxoScript.Encode()
+	require.NoError(t, err)
+
+	tapTree := txutils.TapTree(scripts)
+
+	aliceDelegatorScript, err := collaborativeAliceDelegatorClosure.Script()
+	require.NoError(t, err)
+
+	aliceDelegatorMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(aliceDelegatorScript).TapHash(),
+	)
+	require.NoError(t, err)
+
+	aliceDelegatorTapLeafScript := &psbt.TaprootTapLeafScript{
+		ControlBlock: aliceDelegatorMerkleProof.ControlBlock,
+		Script:       aliceDelegatorMerkleProof.Script,
+		LeafVersion:  txscript.BaseLeafVersion,
+	}
+
+	forfeitOutputAddr, err := btcutil.DecodeAddress(aliceConfig.ForfeitAddress, nil)
+	require.NoError(t, err)
+
+	forfeitOutputScript, err := txscript.PayToAddrScript(forfeitOutputAddr)
+	require.NoError(t, err)
+
+	connectorAmount := aliceConfig.Dust
+
+	vtxos := make([]types.Vtxo, 0, numVtxos)
+
+	for i := 0; i < numVtxos; i++ {
+		wg := &sync.WaitGroup{}
+		wg.Add(1)
+		var incomingFunds []types.Vtxo
+		var incomingErr error
+		go func() {
+			incomingFunds, incomingErr = alice.NotifyIncomingFunds(ctx, arkAddressStr)
+			wg.Done()
+		}()
+		amount := 21000
+		if i == numVtxos-1 {
+			amount = 50 // subdust vtxo
+		}
+		_, err = alice.SendOffChain(ctx, []types.Receiver{{
+			To:     arkAddressStr,
+			Amount: uint64(amount),
+		}})
+		require.NoError(t, err)
+
+		wg.Wait()
+		require.NoError(t, incomingErr)
+		require.NotEmpty(t, incomingFunds)
+		vtxos = append(vtxos, incomingFunds[0])
+	}
+
+	intentInputs := make([]intent.Input, 0, numVtxos)
+	totalAmount := int64(0)
+
+	for _, aliceVtxo := range vtxos {
+		vtxoHash, err := chainhash.NewHashFromStr(aliceVtxo.Txid)
+		require.NoError(t, err)
+
+		intentInputs = append(intentInputs, intent.Input{
+			OutPoint: &wire.OutPoint{
+				Hash:  *vtxoHash,
+				Index: aliceVtxo.VOut,
+			},
+			Sequence: sequence,
+			WitnessUtxo: &wire.TxOut{
+				Value:    int64(aliceVtxo.Amount),
+				PkScript: delegatePkScript,
+			},
+		})
+		totalAmount += int64(aliceVtxo.Amount)
+	}
+
+	intentMessage := intent.RegisterMessage{
+		BaseMessage: intent.BaseMessage{
+			Type: intent.IntentMessageTypeRegister,
+		},
+		CosignersPublicKeys: []string{delegateInfo.GetPubkey()},
+		ValidAt:             time.Now().Add(3 * time.Second).Unix(),
+		ExpireAt:            0,
+	}
+
+	encodedIntentMessage, err := intentMessage.Encode()
+	require.NoError(t, err)
+
+	delegatorAddr, err := arklib.DecodeAddressV0(delegateInfo.GetDelegatorAddress())
+	require.NoError(t, err)
+	delegatorPkScript, err := delegatorAddr.GetPkScript()
+	require.NoError(t, err)
+
+	requiredFee, err := strconv.ParseUint(delegateInfo.GetFee(), 10, 64)
+	require.NoError(t, err)
+
+	aliceOutputAmount := totalAmount - int64(requiredFee)
+	require.Greater(t, aliceOutputAmount, int64(0), "alice output amount must be positive after fee")
+
+	intentOutputs := []*wire.TxOut{
+		{
+			Value:    aliceOutputAmount,
+			PkScript: alicePkScript,
+		},
+	}
+
+	if requiredFee > 0 {
+		intentOutputs = append(intentOutputs, &wire.TxOut{
+			Value:    int64(requiredFee),
+			PkScript: delegatorPkScript,
+		})
+	}
+
+	intentProof, err := intent.New(
+		encodedIntentMessage,
+		intentInputs,
+		intentOutputs,
+	)
+	require.NoError(t, err)
+
+	tapLeafScript := &psbt.TaprootTapLeafScript{
+		ControlBlock: exitScriptMerkleProof.ControlBlock,
+		Script:       exitScriptMerkleProof.Script,
+		LeafVersion:  txscript.BaseLeafVersion,
+	}
+
+	for i := range intentProof.Inputs {
+		intentProof.Inputs[i].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
+		err = txutils.SetArkPsbtField(&intentProof.Packet, i, txutils.VtxoTaprootTreeField, tapTree)
+		require.NoError(t, err)
+	}
+
+	unsignedIntentProof, err := intentProof.B64Encode()
+	require.NoError(t, err)
+
+	// Alice signs the intent
+	signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
+	require.NoError(t, err)
+
+	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
+	require.NoError(t, err)
+
+	encodedIntentProof, err := signedIntentProofPsbt.B64Encode()
+	require.NoError(t, err)
+
+	// Create forfeit transactions for each input
+	forfeits := make([]string, 0, numVtxos)
+	for _, aliceVtxo := range vtxos {
+		if aliceVtxo.Amount < 330 {
+			continue // no need to forfeit subdust vtxo
+		}
+		vtxoHash, err := chainhash.NewHashFromStr(aliceVtxo.Txid)
+		require.NoError(t, err)
+
+		partialForfeitTx, err := tree.BuildForfeitTxWithOutput(
+			[]*wire.OutPoint{{
+				Hash:  *vtxoHash,
+				Index: aliceVtxo.VOut,
+			}},
+			[]uint32{wire.MaxTxInSequenceNum},
+			[]*wire.TxOut{{
+				Value:    int64(aliceVtxo.Amount),
+				PkScript: delegatePkScript,
+			}},
+			&wire.TxOut{
+				Value:    int64(aliceVtxo.Amount + connectorAmount),
+				PkScript: forfeitOutputScript,
+			},
+			0,
+		)
+		require.NoError(t, err)
+
+		updater, err := psbt.NewUpdater(partialForfeitTx)
+		require.NoError(t, err)
+		require.NotNil(t, updater)
+
+		err = updater.AddInSighashType(txscript.SigHashAnyOneCanPay|txscript.SigHashAll, 0)
+		require.NoError(t, err)
+
+		updater.Upsbt.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{aliceDelegatorTapLeafScript}
+
+		b64partialForfeitTx, err := updater.Upsbt.B64Encode()
+		require.NoError(t, err)
+
+		signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
+		require.NoError(t, err)
+
+		forfeits = append(forfeits, signedPartialForfeitTx)
+	}
+
+	// Alice calls the delegator API to delegate her intent with multiple inputs to Fulmine
+	_, err = delegatorClient.Delegate(ctx, &pb.DelegateRequest{
+		Intent: &pb.Intent{
+			Message: encodedIntentMessage,
+			Proof:   encodedIntentProof,
+		},
+		Forfeits: forfeits,
+	})
+	require.NoError(t, err)
+
+	// Wait for Fulmine's delegator service to process the delegation
+	// The delegator service will:
+	// 1. Schedule the task for registration
+	// 2. Register the intent with the Ark server
+	// 3. Join the batch session and complete it on behalf of Alice
+	time.Sleep(60 * time.Second)
+
+	// Verify the delegate task has been done, vtxo has been refreshed
+	// With a single intent containing multiple inputs, we get back a single vtxo
+	spendable, _, err := alice.ListVtxos(ctx)
+	require.NoError(t, err)
+	require.Len(t, spendable, 2)
+
+	var leafVtxo types.Vtxo
+	for _, vtxo := range spendable {
+		if !vtxo.Preconfirmed {
+			leafVtxo = vtxo
+			break
+		}
+	}
+	require.NotNil(t, leafVtxo)
+	require.Equal(t, int(aliceOutputAmount), int(leafVtxo.Amount))
 }
