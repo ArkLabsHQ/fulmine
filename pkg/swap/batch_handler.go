@@ -40,15 +40,67 @@ type batchSessionHandler struct {
 	arkClient       arksdk.ArkClient
 	transportClient client.TransportClient
 
-	intentId      string
-	vtxos         []client.TapscriptsVtxo
-	receivers     []types.Receiver
-	vhtlcScripts  []*vhtlc.VHTLCScript
-	config        types.Config
-	signerSession tree.SignerSession
+	intentId       string
+	vtxos          []client.TapscriptsVtxo
+	vtxosToForfeit []client.TapscriptsVtxo
+	receivers      []types.Receiver
+	vhtlcScripts   map[string]*vhtlc.VHTLCScript
+	config         types.Config
+	signerSession  tree.SignerSession
 
 	batchSessionId string
 	batchExpiry    arklib.RelativeLocktime
+}
+
+func newBatchSessionHandler(
+	arkClient arksdk.ArkClient,
+	transportClient client.TransportClient,
+	intentId string,
+	vtxos []client.TapscriptsVtxo,
+	receivers []types.Receiver,
+	vhtlcScripts map[string]*vhtlc.VHTLCScript,
+	config types.Config,
+	signerSession tree.SignerSession,
+) (*batchSessionHandler, error) {
+	if arkClient == nil {
+		return nil, fmt.Errorf("missing ark client")
+	}
+	if transportClient == nil {
+		return nil, fmt.Errorf("missing transport client")
+	}
+	if intentId == "" {
+		return nil, fmt.Errorf("missing intent id")
+	}
+	if len(vtxos) <= 0 {
+		return nil, fmt.Errorf("missing vtxos")
+	}
+	if len(receivers) <= 0 {
+		return nil, fmt.Errorf("missing receivers")
+	}
+	if signerSession == nil {
+		return nil, fmt.Errorf("missing signer session")
+	}
+	vtxosToForfeit := make([]client.TapscriptsVtxo, 0, len(vtxos))
+	for _, vtxo := range vtxos {
+		if _, ok := vhtlcScripts[vtxo.Script]; !ok {
+			return nil, fmt.Errorf("missing vhtlc script for vtxo %s", vtxo.Outpoint)
+		}
+		if !vtxo.IsRecoverable() {
+			vtxosToForfeit = append(vtxosToForfeit, vtxo)
+		}
+	}
+
+	return &batchSessionHandler{
+		arkClient:       arkClient,
+		transportClient: transportClient,
+		intentId:        intentId,
+		vtxos:           vtxos,
+		receivers:       receivers,
+		vhtlcScripts:    vhtlcScripts,
+		config:          config,
+		signerSession:   signerSession,
+		vtxosToForfeit:  vtxosToForfeit,
+	}, nil
 }
 
 func (h *batchSessionHandler) OnBatchStarted(
@@ -198,19 +250,14 @@ func (h *batchSessionHandler) createAndSignForfeits(
 		return nil, err
 	}
 
-	if len(connectorsLeaves) < len(h.vtxos) {
+	if len(connectorsLeaves) < len(h.vtxosToForfeit) {
 		return nil, fmt.Errorf(
 			"insufficient connectors: got %d, need %d", len(connectorsLeaves), len(h.vtxos),
 		)
 	}
-	if len(h.vhtlcScripts) < len(h.vtxos) {
-		return nil, fmt.Errorf(
-			"insufficient vhtlc scripts: got %d, need %d", len(h.vhtlcScripts), len(h.vtxos),
-		)
-	}
 
 	signedForfeitTxs := make([]string, 0, len(h.vtxos))
-	for i, vtxo := range h.vtxos {
+	for i, vtxo := range h.vtxosToForfeit {
 		connectorTx := connectorsLeaves[i]
 
 		connector, connectorOutpoint, err := extractConnector(connectorTx)
@@ -228,7 +275,7 @@ func (h *batchSessionHandler) createAndSignForfeits(
 			return nil, err
 		}
 
-		vhtlcScript := h.vhtlcScripts[i]
+		vhtlcScript := h.vhtlcScripts[vtxo.Script]
 		signingClosure := builder.getSigningClosure(vhtlcScript)
 
 		signingScript, err := signingClosure.Script()
@@ -282,30 +329,33 @@ func newClaimBatchSessionHandler(
 	vtxos []client.TapscriptsVtxo,
 	receivers []types.Receiver,
 	preimage []byte,
-	vhtlcScripts []*vhtlc.VHTLCScript,
+	vhtlcScripts map[string]*vhtlc.VHTLCScript,
 	config types.Config,
 	signerSession tree.SignerSession,
-) *claimBatchSessionHandler {
-	return &claimBatchSessionHandler{
-		batchSessionHandler: batchSessionHandler{
-			arkClient:       arkClient,
-			transportClient: transportClient,
-			intentId:        intentId,
-			vtxos:           vtxos,
-			receivers:       receivers,
-			vhtlcScripts:    vhtlcScripts,
-			config:          config,
-			signerSession:   signerSession,
-			batchSessionId:  "",
-		},
-		preimage: preimage,
+) (*claimBatchSessionHandler, error) {
+	if len(preimage) <= 0 {
+		return nil, fmt.Errorf("missing preimage")
 	}
+	handler, err := newBatchSessionHandler(
+		arkClient, transportClient, intentId, vtxos, receivers, vhtlcScripts, config, signerSession,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &claimBatchSessionHandler{
+		batchSessionHandler: *handler,
+		preimage:            preimage,
+	}, nil
 }
 
 func (h *claimBatchSessionHandler) OnBatchFinalization(
 	ctx context.Context, event client.BatchFinalizationEvent, vtxoTree, connectorTree *tree.TxTree,
 ) error {
 	if connectorTree == nil {
+		if len(h.vtxosToForfeit) > 0 {
+			return fmt.Errorf("connector tree is nil")
+		}
 		// All vtxos expired, nothing to do
 		return nil
 	}
@@ -340,32 +390,35 @@ func newRefundBatchSessionHandler(
 	vtxos []client.TapscriptsVtxo,
 	receivers []types.Receiver,
 	withReceiver bool,
-	vhtlcScripts []*vhtlc.VHTLCScript,
+	vhtlcScripts map[string]*vhtlc.VHTLCScript,
 	config types.Config,
 	publicKey *btcec.PublicKey,
 	signerSession tree.SignerSession,
-) *refundBatchSessionHandler {
-	return &refundBatchSessionHandler{
-		batchSessionHandler: batchSessionHandler{
-			arkClient:       arkClient,
-			transportClient: transportClient,
-			intentId:        intentId,
-			vtxos:           vtxos,
-			receivers:       receivers,
-			vhtlcScripts:    vhtlcScripts,
-			config:          config,
-			signerSession:   signerSession,
-			batchSessionId:  "",
-		},
-		withReceiver: withReceiver,
-		publicKey:    publicKey,
+) (*refundBatchSessionHandler, error) {
+	if publicKey == nil {
+		return nil, fmt.Errorf("missing public key")
 	}
+	handler, err := newBatchSessionHandler(
+		arkClient, transportClient, intentId, vtxos, receivers, vhtlcScripts, config, signerSession,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &refundBatchSessionHandler{
+		batchSessionHandler: *handler,
+		withReceiver:        withReceiver,
+		publicKey:           publicKey,
+	}, nil
 }
 
 func (h *refundBatchSessionHandler) OnBatchFinalization(
 	ctx context.Context, event client.BatchFinalizationEvent, vtxoTree, connectorTree *tree.TxTree,
 ) error {
 	if connectorTree == nil {
+		if len(h.vtxosToForfeit) > 0 {
+			return fmt.Errorf("connector tree is nil")
+		}
 		// The vhtlc expired, nothing to do
 		return nil
 	}
@@ -399,34 +452,36 @@ func newCollabRefundBatchSessionHandler(
 	vtxos []client.TapscriptsVtxo,
 	receivers []types.Receiver,
 	withReceiver bool,
-	vhtlcScripts []*vhtlc.VHTLCScript,
+	vhtlcScripts map[string]*vhtlc.VHTLCScript,
 	config types.Config,
 	signerSession tree.SignerSession,
 	partialForfeitTx string,
-) *collabRefundBatchSessionHandler {
+) (*collabRefundBatchSessionHandler, error) {
+	handler, err := newBatchSessionHandler(
+		arkClient, transportClient, intentId, vtxos, receivers, vhtlcScripts, config, signerSession,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(handler.vtxosToForfeit) > 0 && partialForfeitTx == "" {
+		return nil, fmt.Errorf("missing partial forfeit tx")
+	}
 	return &collabRefundBatchSessionHandler{
 		refundBatchSessionHandler: refundBatchSessionHandler{
-			batchSessionHandler: batchSessionHandler{
-				arkClient:       arkClient,
-				transportClient: transportClient,
-				intentId:        intentId,
-				vtxos:           vtxos,
-				receivers:       receivers,
-				vhtlcScripts:    vhtlcScripts,
-				config:          config,
-				signerSession:   signerSession,
-				batchSessionId:  "",
-			},
-			withReceiver: withReceiver,
+			batchSessionHandler: *handler,
+			withReceiver:        withReceiver,
 		},
 		partialForfeitTx: partialForfeitTx,
-	}
+	}, nil
 }
 
 func (h *collabRefundBatchSessionHandler) OnBatchFinalization(
 	ctx context.Context, event client.BatchFinalizationEvent, vtxoTree, connectorTree *tree.TxTree,
 ) error {
 	if connectorTree == nil {
+		if len(h.vtxosToForfeit) > 0 {
+			return fmt.Errorf("connector tree is nil")
+		}
 		// The vhtlc expired, nothing to do
 		return nil
 	}

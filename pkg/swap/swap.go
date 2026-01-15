@@ -545,16 +545,19 @@ func (h *SwapHandler) SettleVHTLCWithClaimPath(
 	}
 	defer cancel()
 
-	claimHandler := newClaimBatchSessionHandler(
+	claimHandler, err := newClaimBatchSessionHandler(
 		h.arkClient, h.transportClient,
 		intentID,
 		session.vtxos,
 		[]types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
 		preimage,
-		[]*vhtlc.VHTLCScript{session.vhtlcScript},
+		map[string]*vhtlc.VHTLCScript{session.vtxos[0].Script: session.vhtlcScript},
 		h.config,
 		session.signerSession,
 	)
+	if err != nil {
+		return "", fmt.Errorf("failed to setup claim batch session handler: %w", err)
+	}
 
 	txid, err := arksdk.JoinBatchSession(ctx, eventsCh, claimHandler)
 	if err != nil {
@@ -597,19 +600,23 @@ func (h *SwapHandler) SettleVhtlcWithRefundPath(
 	}
 	defer cancel()
 
-	withReceiver := false
-	refundHandler := newRefundBatchSessionHandler(
+	withReceiver := true
+	withoutReceiver := !withReceiver
+	refundHandler, err := newRefundBatchSessionHandler(
 		h.arkClient,
 		h.transportClient,
 		intentID,
 		session.vtxos,
 		[]types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
-		withReceiver,
-		[]*vhtlc.VHTLCScript{session.vhtlcScript},
+		withoutReceiver,
+		map[string]*vhtlc.VHTLCScript{session.vtxos[0].Script: session.vhtlcScript},
 		h.config,
 		h.publicKey,
 		session.signerSession,
 	)
+	if err != nil {
+		return "", fmt.Errorf("failed to setup refund batch session handler: %w", err)
+	}
 
 	txid, err := arksdk.JoinBatchSession(ctx, eventsCh, refundHandler)
 	if err != nil {
@@ -640,18 +647,21 @@ func (h *SwapHandler) SettleVHTLCWithCollaborativeRefundPath(
 	}
 
 	withReceiver := true
-	handler := newCollabRefundBatchSessionHandler(
+	handler, err := newCollabRefundBatchSessionHandler(
 		h.arkClient,
 		h.transportClient,
 		intentId,
 		session.vtxos,
 		[]types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
 		withReceiver,
-		[]*vhtlc.VHTLCScript{session.vhtlcScript},
+		map[string]*vhtlc.VHTLCScript{session.vtxos[0].Script: session.vhtlcScript},
 		h.config,
 		session.signerSession,
 		partialForfeitTx,
 	)
+	if err != nil {
+		return "", fmt.Errorf("failed to setup collab refund batch session handler: %w", err)
+	}
 
 	topics := getEventTopics(session.vtxos, session.signerSession.GetPublicKey())
 
