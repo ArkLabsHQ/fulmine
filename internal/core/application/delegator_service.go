@@ -243,27 +243,20 @@ func (s *DelegatorService) Delegate(
 		if !valid {
 			return fmt.Errorf("forfeit input: invalid taproot leaf script, expected multisig closure, got %x", forfeitLeafScript.Script)
 		}
-		if len(multisigClosure.PubKeys) != 3 {
-			return fmt.Errorf("forfeit input: invalid multisig closure, expected 3 pubkeys, got %d", len(multisigClosure.PubKeys))
+		if len(multisigClosure.PubKeys) < 2 {
+			return fmt.Errorf("forfeit input: invalid multisig closure, at least 2 public keys are required")
 		}
 
-		var delegatorFound, signerFound bool
+		delegatorFound := false
 		for _, pubkey := range multisigClosure.PubKeys {
 			xonlyKey := schnorr.SerializePubKey(pubkey)
 			if bytes.Equal(xonlyKey, delegatorXonlyKey) {
 				delegatorFound = true
-				continue
-			}
-
-			if bytes.Equal(xonlyKey, forfeitSig.XOnlyPubKey) {
-				signerFound = true
+				break
 			}
 		}
 		if !delegatorFound {
 			return fmt.Errorf("forfeit input: delegator public key not found in taproot leaf script")
-		}
-		if !signerFound {
-			return fmt.Errorf("forfeit input: signer public key not found in taproot leaf script")
 		}
 
 		// verify the signature (must be valid and use sighash type ANYONECANPAY | ALL)
@@ -305,8 +298,9 @@ func (s *DelegatorService) Delegate(
 	}
 
 	// validate delegator fee
-	if task.Fee < s.fee {
-		return fmt.Errorf("delegator fee is less than the required fee (expected at least %d, got %d)", s.fee, task.Fee)
+	expectedFee := uint64(s.fee) * uint64(len(task.Inputs))
+	if task.Fee < expectedFee {
+		return fmt.Errorf("delegator fee is less than the required fee (expected at least %d, got %d)", expectedFee, task.Fee)
 	}
 
 	// verify forfeit input are referenced in the intent
