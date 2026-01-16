@@ -516,9 +516,16 @@ func (s *DelegatorService) restorePendingTasks() error {
 
 func (s *DelegatorService) registerDelegate(id string) error {
 	repo := s.svc.dbSvc.Delegate()
+	s.pendingTasksMtx.Lock()
 	task, err := repo.GetByID(s.ctx, id)
 	if err != nil {
+		s.pendingTasksMtx.Unlock()
 		return err
+	}
+	s.pendingTasksMtx.Unlock()
+	if task.Status != domain.DelegateTaskStatusPending {
+		// task is not pending, it has been cancelled by another task
+		return nil
 	}
 
 	intentId, err := s.svc.grpcClient.RegisterIntent(s.ctx, task.Intent.Proof, task.Intent.Message)
