@@ -1447,24 +1447,18 @@ func toTransfer(tx sdktypes.Transaction) types.Transfer {
 	// date of creation
 	dateCreated := tx.CreatedAt.Unix()
 	// status of tx
-	status := "pending"
-	if tx.Settled {
-		status = "success"
+	status := "success"
+	if tx.BoardingTxid != "" && tx.SettledBy == "" {
+		status = "pending"
 	}
 	if tx.CreatedAt.IsZero() {
 		status = "unconfirmed"
 		dateCreated = 0
 	}
 	// get one txid to identify tx
-	txid := tx.CommitmentTxid
 	explorable := true
-	if len(txid) == 0 {
-		txid = tx.ArkTxid
+	if tx.ArkTxid != "" {
 		explorable = false
-	}
-	if len(txid) == 0 {
-		txid = tx.BoardingTxid
-		explorable = true
 	}
 
 	return types.Transfer{
@@ -1474,7 +1468,7 @@ func toTransfer(tx sdktypes.Transaction) types.Transfer {
 		Explorable: explorable,
 		Hour:       prettyHour(dateCreated),
 		Kind:       strings.ToLower(string(tx.Type)),
-		Txid:       txid,
+		Txid:       tx.TransactionKey.String(),
 		Status:     status,
 		UnixDate:   dateCreated,
 	}

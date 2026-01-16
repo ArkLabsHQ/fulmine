@@ -1664,7 +1664,7 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 
 	// check for unsettled boarding UTXOs
 	for _, tx := range txs {
-		if len(tx.BoardingTxid) > 0 && !tx.Settled {
+		if len(tx.BoardingTxid) > 0 && tx.SettledBy == "" {
 			boardingDelay := time.Duration(data.BoardingExitDelay.Seconds()) * time.Second
 			boardingExpiry := tx.CreatedAt.Add(boardingDelay)
 			if boardingExpiry.Before(time.Now()) {
