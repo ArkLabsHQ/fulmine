@@ -20,8 +20,8 @@ github.com/antlr4-go/antlr/v4 v4.13.0 h1:lxCg3LAv+EUK6t1i0y1V6/SLeUi0eKEKdhQAlS8
 github.com/antlr4-go/antlr/v4 v4.13.0/go.mod h1:pfChB/xh/Unjila75QW7+VU4TSnWnnk9UTnmpPaOR2g=
 github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260102141947-c66f85422174 h1:8dqg456g2y0AjWOWHDDpd7YZ+QiDXZP6Y2eWqfSJlL0=
 github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260102141947-c66f85422174/go.mod h1:0qz9emEemKohm0e29jdGSzHXmBUdQ6JYSGFzmuM+ZSk=
-github.com/arkade-os/go-sdk v0.8.2-0.20260107114141-e1ab10a1ec33 h1:NqmK2EkebSaBRDb1sq9g1t/Z2vqjcu/VvuqgJExkbc0=
-github.com/arkade-os/go-sdk v0.8.2-0.20260107114141-e1ab10a1ec33/go.mod h1:ckbpT6QmWDEdlHGgo60XGBqwbFSWluT4pMLBiM7WfbU=
+github.com/arkade-os/go-sdk v0.8.2-0.20260116052825-07a54ce32450 h1:7rjzHWF04ojm9Z1y058Wp+d0rjpJhB6BzJ7J6V40LIs=
+github.com/arkade-os/go-sdk v0.8.2-0.20260116052825-07a54ce32450/go.mod h1:ckbpT6QmWDEdlHGgo60XGBqwbFSWluT4pMLBiM7WfbU=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
