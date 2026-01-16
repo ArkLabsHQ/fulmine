@@ -2,14 +2,9 @@ package domain
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/btcsuite/btcd/wire"
-)
-
-var (
-	ErrDelegateTaskNotPending = fmt.Errorf("delegate task is not pending")
 )
 
 type Intent struct {

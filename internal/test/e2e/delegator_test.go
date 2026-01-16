@@ -1215,10 +1215,10 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, spendable, 2)
 
-	var leafVtxo types.Vtxo
+	var leafVtxo *types.Vtxo
 	for _, vtxo := range spendable {
 		if !vtxo.Preconfirmed {
-			leafVtxo = vtxo
+			leafVtxo = &vtxo
 			break
 		}
 	}

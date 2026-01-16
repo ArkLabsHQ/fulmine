@@ -3,7 +3,6 @@ package badgerdb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -37,146 +36,20 @@ func NewDelegateRepository(
 	return &delegateRepository{store}, nil
 }
 
-type outpointJSON struct {
-	Hash  string `json:"hash"`
-	Index uint32 `json:"index"`
-}
-
-type delegateTaskData struct {
-	ID                string
-	IntentJSON        string
-	InputJSON         string
-	ForfeitTxsJSON    string // JSON map of outpoint -> forfeit_tx
-	Fee               uint64
-	DelegatorPublicKey string
-	ScheduledAt       int64
-	Status            domain.DelegateTaskStatus
-	FailReason        string
-}
-
-func (d *delegateTaskData) toDelegateTask() (*domain.DelegateTask, error) {
-	var intent domain.Intent
-	if err := json.Unmarshal([]byte(d.IntentJSON), &intent); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal intent: %w", err)
-	}
-
-	var opJSONs []outpointJSON
-	if err := json.Unmarshal([]byte(d.InputJSON), &opJSONs); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal inputs: %w", err)
-	}
-
-	inputs := make([]wire.OutPoint, len(opJSONs))
-	for i, opJSON := range opJSONs {
-		hash, err := chainhash.NewHashFromStr(opJSON.Hash)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse hash for input %d: %w", i, err)
-		}
-		inputs[i] = wire.OutPoint{
-			Hash:  *hash,
-			Index: opJSON.Index,
-		}
-	}
-
-	var forfeitTxs map[wire.OutPoint]string
-	if len(d.ForfeitTxsJSON) > 0 {
-		var forfeitTxsJSON map[string]string
-		if err := json.Unmarshal([]byte(d.ForfeitTxsJSON), &forfeitTxsJSON); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal forfeit txs: %w", err)
-		}
-		forfeitTxs = make(map[wire.OutPoint]string)
-		for key, forfeitTx := range forfeitTxsJSON {
-			// key format: "hash:index"
-			lastColonIdx := -1
-			for i := len(key) - 1; i >= 0; i-- {
-				if key[i] == ':' {
-					lastColonIdx = i
-					break
-				}
-			}
-			if lastColonIdx == -1 {
-				return nil, fmt.Errorf("failed to parse forfeit tx key %s: no colon found", key)
-			}
-			hashStr := key[:lastColonIdx]
-			var index uint32
-			if _, err := fmt.Sscanf(key[lastColonIdx+1:], "%d", &index); err != nil {
-				return nil, fmt.Errorf("failed to parse forfeit tx key %s: invalid index: %w", key, err)
-			}
-			hash, err := chainhash.NewHashFromStr(hashStr)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse hash in forfeit tx key %s: %w", key, err)
-			}
-			forfeitTxs[wire.OutPoint{Hash: *hash, Index: index}] = forfeitTx
-		}
-	} else {
-		forfeitTxs = make(map[wire.OutPoint]string)
-	}
-
-	return &domain.DelegateTask{
-		ID:                d.ID,
-		Intent:            intent,
-		Inputs:            inputs,
-		ForfeitTxs:        forfeitTxs,
-		Fee:               d.Fee,
-		DelegatorPublicKey: d.DelegatorPublicKey,
-		ScheduledAt:       time.Unix(d.ScheduledAt, 0),
-		Status:            d.Status,
-		FailReason:        d.FailReason,
-	}, nil
-}
-
-func toDelegateTaskData(task domain.DelegateTask) delegateTaskData {
-	intentJSON, _ := json.Marshal(task.Intent)
-
-	opJSONs := make([]outpointJSON, len(task.Inputs))
-	for i, input := range task.Inputs {
-		opJSONs[i] = outpointJSON{
-			Hash:  input.Hash.String(),
-			Index: input.Index,
-		}
-	}
-	inputJSON, _ := json.Marshal(opJSONs)
-
-	forfeitTxsJSON := make(map[string]string)
-	for outpoint, forfeitTx := range task.ForfeitTxs {
-		key := fmt.Sprintf("%s:%d", outpoint.Hash.String(), outpoint.Index)
-		forfeitTxsJSON[key] = forfeitTx
-	}
-	forfeitTxsJSONBytes, _ := json.Marshal(forfeitTxsJSON)
-
-	return delegateTaskData{
-		ID:                task.ID,
-		IntentJSON:        string(intentJSON),
-		InputJSON:         string(inputJSON),
-		ForfeitTxsJSON:    string(forfeitTxsJSONBytes),
-		Fee:               task.Fee,
-		DelegatorPublicKey: task.DelegatorPublicKey,
-		ScheduledAt:       task.ScheduledAt.Unix(),
-		Status:            task.Status,
-		FailReason:        task.FailReason,
-	}
-}
 
 func (r *delegateRepository) Add(ctx context.Context, task domain.DelegateTask) error {
 	data := toDelegateTaskData(task)
 
 	if ctx.Value("tx") != nil {
 		tx := ctx.Value("tx").(*badger.Txn)
-		err := r.store.TxInsert(tx, task.ID, data)
-		if err != nil && !errors.Is(err, badgerhold.ErrKeyExists) {
-			return err
-		}
-		return err
+		return r.store.TxInsert(tx, task.ID, data)
 	}
 
-	err := r.store.Insert(task.ID, data)
-	if err != nil && !errors.Is(err, badgerhold.ErrKeyExists) {
-		return err
-	}
-	return err
+	return r.store.Insert(task.ID, data)
 }
 
 func (r *delegateRepository) GetByID(ctx context.Context, id string) (*domain.DelegateTask, error) {
-	var data delegateTaskData
+	var data delegateTaskDTO
 	var err error
 
 	if ctx.Value("tx") != nil {
@@ -197,7 +70,7 @@ func (r *delegateRepository) GetByID(ctx context.Context, id string) (*domain.De
 }
 
 func (r *delegateRepository) GetAllPending(ctx context.Context) ([]domain.PendingDelegateTask, error) {
-	var allTasks []delegateTaskData
+	var allTasks []delegateTaskDTO
 	var err error
 
 	if ctx.Value("tx") != nil {
@@ -223,7 +96,7 @@ func (r *delegateRepository) GetAllPending(ctx context.Context) ([]domain.Pendin
 }
 
 func (r *delegateRepository) GetPendingTaskIDsByInputs(ctx context.Context, inputs []wire.OutPoint) ([]string, error) {
-	var allTasks []delegateTaskData
+	var allTasks []delegateTaskDTO
 	var err error
 
 	if ctx.Value("tx") != nil {
@@ -373,4 +246,123 @@ func (r *delegateRepository) FailTasks(ctx context.Context, reason string, ids .
 func (r *delegateRepository) Close() {
 	// nolint:all
 	r.store.Close()
+}
+
+type outpointJSON struct {
+	Hash  string `json:"hash"`
+	Index uint32 `json:"index"`
+}
+
+type delegateTaskDTO struct {
+	ID                string
+	IntentJSON        string
+	InputJSON         string
+	ForfeitTxsJSON    string // JSON map of outpoint -> forfeit_tx
+	Fee               uint64
+	DelegatorPublicKey string
+	ScheduledAt       int64
+	Status            domain.DelegateTaskStatus
+	FailReason        string
+}
+
+func (d *delegateTaskDTO) toDelegateTask() (*domain.DelegateTask, error) {
+	var intent domain.Intent
+	if err := json.Unmarshal([]byte(d.IntentJSON), &intent); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal intent: %w", err)
+	}
+
+	var opJSONs []outpointJSON
+	if err := json.Unmarshal([]byte(d.InputJSON), &opJSONs); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal inputs: %w", err)
+	}
+
+	inputs := make([]wire.OutPoint, len(opJSONs))
+	for i, opJSON := range opJSONs {
+		hash, err := chainhash.NewHashFromStr(opJSON.Hash)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse hash for input %d: %w", i, err)
+		}
+		inputs[i] = wire.OutPoint{
+			Hash:  *hash,
+			Index: opJSON.Index,
+		}
+	}
+
+	var forfeitTxs map[wire.OutPoint]string
+	if len(d.ForfeitTxsJSON) > 0 {
+		var forfeitTxsJSON map[string]string
+		if err := json.Unmarshal([]byte(d.ForfeitTxsJSON), &forfeitTxsJSON); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal forfeit txs: %w", err)
+		}
+		forfeitTxs = make(map[wire.OutPoint]string)
+		for key, forfeitTx := range forfeitTxsJSON {
+			// key format: "hash:index"
+			lastColonIdx := -1
+			for i := len(key) - 1; i >= 0; i-- {
+				if key[i] == ':' {
+					lastColonIdx = i
+					break
+				}
+			}
+			if lastColonIdx == -1 {
+				return nil, fmt.Errorf("failed to parse forfeit tx key %s: no colon found", key)
+			}
+			hashStr := key[:lastColonIdx]
+			var index uint32
+			if _, err := fmt.Sscanf(key[lastColonIdx+1:], "%d", &index); err != nil {
+				return nil, fmt.Errorf("failed to parse forfeit tx key %s: invalid index: %w", key, err)
+			}
+			hash, err := chainhash.NewHashFromStr(hashStr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse hash in forfeit tx key %s: %w", key, err)
+			}
+			forfeitTxs[wire.OutPoint{Hash: *hash, Index: index}] = forfeitTx
+		}
+	} else {
+		forfeitTxs = make(map[wire.OutPoint]string)
+	}
+
+	return &domain.DelegateTask{
+		ID:                d.ID,
+		Intent:            intent,
+		Inputs:            inputs,
+		ForfeitTxs:        forfeitTxs,
+		Fee:               d.Fee,
+		DelegatorPublicKey: d.DelegatorPublicKey,
+		ScheduledAt:       time.Unix(d.ScheduledAt, 0),
+		Status:            d.Status,
+		FailReason:        d.FailReason,
+	}, nil
+}
+
+func toDelegateTaskData(task domain.DelegateTask) delegateTaskDTO {
+	intentJSON, _ := json.Marshal(task.Intent)
+
+	opJSONs := make([]outpointJSON, len(task.Inputs))
+	for i, input := range task.Inputs {
+		opJSONs[i] = outpointJSON{
+			Hash:  input.Hash.String(),
+			Index: input.Index,
+		}
+	}
+	inputJSON, _ := json.Marshal(opJSONs)
+
+	forfeitTxsJSON := make(map[string]string)
+	for outpoint, forfeitTx := range task.ForfeitTxs {
+		key := fmt.Sprintf("%s:%d", outpoint.Hash.String(), outpoint.Index)
+		forfeitTxsJSON[key] = forfeitTx
+	}
+	forfeitTxsJSONBytes, _ := json.Marshal(forfeitTxsJSON)
+
+	return delegateTaskDTO{
+		ID:                task.ID,
+		IntentJSON:        string(intentJSON),
+		InputJSON:         string(inputJSON),
+		ForfeitTxsJSON:    string(forfeitTxsJSONBytes),
+		Fee:               task.Fee,
+		DelegatorPublicKey: task.DelegatorPublicKey,
+		ScheduledAt:       task.ScheduledAt.Unix(),
+		Status:            task.Status,
+		FailReason:        task.FailReason,
+	}
 }
