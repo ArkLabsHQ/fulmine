@@ -278,15 +278,23 @@ func (r *delegateRepository) CancelTasks(ctx context.Context, ids ...string) err
 			continue
 		}
 
-		// Only cancel pending tasks
 		if task.Status != domain.DelegateTaskStatusPending {
 			continue
 		}
 
 		task.Status = domain.DelegateTaskStatusCancelled
+		data := toDelegateTaskData(*task)
 
-		if err := r.store.Update(id, toDelegateTaskData(*task)); err != nil {
-			return fmt.Errorf("failed to cancel task %s: %w", id, err)
+		var updateErr error
+		if ctx.Value("tx") != nil {
+			tx := ctx.Value("tx").(*badger.Txn)
+			updateErr = r.store.TxUpdate(tx, id, data)
+		} else {
+			updateErr = r.store.Update(id, data)
+		}
+
+		if updateErr != nil {
+			return fmt.Errorf("failed to cancel task %s: %w", id, updateErr)
 		}
 	}
 
@@ -304,14 +312,23 @@ func (r *delegateRepository) SuccessTasks(ctx context.Context, ids ...string) er
 			continue
 		}
 
-		// Only mark pending tasks as done
 		if task.Status != domain.DelegateTaskStatusPending {
 			continue
 		}
 
 		task.Status = domain.DelegateTaskStatusDone
-		if err := r.store.Update(id, toDelegateTaskData(*task)); err != nil {
-			return fmt.Errorf("failed to mark task %s as done: %w", id, err)
+		data := toDelegateTaskData(*task)
+
+		var updateErr error
+		if ctx.Value("tx") != nil {
+			tx := ctx.Value("tx").(*badger.Txn)
+			updateErr = r.store.TxUpdate(tx, id, data)
+		} else {
+			updateErr = r.store.Update(id, data)
+		}
+
+		if updateErr != nil {
+			return fmt.Errorf("failed to mark task %s as done: %w", id, updateErr)
 		}	
 	}
 
@@ -329,15 +346,24 @@ func (r *delegateRepository) FailTasks(ctx context.Context, reason string, ids .
 			continue
 		}
 
-		// Only mark pending tasks as failed
 		if task.Status != domain.DelegateTaskStatusPending {
 			continue
 		}
 
 		task.Status = domain.DelegateTaskStatusFailed
 		task.FailReason = reason
-		if err := r.store.Update(id, toDelegateTaskData(*task)); err != nil {
-			return fmt.Errorf("failed to mark task %s as failed: %w", id, err)
+		data := toDelegateTaskData(*task)
+
+		var updateErr error
+		if ctx.Value("tx") != nil {
+			tx := ctx.Value("tx").(*badger.Txn)
+			updateErr = r.store.TxUpdate(tx, id, data)
+		} else {
+			updateErr = r.store.Update(id, data)
+		}
+
+		if updateErr != nil {
+			return fmt.Errorf("failed to mark task %s as failed: %w", id, updateErr)
 		}
 	}
 
