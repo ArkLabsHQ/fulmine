@@ -168,8 +168,11 @@ func (s *DelegatorService) Delegate(
 			return fmt.Errorf("invalid number of forfeit outputs: got %d, expected 2", len(forfeit.UnsignedTx.TxOut))
 		}
 
-		if len(forfeit.UnsignedTx.TxIn) != 1 {
-			return fmt.Errorf("invalid number of inputs: got %d, expected 1", len(forfeit.UnsignedTx.TxIn))
+		if len(forfeit.UnsignedTx.TxIn) != 1 || len(forfeit.Inputs) != 1 {
+			return fmt.Errorf(
+				"invalid number of inputs: got %d, expected 1", 
+				len(forfeit.UnsignedTx.TxIn),
+			)
 		}
 
 		// verify forfeit outputs
