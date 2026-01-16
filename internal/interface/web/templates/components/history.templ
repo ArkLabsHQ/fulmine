@@ -85,7 +85,7 @@ templ TransferHistoryLine(tx types.Transfer) {
 		  	</div>
 				if tx.Status == "pending" {
 					<div class="flex items-center">
-					  <p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Preconfirmed</p>
+					  <p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
 					</div>
 				}
 				if tx.Status == "failed" {

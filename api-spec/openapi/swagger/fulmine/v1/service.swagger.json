@@ -1417,8 +1417,8 @@
         "type": {
           "$ref": "#/definitions/v1TxType"
         },
-        "settled": {
-          "type": "boolean"
+        "settledBy": {
+          "type": "string"
         }
       }
     },
