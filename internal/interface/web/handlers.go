@@ -1456,10 +1456,7 @@ func toTransfer(tx sdktypes.Transaction) types.Transfer {
 		dateCreated = 0
 	}
 	// get one txid to identify tx
-	explorable := true
-	if tx.ArkTxid != "" {
-		explorable = false
-	}
+	explorable := tx.ArkTxid == ""
 
 	return types.Transfer{
 		Amount:     amount,
