@@ -288,13 +288,13 @@ func Transfer(tx types.Transfer, explorerUrl string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if tx.Kind == "received" {
-			templ_7745c5c3_Err = ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status, tx.ArkTxid).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if tx.Kind == "sent" {
-			templ_7745c5c3_Err = SentTxTable(tx.Amount, tx.CreatedAt, tx.Status).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = SentTxTable(tx.Amount, tx.CreatedAt, tx.Status, tx.ArkTxid).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
