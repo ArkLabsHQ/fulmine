@@ -92,10 +92,10 @@ templ Transfer(tx types.Transfer, explorerUrl string) {
         <p class="mt-4 capitalize">{tx.Kind}</p>
         <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
         if tx.Kind == "received" {
-          @ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status)
+          @ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status, tx.ArkTxid)
         }
         if tx.Kind == "sent" {
-          @SentTxTable(tx.Amount, tx.CreatedAt, tx.Status)
+          @SentTxTable(tx.Amount, tx.CreatedAt, tx.Status, tx.ArkTxid)
         }
       </div>
     </div>

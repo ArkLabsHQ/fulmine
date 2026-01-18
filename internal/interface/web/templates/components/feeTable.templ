@@ -135,10 +135,17 @@ templ RefundingSwapTable(createdAt string, refundLocktime types.LockTime) {
   </div>
 }
 
-templ ReceivedTxTable(sats, date, status string) {
+templ ReceivedTxTable(sats, date, status, arkTxid string) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @tableLine("date", date)
     @statusLine(status)
+    if arkTxid != "" {
+      @tableLine("Tx ID", arkTxid[:12] + "...")
+      <div class="flex justify-between mb-2">
+        <p class="text-white/50 uppercase">explorer</p>
+        <a href={"https://arkade.space/tx/" + arkTxid} target="_blank" rel="noopener noreferrer" class="text-blue hover:underline">View</a>
+      </div>
+    }
     <hr class="text-white/20 mb-2" />
     @tableLine("total", sats, "cryptoAmount")
   </div>
@@ -152,10 +159,18 @@ templ SendTxTable(sats, feeAmount, total string) {
   </div>
 }
 
-templ SentTxTable(sats, date, status string) {
+templ SentTxTable(sats, date, status, arkTxid string) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @tableLine("date", date)
+    
     @statusLine(status)
+    if arkTxid != "" {
+      @tableLine("Tx ID", arkTxid[:12] + "...")
+      <div class="flex justify-between mb-2">
+        <p class="text-white/50 uppercase">explorer</p>
+        <a href={"https://arkade.space/tx/" + arkTxid} target="_blank" rel="noopener noreferrer" class="text-blue hover:underline">View</a>
+      </div>
+    }
     <hr class="text-white/20 mb-2" />
     @tableLine("total", sats, "cryptoAmount")
   </div>
