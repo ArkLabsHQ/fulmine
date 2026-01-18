@@ -24,6 +24,19 @@ func getExplorerUrl(network string) string {
 	}
 }
 
+func getArkExplorerUrl(network string) string {
+	switch network {
+	case "bitcoin":
+		return "https://explorer.arkade.sh"
+	case "signet":
+		return "https://explorer.signet.arkade.sh"
+	case "mutinynet":
+		return "https://mutinynet.signet.arkade.sh"
+	default:
+		return "http://localhost:7080"
+	}
+}
+
 func redirect(path string, c *gin.Context) {
 	c.Header("HX-Redirect", path)
 	c.Status(303)

@@ -207,7 +207,7 @@ func WaitingTxIcon() templ.Component {
 	})
 }
 
-func Transfer(tx types.Transfer, explorerUrl string) templ.Component {
+func Transfer(tx types.Transfer, explorerUrl, arkExplorerUrl string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -288,13 +288,13 @@ func Transfer(tx types.Transfer, explorerUrl string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if tx.Kind == "received" {
-			templ_7745c5c3_Err = ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status, tx.ArkTxid, arkExplorerUrl).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if tx.Kind == "sent" {
-			templ_7745c5c3_Err = SentTxTable(tx.Amount, tx.CreatedAt, tx.Status).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = SentTxTable(tx.Amount, tx.CreatedAt, tx.Status, tx.ArkTxid, arkExplorerUrl).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
