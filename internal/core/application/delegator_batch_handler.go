@@ -39,15 +39,8 @@ func (h *delegatorBatchSessionHandler) OnBatchFinalized(ctx context.Context, eve
 		delete(h.delegator.registeredIntents, selectedTask.intentIDHash())
 		h.delegator.intentsMtx.Unlock()
 	}
-	if err := repo.CompleteTasks(ctx, event.Txid, taskIds...); err != nil {
-		log.WithError(err).Warnf("failed to mark delegate tasks as done")
-		return err
-	}
-	log.Debugf(
-		"batch %s finalized, %d delegate tasks marked as done", 
-		event.Txid, len(h.selectedTasks),
-	)
-	return nil
+	
+	return repo.CompleteTasks(ctx, event.Txid, taskIds...)
 }
 
 // OnBatchFailed re-register the delegate tasks that failed to join the batch

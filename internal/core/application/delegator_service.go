@@ -70,6 +70,8 @@ func (s *DelegatorService) start() {
 	}
 
 	go s.listenBatchStartedEvents(s.ctx)
+
+	// TODO reactive cancellation: listen for spent vtxos and cancel tasks if needed
 }
 
 func (s *DelegatorService) Stop() {
@@ -164,7 +166,7 @@ func (s *DelegatorService) newDelegateTask(
 		return nil, err
 	}
 
-	if err := validateDelegate(s.svc.publicKey, cfg, message, forfeits); err != nil {
+	if err := validateForfeits(s.svc.publicKey, cfg, forfeits); err != nil {
 		return nil, err
 	}
 
@@ -631,16 +633,11 @@ func (s *DelegatorService) connectEventStreamWithRetry(
 	}
 }
 
-func validateDelegate(
-	delegatorPublicKey *btcec.PublicKey, cfg *types.Config, 
-	intentMessage intent.RegisterMessage, forfeits []*psbt.Packet,
+func validateForfeits(
+	delegatorPublicKey *btcec.PublicKey, cfg *types.Config, forfeits []*psbt.Packet,
 ) error {
 	// TODO validate intent fee
-	// reject collaborative exit
-	if len(intentMessage.OnchainOutputIndexes) > 0 {
-		return fmt.Errorf("delegated collaborative exit is not supported")
-	}
-
+	
 	addr, err := btcutil.DecodeAddress(cfg.ForfeitAddress, nil)
 	if err != nil {
 		return fmt.Errorf("failed to decode forfeit address: %w", err)
