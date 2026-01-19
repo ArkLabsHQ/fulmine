@@ -674,7 +674,7 @@ func testCancelTasks(t *testing.T, repo domain.DelegateRepository) {
 		task, err := repo.GetByID(ctx, doneTask.ID)
 		require.NoError(t, err)
 		require.Equal(t, domain.DelegateTaskStatusCompleted, task.Status)
-		require.Equal(t, "commitment_txid_5", task.CommitmentTxid)
+		require.Equal(t, "commitment_txid_1", task.CommitmentTxid)
 	})
 }
 
@@ -748,12 +748,12 @@ func testSuccessTasks(t *testing.T, repo domain.DelegateRepository) {
 
 		// Try to mark as successful again
 		err = repo.CompleteTasks(ctx, "commitment_txid_6", doneTask.ID)
-		require.NoError(t, err) // Should not error
+		require.NoError(t, err) // Should not error, but won't update since task is not pending
 
 		task, err := repo.GetByID(ctx, doneTask.ID)
 		require.NoError(t, err)
 		require.Equal(t, domain.DelegateTaskStatusCompleted, task.Status)
-		require.Equal(t, "commitment_txid_6", task.CommitmentTxid)
+		require.Equal(t, "commitment_txid_5", task.CommitmentTxid) // Should still be the original value since task is not pending
 	})
 
 	t.Run("success task that is not pending", func(t *testing.T) {
@@ -872,7 +872,7 @@ func testFailTasks(t *testing.T, repo domain.DelegateRepository) {
 		task, err := repo.GetByID(ctx, doneTask.ID)
 		require.NoError(t, err)
 		require.Equal(t, domain.DelegateTaskStatusCompleted, task.Status)
-		require.Equal(t, "commitment_txid_5", task.CommitmentTxid)
+		require.Equal(t, "commitment_txid_1", task.CommitmentTxid)
 	})
 
 	t.Run("fail task with long reason", func(t *testing.T) {
