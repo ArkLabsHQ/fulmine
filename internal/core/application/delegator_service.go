@@ -943,7 +943,6 @@ func (s *DelegatorService) connectorEventStreamWithRetry(
 		backoffFactor  = 2.0
 	)
 
-	// Clean up previous connection if any
 	if currentStop != nil {
 		currentStop()
 	}
@@ -958,7 +957,6 @@ func (s *DelegatorService) connectorEventStreamWithRetry(
 			"backoff": backoff,
 		}).Warn("event stream closed, attempting to reconnect...")
 
-		// Try to connect
 		eventsCh, stop, err := s.svc.grpcClient.GetEventStream(ctx, nil)
 		if err == nil {
 			log.WithField("attempt", attempt).Info("successfully reconnected to event stream")
@@ -967,7 +965,6 @@ func (s *DelegatorService) connectorEventStreamWithRetry(
 
 		log.WithError(err).WithField("attempt", attempt).Warn("failed to reconnect to event stream")
 
-		// Check if context is cancelled
 		select {
 		case <-ctx.Done():
 			log.Info("context cancelled, stopping reconnect attempts")
@@ -975,13 +972,8 @@ func (s *DelegatorService) connectorEventStreamWithRetry(
 		default:
 		}
 
-		// Calculate next backoff (exponential increase)
-		nextBackoff := time.Duration(float64(backoff) * backoffFactor)
-		if nextBackoff > maxBackoff {
-			nextBackoff = maxBackoff
-		}
+		nextBackoff := min(time.Duration(float64(backoff) * backoffFactor), maxBackoff)
 
-		// Wait before retrying
 		select {
 		case <-ctx.Done():
 			log.Info("context cancelled during backoff, stopping reconnect attempts")
