@@ -10,29 +10,28 @@ import (
 type Intent struct {
 	Message string
 	Proof   string
+	Txid string
+	Inputs []wire.OutPoint
 }
 
-type DelegateTaskStatus string
+type DelegateTaskStatus int
 const (
-	DelegateTaskStatusPending DelegateTaskStatus = "pending"
-	DelegateTaskStatusDone DelegateTaskStatus = "done"
-	DelegateTaskStatusFailed DelegateTaskStatus = "failed"
-	DelegateTaskStatusCancelled DelegateTaskStatus = "cancelled"
+	DelegateTaskStatusPending DelegateTaskStatus = iota
+	DelegateTaskStatusCompleted
+	DelegateTaskStatusFailed
+	DelegateTaskStatusCancelled
 )
 
 type DelegateTask struct {
 	ID string
-	
 	Intent Intent
-
-	Inputs []wire.OutPoint
 	ForfeitTxs map[wire.OutPoint]string // forfeit transaction per input
 	Fee uint64
 	DelegatorPublicKey string
 	ScheduledAt time.Time
-
 	Status DelegateTaskStatus
-	FailReason string
+	FailReason string // set only when task is failed
+	CommitmentTxid string // set only when task is completed
 }
 
 type PendingDelegateTask struct {
@@ -40,7 +39,7 @@ type PendingDelegateTask struct {
 	ScheduledAt time.Time
 }
 
-type DelegatorRepository interface {
+type DelegateRepository interface {
 	Add(ctx context.Context, task DelegateTask) error
 	GetByID(ctx context.Context, id string) (*DelegateTask, error)
 	// return status == pending tasks
@@ -48,7 +47,7 @@ type DelegatorRepository interface {
 	// return pending tasks that have any of the given inputs
 	GetPendingTaskIDsByInputs(ctx context.Context, inputs []wire.OutPoint) ([]string, error)
 	CancelTasks(ctx context.Context, ids... string) error
-	SuccessTasks(ctx context.Context, ids... string) error
+	CompleteTasks(ctx context.Context, commitmentTxid string, ids... string) error
 	FailTasks(ctx context.Context, reason string, ids... string) error
 	Close()
 }

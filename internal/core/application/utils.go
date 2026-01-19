@@ -43,7 +43,7 @@ func parseLocktime(locktime uint32) arklib.RelativeLocktime {
 	return arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: locktime}
 }
 
-func addSignatureToTxTree(
+func signVtxoTree(
 	event client.TreeSignatureEvent, txTree *tree.TxTree,
 ) error {
 	if event.BatchIndex != 0 {

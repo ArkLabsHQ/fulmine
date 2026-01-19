@@ -18,7 +18,7 @@ type delegateRepository struct {
 	querier *queries.Queries
 }
 
-func NewDelegateRepository(db *sql.DB) (domain.DelegatorRepository, error) {
+func NewDelegateRepository(db *sql.DB) (domain.DelegateRepository, error) {
 	if db == nil {
 		return nil, fmt.Errorf("cannot open delegate repository: db is nil")
 	}
@@ -35,23 +35,21 @@ type outpointJSON struct {
 }
 
 func (r *delegateRepository) Add(ctx context.Context, task domain.DelegateTask) error {
-	intentJSON, err := json.Marshal(task.Intent)
-	if err != nil {
-		return fmt.Errorf("failed to marshal intent: %w", err)
-	}
-
 	txBody := func(querierWithTx *queries.Queries) error {
 		if err := querierWithTx.InsertDelegateTask(ctx, queries.InsertDelegateTaskParams{
 			ID:                task.ID,
-			IntentJson:        string(intentJSON),
+			IntentTxid:        task.Intent.Txid,
+			IntentMessage:     task.Intent.Message,
+			IntentProof:       task.Intent.Proof,
 			Fee:               int64(task.Fee),
 			DelegatorPublicKey: task.DelegatorPublicKey,
 			ScheduledAt:       task.ScheduledAt.Unix(),
+			Status:            int64(task.Status),
 		}); err != nil {
 			return fmt.Errorf("failed to insert delegate task: %w", err)
 		}
 
-		for _, input := range task.Inputs {
+		for _, input := range task.Intent.Inputs {
 			forfeitTx, ok := task.ForfeitTxs[input]
 			
 			if err := querierWithTx.InsertDelegateTaskInput(ctx, queries.InsertDelegateTaskInputParams{
@@ -81,11 +79,6 @@ func (r *delegateRepository) GetByID(ctx context.Context, id string) (*domain.De
 
 	firstRow := rows[0]
 
-	var intent domain.Intent
-	if err := json.Unmarshal([]byte(firstRow.IntentJson), &intent); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal intent: %w", err)
-	}
-
 	inputs := make([]wire.OutPoint, 0)
 	forfeitTxs := make(map[wire.OutPoint]string)
 	for _, row := range rows {
@@ -106,16 +99,23 @@ func (r *delegateRepository) GetByID(ctx context.Context, id string) (*domain.De
 		}
 	}
 
+	intent := domain.Intent{
+		Message: firstRow.IntentMessage,
+		Proof:   firstRow.IntentProof,
+		Txid:    firstRow.IntentTxid,
+		Inputs:  inputs,
+	}
+
 	return &domain.DelegateTask{
 		ID:                firstRow.ID,
 		Intent:            intent,
-		Inputs:            inputs,
 		ForfeitTxs:        forfeitTxs,
 		Fee:               uint64(firstRow.Fee),
 		DelegatorPublicKey: firstRow.DelegatorPublicKey,
 		ScheduledAt:       time.Unix(firstRow.ScheduledAt, 0),
 		Status:            domain.DelegateTaskStatus(firstRow.Status),
 		FailReason:        firstRow.FailReason.String,
+		CommitmentTxid:    firstRow.CommitmentTxid.String,
 	}, nil
 }
 
@@ -154,7 +154,7 @@ func (r *delegateRepository) GetPendingTaskIDsByInputs(ctx context.Context, inpu
 		SELECT DISTINCT dt.id
 		FROM delegate_task dt
 		INNER JOIN delegate_task_input dti ON dt.id = dti.task_id
-		WHERE dt.status = 'pending'
+		WHERE dt.status = 0
 		  AND EXISTS (
 		    SELECT 1 FROM json_each(?) AS search_input
 		    WHERE dti.input_hash = json_extract(search_input.value, '$.hash')
@@ -195,12 +195,15 @@ func (r *delegateRepository) CancelTasks(ctx context.Context, ids ...string) err
 	return nil
 }
 
-func (r *delegateRepository) SuccessTasks(ctx context.Context, ids ...string) error {
+func (r *delegateRepository) CompleteTasks(ctx context.Context, commitmentTxid string, ids ...string) error {
 	if len(ids) == 0 {
 		return nil
 	}
 
-	err := r.querier.SuccessDelegateTasks(ctx, ids)
+	err := r.querier.SuccessDelegateTasks(ctx, queries.SuccessDelegateTasksParams{
+		CommitmentTxid: sql.NullString{String: commitmentTxid, Valid: commitmentTxid != ""},
+		Ids:            ids,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to mark delegate tasks as done: %w", err)
 	}

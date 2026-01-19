@@ -90,7 +90,7 @@ SELECT * FROM subscribed_script;
 DELETE FROM subscribed_script WHERE script = ?;
 
 -- name: InsertDelegateTask :exec
-INSERT INTO delegate_task (id, intent_json, fee, delegator_public_key, scheduled_at) VALUES (?, ?, ?, ?, ?);
+INSERT INTO delegate_task (id, intent_txid, intent_message, intent_proof, fee, delegator_public_key, scheduled_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: InsertDelegateTaskInput :exec
 INSERT INTO delegate_task_input (task_id, input_hash, input_index, forfeit_tx)
@@ -101,12 +101,15 @@ ON CONFLICT(task_id, input_hash, input_index) DO UPDATE SET
 -- name: GetDelegateTask :many
 SELECT 
     dt.id, 
-    dt.intent_json, 
+    dt.intent_txid,
+    dt.intent_message,
+    dt.intent_proof,
     dt.fee, 
     dt.delegator_public_key, 
     dt.scheduled_at, 
     dt.status, 
     dt.fail_reason,
+    dt.commitment_txid,
     dti.input_hash,
     dti.input_index,
     dti.forfeit_tx
@@ -118,19 +121,19 @@ WHERE dt.id = ?;
 SELECT input_hash, input_index FROM delegate_task_input WHERE task_id = ?;
 
 -- name: ListDelegateTaskPending :many
-SELECT id, scheduled_at FROM delegate_task WHERE status = 'pending';
+SELECT id, scheduled_at FROM delegate_task WHERE status = 0;
 
 -- name: CancelDelegateTasks :exec
 UPDATE delegate_task
-SET status = 'cancelled'
-WHERE status = 'pending' AND id IN (sqlc.slice(ids));
+SET status = 3
+WHERE status = 0 AND id IN (sqlc.slice(ids));
 
 -- name: SuccessDelegateTasks :exec
 UPDATE delegate_task
-SET status = 'done'
-WHERE status = 'pending' AND id IN (sqlc.slice(ids));
+SET status = 1, commitment_txid = ?
+WHERE status = 0 AND id IN (sqlc.slice(ids));
 
 -- name: FailDelegateTasks :exec
 UPDATE delegate_task
-SET status = 'failed', fail_reason = ?
-WHERE status = 'pending' AND id IN (sqlc.slice(ids));
+SET status = 2, fail_reason = ?
+WHERE status = 0 AND id IN (sqlc.slice(ids));

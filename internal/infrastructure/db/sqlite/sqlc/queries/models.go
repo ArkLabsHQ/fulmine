@@ -10,12 +10,15 @@ import (
 
 type DelegateTask struct {
 	ID                 string
-	IntentJson         string
+	IntentTxid         string
+	IntentMessage      string
+	IntentProof        string
 	Fee                int64
 	DelegatorPublicKey string
 	ScheduledAt        int64
-	Status             string
+	Status             int64
 	FailReason         sql.NullString
+	CommitmentTxid     sql.NullString
 }
 
 type DelegateTaskInput struct {

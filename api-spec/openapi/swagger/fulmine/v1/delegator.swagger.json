@@ -112,6 +112,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "rejectReplace": {
+          "type": "boolean",
+          "title": "if true, the delegate will be rejected if another task with overlapping inputs is pending"
         }
       }
     },

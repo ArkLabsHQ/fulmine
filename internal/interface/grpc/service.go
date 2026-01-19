@@ -117,8 +117,10 @@ func NewService(
 	serviceHandler := handlers.NewServiceHandler(appSvc)
 	pb.RegisterServiceServer(grpcServer, serviceHandler)
 
-	delegateHandler := handlers.NewDelegatorHandler(delegatorSvc)
-	pb.RegisterDelegatorServiceServer(grpcServer, delegateHandler)
+	if delegatorSvc != nil {
+		delegateHandler := handlers.NewDelegatorHandler(delegatorSvc)
+		pb.RegisterDelegatorServiceServer(grpcServer, delegateHandler)
+	} 
 
 	notificationHandler := handlers.NewNotificationHandler(appSvc, appStopCh)
 	pb.RegisterNotificationServiceServer(grpcServer, notificationHandler)
@@ -295,6 +297,10 @@ func (s *service) autoUnlock() error {
 func (s *service) Stop() {
 	s.appStopCh <- struct{}{}
 	s.feStopCh <- struct{}{}
+	
+	if s.delegatorSvc != nil {
+		s.delegatorSvc.Stop()
+	}
 
 	s.grpcServer.GracefulStop()
 	log.Info("stopped grpc server")

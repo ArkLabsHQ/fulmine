@@ -5,7 +5,7 @@ import "github.com/ArkLabsHQ/fulmine/internal/core/domain"
 type RepoManager interface {
 	Settings() domain.SettingsRepository
 	VHTLC() domain.VHTLCRepository
-	Delegate() domain.DelegatorRepository
+	Delegate() domain.DelegateRepository
 	Swap() domain.SwapRepository
 	SubscribedScript() domain.SubscribedScriptRepository
 	Close()

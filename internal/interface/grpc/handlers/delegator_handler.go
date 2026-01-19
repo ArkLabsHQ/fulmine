@@ -64,7 +64,8 @@ func (h *delegatorHandler) Delegate(
 
 	intentProof := intent.Proof{Packet: *proofPtx}
 
-	err = h.svc.Delegate(ctx, intentMessage, intentProof, forfeitPtxs)
+	allowReplace := !req.GetRejectReplace()
+	err = h.svc.Delegate(ctx, intentMessage, intentProof, forfeitPtxs, allowReplace)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

@@ -54,12 +54,15 @@ CREATE TABLE IF NOT EXISTS subscribed_script (
 
 CREATE TABLE IF NOT EXISTS delegate_task (
     id TEXT PRIMARY KEY,
-    intent_json TEXT NOT NULL,
+    intent_txid TEXT NOT NULL,
+    intent_message TEXT NOT NULL,
+    intent_proof TEXT NOT NULL,
     fee INTEGER NOT NULL,
     delegator_public_key TEXT NOT NULL,
     scheduled_at INTEGER NOT NULL,
-    status TEXT NOT NULL CHECK(status IN('pending', 'done', 'failed', 'cancelled')) DEFAULT 'pending',
-    fail_reason TEXT
+    status INTEGER NOT NULL CHECK(status IN(0,1,2,3)) DEFAULT 0,
+    fail_reason TEXT,
+    commitment_txid TEXT
 );
 
 CREATE TABLE IF NOT EXISTS delegate_task_input (

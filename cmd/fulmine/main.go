@@ -120,16 +120,18 @@ func main() {
 	pollInterval := time.Duration(cfg.SchedulerPollInterval) * time.Second
 	schedulerSvc := scheduler.NewScheduler(cfg.EsploraURL, pollInterval)
 
-	appSvc, err := application.NewService(
+	appSvc, delegatorSvc, err := application.NewServices(
 		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc,
 		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout,
 		cfg.LnConnectionOpts, cfg.RefreshDbInterval,
+		application.DelegatorConfig{
+			Enabled: cfg.DelegateEnabled,
+			Fee: cfg.DelegateFee,
+		},
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init application service")
 	}
-
-	delegatorSvc := application.NewDelegatorService(appSvc, cfg.DelegateFee)
 
 	svc, err := grpcservice.NewService(
 		svcConfig, appSvc, delegatorSvc, cfg.UnlockerService(), sentryEnabled, 
@@ -149,8 +151,6 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 	<-sigChan
-
-	delegatorSvc.Stop()
 
 	log.Info("shutting down service...")
 	log.Exit(0)

@@ -30,6 +30,7 @@ message GetDelegateInfoResponse {
 message DelegateRequest {
   Intent intent = 1;
   repeated string forfeits = 2;
+  bool reject_replace = 3; // if true, the delegate will be rejected if another task with overlapping inputs is pending
 }
 message DelegateResponse {}
 

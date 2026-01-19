@@ -24,7 +24,7 @@ type delegateRepository struct {
 
 func NewDelegateRepository(
 	baseDir string, logger badger.Logger,
-) (domain.DelegatorRepository, error) {
+) (domain.DelegateRepository, error) {
 	var dir string
 	if len(baseDir) > 0 {
 		dir = filepath.Join(baseDir, delegateDir)
@@ -174,7 +174,7 @@ func (r *delegateRepository) CancelTasks(ctx context.Context, ids ...string) err
 	return nil
 }
 
-func (r *delegateRepository) SuccessTasks(ctx context.Context, ids ...string) error {
+func (r *delegateRepository) CompleteTasks(ctx context.Context, commitmentTxid string, ids ...string) error {
 	if len(ids) == 0 {
 		return nil
 	}
@@ -189,7 +189,8 @@ func (r *delegateRepository) SuccessTasks(ctx context.Context, ids ...string) er
 			continue
 		}
 
-		task.Status = domain.DelegateTaskStatusDone
+		task.Status = domain.DelegateTaskStatusCompleted
+		task.CommitmentTxid = commitmentTxid
 		data := toDelegateTaskData(*task)
 
 		var updateErr error
@@ -263,6 +264,7 @@ type delegateTaskDTO struct {
 	ScheduledAt       int64
 	Status            domain.DelegateTaskStatus
 	FailReason        string
+	CommitmentTxid    string
 }
 
 func (d *delegateTaskDTO) toDelegateTask() (*domain.DelegateTask, error) {
@@ -287,6 +289,7 @@ func (d *delegateTaskDTO) toDelegateTask() (*domain.DelegateTask, error) {
 			Index: opJSON.Index,
 		}
 	}
+	intent.Inputs = inputs
 
 	var forfeitTxs map[wire.OutPoint]string
 	if len(d.ForfeitTxsJSON) > 0 {
@@ -325,21 +328,21 @@ func (d *delegateTaskDTO) toDelegateTask() (*domain.DelegateTask, error) {
 	return &domain.DelegateTask{
 		ID:                d.ID,
 		Intent:            intent,
-		Inputs:            inputs,
 		ForfeitTxs:        forfeitTxs,
 		Fee:               d.Fee,
 		DelegatorPublicKey: d.DelegatorPublicKey,
 		ScheduledAt:       time.Unix(d.ScheduledAt, 0),
 		Status:            d.Status,
 		FailReason:        d.FailReason,
+		CommitmentTxid:    d.CommitmentTxid,
 	}, nil
 }
 
 func toDelegateTaskData(task domain.DelegateTask) delegateTaskDTO {
 	intentJSON, _ := json.Marshal(task.Intent)
 
-	opJSONs := make([]outpointJSON, len(task.Inputs))
-	for i, input := range task.Inputs {
+	opJSONs := make([]outpointJSON, len(task.Intent.Inputs))
+	for i, input := range task.Intent.Inputs {
 		opJSONs[i] = outpointJSON{
 			Hash:  input.Hash.String(),
 			Index: input.Index,
@@ -364,5 +367,6 @@ func toDelegateTaskData(task domain.DelegateTask) delegateTaskDTO {
 		ScheduledAt:       task.ScheduledAt.Unix(),
 		Status:            task.Status,
 		FailReason:        task.FailReason,
+		CommitmentTxid:    task.CommitmentTxid,
 	}
 }

@@ -37,7 +37,7 @@ type ServiceConfig struct {
 type service struct {
 	settingsRepo         domain.SettingsRepository
 	vhtlcRepo            domain.VHTLCRepository
-	delegateRepo         domain.DelegatorRepository
+	delegateRepo         domain.DelegateRepository
 	swapRepo             domain.SwapRepository
 	subscribedScriptRepo domain.SubscribedScriptRepository
 }
@@ -46,7 +46,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 	var (
 		settingsRepo         domain.SettingsRepository
 		vhtlcRepo            domain.VHTLCRepository
-		delegateRepo         domain.DelegatorRepository
+		delegateRepo         domain.DelegateRepository
 		swapRepo             domain.SwapRepository
 		subscribedScriptRepo domain.SubscribedScriptRepository
 		err                  error
@@ -187,7 +187,7 @@ func (s *service) VHTLC() domain.VHTLCRepository {
 	return s.vhtlcRepo
 }
 
-func (s *service) Delegate() domain.DelegatorRepository {
+func (s *service) Delegate() domain.DelegateRepository {
 	return s.delegateRepo
 }
 

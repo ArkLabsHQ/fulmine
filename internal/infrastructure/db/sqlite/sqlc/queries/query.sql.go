@@ -13,8 +13,8 @@ import (
 
 const cancelDelegateTasks = `-- name: CancelDelegateTasks :exec
 UPDATE delegate_task
-SET status = 'cancelled'
-WHERE status = 'pending' AND id IN (/*SLICE:ids*/?)
+SET status = 3
+WHERE status = 0 AND id IN (/*SLICE:ids*/?)
 `
 
 func (q *Queries) CancelDelegateTasks(ctx context.Context, ids []string) error {
@@ -99,8 +99,8 @@ func (q *Queries) DeleteVtxoRollover(ctx context.Context, address string) error 
 
 const failDelegateTasks = `-- name: FailDelegateTasks :exec
 UPDATE delegate_task
-SET status = 'failed', fail_reason = ?
-WHERE status = 'pending' AND id IN (/*SLICE:ids*/?)
+SET status = 2, fail_reason = ?
+WHERE status = 0 AND id IN (/*SLICE:ids*/?)
 `
 
 type FailDelegateTasksParams struct {
@@ -127,12 +127,15 @@ func (q *Queries) FailDelegateTasks(ctx context.Context, arg FailDelegateTasksPa
 const getDelegateTask = `-- name: GetDelegateTask :many
 SELECT 
     dt.id, 
-    dt.intent_json, 
+    dt.intent_txid,
+    dt.intent_message,
+    dt.intent_proof,
     dt.fee, 
     dt.delegator_public_key, 
     dt.scheduled_at, 
     dt.status, 
     dt.fail_reason,
+    dt.commitment_txid,
     dti.input_hash,
     dti.input_index,
     dti.forfeit_tx
@@ -143,12 +146,15 @@ WHERE dt.id = ?
 
 type GetDelegateTaskRow struct {
 	ID                 string
-	IntentJson         string
+	IntentTxid         string
+	IntentMessage      string
+	IntentProof        string
 	Fee                int64
 	DelegatorPublicKey string
 	ScheduledAt        int64
-	Status             string
+	Status             int64
 	FailReason         sql.NullString
+	CommitmentTxid     sql.NullString
 	InputHash          sql.NullString
 	InputIndex         sql.NullInt64
 	ForfeitTx          sql.NullString
@@ -165,12 +171,15 @@ func (q *Queries) GetDelegateTask(ctx context.Context, id string) ([]GetDelegate
 		var i GetDelegateTaskRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.IntentJson,
+			&i.IntentTxid,
+			&i.IntentMessage,
+			&i.IntentProof,
 			&i.Fee,
 			&i.DelegatorPublicKey,
 			&i.ScheduledAt,
 			&i.Status,
 			&i.FailReason,
+			&i.CommitmentTxid,
 			&i.InputHash,
 			&i.InputIndex,
 			&i.ForfeitTx,
@@ -333,24 +342,30 @@ func (q *Queries) GetVtxoRollover(ctx context.Context, address string) (VtxoRoll
 }
 
 const insertDelegateTask = `-- name: InsertDelegateTask :exec
-INSERT INTO delegate_task (id, intent_json, fee, delegator_public_key, scheduled_at) VALUES (?, ?, ?, ?, ?)
+INSERT INTO delegate_task (id, intent_txid, intent_message, intent_proof, fee, delegator_public_key, scheduled_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertDelegateTaskParams struct {
 	ID                 string
-	IntentJson         string
+	IntentTxid         string
+	IntentMessage      string
+	IntentProof        string
 	Fee                int64
 	DelegatorPublicKey string
 	ScheduledAt        int64
+	Status             int64
 }
 
 func (q *Queries) InsertDelegateTask(ctx context.Context, arg InsertDelegateTaskParams) error {
 	_, err := q.db.ExecContext(ctx, insertDelegateTask,
 		arg.ID,
-		arg.IntentJson,
+		arg.IntentTxid,
+		arg.IntentMessage,
+		arg.IntentProof,
 		arg.Fee,
 		arg.DelegatorPublicKey,
 		arg.ScheduledAt,
+		arg.Status,
 	)
 	return err
 }
@@ -434,7 +449,7 @@ func (q *Queries) InsertVHTLC(ctx context.Context, arg InsertVHTLCParams) error 
 }
 
 const listDelegateTaskPending = `-- name: ListDelegateTaskPending :many
-SELECT id, scheduled_at FROM delegate_task WHERE status = 'pending'
+SELECT id, scheduled_at FROM delegate_task WHERE status = 0
 `
 
 type ListDelegateTaskPendingRow struct {
@@ -619,18 +634,24 @@ func (q *Queries) ListVtxoRollover(ctx context.Context) ([]VtxoRollover, error) 
 
 const successDelegateTasks = `-- name: SuccessDelegateTasks :exec
 UPDATE delegate_task
-SET status = 'done'
-WHERE status = 'pending' AND id IN (/*SLICE:ids*/?)
+SET status = 1, commitment_txid = ?
+WHERE status = 0 AND id IN (/*SLICE:ids*/?)
 `
 
-func (q *Queries) SuccessDelegateTasks(ctx context.Context, ids []string) error {
+type SuccessDelegateTasksParams struct {
+	CommitmentTxid sql.NullString
+	Ids            []string
+}
+
+func (q *Queries) SuccessDelegateTasks(ctx context.Context, arg SuccessDelegateTasksParams) error {
 	query := successDelegateTasks
 	var queryParams []interface{}
-	if len(ids) > 0 {
-		for _, v := range ids {
+	queryParams = append(queryParams, arg.CommitmentTxid)
+	if len(arg.Ids) > 0 {
+		for _, v := range arg.Ids {
 			queryParams = append(queryParams, v)
 		}
-		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(arg.Ids))[1:], 1)
 	} else {
 		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
 	}

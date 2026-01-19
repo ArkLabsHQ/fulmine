@@ -101,6 +101,10 @@ type Service struct {
 	notifications chan Notification
 
 	stopVtxoEventListener chan struct{}
+
+	// callback functions to stop and start delegator service
+	onUnlock func()
+	onLock func()
 }
 
 type Notification struct {
@@ -117,7 +121,45 @@ type SwapResponse struct {
 	Invoice    string
 }
 
-func NewService(
+type DelegatorConfig struct {
+	Enabled bool
+	Fee uint64
+}
+
+func NewServices(
+	buildInfo BuildInfo,
+	storeCfg store.Config,
+	storeSvc types.Store,
+	dbSvc ports.RepoManager,
+	schedulerSvc ports.SchedulerService,
+	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
+	connectionOpts *domain.LnConnectionOpts,
+	refreshDbInterval int64,
+	delegatorConfig DelegatorConfig,
+) (*Service, *DelegatorService, error) {
+	svc, err := newService(
+		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc, esploraUrl, 
+		boltzUrl, boltzWSUrl, swapTimeout, connectionOpts, refreshDbInterval,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	
+	if delegatorConfig.Enabled {
+		delegatorSvc := newDelegatorService(svc, delegatorConfig.Fee)
+		svc.onUnlock = func() {
+			delegatorSvc.start()
+		}
+		svc.onLock = func() {
+			delegatorSvc.Stop()
+		}
+		return svc, delegatorSvc, nil
+	}
+
+	return svc, nil, nil
+}
+
+func newService(
 	buildInfo BuildInfo,
 	storeCfg store.Config,
 	storeSvc types.Store,
@@ -357,6 +399,10 @@ func (s *Service) LockNode(ctx context.Context) error {
 		return err
 	}
 
+	if s.onLock != nil {
+		s.onLock()
+	}
+
 	if s.schedulerSvc != nil {
 		s.schedulerSvc.Stop()
 		log.Info("scheduler stopped")
@@ -428,6 +474,11 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		// We must wait for the client to be synced before doing anything.
 		wg.Wait()
 
+		// Do nothing here if restore failed.
+		if s.syncEvent == nil {
+			return
+		}
+
 		// Load delegate signer key.
 		prvkeyStr, err := s.Dump(ctx)
 		if err != nil {
@@ -445,9 +496,8 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		s.publicKey = pubkey
 		s.privateKey = privkey
 
-		// Do nothing here if restore failed.
-		if s.syncEvent == nil {
-			return
+		if s.onUnlock != nil {
+			s.onUnlock()
 		}
 
 		if s.boltzSvc == nil {
