@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
+	"github.com/ArkLabsHQ/fulmine/internal/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
@@ -51,10 +52,10 @@ type DelegateInfo struct {
 	DelegatorAddress string
 }
 
-func NewDelegatorService(svc *Service, fee uint64) *DelegatorService {
+func NewDelegatorService(svc *Service, feePerInput uint64) *DelegatorService {
 	s := &DelegatorService{
 		svc: svc,
-		fee: fee,
+		fee: feePerInput,
 		registeredIntents: make(map[string]registeredIntent),
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -553,7 +554,7 @@ func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
 	var stop func()
 	var err error
 
-	eventsCh, stop, err = s.connectorEventStreamWithRetry(ctx, nil)
+	eventsCh, stop, err = s.connectEventStreamWithRetry(ctx, nil)
 	if err != nil {
 		log.WithError(err).Error("failed to establish initial connection to event stream")
 		return
@@ -568,7 +569,7 @@ func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
 			return
 		case notify, ok := <-eventsCh:
 			if !ok {
-				newEventsCh, newStop, err := s.connectorEventStreamWithRetry(ctx, stop)
+				newEventsCh, newStop, err := s.connectEventStreamWithRetry(ctx, stop)
 				if err != nil {
 					log.WithError(err).Error("failed to reconnect to event stream, stopping listenBatchEvents...")
 					return
@@ -658,6 +659,24 @@ func (s *DelegatorService) joinDelegatorBatch(
 	}
 	defer stop()
 
+	cfg, err := s.svc.GetConfigData(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get config data: %w", err)
+	}
+
+	handler := &delegatorBatchSessionHandler{
+		Musig2BatchSessionHandler: utils.Musig2BatchSessionHandler{
+			SignerSession: signerSession,
+			TransportClient: s.svc.grpcClient,
+			SweepClosure: script.CSVMultisigClosure{
+				MultisigClosure: script.MultisigClosure{PubKeys: []*btcec.PublicKey{cfg.ForfeitPubKey}},
+				Locktime: batchExpiry,
+			},
+		},
+		delegator: s,
+		selectedTasks: selectedDelegatorTasks,
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -668,34 +687,13 @@ func (s *DelegatorService) joinDelegatorBatch(
 			}
 			switch event := event.Event.(type) {
 			case client.BatchFinalizedEvent:
-				repo := s.svc.dbSvc.Delegate()
-				taskIds := make([]string, 0, len(selectedDelegatorTasks))
-				for _, selectedTask := range selectedDelegatorTasks {
-					taskIds = append(taskIds, selectedTask.taskID)
-					s.intentsMtx.Lock()
-					delete(s.registeredIntents, selectedTask.intentIDHash())
-					s.intentsMtx.Unlock()
-				}
-				if err := repo.SuccessTasks(ctx, taskIds...); err != nil {
-					log.WithError(err).Warnf("failed to mark delegate tasks as done")
+				if err := handler.OnBatchFinalized(ctx, event); err != nil {
+					log.WithError(err).Warnf("failed to handle batch finalized event")
 					continue
 				}
-				log.Debugf(
-					"batch %s finalized, %d delegate tasks marked as done", 
-					event.Txid, len(selectedDelegatorTasks),
-				)
 				return event.Txid, nil
-			// batch failed, try to re-register selected intents
 			case client.BatchFailedEvent:
-				 for _, selectedTask := range selectedDelegatorTasks {
-					if err := s.registerDelegate(selectedTask.taskID); err != nil {
-						log.WithError(err).Warnf("failed to re-register delegate task %s", selectedTask.taskID)
-						continue
-					}
-				 }
-				 log.Warnf("batch failed, %d delegate tasks re-registered", len(selectedDelegatorTasks))
-				return "", fmt.Errorf("batch failed")
-			// we received a tree tx event msg, let's update the vtxo/connector tree.
+				 return "", handler.OnBatchFailed(ctx, event)
 			case client.TreeTxEvent:
 				if event.BatchIndex == 0 {
 					flatVtxoTree = append(flatVtxoTree, event.Node)
@@ -714,7 +712,6 @@ func (s *DelegatorService) joinDelegatorBatch(
 					continue
 				}
 				continue
-			// the musig2 session started, let's send our nonces.
 			case client.TreeSigningStartedEvent:
 				var err error
 				vtxoTree, err = tree.NewTxTree(flatVtxoTree)
@@ -723,154 +720,177 @@ func (s *DelegatorService) joinDelegatorBatch(
 					continue
 				}
 			
-				if err := s.onTreeSigningStarted(ctx, signerSession, batchExpiry, event, vtxoTree); err != nil {
+				if _, err := handler.OnTreeSigningStarted(ctx, event, vtxoTree); err != nil {
 					log.WithError(err).Warnf("failed to handle tree signing started event")
 					continue
 				}
 				continue
-			// we received the fully signed vtxo and connector trees, let's send our signed forfeit
-			// txs and optionally signed boarding utxos included in the commitment tx.
 			case client.TreeNoncesEvent:
-				_, err := s.onTreeNonces(ctx, event, signerSession)
-				if err != nil {
+				if _, err := handler.OnTreeNonces(ctx, event); err != nil {
 					log.WithError(err).Warnf("failed to handle tree nonces event")
 				}
-				continue
 			case client.BatchFinalizationEvent:
-				if len(flatConnectorTree) > 0 {
-					var err error
-					connectorTree, err = tree.NewTxTree(flatConnectorTree)
-					if err != nil {
-						continue
-					}
-				}
-
-				if connectorTree == nil {
+				if len(flatConnectorTree) == 0 {
 					continue
 				}
-			
-				connectorsLeaves := connectorTree.Leaves()
-			
-				selectedTasksIds := make([]string, 0, len(selectedDelegatorTasks))
-				for _, selectedTask := range selectedDelegatorTasks {
-					// check if any input is recoverable - if all are recoverable, skip this task
-					outpoints := make([]types.Outpoint, len(selectedTask.inputs))
-					for i, input := range selectedTask.inputs {
-						outpoints[i] = types.Outpoint{
-							Txid: input.Hash.String(),
-							VOut: input.Index,
-						}
-					}
-					opts := indexer.GetVtxosRequestOption{}
-					if err := opts.WithOutpoints(outpoints); err != nil {
-						log.WithError(err).Warnf("failed to set outpoints for get vtxos request")
-						continue
-					}
-					vtxos, err := s.svc.indexerClient.GetVtxos(ctx, opts)
-					if err == nil && len(vtxos.Vtxos) > 0 {
-						allRecoverable := true
-						for _, vtxo := range vtxos.Vtxos {
-							if !vtxo.IsRecoverable() {
-								allRecoverable = false
-								break
-							}
-						}
-						if allRecoverable {
-							continue // exclude tasks where all inputs are recoverable, they do not need forfeits
-						}
-					}
-
-					selectedTasksIds = append(selectedTasksIds, selectedTask.taskID)
+				connectorTree, err = tree.NewTxTree(flatConnectorTree)
+				if err != nil {
+					log.WithError(err).Warnf("failed to create connector tree")
+					continue
 				}
 
-				if err := s.submitForfeitTransactions(ctx, connectorsLeaves, selectedTasksIds); err != nil {
-					log.WithError(err).Warnf("failed to submit forfeits")
-					continue
+				if err := handler.OnBatchFinalization(ctx, event, vtxoTree, connectorTree); err != nil {
+					log.WithError(err).Warnf("failed to handle batch finalization event")
 				}
 			}
 		}
 	}
 }
 
-func (s *DelegatorService) onTreeSigningStarted(
-	ctx context.Context, signerSession tree.SignerSession, batchExpiry arklib.RelativeLocktime, 
-	event client.TreeSigningStartedEvent, vtxoTree *tree.TxTree,
-) error {
-	signerPubKey := signerSession.GetPublicKey()
-	if !slices.Contains(event.CosignersPubkeys, signerPubKey) {
-		return nil // skip
+func (s *DelegatorService) connectEventStreamWithRetry(
+	ctx context.Context, currentStop func(),
+) (<-chan client.BatchEventChannel, func(), error) {
+	const (
+		initialBackoff = 1 * time.Second
+		maxBackoff     = 5 * time.Minute
+		backoffFactor  = 2.0
+	)
+
+	if currentStop != nil {
+		currentStop()
 	}
 
-	cfg, err := s.svc.GetConfigData(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get config data: %w", err)
+	backoff := initialBackoff
+	attempt := 0
+
+	for {
+		attempt++
+		log.WithFields(log.Fields{
+			"attempt": attempt,
+			"backoff": backoff,
+		}).Warn("event stream closed, attempting to reconnect...")
+
+		eventsCh, stop, err := s.svc.grpcClient.GetEventStream(ctx, nil)
+		if err == nil {
+			log.WithField("attempt", attempt).Info("successfully reconnected to event stream")
+			return eventsCh, stop, nil
+		}
+
+		log.WithError(err).WithField("attempt", attempt).Warn("failed to reconnect to event stream")
+
+		select {
+		case <-ctx.Done():
+			log.Info("context cancelled, stopping reconnect attempts")
+			return nil, nil, ctx.Err()
+		default:
+		}
+
+		nextBackoff := min(time.Duration(float64(backoff) * backoffFactor), maxBackoff)
+
+		select {
+		case <-ctx.Done():
+			log.Info("context cancelled during backoff, stopping reconnect attempts")
+			return nil, nil, ctx.Err()
+		case <-time.After(nextBackoff):
+			backoff = nextBackoff
+		}
 	}
-
-	sweepClosure := script.CSVMultisigClosure{
-		MultisigClosure: script.MultisigClosure{PubKeys: []*btcec.PublicKey{cfg.ForfeitPubKey}},
-		Locktime:       batchExpiry,
-	}
-
-	script, err := sweepClosure.Script()
-	if err != nil {
-		return fmt.Errorf("failed to get sweep closure script: %w", err)
-	}
-
-	commitmentTx, err := psbt.NewFromRawBytes(strings.NewReader(event.UnsignedCommitmentTx), true)
-	if err != nil {
-		return fmt.Errorf("failed to parse commitment tx: %w", err)
-	}
-
-	batchOutput := commitmentTx.UnsignedTx.TxOut[0]
-	batchOutputAmount := batchOutput.Value
-
-	sweepTapLeaf := txscript.NewBaseTapLeaf(script)
-	sweepTapTree := txscript.AssembleTaprootScriptTree(sweepTapLeaf)
-	root := sweepTapTree.RootNode.TapHash()
-
-	if err := signerSession.Init(root.CloneBytes(), batchOutputAmount, vtxoTree); err != nil {
-		return err
-	}
-
-	nonces, err := signerSession.GetNonces()
-	if err != nil {
-		return err
-	}
-
-	return s.svc.grpcClient.SubmitTreeNonces(ctx, event.Id, signerSession.GetPublicKey(), nonces)
 }
 
-func (s *DelegatorService) onTreeNonces(
-	ctx context.Context, event client.TreeNoncesEvent,
-	signerSession tree.SignerSession,
-) (bool, error) {
-	hasAllNonces, err := signerSession.AggregateNonces(event.Txid, event.Nonces)
-	if err != nil {
-		return false, err
-	}
+// Batch session handler
+type delegatorBatchSessionHandler struct {
+	utils.Musig2BatchSessionHandler
+	delegator *DelegatorService
+	selectedTasks []registeredIntent
+}
 
-	if !hasAllNonces {
-		return false, nil
-	}
-
-	sigs, err := signerSession.Sign()
-	if err != nil {
-		return false, err
-	}
-
-	if err := s.svc.grpcClient.SubmitTreeSignatures(
-		ctx, event.Id, signerSession.GetPublicKey(), sigs,
-	); err != nil {
-		return false, err
-	}
-
+// BatchStarted event doesn't have to be handled by the delegator session
+// it is handled before creating the handler in a dedicated goroutine.
+func (h *delegatorBatchSessionHandler) OnBatchStarted(context.Context, client.BatchStartedEvent) (bool, error) {
 	return true, nil
 }
 
-func (s *DelegatorService) submitForfeitTransactions(
+// OnBatchFinalized mark the delegate tasks as done and delete the intent from the registered intents map
+func (h *delegatorBatchSessionHandler) OnBatchFinalized(ctx context.Context, event client.BatchFinalizedEvent) error {
+	repo := h.delegator.svc.dbSvc.Delegate()
+	taskIds := make([]string, 0, len(h.selectedTasks))
+	for _, selectedTask := range h.selectedTasks {
+		taskIds = append(taskIds, selectedTask.taskID)
+		h.delegator.intentsMtx.Lock()
+		delete(h.delegator.registeredIntents, selectedTask.intentIDHash())
+		h.delegator.intentsMtx.Unlock()
+	}
+	if err := repo.SuccessTasks(ctx, taskIds...); err != nil {
+		log.WithError(err).Warnf("failed to mark delegate tasks as done")
+		return err
+	}
+	log.Debugf(
+		"batch %s finalized, %d delegate tasks marked as done", 
+		event.Txid, len(h.selectedTasks),
+	)
+	return nil
+}
+
+// OnBatchFailed re-register the delegate tasks that failed to join the batch
+func (h *delegatorBatchSessionHandler) OnBatchFailed(context.Context, client.BatchFailedEvent) error {
+	for _, selectedTask := range h.selectedTasks {
+		if err := h.delegator.registerDelegate(selectedTask.taskID); err != nil {
+			log.WithError(err).Warnf("failed to re-register delegate task %s", selectedTask.taskID)
+			continue
+		}
+	 }
+	log.Warnf("batch failed, %d delegate tasks re-registered", len(h.selectedTasks))
+	return fmt.Errorf("batch failed")
+}
+
+// OnBatchFinalization submit the delegated forfeit transactions to arkd
+func (h *delegatorBatchSessionHandler) OnBatchFinalization(
+	ctx context.Context, event client.BatchFinalizationEvent, vtxoTree, connectorTree *tree.TxTree,
+) error {
+	connectorsLeaves := connectorTree.Leaves()
+	selectedTasksIds := make([]string, 0, len(h.selectedTasks))
+	for _, selectedTask := range h.selectedTasks {
+		// check if any input is recoverable - if all are recoverable, skip this task
+		outpoints := make([]types.Outpoint, len(selectedTask.inputs))
+		for i, input := range selectedTask.inputs {
+			outpoints[i] = types.Outpoint{
+				Txid: input.Hash.String(),
+				VOut: input.Index,
+			}
+		}
+		opts := indexer.GetVtxosRequestOption{}
+		if err := opts.WithOutpoints(outpoints); err != nil {
+			log.WithError(err).Warnf("failed to set outpoints for get vtxos request")
+			continue
+		}
+		vtxos, err := h.delegator.svc.indexerClient.GetVtxos(ctx, opts)
+		if err == nil && len(vtxos.Vtxos) > 0 {
+			allRecoverable := true
+			for _, vtxo := range vtxos.Vtxos {
+				if !vtxo.IsRecoverable() {
+					allRecoverable = false
+					break
+				}
+			}
+			if allRecoverable {
+				continue // exclude tasks where all inputs are recoverable, they do not need forfeits
+			}
+		}
+
+		selectedTasksIds = append(selectedTasksIds, selectedTask.taskID)
+	}
+
+	if err := h.submitForfeitTransactions(ctx, connectorsLeaves, selectedTasksIds); err != nil {
+		log.WithError(err).Warnf("failed to submit forfeits")
+		return err
+	}
+	return nil
+}
+
+func (h *delegatorBatchSessionHandler) submitForfeitTransactions(
 	ctx context.Context, connectorsLeaves []*psbt.Packet, selectedTasksIds []string,
 ) error {
-	repo := s.svc.dbSvc.Delegate()
+	repo := h.delegator.svc.dbSvc.Delegate()
 	forfeitTxs := make([]*psbt.Packet, 0)
 	for _, selectedTaskId := range selectedTasksIds {
 		task, err := repo.GetByID(ctx, selectedTaskId)
@@ -923,7 +943,7 @@ func (s *DelegatorService) submitForfeitTransactions(
 			return fmt.Errorf("failed to encode forfeit tx: %w", err)
 		}
 
-		signedForfeitTx, err := s.svc.SignTransaction(ctx, encodedForfeitTx)
+		signedForfeitTx, err := h.delegator.svc.SignTransaction(ctx, encodedForfeitTx)
 		if err != nil {
 			return fmt.Errorf("failed to sign forfeit: %w", err)
 		}
@@ -931,55 +951,5 @@ func (s *DelegatorService) submitForfeitTransactions(
 		signedForfeitTxs = append(signedForfeitTxs, signedForfeitTx)
 	}
 
-	return s.svc.grpcClient.SubmitSignedForfeitTxs(ctx, signedForfeitTxs, "")
-}
-
-func (s *DelegatorService) connectorEventStreamWithRetry(
-	ctx context.Context, currentStop func(),
-) (<-chan client.BatchEventChannel, func(), error) {
-	const (
-		initialBackoff = 1 * time.Second
-		maxBackoff     = 5 * time.Minute
-		backoffFactor  = 2.0
-	)
-
-	if currentStop != nil {
-		currentStop()
-	}
-
-	backoff := initialBackoff
-	attempt := 0
-
-	for {
-		attempt++
-		log.WithFields(log.Fields{
-			"attempt": attempt,
-			"backoff": backoff,
-		}).Warn("event stream closed, attempting to reconnect...")
-
-		eventsCh, stop, err := s.svc.grpcClient.GetEventStream(ctx, nil)
-		if err == nil {
-			log.WithField("attempt", attempt).Info("successfully reconnected to event stream")
-			return eventsCh, stop, nil
-		}
-
-		log.WithError(err).WithField("attempt", attempt).Warn("failed to reconnect to event stream")
-
-		select {
-		case <-ctx.Done():
-			log.Info("context cancelled, stopping reconnect attempts")
-			return nil, nil, ctx.Err()
-		default:
-		}
-
-		nextBackoff := min(time.Duration(float64(backoff) * backoffFactor), maxBackoff)
-
-		select {
-		case <-ctx.Done():
-			log.Info("context cancelled during backoff, stopping reconnect attempts")
-			return nil, nil, ctx.Err()
-		case <-time.After(nextBackoff):
-			backoff = nextBackoff
-		}
-	}
+	return h.delegator.svc.grpcClient.SubmitSignedForfeitTxs(ctx, signedForfeitTxs, "")
 }

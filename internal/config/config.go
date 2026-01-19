@@ -37,6 +37,7 @@ type Config struct {
 	SchedulerPollInterval int64
 	ProfilingEnabled      bool
 	RefreshDbInterval     int64
+	DelegateFee           uint64
 
 	UnlockerType     string
 	UnlockerFilePath string
@@ -77,6 +78,7 @@ var (
 	SchedulerPollInterval = "SCHEDULER_POLL_INTERVAL"
 	ProfilingEnabled      = "PROFILING_ENABLED"
 	RefreshDbInterval     = "REFRESH_DB_INTERVAL"
+	DelegateFee           = "DELEGATE_FEE"
 
 	// Unlocker configuration
 	UnlockerType     = "UNLOCKER_TYPE"
@@ -105,6 +107,7 @@ var (
 	defaultProfilingEnabled      = false
 	defaultRefreshDbInterval     = 0
 	defaultOtelPushInterval      = 10 // 10 seconds
+	defaultDelegateFee           = 0
 )
 
 func LoadConfig() (*Config, error) {
@@ -129,6 +132,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(ProfilingEnabled, defaultProfilingEnabled)
 	viper.SetDefault(RefreshDbInterval, defaultRefreshDbInterval)
 	viper.SetDefault(OtelPushInterval, defaultOtelPushInterval)
+	viper.SetDefault(DelegateFee, defaultDelegateFee)
 
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
@@ -174,6 +178,7 @@ func LoadConfig() (*Config, error) {
 		OtelCollectorURL:      viper.GetString(OtelCollectorURL),
 		OtelPushInterval:      viper.GetInt64(OtelPushInterval),
 		PyroscopeURL:          viper.GetString(PyroscopeURL),
+		DelegateFee:           viper.GetUint64(DelegateFee),
 
 		LnConnectionOpts: lnConnectionOpts,
 	}

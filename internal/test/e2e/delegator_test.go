@@ -24,15 +24,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-
+// TestDelegate delegate the renewal of a single vtxo
 func TestDelegate(t *testing.T) {
 	ctx := t.Context()
-	// Alice is the user who wants to delegate her VTXO
 	alice, _, alicePubKey, grpcClient := setupArkSDKwithPublicKey(t)
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	// Get delegator info from Fulmine's delegator service
 	delegatorClient, err := newDelegatorClient("localhost:7000")
 	require.NoError(t, err)
 	require.NotNil(t, delegatorClient)
@@ -42,7 +40,6 @@ func TestDelegate(t *testing.T) {
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
 
-	// Parse delegator public key from hex string
 	delegatorPubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
 	require.NoError(t, err)
 	delegatorPubKey, err := btcec.ParsePubKey(delegatorPubKeyBytes)
@@ -63,7 +60,6 @@ func TestDelegate(t *testing.T) {
 	signerPubKey := aliceConfig.SignerPubKey
 
 	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
-		// both alice and delegator (Fulmine) must sign the transaction
 		PubKeys: []*btcec.PublicKey{alicePubKey, delegatorPubKey, signerPubKey},
 	}
 
@@ -74,13 +70,10 @@ func TestDelegate(t *testing.T) {
 
 	delegationVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			// delegation script - requires Alice + Delegator (Fulmine) to sign
 			collaborativeAliceDelegatorClosure,
-			// classic collaborative closure, alice only
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
-			// alice exit script
 			&script.CSVMultisigClosure{
 				Locktime: exitLocktime,
 				MultisigClosure: script.MultisigClosure{
@@ -102,10 +95,8 @@ func TestDelegate(t *testing.T) {
 	arkAddressStr, err := arkAddress.EncodeV0()
 	require.NoError(t, err)
 
-	// Faucet Alice
 	faucetOffchain(t, alice, 0.00021)
 
-	// Move all her funds to the new address including the delegate script path.
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	var incomingFunds []types.Vtxo
@@ -158,9 +149,6 @@ func TestDelegate(t *testing.T) {
 	alicePkScript, err := aliceArkAddr.GetPkScript()
 	require.NoError(t, err)
 
-	// It's important the intent doesn't expire or that it does so in a reasonable time,
-	// to implement some sort of deadline for the delegate to register it if needed.
-	// In this test the intent never expires for the sake of demonstration
 	intentProof, err := intent.New(
 		encodedIntentMessage,
 		[]intent.Input{
@@ -205,7 +193,6 @@ func TestDelegate(t *testing.T) {
 	unsignedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	// Alice signs the intent
 	signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
 	require.NoError(t, err)
 
@@ -215,7 +202,6 @@ func TestDelegate(t *testing.T) {
 	encodedIntentProof, err := signedIntentProofPsbt.B64Encode()
 	require.NoError(t, err)
 
-	// Alice creates a forfeit transaction spending the vtxo with SIGHASH_ALL | ANYONECANPAY
 	forfeitOutputAddr, err := btcutil.DecodeAddress(aliceConfig.ForfeitAddress, nil)
 	require.NoError(t, err)
 
@@ -271,8 +257,6 @@ func TestDelegate(t *testing.T) {
 	signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
 	require.NoError(t, err)
 
-	// Alice calls the delegator API to delegate her intent to Fulmine
-	// This registers the delegation task with Fulmine's delegator service
 	_, err = delegatorClient.Delegate(ctx, &pb.DelegateRequest{
 		Intent: &pb.Intent{
 			Message: encodedIntentMessage,
@@ -282,15 +266,8 @@ func TestDelegate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Wait for Fulmine's delegator service to process the delegation
-	// The delegator service will:
-	// 1. Schedule the task for registration
-	// 2. Register the intent with the Ark server
-	// 3. Join the batch session and complete it on behalf of Alice
-	time.Sleep(40 * time.Second)
+	time.Sleep(30 * time.Second)
 
-
-	// verify the delegate task has been done, vtxo has been refreshed
 	spendable, _, err := alice.ListVtxos(ctx)
 	require.NoError(t, err)
 	require.Len(t, spendable, 1)
@@ -298,14 +275,13 @@ func TestDelegate(t *testing.T) {
 	require.False(t, spendable[0].Preconfirmed)
 }
 
+// TestDelegate10Vtxos delegate the renewal of 10 vtxos at once
 func TestDelegate10Vtxos(t *testing.T) {
 	ctx := t.Context()
-	// Alice is the user who wants to delegate her VTXOs
 	alice, _, alicePubKey, grpcClient := setupArkSDKwithPublicKey(t)
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	// Get delegator info from Fulmine's delegator service
 	delegatorClient, err := newDelegatorClient("localhost:7000")
 	require.NoError(t, err)
 	require.NotNil(t, delegatorClient)
@@ -315,7 +291,6 @@ func TestDelegate10Vtxos(t *testing.T) {
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
 
-	// Parse delegator public key from hex string
 	delegatorPubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
 	require.NoError(t, err)
 	delegatorPubKey, err := btcec.ParsePubKey(delegatorPubKeyBytes)
@@ -336,7 +311,6 @@ func TestDelegate10Vtxos(t *testing.T) {
 	signerPubKey := aliceConfig.SignerPubKey
 
 	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
-		// both alice and delegator (Fulmine) must sign the transaction
 		PubKeys: []*btcec.PublicKey{alicePubKey, delegatorPubKey, signerPubKey},
 	}
 
@@ -347,13 +321,10 @@ func TestDelegate10Vtxos(t *testing.T) {
 
 	delegationVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			// delegation script - requires Alice + Delegator (Fulmine) to sign
 			collaborativeAliceDelegatorClosure,
-			// classic collaborative closure, alice only
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
-			// alice exit script
 			&script.CSVMultisigClosure{
 				Locktime: exitLocktime,
 				MultisigClosure: script.MultisigClosure{
@@ -375,7 +346,6 @@ func TestDelegate10Vtxos(t *testing.T) {
 	arkAddressStr, err := arkAddress.EncodeV0()
 	require.NoError(t, err)
 
-	// Faucet Alice with enough funds for 10 vtxos
 	faucetOffchain(t, alice, 0.0021) // 10 * 0.00021
 
 	delegatePkScript, err := arkAddress.GetPkScript()
@@ -422,11 +392,10 @@ func TestDelegate10Vtxos(t *testing.T) {
 
 	connectorAmount := aliceConfig.Dust
 
-	// Create 10 vtxos by sending funds to the delegation address 10 times
 	const numVtxos = 10
 	vtxos := make([]types.Vtxo, 0, numVtxos)
 
-	for i := 0; i < numVtxos; i++ {
+	for range numVtxos {
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
 		var incomingFunds []types.Vtxo
@@ -447,7 +416,6 @@ func TestDelegate10Vtxos(t *testing.T) {
 		vtxos = append(vtxos, incomingFunds[0])
 	}
 
-	// Create delegate requests for all 10 vtxos
 	delegateRequests := make([]*pb.DelegateRequest, 0, numVtxos)
 
 	for _, aliceVtxo := range vtxos {
@@ -505,7 +473,6 @@ func TestDelegate10Vtxos(t *testing.T) {
 		unsignedIntentProof, err := intentProof.B64Encode()
 		require.NoError(t, err)
 
-		// Alice signs the intent
 		signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
 		require.NoError(t, err)
 
@@ -515,7 +482,6 @@ func TestDelegate10Vtxos(t *testing.T) {
 		encodedIntentProof, err := signedIntentProofPsbt.B64Encode()
 		require.NoError(t, err)
 
-		// Alice creates a forfeit transaction spending the vtxo with SIGHASH_ALL | ANYONECANPAY
 		partialForfeitTx, err := tree.BuildForfeitTxWithOutput(
 			[]*wire.OutPoint{{
 				Hash:  *vtxoHash,
@@ -558,20 +524,13 @@ func TestDelegate10Vtxos(t *testing.T) {
 		})
 	}
 
-	// Call Delegate RPC 10 times
 	for i, req := range delegateRequests {
 		_, err = delegatorClient.Delegate(ctx, req)
 		require.NoError(t, err, "failed to delegate vtxo %d", i+1)
 	}
 
-	// Wait for Fulmine's delegator service to process all delegations
-	// The delegator service will:
-	// 1. Schedule all tasks for registration
-	// 2. Register all intents with the Ark server
-	// 3. Join the batch session and complete it on behalf of Alice
-	time.Sleep(60 * time.Second)
+	time.Sleep(30 * time.Second)
 
-	// Verify all 10 delegate tasks have been done, vtxos have been refreshed
 	spendable, _, err := alice.ListVtxos(ctx)
 	require.NoError(t, err)
 	require.Len(t, spendable, numVtxos, "expected %d refreshed vtxos", numVtxos)
@@ -586,12 +545,10 @@ func TestDelegate10Vtxos(t *testing.T) {
 // The delegator should cancel the old task and process the new one instead of returning an error.
 func TestDelegateSameInput(t *testing.T) {
 	ctx := t.Context()
-	// Alice is the user who wants to delegate her VTXO
 	alice, _, alicePubKey, grpcClient := setupArkSDKwithPublicKey(t)
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	// Get delegator info from Fulmine's delegator service
 	delegatorClient, err := newDelegatorClient("localhost:7000")
 	require.NoError(t, err)
 	require.NotNil(t, delegatorClient)
@@ -601,7 +558,6 @@ func TestDelegateSameInput(t *testing.T) {
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
 
-	// Parse delegator public key from hex string
 	delegatorPubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
 	require.NoError(t, err)
 	delegatorPubKey, err := btcec.ParsePubKey(delegatorPubKeyBytes)
@@ -622,7 +578,6 @@ func TestDelegateSameInput(t *testing.T) {
 	signerPubKey := aliceConfig.SignerPubKey
 
 	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
-		// both alice and delegator (Fulmine) must sign the transaction
 		PubKeys: []*btcec.PublicKey{alicePubKey, delegatorPubKey, signerPubKey},
 	}
 
@@ -633,13 +588,10 @@ func TestDelegateSameInput(t *testing.T) {
 
 	delegationVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			// delegation script - requires Alice + Delegator (Fulmine) to sign
 			collaborativeAliceDelegatorClosure,
-			// classic collaborative closure, alice only
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
-			// alice exit script
 			&script.CSVMultisigClosure{
 				Locktime: exitLocktime,
 				MultisigClosure: script.MultisigClosure{
@@ -661,10 +613,8 @@ func TestDelegateSameInput(t *testing.T) {
 	arkAddressStr, err := arkAddress.EncodeV0()
 	require.NoError(t, err)
 
-	// Faucet Alice
 	faucetOffchain(t, alice, 0.00021)
 
-	// Move all her funds to the new address including the delegate script path.
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	var incomingFunds []types.Vtxo
@@ -705,7 +655,6 @@ func TestDelegateSameInput(t *testing.T) {
 	alicePkScript, err := aliceArkAddr.GetPkScript()
 	require.NoError(t, err)
 
-	// Helper function to create intent and forfeit for the same vtxo
 	createDelegateRequest := func() (*pb.DelegateRequest, error) {
 		intentMessage := intent.RegisterMessage{
 			BaseMessage: intent.BaseMessage{
@@ -773,7 +722,6 @@ func TestDelegateSameInput(t *testing.T) {
 			return nil, err
 		}
 
-		// Alice signs the intent
 		signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
 		if err != nil {
 			return nil, err
@@ -789,7 +737,6 @@ func TestDelegateSameInput(t *testing.T) {
 			return nil, err
 		}
 
-		// Alice creates a forfeit transaction spending the vtxo with SIGHASH_ALL | ANYONECANPAY
 		forfeitOutputAddr, err := btcutil.DecodeAddress(aliceConfig.ForfeitAddress, nil)
 		if err != nil {
 			return nil, err
@@ -871,32 +818,21 @@ func TestDelegateSameInput(t *testing.T) {
 		}, nil
 	}
 
-	// Create first delegation request
 	firstRequest, err := createDelegateRequest()
 	require.NoError(t, err)
 
-	// Alice calls the delegator API to delegate her intent to Fulmine
-	// This registers the delegation task with Fulmine's delegator service
 	_, err = delegatorClient.Delegate(ctx, firstRequest)
 	require.NoError(t, err)
 
-	// Immediately try to create a second delegation with the same input
 	secondRequest, err := createDelegateRequest()
 	require.NoError(t, err)
 
-	// The second delegation should succeed - it will cancel the old task and process the new one
+	// the second delegation should succeed - it will cancel the old task and process the new one
 	_, err = delegatorClient.Delegate(ctx, secondRequest)
 	require.NoError(t, err)
 
-	// Wait for Fulmine's delegator service to process the delegation
-	// The delegator service will:
-	// 1. Cancel the first pending task
-	// 2. Schedule the second task for registration
-	// 3. Register the intent with the Ark server
-	// 4. Join the batch session and complete it on behalf of Alice
-	time.Sleep(40 * time.Second)
+	time.Sleep(30 * time.Second)
 
-	// Verify the delegate task has been done, vtxo has been refreshed
 	spendable, _, err := alice.ListVtxos(ctx)
 	require.NoError(t, err)
 	require.Len(t, spendable, 1)
@@ -905,14 +841,13 @@ func TestDelegateSameInput(t *testing.T) {
 }
 
 // TestDelegateSeveralInputs tests delegating multiple inputs in a single intent.
+// including a subdust (recoverable) coin.
 func TestDelegateSeveralInputs(t *testing.T) {
 	ctx := t.Context()
-	// Alice is the user who wants to delegate her VTXOs
 	alice, _, alicePubKey, grpcClient := setupArkSDKwithPublicKey(t)
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	// Get delegator info from Fulmine's delegator service
 	delegatorClient, err := newDelegatorClient("localhost:7000")
 	require.NoError(t, err)
 	require.NotNil(t, delegatorClient)
@@ -922,7 +857,6 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
 
-	// Parse delegator public key from hex string
 	delegatorPubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
 	require.NoError(t, err)
 	delegatorPubKey, err := btcec.ParsePubKey(delegatorPubKeyBytes)
@@ -943,7 +877,6 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	signerPubKey := aliceConfig.SignerPubKey
 
 	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
-		// both alice and delegator (Fulmine) must sign the transaction
 		PubKeys: []*btcec.PublicKey{alicePubKey, delegatorPubKey, signerPubKey},
 	}
 
@@ -954,13 +887,10 @@ func TestDelegateSeveralInputs(t *testing.T) {
 
 	delegationVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			// delegation script - requires Alice + Delegator (Fulmine) to sign
 			collaborativeAliceDelegatorClosure,
-			// classic collaborative closure, alice only
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
-			// alice exit script
 			&script.CSVMultisigClosure{
 				Locktime: exitLocktime,
 				MultisigClosure: script.MultisigClosure{
@@ -982,7 +912,6 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	arkAddressStr, err := arkAddress.EncodeV0()
 	require.NoError(t, err)
 
-	// Faucet Alice with enough funds for several vtxos
 	const numVtxos = 5
 	faucetOffchain(t, alice, 0.00105) // 5 * 0.00021
 
@@ -1137,7 +1066,6 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	unsignedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	// Alice signs the intent
 	signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
 	require.NoError(t, err)
 
@@ -1147,7 +1075,6 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	encodedIntentProof, err := signedIntentProofPsbt.B64Encode()
 	require.NoError(t, err)
 
-	// Create forfeit transactions for each input
 	forfeits := make([]string, 0, numVtxos)
 	for _, aliceVtxo := range vtxos {
 		if aliceVtxo.Amount < 330 {
@@ -1192,7 +1119,6 @@ func TestDelegateSeveralInputs(t *testing.T) {
 		forfeits = append(forfeits, signedPartialForfeitTx)
 	}
 
-	// Alice calls the delegator API to delegate her intent with multiple inputs to Fulmine
 	_, err = delegatorClient.Delegate(ctx, &pb.DelegateRequest{
 		Intent: &pb.Intent{
 			Message: encodedIntentMessage,
@@ -1202,15 +1128,8 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Wait for Fulmine's delegator service to process the delegation
-	// The delegator service will:
-	// 1. Schedule the task for registration
-	// 2. Register the intent with the Ark server
-	// 3. Join the batch session and complete it on behalf of Alice
-	time.Sleep(60 * time.Second)
+	time.Sleep(30 * time.Second)
 
-	// Verify the delegate task has been done, vtxo has been refreshed
-	// With a single intent containing multiple inputs, we get back a single vtxo
 	spendable, _, err := alice.ListVtxos(ctx)
 	require.NoError(t, err)
 	require.Len(t, spendable, 2)

@@ -129,7 +129,7 @@ func main() {
 		log.WithError(err).Fatal("failed to init application service")
 	}
 
-	delegatorSvc := application.NewDelegatorService(appSvc, 0)
+	delegatorSvc := application.NewDelegatorService(appSvc, cfg.DelegateFee)
 
 	svc, err := grpcservice.NewService(
 		svcConfig, appSvc, delegatorSvc, cfg.UnlockerService(), sentryEnabled, 

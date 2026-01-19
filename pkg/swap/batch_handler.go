@@ -6,9 +6,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"slices"
 	"strings"
 
+	"github.com/ArkLabsHQ/fulmine/internal/utils"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
@@ -37,6 +37,7 @@ type batchSessionArgs struct {
 }
 
 type batchSessionHandler struct {
+	utils.Musig2BatchSessionHandler
 	arkClient       arksdk.ArkClient
 	transportClient client.TransportClient
 
@@ -45,10 +46,8 @@ type batchSessionHandler struct {
 	receivers     []types.Receiver
 	vhtlcScripts  []*vhtlc.VHTLCScript
 	config        types.Config
-	signerSession tree.SignerSession
 
 	batchSessionId string
-	batchExpiry    arklib.RelativeLocktime
 }
 
 func (h *batchSessionHandler) OnBatchStarted(
@@ -63,7 +62,11 @@ func (h *batchSessionHandler) OnBatchStarted(
 				return false, err
 			}
 			h.batchSessionId = event.Id
-			h.batchExpiry = parseLocktime(uint32(event.BatchExpiry))
+			batchExpiry := parseLocktime(uint32(event.BatchExpiry))
+			h.Musig2BatchSessionHandler.SweepClosure = script.CSVMultisigClosure{
+				MultisigClosure: script.MultisigClosure{PubKeys: []*btcec.PublicKey{h.config.ForfeitPubKey}},
+				Locktime: batchExpiry,
+			}
 			log.Debugf("batch %s started with our intent %s", event.Id, h.intentId)
 			return false, nil
 		}
@@ -99,91 +102,6 @@ func (h *batchSessionHandler) OnTreeSignatureEvent(
 	return nil
 }
 
-func (h *batchSessionHandler) OnTreeSigningStarted(
-	ctx context.Context, event client.TreeSigningStartedEvent, vtxoTree *tree.TxTree,
-) (bool, error) {
-	signerPubKey := h.signerSession.GetPublicKey()
-	if !slices.Contains(event.CosignersPubkeys, signerPubKey) {
-		return true, nil
-	}
-
-	sweepClosure := script.CSVMultisigClosure{
-		MultisigClosure: script.MultisigClosure{PubKeys: []*btcec.PublicKey{h.config.ForfeitPubKey}},
-		Locktime:        h.batchExpiry,
-	}
-
-	script, err := sweepClosure.Script()
-	if err != nil {
-		return false, err
-	}
-
-	commitmentTx, err := psbt.NewFromRawBytes(strings.NewReader(event.UnsignedCommitmentTx), true)
-	if err != nil {
-		return false, err
-	}
-
-	batchOutput := commitmentTx.UnsignedTx.TxOut[0]
-	batchOutputAmount := batchOutput.Value
-
-	sweepTapLeaf := txscript.NewBaseTapLeaf(script)
-	sweepTapTree := txscript.AssembleTaprootScriptTree(sweepTapLeaf)
-	root := sweepTapTree.RootNode.TapHash()
-
-	generateAndSendNonces := func(session tree.SignerSession) error {
-		if err := session.Init(root.CloneBytes(), batchOutputAmount, vtxoTree); err != nil {
-			return err
-		}
-
-		nonces, err := session.GetNonces()
-		if err != nil {
-			return err
-		}
-
-		return h.transportClient.SubmitTreeNonces(ctx, event.Id, session.GetPublicKey(), nonces)
-	}
-
-	if err := generateAndSendNonces(h.signerSession); err != nil {
-		return false, err
-	}
-
-	return false, nil
-}
-
-func (h *batchSessionHandler) OnTreeNonces(
-	ctx context.Context, event client.TreeNoncesEvent,
-) (bool, error) {
-	if h.signerSession == nil {
-		return false, fmt.Errorf("tree signer session not set")
-	}
-
-	hasAllNonces, err := h.signerSession.AggregateNonces(event.Txid, event.Nonces)
-	if err != nil {
-		return false, err
-	}
-
-	if !hasAllNonces {
-		return false, nil
-	}
-
-	sigs, err := h.signerSession.Sign()
-	if err != nil {
-		return false, err
-	}
-
-	if err := h.transportClient.SubmitTreeSignatures(
-		ctx, event.Id, h.signerSession.GetPublicKey(), sigs,
-	); err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
-func (h *batchSessionHandler) OnTreeNoncesAggregated(
-	ctx context.Context, event client.TreeNoncesAggregatedEvent,
-) (bool, error) {
-	return false, nil
-}
 
 func (h *batchSessionHandler) createAndSignForfeits(
 	ctx context.Context, connectorsLeaves []*psbt.Packet, builder forfeitTxBuilder,
@@ -288,6 +206,10 @@ func newClaimBatchSessionHandler(
 ) *claimBatchSessionHandler {
 	return &claimBatchSessionHandler{
 		batchSessionHandler: batchSessionHandler{
+			Musig2BatchSessionHandler: utils.Musig2BatchSessionHandler{
+				SignerSession: signerSession,
+				TransportClient: transportClient,
+			},
 			arkClient:       arkClient,
 			transportClient: transportClient,
 			intentId:        intentId,
@@ -295,7 +217,6 @@ func newClaimBatchSessionHandler(
 			receivers:       receivers,
 			vhtlcScripts:    vhtlcScripts,
 			config:          config,
-			signerSession:   signerSession,
 			batchSessionId:  "",
 		},
 		preimage: preimage,
@@ -346,6 +267,10 @@ func newRefundBatchSessionHandler(
 ) *refundBatchSessionHandler {
 	return &refundBatchSessionHandler{
 		batchSessionHandler: batchSessionHandler{
+			Musig2BatchSessionHandler: utils.Musig2BatchSessionHandler{
+				SignerSession: signerSession,
+				TransportClient: transportClient,
+			},
 			arkClient:       arkClient,
 			transportClient: transportClient,
 			intentId:        intentId,
@@ -353,7 +278,6 @@ func newRefundBatchSessionHandler(
 			receivers:       receivers,
 			vhtlcScripts:    vhtlcScripts,
 			config:          config,
-			signerSession:   signerSession,
 			batchSessionId:  "",
 		},
 		withReceiver: withReceiver,
@@ -405,6 +329,10 @@ func newCollabRefundBatchSessionHandler(
 	return &collabRefundBatchSessionHandler{
 		refundBatchSessionHandler: refundBatchSessionHandler{
 			batchSessionHandler: batchSessionHandler{
+				Musig2BatchSessionHandler: utils.Musig2BatchSessionHandler{
+					SignerSession: signerSession,
+					TransportClient: transportClient,
+				},
 				arkClient:       arkClient,
 				transportClient: transportClient,
 				intentId:        intentId,
@@ -412,7 +340,6 @@ func newCollabRefundBatchSessionHandler(
 				receivers:       receivers,
 				vhtlcScripts:    vhtlcScripts,
 				config:          config,
-				signerSession:   signerSession,
 				batchSessionId:  "",
 			},
 			withReceiver: withReceiver,
