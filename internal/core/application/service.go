@@ -1607,7 +1607,7 @@ func (s *Service) computeNextExpiry(ctx context.Context, data *types.Config) (*t
 
 	// check for unsettled boarding UTXOs
 	for _, tx := range txs {
-		if len(tx.BoardingTxid) > 0 && !tx.Settled {
+		if len(tx.BoardingTxid) > 0 && tx.SettledBy == "" {
 			boardingDelay := time.Duration(data.BoardingExitDelay.Seconds()) * time.Second
 			boardingExpiry := tx.CreatedAt.Add(boardingDelay)
 			if boardingExpiry.Before(time.Now()) {
@@ -1669,7 +1669,8 @@ func (s *Service) subscribeForVtxoEvent(ctx context.Context, cfg *types.Config) 
 			}
 
 			vtxos := event.Vtxos
-			if event.Type == 0 && len(vtxos) == 0 {
+			// If no vtxos were added skip checking for scheduling the next settlement
+			if event.Type != types.VtxosAdded || len(vtxos) == 0 {
 				continue
 			}
 

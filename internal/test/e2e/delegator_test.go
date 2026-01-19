@@ -275,8 +275,8 @@ func TestDelegate(t *testing.T) {
 	require.False(t, spendable[0].Preconfirmed)
 }
 
-// TestDelegate10Vtxos delegate the renewal of 10 vtxos at once
-func TestDelegate10Vtxos(t *testing.T) {
+// TestMultipleDelegate delegate the renewal of multiple vtxos at once using different intents.
+func TestMultipleDelegate(t *testing.T) {
 	ctx := t.Context()
 	alice, _, alicePubKey, grpcClient := setupArkSDKwithPublicKey(t)
 	defer alice.Stop()
