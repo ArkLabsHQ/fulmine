@@ -39,6 +39,11 @@ func (h *Musig2BatchSessionHandler) OnTreeSigningStarted(
 		return false, fmt.Errorf("failed to parse commitment tx: %w", err)
 	}
 
+	if len(commitmentTx.UnsignedTx.TxOut) == 0 {
+		// no tree to sign, skip
+		return true, nil
+	}
+
 	batchOutput := commitmentTx.UnsignedTx.TxOut[0]
 	batchOutputAmount := batchOutput.Value
 
