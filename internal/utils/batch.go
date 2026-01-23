@@ -94,3 +94,7 @@ func (h *Musig2BatchSessionHandler) OnTreeNoncesAggregated(
 ) (bool, error) {
 	return false, nil
 }
+
+func (h *Musig2BatchSessionHandler) OnStreamStartedEvent(
+	event client.StreamStartedEvent,
+) {}
