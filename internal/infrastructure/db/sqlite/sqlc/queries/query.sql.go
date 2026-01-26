@@ -136,8 +136,7 @@ SELECT
     dt.status, 
     dt.fail_reason,
     dt.commitment_txid,
-    dti.input_hash,
-    dti.input_index,
+    dti.outpoint,
     dti.forfeit_tx
 FROM delegate_task dt
 LEFT JOIN delegate_task_input dti ON dt.id = dti.task_id
@@ -155,8 +154,7 @@ type GetDelegateTaskRow struct {
 	Status             int64
 	FailReason         sql.NullString
 	CommitmentTxid     sql.NullString
-	InputHash          sql.NullString
-	InputIndex         sql.NullInt64
+	Outpoint           sql.NullString
 	ForfeitTx          sql.NullString
 }
 
@@ -180,8 +178,7 @@ func (q *Queries) GetDelegateTask(ctx context.Context, id string) ([]GetDelegate
 			&i.Status,
 			&i.FailReason,
 			&i.CommitmentTxid,
-			&i.InputHash,
-			&i.InputIndex,
+			&i.Outpoint,
 			&i.ForfeitTx,
 		); err != nil {
 			return nil, err
@@ -198,27 +195,22 @@ func (q *Queries) GetDelegateTask(ctx context.Context, id string) ([]GetDelegate
 }
 
 const getDelegateTaskInputs = `-- name: GetDelegateTaskInputs :many
-SELECT input_hash, input_index FROM delegate_task_input WHERE task_id = ?
+SELECT outpoint FROM delegate_task_input WHERE task_id = ?
 `
 
-type GetDelegateTaskInputsRow struct {
-	InputHash  string
-	InputIndex int64
-}
-
-func (q *Queries) GetDelegateTaskInputs(ctx context.Context, taskID string) ([]GetDelegateTaskInputsRow, error) {
+func (q *Queries) GetDelegateTaskInputs(ctx context.Context, taskID string) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, getDelegateTaskInputs, taskID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetDelegateTaskInputsRow
+	var items []string
 	for rows.Next() {
-		var i GetDelegateTaskInputsRow
-		if err := rows.Scan(&i.InputHash, &i.InputIndex); err != nil {
+		var outpoint string
+		if err := rows.Scan(&outpoint); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, outpoint)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -387,26 +379,20 @@ func (q *Queries) InsertDelegateTask(ctx context.Context, arg InsertDelegateTask
 }
 
 const insertDelegateTaskInput = `-- name: InsertDelegateTaskInput :exec
-INSERT INTO delegate_task_input (task_id, input_hash, input_index, forfeit_tx)
-VALUES (?, ?, ?, ?)
-ON CONFLICT(task_id, input_hash, input_index) DO UPDATE SET
+INSERT INTO delegate_task_input (task_id, outpoint, forfeit_tx)
+VALUES (?, ?, ?)
+ON CONFLICT(task_id, outpoint) DO UPDATE SET
     forfeit_tx = excluded.forfeit_tx
 `
 
 type InsertDelegateTaskInputParams struct {
-	TaskID     string
-	InputHash  string
-	InputIndex int64
-	ForfeitTx  sql.NullString
+	TaskID    string
+	Outpoint  string
+	ForfeitTx sql.NullString
 }
 
 func (q *Queries) InsertDelegateTaskInput(ctx context.Context, arg InsertDelegateTaskInputParams) error {
-	_, err := q.db.ExecContext(ctx, insertDelegateTaskInput,
-		arg.TaskID,
-		arg.InputHash,
-		arg.InputIndex,
-		arg.ForfeitTx,
-	)
+	_, err := q.db.ExecContext(ctx, insertDelegateTaskInput, arg.TaskID, arg.Outpoint, arg.ForfeitTx)
 	return err
 }
 

@@ -93,9 +93,9 @@ DELETE FROM subscribed_script WHERE script = ?;
 INSERT INTO delegate_task (id, intent_txid, intent_message, intent_proof, fee, delegator_public_key, scheduled_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: InsertDelegateTaskInput :exec
-INSERT INTO delegate_task_input (task_id, input_hash, input_index, forfeit_tx)
-VALUES (?, ?, ?, ?)
-ON CONFLICT(task_id, input_hash, input_index) DO UPDATE SET
+INSERT INTO delegate_task_input (task_id, outpoint, forfeit_tx)
+VALUES (?, ?, ?)
+ON CONFLICT(task_id, outpoint) DO UPDATE SET
     forfeit_tx = excluded.forfeit_tx;
 
 -- name: GetDelegateTask :many
@@ -110,15 +110,14 @@ SELECT
     dt.status, 
     dt.fail_reason,
     dt.commitment_txid,
-    dti.input_hash,
-    dti.input_index,
+    dti.outpoint,
     dti.forfeit_tx
 FROM delegate_task dt
 LEFT JOIN delegate_task_input dti ON dt.id = dti.task_id
 WHERE dt.id = ?;
 
 -- name: GetDelegateTaskInputs :many
-SELECT input_hash, input_index FROM delegate_task_input WHERE task_id = ?;
+SELECT outpoint FROM delegate_task_input WHERE task_id = ?;
 
 -- name: ListDelegateTaskPending :many
 SELECT id, scheduled_at FROM delegate_task WHERE status = 0;

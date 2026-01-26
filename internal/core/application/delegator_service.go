@@ -247,9 +247,8 @@ func (s *DelegatorService) newDelegateTask(
 	}
 
 	// validate delegator fee
-	expectedFee := uint64(s.fee) * uint64(len(task.Intent.Inputs))
-	if task.Fee < expectedFee {
-		return nil, fmt.Errorf("delegator fee is less than the required fee (expected at least %d, got %d)", expectedFee, task.Fee)
+	if task.Fee < s.fee {
+		return nil, fmt.Errorf("delegator fee is less than the required fee (expected at least %d, got %d)", s.fee, task.Fee)
 	}
 
 	// verify forfeit input are referenced in the intent

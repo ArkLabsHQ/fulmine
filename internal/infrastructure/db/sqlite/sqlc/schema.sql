@@ -67,9 +67,8 @@ CREATE TABLE IF NOT EXISTS delegate_task (
 
 CREATE TABLE IF NOT EXISTS delegate_task_input (
     task_id TEXT NOT NULL,
-    input_hash TEXT NOT NULL,
-    input_index INTEGER NOT NULL,
+    outpoint TEXT NOT NULL,
     forfeit_tx TEXT,
-    PRIMARY KEY (task_id, input_hash, input_index),
+    PRIMARY KEY (task_id, outpoint),
     FOREIGN KEY (task_id) REFERENCES delegate_task(id) ON DELETE CASCADE
 );

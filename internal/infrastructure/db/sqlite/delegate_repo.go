@@ -3,13 +3,12 @@ package sqlitedb
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 )
 
@@ -27,11 +26,6 @@ func NewDelegateRepository(db *sql.DB) (domain.DelegateRepository, error) {
 		db:      db,
 		querier: queries.New(db),
 	}, nil
-}
-
-type outpointJSON struct {
-	Hash  string `json:"hash"`
-	Index uint32 `json:"index"`
 }
 
 func (r *delegateRepository) Add(ctx context.Context, task domain.DelegateTask) error {
@@ -54,8 +48,7 @@ func (r *delegateRepository) Add(ctx context.Context, task domain.DelegateTask) 
 			
 			if err := querierWithTx.InsertDelegateTaskInput(ctx, queries.InsertDelegateTaskInputParams{
 				TaskID:     task.ID,
-				InputHash:  input.Hash.String(),
-				InputIndex: int64(input.Index),
+				Outpoint:   input.String(),
 				ForfeitTx:  sql.NullString{String: forfeitTx, Valid: ok},
 			}); err != nil {
 				return fmt.Errorf("failed to insert input: %w", err)
@@ -82,19 +75,15 @@ func (r *delegateRepository) GetByID(ctx context.Context, id string) (*domain.De
 	inputs := make([]wire.OutPoint, 0)
 	forfeitTxs := make(map[wire.OutPoint]string)
 	for _, row := range rows {
-		if row.InputHash.Valid && row.InputIndex.Valid {
-			hash, err := chainhash.NewHashFromStr(row.InputHash.String)
+		if row.Outpoint.Valid {
+			outpoint, err := wire.NewOutPointFromString(row.Outpoint.String)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse hash: %w", err)
+				return nil, fmt.Errorf("failed to parse outpoint: %w", err)
 			}
-			outpoint := wire.OutPoint{
-				Hash:  *hash,
-				Index: uint32(row.InputIndex.Int64),
-			}
-			inputs = append(inputs, outpoint)
+			inputs = append(inputs, *outpoint)
 			
 			if row.ForfeitTx.Valid && row.ForfeitTx.String != "" {
-				forfeitTxs[outpoint] = row.ForfeitTx.String
+				forfeitTxs[*outpoint] = row.ForfeitTx.String
 			}
 		}
 	}
@@ -152,31 +141,26 @@ func (r *delegateRepository) GetPendingTaskByIntentTxID(ctx context.Context, txi
 }
 
 func (r *delegateRepository) GetPendingTaskIDsByInputs(ctx context.Context, inputs []wire.OutPoint) ([]string, error) {
-	searchInputsJSON := make([]outpointJSON, len(inputs))
-	for i, input := range inputs {
-		searchInputsJSON[i] = outpointJSON{
-			Hash:  input.Hash.String(),
-			Index: input.Index,
-		}
-	}
-	searchInputsJSONBytes, err := json.Marshal(searchInputsJSON)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal search inputs: %w", err)
+	if len(inputs) == 0 {
+		return []string{}, nil
 	}
 
+	outpoints := make([]any, len(inputs))
+	for i, input := range inputs {
+		outpoints[i] = input.String()
+	}
+
+	placeholders := strings.Repeat("?,", len(inputs) - 1) + "?"
+
 	// Can't use sqlc-generated query because it doesn't generate the search_input parameter
-	query := `
+	query := fmt.Sprintf(`
 		SELECT DISTINCT dt.id
 		FROM delegate_task dt
 		INNER JOIN delegate_task_input dti ON dt.id = dti.task_id
 		WHERE dt.status = 0
-		  AND EXISTS (
-		    SELECT 1 FROM json_each(?) AS search_input
-		    WHERE dti.input_hash = json_extract(search_input.value, '$.hash')
-		      AND dti.input_index = CAST(json_extract(search_input.value, '$.index') AS INTEGER)
-		  )
-	`
-	rows, err := r.db.QueryContext(ctx, query, string(searchInputsJSONBytes))
+		AND dti.outpoint IN (%s)
+	`, placeholders)
+	rows, err := r.db.QueryContext(ctx, query, outpoints...)
 	if err != nil {
 		return nil, err
 	}

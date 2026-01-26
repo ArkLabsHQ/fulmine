@@ -22,10 +22,9 @@ type DelegateTask struct {
 }
 
 type DelegateTaskInput struct {
-	TaskID     string
-	InputHash  string
-	InputIndex int64
-	ForfeitTx  sql.NullString
+	TaskID    string
+	Outpoint  string
+	ForfeitTx sql.NullString
 }
 
 type Setting struct {
