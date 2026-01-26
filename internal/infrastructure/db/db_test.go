@@ -134,6 +134,7 @@ func testDelegateRepository(t *testing.T, svc ports.RepoManager) {
 		testGetDelegateTaskByID(t, svc.Delegate())
 		testGetAllPendingDelegateTasks(t, svc.Delegate())
 		testGetPendingTaskByInput(t, svc.Delegate())
+		testGetPendingTaskByIntentTxID(t, svc.Delegate())
 		testCancelTasks(t, svc.Delegate())
 		testSuccessTasks(t, svc.Delegate())
 		testFailTasks(t, svc.Delegate())
@@ -578,6 +579,93 @@ func testGetPendingTaskByInput(t *testing.T, repo domain.DelegateRepository) {
 		taskIDs, err := repo.GetPendingTaskIDsByInputs(ctx, []wire.OutPoint{})
 		require.NoError(t, err)
 		require.Len(t, taskIDs, 0)
+	})
+}
+
+func testGetPendingTaskByIntentTxID(t *testing.T, repo domain.DelegateRepository) {
+	t.Run("get pending task by intent txid", func(t *testing.T) {
+		// Create a unique intent txid for this test
+		testIntentTxid := "test_intent_txid_123"
+
+		// Add a pending task with the test intent txid
+		pendingTask1 := testDelegateTask
+		pendingTask1.ID = "pending_by_txid_1"
+		pendingTask1.Intent.Txid = testIntentTxid
+		pendingTask1.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, pendingTask1)
+		require.NoError(t, err)
+
+		// Get pending task by intent txid
+		task, err := repo.GetPendingTaskByIntentTxID(ctx, testIntentTxid)
+		require.NoError(t, err)
+		require.NotNil(t, task)
+		require.Equal(t, pendingTask1.ID, task.ID)
+		require.Equal(t, pendingTask1.ScheduledAt.Unix(), task.ScheduledAt.Unix())
+
+		// Add another pending task with a different intent txid
+		anotherIntentTxid := "test_intent_txid_456"
+		pendingTask2 := testDelegateTask
+		pendingTask2.ID = "pending_by_txid_2"
+		pendingTask2.Intent.Txid = anotherIntentTxid
+		pendingTask2.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, pendingTask2)
+		require.NoError(t, err)
+
+		// Get the second task by its intent txid
+		task, err = repo.GetPendingTaskByIntentTxID(ctx, anotherIntentTxid)
+		require.NoError(t, err)
+		require.NotNil(t, task)
+		require.Equal(t, pendingTask2.ID, task.ID)
+
+		// Add a task with the same intent txid but mark it as done (should not be returned)
+		doneTask := testDelegateTask
+		doneTask.ID = "done_by_txid_1"
+		doneTask.Intent.Txid = testIntentTxid
+		doneTask.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, doneTask)
+		require.NoError(t, err)
+		// Mark it as done
+		err = repo.CompleteTasks(ctx, "commitment_txid_1", doneTask.ID)
+		require.NoError(t, err)
+
+		// Get pending task by intent txid should still return the first pending task
+		task, err = repo.GetPendingTaskByIntentTxID(ctx, testIntentTxid)
+		require.NoError(t, err)
+		require.NotNil(t, task)
+		require.Equal(t, pendingTask1.ID, task.ID)
+
+		// Test with a non-existent intent txid
+		_, err = repo.GetPendingTaskByIntentTxID(ctx, "non_existent_txid")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("get pending task by intent txid with multiple pending tasks", func(t *testing.T) {
+		// This test verifies behavior when multiple pending tasks have the same intent txid
+		// The implementation should return one of them (first match)
+		sharedIntentTxid := "shared_intent_txid_789"
+
+		// Add first pending task
+		pendingTask1 := testDelegateTask
+		pendingTask1.ID = "shared_pending_1"
+		pendingTask1.Intent.Txid = sharedIntentTxid
+		pendingTask1.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, pendingTask1)
+		require.NoError(t, err)
+
+		// Add second pending task with same intent txid
+		pendingTask2 := testDelegateTask
+		pendingTask2.ID = "shared_pending_2"
+		pendingTask2.Intent.Txid = sharedIntentTxid
+		pendingTask2.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, pendingTask2)
+		require.NoError(t, err)
+
+		// Get pending task by intent txid - should return one of them
+		task, err := repo.GetPendingTaskByIntentTxID(ctx, sharedIntentTxid)
+		require.NoError(t, err)
+		require.NotNil(t, task)
+		require.True(t, task.ID == "shared_pending_1" || task.ID == "shared_pending_2")
 	})
 }
 

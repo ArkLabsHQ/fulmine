@@ -136,6 +136,21 @@ func (r *delegateRepository) GetAllPending(ctx context.Context) ([]domain.Pendin
 	return tasks, nil
 }
 
+func (r *delegateRepository) GetPendingTaskByIntentTxID(ctx context.Context, txid string) (*domain.PendingDelegateTask, error) {
+	row, err := r.querier.GetPendingTaskByIntentTxID(ctx, txid)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("pending delegate task not found for intent txid: %s", txid)
+		}
+		return nil, err
+	}
+
+	return &domain.PendingDelegateTask{
+		ID:          row.ID,
+		ScheduledAt: time.Unix(row.ScheduledAt, 0),
+	}, nil
+}
+
 func (r *delegateRepository) GetPendingTaskIDsByInputs(ctx context.Context, inputs []wire.OutPoint) ([]string, error) {
 	searchInputsJSON := make([]outpointJSON, len(inputs))
 	for i, input := range inputs {

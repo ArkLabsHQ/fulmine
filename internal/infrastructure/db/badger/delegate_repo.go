@@ -95,6 +95,38 @@ func (r *delegateRepository) GetAllPending(ctx context.Context) ([]domain.Pendin
 	return tasks, nil
 }
 
+func (r *delegateRepository) GetPendingTaskByIntentTxID(ctx context.Context, txid string) (*domain.PendingDelegateTask, error) {
+	var allTasks []delegateTaskDTO
+	var err error
+
+	if ctx.Value("tx") != nil {
+		tx := ctx.Value("tx").(*badger.Txn)
+		err = r.store.TxFind(tx, &allTasks, badgerhold.Where("Status").Eq(domain.DelegateTaskStatusPending))
+	} else {
+		err = r.store.Find(&allTasks, badgerhold.Where("Status").Eq(domain.DelegateTaskStatusPending))
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, data := range allTasks {
+		var intent domain.Intent
+		if err := json.Unmarshal([]byte(data.IntentJSON), &intent); err != nil {
+			continue
+		}
+
+		if intent.Txid == txid {
+			return &domain.PendingDelegateTask{
+				ID:          data.ID,
+				ScheduledAt: time.Unix(data.ScheduledAt, 0),
+			}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("pending delegate task not found for intent txid: %s", txid)
+}
+
 func (r *delegateRepository) GetPendingTaskIDsByInputs(ctx context.Context, inputs []wire.OutPoint) ([]string, error) {
 	var allTasks []delegateTaskDTO
 	var err error

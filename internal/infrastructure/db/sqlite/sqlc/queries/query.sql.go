@@ -229,6 +229,22 @@ func (q *Queries) GetDelegateTaskInputs(ctx context.Context, taskID string) ([]G
 	return items, nil
 }
 
+const getPendingTaskByIntentTxID = `-- name: GetPendingTaskByIntentTxID :one
+SELECT id, scheduled_at FROM delegate_task WHERE status = 0 AND intent_txid = ?
+`
+
+type GetPendingTaskByIntentTxIDRow struct {
+	ID          string
+	ScheduledAt int64
+}
+
+func (q *Queries) GetPendingTaskByIntentTxID(ctx context.Context, intentTxid string) (GetPendingTaskByIntentTxIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getPendingTaskByIntentTxID, intentTxid)
+	var i GetPendingTaskByIntentTxIDRow
+	err := row.Scan(&i.ID, &i.ScheduledAt)
+	return i, err
+}
+
 const getSettings = `-- name: GetSettings :one
 SELECT id, api_root, server_url, esplora_url, currency, event_server, full_node, ln_url, unit, ln_datadir, ln_type FROM settings WHERE id = 1
 `

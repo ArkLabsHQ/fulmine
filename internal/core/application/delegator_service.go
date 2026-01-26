@@ -121,6 +121,13 @@ func (s *DelegatorService) Delegate(
 
 	repo := s.svc.dbSvc.Delegate()
 
+	// check if we already have a pending task with the same intent txid
+	pendingTask, _ := repo.GetPendingTaskByIntentTxID(ctx, task.Intent.Txid)
+	if pendingTask != nil {
+		// duplicate task, no need to do anything
+		return nil
+	}
+
 	// lock to avoid a new task with overlapping inputs is created while we are adding it to database
 	s.pendingTasksMtx.Lock()
 	defer s.pendingTasksMtx.Unlock()

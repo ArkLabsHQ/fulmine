@@ -44,6 +44,7 @@ type DelegateRepository interface {
 	GetByID(ctx context.Context, id string) (*DelegateTask, error)
 	// return status == pending tasks
 	GetAllPending(ctx context.Context) ([]PendingDelegateTask, error)
+	GetPendingTaskByIntentTxID(ctx context.Context, txid string) (*PendingDelegateTask, error)
 	// return pending tasks that have any of the given inputs
 	GetPendingTaskIDsByInputs(ctx context.Context, inputs []wire.OutPoint) ([]string, error)
 	CancelTasks(ctx context.Context, ids... string) error

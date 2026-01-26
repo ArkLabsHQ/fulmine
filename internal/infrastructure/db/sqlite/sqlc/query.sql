@@ -123,6 +123,9 @@ SELECT input_hash, input_index FROM delegate_task_input WHERE task_id = ?;
 -- name: ListDelegateTaskPending :many
 SELECT id, scheduled_at FROM delegate_task WHERE status = 0;
 
+-- name: GetPendingTaskByIntentTxID :one
+SELECT id, scheduled_at FROM delegate_task WHERE status = 0 AND intent_txid = ?;
+
 -- name: CancelDelegateTasks :exec
 UPDATE delegate_task
 SET status = 3
