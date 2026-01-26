@@ -59,12 +59,40 @@ func (h *delegatorBatchSessionHandler) OnBatchFailed(context.Context, client.Bat
 func (h *delegatorBatchSessionHandler) OnBatchFinalization(
 	ctx context.Context, event client.BatchFinalizationEvent, vtxoTree, connectorTree *tree.TxTree,
 ) error {
-	connectorsLeaves := connectorTree.Leaves()
 	selectedTasksIds := make([]string, 0, len(h.selectedTasks))
 	for _, selectedTask := range h.selectedTasks {
-		// check if any input is recoverable - if all are recoverable, skip this task
-		outpoints := make([]types.Outpoint, len(selectedTask.inputs))
-		for i, input := range selectedTask.inputs {
+		selectedTasksIds = append(selectedTasksIds, selectedTask.taskID)
+	}
+	
+	if err := h.submitForfeitTransactions(ctx, connectorTree.Leaves(), selectedTasksIds); err != nil {
+		log.WithError(err).Warnf("failed to submit forfeits")
+		return err
+	}
+	return nil
+}
+
+func (h *delegatorBatchSessionHandler) submitForfeitTransactions(
+	ctx context.Context, connectorsLeaves []*psbt.Packet, selectedTasksIds []string,
+) error {
+	if len(connectorsLeaves) == 0 {
+		return nil
+	}
+	if len(selectedTasksIds) == 0 {
+		return nil
+	}
+	
+	repo := h.delegator.svc.dbSvc.Delegate()
+	forfeitTxs := make([]*psbt.Packet, 0)
+
+	for _, selectedTaskId := range selectedTasksIds {
+		task, err := repo.GetByID(ctx, selectedTaskId)
+		if err != nil {
+			return fmt.Errorf("failed to get delegate task %s: %w", selectedTaskId, err)
+		}
+
+		// include only the forfeit tx of vtxo that are not recoverable
+		outpoints := make([]types.Outpoint, len(task.Intent.Inputs))
+		for i, input := range task.Intent.Inputs {
 			outpoints[i] = types.Outpoint{
 				Txid: input.Hash.String(),
 				VOut: input.Index,
@@ -76,45 +104,24 @@ func (h *delegatorBatchSessionHandler) OnBatchFinalization(
 			continue
 		}
 		vtxos, err := h.delegator.svc.indexerClient.GetVtxos(ctx, opts)
-		if err == nil && len(vtxos.Vtxos) > 0 {
-			allRecoverable := true
-			for _, vtxo := range vtxos.Vtxos {
-				if !vtxo.IsRecoverable() {
-					allRecoverable = false
-					break
-				}
-			}
-			if allRecoverable {
-				continue // exclude tasks where all inputs are recoverable, they do not need forfeits
-			}
-		}
-
-		selectedTasksIds = append(selectedTasksIds, selectedTask.taskID)
-	}
-
-	if err := h.submitForfeitTransactions(ctx, connectorsLeaves, selectedTasksIds); err != nil {
-		log.WithError(err).Warnf("failed to submit forfeits")
-		return err
-	}
-	return nil
-}
-
-func (h *delegatorBatchSessionHandler) submitForfeitTransactions(
-	ctx context.Context, connectorsLeaves []*psbt.Packet, selectedTasksIds []string,
-) error {
-	repo := h.delegator.svc.dbSvc.Delegate()
-	forfeitTxs := make([]*psbt.Packet, 0)
-	for _, selectedTaskId := range selectedTasksIds {
-		task, err := repo.GetByID(ctx, selectedTaskId)
 		if err != nil {
-			return fmt.Errorf("failed to get delegate task %s: %w", selectedTaskId, err)
+			log.WithError(err).Warnf("failed to get vtxos for task %s", selectedTaskId)
+			continue
 		}
 
-		// Get forfeit transactions for inputs that have them (forfeit transactions are optional)
-		for _, input := range task.Intent.Inputs {
-			forfeitTxStr, ok := task.ForfeitTxs[input]
+		for _, vtxo := range vtxos.Vtxos {
+			if vtxo.IsRecoverable() {
+				continue // skip recoverable vtxo
+			}
+			
+			outpoint, err := wire.NewOutPointFromString(fmt.Sprintf("%s:%d", vtxo.Txid, vtxo.VOut))
+			if err != nil {
+				log.WithError(err).Warnf("failed to parse outpoint for vtxo %s:%d", vtxo.Txid, vtxo.VOut)
+				continue
+			}
+
+			forfeitTxStr, ok := task.ForfeitTxs[*outpoint]
 			if !ok {
-				// Skip inputs without forfeit transactions
 				continue
 			}
 			forfeitPtx, err := psbt.NewFromRawBytes(strings.NewReader(forfeitTxStr), true)
