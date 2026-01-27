@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
@@ -170,6 +171,53 @@ func (r *delegateRepository) GetPendingTaskIDsByInputs(ctx context.Context, inpu
 	}
 
 	return taskIDs, nil
+}
+
+func (r *delegateRepository) GetAll(ctx context.Context, status domain.DelegateTaskStatus, limit int, offset int) ([]domain.DelegateTask, error) {
+	var allTasks []delegateTaskDTO
+	var err error
+
+	if ctx.Value("tx") != nil {
+		tx := ctx.Value("tx").(*badger.Txn)
+		err = r.store.TxFind(tx, &allTasks, badgerhold.Where("Status").Eq(status))
+	} else {
+		err = r.store.Find(&allTasks, badgerhold.Where("Status").Eq(status))
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort by ScheduledAt descending (most recent first) to match SQL implementation
+	// Since badgerhold doesn't support sorting, we'll do it manually
+	sort.Slice(allTasks, func(i, j int) bool {
+		return allTasks[i].ScheduledAt > allTasks[j].ScheduledAt
+	})
+
+	// Apply limit and offset
+	start := offset
+	if start > len(allTasks) {
+		start = len(allTasks)
+	}
+	end := start + limit
+	if end > len(allTasks) {
+		end = len(allTasks)
+	}
+
+	if start >= end {
+		return []domain.DelegateTask{}, nil
+	}
+
+	tasks := make([]domain.DelegateTask, 0, end-start)
+	for i := start; i < end; i++ {
+		task, err := allTasks[i].toDelegateTask()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert task %s: %w", allTasks[i].ID, err)
+		}
+		tasks = append(tasks, *task)
+	}
+
+	return tasks, nil
 }
 
 func (r *delegateRepository) CancelTasks(ctx context.Context, ids ...string) error {

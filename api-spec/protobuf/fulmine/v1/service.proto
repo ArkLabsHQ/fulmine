@@ -144,6 +144,13 @@ service Service {
       get: "/v1/settlement/next"
     };
   };
+
+  // ListDelegateTasks returns delegate tasks filtered by status, paginated by limit/offset.
+  rpc ListDelegateTasks(ListDelegateTasksRequest) returns (ListDelegateTasksResponse) {
+    option (google.api.http) = {
+      get: "/v1/delegate/tasks"
+    };
+  };
 }
 
 message GetAddressRequest {}
@@ -382,4 +389,38 @@ message GetVtxosResponse {
 message NextSettlementRequest {}
 message NextSettlementResponse {
   int64 next_settlement_at = 1;
+}
+
+message DelegateTaskIntent {
+  string txid = 1;
+  string message = 2;
+  string proof = 3;
+  repeated Input inputs = 4;
+}
+
+message DelegateTaskForfeit {
+  Input input = 1;
+  string forfeit_tx = 2;
+}
+
+message DelegateTask {
+  string id = 1;
+  DelegateTaskIntent intent = 2;
+  repeated DelegateTaskForfeit forfeits = 3;
+  uint64 fee = 4;
+  string delegator_public_key = 5;
+  int64 scheduled_at = 6;
+  string status = 7;
+  string fail_reason = 8;
+  string commitment_txid = 9;
+}
+
+message ListDelegateTasksRequest {
+  string status = 1;
+  uint32 limit = 2;
+  uint32 offset = 3;
+}
+
+message ListDelegateTasksResponse {
+  repeated DelegateTask tasks = 1;
 }

@@ -9,6 +9,7 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
@@ -555,5 +556,46 @@ func (h *serviceHandler) NextSettlement(
 
 	return &pb.NextSettlementResponse{
 		NextSettlementAt: nextSettlementUnix,
+	}, nil
+}
+
+func (h *serviceHandler) ListDelegateTasks(
+	ctx context.Context, req *pb.ListDelegateTasksRequest,
+) (*pb.ListDelegateTasksResponse, error) {
+	statusStr := req.GetStatus()
+	if statusStr == "" {
+		return nil, status.Error(codes.InvalidArgument, "status is required")
+	}
+
+	taskStatus, err := domain.DelegateTaskStatusFromString(statusStr)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	limit := int(req.GetLimit())
+	if limit <= 0 {
+		limit = 100 // Default limit
+	}
+	if limit > 1000 {
+		limit = 1000 // Max limit
+	}
+	offset := int(req.GetOffset())
+	if offset < 0 {
+		offset = 0
+	}
+
+	tasks, err := h.svc.GetDelegateTasks(ctx, taskStatus, limit, offset)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get delegate tasks: %v", err))
+	}
+
+	protoTasks := make([]*pb.DelegateTask, 0, len(tasks))
+	for _, task := range tasks {
+		protoTask := toDelegateTaskProto(task)
+		protoTasks = append(protoTasks, protoTask)
+	}
+
+	return &pb.ListDelegateTasksResponse{
+		Tasks: protoTasks,
 	}, nil
 }

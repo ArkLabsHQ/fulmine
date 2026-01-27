@@ -62,6 +62,51 @@
         ]
       }
     },
+    "/v1/delegate/tasks": {
+      "get": {
+        "summary": "ListDelegateTasks returns delegate tasks filtered by status, paginated by limit/offset.",
+        "operationId": "Service_ListDelegateTasks",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListDelegateTasksResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/info": {
       "get": {
         "summary": "GetInfo returns info about the ark account",
@@ -858,6 +903,76 @@
         }
       }
     },
+    "v1DelegateTask": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "intent": {
+          "$ref": "#/definitions/v1DelegateTaskIntent"
+        },
+        "forfeits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1DelegateTaskForfeit"
+          }
+        },
+        "fee": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "delegatorPublicKey": {
+          "type": "string"
+        },
+        "scheduledAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "status": {
+          "type": "string"
+        },
+        "failReason": {
+          "type": "string"
+        },
+        "commitmentTxid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1DelegateTaskForfeit": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$ref": "#/definitions/v1Input"
+        },
+        "forfeitTx": {
+          "type": "string"
+        }
+      }
+    },
+    "v1DelegateTaskIntent": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "proof": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Input"
+          }
+        }
+      }
+    },
     "v1GetAddressResponse": {
       "type": "object",
       "properties": {
@@ -1002,6 +1117,18 @@
       "properties": {
         "settled": {
           "type": "boolean"
+        }
+      }
+    },
+    "v1ListDelegateTasksResponse": {
+      "type": "object",
+      "properties": {
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1DelegateTask"
+          }
         }
       }
     },

@@ -236,6 +236,43 @@ templ HistoryLine(tx types.Transaction) {
 	</div>
 }
 
+templ DelegateTaskHistoryLine(task types.DelegateTask) {
+	<div class="flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10">
+		<div class="flex items-center gap-4">
+			<div class="flex flex-col">
+				<p class="text-white font-semibold">{task.ScheduledDate}</p>
+				<p class="text-sm text-white/50">{task.ScheduledHour}</p>
+			</div>
+		</div>
+		if task.Status == "pending" {
+			<div class="flex items-center">
+				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
+			</div>
+		}
+		if task.Status == "completed" {
+			<div class="flex items-center">
+				<p class="bg-green/20 px-2 py-1 rounded-md text-sm text-green">Completed</p>
+			</div>
+		}
+		if task.Status == "failed" {
+			<div class="flex items-center">
+				<p class="bg-red/20 px-2 py-1 rounded-md text-sm text-red">Failed</p>
+			</div>
+		}
+		if task.Status == "cancelled" {
+			<div class="flex items-center">
+				<p class="bg-white/20 px-2 py-1 rounded-md text-sm text-white">Cancelled</p>
+			</div>
+		}
+		<div class="flex items-center gap-4">
+			<div class="flex flex-col w-32 text-right">
+				<p class="cryptoAmount" sats={task.Fee}>{task.Fee} SATS</p>
+				<p class="text-sm text-white/50 fiatAmount" sats={task.Fee}>&nbsp;</p>
+			</div>
+		</div>
+	</div>
+}
+
 templ HistoryEmpty() {
 	<div class="flex flex-col items-center w-full">
 	  <svg width="170" height="102" viewBox="0 0 170 102" fill="none" xmlns="http://www.w3.org/2000/svg">

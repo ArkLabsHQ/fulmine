@@ -145,3 +145,23 @@ SELECT DISTINCT dt.id FROM delegate_task dt
 		INNER JOIN delegate_task_input dti ON dt.id = dti.task_id
 		WHERE dt.status = 0
 		AND dti.outpoint IN (sqlc.slice(outpoints));
+
+-- name: ListDelegateTasks :many
+SELECT 
+    dt.id, 
+    dt.intent_txid,
+    dt.intent_message,
+    dt.intent_proof,
+    dt.fee, 
+    dt.delegator_public_key, 
+    dt.scheduled_at, 
+    dt.status, 
+    dt.fail_reason,
+    dt.commitment_txid,
+    dti.outpoint,
+    dti.forfeit_tx
+FROM delegate_task dt
+LEFT JOIN delegate_task_input dti ON dt.id = dti.task_id
+WHERE dt.status = ?
+ORDER BY dt.scheduled_at DESC
+LIMIT ? OFFSET ?;

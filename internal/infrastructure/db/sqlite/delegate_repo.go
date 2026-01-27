@@ -152,6 +152,81 @@ func (r *delegateRepository) GetPendingTaskIDsByInputs(ctx context.Context, inpu
 	return r.querier.GetPendingTaskIDsByInputs(ctx, outpoints)
 }
 
+func (r *delegateRepository) GetAll(ctx context.Context, status domain.DelegateTaskStatus, limit int, offset int) ([]domain.DelegateTask, error) {
+	rows, err := r.querier.ListDelegateTasks(ctx, queries.ListDelegateTasksParams{
+		Status: int64(status),
+		Limit:  int64(limit),
+		Offset: int64(offset),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	taskMap := make(map[string]*domain.DelegateTask)
+	taskOrder := make([]string, 0)
+	for _, row := range rows {
+		task, exists := taskMap[row.ID]
+		if !exists {
+			inputs := make([]wire.OutPoint, 0)
+			forfeitTxs := make(map[wire.OutPoint]string)
+			
+			if row.Outpoint.Valid {
+				outpoint, err := wire.NewOutPointFromString(row.Outpoint.String)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse outpoint: %w", err)
+				}
+				inputs = append(inputs, *outpoint)
+				
+				if row.ForfeitTx.Valid && row.ForfeitTx.String != "" {
+					forfeitTxs[*outpoint] = row.ForfeitTx.String
+				}
+			}
+
+			intent := domain.Intent{
+				Message: row.IntentMessage,
+				Proof:   row.IntentProof,
+				Txid:    row.IntentTxid,
+				Inputs:  inputs,
+			}
+
+			task = &domain.DelegateTask{
+				ID:                row.ID,
+				Intent:            intent,
+				ForfeitTxs:        forfeitTxs,
+				Fee:               uint64(row.Fee),
+				DelegatorPublicKey: row.DelegatorPublicKey,
+				ScheduledAt:       time.Unix(row.ScheduledAt, 0),
+				Status:            domain.DelegateTaskStatus(row.Status),
+				FailReason:        row.FailReason.String,
+				CommitmentTxid:    row.CommitmentTxid.String,
+			}
+			taskMap[row.ID] = task
+			taskOrder = append(taskOrder, row.ID)
+		} else {
+			if row.Outpoint.Valid {
+				outpoint, err := wire.NewOutPointFromString(row.Outpoint.String)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse outpoint: %w", err)
+				}
+				task.Intent.Inputs = append(task.Intent.Inputs, *outpoint)
+				
+				if row.ForfeitTx.Valid && row.ForfeitTx.String != "" {
+					task.ForfeitTxs[*outpoint] = row.ForfeitTx.String
+				}
+			}
+		}
+	}
+
+	tasks := make([]domain.DelegateTask, 0, len(taskMap))
+	for _, taskID := range taskOrder {
+		if task, exists := taskMap[taskID]; exists {
+			tasks = append(tasks, *task)
+		}
+	}
+
+	return tasks, nil
+}
+
 func (r *delegateRepository) CancelTasks(ctx context.Context, ids ...string) error {
 	if len(ids) == 0 {
 		return nil // Nothing to cancel

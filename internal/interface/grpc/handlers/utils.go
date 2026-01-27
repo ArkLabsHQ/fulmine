@@ -7,12 +7,14 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil/psbt"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -281,5 +283,44 @@ func toInputProto(outpoint types.Outpoint) *pb.Input {
 	return &pb.Input{
 		Txid: outpoint.Txid,
 		Vout: outpoint.VOut,
+	}
+}
+
+func toProtoInput(outpoint wire.OutPoint) *pb.Input {
+	return &pb.Input{
+		Txid: outpoint.Hash.String(),
+		Vout: outpoint.Index,
+	}
+}
+
+func toDelegateTaskProto(task domain.DelegateTask) *pb.DelegateTask {
+	intent := &pb.DelegateTaskIntent{
+		Txid:    task.Intent.Txid,
+		Message: task.Intent.Message,
+		Proof:   task.Intent.Proof,
+		Inputs:  make([]*pb.Input, 0, len(task.Intent.Inputs)),
+	}
+	for _, input := range task.Intent.Inputs {
+		intent.Inputs = append(intent.Inputs, toProtoInput(input))
+	}
+
+	forfeits := make([]*pb.DelegateTaskForfeit, 0, len(task.ForfeitTxs))
+	for outpoint, forfeitTx := range task.ForfeitTxs {
+		forfeits = append(forfeits, &pb.DelegateTaskForfeit{
+			Input:      toProtoInput(outpoint),
+			ForfeitTx:  forfeitTx,
+		})
+	}
+
+	return &pb.DelegateTask{
+		Id:                task.ID,
+		Intent:            intent,
+		Forfeits:          forfeits,
+		Fee:               task.Fee,
+		DelegatorPublicKey: task.DelegatorPublicKey,
+		ScheduledAt:       task.ScheduledAt.Unix(),
+		Status:            task.Status.String(),
+		FailReason:        task.FailReason,
+		CommitmentTxid:    task.CommitmentTxid,
 	}
 }

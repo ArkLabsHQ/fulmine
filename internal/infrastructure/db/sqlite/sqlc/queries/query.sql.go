@@ -522,6 +522,84 @@ func (q *Queries) ListDelegateTaskPending(ctx context.Context) ([]ListDelegateTa
 	return items, nil
 }
 
+const listDelegateTasks = `-- name: ListDelegateTasks :many
+SELECT 
+    dt.id, 
+    dt.intent_txid,
+    dt.intent_message,
+    dt.intent_proof,
+    dt.fee, 
+    dt.delegator_public_key, 
+    dt.scheduled_at, 
+    dt.status, 
+    dt.fail_reason,
+    dt.commitment_txid,
+    dti.outpoint,
+    dti.forfeit_tx
+FROM delegate_task dt
+LEFT JOIN delegate_task_input dti ON dt.id = dti.task_id
+WHERE dt.status = ?
+ORDER BY dt.scheduled_at DESC
+LIMIT ? OFFSET ?
+`
+
+type ListDelegateTasksParams struct {
+	Status int64
+	Limit  int64
+	Offset int64
+}
+
+type ListDelegateTasksRow struct {
+	ID                 string
+	IntentTxid         string
+	IntentMessage      string
+	IntentProof        string
+	Fee                int64
+	DelegatorPublicKey string
+	ScheduledAt        int64
+	Status             int64
+	FailReason         sql.NullString
+	CommitmentTxid     sql.NullString
+	Outpoint           sql.NullString
+	ForfeitTx          sql.NullString
+}
+
+func (q *Queries) ListDelegateTasks(ctx context.Context, arg ListDelegateTasksParams) ([]ListDelegateTasksRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDelegateTasks, arg.Status, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDelegateTasksRow
+	for rows.Next() {
+		var i ListDelegateTasksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.IntentTxid,
+			&i.IntentMessage,
+			&i.IntentProof,
+			&i.Fee,
+			&i.DelegatorPublicKey,
+			&i.ScheduledAt,
+			&i.Status,
+			&i.FailReason,
+			&i.CommitmentTxid,
+			&i.Outpoint,
+			&i.ForfeitTx,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSubscribedScript = `-- name: ListSubscribedScript :many
 SELECT script FROM subscribed_script
 `

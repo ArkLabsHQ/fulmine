@@ -723,6 +723,10 @@ func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, 
 	return resp.Txs, nil
 }
 
+func (s *Service) GetDelegateTasks(ctx context.Context, status domain.DelegateTaskStatus, limit int, offset int) ([]domain.DelegateTask, error) {
+	return s.dbSvc.Delegate().GetAll(ctx, status, limit, offset)
+}
+
 func (s *Service) GetVtxos(ctx context.Context, filterType string) ([]types.Vtxo, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return nil, err

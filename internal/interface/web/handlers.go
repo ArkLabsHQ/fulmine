@@ -1470,3 +1470,79 @@ func toTransfer(tx sdktypes.Transaction) types.Transfer {
 		UnixDate:   dateCreated,
 	}
 }
+
+func (s *service) delegator(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	bodyContent := pages.DelegatorBodyContent()
+	s.pageViewHandler(bodyContent, c)
+}
+
+func (s *service) delegatorActive(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	active := c.Param("active")
+	bodyContent := pages.DelegatorPartialContent(active)
+	partialViewHandler(bodyContent, c)
+}
+
+func (s *service) getDelegateTasks(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	statusStr := c.Param("status")
+	offsetStr := c.Param("offset")
+	
+	status, err := domain.DelegateTaskStatusFromString(statusStr)
+	if err != nil {
+		toast := components.Toast("Invalid status", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
+
+	limit := 20
+	tasks, err := s.svc.GetDelegateTasks(c, status, limit, offset)
+	if err != nil {
+		toast := components.Toast("Unable to get delegate tasks", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	parsedTasks := make([]types.DelegateTask, len(tasks))
+	for i, task := range tasks {
+		parsedTasks[i] = toDelegateTask(task)
+	}
+
+	loadMore := len(tasks) == limit
+	nextOffset := offset + len(tasks)
+
+	if len(parsedTasks) == 0 && offset > 0 {
+		bodyContent := templ.Component(nil)
+		partialViewHandler(bodyContent, c)
+		return
+	}
+
+	bodyContent := pages.DelegatorTasksListContent(parsedTasks, statusStr, nextOffset, loadMore)
+	partialViewHandler(bodyContent, c)
+}
+
+func toDelegateTask(task domain.DelegateTask) types.DelegateTask {
+	return types.DelegateTask{
+		ID:            task.ID,
+		Status:        task.Status.String(),
+		Fee:           strconv.FormatUint(task.Fee, 10),
+		ScheduledAt:   prettyUnixTimestamp(task.ScheduledAt.Unix()),
+		ScheduledDate: prettyDay(task.ScheduledAt.Unix()),
+		ScheduledHour: prettyHour(task.ScheduledAt.Unix()),
+		FailReason:    task.FailReason,
+		CommitmentTxid: task.CommitmentTxid,
+	}
+}
