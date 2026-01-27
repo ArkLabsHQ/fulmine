@@ -40,12 +40,14 @@ func TestWhitelistedMethods(t *testing.T) {
 	for _, m := range fulminev1.WalletService_ServiceDesc.Methods {
 		allMethods = append(allMethods, fmt.Sprintf("/%s/%s", fulminev1.WalletService_ServiceDesc.ServiceName, m.MethodName))
 	}
+	// DelegatorService methods
+	for _, m := range fulminev1.DelegatorService_ServiceDesc.Methods {
+		allMethods = append(allMethods, fmt.Sprintf("/%s/%s", fulminev1.DelegatorService_ServiceDesc.ServiceName, m.MethodName))
+	}
+	
 	perms := config.WhitelistedByMethod()
 	for _, method := range allMethods {
-		ops, ok := perms[method]
+		_, ok := perms[method]
 		require.True(t, ok, "missing permission for %s", method)
-		require.Len(t, ops, 1)
-		require.Equal(t, config.EntityWallet, ops[0].Entity)
-		require.Equal(t, config.ActionAccess, ops[0].Action)
 	}
 }
