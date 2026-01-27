@@ -22,8 +22,8 @@ templ DelegateTaskStatusPill(status string) {
 }
 
 templ DelegateTaskMonoCopy(value string) {
-	<div class="flex items-start justify-between gap-3">
-		<p class="font-mono text-xs break-all text-white/90">{value}</p>
+	<div class="flex items-start justify-between gap-3 min-w-0">
+		<p class="min-w-0 font-mono text-xs break-all text-white/90">{value}</p>
 		@components.CopyWidget(value)
 	</div>
 }
@@ -49,15 +49,15 @@ templ DelegateTaskFailValue(reason string) {
 
 templ DelegateTaskKV(label string, value templ.Component, divider bool) {
 	<div class={templ.KV("pt-3 border-t border-white/10", divider)}>
-		<div class="grid grid-cols-[160px_1fr] gap-x-4 gap-y-2 items-start">
+		<div class="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-x-4 gap-y-2 items-start min-w-0">
 			<p class="text-white/50 text-sm">{label}</p>
-			<div class="text-sm text-white/90">@value</div>
+			<div class="text-sm text-white/90 min-w-0">@value</div>
 		</div>
 	</div>
 }
 
 templ DelegateTaskDetailBody(task types.DelegateTask) {
-	<div class="flex flex-col gap-5 w-[680px] max-w-[90vw]">
+	<div class="flex flex-col gap-5 w-full max-w-[720px]">
 		<div class="flex items-start justify-between gap-6">
 			<div class="flex flex-col">
 				<p class="text-xl font-semibold">Task details</p>
@@ -94,10 +94,10 @@ templ DelegateTaskDetailBody(task types.DelegateTask) {
 
 		if task.Intent != nil {
 			<div class="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-4">
-				<div class="flex items-center justify-between">
+				<div class="flex items-center justify-between gap-4 min-w-0">
 					<p class="text-white/90 font-semibold">Intent</p>
 					if task.Intent.Proof != "" {
-						<div class="flex items-center gap-2">
+						<div class="flex items-center gap-2 shrink-0">
 							<p class="text-sm text-white/50">Proof tx</p>
 							@components.CopyButton(task.Intent.Proof)
 						</div>
@@ -105,34 +105,28 @@ templ DelegateTaskDetailBody(task types.DelegateTask) {
 				</div>
 
 				if task.Intent.Txid != "" {
-					<div class="grid grid-cols-[160px_1fr] gap-x-4">
+					<div class="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-x-4 gap-y-2 min-w-0">
 						<p class="text-white/50 text-sm">Txid</p>
-						<div class="flex items-start justify-between gap-3">
-							<p class="font-mono text-xs break-all text-white/90">{task.Intent.Txid}</p>
-							@components.CopyWidget(task.Intent.Txid)
-						</div>
+						@DelegateTaskMonoCopy(task.Intent.Txid)
 					</div>
 				}
 
 				if task.Intent.Message != "" {
 					<div class="flex flex-col gap-2">
 						<p class="text-white/50 text-sm">Message</p>
-						<pre class="intent-message-json bg-black/20 border border-white/10 rounded-lg p-3 text-white/90 font-mono text-xs max-h-56 overflow-auto" data-json={task.Intent.Message}></pre>
+						<pre class="intent-message-json bg-black/20 border border-white/10 rounded-lg p-3 text-white/90 font-mono text-xs whitespace-pre-wrap break-words overflow-x-hidden" data-json={task.Intent.Message}></pre>
 					</div>
 				}
 
 				if len(task.Intent.Inputs) > 0 {
-					<details class="bg-black/10 border border-white/10 rounded-lg p-3">
+					<details class="bg-black/10 border border-white/10 rounded-lg p-3 min-w-0">
 						<summary class="cursor-pointer select-none text-white/80 font-semibold">
 							Inputs
 							<span class="text-white/50 font-normal">{fmt.Sprintf("(%d)", len(task.Intent.Inputs))}</span>
 						</summary>
 						<div class="mt-3 flex flex-col gap-2">
 							for _, input := range task.Intent.Inputs {
-								<div class="flex items-start justify-between gap-3">
-									<p class="font-mono text-xs break-all text-white/90">{input}</p>
-									@components.CopyWidget(input)
-								</div>
+								@DelegateTaskMonoCopy(input)
 							}
 						</div>
 					</details>
