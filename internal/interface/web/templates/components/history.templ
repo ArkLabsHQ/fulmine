@@ -242,7 +242,16 @@ templ DelegateTaskHistoryLine(task types.DelegateTask) {
 		<div class="flex items-center gap-4">
 			<div class="flex flex-col">
 				<p class="text-white font-semibold scheduled-date" data-timestamp={fmt.Sprintf("%d", task.ScheduledAtUnix)}></p>
-				<p class="text-sm text-white/50 scheduled-hour" data-timestamp={fmt.Sprintf("%d", task.ScheduledAtUnix)}></p>
+				<div class="flex items-center gap-2">
+					<p class="text-sm text-white/50 scheduled-hour" data-timestamp={fmt.Sprintf("%d", task.ScheduledAtUnix)}></p>
+					<p class="text-xs text-white/50 bg-white/10 px-2 py-0.5 rounded-md">
+						if task.Intent != nil {
+							{fmt.Sprintf("%d vtxos", len(task.Intent.Inputs))}
+						} else {
+							0 vtxos
+						}
+					</p>
+				</div>
 			</div>
 		</div>
 		if task.Status == "pending" {
