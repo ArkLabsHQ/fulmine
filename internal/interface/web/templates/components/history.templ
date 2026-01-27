@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
 )
 
@@ -237,11 +238,11 @@ templ HistoryLine(tx types.Transaction) {
 }
 
 templ DelegateTaskHistoryLine(task types.DelegateTask) {
-	<div class="flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10">
+	<div class="flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10" hx-get={"/delegate/task/" + task.ID} hx-target="#modal">
 		<div class="flex items-center gap-4">
 			<div class="flex flex-col">
-				<p class="text-white font-semibold">{task.ScheduledDate}</p>
-				<p class="text-sm text-white/50">{task.ScheduledHour}</p>
+				<p class="text-white font-semibold scheduled-date" data-timestamp={fmt.Sprintf("%d", task.ScheduledAtUnix)}></p>
+				<p class="text-sm text-white/50 scheduled-hour" data-timestamp={fmt.Sprintf("%d", task.ScheduledAtUnix)}></p>
 			</div>
 		</div>
 		if task.Status == "pending" {

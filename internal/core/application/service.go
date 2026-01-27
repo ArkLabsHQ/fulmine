@@ -727,6 +727,10 @@ func (s *Service) GetDelegateTasks(ctx context.Context, status domain.DelegateTa
 	return s.dbSvc.Delegate().GetAll(ctx, status, limit, offset)
 }
 
+func (s *Service) GetDelegateTaskByID(ctx context.Context, id string) (*domain.DelegateTask, error) {
+	return s.dbSvc.Delegate().GetByID(ctx, id)
+}
+
 func (s *Service) GetVtxos(ctx context.Context, filterType string) ([]types.Vtxo, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return nil, err

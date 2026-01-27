@@ -1,0 +1,110 @@
+package modals
+
+import (
+	"fmt"
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
+)
+
+templ DelegateTaskDetailBody(task types.DelegateTask) {
+	<div class="flex flex-col gap-4 max-w-md">
+		<p class="text-center text-lg font-semibold">Task Details</p>
+		
+		<div class="flex flex-col gap-2">
+			<div class="flex justify-between">
+				<span class="text-white/60">ID:</span>
+				<span class="text-white font-mono text-sm break-all">{task.ID}</span>
+			</div>
+			
+			<div class="flex justify-between">
+				<span class="text-white/60">Status:</span>
+				<span class="text-white">{task.Status}</span>
+			</div>
+			
+			<div class="flex justify-between">
+				<span class="text-white/60">Fee:</span>
+				<span class="text-white cryptoAmount" sats={task.Fee}>{task.Fee} SATS</span>
+			</div>
+			
+			<div class="flex justify-between">
+				<span class="text-white/60">Scheduled At:</span>
+				<span class="text-white scheduled-datetime" data-timestamp={fmt.Sprintf("%d", task.ScheduledAtUnix)}></span>
+			</div>
+			
+			if task.DelegatorPublicKey != "" {
+				<div class="flex flex-col gap-1">
+					<span class="text-white/60">Delegator Public Key:</span>
+					<span class="text-white font-mono text-sm break-all">{task.DelegatorPublicKey}</span>
+				</div>
+			}
+			
+			if task.CommitmentTxid != "" {
+				<div class="flex flex-col gap-1">
+					<span class="text-white/60">Commitment Txid:</span>
+					<span class="text-white font-mono text-sm break-all">{task.CommitmentTxid}</span>
+				</div>
+			}
+			
+			if task.FailReason != "" {
+				<div class="flex flex-col gap-1">
+					<span class="text-white/60">Fail Reason:</span>
+					<span class="text-red text-sm">{task.FailReason}</span>
+				</div>
+			}
+			
+			if task.Intent != nil {
+				<div class="flex flex-col gap-2 mt-2 pt-2 border-t border-white/10">
+					<p class="text-white/80 font-semibold">Intent</p>
+					
+					if task.Intent.Txid != "" {
+						<div class="flex flex-col gap-1">
+							<span class="text-white/60">Txid:</span>
+							<span class="text-white font-mono text-sm break-all">{task.Intent.Txid}</span>
+						</div>
+					}
+					
+					if task.Intent.Message != "" {
+						<div class="flex flex-col gap-1">
+							<span class="text-white/60">Message:</span>
+							<div class="intent-message-json bg-white/5 rounded p-2 text-white font-mono text-xs" data-json={task.Intent.Message}></div>
+						</div>
+					}
+					
+					if task.Intent.Proof != "" {
+						<div class="flex flex-col gap-1">
+							<span class="text-white/60">Proof:</span>
+							<div class="flex items-center gap-2">
+								<span class="text-white/50 text-sm">Transaction (click to copy)</span>
+								@components.CopyButton(task.Intent.Proof)
+							</div>
+						</div>
+					}
+					
+					if len(task.Intent.Inputs) > 0 {
+						<div class="flex flex-col gap-1">
+							<span class="text-white/60">Inputs:</span>
+							<div class="flex flex-col gap-1">
+								for _, input := range task.Intent.Inputs {
+									<span class="text-white font-mono text-xs break-all">{input}</span>
+								}
+							</div>
+						</div>
+					}
+				</div>
+			}
+			
+			if len(task.Forfeits) > 0 {
+				<div class="flex flex-col gap-2 mt-2 pt-2 border-t border-white/10">
+					<div class="flex justify-between items-center">
+						<p class="text-white/80 font-semibold">Forfeit Transactions</p>
+						<span class="text-white">{fmt.Sprintf("%d", len(task.Forfeits))}</span>
+					</div>
+				</div>
+			}
+		</div>
+	</div>
+}
+
+templ DelegateTaskDetail(task types.DelegateTask) {
+	@Modal(DelegateTaskDetailBody(task))
+}
