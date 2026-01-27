@@ -2,18 +2,23 @@ package application
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"time"
 
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	"github.com/arkade-os/go-sdk/client"
+	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
+	log "github.com/sirupsen/logrus"
 )
 
 func offchainAddressesPkScripts(addresses []string) ([]string, error) {
@@ -33,7 +38,6 @@ func offchainAddressesPkScripts(addresses []string) ([]string, error) {
 	}
 	return scripts, nil
 }
-
 
 func parseLocktime(locktime uint32) arklib.RelativeLocktime {
 	if locktime >= 512 {
@@ -87,12 +91,97 @@ func extractConnector(connectorTx *psbt.Packet) (*wire.TxOut, *wire.OutPoint, er
 
 // a wrapper around delegator task id
 type registeredIntent struct {
-	taskID string
+	taskID   string
 	intentID string
-	inputs []wire.OutPoint
+	inputs   []wire.OutPoint
 }
 
 func (i registeredIntent) intentIDHash() string {
 	buf := sha256.Sum256([]byte(i.intentID))
 	return hex.EncodeToString(buf[:])
+}
+
+func connectEventStream(grpcClient client.TransportClient) func(context.Context) (<-chan client.BatchEventChannel, func(), error) {
+	return func(ctx context.Context) (<-chan client.BatchEventChannel, func(), error) {
+		return grpcClient.GetEventStream(ctx, nil)
+	}
+}
+
+func connectStreamWithRetry[T any](
+	ctx context.Context, currentStop func(),
+	connectStream func(ctx context.Context) (<-chan T, func(), error),
+) (<-chan T, func(), error) {
+	const (
+		initialBackoff = 1 * time.Second
+		maxBackoff     = 5 * time.Minute
+		backoffFactor  = 2.0
+	)
+
+	if currentStop != nil {
+		currentStop()
+	}
+
+	backoff := initialBackoff
+	attempt := 0
+
+	for {
+		attempt++
+		log.WithFields(log.Fields{
+			"attempt": attempt,
+			"backoff": backoff,
+		}).Warn("event stream closed, attempting to reconnect...")
+
+		eventsCh, stop, err := connectStream(ctx)
+		if err == nil {
+			log.WithField("attempt", attempt).Info("successfully reconnected to event stream")
+			return eventsCh, stop, nil
+		}
+
+		log.WithError(err).WithField("attempt", attempt).Warn("failed to reconnect to event stream")
+
+		select {
+		case <-ctx.Done():
+			log.Info("context cancelled, stopping reconnect attempts")
+			return nil, nil, ctx.Err()
+		default:
+		}
+
+		nextBackoff := min(time.Duration(float64(backoff)*backoffFactor), maxBackoff)
+
+		select {
+		case <-ctx.Done():
+			log.Info("context cancelled during backoff, stopping reconnect attempts")
+			return nil, nil, ctx.Err()
+		case <-time.After(nextBackoff):
+			backoff = nextBackoff
+		}
+	}
+}
+
+func getSpentVtxosFromTransactionEvent(event client.TransactionEvent) []wire.OutPoint {
+	spentVtxos := make([]types.Vtxo, 0)
+
+	if event.CommitmentTx != nil {
+		spentVtxos = append(spentVtxos, event.CommitmentTx.SpentVtxos...)
+	}
+
+	if event.ArkTx != nil {
+		spentVtxos = append(spentVtxos, event.ArkTx.SpentVtxos...)
+	}
+
+	outpoints := make([]wire.OutPoint, 0, len(spentVtxos))
+	for _, vtxo := range spentVtxos {
+		hash, err := chainhash.NewHashFromStr(vtxo.Txid)
+		if err != nil {
+			log.WithError(err).Warnf("failed to parse vtxo txid %s", vtxo.Txid)
+			continue
+		}
+
+		outpoints = append(outpoints, wire.OutPoint{
+			Hash:  *hash,
+			Index: vtxo.VOut,
+		})
+	}
+
+	return outpoints
 }

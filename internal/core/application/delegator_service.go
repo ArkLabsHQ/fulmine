@@ -39,9 +39,13 @@ type DelegatorService struct {
 
 	intentsMtx sync.Mutex
 	registeredIntents map[string]registeredIntent // intent hash -> task id
+
 	ctx context.Context
 	cancelFunc context.CancelFunc
-	pendingTasksMtx sync.Mutex
+
+	// delegateMtx is used to prevent concurrent access to delegate tasks
+	// while we are monitoring spent vtxos and registering new tasks
+	delegateMtx sync.Mutex
 }
 
 type DelegateInfo struct {
@@ -57,7 +61,7 @@ func newDelegatorService(svc *Service, fee uint64) *DelegatorService {
 		registeredIntents: make(map[string]registeredIntent),
 		delegatorAddrMtx: sync.Mutex{},
 		intentsMtx: sync.Mutex{},
-		pendingTasksMtx: sync.Mutex{},
+		delegateMtx: sync.Mutex{},
 	}
 }
 
@@ -70,8 +74,7 @@ func (s *DelegatorService) start() {
 	}
 
 	go s.listenBatchStartedEvents(s.ctx)
-
-	// TODO reactive cancellation: listen for spent vtxos and cancel tasks if needed
+	go s.monitorVtxosSpent(s.ctx)
 }
 
 func (s *DelegatorService) Stop() {
@@ -129,8 +132,8 @@ func (s *DelegatorService) Delegate(
 	}
 
 	// lock to avoid a new task with overlapping inputs is created while we are adding it to database
-	s.pendingTasksMtx.Lock()
-	defer s.pendingTasksMtx.Unlock()
+	s.delegateMtx.Lock()
+	defer s.delegateMtx.Unlock()
 
 	// before saving to database, verify that there is no pending task with any overlapping input
 	pendingTaskIDs, err := repo.GetPendingTaskIDsByInputs(ctx, task.Intent.Inputs)
@@ -356,13 +359,13 @@ func (s *DelegatorService) restorePendingTasks() error {
 
 func (s *DelegatorService) registerDelegate(id string) error {
 	repo := s.svc.dbSvc.Delegate()
-	s.pendingTasksMtx.Lock()
+	s.delegateMtx.Lock()
 	task, err := repo.GetByID(s.ctx, id)
 	if err != nil {
-		s.pendingTasksMtx.Unlock()
+		s.delegateMtx.Unlock()
 		return err
 	}
-	s.pendingTasksMtx.Unlock()
+	s.delegateMtx.Unlock()
 	if task.Status != domain.DelegateTaskStatusPending {
 		// task is not pending, it has been cancelled by another task
 		return nil
@@ -396,7 +399,9 @@ func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
 	var stop func()
 	var err error
 
-	eventsCh, stop, err = s.connectEventStreamWithRetry(ctx, nil)
+	connectStream := connectEventStream(s.svc.grpcClient)
+	
+	eventsCh, stop, err = connectStreamWithRetry(ctx, nil, connectStream)
 	if err != nil {
 		log.WithError(err).Error("failed to establish initial connection to event stream")
 		return
@@ -411,7 +416,7 @@ func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
 			return
 		case notify, ok := <-eventsCh:
 			if !ok {
-				newEventsCh, newStop, err := s.connectEventStreamWithRetry(ctx, stop)
+				newEventsCh, newStop, err := connectStreamWithRetry(ctx, stop, connectStream)
 				if err != nil {
 					log.WithError(err).Error("failed to reconnect to event stream, stopping listenBatchEvents...")
 					return
@@ -589,52 +594,84 @@ func (s *DelegatorService) joinDelegatorBatch(
 	}
 }
 
-func (s *DelegatorService) connectEventStreamWithRetry(
-	ctx context.Context, currentStop func(),
-) (<-chan client.BatchEventChannel, func(), error) {
-	const (
-		initialBackoff = 1 * time.Second
-		maxBackoff     = 5 * time.Minute
-		backoffFactor  = 2.0
-	)
+func (s *DelegatorService) monitorVtxosSpent(ctx context.Context) {
+	const tickerInterval = 5 * time.Second
+	log.Debug("monitoring delegated spent vtxos")
 
-	if currentStop != nil {
-		currentStop()
+	var eventsCh <-chan client.TransactionEvent
+	var stop func()
+	var err error 
+
+	eventsCh, stop, err = connectStreamWithRetry(ctx, nil, s.svc.grpcClient.GetTransactionsStream)
+	if err != nil {
+		log.WithError(err).Error("failed to establish initial connection to transaction stream")
+		return
 	}
 
-	backoff := initialBackoff
-	attempt := 0
+	// to avoid creating a deadlock, we collect spent vtxos outpoints while listening to transaction events
+	// then, periodically, we cancel pending tasks if any match the collected spent outpoints
+	// it avoids locking the delegateMtx for a long time in case a lot of tx are happening in a short period of time
+	spentVtxosOutpoints := make([]wire.OutPoint, 0)
+	spentVtxosOutpointsMtx := sync.Mutex{}
+
+	ticker := time.NewTicker(tickerInterval)
+	defer ticker.Stop()
+	go func() {
+		for range ticker.C {
+			// capture the spent vtxos outpoints
+			spentVtxosOutpointsMtx.Lock()
+			outpoints := spentVtxosOutpoints
+			spentVtxosOutpoints = make([]wire.OutPoint, 0)
+			spentVtxosOutpointsMtx.Unlock()
+
+			// cancel pending tasks with spent vtxos outpoints
+			s.delegateMtx.Lock()
+
+			repo := s.svc.dbSvc.Delegate()
+			pendingTaskIds, err := repo.GetPendingTaskIDsByInputs(ctx, outpoints)
+			if err == nil && len(pendingTaskIds) > 0 {
+				if err := repo.CancelTasks(ctx, pendingTaskIds...); err != nil {
+					log.WithError(err).Warnf("failed to cancel %d tasks", len(pendingTaskIds))
+				} else {
+					log.Infof("spent vtxos monitor cancelled %d pending tasks", len(pendingTaskIds))
+				}
+			}
+
+			s.delegateMtx.Unlock()
+		}
+	}()
 
 	for {
-		attempt++
-		log.WithFields(log.Fields{
-			"attempt": attempt,
-			"backoff": backoff,
-		}).Warn("event stream closed, attempting to reconnect...")
-
-		eventsCh, stop, err := s.svc.grpcClient.GetEventStream(ctx, nil)
-		if err == nil {
-			log.WithField("attempt", attempt).Info("successfully reconnected to event stream")
-			return eventsCh, stop, nil
-		}
-
-		log.WithError(err).WithField("attempt", attempt).Warn("failed to reconnect to event stream")
-
 		select {
 		case <-ctx.Done():
-			log.Info("context cancelled, stopping reconnect attempts")
-			return nil, nil, ctx.Err()
-		default:
-		}
+			if stop != nil {
+				stop()
+			}
+			return
+		case event, ok := <-eventsCh:
+			if !ok {
+				newEventsCh, newStop, err := connectStreamWithRetry(ctx, stop, s.svc.grpcClient.GetTransactionsStream)
+				if err != nil {
+					log.WithError(err).Error("failed to reconnect to transaction stream, stopping monitorVtxosSpent...")
+					return
+				}
+				eventsCh = newEventsCh
+				stop = newStop
+				continue
+			}
+			if event.Err != nil {
+				log.WithError(event.Err).Error("error received from transaction stream")
+				continue
+			}
 
-		nextBackoff := min(time.Duration(float64(backoff) * backoffFactor), maxBackoff)
+			spent := getSpentVtxosFromTransactionEvent(event)
+			if len(spent) == 0 {
+				continue
+			}
 
-		select {
-		case <-ctx.Done():
-			log.Info("context cancelled during backoff, stopping reconnect attempts")
-			return nil, nil, ctx.Err()
-		case <-time.After(nextBackoff):
-			backoff = nextBackoff
+			spentVtxosOutpointsMtx.Lock()
+			spentVtxosOutpoints = append(spentVtxosOutpoints, spent...)
+			spentVtxosOutpointsMtx.Unlock()
 		}
 	}
 }
