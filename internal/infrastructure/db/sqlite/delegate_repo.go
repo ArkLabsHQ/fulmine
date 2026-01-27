@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
@@ -145,40 +144,12 @@ func (r *delegateRepository) GetPendingTaskIDsByInputs(ctx context.Context, inpu
 		return []string{}, nil
 	}
 
-	outpoints := make([]any, len(inputs))
+	outpoints := make([]string, len(inputs))
 	for i, input := range inputs {
 		outpoints[i] = input.String()
 	}
 
-	placeholders := strings.Repeat("?,", len(inputs) - 1) + "?"
-
-	// Can't use sqlc-generated query because it doesn't generate the search_input parameter
-	query := fmt.Sprintf(`
-		SELECT DISTINCT dt.id
-		FROM delegate_task dt
-		INNER JOIN delegate_task_input dti ON dt.id = dti.task_id
-		WHERE dt.status = 0
-		AND dti.outpoint IN (%s)
-	`, placeholders)
-	rows, err := r.db.QueryContext(ctx, query, outpoints...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	taskIDs := make([]string, 0)
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("failed to scan task ID: %w", err)
-		}
-		taskIDs = append(taskIDs, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating rows: %w", err)
-	}
-
-	return taskIDs, nil
+	return r.querier.GetPendingTaskIDsByInputs(ctx, outpoints)
 }
 
 func (r *delegateRepository) CancelTasks(ctx context.Context, ids ...string) error {

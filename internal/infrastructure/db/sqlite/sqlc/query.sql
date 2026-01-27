@@ -139,3 +139,9 @@ WHERE status = 0 AND id IN (sqlc.slice(ids));
 UPDATE delegate_task
 SET status = 2, fail_reason = ?
 WHERE status = 0 AND id IN (sqlc.slice(ids));
+
+-- name: GetPendingTaskIDsByInputs :many
+SELECT DISTINCT dt.id FROM delegate_task dt
+		INNER JOIN delegate_task_input dti ON dt.id = dti.task_id
+		WHERE dt.status = 0
+		AND dti.outpoint IN (sqlc.slice(outpoints));

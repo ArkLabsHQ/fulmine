@@ -237,6 +237,46 @@ func (q *Queries) GetPendingTaskByIntentTxID(ctx context.Context, intentTxid str
 	return i, err
 }
 
+const getPendingTaskIDsByInputs = `-- name: GetPendingTaskIDsByInputs :many
+SELECT DISTINCT dt.id FROM delegate_task dt
+		INNER JOIN delegate_task_input dti ON dt.id = dti.task_id
+		WHERE dt.status = 0
+		AND dti.outpoint IN (/*SLICE:outpoints*/?)
+`
+
+func (q *Queries) GetPendingTaskIDsByInputs(ctx context.Context, outpoints []string) ([]string, error) {
+	query := getPendingTaskIDsByInputs
+	var queryParams []interface{}
+	if len(outpoints) > 0 {
+		for _, v := range outpoints {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:outpoints*/?", strings.Repeat(",?", len(outpoints))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:outpoints*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getSettings = `-- name: GetSettings :one
 SELECT id, api_root, server_url, esplora_url, currency, event_server, full_node, ln_url, unit, ln_datadir, ln_type FROM settings WHERE id = 1
 `
