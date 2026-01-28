@@ -396,7 +396,7 @@ func DelegateTaskDetailBody(task types.DelegateTask) templ.Component {
 			templ_7745c5c3_Var18 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div class=\"flex flex-col gap-5 w-full max-w-[720px]\"><div class=\"flex items-start justify-between gap-6\"><div class=\"flex flex-col\"><p class=\"text-xl font-semibold\">Task details</p><p class=\"text-sm text-white/50\">Inspect the task payload and intent.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div class=\"flex flex-col gap-5 w-full max-w-[720px]\"><div class=\"flex items-start justify-between gap-6 pr-12\"><div class=\"flex flex-col\"><p class=\"text-xl font-semibold\">Task details</p><p class=\"text-sm text-white/50\">Inspect the task payload and intent.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
