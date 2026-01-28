@@ -162,6 +162,10 @@ func (s *DelegatorService) Delegate(
 			log.WithError(err).Warnf("failed to execute delegate task %s", task.ID)
 		}
 	}); err != nil {
+		if err := repo.FailTasks(ctx, err.Error(), task.ID); err != nil {
+			log.WithError(err).Warnf("failed to mark delegate task %s as failed", task.ID)
+		}
+		
 		return fmt.Errorf("failed to schedule delegate task: %w", err)
 	}
 
