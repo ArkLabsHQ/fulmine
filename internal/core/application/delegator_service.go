@@ -617,27 +617,32 @@ func (s *DelegatorService) monitorVtxosSpent(ctx context.Context) {
 	ticker := time.NewTicker(tickerInterval)
 	defer ticker.Stop()
 	go func() {
-		for range ticker.C {
-			// capture the spent vtxos outpoints
-			spentVtxosOutpointsMtx.Lock()
-			outpoints := spentVtxosOutpoints
-			spentVtxosOutpoints = make([]wire.OutPoint, 0)
-			spentVtxosOutpointsMtx.Unlock()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				// capture the spent vtxos outpoints
+				spentVtxosOutpointsMtx.Lock()
+				outpoints := spentVtxosOutpoints
+				spentVtxosOutpoints = make([]wire.OutPoint, 0)
+				spentVtxosOutpointsMtx.Unlock()
 
-			// cancel pending tasks with spent vtxos outpoints
-			s.delegateMtx.Lock()
+				// cancel pending tasks with spent vtxos outpoints
+				s.delegateMtx.Lock()
 
-			repo := s.svc.dbSvc.Delegate()
-			pendingTaskIds, err := repo.GetPendingTaskIDsByInputs(ctx, outpoints)
-			if err == nil && len(pendingTaskIds) > 0 {
-				if err := repo.CancelTasks(ctx, pendingTaskIds...); err != nil {
-					log.WithError(err).Warnf("failed to cancel %d tasks", len(pendingTaskIds))
-				} else {
-					log.Infof("spent vtxos monitor cancelled %d pending tasks", len(pendingTaskIds))
+				repo := s.svc.dbSvc.Delegate()
+				pendingTaskIds, err := repo.GetPendingTaskIDsByInputs(ctx, outpoints)
+				if err == nil && len(pendingTaskIds) > 0 {
+					if err := repo.CancelTasks(ctx, pendingTaskIds...); err != nil {
+						log.WithError(err).Warnf("failed to cancel %d tasks", len(pendingTaskIds))
+					} else {
+						log.Infof("spent vtxos monitor cancelled %d pending tasks", len(pendingTaskIds))
+					}
 				}
-			}
 
-			s.delegateMtx.Unlock()
+				s.delegateMtx.Unlock()
+			}
 		}
 	}()
 
