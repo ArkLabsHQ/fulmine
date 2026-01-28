@@ -165,7 +165,7 @@ func (s *DelegatorService) Delegate(
 		if err := repo.FailTasks(ctx, err.Error(), task.ID); err != nil {
 			log.WithError(err).Warnf("failed to mark delegate task %s as failed", task.ID)
 		}
-		
+
 		return fmt.Errorf("failed to schedule delegate task: %w", err)
 	}
 
@@ -771,21 +771,27 @@ func validateForfeits(
 			return fmt.Errorf("forfeit input: missing tapleaf script %x", tapLeafHash)
 		}
 
-		// verify the forfeit script 
-		var multisigClosure script.MultisigClosure
-		valid, err := multisigClosure.Decode(forfeitLeafScript.Script); 
+
+		closure, err := script.DecodeClosure(forfeitLeafScript.Script)
 		if err != nil {
-			return fmt.Errorf("forfeit input: failed to decode multisig closure: %w", err)
+			return fmt.Errorf("forfeit input: failed to decode closure: %w", err)
 		}
-		if !valid {
-			return fmt.Errorf("forfeit input: invalid taproot leaf script, expected multisig closure, got %x", forfeitLeafScript.Script)
-		}
-		if len(multisigClosure.PubKeys) < 2 {
-			return fmt.Errorf("forfeit input: invalid multisig closure, at least 2 public keys are required")
+
+		var pubkeys []*btcec.PublicKey
+
+		switch closure := closure.(type) {
+		case *script.MultisigClosure:
+			pubkeys = closure.PubKeys
+		case *script.CLTVMultisigClosure:
+			pubkeys = closure.PubKeys
+		case *script.ConditionMultisigClosure:
+			pubkeys = closure.PubKeys
+		default:
+			return fmt.Errorf("forfeit input: invalid closure type, expected MultisigClosure, CLTVMultisigClosure or ConditionMultisigClosure, got %T", closure)
 		}
 
 		delegatorFound := false
-		for _, pubkey := range multisigClosure.PubKeys {
+		for _, pubkey := range pubkeys {
 			xonlyKey := schnorr.SerializePubKey(pubkey)
 			if bytes.Equal(xonlyKey, delegatorXonlyKey) {
 				delegatorFound = true
