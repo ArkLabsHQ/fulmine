@@ -28,6 +28,8 @@ type Config struct {
 	DbType                string
 	GRPCPort              uint32
 	HTTPPort              uint32
+	DelegatorGRPCPort     uint32
+	DelegatorHTTPPort     uint32
 	WithTLS               bool
 	LogLevel              uint32
 	ArkServer             string
@@ -60,6 +62,8 @@ var (
 	DbType                = "DB_TYPE"
 	GRPCPort              = "GRPC_PORT"
 	HTTPPort              = "HTTP_PORT"
+	DelegatorGRPCPort     = "DELEGATOR_GRPC_PORT"
+	DelegatorHTTPPort     = "DELEGATOR_HTTP_PORT"
 	WithTLS               = "WITH_TLS"
 	LogLevel              = "LOG_LEVEL"
 	ArkServer             = "ARK_SERVER"
@@ -91,6 +95,8 @@ var (
 	dbType                  = sqliteDb
 	defaultGRPCPort         = 7000
 	defaultHTTPPort         = 7001
+	defaultDelegatorGRPCPort = 0 // 0 means use the same port as GRPCPort
+	defaultDelegatorHTTPPort = 0 // 0 means use the same port as HTTPPort
 	defaultWithTLS          = false
 	defaultLogLevel         = 4
 	defaultArkServer        = ""
@@ -120,6 +126,8 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(Datadir, defaultDatadir)
 	viper.SetDefault(GRPCPort, defaultGRPCPort)
 	viper.SetDefault(HTTPPort, defaultHTTPPort)
+	viper.SetDefault(DelegatorGRPCPort, defaultDelegatorGRPCPort)
+	viper.SetDefault(DelegatorHTTPPort, defaultDelegatorHTTPPort)
 	viper.SetDefault(WithTLS, defaultWithTLS)
 	viper.SetDefault(LogLevel, defaultLogLevel)
 	viper.SetDefault(ArkServer, defaultArkServer)
@@ -165,6 +173,8 @@ func LoadConfig() (*Config, error) {
 		DbType:                viper.GetString(DbType),
 		GRPCPort:              viper.GetUint32(GRPCPort),
 		HTTPPort:              viper.GetUint32(HTTPPort),
+		DelegatorGRPCPort:     viper.GetUint32(DelegatorGRPCPort),
+		DelegatorHTTPPort:     viper.GetUint32(DelegatorHTTPPort),
 		WithTLS:               viper.GetBool(WithTLS),
 		LogLevel:              viper.GetUint32(LogLevel),
 		ArkServer:             viper.GetString(ArkServer),

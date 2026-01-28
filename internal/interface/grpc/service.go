@@ -30,17 +30,20 @@ import (
 )
 
 type service struct {
-	cfg               Config
-	appSvc            *application.Service
-	delegatorSvc      *application.DelegatorService
-	httpServer        *http.Server
-	grpcServer        *grpc.Server
-	unlockerSvc       ports.Unlocker
-	macaroonSvc       macaroon.Service
-	appStopCh         chan struct{}
-	feStopCh          chan struct{}
-	otelShutdown      func()
-	pyroscopeShutdown func()
+	cfg                 Config
+	appSvc              *application.Service
+	delegatorSvc        *application.DelegatorService
+	httpServer          *http.Server
+	delegatorHTTPServer *http.Server
+	grpcServer          *grpc.Server
+	delegatorGrpcServer *grpc.Server
+	delegatorConn       *grpc.ClientConn
+	unlockerSvc         ports.Unlocker
+	macaroonSvc         macaroon.Service
+	appStopCh           chan struct{}
+	feStopCh            chan struct{}
+	otelShutdown        func()
+	pyroscopeShutdown   func()
 }
 
 func NewService(
@@ -117,13 +120,23 @@ func NewService(
 	serviceHandler := handlers.NewServiceHandler(appSvc)
 	pb.RegisterServiceServer(grpcServer, serviceHandler)
 
-	if delegatorSvc != nil {
-		delegateHandler := handlers.NewDelegatorHandler(delegatorSvc)
-		pb.RegisterDelegatorServiceServer(grpcServer, delegateHandler)
-	} 
-
 	notificationHandler := handlers.NewNotificationHandler(appSvc, appStopCh)
 	pb.RegisterNotificationServiceServer(grpcServer, notificationHandler)
+
+	// if a different delegator GRPC port is configured, we need a dedicated GRPC server for the delegator
+	var delegatorGrpcServer *grpc.Server
+	if delegatorSvc != nil {
+
+		if cfg.hasSeparateDelegatorPort() {
+			delegatorGrpcServer = grpc.NewServer(grpcConfig...)
+			delegateHandler := handlers.NewDelegatorHandler(delegatorSvc)
+			pb.RegisterDelegatorServiceServer(delegatorGrpcServer, delegateHandler)
+		} else {
+			// Register on main server if same port or no separate port configured
+			delegateHandler := handlers.NewDelegatorHandler(delegatorSvc)
+			pb.RegisterDelegatorServiceServer(grpcServer, delegateHandler)
+		}
+	}
 
 	healthHandler := handlers.NewHealthHandler(appSvc)
 	grpchealth.RegisterHealthServer(grpcServer, healthHandler)
@@ -140,6 +153,17 @@ func NewService(
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	// Create separate connection to delegator server if it's on a different port
+	var delegatorConn *grpc.ClientConn
+	if delegatorSvc != nil && cfg.hasSeparateDelegatorPort() {
+		delegatorConn, err = grpc.NewClient(
+			cfg.delegatorGatewayAddress(), gatewayOpts,
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	authHeaderMatcher := func(key string) (string, bool) {
@@ -200,9 +224,15 @@ func NewService(
 	); err != nil {
 		return nil, err
 	}
-	if delegatorSvc != nil {
+	
+	// register delegator service handler on main gateway if not using separate HTTP port
+	if delegatorSvc != nil && !cfg.hasSeparateDelegatorHTTPPort() {
+		delegatorConnToUse := conn
+		if delegatorConn != nil {
+			delegatorConnToUse = delegatorConn
+		}
 		if err := pb.RegisterDelegatorServiceHandler(
-			ctx, gwmux, conn,
+			ctx, gwmux, delegatorConnToUse,
 		); err != nil {
 			return nil, err
 		}
@@ -226,18 +256,63 @@ func NewService(
 		TLSConfig: cfg.tlsConfig(),
 	}
 
+	// if a different delegator HTTP port is configured, we need a dedicated HTTP server for the delegator
+	var delegatorHTTPServer *http.Server
+	if delegatorSvc != nil && cfg.hasSeparateDelegatorHTTPPort() {
+		delegatorConnToUse := conn
+		if delegatorConn != nil {
+			delegatorConnToUse = delegatorConn
+		}
+
+		delegatorGwmux := runtime.NewServeMux(
+			runtime.WithIncomingHeaderMatcher(authHeaderMatcher),
+			runtime.WithMarshalerOption("application/json+pretty", &runtime.JSONPb{
+				MarshalOptions: protojson.MarshalOptions{
+					Indent:    "  ",
+					Multiline: true,
+				},
+				UnmarshalOptions: protojson.UnmarshalOptions{
+					DiscardUnknown: true,
+				},
+			}),
+		)
+
+		if err := pb.RegisterDelegatorServiceHandler(
+			ctx, delegatorGwmux, delegatorConnToUse,
+		); err != nil {
+			return nil, err
+		}
+
+		delegatorMux := http.NewServeMux()
+		delegatorMux.Handle("/api/", http.StripPrefix("/api", delegatorGwmux))
+
+		delegatorHTTPHandler := http.Handler(delegatorMux)
+		if cfg.insecure() {
+			delegatorHTTPHandler = h2c.NewHandler(delegatorHTTPHandler, &http2.Server{})
+		}
+
+		delegatorHTTPServer = &http.Server{
+			Addr:      cfg.delegatorHTTPAddress(),
+			Handler:   delegatorHTTPHandler,
+			TLSConfig: cfg.tlsConfig(),
+		}
+	}
+
 	svc := &service{
-		cfg:               cfg,
-		appSvc:            appSvc,
-		delegatorSvc:      delegatorSvc,
-		httpServer:        httpServer,
-		grpcServer:        grpcServer,
-		unlockerSvc:       unlockerSvc,
-		macaroonSvc:       macaroonSvc,
-		appStopCh:         appStopCh,
-		feStopCh:          feStopCh,
-		otelShutdown:      otelShutdown,
-		pyroscopeShutdown: pyroscopeShutdown,
+		cfg:                 cfg,
+		appSvc:              appSvc,
+		delegatorSvc:        delegatorSvc,
+		httpServer:          httpServer,
+		delegatorHTTPServer: delegatorHTTPServer,
+		grpcServer:          grpcServer,
+		delegatorGrpcServer: delegatorGrpcServer,
+		delegatorConn:       delegatorConn,
+		unlockerSvc:         unlockerSvc,
+		macaroonSvc:         macaroonSvc,
+		appStopCh:           appStopCh,
+		feStopCh:            feStopCh,
+		otelShutdown:        otelShutdown,
+		pyroscopeShutdown:   pyroscopeShutdown,
 	}
 
 	if macaroonSvc != nil {
@@ -256,6 +331,16 @@ func (s *service) Start() error {
 	go s.grpcServer.Serve(listener)
 	log.Infof("started GRPC server at %s", s.cfg.grpcAddress())
 
+	if s.delegatorGrpcServer != nil {
+		delegatorListener, err := net.Listen("tcp", s.cfg.delegatorGRPCAddress())
+		if err != nil {
+			return err
+		}
+		// nolint:all
+		go s.delegatorGrpcServer.Serve(delegatorListener)
+		log.Infof("started Delegator GRPC server at %s", s.cfg.delegatorGRPCAddress())
+	}
+
 	if s.cfg.insecure() {
 		// nolint:all
 		go s.httpServer.ListenAndServe()
@@ -264,6 +349,17 @@ func (s *service) Start() error {
 		go s.httpServer.ListenAndServeTLS("", "")
 	}
 	log.Infof("started HTTP server at %s", s.cfg.httpAddress())
+
+	if s.delegatorHTTPServer != nil {
+		if s.cfg.insecure() {
+			// nolint:all
+			go s.delegatorHTTPServer.ListenAndServe()
+		} else {
+			// nolint:all
+			go s.delegatorHTTPServer.ListenAndServeTLS("", "")
+		}
+		log.Infof("started Delegator HTTP server at %s", s.cfg.delegatorHTTPAddress())
+	}
 
 	if s.unlockerSvc != nil {
 		if err := s.autoUnlock(); err != nil {
@@ -299,13 +395,31 @@ func (s *service) autoUnlock() error {
 func (s *service) Stop() {
 	s.appStopCh <- struct{}{}
 	s.feStopCh <- struct{}{}
-	
+
 	if s.delegatorSvc != nil {
 		s.delegatorSvc.Stop()
 	}
 
+	if s.delegatorGrpcServer != nil {
+		s.delegatorGrpcServer.GracefulStop()
+		log.Info("stopped delegator grpc server")
+	}
+
+	if s.delegatorConn != nil {
+		// nolint:all
+		s.delegatorConn.Close()
+		log.Info("closed delegator gateway connection")
+	}
+
 	s.grpcServer.GracefulStop()
 	log.Info("stopped grpc server")
+
+	if s.delegatorHTTPServer != nil {
+		// nolint:all
+		s.delegatorHTTPServer.Shutdown(context.Background())
+		log.Info("stopped delegator http server")
+	}
+
 	// nolint:all
 	s.httpServer.Shutdown(context.Background())
 	log.Info("stopped http server")
