@@ -8,10 +8,11 @@ require (
 )
 
 require (
+	github.com/ArkLabsHQ/fulmine v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-00010101000000-000000000000
 	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260102141947-c66f85422174
-	github.com/arkade-os/go-sdk v0.8.2-0.20260116135502-f54b28335c5d
+	github.com/arkade-os/go-sdk v0.8.2-0.20260121113217-12e71e4566e6
 	github.com/ccoveille/go-safecast v1.6.1
 )
 
@@ -19,19 +20,12 @@ require (
 	cel.dev/expr v0.24.0 // indirect
 	github.com/FactomProject/basen v0.0.0-20150613233007-fe3947df716e // indirect
 	github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec // indirect
-	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/btcsuite/btclog/v2 v2.0.1-0.20250602222548-9967d19bb084 // indirect
-	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
-	github.com/containerd/continuity v0.4.3 // indirect
-	github.com/docker/go-connections v0.5.0 // indirect
-	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/google/cel-go v0.26.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1 // indirect
-	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/lightningnetwork/lightning-onion v1.2.1-0.20240712235311-98bd56499dfb // indirect
 	github.com/lightningnetwork/lnd/fn/v2 v2.0.8 // indirect
@@ -39,17 +33,8 @@ require (
 	github.com/meshapi/grpc-api-gateway v0.1.0 // indirect
 	github.com/miekg/dns v1.1.62 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/opencontainers/image-spec v1.1.0 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect
 	github.com/vulpemventures/go-bip32 v0.0.0-20200624192635-867c159da4d7 // indirect
-	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
-	go.etcd.io/etcd/client/v2 v2.305.16 // indirect
-	go.etcd.io/etcd/pkg/v3 v3.5.16 // indirect
-	go.etcd.io/etcd/raft/v3 v3.5.16 // indirect
 	golang.org/x/mod v0.28.0 // indirect
 	golang.org/x/net v0.46.1-0.20251013234738-63d1a5100f82 // indirect
 	golang.org/x/text v0.30.0 // indirect
@@ -108,6 +93,7 @@ require (
 )
 
 replace (
+	github.com/ArkLabsHQ/fulmine => ../..
 	github.com/ArkLabsHQ/fulmine/pkg/boltz => ../boltz
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc => ../vhtlc
 )

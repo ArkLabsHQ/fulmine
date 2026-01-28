@@ -5,8 +5,8 @@ import (
 )
 
 templ Modal(content templ.Component) {
-  <div id="modalContainer" onclick="closeModal()" class="fixed inset-0 flex justify-center items-center bg-black/60">
-    <div onclick="event.stopPropagation()" class="bg-graybg relative rounded-xl shadow p-6 transition-all">
+  <div id="modalContainer" onclick="closeModal()" class="fixed inset-0 flex justify-center items-center bg-black/60 z-50">
+    <div onclick="event.stopPropagation()" class="bg-graybg relative rounded-xl shadow p-6 transition-all overflow-x-hidden max-w-[95vw]">
       @content
       <p
         class="bg-white/10 cursor-pointer p-3 rounded-full absolute top-6 right-6 text-white"
@@ -14,6 +14,13 @@ templ Modal(content templ.Component) {
     </div>
   </div>
   <script>
-    const closeModal = () => document.querySelector("#modalContainer").style.display = 'none'
+    const closeModal = () => {
+      const container = document.querySelector("#modalContainer")
+      if (container) container.style.display = 'none'
+    }
+    // Ensure modal is visible when swapped in
+    if (document.querySelector("#modalContainer")) {
+      document.querySelector("#modalContainer").style.display = 'flex'
+    }
   </script>
 }

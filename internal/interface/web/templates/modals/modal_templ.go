@@ -33,7 +33,7 @@ func Modal(content templ.Component) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"modalContainer\" onclick=\"closeModal()\" class=\"fixed inset-0 flex justify-center items-center bg-black/60\"><div onclick=\"event.stopPropagation()\" class=\"bg-graybg relative rounded-xl shadow p-6 transition-all\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div id=\"modalContainer\" onclick=\"closeModal()\" class=\"fixed inset-0 flex justify-center items-center bg-black/60 z-50\"><div onclick=\"event.stopPropagation()\" class=\"bg-graybg relative rounded-xl shadow p-6 transition-all overflow-x-hidden max-w-[95vw]\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -49,7 +49,7 @@ func Modal(content templ.Component) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p></div></div><script>\n    const closeModal = () => document.querySelector(\"#modalContainer\").style.display = 'none'\n  </script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</p></div></div><script>\n    const closeModal = () => {\n      const container = document.querySelector(\"#modalContainer\")\n      if (container) container.style.display = 'none'\n    }\n    // Ensure modal is visible when swapped in\n    if (document.querySelector(\"#modalContainer\")) {\n      document.querySelector(\"#modalContainer\").style.display = 'flex'\n    }\n  </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

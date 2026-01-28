@@ -21,7 +21,7 @@ type swapRepository struct {
 
 func NewSwapRepository(db *sql.DB) (domain.SwapRepository, error) {
 	if db == nil {
-		return nil, fmt.Errorf("cannot open vtxo rollover repository: db is nil")
+		return nil, fmt.Errorf("cannot open swap repository: db is nil")
 	}
 
 	return &swapRepository{
