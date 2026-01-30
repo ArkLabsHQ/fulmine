@@ -62,6 +62,113 @@
         ]
       }
     },
+    "/v1/chainswap": {
+      "post": {
+        "summary": "CreateChainSwap initiates a chain swap between Ark and Bitcoin",
+        "operationId": "Service_CreateChainSwap",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CreateChainSwapResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateChainSwapRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v1/chainswap/{id}/refund": {
+      "post": {
+        "summary": "RefundChainSwap initiates a cooperative refund for a chain swap",
+        "operationId": "Service_RefundChainSwap",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RefundChainSwapResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v1/chainswaps": {
+      "get": {
+        "summary": "ListChainSwaps retrieves all chain swaps",
+        "operationId": "Service_ListChainSwaps",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListChainSwapsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "swapIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/delegate/pubkey": {
       "get": {
         "summary": "GetDelegatePublicKey retrieves the Fulmine's public key to be included in VTXO scripts.",
@@ -859,6 +966,52 @@
         }
       }
     },
+    "v1ChainSwapResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "status": {
+          "type": "string"
+        },
+        "preimage": {
+          "type": "string"
+        },
+        "userLockupTxid": {
+          "type": "string"
+        },
+        "serverLockupTxid": {
+          "type": "string"
+        },
+        "claimTxid": {
+          "type": "string"
+        },
+        "refundTxid": {
+          "type": "string"
+        },
+        "btcAddress": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "int64"
+        },
+        "errorMessage": {
+          "type": "string"
+        }
+      }
+    },
     "v1ClaimPath": {
       "type": "object",
       "properties": {
@@ -882,6 +1035,63 @@
       "type": "object",
       "properties": {
         "redeemTxid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateChainSwapRequest": {
+      "type": "object",
+      "properties": {
+        "direction": {
+          "$ref": "#/definitions/v1SwapDirection",
+          "title": "Direction of the swap"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64",
+          "title": "Amount in satoshis"
+        },
+        "btcAddress": {
+          "type": "string",
+          "title": "For Ark→BTC: destination BTC address (required)"
+        }
+      }
+    },
+    "v1CreateChainSwapResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "userLockupTxid": {
+          "type": "string",
+          "title": "For Ark→BTC: VTXO lockup txid"
+        },
+        "lockupAddress": {
+          "type": "string",
+          "description": "For BTC→Ark: BTC address to send funds to",
+          "title": "For BTC→Ark: empty until user sends BTC"
+        },
+        "expectedAmount": {
+          "type": "string",
+          "format": "uint64",
+          "description": "For BTC→Ark: Expected amount including fees",
+          "title": "For Ark→BTC: empty"
+        },
+        "timeoutBlockHeight": {
+          "type": "string",
+          "format": "uint64",
+          "description": "Timeout block height (BTC→Ark)",
+          "title": "For Ark→BTC: same as request amount"
+        },
+        "preimageHash": {
+          "type": "string",
+          "title": "HTLC preimage hash"
+        },
+        "error": {
           "type": "string"
         }
       }
@@ -1127,6 +1337,18 @@
         }
       }
     },
+    "v1ListChainSwapsResponse": {
+      "type": "object",
+      "properties": {
+        "swaps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ChainSwapResponse"
+          }
+        }
+      }
+    },
     "v1ListVHTLCResponse": {
       "type": "object",
       "properties": {
@@ -1189,6 +1411,14 @@
       "type": "object",
       "properties": {
         "txid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1RefundChainSwapResponse": {
+      "type": "object",
+      "properties": {
+        "message": {
           "type": "string"
         }
       }
@@ -1348,6 +1578,16 @@
           "type": "string"
         }
       }
+    },
+    "v1SwapDirection": {
+      "type": "string",
+      "enum": [
+        "SWAP_DIRECTION_UNSPECIFIED",
+        "SWAP_DIRECTION_ARK_TO_BTC",
+        "SWAP_DIRECTION_BTC_TO_ARK"
+      ],
+      "default": "SWAP_DIRECTION_UNSPECIFIED",
+      "title": "SwapDirection specifies the direction of a chain swap"
     },
     "v1TaprootLeaf": {
       "type": "object",

@@ -231,7 +231,7 @@ func (boltz *Websocket) Reconnect() error {
 }
 
 func (boltz *Websocket) ConnectAndSubscribe(ctx context.Context, swapIds []string, retryInterval time.Duration) error {
-	err := Retry(ctx, 5*time.Second, func(ctx context.Context) (bool, error) {
+	err := Retry(ctx, retryInterval, func(ctx context.Context) (bool, error) {
 		err := boltz.Connect()
 		if err != nil {
 			return false, nil

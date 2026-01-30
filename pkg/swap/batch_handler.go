@@ -103,6 +103,8 @@ func newBatchSessionHandler(
 	}, nil
 }
 
+func (h *batchSessionHandler) OnStreamStartedEvent(event client.StreamStartedEvent) {}
+
 func (h *batchSessionHandler) OnBatchStarted(
 	ctx context.Context, event client.BatchStartedEvent,
 ) (bool, error) {

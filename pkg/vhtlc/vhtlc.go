@@ -84,7 +84,7 @@ func NewVhtlcScript(
 	preimageHash, claimLeaf, refundLeaf, refundWithoutReceiverLeaf, unilateralClaimLeaf,
 	unilateralRefundLeaf, unilateralRefundWithoutReceiverLeaf string,
 ) (*VHTLCScript, error) {
-	// Preimage hash
+	// ClaimPreimage hash
 	decodedPreimageHash, err := hex.DecodeString(preimageHash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode preimage hash: %w", err)

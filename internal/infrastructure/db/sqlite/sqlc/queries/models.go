@@ -8,6 +8,23 @@ import (
 	"database/sql"
 )
 
+type ChainSwap struct {
+	ID                   string
+	FromCurrency         string
+	ToCurrency           string
+	Amount               int64
+	Status               int64
+	UserLockupTxID       sql.NullString
+	ServerLockupTxID     sql.NullString
+	ClaimTxID            sql.NullString
+	ClaimPreimage        string
+	RefundTxID           sql.NullString
+	UserBtcLockupAddress sql.NullString
+	ErrorMessage         sql.NullString
+	CreatedAt            sql.NullInt64
+	UpdatedAt            sql.NullInt64
+}
+
 type Setting struct {
 	ID          int64
 	ApiRoot     string
