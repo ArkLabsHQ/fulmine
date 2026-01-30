@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -62,6 +63,19 @@ func (boltz *Api) CreateSwap(request CreateSwapRequest) (*CreateSwapResponse, er
 	return resp, nil
 }
 
+func (boltz *Api) RefundChainSwap(swapId string, request RefundSwapRequest) (*RefundSwapResponse, error) {
+	url := fmt.Sprintf("/swap/chain/%s/refund/ark", swapId)
+	resp, err := sendPostRequest[RefundSwapResponse](boltz, url, request)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Error != "" {
+		return nil, fmt.Errorf("%s", resp.Error)
+	}
+
+	return resp, nil
+}
+
 func (boltz *Api) RefundSubmarine(swapId string, request RefundSwapRequest) (*RefundSwapResponse, error) {
 	url := fmt.Sprintf("/swap/submarine/%s/refund/ark", swapId)
 	resp, err := sendPostRequest[RefundSwapResponse](boltz, url, request)
@@ -104,6 +118,51 @@ func (boltz *Api) GetSwapHistory(pubkey string) ([]Swap, error) {
 	return *resp, nil
 }
 
+// Chain Swap API Methods
+
+func (boltz *Api) CreateChainSwap(request CreateChainSwapRequest) (*CreateChainSwapResponse, error) {
+	resp, err := sendPostRequest[CreateChainSwapResponse](boltz, "/swap/chain", request)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Error != "" {
+		return nil, fmt.Errorf("%s", resp.Error)
+	}
+
+	return resp, nil
+}
+
+func (boltz *Api) GetChainSwapClaimDetails(swapId string) (*ChainSwapClaimDetailsResponse, error) {
+	url := fmt.Sprintf("/swap/chain/%s/claim", swapId)
+	return sendGetRequest[ChainSwapClaimDetailsResponse](boltz, url)
+}
+
+func (boltz *Api) SubmitChainSwapClaim(swapId string, request ChainSwapClaimRequest) (*PartialSignatureResponse, error) {
+	url := fmt.Sprintf("/swap/chain/%s/claim", swapId)
+	resp, err := sendPostRequest[PartialSignatureResponse](boltz, url, request)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (boltz *Api) GetChainSwapQuote(swapId string) (*QuoteResponse, error) {
+	url := fmt.Sprintf("/swap/chain/%s/quote", swapId)
+	return sendGetRequest[QuoteResponse](boltz, url)
+}
+
+func (boltz *Api) AcceptChainSwapQuote(swapId string, quote QuoteResponse) error {
+	url := fmt.Sprintf("/swap/chain/%s/quote", swapId)
+	_, err := sendPostRequest[QuoteResponse](boltz, url, quote)
+	return err
+}
+
+func (boltz *Api) GetChainSwapTransactions(swapId string) (*ChainSwapTransactionsResponse, error) {
+	url := fmt.Sprintf("/swap/chain/%s/transactions", swapId)
+	return sendGetRequest[ChainSwapTransactionsResponse](boltz, url)
+}
+
 const defaultHTTPTimeout = 15 * time.Second
 
 func withTimeoutCtx() (context.Context, context.CancelFunc) {
@@ -114,54 +173,89 @@ func sendGetRequest[T any](boltz *Api, endpoint string) (*T, error) {
 	ctx, cancel := withTimeoutCtx()
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, boltz.URL+"/v2"+endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("new GET %s: %w", endpoint, err)
-	}
-	req.Header.Set("Accept", "application/json")
-
-	res, err := boltz.Client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("GET %s: %w", endpoint, err)
-	}
-
-	return unmarshalJson[T](res.Body)
+	url := boltz.URL + "/v2" + endpoint
+	return callApi[T](ctx, &boltz.Client, http.MethodGet, url, nil)
 }
 
 func sendPostRequest[T any](boltz *Api, endpoint string, requestBody any) (*T, error) {
-	rawBody, err := json.Marshal(requestBody)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
 	ctx, cancel := withTimeoutCtx()
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, boltz.URL+"/v2"+endpoint, bytes.NewReader(rawBody))
-	if err != nil {
-		return nil, fmt.Errorf("new POST %s: %w", endpoint, err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	res, err := boltz.Client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("POST %s: %w", endpoint, err)
-
-	}
-
-	return unmarshalJson[T](res.Body)
+	url := boltz.URL + "/v2" + endpoint
+	return callApi[T](ctx, &boltz.Client, http.MethodPost, url, requestBody)
 }
 
-func unmarshalJson[T any](body io.ReadCloser) (*T, error) {
-	rawBody, err := io.ReadAll(body)
-	if err != nil {
-		return nil, err
+func callApi[T any](ctx context.Context, c *http.Client, method, url string, reqBody any) (*T, error) {
+	var body io.Reader
+	if reqBody != nil {
+		b, err := json.Marshal(reqBody)
+		if err != nil {
+			return nil, fmt.Errorf("marshal request: %w", err)
+		}
+		body = bytes.NewReader(b)
 	}
 
-	var res T
-	if err := json.Unmarshal(rawBody, &res); err != nil {
-		return nil, err
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
+	if err != nil {
+		return nil, fmt.Errorf("new %s %s: %w", method, url, err)
 	}
-	return &res, nil
+	req.Header.Set("Accept", "application/json")
+	if reqBody != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	res, err := c.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", method, url, err)
+	}
+	defer res.Body.Close()
+
+	raw, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+
+	// If not 2xx, return a real error (include body for debugging)
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		// Try to extract a JSON "error" message if present, otherwise include raw (truncated)
+		msg := strings.TrimSpace(string(raw))
+		if len(msg) > 2000 {
+			msg = msg[:2000] + "...(truncated)"
+		}
+		return nil, &HTTPError{
+			Method:     method,
+			URL:        url,
+			StatusCode: res.StatusCode,
+			Body:       msg,
+		}
+	}
+
+	// Handle empty body for 204 etc.
+	if len(bytes.TrimSpace(raw)) == 0 {
+		var zero T
+		return &zero, nil
+	}
+
+	var out T
+	if err := json.Unmarshal(raw, &out); err != nil {
+		// Helpful when server returns HTML or plain text
+		snip := strings.TrimSpace(string(raw))
+		if len(snip) > 300 {
+			snip = snip[:300] + "...(truncated)"
+		}
+		return nil, fmt.Errorf("unmarshal JSON: %w (body: %q)", err, snip)
+	}
+
+	return &out, nil
+}
+
+type HTTPError struct {
+	Method     string
+	URL        string
+	StatusCode int
+	Body       string
+}
+
+func (e *HTTPError) Error() string {
+	return fmt.Sprintf("%s %s: HTTP %d: %s", e.Method, e.URL, e.StatusCode, e.Body)
 }

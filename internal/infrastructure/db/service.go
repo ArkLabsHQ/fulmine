@@ -40,6 +40,7 @@ type service struct {
 	vtxoRolloverRepo     domain.VtxoRolloverRepository
 	swapRepo             domain.SwapRepository
 	subscribedScriptRepo domain.SubscribedScriptRepository
+	chainSwapRepo        domain.ChainSwapRepository
 }
 
 func NewService(config ServiceConfig) (ports.RepoManager, error) {
@@ -49,6 +50,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		vtxoRolloverRepo     domain.VtxoRolloverRepository
 		swapRepo             domain.SwapRepository
 		subscribedScriptRepo domain.SubscribedScriptRepository
+		chainSwapRepo        domain.ChainSwapRepository
 		err                  error
 	)
 
@@ -166,6 +168,11 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 			return nil, fmt.Errorf("failed to open subscribed script db: %s", err)
 		}
 
+		chainSwapRepo, err = sqlitedb.NewChainSwapRepository(db)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open chain swap db: %s", err)
+		}
+
 	default:
 		return nil, fmt.Errorf("unsopported db type %s, please select one of %s", config.DbType, allowedTypes)
 	}
@@ -176,6 +183,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		vtxoRolloverRepo:     vtxoRolloverRepo,
 		swapRepo:             swapRepo,
 		subscribedScriptRepo: subscribedScriptRepo,
+		chainSwapRepo:        chainSwapRepo,
 	}, nil
 }
 
@@ -197,6 +205,10 @@ func (s *service) Swap() domain.SwapRepository {
 
 func (s *service) SubscribedScript() domain.SubscribedScriptRepository {
 	return s.subscribedScriptRepo
+}
+
+func (s *service) ChainSwaps() domain.ChainSwapRepository {
+	return s.chainSwapRepo
 }
 
 func (s *service) Close() {

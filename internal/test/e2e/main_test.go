@@ -3,34 +3,31 @@ package e2e_test
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 )
 
-func TestMain(m *testing.M) {
-	ctx := context.Background()
-
-	if err := refillArkd(ctx); err != nil {
-		log.Fatalf("❌ failed to refill Arkade server: %s", err)
-	}
-
-	if err := refillFulmineBoltz(ctx); err != nil {
-		log.Fatalf("❌ failed to refill Fulmine used by Boltz: %s", err)
-	}
-
-	if err := refillFulmineClient(ctx); err != nil {
-		log.Fatalf("❌ failed to refill Fulmine used by Client: %s", err)
-	}
-
-	os.Exit(m.Run())
-}
+//func TestMain(m *testing.M) {
+//	ctx := context.Background()
+//
+//	if err := refillArkd(ctx); err != nil {
+//		log.Fatalf("❌ failed to refill Arkade server: %s", err)
+//	}
+//
+//	if err := refillFulmineBoltz(ctx); err != nil {
+//		log.Fatalf("❌ failed to refill Fulmine used by Boltz: %s", err)
+//	}
+//
+//	if err := refillFulmineClient(ctx); err != nil {
+//		log.Fatalf("❌ failed to refill Fulmine used by Client: %s", err)
+//	}
+//
+//	os.Exit(m.Run())
+//}
 
 func refillArkd(ctx context.Context) error {
 	arkdExec := "docker exec arkd arkd"

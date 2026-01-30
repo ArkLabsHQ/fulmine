@@ -40,6 +40,8 @@ type SwapHandler struct {
 	transportClient client.TransportClient
 	indexerClient   indexer.Indexer
 	boltzSvc        *boltz.Api
+	explorerClient  ExplorerClient
+	privateKey      *btcec.PrivateKey
 	publicKey       *btcec.PublicKey
 	timeout         uint32
 	config          types.Config
@@ -54,21 +56,26 @@ const (
 )
 
 type Swap struct {
-	Id           string
-	Invoice      string
-	TxId         string
-	Timestamp    int64
-	RedeemTxid   string
-	Status       SwapStatus
-	PreimageHash []byte
-	TimeoutInfo  boltz.TimeoutBlockHeights
-	Opts         *vhtlc.Opts
-	Amount       uint64
+	Id                 string
+	Invoice            string
+	TxId               string
+	Timestamp          int64
+	RedeemTxid         string
+	Status             SwapStatus
+	PreimageHash       []byte
+	TimeoutInfo        boltz.TimeoutBlockHeights
+	Opts               *vhtlc.Opts
+	Amount             uint64
 }
 
 func NewSwapHandler(
-	arkClient arksdk.ArkClient, transportClient client.TransportClient,
-	indexerClient indexer.Indexer, boltzSvc *boltz.Api, publicKey *btcec.PublicKey, timeout uint32,
+	arkClient arksdk.ArkClient,
+	transportClient client.TransportClient,
+	indexerClient indexer.Indexer,
+	boltzSvc *boltz.Api,
+	esploraURL string,
+	privateKey *btcec.PrivateKey,
+	timeout uint32,
 ) (*SwapHandler, error) {
 	cfg, err := arkClient.GetConfigData(context.Background())
 	if err != nil {
@@ -79,7 +86,9 @@ func NewSwapHandler(
 		transportClient: transportClient,
 		indexerClient:   indexerClient,
 		boltzSvc:        boltzSvc,
-		publicKey:       publicKey,
+		explorerClient:  NewExplorerClient(esploraURL),
+		privateKey:      privateKey,
+		publicKey:       privateKey.PubKey(),
 		timeout:         timeout,
 		config:          *cfg,
 	}, nil
@@ -298,7 +307,7 @@ func (h *SwapHandler) ClaimVHTLC(
 }
 
 func (h *SwapHandler) RefundSwap(
-	ctx context.Context, swapId string, withReceiver bool, vhtlcOpts vhtlc.Opts,
+	ctx context.Context, swapType, swapId string, withReceiver bool, vhtlcOpts vhtlc.Opts,
 ) (string, error) {
 	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
 	if err != nil {
@@ -436,7 +445,7 @@ func (h *SwapHandler) RefundSwap(
 		pubKeysToVerify = append(pubKeysToVerify, vhtlcOpts.Receiver)
 
 		boltzSignedRefundPtx, boltzSignedCheckpointPtx, err := h.collaborativeRefund(
-			swapId, unsignedRefundTx, unsignedCheckpointTx)
+			swapType, swapId, unsignedRefundTx, unsignedCheckpointTx)
 
 		if err != nil {
 			return "", err
@@ -803,7 +812,7 @@ func (h *SwapHandler) submarineSwap(
 				withReceiver := true
 				swapDetails.Status = SwapFailed
 
-				txid, err := h.RefundSwap(context.Background(), swap.Id, withReceiver, *vhtlcOpts)
+				txid, err := h.RefundSwap(context.Background(), SwapTypeSubmarine, swap.Id, withReceiver, *vhtlcOpts)
 				if err != nil {
 					log.WithError(err).Warnf("failed to refund swap %s collaboratively", swap.Id)
 					go func() {
@@ -1066,23 +1075,37 @@ func (h *SwapHandler) waitAndClaim(
 	}
 }
 
+const (
+	SwapTypeSubmarine = "submarine"
+	SwapTypeChain     = "chain"
+)
+
 func (h *SwapHandler) collaborativeRefund(
-	swapId, refundTx, checkpointTx string,
+	swapType string, swapId, refundTx, checkpointTx string,
 ) (*psbt.Packet, *psbt.Packet, error) {
-	tx, err := h.boltzSvc.RefundSubmarine(swapId, boltz.RefundSwapRequest{
-		Transaction: refundTx,
-		Checkpoint:  checkpointTx,
-	})
-	if err != nil {
-		return nil, nil, err
+	var (
+		refundResp *boltz.RefundSwapResponse
+		err        error
+	)
+	switch swapType {
+	case SwapTypeSubmarine:
+		refundResp, err = h.boltzSvc.RefundSubmarine(swapId, boltz.RefundSwapRequest{
+			Transaction: refundTx,
+			Checkpoint:  checkpointTx,
+		})
+	case SwapTypeChain:
+		refundResp, err = h.boltzSvc.RefundChainSwap(swapId, boltz.RefundSwapRequest{
+			Transaction: refundTx,
+			Checkpoint:  checkpointTx,
+		})
 	}
 
-	refundPtx, err := psbt.NewFromRawBytes(strings.NewReader(tx.Transaction), true)
+	refundPtx, err := psbt.NewFromRawBytes(strings.NewReader(refundResp.Transaction), true)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decode refund tx signed by boltz: %s", err)
 	}
 
-	checkpointPtx, err := psbt.NewFromRawBytes(strings.NewReader(tx.Checkpoint), true)
+	checkpointPtx, err := psbt.NewFromRawBytes(strings.NewReader(refundResp.Checkpoint), true)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decode checkpoint tx signed by boltz: %s", err)
 	}

@@ -69,10 +69,11 @@ services:
       - arkd-wallet
     ports:
       - "7070:7070"
+      - "7071:7071"
     environment:
       - ARKD_LOG_LEVEL=6
       - ARKD_NO_MACAROONS=true
-      - ARKD_VTXO_TREE_EXPIRY=1024
+      - ARKD_VTXO_TREE_EXPIRY=512
       - ARKD_UNILATERAL_EXIT_DELAY=512
       - ARKD_PUBLIC_UNILATERAL_EXIT_DELAY=512
       - ARKD_BOARDING_EXIT_DELAY=2048
@@ -182,7 +183,7 @@ services:
       - '10010:10009'
   boltz:
     restart: unless-stopped
-    image: boltz/boltz:ark
+    image: boltz/boltz:latest
     container_name: boltz
     ports:
       - '9000:9000'

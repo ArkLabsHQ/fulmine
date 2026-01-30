@@ -88,3 +88,36 @@ SELECT * FROM subscribed_script;
 
 -- name: DeleteSubscribedScript :exec
 DELETE FROM subscribed_script WHERE script = ?;
+
+-- ChainSwap queries
+-- name: CreateChainSwap :exec
+INSERT INTO chain_swap (
+    id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id,
+    claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- name: GetChainSwap :one
+SELECT * FROM chain_swap WHERE id = ?;
+
+-- name: ListChainSwaps :many
+SELECT * FROM chain_swap ORDER BY created_at DESC;
+
+-- name: ListChainSwapsByIDs :many
+SELECT * FROM chain_swap WHERE id IN (sqlc.slice('ids')) ORDER BY created_at DESC;
+
+-- name: ListChainSwapsByStatus :many
+SELECT * FROM chain_swap WHERE status = ? ORDER BY created_at DESC;
+
+-- name: UpdateChainSwap :exec
+UPDATE chain_swap
+SET status = ?,
+    user_lockup_tx_id = ?,
+    server_lockup_tx_id = ?,
+    claim_tx_id = ?,
+    refund_tx_id = ?,
+    error_message = ?,
+    updated_at = strftime('%s', 'now')
+WHERE id = ?;
+
+-- name: DeleteChainSwap :exec
+DELETE FROM chain_swap WHERE id = ?;

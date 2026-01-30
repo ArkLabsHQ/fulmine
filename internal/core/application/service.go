@@ -32,6 +32,7 @@ import (
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
+	"github.com/btcsuite/btcd/chaincfg"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -52,6 +53,23 @@ var boltzURLByNetwork = map[string]string{
 	arklib.BitcoinTestNet.Name:   "https://api.testnet.boltz.exchange",
 	arklib.BitcoinMutinyNet.Name: "https://api.boltz.mutinynet.arkade.sh",
 	arklib.BitcoinRegTest.Name:   "http://localhost:9001",
+}
+
+// networkNameToParams converts arklib network name to chaincfg.Params
+func networkNameToParams(networkName string) *chaincfg.Params {
+	switch networkName {
+	case arklib.Bitcoin.Name:
+		return &chaincfg.MainNetParams
+	case arklib.BitcoinTestNet.Name:
+		return &chaincfg.TestNet3Params
+	case arklib.BitcoinRegTest.Name:
+		return &chaincfg.RegressionNetParams
+	case arklib.BitcoinSigNet.Name, arklib.BitcoinMutinyNet.Name:
+		return &chaincfg.SigNetParams
+	default:
+		// Default to regtest for safety
+		return &chaincfg.RegressionNetParams
+	}
 }
 
 type BuildInfo struct {
@@ -515,8 +533,11 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		s.privateKey = privkey
 		// nolint
 		s.swapHandler, _ = swap.NewSwapHandler(
-			s.ArkClient, s.grpcClient, s.indexerClient, s.boltzSvc, s.publicKey, s.swapTimeout,
+			s.ArkClient, s.grpcClient, s.indexerClient, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
 		)
+
+		//TODO Recover pending chain swaps after crash/restart
+		//go s.recoverChainSwaps(context.Background(), arkConfig)
 	}()
 
 	// This go routine takes care of establishing the LN connection, if configured.
@@ -975,7 +996,7 @@ func (s *Service) RefundVHTLC(
 	ctx context.Context, swapId, vhtlc_id string, withReceiver bool,
 ) (string, error) {
 	return s.withVhtlc(ctx, vhtlc_id, func(opts vhtlc.Opts) (string, error) {
-		return s.swapHandler.RefundSwap(ctx, swapId, withReceiver, opts)
+		return s.swapHandler.RefundSwap(ctx, swap.SwapTypeSubmarine, swapId, withReceiver, opts)
 	})
 }
 
@@ -1411,6 +1432,207 @@ func (s *Service) GetSwapHistory(ctx context.Context) ([]domain.Swap, error) {
 		return all[i].Timestamp > all[j].Timestamp
 	})
 	return all, nil
+}
+
+// CreateChainSwapArkToBtc initiates Ark → BTC chain swap
+func (s *Service) CreateChainSwapArkToBtc(
+	_ context.Context,
+	amount uint64,
+	btcAddress string,
+) (*domain.ChainSwap, error) {
+	ctx := context.Background()
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil, err
+	}
+
+	config, err := s.GetConfigData(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get config: %w", err)
+	}
+
+	network := networkNameToParams(config.Network.Name)
+
+	eventCallback := func(event swap.ChainSwapEvent) {
+		s.handleChainSwapEvent(context.Background(), event)
+	}
+
+	unilateralRefund := func(swapId string, opts vhtlc.Opts) error {
+		err := s.scheduleChainSwapRefund(swapId, opts)
+		return err
+	}
+
+	chainSwap, err := s.swapHandler.ChainSwapArkToBtc(
+		ctx, amount, btcAddress, network, eventCallback, unilateralRefund,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create chain swap: %w", err)
+	}
+
+	domainSwap := &domain.ChainSwap{
+		Id:            chainSwap.Id,
+		From:          boltz.CurrencyArk,
+		To:            boltz.CurrencyBtc,
+		Amount:        chainSwap.Amount,
+		Status:        domain.ChainSwapPending,
+		ClaimPreimage: hex.EncodeToString(chainSwap.Preimage),
+	}
+
+	if err := s.dbSvc.ChainSwaps().Add(ctx, *domainSwap); err != nil {
+		return nil, fmt.Errorf("failed to persist chain swap: %w", err)
+	}
+
+	log.Infof("Created chain swap %s: Ark → BTC", domainSwap.Id)
+	return domainSwap, nil
+}
+
+// CreateBtcToArkChainSwap initiates BTC → Ark chain swap
+func (s *Service) CreateBtcToArkChainSwap(
+	ctx context.Context,
+	amount uint64,
+) (*domain.ChainSwap, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil, err
+	}
+
+	config, err := s.GetConfigData(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get config: %w", err)
+	}
+
+	network := networkNameToParams(config.Network.Name)
+
+	eventCallback := func(event swap.ChainSwapEvent) {
+		s.handleChainSwapEvent(context.Background(), event)
+	}
+
+	swap, err := s.swapHandler.ChainSwapBtcToArk(ctx, amount, network, eventCallback)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create chain swap: %w", err)
+	}
+
+	domainSwap := &domain.ChainSwap{
+		Id:                   swap.Id,
+		From:                 boltz.CurrencyBtc,
+		To:                   boltz.CurrencyArk,
+		Amount:               swap.Amount,
+		Status:               domain.ChainSwapPending,
+		ClaimPreimage:        hex.EncodeToString(swap.Preimage),
+		UserBtcLockupAddress: swap.UserBtcLockupAddress,
+	}
+
+	if err := s.dbSvc.ChainSwaps().Add(ctx, *domainSwap); err != nil {
+		return nil, fmt.Errorf("failed to persist chain swap: %w", err)
+	}
+
+	log.Infof("Created chain swap %s: BTC → Ark, lockup address: %s", domainSwap.Id, swap.UserBtcLockupAddress)
+	return domainSwap, nil
+}
+
+// handleChainSwapEvent processes typed domain events from ChainSwap
+// Implements the DDD pattern: fetch domain entity → call domain method → persist
+func (s *Service) handleChainSwapEvent(ctx context.Context, event swap.ChainSwapEvent) {
+	switch e := event.(type) {
+	case swap.UserLockEvent:
+		domainSwap, err := s.dbSvc.ChainSwaps().Get(ctx, e.SwapID)
+		if err != nil {
+			log.WithError(err).Errorf("Failed to get chain swap %s for UserLockEvent", e.SwapID)
+			return
+		}
+		domainSwap.UserLocked(e.TxID)
+		if err := s.dbSvc.ChainSwaps().Update(ctx, *domainSwap); err != nil {
+			log.WithError(err).Errorf("Failed to update chain swap %s after UserLockEvent", e.SwapID)
+		}
+
+	case swap.ServerLockEvent:
+		domainSwap, err := s.dbSvc.ChainSwaps().Get(ctx, e.SwapID)
+		if err != nil {
+			log.WithError(err).Errorf("Failed to get chain swap %s for ServerLockEvent", e.SwapID)
+			return
+		}
+		domainSwap.ServerLocked(e.TxID)
+		if err := s.dbSvc.ChainSwaps().Update(ctx, *domainSwap); err != nil {
+			log.WithError(err).Errorf("Failed to update chain swap %s after ServerLockEvent", e.SwapID)
+		}
+
+	case swap.ClaimEvent:
+		domainSwap, err := s.dbSvc.ChainSwaps().Get(ctx, e.SwapID)
+		if err != nil {
+			log.WithError(err).Errorf("Failed to get chain swap %s for ClaimEvent", e.SwapID)
+			return
+		}
+		domainSwap.Claimed(e.TxID)
+		if err := s.dbSvc.ChainSwaps().Update(ctx, *domainSwap); err != nil {
+			log.WithError(err).Errorf("Failed to update chain swap %s after ClaimEvent", e.SwapID)
+		}
+
+	case swap.RefundEvent:
+		domainSwap, err := s.dbSvc.ChainSwaps().Get(ctx, e.SwapID)
+		if err != nil {
+			log.WithError(err).Errorf("Failed to get chain swap %s for RefundEvent", e.SwapID)
+			return
+		}
+		domainSwap.Refunded(e.TxID)
+		if err := s.dbSvc.ChainSwaps().Update(ctx, *domainSwap); err != nil {
+			log.WithError(err).Errorf("Failed to update chain swap %s after RefundEvent", e.SwapID)
+		}
+
+	case swap.FailEvent:
+		domainSwap, err := s.dbSvc.ChainSwaps().Get(ctx, e.SwapID)
+		if err != nil {
+			log.WithError(err).Errorf("Failed to get chain swap %s for FailEvent", e.SwapID)
+			return
+		}
+		domainSwap.Failed(e.Error)
+		if err := s.dbSvc.ChainSwaps().Update(ctx, *domainSwap); err != nil {
+			log.WithError(err).Errorf("Failed to update chain swap %s after FailEvent", e.SwapID)
+		}
+
+	case swap.RefundFailedEvent:
+		domainSwap, err := s.dbSvc.ChainSwaps().Get(ctx, e.SwapID)
+		if err != nil {
+			log.WithError(err).Errorf("Failed to get chain swap %s for RefundFailedEvent", e.SwapID)
+			return
+		}
+		domainSwap.RefundFailed(e.Error)
+		if err := s.dbSvc.ChainSwaps().Update(ctx, *domainSwap); err != nil {
+			log.WithError(err).Errorf("Failed to update chain swap %s after RefundFailedEvent", e.SwapID)
+		}
+
+	case swap.UserLockFailedEvent:
+		domainSwap, err := s.dbSvc.ChainSwaps().Get(ctx, e.SwapID)
+		if err != nil {
+			log.WithError(err).Errorf("Failed to get chain swap %s for UserLockFailedEvent", e.SwapID)
+			return
+		}
+		domainSwap.UserLockFailed(e.Error)
+		if err := s.dbSvc.ChainSwaps().Update(ctx, *domainSwap); err != nil {
+			log.WithError(err).Errorf("Failed to update chain swap %s after UserLockFailedEvent", e.SwapID)
+		}
+
+	default:
+		log.Warnf("Unknown chain swap event type: %T", e)
+	}
+}
+
+func (s *Service) ListChainSwaps(ctx context.Context, swapIDs []string) ([]domain.ChainSwap, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil, err
+	}
+
+	if len(swapIDs) == 0 {
+		return s.dbSvc.ChainSwaps().GetAll(ctx)
+	}
+
+	return s.dbSvc.ChainSwaps().GetByIDs(ctx, swapIDs)
+}
+
+func (s *Service) RefundChainSwap(ctx context.Context, id string) error {
+	//TODO implement for BTC to ARK refunding of BTX tx with bellow flow:
+	// 1. get chain swap from db
+	// 2. find btx tx
+	// 3. claim it and send it to boarding address
+	// 4. settle
+	return nil
 }
 
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
@@ -1873,7 +2095,9 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 			return
 		}
 
-		txid, err := s.swapHandler.RefundSwap(context.Background(), swapId, false, opts)
+		txid, err := s.swapHandler.RefundSwap(
+			context.Background(), swap.SwapTypeSubmarine, swapId, false, opts,
+		)
 		if err != nil {
 			log.WithError(err).Error("failed to refund vhtlc")
 			return
@@ -1905,6 +2129,71 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 			return err
 		}
 		log.Debugf("scheduling vhtlc refund of swap %s at height %d", swapId, int64(refundLT))
+	}
+
+	return err
+}
+
+func (s *Service) scheduleChainSwapRefund(swapId string, opts vhtlc.Opts) (err error) {
+	unilateral := func() {
+		chainSwap, err := s.dbSvc.ChainSwaps().Get(context.Background(), swapId)
+		if err != nil {
+			log.WithError(err).Errorf("failed to get chain swap %s", swapId)
+			return
+		}
+
+		vtxos, err := s.swapHandler.GetVHTLCFunds(context.Background(), []vhtlc.Opts{opts})
+		if err != nil {
+			log.WithError(err).Error("failed to check vhtlc status")
+			return
+		}
+		if len(vtxos) == 0 {
+			log.WithError(err).Errorf("vhtlc %s not found", opts.PreimageHash)
+			return
+		}
+
+		if vtxos[0].Spent {
+			errMsg := fmt.Sprintf("failed to refund chain chain swap:%v", chainSwap.Id)
+			log.Warn(errMsg)
+
+			chainSwap.Failed(errMsg)
+
+			if err := s.dbSvc.ChainSwaps().Update(context.Background(), *chainSwap); err != nil {
+				log.WithError(err).Error("failed to update chain swap data to db")
+			}
+			return
+		}
+
+		txid, err := s.swapHandler.RefundSwap(
+			context.Background(), swap.SwapTypeChain, swapId, false, opts,
+		)
+		if err != nil {
+			log.WithError(err).Error("failed to refund chain swap vhtlc")
+			return
+		}
+
+		chainSwap.Refunded(txid)
+
+		if err := s.dbSvc.ChainSwaps().Update(context.Background(), *chainSwap); err != nil {
+			log.WithError(err).Error("failed to update chain swap data to db")
+		}
+
+		log.Infof("chain swap vhtlc refunded %s", txid)
+	}
+
+	refundLT := opts.RefundLocktime
+
+	if refundLT.IsSeconds() {
+		at := time.Unix(int64(refundLT), 0)
+		if err := s.schedulerSvc.ScheduleRefundAtTime(at, unilateral); err != nil {
+			return err
+		}
+		log.Debugf("scheduled unilateral refund of chain swap %s at %s", swapId, at.Format(time.RFC3339))
+	} else {
+		if err := s.schedulerSvc.ScheduleRefundAtHeight(uint32(refundLT), unilateral); err != nil {
+			return err
+		}
+		log.Debugf("scheduling chain swap vhtlc refund of swap %s at height %d", swapId, int64(refundLT))
 	}
 
 	return err
