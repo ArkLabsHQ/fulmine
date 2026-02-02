@@ -26,7 +26,6 @@ type MuSigContext struct {
 	publicKey      *btcec.PublicKey
 	theirPublicKey *btcec.PublicKey
 
-	// ourNonces contains BOTH secret and public nonce. The secret part must never be reused.
 	ourNonces *musig2.Nonces
 }
 
@@ -65,19 +64,6 @@ func (c *MuSigContext) GenerateNonce() ([66]byte, error) {
 
 	c.ourNonces = nonces
 	return nonces.PubNonce, nil
-}
-
-// HaveNonce returns true if GenerateNonce was called.
-func (c *MuSigContext) HaveNonce() bool {
-	return c.ourNonces != nil
-}
-
-// OurPubNonce returns our pubnonce. GenerateNonce must be called first.
-func (c *MuSigContext) OurPubNonce() ([66]byte, error) {
-	if c.ourNonces == nil {
-		return [66]byte{}, fmt.Errorf("nonce not generated")
-	}
-	return c.ourNonces.PubNonce, nil
 }
 
 // AggregateNonces aggregates our pubnonce and their pubnonce.
@@ -281,18 +267,6 @@ func ParsePartialSignatureScalar32(sigHex string) (*musig2.PartialSignature, err
 
 	return ps, nil
 }
-
-// SerializePartialSignatureScalar32 serializes a partial signature to Boltz format: 32-byte S scalar hex.
-func SerializePartialSignatureScalar32(ps *musig2.PartialSignature) (string, error) {
-	if ps == nil || ps.S == nil {
-		return "", fmt.Errorf("nil partial signature")
-	}
-	var b [32]byte
-	ps.S.PutBytesUnchecked(b[:])
-	return hex.EncodeToString(b[:]), nil
-}
-
-// --- Prevout fetcher helper ---
 
 func NewPrevOutputFetcher(prevOut *wire.TxOut, prevOutPoint wire.OutPoint) txscript.PrevOutputFetcher {
 	return txscript.NewMultiPrevOutFetcher(map[wire.OutPoint]*wire.TxOut{

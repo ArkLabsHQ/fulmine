@@ -312,7 +312,9 @@ func (h *arkToBtcHandler) claimBtcLockupCooperative(
 		return "", fmt.Errorf("parse boltz nonce: %w", err)
 	}
 
-	prevOutFetcher := NewPrevOutputFetcher(setup.prevOut, setup.prevOutPoint)
+	prevOutFetcher := txscript.NewMultiPrevOutFetcher(map[wire.OutPoint]*wire.TxOut{
+		setup.prevOutPoint: setup.prevOut,
+	})
 
 	msg, err := TaprootMessage(setup.claimTx, 0, prevOutFetcher)
 	if err != nil {
@@ -415,7 +417,9 @@ func (h *arkToBtcHandler) claimBtcLockupScriptPath(
 		return "", fmt.Errorf("failed to create control block: %w", err)
 	}
 
-	prevOutFetcher := NewPrevOutputFetcher(setup.prevOut, setup.prevOutPoint)
+	prevOutFetcher := txscript.NewMultiPrevOutFetcher(map[wire.OutPoint]*wire.TxOut{
+		setup.prevOutPoint: setup.prevOut,
+	})
 
 	sigHashes := txscript.NewTxSigHashes(setup.claimTx, prevOutFetcher)
 	sigHash, err := txscript.CalcTapscriptSignaturehash(
