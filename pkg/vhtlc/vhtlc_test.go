@@ -241,7 +241,7 @@ func TestVHTLC(t *testing.T) {
 
 		require.Len(t, witness, 4, "Claim witness should have 4 elements")
 		require.Len(t, witness[0], 64, "Schnorr signature should be 64 bytes")
-		require.Len(t, witness[1], 32, "ClaimPreimage should be 32 bytes")
+		require.Len(t, witness[1], 32, "Preimage should be 32 bytes")
 		require.NotEmpty(t, witness[2], "Claim script should not be empty")
 		require.NotEmpty(t, witness[3], "Control block should not be empty")
 	})

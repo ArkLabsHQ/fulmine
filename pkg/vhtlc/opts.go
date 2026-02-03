@@ -82,7 +82,7 @@ func (o Opts) refundWithoutReceiverClosure() *script.CLTVMultisigClosure {
 	}
 }
 
-// unilateralClaimClosure = (Receiver + ClaimPreimage) at UnilateralClaimDelay
+// unilateralClaimClosure = (Receiver + Preimage) at UnilateralClaimDelay
 func (o Opts) unilateralClaimClosure(
 	preimageCondition []byte,
 ) *script.ConditionCSVMultisigClosure {
