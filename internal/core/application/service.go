@@ -2153,7 +2153,9 @@ func (s *Service) scheduleChainSwapRefund(swapId string, opts vhtlc.Opts) (err e
 		}
 
 		if vtxos[0].Spent {
-			errMsg := fmt.Sprintf("failed to refund chain chain swap:%v", chainSwap.Id)
+			errMsg := fmt.Sprintf(
+				"cannot refund chain swap %v: VTXO already spent (may have been claimed)", chainSwap.Id,
+			)
 			log.Warn(errMsg)
 
 			chainSwap.Failed(errMsg)

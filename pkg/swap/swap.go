@@ -444,8 +444,17 @@ func (h *SwapHandler) RefundSwap(
 	if withReceiver {
 		pubKeysToVerify = append(pubKeysToVerify, vhtlcOpts.Receiver)
 
+		// Determine which refund function to use based on swap type
+		var refundFunc func(string, boltz.RefundSwapRequest) (*boltz.RefundSwapResponse, error)
+		switch swapType {
+		case SwapTypeSubmarine:
+			refundFunc = h.boltzSvc.RefundSubmarine
+		case SwapTypeChain:
+			refundFunc = h.boltzSvc.RefundChainSwap
+		}
+
 		boltzSignedRefundPtx, boltzSignedCheckpointPtx, err := h.collaborativeRefund(
-			swapType, swapId, unsignedRefundTx, unsignedCheckpointTx)
+			refundFunc, swapId, unsignedRefundTx, unsignedCheckpointTx)
 
 		if err != nil {
 			return "", err
@@ -1081,23 +1090,15 @@ const (
 )
 
 func (h *SwapHandler) collaborativeRefund(
-	swapType string, swapId, refundTx, checkpointTx string,
+	requestRefund func(string, boltz.RefundSwapRequest) (*boltz.RefundSwapResponse, error),
+	swapId, refundTx, checkpointTx string,
 ) (*psbt.Packet, *psbt.Packet, error) {
-	var (
-		refundResp *boltz.RefundSwapResponse
-		err        error
-	)
-	switch swapType {
-	case SwapTypeSubmarine:
-		refundResp, err = h.boltzSvc.RefundSubmarine(swapId, boltz.RefundSwapRequest{
-			Transaction: refundTx,
-			Checkpoint:  checkpointTx,
-		})
-	case SwapTypeChain:
-		refundResp, err = h.boltzSvc.RefundChainSwap(swapId, boltz.RefundSwapRequest{
-			Transaction: refundTx,
-			Checkpoint:  checkpointTx,
-		})
+	refundResp, err := requestRefund(swapId, boltz.RefundSwapRequest{
+		Transaction: refundTx,
+		Checkpoint:  checkpointTx,
+	})
+	if err != nil {
+		return nil, nil, err
 	}
 
 	refundPtx, err := psbt.NewFromRawBytes(strings.NewReader(refundResp.Transaction), true)

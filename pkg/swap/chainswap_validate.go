@@ -76,7 +76,7 @@ func validateVHTLC(
 		return nil, fmt.Errorf(
 			"VHTLC address mismatch - potential scam!\nExpected: %s\nGot: %s",
 			vhtlcAddress,
-			swapResp.LockupDetails.LockupAddress,
+			vhtlcAddr,
 		)
 	}
 	return vhtlcOpts, nil

@@ -32,7 +32,7 @@ func (h *SwapHandler) monitorAndClaimArkToBtcSwap(
 	pk, err := parsePubkey(swapResp.ClaimDetails.ServerPublicKey)
 	if err != nil {
 		log.WithError(err).Errorf("Failed to parse server public key for swap %s", swapId)
-		swap.Status = ChainSwapFailed
+		swap.Fail(fmt.Sprintf("parse server public key: %v", err))
 		return
 	}
 
@@ -95,7 +95,7 @@ func (h *SwapHandler) monitorChainSwap(
 	ws := h.boltzSvc.NewWebsocket()
 	if err := ws.ConnectAndSubscribe(ctx, []string{swapId}, 5*time.Second); err != nil {
 		log.WithError(err).Errorf("Failed to connect to WebSocket for swap %s", swapId)
-		chainSwapState.Swap.Status = ChainSwapFailed
+		chainSwapState.Swap.Fail(fmt.Sprintf("websocket subscribe failed: %v", err))
 		return
 	}
 	defer ws.Close()
@@ -104,7 +104,12 @@ func (h *SwapHandler) monitorChainSwap(
 
 	for {
 		select {
-		case update := <-ws.Updates:
+		case update, ok := <-ws.Updates:
+			if !ok {
+				chainSwapState.Swap.Fail("websocket closed")
+				return
+			}
+
 			status := boltz.ParseEvent(update.Status)
 			log.Infof("Chain swap %s status update: %d (raw: %s)", swapId, status, update.Status)
 
