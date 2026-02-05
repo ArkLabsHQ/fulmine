@@ -8,12 +8,7 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
-	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/btcsuite/btcd/btcec/v2"
-	"github.com/btcsuite/btcd/btcec/v2/schnorr"
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/txscript"
-	"github.com/btcsuite/btcd/wire"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -169,7 +164,6 @@ func (b *btcToArkHandler) handleBtcToArkFailure(
 		return nil
 	}
 
-	// Implement BTC→ARK refund flow
 	// Since fulmine is not a BTC wallet, we claim BTC to a boarding address and then settle to convert to VTXO
 	log.Warnf("Swap %s failed: %s, attempting BTC refund via boarding address", b.chainSwapState.SwapID, reason)
 
@@ -181,220 +175,23 @@ func (b *btcToArkHandler) handleBtcToArkFailure(
 	}
 
 	log.Infof("BTC refund successful for swap %s: txid=%s", b.chainSwapState.SwapID, refundTxid)
-	b.chainSwapState.Swap.Refund(refundTxid)
+	b.chainSwapState.Swap.RefundUnilaterally(refundTxid)
 
 	return nil
 }
 
-// refundBtcToArkSwap implements the BTC→ARK refund flow:
-// 1. Fetch swap info from Boltz API
-// 2. Parse refund script from swap tree (CLTV timeout-based)
-// 3. Wait for CLTV timeout to pass
-// 4. Create claim transaction spending BTC lockup via refund script path
-// 5. Get fulmine boarding address
-// 6. Sign and broadcast claim transaction to boarding address
-// 7. Wait for confirmation
-// 8. Call Settle() to board the BTC as VTXO
 func (b *btcToArkHandler) refundBtcToArkSwap(ctx context.Context) (string, error) {
-	log.Infof("Starting BTC→ARK refund for swap %s", b.chainSwapState.SwapID)
-
-	// Step 1: Fetch swap transactions from Boltz API
-	swapTxs, err := b.swapHandler.boltzSvc.GetChainSwapTransactions(b.chainSwapState.SwapID)
-	if err != nil {
-		return "", fmt.Errorf("failed to get swap transactions: %w", err)
-	}
-
-	if swapTxs.UserLock == nil || swapTxs.UserLock.Id == "" {
-		return "", fmt.Errorf("no user lockup transaction found for swap %s", b.chainSwapState.SwapID)
-	}
-
-	userLockupTxid := swapTxs.UserLock.Id
-	userLockupTxHex := swapTxs.UserLock.Hex
-	log.Infof("User lockup txid: %s", userLockupTxid)
-
-	// Step 2: Parse refund script from swap tree
-	swapTree := b.swapResp.GetSwapTree(false) // false for BTC→ARK
-	refundComponents, err := ValidateRefundLeafScript(swapTree.RefundLeaf.Output)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse refund script: %w", err)
-	}
-
-	log.Infof("Refund script parsed - timeout: %d blocks, refund pubkey: %x",
-		refundComponents.Timeout, refundComponents.RefundPubKey)
-
-	// Step 3: Wait for CLTV timeout to pass
-	currentHeight, err := b.swapHandler.explorerClient.GetCurrentBlockHeight()
-	if err != nil {
-		return "", fmt.Errorf("failed to get current block height: %w", err)
-	}
-
-	lockupHeight := b.swapResp.LockupDetails.TimeoutBlockHeight
-	requiredHeight := lockupHeight + int(refundComponents.Timeout)
-
-	if currentHeight < uint32(requiredHeight) {
-		blocksRemaining := requiredHeight - int(currentHeight)
-		log.Infof("Waiting for CLTV timeout: current=%d, required=%d, blocks remaining=%d",
-			currentHeight, requiredHeight, blocksRemaining)
-
-		// Wait for blocks (approximately 10 minutes per block)
-		waitDuration := time.Duration(blocksRemaining*10) * time.Minute
-		log.Infof("Estimated wait time: %v", waitDuration)
-
-		// For now, we return an error and expect the user to retry later
-		// TODO: Implement a scheduler to automatically retry after timeout
-		return "", fmt.Errorf("CLTV timeout not yet reached: current block %d, required %d (wait %d more blocks)",
-			currentHeight, requiredHeight, blocksRemaining)
-	}
-
-	log.Infof("CLTV timeout reached at block %d (required %d)", currentHeight, requiredHeight)
-
-	// Step 4: Get fulmine boarding address
-	_, _, boardingAddr, err := b.swapHandler.arkClient.Receive(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to get boarding address: %w", err)
-	}
-
-	log.Infof("Boarding address: %s", boardingAddr)
-
-	// Step 5: Construct refund transaction to boarding address
-	lockupAmount := uint64(b.swapResp.LockupDetails.Amount)
-
-	claimTx, err := ConstructClaimTransaction(
-		b.swapHandler.explorerClient,
-		b.swapHandler.config.Dust,
-		ClaimTransactionParams{
-			LockupTxid:      userLockupTxid,
-			LockupVout:      0, // Assume vout 0 (standard for chain swaps)
-			LockupAmount:    lockupAmount,
-			DestinationAddr: boardingAddr,
-			Network:         networkNameToParams(b.swapHandler.config.Network.Name),
-		},
+	refundTxid, err := b.swapHandler.RefundBtcToArkSwap(
+		ctx, b.chainSwapState.SwapID,
+		b.chainSwapState.Swap.Amount,
+		b.chainSwapState.Swap.UserLockTxid,
+		b.chainSwapState.Swap.SwapRespJson,
 	)
 	if err != nil {
-		return "", fmt.Errorf("failed to construct claim transaction: %w", err)
+		return "", fmt.Errorf("failed to refund BTC VTXOs: %w", err)
 	}
 
-	// Step 6: Sign transaction using refund script path
-	// Parse the refund script to construct the witness
-	refundScript, err := hex.DecodeString(swapTree.RefundLeaf.Output)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode refund script: %w", err)
-	}
-
-	// Compute merkle root for tapscript
-	merkleRoot, err := computeSwapTreeMerkleRoot(swapTree)
-	if err != nil {
-		return "", fmt.Errorf("failed to compute merkle root: %w", err)
-	}
-
-	// Create tapscript leaf
-	tapLeaf := txscript.NewBaseTapLeaf(refundScript)
-
-	// Compute control block
-	internalKey, err := schnorr.ParsePubKey(b.refundKey.PubKey().SerializeCompressed()[1:])
-	if err != nil {
-		return "", fmt.Errorf("failed to parse internal key: %w", err)
-	}
-
-	proof := txscript.TapscriptProof{
-		TapLeaf:  tapLeaf,
-		RootNode: txscript.NewTapBranch(tapLeaf, txscript.NewBaseTapLeaf(merkleRoot)),
-	}
-
-	controlBlock := proof.ToControlBlock(internalKey)
-	controlBlockBytes, err := controlBlock.ToBytes()
-	if err != nil {
-		return "", fmt.Errorf("failed to serialize control block: %w", err)
-	}
-
-	// Set transaction locktime to satisfy CLTV
-	claimTx.LockTime = refundComponents.Timeout
-
-	// Sign the transaction
-	prevOutFetcher, err := parsePrevoutFetcher(userLockupTxHex, claimTx, 0)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse prevout fetcher: %w", err)
-	}
-
-	sigHash, err := txscript.CalcTapscriptSignaturehash(
-		txscript.NewTxSigHashes(claimTx, prevOutFetcher),
-		txscript.SigHashDefault,
-		claimTx,
-		0,
-		prevOutFetcher,
-		tapLeaf,
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to calculate sighash: %w", err)
-	}
-
-	var sigHashBytes [32]byte
-	copy(sigHashBytes[:], sigHash)
-
-	signature, err := schnorr.Sign(b.refundKey, sigHashBytes[:])
-	if err != nil {
-		return "", fmt.Errorf("failed to sign refund transaction: %w", err)
-	}
-
-	// Construct witness stack: [signature] [refund_script] [control_block]
-	claimTx.TxIn[0].Witness = [][]byte{
-		signature.Serialize(),
-		refundScript,
-		controlBlockBytes,
-	}
-
-	// Step 7: Broadcast transaction
-	claimTxid, err := b.swapHandler.explorerClient.BroadcastTransaction(claimTx)
-	if err != nil {
-		return "", fmt.Errorf("failed to broadcast refund transaction: %w", err)
-	}
-
-	log.Infof("Refund transaction broadcast: %s", claimTxid)
-	log.Infof("BTC sent to boarding address %s, waiting for confirmation...", boardingAddr)
-
-	// Step 8: Wait for confirmation (at least 1 confirmation)
-	confirmed := false
-	maxWaitTime := 2 * time.Hour
-	startTime := time.Now()
-	pollInterval := 30 * time.Second
-
-	for time.Since(startTime) < maxWaitTime {
-		txStatus, err := b.swapHandler.explorerClient.GetTransactionStatus(claimTxid)
-		if err != nil {
-			log.WithError(err).Warnf("Failed to get transaction status, will retry")
-			time.Sleep(pollInterval)
-			continue
-		}
-
-		if txStatus.Confirmed {
-			log.Infof("Refund transaction %s confirmed at block %d", claimTxid, txStatus.BlockHeight)
-			confirmed = true
-			break
-		}
-
-		log.Debugf("Waiting for refund transaction confirmation... (elapsed: %v)", time.Since(startTime))
-		time.Sleep(pollInterval)
-	}
-
-	if !confirmed {
-		return "", fmt.Errorf("refund transaction %s not confirmed within %v", claimTxid, maxWaitTime)
-	}
-
-	// Step 9: Call Settle() to board the BTC as VTXO
-	log.Infof("Calling Settle() to board BTC as VTXO...")
-	settleTxid, err := b.swapHandler.arkClient.Settle(ctx)
-	if err != nil {
-		// Log but don't fail - the BTC is now in the boarding address
-		// and can be settled in the next round
-		log.WithError(err).Warnf("Settle() failed, but BTC is safely in boarding address %s", boardingAddr)
-		log.Infof("You can manually settle later to complete the boarding process")
-		return claimTxid, nil
-	}
-
-	log.Infof("Settle transaction: %s", settleTxid)
-	log.Infof("BTC successfully refunded and boarded as VTXO!")
-
-	return claimTxid, nil
+	return refundTxid, nil
 }
 
 // signBoltzBtcClaim provides a cooperative signature for Boltz to claim the user's BTC lockup
@@ -474,45 +271,4 @@ func (b *btcToArkHandler) signBoltzBtcClaim(
 
 	log.Infof("Successfully provided cooperative signature for Boltz to claim BTC")
 	return nil
-}
-
-// networkNameToParams converts arklib network name to chaincfg.Params
-func networkNameToParams(networkName string) *chaincfg.Params {
-	switch networkName {
-	case arklib.Bitcoin.Name:
-		return &chaincfg.MainNetParams
-	case arklib.BitcoinTestNet.Name:
-		return &chaincfg.TestNet3Params
-	case arklib.BitcoinRegTest.Name:
-		return &chaincfg.RegressionNetParams
-	case arklib.BitcoinSigNet.Name, arklib.BitcoinMutinyNet.Name:
-		return &chaincfg.SigNetParams
-	default:
-		return &chaincfg.RegressionNetParams
-	}
-}
-
-// parsePrevoutFetcher creates a prevout fetcher for transaction signing
-func parsePrevoutFetcher(lockupTxHex string, claimTx *wire.MsgTx, inputIndex int) (txscript.PrevOutputFetcher, error) {
-	lockupTxBytes, err := hex.DecodeString(lockupTxHex)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode lockup tx hex: %w", err)
-	}
-
-	var lockupTx wire.MsgTx
-	if err := lockupTx.Deserialize(bytes.NewReader(lockupTxBytes)); err != nil {
-		return nil, fmt.Errorf("failed to deserialize lockup tx: %w", err)
-	}
-
-	prevOut := claimTx.TxIn[inputIndex].PreviousOutPoint
-	if int(prevOut.Index) >= len(lockupTx.TxOut) {
-		return nil, fmt.Errorf("invalid prevout index %d (lockup tx has %d outputs)", prevOut.Index, len(lockupTx.TxOut))
-	}
-
-	prevOutputFetcher := txscript.NewCannedPrevOutputFetcher(
-		lockupTx.TxOut[prevOut.Index].PkScript,
-		lockupTx.TxOut[prevOut.Index].Value,
-	)
-
-	return prevOutputFetcher, nil
 }

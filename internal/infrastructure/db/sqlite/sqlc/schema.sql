@@ -66,5 +66,6 @@ CREATE TABLE IF NOT EXISTS chain_swap (
     user_btc_lockup_address TEXT,
     error_message TEXT,
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
-    updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+    updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+    boltz_create_response_json TEXT
 );

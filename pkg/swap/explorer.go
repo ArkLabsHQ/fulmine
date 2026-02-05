@@ -24,6 +24,7 @@ type ExplorerClient interface {
 	GetFeeRate() (float64, error)
 	GetCurrentBlockHeight() (uint32, error)
 	GetTransactionStatus(txid string) (*TransactionStatus, error)
+	GetTransaction(txid string) (string, error)
 }
 
 type explorerClient struct {
@@ -174,4 +175,29 @@ func (e explorerClient) GetTransactionStatus(txid string) (*TransactionStatus, e
 		BlockHash:   txData.Status.BlockHash,
 		BlockTime:   txData.Status.BlockTime,
 	}, nil
+}
+
+func (e explorerClient) GetTransaction(txid string) (string, error) {
+	endpoint, err := url.JoinPath(e.baseURL, "tx", txid, "hex")
+	if err != nil {
+		return "", fmt.Errorf("failed to construct endpoint: %w", err)
+	}
+
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return "", fmt.Errorf("failed to get transaction %s: %w", txid, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("get transaction %s failed with status %d: %s", txid, resp.StatusCode, string(body))
+	}
+
+	txHex, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read transaction response: %w", err)
+	}
+
+	return string(txHex), nil
 }

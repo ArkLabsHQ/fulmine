@@ -14,23 +14,25 @@ import (
 const createChainSwap = `-- name: CreateChainSwap :exec
 INSERT INTO chain_swap (
     id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id,
-    claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message,
+    boltz_create_response_json
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type CreateChainSwapParams struct {
-	ID                   string
-	FromCurrency         string
-	ToCurrency           string
-	Amount               int64
-	Status               int64
-	UserLockupTxID       sql.NullString
-	ServerLockupTxID     sql.NullString
-	ClaimTxID            sql.NullString
-	ClaimPreimage        string
-	RefundTxID           sql.NullString
-	UserBtcLockupAddress sql.NullString
-	ErrorMessage         sql.NullString
+	ID                      string
+	FromCurrency            string
+	ToCurrency              string
+	Amount                  int64
+	Status                  int64
+	UserLockupTxID          sql.NullString
+	ServerLockupTxID        sql.NullString
+	ClaimTxID               sql.NullString
+	ClaimPreimage           string
+	RefundTxID              sql.NullString
+	UserBtcLockupAddress    sql.NullString
+	ErrorMessage            sql.NullString
+	BoltzCreateResponseJson sql.NullString
 }
 
 // ChainSwap queries
@@ -48,6 +50,7 @@ func (q *Queries) CreateChainSwap(ctx context.Context, arg CreateChainSwapParams
 		arg.RefundTxID,
 		arg.UserBtcLockupAddress,
 		arg.ErrorMessage,
+		arg.BoltzCreateResponseJson,
 	)
 	return err
 }
@@ -127,7 +130,7 @@ func (q *Queries) DeleteVtxoRollover(ctx context.Context, address string) error 
 }
 
 const getChainSwap = `-- name: GetChainSwap :one
-SELECT id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id, claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message, created_at, updated_at FROM chain_swap WHERE id = ?
+SELECT id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id, claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message, created_at, updated_at, boltz_create_response_json FROM chain_swap WHERE id = ?
 `
 
 func (q *Queries) GetChainSwap(ctx context.Context, id string) (ChainSwap, error) {
@@ -148,6 +151,7 @@ func (q *Queries) GetChainSwap(ctx context.Context, id string) (ChainSwap, error
 		&i.ErrorMessage,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.BoltzCreateResponseJson,
 	)
 	return i, err
 }
@@ -319,7 +323,7 @@ func (q *Queries) InsertVHTLC(ctx context.Context, arg InsertVHTLCParams) error 
 }
 
 const listChainSwaps = `-- name: ListChainSwaps :many
-SELECT id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id, claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message, created_at, updated_at FROM chain_swap ORDER BY created_at DESC
+SELECT id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id, claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message, created_at, updated_at, boltz_create_response_json FROM chain_swap ORDER BY created_at DESC
 `
 
 func (q *Queries) ListChainSwaps(ctx context.Context) ([]ChainSwap, error) {
@@ -346,6 +350,7 @@ func (q *Queries) ListChainSwaps(ctx context.Context) ([]ChainSwap, error) {
 			&i.ErrorMessage,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.BoltzCreateResponseJson,
 		); err != nil {
 			return nil, err
 		}
@@ -361,7 +366,7 @@ func (q *Queries) ListChainSwaps(ctx context.Context) ([]ChainSwap, error) {
 }
 
 const listChainSwapsByIDs = `-- name: ListChainSwapsByIDs :many
-SELECT id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id, claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message, created_at, updated_at FROM chain_swap WHERE id IN (/*SLICE:ids*/?) ORDER BY created_at DESC
+SELECT id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id, claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message, created_at, updated_at, boltz_create_response_json FROM chain_swap WHERE id IN (/*SLICE:ids*/?) ORDER BY created_at DESC
 `
 
 func (q *Queries) ListChainSwapsByIDs(ctx context.Context, ids []string) ([]ChainSwap, error) {
@@ -398,6 +403,7 @@ func (q *Queries) ListChainSwapsByIDs(ctx context.Context, ids []string) ([]Chai
 			&i.ErrorMessage,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.BoltzCreateResponseJson,
 		); err != nil {
 			return nil, err
 		}
@@ -413,7 +419,7 @@ func (q *Queries) ListChainSwapsByIDs(ctx context.Context, ids []string) ([]Chai
 }
 
 const listChainSwapsByStatus = `-- name: ListChainSwapsByStatus :many
-SELECT id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id, claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message, created_at, updated_at FROM chain_swap WHERE status = ? ORDER BY created_at DESC
+SELECT id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id, claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message, created_at, updated_at, boltz_create_response_json FROM chain_swap WHERE status = ? ORDER BY created_at DESC
 `
 
 func (q *Queries) ListChainSwapsByStatus(ctx context.Context, status int64) ([]ChainSwap, error) {
@@ -440,6 +446,7 @@ func (q *Queries) ListChainSwapsByStatus(ctx context.Context, status int64) ([]C
 			&i.ErrorMessage,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.BoltzCreateResponseJson,
 		); err != nil {
 			return nil, err
 		}
@@ -614,18 +621,20 @@ SET status = ?,
     claim_tx_id = ?,
     refund_tx_id = ?,
     error_message = ?,
+    boltz_create_response_json = ?,
     updated_at = strftime('%s', 'now')
 WHERE id = ?
 `
 
 type UpdateChainSwapParams struct {
-	Status           int64
-	UserLockupTxID   sql.NullString
-	ServerLockupTxID sql.NullString
-	ClaimTxID        sql.NullString
-	RefundTxID       sql.NullString
-	ErrorMessage     sql.NullString
-	ID               string
+	Status                  int64
+	UserLockupTxID          sql.NullString
+	ServerLockupTxID        sql.NullString
+	ClaimTxID               sql.NullString
+	RefundTxID              sql.NullString
+	ErrorMessage            sql.NullString
+	BoltzCreateResponseJson sql.NullString
+	ID                      string
 }
 
 func (q *Queries) UpdateChainSwap(ctx context.Context, arg UpdateChainSwapParams) error {
@@ -636,6 +645,7 @@ func (q *Queries) UpdateChainSwap(ctx context.Context, arg UpdateChainSwapParams
 		arg.ClaimTxID,
 		arg.RefundTxID,
 		arg.ErrorMessage,
+		arg.BoltzCreateResponseJson,
 		arg.ID,
 	)
 	return err

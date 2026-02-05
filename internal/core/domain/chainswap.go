@@ -22,6 +22,7 @@ const (
 	ChainSwapFailed
 	ChainSwapRefundFailed
 	ChainSwapRefunded
+	ChainSwapRefundedUnilaterally
 )
 
 type ChainSwap struct {
@@ -43,6 +44,8 @@ type ChainSwap struct {
 	CreatedAt    int64
 	Status       ChainSwapStatus
 	ErrorMessage string
+
+	BoltzCreateResponseJSON string
 }
 
 // IsComplete returns true if swap is in a terminal state
@@ -86,6 +89,12 @@ func (cs *ChainSwap) Claimed(txid string) {
 func (cs *ChainSwap) Refunded(txid string) {
 	cs.RefundTxId = txid
 	cs.Status = ChainSwapRefunded
+}
+
+// RefundedUnilaterally updates the swap when funds are refunded
+func (cs *ChainSwap) RefundedUnilaterally(txid string) {
+	cs.RefundTxId = txid
+	cs.Status = ChainSwapRefundedUnilaterally
 }
 
 // Failed marks the swap as failed with an error message

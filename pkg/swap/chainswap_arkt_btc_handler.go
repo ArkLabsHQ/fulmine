@@ -174,33 +174,17 @@ func (h *arkToBtcHandler) handleArkToBtcServerLocked(
 }
 
 func (h *arkToBtcHandler) handleArkToBtcFailure(
-	_ context.Context,
+	ctx context.Context,
 	_ boltz.SwapUpdate,
 	reason string,
 ) error {
 	log.Warnf("Swap %s %s, attempting refund", h.chainSwapState.SwapID, reason)
 
-	refundTxid, err := h.swapHandler.RefundSwap(
-		context.Background(), SwapTypeChain, h.chainSwapState.SwapID, true, h.chainSwapState.Swap.VhtlcOpts,
+	refundTxid, err := h.swapHandler.RefundArkToBTCSwap(
+		ctx, h.chainSwapState.SwapID, h.chainSwapState.Swap.VhtlcOpts, h.chainSwapState.UnilateralRefundCallback,
 	)
 	if err != nil {
-		log.WithError(err).Errorf(
-			"Collaborative refund failed for swap %s, scheduling unilateral refund", h.chainSwapState.SwapID,
-		)
-
-		if callbackErr := h.chainSwapState.UnilateralRefundCallback(
-			h.chainSwapState.SwapID, h.chainSwapState.Swap.VhtlcOpts,
-		); callbackErr != nil {
-			log.WithError(callbackErr).Errorf(
-				"Failed to schedule unilateral refund for swap %s", h.chainSwapState.SwapID,
-			)
-
-			h.chainSwapState.Swap.RefundFailed(
-				fmt.Sprintf("failed to schedule unilateral refund: %v", callbackErr),
-			)
-		}
-
-		return nil
+		return fmt.Errorf("refund failed: %w", err)
 	}
 
 	log.Infof("Refund successful for swap %s: %s", h.chainSwapState.SwapID, refundTxid)
@@ -591,6 +575,7 @@ func computeExpectedLockupScript(
 
 	return script, nil
 }
+
 type claimSetup struct {
 	swapInfo     *swapInfo
 	lockupTx     *wire.MsgTx
