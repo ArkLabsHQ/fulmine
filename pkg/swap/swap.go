@@ -56,16 +56,16 @@ const (
 )
 
 type Swap struct {
-	Id                 string
-	Invoice            string
-	TxId               string
-	Timestamp          int64
-	RedeemTxid         string
-	Status             SwapStatus
-	PreimageHash       []byte
-	TimeoutInfo        boltz.TimeoutBlockHeights
-	Opts               *vhtlc.Opts
-	Amount             uint64
+	Id           string
+	Invoice      string
+	TxId         string
+	Timestamp    int64
+	RedeemTxid   string
+	Status       SwapStatus
+	PreimageHash []byte
+	TimeoutInfo  boltz.TimeoutBlockHeights
+	Opts         *vhtlc.Opts
+	Amount       uint64
 }
 
 func NewSwapHandler(

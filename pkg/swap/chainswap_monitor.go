@@ -159,8 +159,13 @@ func (h *SwapHandler) monitorChainSwap(
 				return
 			}
 
-			// Check if swap completed (success or failure)
-			if chainSwapState.Swap.Status == ChainSwapClaimed || chainSwapState.Swap.Status == ChainSwapFailed {
+			// Stop monitoring on terminal states to avoid false timeout failures.
+			if chainSwapState.Swap.Status == ChainSwapClaimed ||
+				chainSwapState.Swap.Status == ChainSwapFailed ||
+				chainSwapState.Swap.Status == ChainSwapRefunded ||
+				chainSwapState.Swap.Status == ChainSwapRefundedUnilaterally ||
+				chainSwapState.Swap.Status == ChainSwapRefundFailed ||
+				chainSwapState.Swap.Status == ChainSwapUserLockedFailed {
 				return
 			}
 

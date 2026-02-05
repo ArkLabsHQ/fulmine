@@ -30,18 +30,19 @@ func NewChainSwapRepository(db *sql.DB) (domain.ChainSwapRepository, error) {
 
 func (r *chainSwapRepository) Add(ctx context.Context, swap domain.ChainSwap) error {
 	err := r.querier.CreateChainSwap(ctx, queries.CreateChainSwapParams{
-		ID:                   swap.Id,
-		FromCurrency:         string(swap.From),
-		ToCurrency:           string(swap.To),
-		Amount:               int64(swap.Amount),
-		Status:               int64(swap.Status),
-		UserLockupTxID:       toNullableString(swap.UserLockupTxId),
-		ServerLockupTxID:     toNullableString(swap.ServerLockupTxId),
-		ClaimTxID:            toNullableString(swap.ClaimTxId),
-		ClaimPreimage:        swap.ClaimPreimage,
-		RefundTxID:           toNullableString(swap.RefundTxId),
-		UserBtcLockupAddress: toNullableString(swap.UserBtcLockupAddress),
-		ErrorMessage:         toNullableString(swap.ErrorMessage),
+		ID:                      swap.Id,
+		FromCurrency:            string(swap.From),
+		ToCurrency:              string(swap.To),
+		Amount:                  int64(swap.Amount),
+		Status:                  int64(swap.Status),
+		UserLockupTxID:          toNullableString(swap.UserLockupTxId),
+		ServerLockupTxID:        toNullableString(swap.ServerLockupTxId),
+		ClaimTxID:               toNullableString(swap.ClaimTxId),
+		ClaimPreimage:           swap.ClaimPreimage,
+		RefundTxID:              toNullableString(swap.RefundTxId),
+		UserBtcLockupAddress:    toNullableString(swap.UserBtcLockupAddress),
+		ErrorMessage:            toNullableString(swap.ErrorMessage),
+		BoltzCreateResponseJson: toNullableString(swap.BoltzCreateResponseJSON),
 	})
 
 	if err != nil {
@@ -126,13 +127,14 @@ func (r *chainSwapRepository) GetByStatus(ctx context.Context, status domain.Cha
 
 func (r *chainSwapRepository) Update(ctx context.Context, swap domain.ChainSwap) error {
 	err := r.querier.UpdateChainSwap(ctx, queries.UpdateChainSwapParams{
-		ID:               swap.Id,
-		Status:           int64(swap.Status),
-		UserLockupTxID:   toNullableString(swap.UserLockupTxId),
-		ServerLockupTxID: toNullableString(swap.ServerLockupTxId),
-		ClaimTxID:        toNullableString(swap.ClaimTxId),
-		RefundTxID:       toNullableString(swap.RefundTxId),
-		ErrorMessage:     toNullableString(swap.ErrorMessage),
+		ID:                      swap.Id,
+		Status:                  int64(swap.Status),
+		UserLockupTxID:          toNullableString(swap.UserLockupTxId),
+		ServerLockupTxID:        toNullableString(swap.ServerLockupTxId),
+		ClaimTxID:               toNullableString(swap.ClaimTxId),
+		RefundTxID:              toNullableString(swap.RefundTxId),
+		ErrorMessage:            toNullableString(swap.ErrorMessage),
+		BoltzCreateResponseJson: toNullableString(swap.BoltzCreateResponseJSON),
 	})
 
 	if err != nil {
@@ -161,19 +163,20 @@ func (r *chainSwapRepository) Close() {
 
 func toChainSwap(row queries.ChainSwap) (*domain.ChainSwap, error) {
 	return &domain.ChainSwap{
-		Id:                   row.ID,
-		From:                 boltz.Currency(row.FromCurrency),
-		To:                   boltz.Currency(row.ToCurrency),
-		Amount:               uint64(row.Amount),
-		Status:               domain.ChainSwapStatus(row.Status),
-		UserLockupTxId:       fromNullableString(row.UserLockupTxID),
-		ServerLockupTxId:     fromNullableString(row.ServerLockupTxID),
-		ClaimTxId:            fromNullableString(row.ClaimTxID),
-		ClaimPreimage:        row.ClaimPreimage,
-		RefundTxId:           fromNullableString(row.RefundTxID),
-		UserBtcLockupAddress: fromNullableString(row.UserBtcLockupAddress),
-		ErrorMessage:         fromNullableString(row.ErrorMessage),
-		CreatedAt:            fromNullableInt64(row.CreatedAt),
+		Id:                      row.ID,
+		From:                    boltz.Currency(row.FromCurrency),
+		To:                      boltz.Currency(row.ToCurrency),
+		Amount:                  uint64(row.Amount),
+		Status:                  domain.ChainSwapStatus(row.Status),
+		UserLockupTxId:          fromNullableString(row.UserLockupTxID),
+		ServerLockupTxId:        fromNullableString(row.ServerLockupTxID),
+		ClaimTxId:               fromNullableString(row.ClaimTxID),
+		ClaimPreimage:           row.ClaimPreimage,
+		RefundTxId:              fromNullableString(row.RefundTxID),
+		UserBtcLockupAddress:    fromNullableString(row.UserBtcLockupAddress),
+		ErrorMessage:            fromNullableString(row.ErrorMessage),
+		CreatedAt:               fromNullableInt64(row.CreatedAt),
+		BoltzCreateResponseJSON: fromNullableString(row.BoltzCreateResponseJson),
 	}, nil
 }
 

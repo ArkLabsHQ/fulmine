@@ -1,19 +1,26 @@
 package swap
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
-	"github.com/lightningnetwork/lnd/input"
-
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr/musig2"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/txscript"
+	"github.com/btcsuite/btcd/wire"
+	"github.com/lightningnetwork/lnd/input"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -33,6 +40,7 @@ const (
 	ChainSwapFailed
 	ChainSwapRefundFailed
 	ChainSwapRefunded
+	ChainSwapRefundedUnilaterally
 )
 
 type ChainSwap struct {
@@ -53,12 +61,21 @@ type ChainSwap struct {
 	Status    ChainSwapStatus
 	Error     string
 
+	SwapRespJson string
+
 	// onEvent is called when swap state transitions occur
 	// Emits typed events that the service layer can handle
 	onEvent ChainSwapEventCallback
 }
 
-func NewChainSwap(id string, amount uint64, preimage []byte, vhtlcOpts *vhtlc.Opts, eventCallback ChainSwapEventCallback) (*ChainSwap, error) {
+func NewChainSwap(
+	id string,
+	amount uint64,
+	preimage []byte,
+	vhtlcOpts *vhtlc.Opts,
+	swapRespJson string,
+	eventCallback ChainSwapEventCallback,
+) (*ChainSwap, error) {
 	if id == "" {
 		return nil, errors.New("id cannot be empty")
 	}
@@ -76,13 +93,14 @@ func NewChainSwap(id string, amount uint64, preimage []byte, vhtlcOpts *vhtlc.Op
 	}
 
 	return &ChainSwap{
-		Id:        id,
-		Timestamp: time.Now().Unix(),
-		Status:    ChainSwapPending,
-		Amount:    amount,
-		Preimage:  preimage,
-		VhtlcOpts: *vhtlcOpts,
-		onEvent:   eventCallback,
+		Id:           id,
+		Timestamp:    time.Now().Unix(),
+		Status:       ChainSwapPending,
+		Amount:       amount,
+		Preimage:     preimage,
+		VhtlcOpts:    *vhtlcOpts,
+		SwapRespJson: swapRespJson,
+		onEvent:      eventCallback,
 	}, nil
 }
 
@@ -128,6 +146,19 @@ func (s *ChainSwap) Claim(txid string) {
 func (s *ChainSwap) Refund(txid string) {
 	s.RefundTxid = txid
 	s.Status = ChainSwapRefunded
+
+	// Emit typed event
+	if s.onEvent != nil {
+		s.onEvent(RefundEvent{
+			SwapID: s.Id,
+			TxID:   txid,
+		})
+	}
+}
+
+func (s *ChainSwap) RefundUnilaterally(txid string) {
+	s.RefundTxid = txid
+	s.Status = ChainSwapRefundedUnilaterally
 
 	// Emit typed event
 	if s.onEvent != nil {
@@ -214,6 +245,14 @@ type RefundEvent struct {
 }
 
 func (RefundEvent) isChainSwapEvent() {}
+
+// RefundEventUnilaterally is emitted when swap is refunded
+type RefundEventUnilaterally struct {
+	SwapID string
+	TxID   string
+}
+
+func (RefundEventUnilaterally) isChainSwapEvent() {}
 
 // FailEvent is emitted when swap fails
 type FailEvent struct {
@@ -365,7 +404,12 @@ func (h *SwapHandler) ChainSwapArkToBtc(
 		return nil, fmt.Errorf("BTC lockup address validation failed: %w", err)
 	}
 
-	chainSwap, err := NewChainSwap(swapResp.Id, amount, preimage, vhtlcOpts, eventCallback)
+	swapRespJson, err := json.Marshal(swapResp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal swap response from boltz: %w", err)
+	}
+
+	chainSwap, err := NewChainSwap(swapResp.Id, amount, preimage, vhtlcOpts, string(swapRespJson), eventCallback)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chain swap: %w", err)
 	}
@@ -492,12 +536,19 @@ func (h *SwapHandler) ChainSwapBtcToArk(
 		return nil, fmt.Errorf("BTC lockup address validation failed: %w", err)
 	}
 
-	chainSwap, err := NewChainSwap(swapResp.Id, amount, preimage, vhtlcOpts, eventCallback)
+	swapRespJson, err := json.Marshal(swapResp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal swap response from boltz: %w", err)
+	}
+
+	chainSwap, err := NewChainSwap(swapResp.Id, amount, preimage, vhtlcOpts, string(swapRespJson), eventCallback)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chain swap: %w", err)
 	}
 
 	chainSwap.UserBtcLockupAddress = swapResp.LockupDetails.LockupAddress
+
+	log.Debugf("Cached swap response for swap %s (used during active monitoring)", swapResp.Id)
 
 	go func() {
 		defer func() {
@@ -519,6 +570,274 @@ func (h *SwapHandler) ChainSwapBtcToArk(
 	return chainSwap, nil
 }
 
+func (h *SwapHandler) RefundArkToBTCSwap(
+	ctx context.Context,
+	swapId string,
+	vhtlcOpts vhtlc.Opts,
+	unilateralRefundCallback func(swapId string, opts vhtlc.Opts) error,
+) (string, error) {
+	refundTxid, err := h.RefundSwap(
+		context.Background(), SwapTypeChain, swapId, true, vhtlcOpts,
+	)
+	if err != nil {
+		log.WithError(err).Error("failed to refund swap collaboratively")
+
+		if callbackErr := unilateralRefundCallback(
+			swapId, vhtlcOpts,
+		); callbackErr != nil {
+			return "", callbackErr
+		}
+
+		return "", nil
+	}
+
+	return refundTxid, nil
+}
+
+// RefundBtcToArkSwap performs a BTC→ARK refund by:
+// 1. Reading swap data from the ChainSwap struct (populated by service layer from DB)
+// 2. Checking if CLTV timeout has passed
+// 3. Creating and signing a refund transaction spending the lockup UTXO via script-path
+// 4. Sending BTC to fulmine boarding address
+// 5. Broadcasting the transaction
+// 6. Waiting for confirmation
+// 7. Calling Settle() to board the BTC as VTXO
+//
+// This function is called when a BTC→ARK swap fails and needs to be refunded.
+// The BTC is claimed from the lockup address using the refund script path (CLTV timeout)
+// and sent to a fulmine boarding address, then settled to become a VTXO.
+//
+// The swap data is persisted in the DB by the service layer and passed in via the
+// ChainSwap struct (BoltzCreateResponseJSON and UserLockupTxHex fields).
+// Refunds work even after service restart and even if Boltz API is unavailable.
+func (h *SwapHandler) RefundBtcToArkSwap(
+	ctx context.Context,
+	swapId string,
+	amount uint64,
+	userLockupTxid string,
+	boltzSwapRespJson string,
+) (string, error) {
+	log.Infof("Starting BTC→ARK refund for swap %s", swapId)
+
+	if userLockupTxid == "" {
+		return "", errors.New("userLockupTxid empty")
+	}
+
+	if boltzSwapRespJson == "" {
+		return "", errors.New("boltzSwapRespJson empty")
+	}
+
+	userLockupTxHex, err := h.explorerClient.GetTransaction(userLockupTxid)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch lockup transaction from explorer: %w", err)
+	}
+
+	log.Infof("User lockup txid: %s", userLockupTxid)
+
+	var swapResp boltz.CreateChainSwapResponse
+	if err := json.Unmarshal([]byte(boltzSwapRespJson), &swapResp); err != nil {
+		return "", fmt.Errorf("failed to deserialize Boltz response: %w", err)
+	}
+
+	if swapResp.LockupDetails.SwapTree == nil {
+		return "", fmt.Errorf("swap tree not found in Boltz response for swap %s", swapId)
+	}
+
+	if swapResp.LockupDetails.LockupAddress == "" {
+		return "", fmt.Errorf("lockup address not found in Boltz response for swap %s", swapId)
+	}
+
+	swapTree := *swapResp.LockupDetails.SwapTree
+
+	lockupTx, err := deserializeTransaction(userLockupTxHex)
+	if err != nil {
+		return "", fmt.Errorf("failed to deserialize user lockup tx: %w", err)
+	}
+
+	networkParams := networkNameToParams(h.config.Network.Name)
+	lockupVout, lockupAmount, err := findOutputForAddress(
+		lockupTx,
+		swapResp.LockupDetails.LockupAddress,
+		networkParams,
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to find lockup output in user tx: %w", err)
+	}
+
+	if amount > 0 && lockupAmount < amount {
+		log.Warnf(
+			"user lockup output amount (%d sats) is below requested swap amount (%d sats)",
+			lockupAmount,
+			amount,
+		)
+	}
+
+	refundComponents, err := ValidateRefundLeafScript(swapTree.RefundLeaf.Output)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse refund script: %w", err)
+	}
+
+	log.Infof("Refund script parsed - timeout: %d blocks, refund pubkey: %x",
+		refundComponents.Timeout, refundComponents.RefundPubKey)
+
+	currentHeight, err := h.explorerClient.GetCurrentBlockHeight()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current block height: %w", err)
+	}
+
+	requiredHeight := int(refundComponents.Timeout)
+	if currentHeight < uint32(requiredHeight) {
+		blocksRemaining := requiredHeight - int(currentHeight)
+		return "", fmt.Errorf(
+			"CLTV timeout not yet reached: current block %d, required %d (wait %d more blocks, ~%d minutes)",
+			currentHeight, requiredHeight, blocksRemaining, blocksRemaining*10,
+		)
+	}
+
+	log.Infof("CLTV timeout reached at block %d (required %d)", currentHeight, requiredHeight)
+
+	_, _, boardingAddr, err := h.arkClient.Receive(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get boarding address: %w", err)
+	}
+
+	log.Infof("Boarding address: %s", boardingAddr)
+
+	claimTx, err := constructClaimTransaction(
+		h.explorerClient,
+		h.config.Dust,
+		ClaimTransactionParams{
+			LockupTxid:      userLockupTxid,
+			LockupVout:      lockupVout,
+			LockupAmount:    lockupAmount,
+			DestinationAddr: boardingAddr,
+			Network:         networkParams,
+		},
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to construct claim transaction: %w", err)
+	}
+	claimTx.TxIn[0].Sequence = wire.MaxTxInSequenceNum - 1
+
+	refundScript, err := hex.DecodeString(swapTree.RefundLeaf.Output)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode refund script: %w", err)
+	}
+
+	serverPubKeyBytes, err := hex.DecodeString(swapResp.LockupDetails.ServerPublicKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode server public key: %w", err)
+	}
+	serverPubKey, err := btcec.ParsePubKey(serverPubKeyBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse server public key: %w", err)
+	}
+
+	allPubKeys := []*btcec.PublicKey{serverPubKey, h.privateKey.PubKey()}
+	aggregateKey, _, _, err := musig2.AggregateKeys(allPubKeys, false)
+	if err != nil {
+		return "", fmt.Errorf("failed to aggregate keys: %w", err)
+	}
+	internalKey := aggregateKey.FinalKey
+
+	controlBlock, err := createControlBlockFromSwapTree(internalKey, swapTree, false /* isClaimPath = refund path */)
+	if err != nil {
+		return "", fmt.Errorf("failed to create control block: %w", err)
+	}
+
+	claimTx.LockTime = refundComponents.Timeout
+
+	prevOutFetcher, err := parsePrevoutFetcher(userLockupTxHex, claimTx, 0)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse prevout fetcher: %w", err)
+	}
+
+	refundLeaf := txscript.NewBaseTapLeaf(refundScript)
+	sigHash, err := txscript.CalcTapscriptSignaturehash(
+		txscript.NewTxSigHashes(claimTx, prevOutFetcher),
+		txscript.SigHashDefault,
+		claimTx,
+		0,
+		prevOutFetcher,
+		refundLeaf,
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to calculate sighash: %w", err)
+	}
+
+	var sigHashBytes [32]byte
+	copy(sigHashBytes[:], sigHash)
+
+	signature, err := schnorr.Sign(h.privateKey, sigHashBytes[:])
+	if err != nil {
+		return "", fmt.Errorf("failed to sign refund transaction: %w", err)
+	}
+
+	claimTx.TxIn[0].Witness = [][]byte{
+		signature.Serialize(),
+		refundScript,
+		controlBlock,
+	}
+
+	var claimTxBuf bytes.Buffer
+	if err := claimTx.Serialize(&claimTxBuf); err != nil {
+		return "", fmt.Errorf("failed to serialize claim tx: %w", err)
+	}
+	log.Infof("claim tx hex: %s", hex.EncodeToString(claimTxBuf.Bytes()))
+
+	claimTxid, err := h.explorerClient.BroadcastTransaction(claimTx)
+	if err != nil {
+		return "", fmt.Errorf("failed to broadcast refund transaction: %w", err)
+	}
+
+	log.Infof("Refund transaction broadcast: %s", claimTxid)
+	log.Infof("BTC sent to boarding address %s, waiting for confirmation...", boardingAddr)
+
+	confirmed := false
+	maxWaitTime := 2 * time.Hour
+	startTime := time.Now()
+	pollInterval := 30 * time.Second
+
+	for time.Since(startTime) < maxWaitTime {
+		txStatus, err := h.explorerClient.GetTransactionStatus(claimTxid)
+		if err != nil {
+			log.WithError(err).Warnf("Failed to get transaction status, will retry")
+			time.Sleep(pollInterval)
+			continue
+		}
+
+		if txStatus.Confirmed {
+			log.Infof("Refund transaction %s confirmed at block %d", claimTxid, txStatus.BlockHeight)
+			confirmed = true
+			break
+		}
+
+		log.Debugf("Waiting for refund transaction confirmation... (elapsed: %v)", time.Since(startTime))
+		time.Sleep(pollInterval)
+	}
+
+	if !confirmed {
+		// Return success anyway - the BTC is in the boarding address
+		log.Warnf("Refund transaction %s not confirmed within %v, but BTC is in boarding address %s",
+			claimTxid, maxWaitTime, boardingAddr)
+		return claimTxid, nil
+	}
+
+	log.Infof("Calling Settle() to board BTC as VTXO...")
+	settleTxid, err := h.arkClient.Settle(ctx)
+	if err != nil {
+		// Log but don't fail - the BTC is now in the boarding address
+		log.WithError(err).Warnf("Settle() failed, but BTC is safely in boarding address %s", boardingAddr)
+		log.Infof("You can manually settle later to complete the boarding process")
+		return claimTxid, nil
+	}
+
+	log.Infof("Settle transaction: %s", settleTxid)
+	log.Infof("BTC successfully refunded and boarded as VTXO!")
+
+	return claimTxid, nil
+}
+
 func genPreimageInfo() (preimage []byte, preimageHashSHA256, preimageHashHASH160 []byte, err error) {
 	preimage = make([]byte, 32)
 
@@ -531,4 +850,40 @@ func genPreimageInfo() (preimage []byte, preimageHashSHA256, preimageHashHASH160
 	preimageHashSHA256 = sha[:]
 	preimageHashHASH160 = input.Ripemd160H(preimageHashSHA256)
 	return
+}
+
+// networkNameToParams converts arklib network name to chaincfg.Params
+func networkNameToParams(networkName string) *chaincfg.Params {
+	switch networkName {
+	case arklib.Bitcoin.Name:
+		return &chaincfg.MainNetParams
+	case arklib.BitcoinTestNet.Name:
+		return &chaincfg.TestNet3Params
+	case arklib.BitcoinRegTest.Name:
+		return &chaincfg.RegressionNetParams
+	case arklib.BitcoinSigNet.Name, arklib.BitcoinMutinyNet.Name:
+		return &chaincfg.SigNetParams
+	default:
+		return &chaincfg.RegressionNetParams
+	}
+}
+
+// parsePrevoutFetcher creates a prevout fetcher for transaction signing
+func parsePrevoutFetcher(lockupTxHex string, claimTx *wire.MsgTx, inputIndex int) (txscript.PrevOutputFetcher, error) {
+	lockupTx, err := deserializeTransaction(lockupTxHex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to deserialize lockup tx: %w", err)
+	}
+
+	prevOut := claimTx.TxIn[inputIndex].PreviousOutPoint
+	if int(prevOut.Index) >= len(lockupTx.TxOut) {
+		return nil, fmt.Errorf("invalid prevout index %d (lockup tx has %d outputs)", prevOut.Index, len(lockupTx.TxOut))
+	}
+
+	prevOutputFetcher := txscript.NewCannedPrevOutputFetcher(
+		lockupTx.TxOut[prevOut.Index].PkScript,
+		lockupTx.TxOut[prevOut.Index].Value,
+	)
+
+	return prevOutputFetcher, nil
 }

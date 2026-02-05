@@ -13,9 +13,19 @@ import (
 	"github.com/btcsuite/btcd/wire"
 )
 
+type TransactionStatus struct {
+	Confirmed   bool
+	BlockHeight uint32
+	BlockHash   string
+	BlockTime   uint64
+}
+
 type ExplorerClient interface {
 	BroadcastTransaction(tx *wire.MsgTx) (string, error)
 	GetFeeRate() (float64, error)
+	GetCurrentBlockHeight() (uint32, error)
+	GetTransactionStatus(txid string) (*TransactionStatus, error)
+	GetTransaction(txid string) (string, error)
 }
 
 type explorerClient struct {
@@ -96,4 +106,101 @@ func (e explorerClient) GetFeeRate() (float64, error) {
 		return rate, nil
 	}
 	return 1, nil
+}
+
+func (e explorerClient) GetCurrentBlockHeight() (uint32, error) {
+	endpoint, err := url.JoinPath(e.baseURL, "blocks/tip/height")
+	if err != nil {
+		return 0, fmt.Errorf("failed to construct endpoint: %w", err)
+	}
+
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get block height: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("failed to get block height: status %s", resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var height uint32
+	if _, err := fmt.Sscanf(string(body), "%d", &height); err != nil {
+		return 0, fmt.Errorf("failed to parse block height: %w", err)
+	}
+
+	return height, nil
+}
+
+func (e explorerClient) GetTransactionStatus(txid string) (*TransactionStatus, error) {
+	// First check if transaction exists
+	endpoint, err := url.JoinPath(e.baseURL, "tx", txid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct endpoint: %w", err)
+	}
+
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return &TransactionStatus{Confirmed: false}, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get transaction: status %s", resp.Status)
+	}
+
+	// Parse transaction response to get status
+	var txData struct {
+		Status struct {
+			Confirmed   bool   `json:"confirmed"`
+			BlockHeight uint32 `json:"block_height"`
+			BlockHash   string `json:"block_hash"`
+			BlockTime   uint64 `json:"block_time"`
+		} `json:"status"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&txData); err != nil {
+		return nil, fmt.Errorf("failed to parse transaction data: %w", err)
+	}
+
+	return &TransactionStatus{
+		Confirmed:   txData.Status.Confirmed,
+		BlockHeight: txData.Status.BlockHeight,
+		BlockHash:   txData.Status.BlockHash,
+		BlockTime:   txData.Status.BlockTime,
+	}, nil
+}
+
+func (e explorerClient) GetTransaction(txid string) (string, error) {
+	endpoint, err := url.JoinPath(e.baseURL, "tx", txid, "hex")
+	if err != nil {
+		return "", fmt.Errorf("failed to construct endpoint: %w", err)
+	}
+
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return "", fmt.Errorf("failed to get transaction %s: %w", txid, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("get transaction %s failed with status %d: %s", txid, resp.StatusCode, string(body))
+	}
+
+	txHex, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read transaction response: %w", err)
+	}
+
+	return string(txHex), nil
 }

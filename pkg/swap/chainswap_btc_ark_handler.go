@@ -138,17 +138,17 @@ func (b *btcToArkHandler) handleBtcToArkServerLocked(
 }
 
 func (b *btcToArkHandler) handleBtcToArkFailure(
-	_ context.Context,
-	_ boltz.SwapUpdate,
+	ctx context.Context,
+	update boltz.SwapUpdate,
 	reason string,
 ) error {
+	// Handle quote flow for amount mismatch
 	if reason == getQuote {
 		log.Warnf("User lockup failed for swap %s (amount mismatch), fetching quote", b.chainSwapState.SwapID)
 
 		quote, err := b.swapHandler.boltzSvc.GetChainSwapQuote(b.chainSwapState.SwapID)
 		if err != nil {
 			b.chainSwapState.Swap.UserLockedFailed(fmt.Sprintf("lockup failed, quote error: %v", err))
-
 			return fmt.Errorf("failed to get quote: %w", err)
 		}
 
@@ -157,19 +157,41 @@ func (b *btcToArkHandler) handleBtcToArkFailure(
 
 		if err := b.swapHandler.boltzSvc.AcceptChainSwapQuote(b.chainSwapState.SwapID, *quote); err != nil {
 			b.chainSwapState.Swap.UserLockedFailed(fmt.Sprintf("quote acceptance failed: %v", err))
-
 			return fmt.Errorf("failed to accept quote: %w", err)
 		}
 
 		log.Infof("Quote accepted for swap %s, waiting for Boltz to send VTXOs", b.chainSwapState.SwapID)
-
 		return nil
 	}
 
-	log.Warnf("Swap %s failed: %s", b.chainSwapState.SwapID, reason)
-	b.chainSwapState.Swap.Fail(reason)
+	// Since fulmine is not a BTC wallet, we claim BTC to a boarding address and then settle to convert to VTXO
+	log.Warnf("Swap %s failed: %s, attempting BTC refund via boarding address", b.chainSwapState.SwapID, reason)
+
+	refundTxid, err := b.refundBtcToArkSwap(ctx)
+	if err != nil {
+		log.WithError(err).Errorf("BTC refund failed for swap %s", b.chainSwapState.SwapID)
+		b.chainSwapState.Swap.RefundFailed(fmt.Sprintf("refund failed: %v", err))
+		return fmt.Errorf("failed to refund BTC: %w", err)
+	}
+
+	log.Infof("BTC refund successful for swap %s: txid=%s", b.chainSwapState.SwapID, refundTxid)
+	b.chainSwapState.Swap.RefundUnilaterally(refundTxid)
 
 	return nil
+}
+
+func (b *btcToArkHandler) refundBtcToArkSwap(ctx context.Context) (string, error) {
+	refundTxid, err := b.swapHandler.RefundBtcToArkSwap(
+		ctx, b.chainSwapState.SwapID,
+		b.chainSwapState.Swap.Amount,
+		b.chainSwapState.Swap.UserLockTxid,
+		b.chainSwapState.Swap.SwapRespJson,
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to refund BTC VTXOs: %w", err)
+	}
+
+	return refundTxid, nil
 }
 
 // signBoltzBtcClaim provides a cooperative signature for Boltz to claim the user's BTC lockup
@@ -243,7 +265,7 @@ func (b *btcToArkHandler) signBoltzBtcClaim(
 			PubNonce:         SerializePubNonce(ourNonce),
 			PartialSignature: hex.EncodeToString(buf.Bytes()),
 		},
-	});err != nil {
+	}); err != nil {
 		return fmt.Errorf("submit claim to boltz: %w", err)
 	}
 

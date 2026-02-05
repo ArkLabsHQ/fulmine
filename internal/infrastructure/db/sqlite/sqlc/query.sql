@@ -93,8 +93,9 @@ DELETE FROM subscribed_script WHERE script = ?;
 -- name: CreateChainSwap :exec
 INSERT INTO chain_swap (
     id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id,
-    claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message,
+    boltz_create_response_json
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetChainSwap :one
 SELECT * FROM chain_swap WHERE id = ?;
@@ -116,6 +117,7 @@ SET status = ?,
     claim_tx_id = ?,
     refund_tx_id = ?,
     error_message = ?,
+    boltz_create_response_json = ?,
     updated_at = strftime('%s', 'now')
 WHERE id = ?;
 

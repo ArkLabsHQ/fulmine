@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/mitchellh/mapstructure"
+	log "github.com/sirupsen/logrus"
 )
 
 const reconnectInterval = 15 * time.Second
@@ -112,6 +113,12 @@ func (boltz *Websocket) Connect() error {
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("panic in boltz ws connection: %v", r)
+			}
+		}()
+
 		for {
 			msgType, message, err := conn.ReadMessage()
 			if err != nil {

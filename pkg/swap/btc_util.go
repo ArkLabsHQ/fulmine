@@ -17,17 +17,17 @@ import (
 )
 
 type ClaimTransactionParams struct {
-	LockupTxid         string
-	LockupVout         uint32
-	LockupAmount       uint64
-	DestinationAddr    string
-	Network            *chaincfg.Params
+	LockupTxid      string
+	LockupVout      uint32
+	LockupAmount    uint64
+	DestinationAddr string
+	Network         *chaincfg.Params
 }
 
-// ConstructClaimTransaction creates a transaction to claim BTC lockup
+// constructClaimTransaction creates a transaction to claim BTC lockup
 // This constructs a bare transaction skeleton that will be signed with MuSig2 (key path)
 // or Schnorr signature (script path)
-func ConstructClaimTransaction(
+func constructClaimTransaction(
 	explorerClient ExplorerClient,
 	dustAmount uint64,
 	params ClaimTransactionParams,
@@ -98,7 +98,7 @@ func payToAddrScript(addr btcutil.Address) ([]byte, error) {
 	}
 }
 
-func SerializeTransaction(tx *wire.MsgTx) (string, error) {
+func serializeTransaction(tx *wire.MsgTx) (string, error) {
 	var buf bytes.Buffer
 	if err := tx.Serialize(&buf); err != nil {
 		return "", fmt.Errorf("failed to serialize transaction: %w", err)
@@ -106,7 +106,7 @@ func SerializeTransaction(tx *wire.MsgTx) (string, error) {
 	return hex.EncodeToString(buf.Bytes()), nil
 }
 
-func DeserializeTransaction(txHex string) (*wire.MsgTx, error) {
+func deserializeTransaction(txHex string) (*wire.MsgTx, error) {
 	txBytes, err := hex.DecodeString(txHex)
 	if err != nil {
 		return nil, fmt.Errorf("invalid hex: %w", err)
@@ -118,6 +118,39 @@ func DeserializeTransaction(txHex string) (*wire.MsgTx, error) {
 	}
 
 	return tx, nil
+}
+
+func findOutputForAddress(tx *wire.MsgTx, address string, network *chaincfg.Params) (uint32, uint64, error) {
+	if tx == nil {
+		return 0, 0, fmt.Errorf("tx is nil")
+	}
+	if address == "" {
+		return 0, 0, fmt.Errorf("address is empty")
+	}
+	if network == nil {
+		return 0, 0, fmt.Errorf("network is nil")
+	}
+
+	addr, err := btcutil.DecodeAddress(address, network)
+	if err != nil {
+		return 0, 0, fmt.Errorf("decode address: %w", err)
+	}
+
+	expectedPkScript, err := payToAddrScript(addr)
+	if err != nil {
+		return 0, 0, fmt.Errorf("address script: %w", err)
+	}
+
+	for i, out := range tx.TxOut {
+		if bytes.Equal(out.PkScript, expectedPkScript) {
+			if out.Value <= 0 {
+				return 0, 0, fmt.Errorf("matched output %d has non-positive value %d", i, out.Value)
+			}
+			return uint32(i), uint64(out.Value), nil
+		}
+	}
+
+	return 0, 0, fmt.Errorf("address output not found in tx")
 }
 
 func computeSwapTreeMerkleRoot(tree boltz.SwapTree) ([]byte, error) {
@@ -158,8 +191,7 @@ func tapLeafHash(leafVersion uint8, script []byte) [32]byte {
 	return *sum
 }
 
-
-func CreateControlBlockFromSwapTree(
+func createControlBlockFromSwapTree(
 	internalKey *btcec.PublicKey,
 	swapTree boltz.SwapTree,
 	isClaimPath bool,

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS chain_swap (
     refund_tx_id TEXT,
     user_btc_lockup_address TEXT,
     error_message TEXT,
+    boltz_create_response_json TEXT,
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
