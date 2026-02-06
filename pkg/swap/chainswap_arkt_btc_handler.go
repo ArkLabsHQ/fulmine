@@ -60,9 +60,7 @@ func (h *arkToBtcHandler) HandleSwapCreated(ctx context.Context, update boltz.Sw
 }
 
 func (h *arkToBtcHandler) HandleLockupFailed(ctx context.Context, update boltz.SwapUpdate) error {
-	//TODO fetch and approve new quote
-	log.Infof("Lockup failed for swap %s", h.chainSwapState.SwapID)
-	return nil
+	return h.handleArkToBtcFailure(ctx, update, getQuote)
 }
 
 func (h *arkToBtcHandler) HandleUserLockedMempool(ctx context.Context, update boltz.SwapUpdate) error {
