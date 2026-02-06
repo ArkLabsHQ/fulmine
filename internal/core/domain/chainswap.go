@@ -48,23 +48,30 @@ type ChainSwap struct {
 	BoltzCreateResponseJSON string
 }
 
-// IsComplete returns true if swap is in a terminal state
-func (cs *ChainSwap) IsComplete() bool {
-	return cs.Status == ChainSwapClaimed ||
-		cs.Status == ChainSwapRefunded ||
-		cs.Status == ChainSwapFailed
+func IsTerminalChainSwapStatus(status ChainSwapStatus) bool {
+	switch status {
+	case ChainSwapClaimed,
+		ChainSwapRefunded,
+		ChainSwapRefundedUnilaterally:
+		return true
+	default:
+		return false
+	}
 }
 
-// CanRefund returns true if swap can be refunded
-func (cs *ChainSwap) CanRefund() bool {
-	return cs.Status == ChainSwapPending ||
-		cs.Status == ChainSwapUserLocked ||
-		cs.Status == ChainSwapServerLocked
+func ShouldRefundChainSwapStatus(status ChainSwapStatus) bool {
+	switch status {
+	case ChainSwapFailed,
+		ChainSwapRefundFailed,
+		ChainSwapUserLockedFailed:
+		return true
+	default:
+		return false
+	}
 }
 
-// IsPending returns true if swap is still in progress
-func (cs *ChainSwap) IsPending() bool {
-	return !cs.IsComplete()
+func ShouldResumeChainSwapStatus(status ChainSwapStatus) bool {
+	return !IsTerminalChainSwapStatus(status) && !ShouldRefundChainSwapStatus(status)
 }
 
 // UserLocked updates the swap when user locks funds

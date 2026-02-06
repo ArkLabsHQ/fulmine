@@ -749,6 +749,8 @@ func chainSwapStatusToString(status domain.ChainSwapStatus) string {
 		return "refund_failed"
 	case domain.ChainSwapRefunded:
 		return "refunded"
+	case domain.ChainSwapRefundedUnilaterally:
+		return "refunded"
 	default:
 		return "unknown"
 	}

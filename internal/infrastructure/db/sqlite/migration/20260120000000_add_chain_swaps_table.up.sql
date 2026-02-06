@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS chain_swap (
     from_currency TEXT NOT NULL,
     to_currency TEXT NOT NULL,
     amount INTEGER NOT NULL,
-    status INTEGER NOT NULL CHECK(status IN(0,1,2,3,4,5,6,7)),
+    status INTEGER NOT NULL CHECK(status IN(0,1,2,3,4,5,6,7,8)),
     user_lockup_tx_id TEXT,
     server_lockup_tx_id TEXT,
     claim_tx_id TEXT,

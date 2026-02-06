@@ -142,7 +142,6 @@ func (b *btcToArkHandler) handleBtcToArkFailure(
 	update boltz.SwapUpdate,
 	reason string,
 ) error {
-	// Handle quote flow for amount mismatch
 	if reason == getQuote {
 		log.Warnf("User lockup failed for swap %s (amount mismatch), fetching quote", b.chainSwapState.SwapID)
 

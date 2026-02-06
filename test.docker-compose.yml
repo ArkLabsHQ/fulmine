@@ -111,8 +111,7 @@ services:
       - "7000:7000"
       - "7001:7001"
     volumes:
-      - type: tmpfs
-        target: /app/data
+      - fulmine_data:/app/data
 
   mock-boltz:
     build:
@@ -161,8 +160,7 @@ services:
       - "7100:7000"
       - "7101:7001"
     volumes:
-      - type: tmpfs
-        target: /app/data
+      - fulmine_mock_data:/app/data
 
   boltz-cln:
     build: 
@@ -408,6 +406,10 @@ volumes:
     name: boltz_datadir
   bitcoin_fulmine_data:
     name: bitcoin_fulmine_data
+  fulmine_data:
+    name: fulmine_data
+  fulmine_mock_data:
+    name: fulmine_mock_data
   lnd_datadir:
     name: lnd_datadir
   cln_datadir:

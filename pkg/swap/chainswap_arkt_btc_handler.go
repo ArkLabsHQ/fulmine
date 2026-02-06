@@ -178,6 +178,26 @@ func (h *arkToBtcHandler) handleArkToBtcFailure(
 	_ boltz.SwapUpdate,
 	reason string,
 ) error {
+	if reason == getQuote {
+		log.Warnf("User lockup failed for swap %s (amount mismatch), fetching quote", h.chainSwapState.SwapID)
+
+		quote, err := h.swapHandler.boltzSvc.GetChainSwapQuote(h.chainSwapState.SwapID)
+		if err != nil {
+			h.chainSwapState.Swap.UserLockedFailed(fmt.Sprintf("lockup failed, quote error: %v", err))
+			return fmt.Errorf("failed to get quote: %w", err)
+		}
+
+		log.Infof("Quote for swap %s: amount=%d, onchainAmount=%d",
+			h.chainSwapState.SwapID, quote.Amount, quote.OnchainAmount)
+
+		if err := h.swapHandler.boltzSvc.AcceptChainSwapQuote(h.chainSwapState.SwapID, *quote); err != nil {
+			h.chainSwapState.Swap.UserLockedFailed(fmt.Sprintf("quote acceptance failed: %v", err))
+			return fmt.Errorf("failed to accept quote: %w", err)
+		}
+
+		log.Infof("Quote accepted for swap %s, waiting for Boltz to send VTXOs", h.chainSwapState.SwapID)
+		return nil
+	}
 	log.Warnf("Swap %s %s, attempting refund", h.chainSwapState.SwapID, reason)
 
 	refundTxid, err := h.swapHandler.RefundArkToBTCSwap(

@@ -539,8 +539,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			s.ArkClient, s.grpcClient, s.indexerClient, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
 		)
 
-		//TODO Recover pending chain swaps after crash/restart
-		//go s.recoverChainSwaps(context.Background(), arkConfig)
+		go s.recoverChainSwaps(context.Background(), arkConfig)
 	}()
 
 	// This go routine takes care of establishing the LN connection, if configured.
@@ -1478,6 +1477,7 @@ func (s *Service) CreateChainSwapArkToBtc(
 		Amount:                  chainSwap.Amount,
 		Status:                  domain.ChainSwapPending,
 		ClaimPreimage:           hex.EncodeToString(chainSwap.Preimage),
+		UserBtcLockupAddress:    btcAddress,
 		BoltzCreateResponseJSON: chainSwap.SwapRespJson,
 	}
 
@@ -2346,6 +2346,96 @@ func (s *Service) resumePendingSwapRefunds(ctx context.Context) {
 		}
 
 	}
+}
+
+func (s *Service) recoverChainSwaps(ctx context.Context, arkConfig *types.Config) {
+	if s.swapHandler == nil {
+		log.Warn("swap handler not initialized, skipping chain swap recovery")
+		return
+	}
+	if arkConfig == nil {
+		log.Warn("missing ark config, skipping chain swap recovery")
+		return
+	}
+
+	swaps, err := s.dbSvc.ChainSwaps().GetAll(ctx)
+	if err != nil {
+		log.WithError(err).Error("failed to load chain swaps for recovery")
+		return
+	}
+	if len(swaps) == 0 {
+		return
+	}
+
+	network := networkNameToParams(arkConfig.Network.Name)
+
+	eventCallback := func(event swap.ChainSwapEvent) {
+		s.handleChainSwapEvent(context.Background(), event)
+	}
+
+	unilateralRefund := func(swapId string, opts vhtlc.Opts) error {
+		return s.scheduleChainSwapRefund(swapId, opts)
+	}
+
+	for _, chainSwap := range swaps {
+		if domain.ShouldRefundChainSwapStatus(chainSwap.Status) {
+			swapID := chainSwap.Id
+			go func() {
+				if err := s.RefundChainSwap(context.Background(), swapID); err != nil {
+					log.WithError(err).Warnf("failed to recover refund for chain swap %s", swapID)
+				}
+			}()
+			continue
+		}
+
+		if domain.ShouldResumeChainSwapStatus(chainSwap.Status) {
+			if err := s.resumeChainSwapMonitoring(
+				context.Background(),
+				chainSwap,
+				network,
+				eventCallback,
+				unilateralRefund,
+			); err != nil {
+				log.WithError(err).Warnf("failed to resume chain swap %s", chainSwap.Id)
+			}
+		}
+	}
+}
+
+func (s *Service) resumeChainSwapMonitoring(
+	ctx context.Context,
+	chainSwap domain.ChainSwap,
+	network *chaincfg.Params,
+	eventCallback swap.ChainSwapEventCallback,
+	unilateralRefund func(swapId string, opts vhtlc.Opts) error,
+) error {
+	if chainSwap.BoltzCreateResponseJSON == "" {
+		return fmt.Errorf("missing boltz response json")
+	}
+	if chainSwap.ClaimPreimage == "" {
+		return fmt.Errorf("missing preimage")
+	}
+
+	_, err := s.swapHandler.ResumeChainSwap(ctx, swap.ResumeChainSwapParams{
+		SwapID:             chainSwap.Id,
+		From:               chainSwap.From,
+		To:                 chainSwap.To,
+		Amount:             chainSwap.Amount,
+		PreimageHex:        chainSwap.ClaimPreimage,
+		BoltzResponseJSON:  chainSwap.BoltzCreateResponseJSON,
+		UserBtcAddress:     chainSwap.UserBtcLockupAddress,
+		UserLockTxid:       chainSwap.UserLockupTxId,
+		ServerLockTxid:     chainSwap.ServerLockupTxId,
+		ClaimTxid:          chainSwap.ClaimTxId,
+		RefundTxid:         chainSwap.RefundTxId,
+		Status:             swap.ChainSwapStatus(chainSwap.Status),
+		Error:              chainSwap.ErrorMessage,
+		Timestamp:          chainSwap.CreatedAt,
+		Network:            network,
+		EventCallback:      eventCallback,
+		UnilateralRefundCB: unilateralRefund,
+	})
+	return err
 }
 
 func convertSwapStatus(swapStatus string) domain.SwapStatus {
