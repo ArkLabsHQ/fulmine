@@ -140,3 +140,152 @@ type Swap struct {
 	ClaimDetails  *SwapDetails `json:"claimDetails,omitempty"`
 	RefundDetails *SwapDetails `json:"refundDetails,omitempty"`
 }
+
+type CreateChainSwapRequest struct {
+	From             Currency `json:"from"`
+	To               Currency `json:"to"`
+	PreimageHash     string   `json:"preimageHash"`
+	ClaimPublicKey   string   `json:"claimPublicKey"`
+	RefundPublicKey  string   `json:"refundPublicKey"`
+	UserLockAmount   uint64   `json:"userLockAmount,omitempty"`
+	ServerLockAmount uint64   `json:"serverLockAmount,omitempty"`
+	PairHash         string   `json:"pairHash,omitempty"`
+	ReferralId       string   `json:"referralId,omitempty"`
+}
+
+type ChainSwapLockupDetails struct {
+	LockupAddress      string   `json:"lockupAddress"`
+	Amount             uint64   `json:"amount"`
+	ClaimPublicKey     string   `json:"claimPublicKey,omitempty"`
+	RefundPublicKey    string   `json:"refundPublicKey,omitempty"`
+	TimeoutBlockHeight uint32   `json:"timeoutBlockHeight"`
+	SwapTree           SwapTree `json:"swapTree"`
+}
+
+type SwapTree struct {
+	ClaimLeaf  SwapTreeLeaf `json:"claimLeaf"`
+	RefundLeaf SwapTreeLeaf `json:"refundLeaf"`
+}
+
+type SwapTreeLeaf struct {
+	Version uint8  `json:"version"`
+	Output  string `json:"output"`
+}
+
+type ChainSwapTimeouts struct {
+	Refund                          int `json:"refund"`
+	UnilateralClaim                 int `json:"unilateralClaim"`
+	UnilateralRefund                int `json:"unilateralRefund"`
+	UnilateralRefundWithoutReceiver int `json:"unilateralRefundWithoutReceiver"`
+}
+
+type CreateChainSwapResponse struct {
+	Id           string      `json:"id"`
+	ClaimDetails SwapLeg     `json:"claimDetails"`
+	LockupDetails SwapLeg    `json:"lockupDetails"`
+	Error        string      `json:"error,omitempty"`
+}
+
+func (c CreateChainSwapResponse) GetSwapTree(isArkToBtc bool) SwapTree{
+	if isArkToBtc {
+		return SwapTree{
+			ClaimLeaf: SwapTreeLeaf{
+				Version: c.ClaimDetails.SwapTree.ClaimLeaf.Version,
+				Output:  c.ClaimDetails.SwapTree.ClaimLeaf.Output,
+			},
+			RefundLeaf: SwapTreeLeaf{
+				Version: c.ClaimDetails.SwapTree.RefundLeaf.Version,
+				Output:  c.ClaimDetails.SwapTree.RefundLeaf.Output,
+			},
+		}
+	}
+
+	return SwapTree{
+		ClaimLeaf: SwapTreeLeaf{
+			Version: c.LockupDetails.SwapTree.ClaimLeaf.Version,
+			Output:  c.LockupDetails.SwapTree.ClaimLeaf.Output,
+		},
+		RefundLeaf: SwapTreeLeaf{
+			Version: c.LockupDetails.SwapTree.RefundLeaf.Version,
+			Output:  c.LockupDetails.SwapTree.RefundLeaf.Output,
+		},
+	}
+}
+
+// SwapLeg describes ONE side (one chain) of the swap.
+// Some fields exist only for BTC (swapTree, bip21) or only for ARK (timeouts).
+type SwapLeg struct {
+	ServerPublicKey    string       `json:"serverPublicKey"`
+	Amount             int          `json:"amount"`
+	LockupAddress      string       `json:"lockupAddress"`
+	TimeoutBlockHeight int          `json:"timeoutBlockHeight"`
+
+	// BTC-specific (present on the BTC leg; may appear on either claimDetails or lockupDetails)
+	SwapTree *SwapTree `json:"swapTree,omitempty"`
+	// ARK-specific (present on the ARK leg; may appear on either claimDetails or lockupDetails)
+	Timeouts *ArkTimeouts `json:"timeouts,omitempty"`
+}
+
+type TapLeaf struct {
+	Version int    `json:"version"`
+	Output  string `json:"output"`
+}
+
+type ArkTimeouts struct {
+	Refund                          int `json:"refund"`
+	UnilateralClaim                 int `json:"unilateralClaim"`
+	UnilateralRefund                int `json:"unilateralRefund"`
+	UnilateralRefundWithoutReceiver int `json:"unilateralRefundWithoutReceiver"`
+}
+
+type ChainSwapClaimDetailsResponse struct {
+	PubNonce        string         `json:"pubNonce"`
+	PublicKey       string         `json:"publicKey"`
+	TheirPublicKey  string         `json:"theirPublicKey"`
+	TransactionHash string         `json:"transactionHash"`
+	SwapTree        string         `json:"swapTree"` // base64 serialized
+	Transaction     TransactionRef `json:"transaction"`
+}
+
+type ChainSwapClaimRequest struct {
+	Preimage         string              `json:"preimage"`
+	ToSign           ToSign              `json:"toSign"`
+	PubNonce         string              `json:"pubNonce"`
+	PartialSignature string              `json:"partialSignature"`
+	Transaction      string              `json:"transaction"`
+	Index            int                 `json:"index"`
+	Signature        CrossSignSignature `json:"signature,omitempty"`
+}
+
+type ToSign struct {
+	Nonce   string `json:"pubNonce"`
+	ClaimTx string `json:"transaction"`
+	Index   int    `json:"index"`
+}
+
+type CrossSignSignature struct {
+	PubNonce         string `json:"pubNonce"`
+	PartialSignature string `json:"partialSignature"`
+}
+
+type PartialSignatureResponse struct {
+	PubNonce         string `json:"pubNonce"`
+	PartialSignature string `json:"partialSignature"`
+}
+
+type QuoteResponse struct {
+	Amount             uint64 `json:"amount"`
+	OnchainAmount      uint64 `json:"onchainAmount"`
+	TimeoutBlockHeight uint32 `json:"timeoutBlockHeight"`
+}
+
+type ChainSwapTransactionsResponse struct {
+	UserLock   *ChainSwapTransaction `json:"userLock,omitempty"`
+	ServerLock *ChainSwapTransaction `json:"serverLock,omitempty"`
+}
+
+type ChainSwapTransaction struct {
+	Id     string `json:"id"`
+	Hex    string `json:"hex"`
+	Status string `json:"status"`
+}

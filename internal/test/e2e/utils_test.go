@@ -7,9 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
+	"testing"
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
@@ -30,6 +33,15 @@ func newFulmineClient(url string) (pb.ServiceClient, error) {
 		return nil, err
 	}
 	return pb.NewServiceClient(conn), nil
+}
+
+func newFulmineWalletClient(url string) (pb.WalletServiceClient, error) {
+	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
+	conn, err := grpc.NewClient(url, opts)
+	if err != nil {
+		return nil, err
+	}
+	return pb.NewWalletServiceClient(conn), nil
 }
 
 func lndAddInvoice(ctx context.Context, sats int) (string, string, error) {
@@ -114,4 +126,73 @@ func runCommand(ctx context.Context, command string) (string, error) {
 		}
 		return out.String(), nil
 	}
+}
+
+func restartDockerComposeServices(t *testing.T, ctx context.Context, services ...string) {
+	t.Helper()
+	composePath := findComposeFile(t)
+	requireServices := strings.Join(services, " ")
+	command := fmt.Sprintf("docker compose -f %s restart %s", composePath, requireServices)
+	_, err := runCommand(ctx, command)
+	if err != nil {
+		t.Fatalf("restart docker services (%s): %v", requireServices, err)
+	}
+}
+
+func findComposeFile(t *testing.T) string {
+	t.Helper()
+	path, err := findComposeFilePath()
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	return path
+}
+
+func findComposeFilePath() (string, error) {
+	if env := os.Getenv("FULMINE_COMPOSE_FILE"); env != "" {
+		return env, nil
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("getwd failed: %w", err)
+	}
+
+	dir := wd
+	for {
+		candidate := filepath.Join(dir, "test.docker-compose.yml")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+
+	return "", fmt.Errorf("test.docker-compose.yml not found from %s; set FULMINE_COMPOSE_FILE", wd)
+}
+
+func unlockAndSettle(addr string, pass string) error {
+	walletClient, err := newFulmineWalletClient(addr)
+	if err != nil {
+		return fmt.Errorf("wallet client connect %s: %w", addr, err)
+	}
+
+	if _, err = walletClient.Unlock(context.Background(), &pb.UnlockRequest{Password: pass}); err != nil {
+		return err
+	}
+
+	serviceClient, err := newFulmineClient(addr)
+	if err != nil {
+		return err
+	}
+
+	if _, err = serviceClient.Settle(context.Background(), &pb.SettleRequest{}); err != nil {
+		return err
+	}
+
+	return nil
 }

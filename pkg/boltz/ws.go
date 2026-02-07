@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/mitchellh/mapstructure"
+	log "github.com/sirupsen/logrus"
 )
 
 const reconnectInterval = 15 * time.Second
@@ -112,6 +113,12 @@ func (boltz *Websocket) Connect() error {
 	}()
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("panic in boltz ws connection: %v", r)
+			}
+		}()
+
 		for {
 			msgType, message, err := conn.ReadMessage()
 			if err != nil {
@@ -231,7 +238,7 @@ func (boltz *Websocket) Reconnect() error {
 }
 
 func (boltz *Websocket) ConnectAndSubscribe(ctx context.Context, swapIds []string, retryInterval time.Duration) error {
-	err := Retry(ctx, 5*time.Second, func(ctx context.Context) (bool, error) {
+	err := Retry(ctx, retryInterval, func(ctx context.Context) (bool, error) {
 		err := boltz.Connect()
 		if err != nil {
 			return false, nil

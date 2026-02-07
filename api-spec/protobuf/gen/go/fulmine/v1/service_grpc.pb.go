@@ -45,6 +45,9 @@ const (
 	Service_GetVirtualTxs_FullMethodName              = "/fulmine.v1.Service/GetVirtualTxs"
 	Service_GetVtxos_FullMethodName                   = "/fulmine.v1.Service/GetVtxos"
 	Service_NextSettlement_FullMethodName             = "/fulmine.v1.Service/NextSettlement"
+	Service_CreateChainSwap_FullMethodName            = "/fulmine.v1.Service/CreateChainSwap"
+	Service_ListChainSwaps_FullMethodName             = "/fulmine.v1.Service/ListChainSwaps"
+	Service_RefundChainSwap_FullMethodName            = "/fulmine.v1.Service/RefundChainSwap"
 )
 
 // ServiceClient is the client API for Service service.
@@ -98,6 +101,12 @@ type ServiceClient interface {
 	GetVtxos(ctx context.Context, in *GetVtxosRequest, opts ...grpc.CallOption) (*GetVtxosResponse, error)
 	// NextSettlement returns the next scheduled settlement time
 	NextSettlement(ctx context.Context, in *NextSettlementRequest, opts ...grpc.CallOption) (*NextSettlementResponse, error)
+	// CreateChainSwap initiates a chain swap between Ark and Bitcoin
+	CreateChainSwap(ctx context.Context, in *CreateChainSwapRequest, opts ...grpc.CallOption) (*CreateChainSwapResponse, error)
+	// ListChainSwaps retrieves all chain swaps
+	ListChainSwaps(ctx context.Context, in *ListChainSwapsRequest, opts ...grpc.CallOption) (*ListChainSwapsResponse, error)
+	// RefundChainSwap initiates a cooperative refund for a chain swap
+	RefundChainSwap(ctx context.Context, in *RefundChainSwapRequest, opts ...grpc.CallOption) (*RefundChainSwapResponse, error)
 }
 
 type serviceClient struct {
@@ -368,6 +377,36 @@ func (c *serviceClient) NextSettlement(ctx context.Context, in *NextSettlementRe
 	return out, nil
 }
 
+func (c *serviceClient) CreateChainSwap(ctx context.Context, in *CreateChainSwapRequest, opts ...grpc.CallOption) (*CreateChainSwapResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateChainSwapResponse)
+	err := c.cc.Invoke(ctx, Service_CreateChainSwap_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) ListChainSwaps(ctx context.Context, in *ListChainSwapsRequest, opts ...grpc.CallOption) (*ListChainSwapsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListChainSwapsResponse)
+	err := c.cc.Invoke(ctx, Service_ListChainSwaps_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) RefundChainSwap(ctx context.Context, in *RefundChainSwapRequest, opts ...grpc.CallOption) (*RefundChainSwapResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RefundChainSwapResponse)
+	err := c.cc.Invoke(ctx, Service_RefundChainSwap_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServiceServer is the server API for Service service.
 // All implementations should embed UnimplementedServiceServer
 // for forward compatibility
@@ -419,6 +458,12 @@ type ServiceServer interface {
 	GetVtxos(context.Context, *GetVtxosRequest) (*GetVtxosResponse, error)
 	// NextSettlement returns the next scheduled settlement time
 	NextSettlement(context.Context, *NextSettlementRequest) (*NextSettlementResponse, error)
+	// CreateChainSwap initiates a chain swap between Ark and Bitcoin
+	CreateChainSwap(context.Context, *CreateChainSwapRequest) (*CreateChainSwapResponse, error)
+	// ListChainSwaps retrieves all chain swaps
+	ListChainSwaps(context.Context, *ListChainSwapsRequest) (*ListChainSwapsResponse, error)
+	// RefundChainSwap initiates a cooperative refund for a chain swap
+	RefundChainSwap(context.Context, *RefundChainSwapRequest) (*RefundChainSwapResponse, error)
 }
 
 // UnimplementedServiceServer should be embedded to have forward compatible implementations.
@@ -502,6 +547,15 @@ func (UnimplementedServiceServer) GetVtxos(context.Context, *GetVtxosRequest) (*
 }
 func (UnimplementedServiceServer) NextSettlement(context.Context, *NextSettlementRequest) (*NextSettlementResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NextSettlement not implemented")
+}
+func (UnimplementedServiceServer) CreateChainSwap(context.Context, *CreateChainSwapRequest) (*CreateChainSwapResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateChainSwap not implemented")
+}
+func (UnimplementedServiceServer) ListChainSwaps(context.Context, *ListChainSwapsRequest) (*ListChainSwapsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListChainSwaps not implemented")
+}
+func (UnimplementedServiceServer) RefundChainSwap(context.Context, *RefundChainSwapRequest) (*RefundChainSwapResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RefundChainSwap not implemented")
 }
 
 // UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -983,6 +1037,60 @@ func _Service_NextSettlement_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_CreateChainSwap_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateChainSwapRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).CreateChainSwap(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_CreateChainSwap_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).CreateChainSwap(ctx, req.(*CreateChainSwapRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_ListChainSwaps_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListChainSwapsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).ListChainSwaps(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_ListChainSwaps_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).ListChainSwaps(ctx, req.(*ListChainSwapsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_RefundChainSwap_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefundChainSwapRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).RefundChainSwap(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_RefundChainSwap_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).RefundChainSwap(ctx, req.(*RefundChainSwapRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Service_ServiceDesc is the grpc.ServiceDesc for Service service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1093,6 +1201,18 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "NextSettlement",
 			Handler:    _Service_NextSettlement_Handler,
+		},
+		{
+			MethodName: "CreateChainSwap",
+			Handler:    _Service_CreateChainSwap_Handler,
+		},
+		{
+			MethodName: "ListChainSwaps",
+			Handler:    _Service_ListChainSwaps_Handler,
+		},
+		{
+			MethodName: "RefundChainSwap",
+			Handler:    _Service_RefundChainSwap_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
