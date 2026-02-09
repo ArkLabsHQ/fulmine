@@ -1481,10 +1481,6 @@ func (s *Service) CreateChainSwapArkToBtc(
 		BoltzCreateResponseJSON: chainSwap.SwapRespJson,
 	}
 
-	if err := s.dbSvc.ChainSwaps().Add(ctx, *domainSwap); err != nil {
-		return nil, fmt.Errorf("failed to persist chain swap: %w", err)
-	}
-
 	log.Infof("Created chain swap %s: Ark → BTC", domainSwap.Id)
 	return domainSwap, nil
 }
@@ -1525,10 +1521,6 @@ func (s *Service) CreateBtcToArkChainSwap(
 		BoltzCreateResponseJSON: chainSwap.SwapRespJson,
 	}
 
-	if err := s.dbSvc.ChainSwaps().Add(ctx, *domainSwap); err != nil {
-		return nil, fmt.Errorf("failed to persist chain swap: %w", err)
-	}
-
 	log.Infof("Created chain swap %s: BTC → Ark, lockup address: %s", domainSwap.Id, chainSwap.UserBtcLockupAddress)
 	return domainSwap, nil
 }
@@ -1537,6 +1529,27 @@ func (s *Service) CreateBtcToArkChainSwap(
 // Implements the DDD pattern: fetch domain entity → call domain method → persist
 func (s *Service) handleChainSwapEvent(ctx context.Context, event swap.ChainSwapEvent) {
 	switch e := event.(type) {
+	case swap.CreateEvent:
+		from := boltz.CurrencyArk
+		to := boltz.CurrencyBtc
+		if !e.IsArkToBtc {
+			from = boltz.CurrencyBtc
+			to = boltz.CurrencyArk
+		}
+		domainSwap := &domain.ChainSwap{
+			Id:                      e.Id,
+			From:                    from,
+			To:                      to,
+			Amount:                  e.Amount,
+			Status:                  domain.ChainSwapPending,
+			ClaimPreimage:           hex.EncodeToString(e.Preimage),
+			UserBtcLockupAddress:    e.UserBtcLockupAddress,
+			BoltzCreateResponseJSON: e.SwapRespJson,
+		}
+		if err := s.dbSvc.ChainSwaps().Add(ctx, *domainSwap); err != nil {
+			log.WithError(err).Errorf("failed to persist chain swap: %v", err)
+			return
+		}
 	case swap.UserLockEvent:
 		domainSwap, err := s.dbSvc.ChainSwaps().Get(ctx, e.SwapID)
 		if err != nil {
@@ -1667,7 +1680,7 @@ func (s *Service) RefundChainSwap(ctx context.Context, id string) error {
 			return fmt.Errorf("BTC→ARK refund failed: %w", err)
 		}
 
-		chainSwap.Refunded(refundTxid)
+		chainSwap.RefundedUnilaterally(refundTxid)
 		if err := s.dbSvc.ChainSwaps().Update(ctx, *chainSwap); err != nil {
 			log.WithError(err).Errorf("Failed to update chain swap %s after refund", id)
 			return fmt.Errorf("failed to update chain swap: %w", err)

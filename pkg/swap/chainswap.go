@@ -62,6 +62,7 @@ type ChainSwap struct {
 	Error     string
 
 	SwapRespJson string
+	IsArkToBtc   bool
 
 	// onEvent is called when swap state transitions occur
 	// Emits typed events that the service layer can handle
@@ -74,6 +75,8 @@ func NewChainSwap(
 	preimage []byte,
 	vhtlcOpts *vhtlc.Opts,
 	swapRespJson string,
+	isArkToBtc bool,
+	userBtcLockupAddress string,
 	eventCallback ChainSwapEventCallback,
 ) (*ChainSwap, error) {
 	if id == "" {
@@ -92,16 +95,32 @@ func NewChainSwap(
 		return nil, errors.New("preimage cannot be nil")
 	}
 
-	return &ChainSwap{
-		Id:           id,
-		Timestamp:    time.Now().Unix(),
-		Status:       ChainSwapPending,
-		Amount:       amount,
-		Preimage:     preimage,
-		VhtlcOpts:    *vhtlcOpts,
-		SwapRespJson: swapRespJson,
-		onEvent:      eventCallback,
-	}, nil
+	ch := &ChainSwap{
+		Id:                   id,
+		Timestamp:            time.Now().Unix(),
+		Status:               ChainSwapPending,
+		Amount:               amount,
+		Preimage:             preimage,
+		VhtlcOpts:            *vhtlcOpts,
+		SwapRespJson:         swapRespJson,
+		IsArkToBtc:           isArkToBtc,
+		UserBtcLockupAddress: userBtcLockupAddress,
+		onEvent:              eventCallback,
+	}
+
+	eventCallback(CreateEvent{
+		Id:                   id,
+		Timestamp:            time.Now().Unix(),
+		Status:               ChainSwapPending,
+		Amount:               amount,
+		Preimage:             preimage,
+		VhtlcOpts:            *vhtlcOpts,
+		SwapRespJson:         swapRespJson,
+		IsArkToBtc:           isArkToBtc,
+		UserBtcLockupAddress: userBtcLockupAddress,
+	})
+
+	return ch, nil
 }
 
 func (s *ChainSwap) UserLock(txid string) {
@@ -162,7 +181,7 @@ func (s *ChainSwap) RefundUnilaterally(txid string) {
 
 	// Emit typed event
 	if s.onEvent != nil {
-		s.onEvent(RefundEvent{
+		s.onEvent(RefundEventUnilaterally{
 			SwapID: s.Id,
 			TxID:   txid,
 		})
@@ -251,6 +270,20 @@ type RefundEventUnilaterally struct {
 	SwapID string
 	TxID   string
 }
+
+type CreateEvent struct {
+	Id                   string
+	Amount               uint64
+	Preimage             []byte
+	VhtlcOpts            vhtlc.Opts
+	Timestamp            int64
+	Status               ChainSwapStatus
+	SwapRespJson         string
+	IsArkToBtc           bool
+	UserBtcLockupAddress string
+}
+
+func (CreateEvent) isChainSwapEvent() {}
 
 func (RefundEventUnilaterally) isChainSwapEvent() {}
 
@@ -409,7 +442,9 @@ func (h *SwapHandler) ChainSwapArkToBtc(
 		return nil, fmt.Errorf("failed to marshal swap response from boltz: %w", err)
 	}
 
-	chainSwap, err := NewChainSwap(swapResp.Id, amount, preimage, vhtlcOpts, string(swapRespJson), eventCallback)
+	chainSwap, err := NewChainSwap(
+		swapResp.Id, amount, preimage, vhtlcOpts, string(swapRespJson), arkToBtc, btcDestinationAddress, eventCallback,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chain swap: %w", err)
 	}
@@ -541,7 +576,9 @@ func (h *SwapHandler) ChainSwapBtcToArk(
 		return nil, fmt.Errorf("failed to marshal swap response from boltz: %w", err)
 	}
 
-	chainSwap, err := NewChainSwap(swapResp.Id, amount, preimage, vhtlcOpts, string(swapRespJson), eventCallback)
+	chainSwap, err := NewChainSwap(
+		swapResp.Id, amount, preimage, vhtlcOpts, string(swapRespJson), arkToBtc, "", eventCallback,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chain swap: %w", err)
 	}

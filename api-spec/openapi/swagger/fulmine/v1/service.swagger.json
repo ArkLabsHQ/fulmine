@@ -878,21 +878,18 @@
         "parameters": [
           {
             "name": "spendableOnly",
-            "description": "Filter for spendable VTXOs only",
             "in": "query",
             "required": false,
             "type": "boolean"
           },
           {
             "name": "spentOnly",
-            "description": "Filter for spent VTXOs only",
             "in": "query",
             "required": false,
             "type": "boolean"
           },
           {
             "name": "recoverableOnly",
-            "description": "Filter for recoverable VTXOs only",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -1043,17 +1040,14 @@
       "type": "object",
       "properties": {
         "direction": {
-          "$ref": "#/definitions/v1SwapDirection",
-          "title": "Direction of the swap"
+          "$ref": "#/definitions/v1SwapDirection"
         },
         "amount": {
           "type": "string",
-          "format": "uint64",
-          "title": "Amount in satoshis"
+          "format": "uint64"
         },
         "btcAddress": {
-          "type": "string",
-          "title": "For Ark→BTC: destination BTC address (required)"
+          "type": "string"
         }
       }
     },
@@ -1067,29 +1061,21 @@
           "type": "string"
         },
         "userLockupTxid": {
-          "type": "string",
-          "title": "For Ark→BTC: VTXO lockup txid"
+          "type": "string"
         },
         "lockupAddress": {
-          "type": "string",
-          "description": "For BTC→Ark: BTC address to send funds to",
-          "title": "For BTC→Ark: empty until user sends BTC"
+          "type": "string"
         },
         "expectedAmount": {
           "type": "string",
-          "format": "uint64",
-          "description": "For BTC→Ark: Expected amount including fees",
-          "title": "For Ark→BTC: empty"
+          "format": "uint64"
         },
         "timeoutBlockHeight": {
           "type": "string",
-          "format": "uint64",
-          "description": "Timeout block height (BTC→Ark)",
-          "title": "For Ark→BTC: same as request amount"
+          "format": "uint64"
         },
-        "preimageHash": {
-          "type": "string",
-          "title": "HTLC preimage hash"
+        "preimage": {
+          "type": "string"
         },
         "error": {
           "type": "string"
@@ -1312,8 +1298,7 @@
           "items": {
             "type": "object",
             "$ref": "#/definitions/v1Vtxo"
-          },
-          "title": "List of VTXOs matching the filter"
+          }
         }
       }
     },
@@ -1586,8 +1571,7 @@
         "SWAP_DIRECTION_ARK_TO_BTC",
         "SWAP_DIRECTION_BTC_TO_ARK"
       ],
-      "default": "SWAP_DIRECTION_UNSPECIFIED",
-      "title": "SwapDirection specifies the direction of a chain swap"
+      "default": "SWAP_DIRECTION_UNSPECIFIED"
     },
     "v1TaprootLeaf": {
       "type": "object",

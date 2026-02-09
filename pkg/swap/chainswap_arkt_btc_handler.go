@@ -28,6 +28,7 @@ type arkToBtcHandler struct {
 	boltzClaimPubKey      *btcec.PublicKey
 	swapTree              boltz.SwapTree
 	userLockupTxid        string
+	quoteAccepted         bool
 }
 
 func NewArkToBtcHandler(
@@ -77,8 +78,7 @@ func (h *arkToBtcHandler) HandleServerLockedMempool(ctx context.Context, update 
 }
 
 func (h *arkToBtcHandler) HandleServerLocked(ctx context.Context, update boltz.SwapUpdate) error {
-	// we claim BTC only when it is confirmed
-	return h.handleArkToBtcServerLocked(ctx, update)
+	return nil
 }
 
 func (h *arkToBtcHandler) HandleSwapExpired(ctx context.Context, update boltz.SwapUpdate) error {
@@ -132,15 +132,6 @@ func (h *arkToBtcHandler) handleArkToBtcServerLocked(
 	ctx context.Context,
 	update boltz.SwapUpdate,
 ) error {
-	status := boltz.ParseEvent(update.Status)
-
-	if status == boltz.TransactionServerMempoool {
-		log.Infof("Boltz server lockup for swap %s detected in mempool", h.chainSwapState.SwapID)
-		h.chainSwapState.Swap.ServerLock(update.Transaction.Id)
-
-		return nil
-	}
-
 	log.Infof("Boltz locked BTC for swap %s (confirmed), proceeding with claim", h.chainSwapState.SwapID)
 
 	serverLockupTxID := update.Transaction.Id
@@ -176,6 +167,11 @@ func (h *arkToBtcHandler) handleArkToBtcFailure(
 	_ boltz.SwapUpdate,
 	reason string,
 ) error {
+	// Ignore duplicate getQuote failures after we've already accepted once
+	if reason == getQuote && h.quoteAccepted {
+		return nil
+	}
+
 	if reason == getQuote {
 		log.Warnf("User lockup failed for swap %s (amount mismatch), fetching quote", h.chainSwapState.SwapID)
 
@@ -193,6 +189,7 @@ func (h *arkToBtcHandler) handleArkToBtcFailure(
 			return fmt.Errorf("failed to accept quote: %w", err)
 		}
 
+		h.quoteAccepted = true
 		log.Infof("Quote accepted for swap %s, waiting for Boltz to send VTXOs", h.chainSwapState.SwapID)
 		return nil
 	}

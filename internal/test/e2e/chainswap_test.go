@@ -127,7 +127,7 @@ func TestChainSwapBTCtoARKWithQuote(t *testing.T) {
 		SwapIds: []string{swapID},
 	})
 	require.NoError(t, err)
-	require.Equal(t, "failed", swaps.GetSwaps()[0].GetStatus())
+	require.Equal(t, "claimed", swaps.GetSwaps()[0].GetStatus())
 
 	endBalance, err := client.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
@@ -200,7 +200,7 @@ func TestChainSwapMockArkToBTCScriptPathClaim(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 	mockPushEvent(t, swapID, "transaction.confirmed")
-	mockPushEventWithTx(t, swapID, "transaction.server.confirmed", serverLockTxID, serverLockTxHex)
+	mockPushEventWithTx(t, swapID, "transaction.server.mempool", serverLockTxID, serverLockTxHex)
 
 	waitChainSwapStatus(t, ctx, client, swapID, "claimed", 40*time.Second)
 
@@ -294,7 +294,7 @@ func TestChainSwapMockArkToBTCUnilateralRefund(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	mockPushEvent(t, swapID, "swap.expired")
 
-	waitChainSwapStatus(t, ctx, client, swapID, "refunded", 80*time.Second)
+	waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 80*time.Second)
 
 	state := mockGetSwap(t, swapID)
 	require.Greater(t, state.RefundRequests, 0, "expected failed cooperative refund attempt before unilateral refund")
@@ -331,8 +331,8 @@ func TestChainSwapMockBTCToARKUnilateralRefund(t *testing.T) {
 	userLockTxID, userLockTxHex := fundAddressAndGetConfirmedTx(t, ctx, lockupAddress, expectedAmount)
 
 	time.Sleep(3 * time.Second)
-	mockPushEventWithTx(t, createResp.GetId(), "transaction.confirmed", userLockTxID, userLockTxHex)
 	waitForEsploraTxIndexed(t, userLockTxID, 15*time.Second)
+	mockPushEventWithTx(t, createResp.GetId(), "transaction.confirmed", userLockTxID, userLockTxHex)
 
 	// Unilateral BTC refund path can spend only after locktime is reached.
 	mineRegtestBlocksToHeight(t, ctx, int(createResp.GetTimeoutBlockHeight())+1)
@@ -340,7 +340,7 @@ func TestChainSwapMockBTCToARKUnilateralRefund(t *testing.T) {
 	// Simulate Boltz-side failure after user lockup to trigger refund logic.
 	mockPushEvent(t, createResp.GetId(), "transaction.failed")
 
-	waitChainSwapStatus(t, ctx, client, createResp.GetId(), "refunded", 60*time.Second)
+	waitChainSwapStatus(t, ctx, client, createResp.GetId(), "refunded_unilaterally", 60*time.Second)
 }
 
 func TestChainSwapMockRefundChainSwapRPC(t *testing.T) {
@@ -421,7 +421,7 @@ func TestChainSwapMockRefundChainSwapRPC(t *testing.T) {
 		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 15*time.Second)
 		require.Equal(t, "refund initiated", refundResp.GetMessage())
 
-		waitChainSwapStatus(t, ctx, client, swapID, "refunded", 40*time.Second)
+		waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 40*time.Second)
 	})
 }
 
@@ -528,14 +528,16 @@ func TestChainSwapRecovery(t *testing.T) {
 		waitForEsploraTxIndexed(t, userLockTxID, 15*time.Second)
 		mockPushEventWithTx(t, swapID, "transaction.confirmed", userLockTxID, userLockTxHex)
 
+		time.Sleep(2 * time.Second)
+
 		restartDockerComposeServices(t, ctx, "fulmine-mock")
 		err = unlockAndSettle(mockFulmineURL, fulminePass)
-		require.NotEmpty(t, swapID)
+		require.NoError(t, err)
 
 		time.Sleep(1 * time.Second)
 
 		mockPushEvent(t, swapID, "transaction.failed")
-		waitChainSwapStatus(t, ctx, client, swapID, "refunded", 80*time.Second)
+		waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 80*time.Second)
 	})
 }
 

@@ -22,6 +22,7 @@ type btcToArkHandler struct {
 	preimage       []byte
 	refundKey      *btcec.PrivateKey
 	swapResp       *boltz.CreateChainSwapResponse
+	quoteAccepted  bool
 }
 
 func NewBtcToArkHandler(
@@ -112,7 +113,7 @@ func (b *btcToArkHandler) handleBtcToArkServerLocked(
 	serverLockupTxID := update.Transaction.Id
 	b.chainSwapState.Swap.ServerLock(serverLockupTxID)
 
-	// Claim Ark VTXOs locup
+	// Claim Ark VTXOs lockup
 	claimTxid, err := b.swapHandler.ClaimVHTLC(ctx, b.preimage, b.chainSwapState.Swap.VhtlcOpts)
 	if err != nil {
 		// ChainSwap.Fail() emits FailEvent automatically
@@ -142,6 +143,11 @@ func (b *btcToArkHandler) handleBtcToArkFailure(
 	update boltz.SwapUpdate,
 	reason string,
 ) error {
+	// Ignore duplicate getQuote failures after we've already accepted once
+	if reason == getQuote && b.quoteAccepted {
+		return nil
+	}
+
 	if reason == getQuote {
 		log.Warnf("User lockup failed for swap %s (amount mismatch), fetching quote", b.chainSwapState.SwapID)
 
@@ -159,6 +165,7 @@ func (b *btcToArkHandler) handleBtcToArkFailure(
 			return fmt.Errorf("failed to accept quote: %w", err)
 		}
 
+		b.quoteAccepted = true
 		log.Infof("Quote accepted for swap %s, waiting for Boltz to send VTXOs", b.chainSwapState.SwapID)
 		return nil
 	}

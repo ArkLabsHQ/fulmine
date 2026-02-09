@@ -654,7 +654,7 @@ func (h *serviceHandler) CreateChainSwap(
 			Status:         chainSwapStatusToString(chainSwap.Status),
 			UserLockupTxid: chainSwap.UserLockupTxId,
 			ExpectedAmount: chainSwap.Amount,
-			PreimageHash:   chainSwap.ClaimPreimage,
+			Preimage:       chainSwap.ClaimPreimage,
 		}, nil
 
 	case pb.SwapDirection_SWAP_DIRECTION_BTC_TO_ARK:
@@ -669,7 +669,7 @@ func (h *serviceHandler) CreateChainSwap(
 			LockupAddress:      chainSwap.UserBtcLockupAddress,
 			ExpectedAmount:     chainSwap.Amount,
 			TimeoutBlockHeight: 0,
-			PreimageHash:       chainSwap.ClaimPreimage,
+			Preimage:           chainSwap.ClaimPreimage,
 		}, nil
 
 	default:
@@ -750,7 +750,7 @@ func chainSwapStatusToString(status domain.ChainSwapStatus) string {
 	case domain.ChainSwapRefunded:
 		return "refunded"
 	case domain.ChainSwapRefundedUnilaterally:
-		return "refunded"
+		return "refunded_unilaterally"
 	default:
 		return "unknown"
 	}

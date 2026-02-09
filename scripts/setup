@@ -85,7 +85,7 @@ else
 fi
 sleep 5
 
-echo "provisioning Arakde server..."
+echo "provisioning Arkade server..."
 err=$($arkd wallet create --password $password)
 if [ $? -ne 0 ]; then
     exit "  ❌ failed to initialize (status=$status) (err=$err)"
@@ -357,6 +357,11 @@ if [ $? -ne 0 ]; then
     exit "  ❌ failed to get mocked Fulmine boarding address (status=$status) (err=$err)"
 fi
 sleep 5
+
+err=$(nigiri faucet $addr 0.001)
+if [ $? -ne 0 ]; then
+    exit "  ❌ failed to fund mocked Fulmine boarding address (addr=$addr) (status=$status) (err=$err)"
+fi
 
 err=$(curl -s $fulmineMockUrl/settle)
 if [ $? -ne 0 ]; then

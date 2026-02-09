@@ -451,6 +451,8 @@ func (h *SwapHandler) RefundSwap(
 			refundFunc = h.boltzSvc.RefundSubmarine
 		case SwapTypeChain:
 			refundFunc = h.boltzSvc.RefundChainSwap
+		default:
+			return "", fmt.Errorf("unsupported swap type for collaborative refund: %s", swapType)
 		}
 
 		boltzSignedRefundPtx, boltzSignedCheckpointPtx, err := h.collaborativeRefund(

@@ -998,7 +998,7 @@ func (s *Server) pushSwapUpdate(id, status, txID, txHex string) error {
 		return fmt.Errorf("swap %s not found", id)
 	}
 
-	if strings.HasPrefix(status, "transaction.server.") {
+	if strings.HasPrefix(status, "transaction.mempool.") {
 		if st.ServerLockTxHex == "" || st.ServerLockTxID == "" {
 			if err := s.ensureServerLockTx(st); err != nil {
 				s.mu.Unlock()
@@ -1013,7 +1013,7 @@ func (s *Server) pushSwapUpdate(id, status, txID, txHex string) error {
 		}
 	}
 
-	if strings.HasPrefix(status, "transaction.") && !strings.HasPrefix(status, "transaction.server.") {
+	if strings.HasPrefix(status, "transaction.") && !strings.HasPrefix(status, "transaction.mempool.") {
 		if txID == "" {
 			txID = randomTxID()
 		}
