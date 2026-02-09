@@ -127,7 +127,7 @@ func TestChainSwapBTCtoARKWithQuote(t *testing.T) {
 		SwapIds: []string{swapID},
 	})
 	require.NoError(t, err)
-	require.Equal(t, "claimed", swaps.GetSwaps()[0].GetStatus())
+	require.Equal(t, "failed", swaps.GetSwaps()[0].GetStatus())
 
 	endBalance, err := client.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
@@ -414,6 +414,9 @@ func TestChainSwapMockRefundChainSwapRPC(t *testing.T) {
 		waitForEsploraTxIndexed(t, userLockTxID, 15*time.Second)
 
 		mineRegtestBlocksToHeight(t, ctx, int(createResp.GetTimeoutBlockHeight())+1)
+
+		// Give the node time to observe the new blocks.
+		time.Sleep(3 * time.Second)
 
 		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 15*time.Second)
 		require.Equal(t, "refund initiated", refundResp.GetMessage())

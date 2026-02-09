@@ -176,19 +176,43 @@ func findComposeFilePath() (string, error) {
 }
 
 func unlockAndSettle(addr string, pass string) error {
-	walletClient, err := newFulmineWalletClient(addr)
-	if err != nil {
-		return fmt.Errorf("wallet client connect %s: %w", addr, err)
+	var walletClient pb.WalletServiceClient
+	var serviceClient pb.ServiceClient
+
+	// Retry loop: after a docker restart the gRPC server may need a few
+	// seconds before it starts accepting connections.
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		wc, err := newFulmineWalletClient(addr)
+		if err != nil {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		_, err = wc.Unlock(context.Background(), &pb.UnlockRequest{Password: pass})
+		if err != nil {
+			// "connection reset" / "connection refused" means the server
+			// isn't ready yet – keep retrying.
+			errMsg := err.Error()
+			if strings.Contains(errMsg, "connection reset") ||
+				strings.Contains(errMsg, "connection refused") ||
+				strings.Contains(errMsg, "unavailable") {
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+			return fmt.Errorf("unlock %s: %w", addr, err)
+		}
+		walletClient = wc
+		break
+	}
+	if walletClient == nil {
+		return fmt.Errorf("wallet client %s not ready within 30s", addr)
 	}
 
-	if _, err = walletClient.Unlock(context.Background(), &pb.UnlockRequest{Password: pass}); err != nil {
-		return err
-	}
-
-	serviceClient, err := newFulmineClient(addr)
+	sc, err := newFulmineClient(addr)
 	if err != nil {
 		return err
 	}
+	serviceClient = sc
 
 	if _, err = serviceClient.Settle(context.Background(), &pb.SettleRequest{}); err != nil {
 		return err
