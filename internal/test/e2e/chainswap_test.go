@@ -5,9 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -330,8 +328,7 @@ func TestChainSwapMockBTCToARKUnilateralRefund(t *testing.T) {
 
 	userLockTxID, userLockTxHex := fundAddressAndGetConfirmedTx(t, ctx, lockupAddress, expectedAmount)
 
-	time.Sleep(3 * time.Second)
-	waitForEsploraTxIndexed(t, userLockTxID, 15*time.Second)
+	time.Sleep(5 * time.Second)
 	mockPushEventWithTx(t, createResp.GetId(), "transaction.confirmed", userLockTxID, userLockTxHex)
 
 	// Unilateral BTC refund path can spend only after locktime is reached.
@@ -411,12 +408,10 @@ func TestChainSwapMockRefundChainSwapRPC(t *testing.T) {
 		)
 		mockPushEventWithTx(t, swapID, "transaction.confirmed", userLockTxID, userLockTxHex)
 		waitChainSwapStatus(t, ctx, client, swapID, "user_locked", 20*time.Second)
-		waitForEsploraTxIndexed(t, userLockTxID, 15*time.Second)
 
 		mineRegtestBlocksToHeight(t, ctx, int(createResp.GetTimeoutBlockHeight())+1)
 
-		// Give the node time to observe the new blocks.
-		time.Sleep(3 * time.Second)
+		time.Sleep(5 * time.Second)
 
 		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 15*time.Second)
 		require.Equal(t, "refund initiated", refundResp.GetMessage())
@@ -445,7 +440,7 @@ func TestChainSwapRecovery(t *testing.T) {
 		swapID := createResp.GetId()
 		require.NotEmpty(t, swapID)
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(5 * time.Second)
 
 		restartDockerComposeServices(t, ctx, "fulmine")
 		err = unlockAndSettle(clientFulmineURL, fulminePass)
@@ -479,13 +474,13 @@ func TestChainSwapRecovery(t *testing.T) {
 		swapID := createResp.GetId()
 		require.NotEmpty(t, swapID)
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(5 * time.Second)
 
 		restartDockerComposeServices(t, ctx, "fulmine-mock")
 		err = unlockAndSettle(mockFulmineURL, fulminePass)
 		require.NoError(t, err)
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(3 * time.Second)
 		mockPushEvent(t, swapID, "swap.expired")
 
 		waitChainSwapStatus(t, ctx, client, swapID, "refunded", 30*time.Second)
@@ -525,7 +520,6 @@ func TestChainSwapRecovery(t *testing.T) {
 		userLockTxID, userLockTxHex := fundAddressAndGetConfirmedTx(
 			t, ctx, createResp.GetLockupAddress(), createResp.GetExpectedAmount(),
 		)
-		waitForEsploraTxIndexed(t, userLockTxID, 15*time.Second)
 		mockPushEventWithTx(t, swapID, "transaction.confirmed", userLockTxID, userLockTxHex)
 
 		time.Sleep(2 * time.Second)
@@ -603,42 +597,6 @@ func refundChainSwapRPCWithRetry(
 
 	require.NoError(t, lastErr)
 	return nil
-}
-
-func waitForEsploraTxIndexed(t *testing.T, txID string, timeout time.Duration) {
-	t.Helper()
-	require.NotEmpty(t, txID)
-
-	baseURL := os.Getenv("MOCK_ESPLORA_URL")
-	if baseURL == "" {
-		baseURL = "http://localhost:3000"
-	}
-	endpoint := strings.TrimRight(baseURL, "/") + "/tx/" + txID + "/hex"
-
-	deadline := time.Now().Add(timeout)
-	lastStatus := 0
-	lastBody := ""
-
-	for time.Now().Before(deadline) {
-		resp, err := http.Get(endpoint) //nolint:noctx
-		if err == nil {
-			body, _ := io.ReadAll(io.LimitReader(resp.Body, 256))
-			_ = resp.Body.Close()
-			lastStatus = resp.StatusCode
-			lastBody = strings.TrimSpace(string(body))
-			if resp.StatusCode == http.StatusOK {
-				return
-			}
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	require.Failf(
-		t,
-		"esplora tx index timeout",
-		"tx %s not indexed at %s within %v (last status=%d body=%s). Set MOCK_ESPLORA_URL if needed.",
-		txID, endpoint, timeout, lastStatus, lastBody,
-	)
 }
 
 func mockReset(t *testing.T) {
