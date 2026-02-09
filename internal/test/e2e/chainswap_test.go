@@ -440,9 +440,9 @@ func TestChainSwapRecovery(t *testing.T) {
 		swapID := createResp.GetId()
 		require.NotEmpty(t, swapID)
 
-		time.Sleep(5 * time.Second)
-
+		time.Sleep(3 * time.Second)
 		restartDockerComposeServices(t, ctx, "fulmine")
+		time.Sleep(3 * time.Second)
 		err = unlockAndSettle(clientFulmineURL, fulminePass)
 		require.NoError(t, err)
 
@@ -474,9 +474,9 @@ func TestChainSwapRecovery(t *testing.T) {
 		swapID := createResp.GetId()
 		require.NotEmpty(t, swapID)
 
-		time.Sleep(5 * time.Second)
-
+		time.Sleep(3 * time.Second)
 		restartDockerComposeServices(t, ctx, "fulmine-mock")
+		time.Sleep(3 * time.Second)
 		err = unlockAndSettle(mockFulmineURL, fulminePass)
 		require.NoError(t, err)
 
@@ -522,9 +522,9 @@ func TestChainSwapRecovery(t *testing.T) {
 		)
 		mockPushEventWithTx(t, swapID, "transaction.confirmed", userLockTxID, userLockTxHex)
 
-		time.Sleep(2 * time.Second)
-
+		time.Sleep(3 * time.Second)
 		restartDockerComposeServices(t, ctx, "fulmine-mock")
+		time.Sleep(3 * time.Second)
 		err = unlockAndSettle(mockFulmineURL, fulminePass)
 		require.NoError(t, err)
 
