@@ -214,9 +214,24 @@ func unlockAndSettle(addr string, pass string) error {
 	}
 	serviceClient = sc
 
-	if _, err = serviceClient.Settle(context.Background(), &pb.SettleRequest{}); err != nil {
-		return err
+	// After unlock the service may still be syncing with the chain.
+	// Retry Settle until it succeeds or the deadline is reached.
+	settleDeadline := time.Now().Add(60 * time.Second)
+	for time.Now().Before(settleDeadline) {
+		_, err = serviceClient.Settle(context.Background(), &pb.SettleRequest{})
+		if err == nil {
+			return nil
+		}
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "syncing") ||
+			strings.Contains(errMsg, "connection reset") ||
+			strings.Contains(errMsg, "connection refused") ||
+			strings.Contains(errMsg, "unavailable") {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		return fmt.Errorf("settle %s: %w", addr, err)
 	}
 
-	return nil
+	return fmt.Errorf("settle %s: timed out (last error: %w)", addr, err)
 }
