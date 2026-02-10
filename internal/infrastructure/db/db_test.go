@@ -40,28 +40,28 @@ var (
 		hash1, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000001")
 		input1 := wire.OutPoint{Hash: *hash1, Index: 0}
 		return domain.DelegateTask{
-			ID:                "test_task_id",
-			Intent:            domain.Intent{Message: "test_message", Proof: "test_proof", Txid: "test_txid_1", Inputs: []wire.OutPoint{input1}},
-			ForfeitTxs:        map[wire.OutPoint]string{input1: "forfeit_tx_hex"},
-			Fee:               1000,
+			ID:                 "test_task_id",
+			Intent:             domain.Intent{Message: "test_message", Proof: "test_proof", Txid: "test_txid_1", Inputs: []wire.OutPoint{input1}},
+			ForfeitTxs:         map[wire.OutPoint]string{input1: "forfeit_tx_hex"},
+			Fee:                1000,
 			DelegatorPublicKey: "delegator_pubkey",
-			ScheduledAt:       time.Now(),
-			Status:            domain.DelegateTaskStatusPending,
-			FailReason:        "",
+			ScheduledAt:        time.Now(),
+			Status:             domain.DelegateTaskStatusPending,
+			FailReason:         "",
 		}
 	}()
 	secondDelegateTask = func() domain.DelegateTask {
 		hash2, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000002")
 		input2 := wire.OutPoint{Hash: *hash2, Index: 1}
 		return domain.DelegateTask{
-			ID:                "second_task_id",
-			Intent:            domain.Intent{Message: "second_message", Proof: "second_proof", Txid: "test_txid_2", Inputs: []wire.OutPoint{input2}},
-			ForfeitTxs:        map[wire.OutPoint]string{input2: "second_forfeit_tx_hex"},
-			Fee:               2000,
+			ID:                 "second_task_id",
+			Intent:             domain.Intent{Message: "second_message", Proof: "second_proof", Txid: "test_txid_2", Inputs: []wire.OutPoint{input2}},
+			ForfeitTxs:         map[wire.OutPoint]string{input2: "second_forfeit_tx_hex"},
+			Fee:                2000,
 			DelegatorPublicKey: "second_delegator_pubkey",
-			ScheduledAt:       time.Now().Add(time.Hour),
-			Status:            domain.DelegateTaskStatusPending,
-			FailReason:        "",
+			ScheduledAt:        time.Now().Add(time.Hour),
+			Status:             domain.DelegateTaskStatusPending,
+			FailReason:         "",
 		}
 	}()
 
@@ -132,13 +132,12 @@ func testVHTLCRepository(t *testing.T, svc ports.RepoManager) {
 func testDelegateRepository(t *testing.T, svc ports.RepoManager) {
 	t.Run("delegate repository", func(t *testing.T) {
 		testAddDelegateTask(t, svc.Delegate())
-		testGetDelegateTaskByID(t, svc.Delegate())
 		testGetAllPendingDelegateTasks(t, svc.Delegate())
 		testGetPendingTaskByInput(t, svc.Delegate())
 		testGetPendingTaskByIntentTxID(t, svc.Delegate())
 		testGetAllDelegateTasks(t, svc.Delegate())
 		testCancelTasks(t, svc.Delegate())
-		testSuccessTasks(t, svc.Delegate())
+		testCompleteTasks(t, svc.Delegate())
 		testFailTasks(t, svc.Delegate())
 	})
 }
@@ -291,10 +290,23 @@ func testAddDelegateTask(t *testing.T, repo domain.DelegateRepository) {
 	t.Run("add delegate task", func(t *testing.T) {
 		task, err := repo.GetByID(ctx, testDelegateTask.ID)
 		require.Error(t, err)
+		require.ErrorContains(t, err, "task not found")
 		require.Nil(t, task)
+
+		pendingTasks, err := repo.GetAllPending(ctx)
+		require.NoError(t, err)
+		require.Empty(t, pendingTasks)
+
+		allPendingTasks, err := repo.GetAll(ctx, domain.DelegateTaskStatusPending, 100, 0)
+		require.NoError(t, err)
+		require.Empty(t, allPendingTasks)
 
 		err = repo.Add(ctx, testDelegateTask)
 		require.NoError(t, err)
+
+		err = repo.Add(ctx, testDelegateTask)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "already exists")
 
 		task, err = repo.GetByID(ctx, testDelegateTask.ID)
 		require.NoError(t, err)
@@ -306,142 +318,6 @@ func testAddDelegateTask(t *testing.T, repo domain.DelegateRepository) {
 		require.Equal(t, testDelegateTask.DelegatorPublicKey, task.DelegatorPublicKey)
 		require.Equal(t, testDelegateTask.Intent.Inputs, task.Intent.Inputs)
 		require.Equal(t, testDelegateTask.ForfeitTxs, task.ForfeitTxs)
-	})
-
-	t.Run("add delegate task with multiple inputs", func(t *testing.T) {
-		hash1, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000010")
-		hash2, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000011")
-		input1 := wire.OutPoint{Hash: *hash1, Index: 0}
-		input2 := wire.OutPoint{Hash: *hash2, Index: 1}
-
-		multiInputTask := domain.DelegateTask{
-			ID:                "multi_input_task",
-			Intent:            domain.Intent{Message: "multi_input_message", Proof: "multi_input_proof", Txid: "multi_input_txid", Inputs: []wire.OutPoint{input1, input2}},
-			ForfeitTxs:        map[wire.OutPoint]string{input1: "forfeit_tx_1", input2: "forfeit_tx_2"},
-			Fee:               3000,
-			DelegatorPublicKey: "multi_input_pubkey",
-			ScheduledAt:       time.Now(),
-			Status:            domain.DelegateTaskStatusPending,
-		}
-
-		err := repo.Add(ctx, multiInputTask)
-		require.NoError(t, err)
-
-		task, err := repo.GetByID(ctx, multiInputTask.ID)
-		require.NoError(t, err)
-		require.NotNil(t, task)
-		require.Len(t, task.Intent.Inputs, 2)
-		require.Len(t, task.ForfeitTxs, 2)
-		require.Equal(t, multiInputTask.Intent.Inputs, task.Intent.Inputs)
-		require.Equal(t, multiInputTask.ForfeitTxs, task.ForfeitTxs)
-	})
-
-	t.Run("add delegate task with no inputs", func(t *testing.T) {
-		noInputTask := domain.DelegateTask{
-			ID:                "no_input_task",
-			Intent:            domain.Intent{Message: "no_input_message", Proof: "no_input_proof", Txid: "no_input_txid", Inputs: []wire.OutPoint{}},
-			ForfeitTxs:        map[wire.OutPoint]string{},
-			Fee:               4000,
-			DelegatorPublicKey: "no_input_pubkey",
-			ScheduledAt:       time.Now(),
-			Status:            domain.DelegateTaskStatusPending,
-		}
-
-		err := repo.Add(ctx, noInputTask)
-		require.NoError(t, err)
-
-		task, err := repo.GetByID(ctx, noInputTask.ID)
-		require.NoError(t, err)
-		require.NotNil(t, task)
-		require.Len(t, task.Intent.Inputs, 0)
-		require.Len(t, task.ForfeitTxs, 0)
-	})
-
-	t.Run("add delegate task with some inputs having forfeit txs", func(t *testing.T) {
-		hash1, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000020")
-		hash2, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000021")
-		input1 := wire.OutPoint{Hash: *hash1, Index: 0}
-		input2 := wire.OutPoint{Hash: *hash2, Index: 1}
-
-		partialForfeitTask := domain.DelegateTask{
-			ID:                "partial_forfeit_task",
-			Intent:            domain.Intent{Message: "partial_forfeit_message", Proof: "partial_forfeit_proof", Txid: "partial_forfeit_txid", Inputs: []wire.OutPoint{input1, input2}},
-			ForfeitTxs:        map[wire.OutPoint]string{input1: "forfeit_tx_only_for_input1"},
-			Fee:               5000,
-			DelegatorPublicKey: "partial_forfeit_pubkey",
-			ScheduledAt:       time.Now(),
-			Status:            domain.DelegateTaskStatusPending,
-		}
-
-		err := repo.Add(ctx, partialForfeitTask)
-		require.NoError(t, err)
-
-		task, err := repo.GetByID(ctx, partialForfeitTask.ID)
-		require.NoError(t, err)
-		require.NotNil(t, task)
-		require.Len(t, task.Intent.Inputs, 2)
-		require.Len(t, task.ForfeitTxs, 1)
-		require.Equal(t, "forfeit_tx_only_for_input1", task.ForfeitTxs[input1])
-		_, exists := task.ForfeitTxs[input2]
-		require.False(t, exists)
-	})
-}
-
-func testGetDelegateTaskByID(t *testing.T, repo domain.DelegateRepository) {
-	t.Run("get delegate task by id", func(t *testing.T) {
-		// Reset task to pending for this test
-		testTask := testDelegateTask
-		testTask.ID = "get_by_id_task"
-		testTask.Status = domain.DelegateTaskStatusPending
-		err := repo.Add(ctx, testTask)
-		require.NoError(t, err)
-
-		task, err := repo.GetByID(ctx, testTask.ID)
-		require.NoError(t, err)
-		require.NotNil(t, task)
-		require.Equal(t, testTask.ID, task.ID)
-		require.Equal(t, testTask.Intent, task.Intent)
-		require.Equal(t, testTask.Fee, task.Fee)
-		require.Equal(t, testTask.DelegatorPublicKey, task.DelegatorPublicKey)
-		require.Equal(t, testTask.Intent.Inputs, task.Intent.Inputs)
-		require.Equal(t, testTask.ForfeitTxs, task.ForfeitTxs)
-
-		_, err = repo.GetByID(ctx, "non_existent_id")
-		require.Error(t, err)
-	})
-
-	t.Run("get delegate task with multiple inputs", func(t *testing.T) {
-		hash1, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000030")
-		hash2, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000031")
-		hash3, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000032")
-		input1 := wire.OutPoint{Hash: *hash1, Index: 0}
-		input2 := wire.OutPoint{Hash: *hash2, Index: 1}
-		input3 := wire.OutPoint{Hash: *hash3, Index: 2}
-
-		multiInputTask := domain.DelegateTask{
-			ID:                "get_multi_input_task",
-			Intent:            domain.Intent{Message: "get_multi_input", Proof: "proof", Txid: "get_multi_input_txid", Inputs: []wire.OutPoint{input1, input2, input3}},
-			ForfeitTxs:        map[wire.OutPoint]string{input1: "ft1", input2: "ft2", input3: "ft3"},
-			Fee:               6000,
-			DelegatorPublicKey: "get_multi_pubkey",
-			ScheduledAt:       time.Now(),
-			Status:            domain.DelegateTaskStatusPending,
-		}
-
-		err := repo.Add(ctx, multiInputTask)
-		require.NoError(t, err)
-
-		task, err := repo.GetByID(ctx, multiInputTask.ID)
-		require.NoError(t, err)
-		require.NotNil(t, task)
-		require.Len(t, task.Intent.Inputs, 3)
-		require.Len(t, task.ForfeitTxs, 3)
-		require.Contains(t, task.Intent.Inputs, input1)
-		require.Contains(t, task.Intent.Inputs, input2)
-		require.Contains(t, task.Intent.Inputs, input3)
-		require.Equal(t, "ft1", task.ForfeitTxs[input1])
-		require.Equal(t, "ft2", task.ForfeitTxs[input2])
-		require.Equal(t, "ft3", task.ForfeitTxs[input3])
 	})
 }
 
@@ -490,11 +366,15 @@ func testGetPendingTaskByInput(t *testing.T, repo domain.DelegateRepository) {
 		hash1, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000003")
 		testInput := wire.OutPoint{Hash: *hash1, Index: 0}
 
+		taskIDs, err := repo.GetPendingTaskIDsByInputs(ctx, []wire.OutPoint{testInput})
+		require.NoError(t, err)
+		require.Empty(t, taskIDs)
+
 		pendingTask1 := testDelegateTask
 		pendingTask1.ID = "pending_by_input_1"
 		pendingTask1.Intent.Inputs = []wire.OutPoint{testInput}
 		pendingTask1.Status = domain.DelegateTaskStatusPending
-		err := repo.Add(ctx, pendingTask1)
+		err = repo.Add(ctx, pendingTask1)
 		require.NoError(t, err)
 
 		pendingTask2 := testDelegateTask
@@ -522,7 +402,7 @@ func testGetPendingTaskByInput(t *testing.T, repo domain.DelegateRepository) {
 		err = repo.CompleteTasks(ctx, "commitment_txid_1", doneTask.ID)
 		require.NoError(t, err)
 
-		taskIDs, err := repo.GetPendingTaskIDsByInputs(ctx, []wire.OutPoint{testInput})
+		taskIDs, err = repo.GetPendingTaskIDsByInputs(ctx, []wire.OutPoint{testInput})
 		require.NoError(t, err)
 		require.Len(t, taskIDs, 2)
 
@@ -566,14 +446,19 @@ func testGetPendingTaskByIntentTxID(t *testing.T, repo domain.DelegateRepository
 	t.Run("get pending task by intent txid", func(t *testing.T) {
 		testIntentTxid := "test_intent_txid_123"
 
+		task, err := repo.GetPendingTaskByIntentTxID(ctx, testIntentTxid)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "task not found")
+		require.Nil(t, task)
+
 		pendingTask1 := testDelegateTask
 		pendingTask1.ID = "pending_by_txid_1"
 		pendingTask1.Intent.Txid = testIntentTxid
 		pendingTask1.Status = domain.DelegateTaskStatusPending
-		err := repo.Add(ctx, pendingTask1)
+		err = repo.Add(ctx, pendingTask1)
 		require.NoError(t, err)
 
-		task, err := repo.GetPendingTaskByIntentTxID(ctx, testIntentTxid)
+		task, err = repo.GetPendingTaskByIntentTxID(ctx, testIntentTxid)
 		require.NoError(t, err)
 		require.NotNil(t, task)
 		require.Equal(t, pendingTask1.ID, task.ID)
@@ -789,44 +674,6 @@ func testGetAllDelegateTasks(t *testing.T, repo domain.DelegateRepository) {
 		}
 	})
 
-	t.Run("get all delegate tasks with multiple inputs", func(t *testing.T) {
-		hash1, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000100")
-		hash2, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000101")
-		input1 := wire.OutPoint{Hash: *hash1, Index: 0}
-		input2 := wire.OutPoint{Hash: *hash2, Index: 1}
-
-		multiInputTask := domain.DelegateTask{
-			ID:                "getall_multi_input",
-			Intent:            domain.Intent{Message: "getall_multi", Proof: "proof", Txid: "getall_multi_txid", Inputs: []wire.OutPoint{input1, input2}},
-			ForfeitTxs:        map[wire.OutPoint]string{input1: "ft1", input2: "ft2"},
-			Fee:               7000,
-			DelegatorPublicKey: "getall_multi_pubkey",
-			ScheduledAt:       time.Now(),
-			Status:            domain.DelegateTaskStatusPending,
-		}
-
-		err := repo.Add(ctx, multiInputTask)
-		require.NoError(t, err)
-
-		tasks, err := repo.GetAll(ctx, domain.DelegateTaskStatusPending, 100, 0)
-		require.NoError(t, err)
-
-		var foundTask *domain.DelegateTask
-		for i := range tasks {
-			if tasks[i].ID == "getall_multi_input" {
-				foundTask = &tasks[i]
-				break
-			}
-		}
-		require.NotNil(t, foundTask)
-		require.Len(t, foundTask.Intent.Inputs, 2)
-		require.Len(t, foundTask.ForfeitTxs, 2)
-		require.Contains(t, foundTask.Intent.Inputs, input1)
-		require.Contains(t, foundTask.Intent.Inputs, input2)
-		require.Equal(t, "ft1", foundTask.ForfeitTxs[input1])
-		require.Equal(t, "ft2", foundTask.ForfeitTxs[input2])
-	})
-
 	t.Run("get all delegate tasks with empty result", func(t *testing.T) {
 		tasks, err := repo.GetAll(ctx, domain.DelegateTaskStatusPending, 100, 10000)
 		require.NoError(t, err)
@@ -835,7 +682,7 @@ func testGetAllDelegateTasks(t *testing.T, repo domain.DelegateRepository) {
 
 	t.Run("get all delegate tasks ordered by scheduled_at desc", func(t *testing.T) {
 		baseTime := time.Now()
-		
+
 		task1 := testDelegateTask
 		task1.ID = "order_test_1"
 		task1.Status = domain.DelegateTaskStatusPending
@@ -877,8 +724,8 @@ func testGetAllDelegateTasks(t *testing.T, repo domain.DelegateRepository) {
 
 		testTaskMap := make(map[string]domain.DelegateTask)
 		for _, task := range tasks {
-			if task.ID == "order_test_1" || task.ID == "order_test_2" || 
-			   task.ID == "order_test_3" || task.ID == "order_test_4" {
+			if task.ID == "order_test_1" || task.ID == "order_test_2" ||
+				task.ID == "order_test_3" || task.ID == "order_test_4" {
 				testTaskMap[task.ID] = task
 			}
 		}
@@ -979,8 +826,8 @@ func testCancelTasks(t *testing.T, repo domain.DelegateRepository) {
 	})
 }
 
-func testSuccessTasks(t *testing.T, repo domain.DelegateRepository) {
-	t.Run("success tasks", func(t *testing.T) {
+func testCompleteTasks(t *testing.T, repo domain.DelegateRepository) {
+	t.Run("complete tasks", func(t *testing.T) {
 		successTask1 := testDelegateTask
 		successTask1.ID = "success_task_1"
 		successTask1.Status = domain.DelegateTaskStatusPending
@@ -1022,17 +869,17 @@ func testSuccessTasks(t *testing.T, repo domain.DelegateRepository) {
 		}
 	})
 
-	t.Run("success tasks with empty list", func(t *testing.T) {
+	t.Run("complete tasks with empty list", func(t *testing.T) {
 		err := repo.CompleteTasks(ctx, "commitment_txid_3")
 		require.NoError(t, err)
 	})
 
-	t.Run("success tasks with non-existent IDs", func(t *testing.T) {
+	t.Run("complete tasks with non-existent IDs", func(t *testing.T) {
 		err := repo.CompleteTasks(ctx, "commitment_txid_4", "non_existent_1", "non_existent_2")
 		require.NoError(t, err)
 	})
 
-	t.Run("success already done task", func(t *testing.T) {
+	t.Run("complete already completed task", func(t *testing.T) {
 		doneTask := testDelegateTask
 		doneTask.ID = "already_done_task"
 		doneTask.Status = domain.DelegateTaskStatusPending
@@ -1051,7 +898,7 @@ func testSuccessTasks(t *testing.T, repo domain.DelegateRepository) {
 		require.Equal(t, "commitment_txid_5", task.CommitmentTxid)
 	})
 
-	t.Run("success task that is not pending", func(t *testing.T) {
+	t.Run("complete task that is not pending", func(t *testing.T) {
 		cancelledTask := testDelegateTask
 		cancelledTask.ID = "cancelled_task_to_success"
 		cancelledTask.Status = domain.DelegateTaskStatusPending

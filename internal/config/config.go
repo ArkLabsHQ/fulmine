@@ -28,8 +28,6 @@ type Config struct {
 	DbType                string
 	GRPCPort              uint32
 	HTTPPort              uint32
-	DelegatorGRPCPort     uint32
-	DelegatorHTTPPort     uint32
 	WithTLS               bool
 	LogLevel              uint32
 	ArkServer             string
@@ -39,8 +37,9 @@ type Config struct {
 	SchedulerPollInterval int64
 	ProfilingEnabled      bool
 	RefreshDbInterval     int64
-	DelegateFee           uint64
-	DelegateEnabled       bool
+	DelegatorPort         uint32
+	DelegatorFee          uint64
+	DelegatorEnabled      bool
 
 	UnlockerType     string
 	UnlockerFilePath string
@@ -62,8 +61,6 @@ var (
 	DbType                = "DB_TYPE"
 	GRPCPort              = "GRPC_PORT"
 	HTTPPort              = "HTTP_PORT"
-	DelegatorGRPCPort     = "DELEGATOR_GRPC_PORT"
-	DelegatorHTTPPort     = "DELEGATOR_HTTP_PORT"
 	WithTLS               = "WITH_TLS"
 	LogLevel              = "LOG_LEVEL"
 	ArkServer             = "ARK_SERVER"
@@ -83,8 +80,9 @@ var (
 	SchedulerPollInterval = "SCHEDULER_POLL_INTERVAL"
 	ProfilingEnabled      = "PROFILING_ENABLED"
 	RefreshDbInterval     = "REFRESH_DB_INTERVAL"
-	DelegateFee           = "DELEGATE_FEE"
-	DelegateEnabled       = "DELEGATE_ENABLED"
+	DelegatorPort         = "DELEGATOR_PORT"
+	DelegatorFee          = "DELEGATOR_FEE"
+	DelegatorEnabled      = "DELEGATOR_ENABLED"
 
 	// Unlocker configuration
 	UnlockerType     = "UNLOCKER_TYPE"
@@ -95,8 +93,6 @@ var (
 	dbType                  = sqliteDb
 	defaultGRPCPort         = 7000
 	defaultHTTPPort         = 7001
-	defaultDelegatorGRPCPort = 0 // 0 means use the same port as GRPCPort
-	defaultDelegatorHTTPPort = 0 // 0 means use the same port as HTTPPort
 	defaultWithTLS          = false
 	defaultLogLevel         = 4
 	defaultArkServer        = ""
@@ -115,8 +111,9 @@ var (
 	defaultProfilingEnabled      = false
 	defaultRefreshDbInterval     = 0
 	defaultOtelPushInterval      = 10 // 10 seconds
-	defaultDelegateFee           = 0
-	defaultDelegateEnabled       = false
+	defaultDelegatorPort         = 7002
+	defaultDelegatorFee          = 0
+	defaultDelegatorEnabled      = false
 )
 
 func LoadConfig() (*Config, error) {
@@ -126,8 +123,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(Datadir, defaultDatadir)
 	viper.SetDefault(GRPCPort, defaultGRPCPort)
 	viper.SetDefault(HTTPPort, defaultHTTPPort)
-	viper.SetDefault(DelegatorGRPCPort, defaultDelegatorGRPCPort)
-	viper.SetDefault(DelegatorHTTPPort, defaultDelegatorHTTPPort)
+	viper.SetDefault(DelegatorPort, defaultDelegatorPort)
 	viper.SetDefault(WithTLS, defaultWithTLS)
 	viper.SetDefault(LogLevel, defaultLogLevel)
 	viper.SetDefault(ArkServer, defaultArkServer)
@@ -143,9 +139,10 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(ProfilingEnabled, defaultProfilingEnabled)
 	viper.SetDefault(RefreshDbInterval, defaultRefreshDbInterval)
 	viper.SetDefault(OtelPushInterval, defaultOtelPushInterval)
-	viper.SetDefault(DelegateFee, defaultDelegateFee)
-	viper.SetDefault(DelegateEnabled, defaultDelegateEnabled)
+	viper.SetDefault(DelegatorFee, defaultDelegatorFee)
+	viper.SetDefault(DelegatorEnabled, defaultDelegatorEnabled)
 
+	// TODO: move to validate method
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
 	}
@@ -167,14 +164,18 @@ func LoadConfig() (*Config, error) {
 	if viper.GetInt64(SchedulerPollInterval) < 1 {
 		return nil, fmt.Errorf("scheduler poll interval must be at least 1 second")
 	}
+	if viper.GetBool(DelegatorEnabled) {
+		if viper.GetUint32(DelegatorPort) == viper.GetUint32(GRPCPort) ||
+			viper.GetUint32(DelegatorPort) == viper.GetUint32(HTTPPort) {
+			return nil, fmt.Errorf("delegator must not run on same port of the wallet")
+		}
+	}
 
 	config := &Config{
 		Datadir:               viper.GetString(Datadir),
 		DbType:                viper.GetString(DbType),
 		GRPCPort:              viper.GetUint32(GRPCPort),
 		HTTPPort:              viper.GetUint32(HTTPPort),
-		DelegatorGRPCPort:     viper.GetUint32(DelegatorGRPCPort),
-		DelegatorHTTPPort:     viper.GetUint32(DelegatorHTTPPort),
 		WithTLS:               viper.GetBool(WithTLS),
 		LogLevel:              viper.GetUint32(LogLevel),
 		ArkServer:             viper.GetString(ArkServer),
@@ -192,8 +193,9 @@ func LoadConfig() (*Config, error) {
 		OtelCollectorURL:      viper.GetString(OtelCollectorURL),
 		OtelPushInterval:      viper.GetInt64(OtelPushInterval),
 		PyroscopeURL:          viper.GetString(PyroscopeURL),
-		DelegateFee:           viper.GetUint64(DelegateFee),
-		DelegateEnabled:       viper.GetBool(DelegateEnabled),
+		DelegatorPort:         viper.GetUint32(DelegatorPort),
+		DelegatorFee:          viper.GetUint64(DelegatorFee),
+		DelegatorEnabled:      viper.GetBool(DelegatorEnabled),
 
 		LnConnectionOpts: lnConnectionOpts,
 	}

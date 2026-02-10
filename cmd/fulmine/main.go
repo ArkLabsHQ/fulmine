@@ -88,11 +88,10 @@ func main() {
 	log.Info("starting fulmine...")
 
 	svcConfig := grpcservice.Config{
-		GRPCPort:          cfg.GRPCPort,
-		HTTPPort:          cfg.HTTPPort,
-		DelegatorGRPCPort: cfg.DelegatorGRPCPort,
-		DelegatorHTTPPort: cfg.DelegatorHTTPPort,
-		WithTLS:           cfg.WithTLS,
+		GRPCPort:      cfg.GRPCPort,
+		HTTPPort:      cfg.HTTPPort,
+		DelegatorPort: cfg.DelegatorPort,
+		WithTLS:       cfg.WithTLS,
 	}
 
 	storeCfg := store.Config{
@@ -127,8 +126,8 @@ func main() {
 		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout,
 		cfg.LnConnectionOpts, cfg.RefreshDbInterval,
 		application.DelegatorConfig{
-			Enabled: cfg.DelegateEnabled,
-			Fee: cfg.DelegateFee,
+			Enabled: cfg.DelegatorEnabled,
+			Fee:     cfg.DelegatorFee,
 		},
 	)
 	if err != nil {
@@ -136,7 +135,7 @@ func main() {
 	}
 
 	svc, err := grpcservice.NewService(
-		svcConfig, appSvc, delegatorSvc, cfg.UnlockerService(), sentryEnabled, 
+		svcConfig, appSvc, delegatorSvc, cfg.UnlockerService(), sentryEnabled,
 		cfg.MacaroonSvc(), cfg.ArkServer, cfg.OtelCollectorURL, cfg.OtelPushInterval, cfg.PyroscopeURL,
 	)
 	if err != nil {

@@ -19,18 +19,23 @@ import (
 // Batch session handler of the delegator service
 type delegatorBatchSessionHandler struct {
 	utils.Musig2BatchSessionHandler
-	delegator *DelegatorService
+	delegator     *DelegatorService
 	selectedTasks []registeredIntent
 }
 
 // BatchStarted event doesn't have to be handled by the delegator session
 // it is handled before creating the handler in a dedicated goroutine.
-func (h *delegatorBatchSessionHandler) OnBatchStarted(context.Context, client.BatchStartedEvent) (bool, error) {
+func (h *delegatorBatchSessionHandler) OnBatchStarted(
+	context.Context, client.BatchStartedEvent,
+) (bool, error) {
 	return true, nil
 }
 
-// OnBatchFinalized mark the delegate tasks as done and delete the intent from the registered intents map
-func (h *delegatorBatchSessionHandler) OnBatchFinalized(ctx context.Context, event client.BatchFinalizedEvent) error {
+// OnBatchFinalized mark the delegates as done and delete the intent from the registered
+// intents map
+func (h *delegatorBatchSessionHandler) OnBatchFinalized(
+	ctx context.Context, event client.BatchFinalizedEvent,
+) error {
 	repo := h.delegator.svc.dbSvc.Delegate()
 	taskIds := make([]string, 0, len(h.selectedTasks))
 	for _, selectedTask := range h.selectedTasks {
@@ -39,19 +44,21 @@ func (h *delegatorBatchSessionHandler) OnBatchFinalized(ctx context.Context, eve
 		delete(h.delegator.registeredIntents, selectedTask.intentIDHash())
 		h.delegator.intentsMtx.Unlock()
 	}
-	
+
 	return repo.CompleteTasks(ctx, event.Txid, taskIds...)
 }
 
-// OnBatchFailed re-register the delegate tasks that failed to join the batch
-func (h *delegatorBatchSessionHandler) OnBatchFailed(context.Context, client.BatchFailedEvent) error {
+// OnBatchFailed re-register the delegates that failed to join the batch
+func (h *delegatorBatchSessionHandler) OnBatchFailed(
+	context.Context, client.BatchFailedEvent,
+) error {
 	for _, selectedTask := range h.selectedTasks {
 		if err := h.delegator.registerDelegate(selectedTask.taskID); err != nil {
-			log.WithError(err).Warnf("failed to re-register delegate task %s", selectedTask.taskID)
+			log.WithError(err).Warnf("failed to re-register delegate %s", selectedTask.taskID)
 			continue
 		}
-	 }
-	log.Warnf("batch failed, %d delegate tasks re-registered", len(h.selectedTasks))
+	}
+	log.Warnf("batch failed, %d delegates re-registered", len(h.selectedTasks))
 	return fmt.Errorf("batch failed")
 }
 
@@ -63,15 +70,17 @@ func (h *delegatorBatchSessionHandler) OnBatchFinalization(
 	for _, selectedTask := range h.selectedTasks {
 		selectedTasksIds = append(selectedTasksIds, selectedTask.taskID)
 	}
-	
-	if err := h.submitForfeitTransactions(ctx, connectorTree.Leaves(), selectedTasksIds); err != nil {
-		log.WithError(err).Warnf("failed to submit forfeits")
+
+	if err := h.submitForfeitTxs(
+		ctx, connectorTree.Leaves(), selectedTasksIds,
+	); err != nil {
+		log.WithError(err).Warnf("failed to submit forfeit txs")
 		return err
 	}
 	return nil
 }
 
-func (h *delegatorBatchSessionHandler) submitForfeitTransactions(
+func (h *delegatorBatchSessionHandler) submitForfeitTxs(
 	ctx context.Context, connectorsLeaves []*psbt.Packet, selectedTasksIds []string,
 ) error {
 	if len(connectorsLeaves) == 0 {
@@ -80,14 +89,14 @@ func (h *delegatorBatchSessionHandler) submitForfeitTransactions(
 	if len(selectedTasksIds) == 0 {
 		return nil
 	}
-	
+
 	repo := h.delegator.svc.dbSvc.Delegate()
 	forfeitTxs := make([]*psbt.Packet, 0)
 
 	for _, selectedTaskId := range selectedTasksIds {
 		task, err := repo.GetByID(ctx, selectedTaskId)
 		if err != nil {
-			return fmt.Errorf("failed to get delegate task %s: %w", selectedTaskId, err)
+			return fmt.Errorf("failed to get delegate %s: %w", selectedTaskId, err)
 		}
 
 		// include only the forfeit tx of vtxo that are not recoverable
@@ -113,10 +122,12 @@ func (h *delegatorBatchSessionHandler) submitForfeitTransactions(
 			if vtxo.IsRecoverable() {
 				continue // skip recoverable vtxo
 			}
-			
-			outpoint, err := wire.NewOutPointFromString(fmt.Sprintf("%s:%d", vtxo.Txid, vtxo.VOut))
+
+			outpoint, err := wire.NewOutPointFromString(vtxo.Outpoint.String())
 			if err != nil {
-				log.WithError(err).Warnf("failed to parse outpoint for vtxo %s:%d", vtxo.Txid, vtxo.VOut)
+				log.WithError(err).Warnf(
+					"failed to parse outpoint for vtxo %s:%d", vtxo.Txid, vtxo.VOut,
+				)
 				continue
 			}
 
@@ -134,7 +145,7 @@ func (h *delegatorBatchSessionHandler) submitForfeitTransactions(
 
 	if len(forfeitTxs) > len(connectorsLeaves) {
 		return fmt.Errorf(
-			"insufficient connectors: got %d, need %d", 
+			"insufficient connectors: got %d, need %d",
 			len(connectorsLeaves), len(forfeitTxs),
 		)
 	}
@@ -153,7 +164,7 @@ func (h *delegatorBatchSessionHandler) submitForfeitTransactions(
 		})
 		forfeitTx.UnsignedTx.TxIn = append(forfeitTx.UnsignedTx.TxIn, &wire.TxIn{
 			PreviousOutPoint: *connectorOutpoint,
-			Sequence: wire.MaxTxInSequenceNum,
+			Sequence:         wire.MaxTxInSequenceNum,
 		})
 		forfeitTx.Inputs[0].SighashType = txscript.SigHashDefault
 

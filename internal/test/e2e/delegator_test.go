@@ -32,11 +32,11 @@ func TestDelegate(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7000")
+	delegatorClient, err := newDelegatorClient("localhost:7002")
 	require.NoError(t, err)
 	require.NotNil(t, delegatorClient)
 
-	delegateInfo, err := delegatorClient.GetDelegateInfo(ctx, &pb.GetDelegateInfoRequest{})
+	delegateInfo, err := delegatorClient.GetDelegatorInfo(ctx, &pb.GetDelegatorInfoRequest{})
 	require.NoError(t, err)
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
@@ -263,7 +263,7 @@ func TestDelegate(t *testing.T) {
 			Message: encodedIntentMessage,
 			Proof:   encodedIntentProof,
 		},
-		Forfeits: []string{signedPartialForfeitTx},
+		ForfeitTxs: []string{signedPartialForfeitTx},
 	})
 	require.NoError(t, err)
 
@@ -282,11 +282,11 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7000")
+	delegatorClient, err := newDelegatorClient("localhost:7002")
 	require.NoError(t, err)
 	require.NotNil(t, delegatorClient)
 
-	delegateInfo, err := delegatorClient.GetDelegateInfo(ctx, &pb.GetDelegateInfoRequest{})
+	delegateInfo, err := delegatorClient.GetDelegatorInfo(ctx, &pb.GetDelegatorInfoRequest{})
 	require.NoError(t, err)
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
@@ -372,10 +372,10 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 		BaseMessage: intent.BaseMessage{
 			Type: intent.IntentMessageTypeRegister,
 		},
-		CosignersPublicKeys: []string{},
+		CosignersPublicKeys:  []string{},
 		OnchainOutputIndexes: []int{0},
-		ValidAt:             time.Now().Add(3 * time.Second).Unix(),
-		ExpireAt:            0,
+		ValidAt:              time.Now().Add(3 * time.Second).Unix(),
+		ExpireAt:             0,
 	}
 
 	encodedIntentMessage, err := intentMessage.Encode()
@@ -518,7 +518,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 			Message: encodedIntentMessage,
 			Proof:   encodedIntentProof,
 		},
-		Forfeits: []string{signedPartialForfeitTx},
+		ForfeitTxs: []string{signedPartialForfeitTx},
 	})
 	require.NoError(t, err)
 
@@ -537,11 +537,11 @@ func TestMultipleDelegate(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7000")
+	delegatorClient, err := newDelegatorClient("localhost:7002")
 	require.NoError(t, err)
 	require.NotNil(t, delegatorClient)
 
-	delegateInfo, err := delegatorClient.GetDelegateInfo(ctx, &pb.GetDelegateInfoRequest{})
+	delegateInfo, err := delegatorClient.GetDelegatorInfo(ctx, &pb.GetDelegatorInfoRequest{})
 	require.NoError(t, err)
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
@@ -775,7 +775,7 @@ func TestMultipleDelegate(t *testing.T) {
 				Message: encodedIntentMessage,
 				Proof:   encodedIntentProof,
 			},
-			Forfeits: []string{signedPartialForfeitTx},
+			ForfeitTxs: []string{signedPartialForfeitTx},
 		})
 	}
 
@@ -789,7 +789,7 @@ func TestMultipleDelegate(t *testing.T) {
 	spendable, _, err := alice.ListVtxos(ctx)
 	require.NoError(t, err)
 	require.Len(t, spendable, numVtxos, "expected %d refreshed vtxos", numVtxos)
-	
+
 	for i, vtxo := range spendable {
 		require.False(t, vtxo.Preconfirmed, "vtxo %d should not be preconfirmed", i+1)
 		require.Equal(t, 21000, int(vtxo.Amount), "vtxo %d should have amount 21000", i+1)
@@ -804,11 +804,11 @@ func TestDelegateSameInput(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7000")
+	delegatorClient, err := newDelegatorClient("localhost:7002")
 	require.NoError(t, err)
 	require.NotNil(t, delegatorClient)
 
-	delegateInfo, err := delegatorClient.GetDelegateInfo(ctx, &pb.GetDelegateInfoRequest{})
+	delegateInfo, err := delegatorClient.GetDelegatorInfo(ctx, &pb.GetDelegatorInfoRequest{})
 	require.NoError(t, err)
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
@@ -1069,7 +1069,7 @@ func TestDelegateSameInput(t *testing.T) {
 				Message: encodedIntentMessage,
 				Proof:   encodedIntentProof,
 			},
-			Forfeits: []string{signedPartialForfeitTx},
+			ForfeitTxs: []string{signedPartialForfeitTx},
 		}, nil
 	}
 
@@ -1103,11 +1103,11 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7000")
+	delegatorClient, err := newDelegatorClient("localhost:7002")
 	require.NoError(t, err)
 	require.NotNil(t, delegatorClient)
 
-	delegateInfo, err := delegatorClient.GetDelegateInfo(ctx, &pb.GetDelegateInfoRequest{})
+	delegateInfo, err := delegatorClient.GetDelegatorInfo(ctx, &pb.GetDelegatorInfoRequest{})
 	require.NoError(t, err)
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
@@ -1379,7 +1379,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 			Message: encodedIntentMessage,
 			Proof:   encodedIntentProof,
 		},
-		Forfeits: forfeits,
+		ForfeitTxs: forfeits,
 	})
 	require.NoError(t, err)
 
