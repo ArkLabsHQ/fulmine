@@ -3,7 +3,6 @@ package e2e_test
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -12,6 +11,13 @@ import (
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
+	log "github.com/sirupsen/logrus"
+)
+
+const (
+	clientFulmineURL = "localhost:7000"
+	boltzFulmineURL = "localhost:7002"
+	mockFulmineURL   = "localhost:7100"
 )
 
 func TestMain(m *testing.M) {
@@ -21,11 +27,15 @@ func TestMain(m *testing.M) {
 		log.Fatalf("❌ failed to refill Arkade server: %s", err)
 	}
 
-	if err := refillFulmineBoltz(ctx); err != nil {
+	if err := refillFulmine(ctx, clientFulmineURL); err != nil {
 		log.Fatalf("❌ failed to refill Fulmine used by Boltz: %s", err)
 	}
 
-	if err := refillFulmineClient(ctx); err != nil {
+	if err := refillFulmine(ctx,boltzFulmineURL); err != nil {
+		log.Fatalf("❌ failed to refill Fulmine used by Client: %s", err)
+	}
+
+	if err := refillFulmine(ctx, mockFulmineURL); err != nil {
 		log.Fatalf("❌ failed to refill Fulmine used by Client: %s", err)
 	}
 
@@ -64,14 +74,6 @@ func refillArkd(ctx context.Context) error {
 
 	time.Sleep(5 * time.Second)
 	return nil
-}
-
-func refillFulmineBoltz(ctx context.Context) error {
-	return refillFulmine(ctx, "localhost:7000")
-}
-
-func refillFulmineClient(ctx context.Context) error {
-	return refillFulmine(ctx, "localhost:7002")
 }
 
 func refillFulmine(ctx context.Context, url string) error {
