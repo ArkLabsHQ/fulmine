@@ -559,15 +559,15 @@ func (h *serviceHandler) NextSettlement(
 	}, nil
 }
 
-func (h *serviceHandler) ListDelegateTasks(
-	ctx context.Context, req *pb.ListDelegateTasksRequest,
-) (*pb.ListDelegateTasksResponse, error) {
+func (h *serviceHandler) ListDelegates(
+	ctx context.Context, req *pb.ListDelegatesRequest,
+) (*pb.ListDelegatesResponse, error) {
 	statusStr := req.GetStatus()
 	if statusStr == "" {
 		return nil, status.Error(codes.InvalidArgument, "status is required")
 	}
 
-	taskStatus, err := domain.DelegateTaskStatusFromString(statusStr)
+	delegateStatus, err := domain.DelegateTaskStatusFromString(statusStr)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -584,18 +584,12 @@ func (h *serviceHandler) ListDelegateTasks(
 		offset = 0
 	}
 
-	tasks, err := h.svc.GetDelegateTasks(ctx, taskStatus, limit, offset)
+	delegates, err := h.svc.GetDelegateTasks(ctx, delegateStatus, limit, offset)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get delegate tasks: %v", err))
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	protoTasks := make([]*pb.DelegateTask, 0, len(tasks))
-	for _, task := range tasks {
-		protoTask := toDelegateTaskProto(task)
-		protoTasks = append(protoTasks, protoTask)
-	}
-
-	return &pb.ListDelegateTasksResponse{
-		Tasks: protoTasks,
+	return &pb.ListDelegatesResponse{
+		Delegates: toDelegatesProto(delegates),
 	}, nil
 }

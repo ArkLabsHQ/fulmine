@@ -31,20 +31,20 @@ var _ = runtime.String
 var _ = utilities.NewDoubleArray
 var _ = metadata.Join
 
-func request_DelegatorService_GetDelegateInfo_0(ctx context.Context, marshaler runtime.Marshaler, client DelegatorServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GetDelegateInfoRequest
+func request_DelegatorService_GetDelegatorInfo_0(ctx context.Context, marshaler runtime.Marshaler, client DelegatorServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetDelegatorInfoRequest
 	var metadata runtime.ServerMetadata
 
-	msg, err := client.GetDelegateInfo(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GetDelegatorInfo(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_DelegatorService_GetDelegateInfo_0(ctx context.Context, marshaler runtime.Marshaler, server DelegatorServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GetDelegateInfoRequest
+func local_request_DelegatorService_GetDelegatorInfo_0(ctx context.Context, marshaler runtime.Marshaler, server DelegatorServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetDelegatorInfoRequest
 	var metadata runtime.ServerMetadata
 
-	msg, err := server.GetDelegateInfo(ctx, &protoReq)
+	msg, err := server.GetDelegatorInfo(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -89,7 +89,7 @@ func local_request_DelegatorService_Delegate_0(ctx context.Context, marshaler ru
 // Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterDelegatorServiceHandlerFromEndpoint instead.
 func RegisterDelegatorServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server DelegatorServiceServer) error {
 
-	mux.Handle("GET", pattern_DelegatorService_GetDelegateInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_DelegatorService_GetDelegatorInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -97,12 +97,12 @@ func RegisterDelegatorServiceHandlerServer(ctx context.Context, mux *runtime.Ser
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/fulmine.v1.DelegatorService/GetDelegateInfo", runtime.WithHTTPPathPattern("/v1/delegate/info"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/fulmine.v1.DelegatorService/GetDelegatorInfo", runtime.WithHTTPPathPattern("/v1/delegator/info"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_DelegatorService_GetDelegateInfo_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_DelegatorService_GetDelegatorInfo_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
@@ -110,7 +110,7 @@ func RegisterDelegatorServiceHandlerServer(ctx context.Context, mux *runtime.Ser
 			return
 		}
 
-		forward_DelegatorService_GetDelegateInfo_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_DelegatorService_GetDelegatorInfo_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -180,25 +180,25 @@ func RegisterDelegatorServiceHandler(ctx context.Context, mux *runtime.ServeMux,
 // "DelegatorServiceClient" to call the correct interceptors.
 func RegisterDelegatorServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client DelegatorServiceClient) error {
 
-	mux.Handle("GET", pattern_DelegatorService_GetDelegateInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_DelegatorService_GetDelegatorInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/fulmine.v1.DelegatorService/GetDelegateInfo", runtime.WithHTTPPathPattern("/v1/delegate/info"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/fulmine.v1.DelegatorService/GetDelegatorInfo", runtime.WithHTTPPathPattern("/v1/delegator/info"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_DelegatorService_GetDelegateInfo_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_DelegatorService_GetDelegatorInfo_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_DelegatorService_GetDelegateInfo_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_DelegatorService_GetDelegatorInfo_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -228,13 +228,13 @@ func RegisterDelegatorServiceHandlerClient(ctx context.Context, mux *runtime.Ser
 }
 
 var (
-	pattern_DelegatorService_GetDelegateInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "delegate", "info"}, ""))
+	pattern_DelegatorService_GetDelegatorInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "delegator", "info"}, ""))
 
 	pattern_DelegatorService_Delegate_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "delegate"}, ""))
 )
 
 var (
-	forward_DelegatorService_GetDelegateInfo_0 = runtime.ForwardResponseMessage
+	forward_DelegatorService_GetDelegatorInfo_0 = runtime.ForwardResponseMessage
 
 	forward_DelegatorService_Delegate_0 = runtime.ForwardResponseMessage
 )

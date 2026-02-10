@@ -62,15 +62,15 @@
         ]
       }
     },
-    "/v1/delegate/tasks": {
+    "/v1/delegates": {
       "get": {
-        "summary": "ListDelegateTasks returns delegate tasks filtered by status, paginated by limit/offset.",
-        "operationId": "Service_ListDelegateTasks",
+        "summary": "ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.",
+        "operationId": "Service_ListDelegates",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1ListDelegateTasksResponse"
+              "$ref": "#/definitions/v1ListDelegatesResponse"
             }
           },
           "default": {
@@ -889,34 +889,20 @@
         }
       }
     },
-    "v1DelegateRefundParams": {
-      "type": "object",
-      "properties": {
-        "signedIntentProof": {
-          "type": "string"
-        },
-        "intentMessage": {
-          "type": "string"
-        },
-        "partialForfeitTx": {
-          "type": "string"
-        }
-      }
-    },
-    "v1DelegateTask": {
+    "v1Delegate": {
       "type": "object",
       "properties": {
         "id": {
           "type": "string"
         },
         "intent": {
-          "$ref": "#/definitions/v1DelegateTaskIntent"
+          "$ref": "#/definitions/v1DelegateIntent"
         },
-        "forfeits": {
+        "forfeitTxs": {
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/v1DelegateTaskForfeit"
+            "$ref": "#/definitions/v1DelegateForfeitTx"
           }
         },
         "fee": {
@@ -941,7 +927,7 @@
         }
       }
     },
-    "v1DelegateTaskForfeit": {
+    "v1DelegateForfeitTx": {
       "type": "object",
       "properties": {
         "input": {
@@ -952,7 +938,7 @@
         }
       }
     },
-    "v1DelegateTaskIntent": {
+    "v1DelegateIntent": {
       "type": "object",
       "properties": {
         "txid": {
@@ -970,6 +956,20 @@
             "type": "object",
             "$ref": "#/definitions/v1Input"
           }
+        }
+      }
+    },
+    "v1DelegateRefundParams": {
+      "type": "object",
+      "properties": {
+        "signedIntentProof": {
+          "type": "string"
+        },
+        "intentMessage": {
+          "type": "string"
+        },
+        "partialForfeitTx": {
+          "type": "string"
         }
       }
     },
@@ -1120,14 +1120,14 @@
         }
       }
     },
-    "v1ListDelegateTasksResponse": {
+    "v1ListDelegatesResponse": {
       "type": "object",
       "properties": {
-        "tasks": {
+        "delegates": {
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/v1DelegateTask"
+            "$ref": "#/definitions/v1Delegate"
           }
         }
       }

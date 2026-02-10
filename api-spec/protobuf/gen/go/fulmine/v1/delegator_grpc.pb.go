@@ -19,16 +19,20 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	DelegatorService_GetDelegateInfo_FullMethodName = "/fulmine.v1.DelegatorService/GetDelegateInfo"
-	DelegatorService_Delegate_FullMethodName        = "/fulmine.v1.DelegatorService/Delegate"
+	DelegatorService_GetDelegatorInfo_FullMethodName = "/fulmine.v1.DelegatorService/GetDelegatorInfo"
+	DelegatorService_Delegate_FullMethodName         = "/fulmine.v1.DelegatorService/Delegate"
 )
 
 // DelegatorServiceClient is the client API for DelegatorService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// DelegatorService defines the public RPCs that clients can consume to delegate the refresh of
+// their VTXO set
 type DelegatorServiceClient interface {
-	// GetDelegateInfo returns info about the delegator contract
-	GetDelegateInfo(ctx context.Context, in *GetDelegateInfoRequest, opts ...grpc.CallOption) (*GetDelegateInfoResponse, error)
+	// GetDelegatorInfo returns info about the delegator contract
+	GetDelegatorInfo(ctx context.Context, in *GetDelegatorInfoRequest, opts ...grpc.CallOption) (*GetDelegatorInfoResponse, error)
+	// Delegate is consumed by clients to request the delegation of the refresh of their VTXOs
 	Delegate(ctx context.Context, in *DelegateRequest, opts ...grpc.CallOption) (*DelegateResponse, error)
 }
 
@@ -40,10 +44,10 @@ func NewDelegatorServiceClient(cc grpc.ClientConnInterface) DelegatorServiceClie
 	return &delegatorServiceClient{cc}
 }
 
-func (c *delegatorServiceClient) GetDelegateInfo(ctx context.Context, in *GetDelegateInfoRequest, opts ...grpc.CallOption) (*GetDelegateInfoResponse, error) {
+func (c *delegatorServiceClient) GetDelegatorInfo(ctx context.Context, in *GetDelegatorInfoRequest, opts ...grpc.CallOption) (*GetDelegatorInfoResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetDelegateInfoResponse)
-	err := c.cc.Invoke(ctx, DelegatorService_GetDelegateInfo_FullMethodName, in, out, cOpts...)
+	out := new(GetDelegatorInfoResponse)
+	err := c.cc.Invoke(ctx, DelegatorService_GetDelegatorInfo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -63,9 +67,13 @@ func (c *delegatorServiceClient) Delegate(ctx context.Context, in *DelegateReque
 // DelegatorServiceServer is the server API for DelegatorService service.
 // All implementations should embed UnimplementedDelegatorServiceServer
 // for forward compatibility
+//
+// DelegatorService defines the public RPCs that clients can consume to delegate the refresh of
+// their VTXO set
 type DelegatorServiceServer interface {
-	// GetDelegateInfo returns info about the delegator contract
-	GetDelegateInfo(context.Context, *GetDelegateInfoRequest) (*GetDelegateInfoResponse, error)
+	// GetDelegatorInfo returns info about the delegator contract
+	GetDelegatorInfo(context.Context, *GetDelegatorInfoRequest) (*GetDelegatorInfoResponse, error)
+	// Delegate is consumed by clients to request the delegation of the refresh of their VTXOs
 	Delegate(context.Context, *DelegateRequest) (*DelegateResponse, error)
 }
 
@@ -73,8 +81,8 @@ type DelegatorServiceServer interface {
 type UnimplementedDelegatorServiceServer struct {
 }
 
-func (UnimplementedDelegatorServiceServer) GetDelegateInfo(context.Context, *GetDelegateInfoRequest) (*GetDelegateInfoResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetDelegateInfo not implemented")
+func (UnimplementedDelegatorServiceServer) GetDelegatorInfo(context.Context, *GetDelegatorInfoRequest) (*GetDelegatorInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDelegatorInfo not implemented")
 }
 func (UnimplementedDelegatorServiceServer) Delegate(context.Context, *DelegateRequest) (*DelegateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delegate not implemented")
@@ -91,20 +99,20 @@ func RegisterDelegatorServiceServer(s grpc.ServiceRegistrar, srv DelegatorServic
 	s.RegisterService(&DelegatorService_ServiceDesc, srv)
 }
 
-func _DelegatorService_GetDelegateInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetDelegateInfoRequest)
+func _DelegatorService_GetDelegatorInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDelegatorInfoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DelegatorServiceServer).GetDelegateInfo(ctx, in)
+		return srv.(DelegatorServiceServer).GetDelegatorInfo(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: DelegatorService_GetDelegateInfo_FullMethodName,
+		FullMethod: DelegatorService_GetDelegatorInfo_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DelegatorServiceServer).GetDelegateInfo(ctx, req.(*GetDelegateInfoRequest))
+		return srv.(DelegatorServiceServer).GetDelegatorInfo(ctx, req.(*GetDelegatorInfoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -135,8 +143,8 @@ var DelegatorService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*DelegatorServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetDelegateInfo",
-			Handler:    _DelegatorService_GetDelegateInfo_Handler,
+			MethodName: "GetDelegatorInfo",
+			Handler:    _DelegatorService_GetDelegatorInfo_Handler,
 		},
 		{
 			MethodName: "Delegate",

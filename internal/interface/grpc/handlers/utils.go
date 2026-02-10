@@ -293,34 +293,42 @@ func toProtoInput(outpoint wire.OutPoint) *pb.Input {
 	}
 }
 
-func toDelegateTaskProto(task domain.DelegateTask) *pb.DelegateTask {
-	intent := &pb.DelegateTaskIntent{
-		Txid:    task.Intent.Txid,
-		Message: task.Intent.Message,
-		Proof:   task.Intent.Proof,
-		Inputs:  make([]*pb.Input, 0, len(task.Intent.Inputs)),
+func toDelegateProto(delegate domain.DelegateTask) *pb.Delegate {
+	intent := &pb.DelegateIntent{
+		Txid:    delegate.Intent.Txid,
+		Message: delegate.Intent.Message,
+		Proof:   delegate.Intent.Proof,
+		Inputs:  make([]*pb.Input, 0, len(delegate.Intent.Inputs)),
 	}
-	for _, input := range task.Intent.Inputs {
+	for _, input := range delegate.Intent.Inputs {
 		intent.Inputs = append(intent.Inputs, toProtoInput(input))
 	}
 
-	forfeits := make([]*pb.DelegateTaskForfeit, 0, len(task.ForfeitTxs))
-	for outpoint, forfeitTx := range task.ForfeitTxs {
-		forfeits = append(forfeits, &pb.DelegateTaskForfeit{
-			Input:      toProtoInput(outpoint),
-			ForfeitTx:  forfeitTx,
+	forfeitTxs := make([]*pb.DelegateForfeitTx, 0, len(delegate.ForfeitTxs))
+	for outpoint, forfeitTx := range delegate.ForfeitTxs {
+		forfeitTxs = append(forfeitTxs, &pb.DelegateForfeitTx{
+			Input:     toProtoInput(outpoint),
+			ForfeitTx: forfeitTx,
 		})
 	}
 
-	return &pb.DelegateTask{
-		Id:                task.ID,
-		Intent:            intent,
-		Forfeits:          forfeits,
-		Fee:               task.Fee,
-		DelegatorPublicKey: task.DelegatorPublicKey,
-		ScheduledAt:       task.ScheduledAt.Unix(),
-		Status:            task.Status.String(),
-		FailReason:        task.FailReason,
-		CommitmentTxid:    task.CommitmentTxid,
+	return &pb.Delegate{
+		Id:                 delegate.ID,
+		Intent:             intent,
+		ForfeitTxs:         forfeitTxs,
+		Fee:                delegate.Fee,
+		DelegatorPublicKey: delegate.DelegatorPublicKey,
+		ScheduledAt:        delegate.ScheduledAt.Unix(),
+		Status:             delegate.Status.String(),
+		FailReason:         delegate.FailReason,
+		CommitmentTxid:     delegate.CommitmentTxid,
 	}
+}
+
+func toDelegatesProto(delegates []domain.DelegateTask) []*pb.Delegate {
+	list := make([]*pb.Delegate, 0, len(delegates))
+	for _, delegate := range delegates {
+		list = append(list, toDelegateProto(delegate))
+	}
+	return list
 }

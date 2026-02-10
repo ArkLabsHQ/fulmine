@@ -145,10 +145,10 @@ service Service {
     };
   };
 
-  // ListDelegateTasks returns delegate tasks filtered by status, paginated by limit/offset.
-  rpc ListDelegateTasks(ListDelegateTasksRequest) returns (ListDelegateTasksResponse) {
+  // ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.
+  rpc ListDelegates(ListDelegatesRequest) returns (ListDelegatesResponse) {
     option (google.api.http) = {
-      get: "/v1/delegate/tasks"
+      get: "/v1/delegates"
     };
   };
 }
@@ -391,22 +391,22 @@ message NextSettlementResponse {
   int64 next_settlement_at = 1;
 }
 
-message DelegateTaskIntent {
+message DelegateIntent {
   string txid = 1;
   string message = 2;
   string proof = 3;
   repeated Input inputs = 4;
 }
 
-message DelegateTaskForfeit {
+message DelegateForfeitTx {
   Input input = 1;
   string forfeit_tx = 2;
 }
 
-message DelegateTask {
+message Delegate {
   string id = 1;
-  DelegateTaskIntent intent = 2;
-  repeated DelegateTaskForfeit forfeits = 3;
+  DelegateIntent intent = 2;
+  repeated DelegateForfeitTx forfeit_txs = 3;
   uint64 fee = 4;
   string delegator_public_key = 5;
   int64 scheduled_at = 6;
@@ -415,12 +415,12 @@ message DelegateTask {
   string commitment_txid = 9;
 }
 
-message ListDelegateTasksRequest {
+message ListDelegatesRequest {
   string status = 1;
   uint32 limit = 2;
   uint32 offset = 3;
 }
 
-message ListDelegateTasksResponse {
-  repeated DelegateTask tasks = 1;
+message ListDelegatesResponse {
+  repeated Delegate delegates = 1;
 }

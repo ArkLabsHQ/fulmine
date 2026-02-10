@@ -41,7 +41,7 @@ const (
 	Service_GetVirtualTxs_FullMethodName              = "/fulmine.v1.Service/GetVirtualTxs"
 	Service_GetVtxos_FullMethodName                   = "/fulmine.v1.Service/GetVtxos"
 	Service_NextSettlement_FullMethodName             = "/fulmine.v1.Service/NextSettlement"
-	Service_ListDelegateTasks_FullMethodName          = "/fulmine.v1.Service/ListDelegateTasks"
+	Service_ListDelegates_FullMethodName              = "/fulmine.v1.Service/ListDelegates"
 )
 
 // ServiceClient is the client API for Service service.
@@ -87,8 +87,8 @@ type ServiceClient interface {
 	GetVtxos(ctx context.Context, in *GetVtxosRequest, opts ...grpc.CallOption) (*GetVtxosResponse, error)
 	// NextSettlement returns the next scheduled settlement time
 	NextSettlement(ctx context.Context, in *NextSettlementRequest, opts ...grpc.CallOption) (*NextSettlementResponse, error)
-	// ListDelegateTasks returns delegate tasks filtered by status, paginated by limit/offset.
-	ListDelegateTasks(ctx context.Context, in *ListDelegateTasksRequest, opts ...grpc.CallOption) (*ListDelegateTasksResponse, error)
+	// ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.
+	ListDelegates(ctx context.Context, in *ListDelegatesRequest, opts ...grpc.CallOption) (*ListDelegatesResponse, error)
 }
 
 type serviceClient struct {
@@ -319,10 +319,10 @@ func (c *serviceClient) NextSettlement(ctx context.Context, in *NextSettlementRe
 	return out, nil
 }
 
-func (c *serviceClient) ListDelegateTasks(ctx context.Context, in *ListDelegateTasksRequest, opts ...grpc.CallOption) (*ListDelegateTasksResponse, error) {
+func (c *serviceClient) ListDelegates(ctx context.Context, in *ListDelegatesRequest, opts ...grpc.CallOption) (*ListDelegatesResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListDelegateTasksResponse)
-	err := c.cc.Invoke(ctx, Service_ListDelegateTasks_FullMethodName, in, out, cOpts...)
+	out := new(ListDelegatesResponse)
+	err := c.cc.Invoke(ctx, Service_ListDelegates_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -372,8 +372,8 @@ type ServiceServer interface {
 	GetVtxos(context.Context, *GetVtxosRequest) (*GetVtxosResponse, error)
 	// NextSettlement returns the next scheduled settlement time
 	NextSettlement(context.Context, *NextSettlementRequest) (*NextSettlementResponse, error)
-	// ListDelegateTasks returns delegate tasks filtered by status, paginated by limit/offset.
-	ListDelegateTasks(context.Context, *ListDelegateTasksRequest) (*ListDelegateTasksResponse, error)
+	// ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.
+	ListDelegates(context.Context, *ListDelegatesRequest) (*ListDelegatesResponse, error)
 }
 
 // UnimplementedServiceServer should be embedded to have forward compatible implementations.
@@ -446,8 +446,8 @@ func (UnimplementedServiceServer) GetVtxos(context.Context, *GetVtxosRequest) (*
 func (UnimplementedServiceServer) NextSettlement(context.Context, *NextSettlementRequest) (*NextSettlementResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NextSettlement not implemented")
 }
-func (UnimplementedServiceServer) ListDelegateTasks(context.Context, *ListDelegateTasksRequest) (*ListDelegateTasksResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListDelegateTasks not implemented")
+func (UnimplementedServiceServer) ListDelegates(context.Context, *ListDelegatesRequest) (*ListDelegatesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListDelegates not implemented")
 }
 
 // UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -857,20 +857,20 @@ func _Service_NextSettlement_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Service_ListDelegateTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListDelegateTasksRequest)
+func _Service_ListDelegates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListDelegatesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ServiceServer).ListDelegateTasks(ctx, in)
+		return srv.(ServiceServer).ListDelegates(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Service_ListDelegateTasks_FullMethodName,
+		FullMethod: Service_ListDelegates_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).ListDelegateTasks(ctx, req.(*ListDelegateTasksRequest))
+		return srv.(ServiceServer).ListDelegates(ctx, req.(*ListDelegatesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -971,8 +971,8 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Service_NextSettlement_Handler,
 		},
 		{
-			MethodName: "ListDelegateTasks",
-			Handler:    _Service_ListDelegateTasks_Handler,
+			MethodName: "ListDelegates",
+			Handler:    _Service_ListDelegates_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

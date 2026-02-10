@@ -18,6 +18,7 @@
   "paths": {
     "/v1/delegate": {
       "post": {
+        "summary": "Delegate is consumed by clients to request the delegation of the refresh of their VTXOs",
         "operationId": "DelegatorService_Delegate",
         "responses": {
           "200": {
@@ -48,15 +49,15 @@
         ]
       }
     },
-    "/v1/delegate/info": {
+    "/v1/delegator/info": {
       "get": {
-        "summary": "GetDelegateInfo returns info about the delegator contract",
-        "operationId": "DelegatorService_GetDelegateInfo",
+        "summary": "GetDelegatorInfo returns info about the delegator contract",
+        "operationId": "DelegatorService_GetDelegatorInfo",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1GetDelegateInfoResponse"
+              "$ref": "#/definitions/v1GetDelegatorInfoResponse"
             }
           },
           "default": {
@@ -105,47 +106,58 @@
       "type": "object",
       "properties": {
         "intent": {
-          "$ref": "#/definitions/v1Intent"
+          "$ref": "#/definitions/v1Intent",
+          "title": "The partially signed intent that is gonna be registered by the delegator when close enough to\nunderlying VTXOs expiration"
         },
-        "forfeits": {
+        "forfeitTxs": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "title": "The partially signed forfeit txs that are gonna be sumbitted by the delegator when joining\nthe batch execution"
         },
         "rejectReplace": {
           "type": "boolean",
-          "title": "if true, the delegate will be rejected if another task with overlapping inputs is pending"
+          "title": "Opt-in flag to instruct the delegator to not replace an existing delegate that includes at\nleast one VTXO included in this request"
         }
-      }
+      },
+      "title": "DelegateRequest is the request message for Delegate rpc"
     },
     "v1DelegateResponse": {
-      "type": "object"
+      "type": "object",
+      "title": "DelegateResponse is the response message for Delegate rpc"
     },
-    "v1GetDelegateInfoResponse": {
+    "v1GetDelegatorInfoResponse": {
       "type": "object",
       "properties": {
         "pubkey": {
-          "type": "string"
+          "type": "string",
+          "title": "The delegator pubkey to include in the vtxo script"
         },
         "fee": {
-          "type": "string"
+          "type": "string",
+          "title": "The service fee applied by the delegator"
         },
         "delegatorAddress": {
-          "type": "string"
+          "type": "string",
+          "title": "The delegator address for the service fee, if any"
         }
-      }
+      },
+      "title": "GetDelegatorInfoResponse is the response message for GetDelegatorInfo rpc"
     },
     "v1Intent": {
       "type": "object",
       "properties": {
         "message": {
-          "type": "string"
+          "type": "string",
+          "title": "Intent message in plain-text (stringified JSON)"
         },
         "proof": {
-          "type": "string"
+          "type": "string",
+          "title": "Intent proof tx (psbt in base64 format)"
         }
-      }
+      },
+      "title": "Intent represents an intent message"
     }
   }
 }

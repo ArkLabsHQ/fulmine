@@ -21,16 +21,16 @@ func NewDelegatorHandler(svc *application.DelegatorService) pb.DelegatorServiceS
 	return &delegatorHandler{svc}
 }
 
-func (h *delegatorHandler) GetDelegateInfo(
-	ctx context.Context, req *pb.GetDelegateInfoRequest,
-) (*pb.GetDelegateInfoResponse, error) {
-	info, err := h.svc.GetDelegateInfo(ctx)
+func (h *delegatorHandler) GetDelegatorInfo(
+	ctx context.Context, req *pb.GetDelegatorInfoRequest,
+) (*pb.GetDelegatorInfoResponse, error) {
+	info, err := h.svc.GetDelegatorInfo(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &pb.GetDelegateInfoResponse{
-		Pubkey: info.DelegatorPublicKey,
-		Fee: strconv.FormatUint(info.Fee, 10), // TODO: use CEL?
+	return &pb.GetDelegatorInfoResponse{
+		Pubkey:           info.DelegatorPublicKey,
+		Fee:              strconv.FormatUint(info.Fee, 10), // TODO: use CEL?
 		DelegatorAddress: info.DelegatorAddress,
 	}, nil
 }
@@ -41,7 +41,6 @@ func (h *delegatorHandler) Delegate(
 	delegateIntent := req.GetIntent()
 	message := delegateIntent.GetMessage()
 	proof := delegateIntent.GetProof()
-	forfeits := req.GetForfeits()
 
 	var intentMessage intent.RegisterMessage
 	if err := intentMessage.Decode(message); err != nil {
@@ -53,19 +52,19 @@ func (h *delegatorHandler) Delegate(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	forfeitPtxs := make([]*psbt.Packet, 0, len(forfeits))
-	for _, forfeit := range forfeits {
+	forfeitTxs := make([]*psbt.Packet, 0, len(req.GetForfeitTxs()))
+	for _, forfeit := range req.GetForfeitTxs() {
 		forfeitPtx, err := psbt.NewFromRawBytes(strings.NewReader(forfeit), true)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		forfeitPtxs = append(forfeitPtxs, forfeitPtx)
+		forfeitTxs = append(forfeitTxs, forfeitPtx)
 	}
 
 	intentProof := intent.Proof{Packet: *proofPtx}
 
 	allowReplace := !req.GetRejectReplace()
-	err = h.svc.Delegate(ctx, intentMessage, intentProof, forfeitPtxs, allowReplace)
+	err = h.svc.Delegate(ctx, intentMessage, intentProof, forfeitTxs, allowReplace)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
