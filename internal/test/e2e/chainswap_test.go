@@ -142,8 +142,6 @@ type mockSwapState struct {
 	LastStatus       string `json:"lastStatus"`
 	ServerLockAmount uint64 `json:"serverLockAmount"`
 	BTCLockupAddress string `json:"btcLockupAddress"`
-	QuoteGets        int    `json:"quoteGets"`
-	QuoteAccepts     int    `json:"quoteAccepts"`
 	ClaimRequests    int    `json:"claimRequests"`
 	RefundRequests   int    `json:"refundRequests"`
 }

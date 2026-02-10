@@ -30,7 +30,6 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/gorilla/websocket"
@@ -70,8 +69,6 @@ type runtimeConfig struct {
 	UnilateralClaimDelay         uint32 `json:"unilateralClaimDelay"`
 	UnilateralRefundDelay        uint32 `json:"unilateralRefundDelay"`
 	UnilateralRefundNoRecvDelay  uint32 `json:"unilateralRefundNoRecvDelay"`
-	QuoteAmount                  uint64 `json:"quoteAmount"`
-	QuoteOnchainAmount           uint64 `json:"quoteOnchainAmount"`
 }
 
 type updateRuntimeConfigRequest struct {
@@ -84,23 +81,17 @@ type updateRuntimeConfigRequest struct {
 	UnilateralClaimDelay         *uint32 `json:"unilateralClaimDelay"`
 	UnilateralRefundDelay        *uint32 `json:"unilateralRefundDelay"`
 	UnilateralRefundNoRecvDelay  *uint32 `json:"unilateralRefundNoRecvDelay"`
-	QuoteAmount                  *uint64 `json:"quoteAmount"`
-	QuoteOnchainAmount           *uint64 `json:"quoteOnchainAmount"`
 }
 
 type swapState struct {
-	ID                 string
-	From               boltz.Currency
-	To                 boltz.Currency
-	CreatedAt          time.Time
-	PreimageHashSHA256 string
-	PreimageHash160    []byte
+	ID        string
+	From      boltz.Currency
+	To        boltz.Currency
+	CreatedAt time.Time
 
-	ClaimPubKey  *btcec.PublicKey
-	RefundPubKey *btcec.PublicKey
-
+	PreimageHash160 []byte
+	ClaimPubKey     *btcec.PublicKey
 	ClaimPubKeyHex  string
-	RefundPubKeyHex string
 	ServerPubKeyHex string
 
 	UserLockAmount   uint64
@@ -109,21 +100,12 @@ type swapState struct {
 	BTCSwapTree      boltz.SwapTree
 	BTCLockupScript  []byte
 	BTCLockupAddress string
-	BTCTimeoutHeight uint32
 
 	ARKLockupAddress string
-	ARKTimeouts      boltz.ArkTimeouts
 
-	UserLockTxID    string
-	UserLockTxHex   string
-	ServerLockTxID  string
-	ServerLockTxHex string
+	UserLockTxID string
+	LastStatus   string
 
-	LastStatus string
-
-	QuoteGets      int
-	QuoteAccepts   int
-	LastQuote      boltz.QuoteResponse
 	ClaimRequests  int
 	RefundRequests int
 }
@@ -313,10 +295,6 @@ func (s *Server) handleChainSubroutes(w http.ResponseWriter, r *http.Request) {
 		s.handleGetClaimDetails(w, id)
 	case len(suffix) == 1 && suffix[0] == "claim" && r.Method == http.MethodPost:
 		s.handleSubmitClaim(w, r, id)
-	case len(suffix) == 1 && suffix[0] == "quote" && r.Method == http.MethodGet:
-		s.handleGetQuote(w, id)
-	case len(suffix) == 1 && suffix[0] == "quote" && r.Method == http.MethodPost:
-		s.handleAcceptQuote(w, r, id)
 	case len(suffix) == 2 && suffix[0] == "refund" && suffix[1] == "ark" && r.Method == http.MethodPost:
 		s.handleRefundARK(w, r, id)
 	default:
@@ -337,20 +315,11 @@ func (s *Server) handleGetClaimDetails(w http.ResponseWriter, id string) {
 		return
 	}
 
-	txHash := strings.Repeat("00", 32)
-	if st.ServerLockTxID != "" {
-		// The downstream parser expects a 32-byte hex string.
-		txHash = st.ServerLockTxID
-		if len(txHash) != 64 {
-			txHash = strings.Repeat("00", 32)
-		}
-	}
-
 	resp := boltz.ChainSwapClaimDetailsResponse{
 		PubNonce:        hex.EncodeToString(serverNonce.PubNonce[:]),
 		PublicKey:       st.ServerPubKeyHex,
 		TheirPublicKey:  st.ClaimPubKeyHex,
-		TransactionHash: txHash,
+		TransactionHash: strings.Repeat("00", 32),
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -365,7 +334,6 @@ func (s *Server) handleSubmitClaim(w http.ResponseWriter, r *http.Request, id st
 	}
 	st.ClaimRequests++
 	stCopy := *st
-	stCopy.PreimageHash160 = append([]byte(nil), st.PreimageHash160...)
 	stCopy.BTCLockupScript = append([]byte(nil), st.BTCLockupScript...)
 	s.mu.Unlock()
 
@@ -397,60 +365,6 @@ func (s *Server) handleSubmitClaim(w http.ResponseWriter, r *http.Request, id st
 		PubNonce:         nonceHex,
 		PartialSignature: partialHex,
 	})
-}
-
-func (s *Server) handleGetQuote(w http.ResponseWriter, id string) {
-	s.mu.Lock()
-	st, ok := s.swaps[id]
-	if !ok {
-		s.mu.Unlock()
-		writeError(w, http.StatusNotFound, "swap not found")
-		return
-	}
-	st.QuoteGets++
-	stCopy := *st
-	s.mu.Unlock()
-
-	cfg := s.getRuntime()
-	quoteAmount := stCopy.ServerLockAmount
-	quoteOnchainAmount := stCopy.UserLockAmount
-	if cfg.QuoteAmount > 0 {
-		quoteAmount = cfg.QuoteAmount
-	}
-	if cfg.QuoteOnchainAmount > 0 {
-		quoteOnchainAmount = cfg.QuoteOnchainAmount
-	}
-
-	writeJSON(w, http.StatusOK, boltz.QuoteResponse{
-		Amount:             quoteAmount,
-		OnchainAmount:      quoteOnchainAmount,
-		TimeoutBlockHeight: stCopy.BTCTimeoutHeight,
-	})
-}
-
-func (s *Server) handleAcceptQuote(w http.ResponseWriter, r *http.Request, id string) {
-	var req boltz.QuoteResponse
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid body")
-		return
-	}
-
-	s.mu.Lock()
-	st, ok := s.swaps[id]
-	if !ok {
-		s.mu.Unlock()
-		writeError(w, http.StatusNotFound, "swap not found")
-		return
-	}
-	st.QuoteAccepts++
-	st.LastQuote = req
-	st.ServerLockAmount = req.Amount
-	st.UserLockAmount = req.OnchainAmount
-	st.ServerLockTxID = ""
-	st.ServerLockTxHex = ""
-	s.mu.Unlock()
-
-	writeJSON(w, http.StatusOK, req)
 }
 
 func (s *Server) handleRefundARK(w http.ResponseWriter, r *http.Request, id string) {
@@ -801,26 +715,21 @@ func (s *Server) createSwap(req boltz.CreateChainSwapRequest) (*boltz.CreateChai
 	}
 
 	state := &swapState{
-		ID:                 id,
-		From:               req.From,
-		To:                 req.To,
-		CreatedAt:          time.Now(),
-		PreimageHashSHA256: req.PreimageHash,
-		PreimageHash160:    append([]byte(nil), preimageHash160...),
-		ClaimPubKey:        claimPubKey,
-		RefundPubKey:       refundPubKey,
-		ClaimPubKeyHex:     req.ClaimPublicKey,
-		RefundPubKeyHex:    req.RefundPublicKey,
-		ServerPubKeyHex:    hex.EncodeToString(s.publicKey.SerializeCompressed()),
-		UserLockAmount:     lockAmount,
-		ServerLockAmount:   serverAmount,
-		BTCSwapTree:        swapTree,
-		BTCLockupScript:    btcScript,
-		BTCLockupAddress:   btcAddress,
-		BTCTimeoutHeight:   rt.BtcLockupTimeoutBlocks,
-		ARKLockupAddress:   arkAddress,
-		ARKTimeouts:        arkTimeouts,
-		LastStatus:         "swap.created",
+		ID:               id,
+		From:             req.From,
+		To:               req.To,
+		CreatedAt:        time.Now(),
+		PreimageHash160:  append([]byte(nil), preimageHash160...),
+		ClaimPubKey:      claimPubKey,
+		ClaimPubKeyHex:   req.ClaimPublicKey,
+		ServerPubKeyHex:  hex.EncodeToString(s.publicKey.SerializeCompressed()),
+		UserLockAmount:   lockAmount,
+		ServerLockAmount: serverAmount,
+		BTCSwapTree:      swapTree,
+		BTCLockupScript:  btcScript,
+		BTCLockupAddress: btcAddress,
+		ARKLockupAddress: arkAddress,
+		LastStatus:       "swap.created",
 	}
 
 	resp := &boltz.CreateChainSwapResponse{Id: id}
@@ -998,22 +907,7 @@ func (s *Server) pushSwapUpdate(id, status, txID, txHex string) error {
 		return fmt.Errorf("swap %s not found", id)
 	}
 
-	if strings.HasPrefix(status, "transaction.mempool.") {
-		if st.ServerLockTxHex == "" || st.ServerLockTxID == "" {
-			if err := s.ensureServerLockTx(st); err != nil {
-				s.mu.Unlock()
-				return err
-			}
-		}
-		if txID == "" {
-			txID = st.ServerLockTxID
-		}
-		if txHex == "" {
-			txHex = st.ServerLockTxHex
-		}
-	}
-
-	if strings.HasPrefix(status, "transaction.") && !strings.HasPrefix(status, "transaction.mempool.") {
+	if strings.HasPrefix(status, "transaction.") {
 		if txID == "" {
 			txID = randomTxID()
 		}
@@ -1022,7 +916,6 @@ func (s *Server) pushSwapUpdate(id, status, txID, txHex string) error {
 		}
 		if status == "transaction.mempool" || status == "transaction.confirmed" {
 			st.UserLockTxID = txID
-			st.UserLockTxHex = txHex
 		}
 	}
 
@@ -1064,29 +957,6 @@ func (s *Server) pushSwapUpdate(id, status, txID, txHex string) error {
 	return nil
 }
 
-func (s *Server) ensureServerLockTx(st *swapState) error {
-	if st.ServerLockTxHex != "" && st.ServerLockTxID != "" {
-		return nil
-	}
-
-	tx := wire.NewMsgTx(2)
-	dummyHash := chainhash.DoubleHashH([]byte("mock-server-lock-" + st.ID))
-	tx.AddTxIn(&wire.TxIn{
-		PreviousOutPoint: wire.OutPoint{Hash: dummyHash, Index: 0},
-		Sequence:         wire.MaxTxInSequenceNum,
-	})
-	tx.AddTxOut(&wire.TxOut{Value: int64(st.ServerLockAmount), PkScript: st.BTCLockupScript})
-
-	var buf bytes.Buffer
-	if err := tx.Serialize(&buf); err != nil {
-		return fmt.Errorf("serialize server lock tx: %w", err)
-	}
-
-	st.ServerLockTxHex = hex.EncodeToString(buf.Bytes())
-	st.ServerLockTxID = tx.TxHash().String()
-	return nil
-}
-
 func (s *Server) getSwap(id string) (*swapState, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -1095,7 +965,6 @@ func (s *Server) getSwap(id string) (*swapState, bool) {
 		return nil, false
 	}
 	cp := *st
-	cp.PreimageHash160 = append([]byte(nil), st.PreimageHash160...)
 	cp.BTCLockupScript = append([]byte(nil), st.BTCLockupScript...)
 	return &cp, true
 }
@@ -1157,13 +1026,6 @@ func (s *Server) updateRuntime(req updateRuntimeConfigRequest) error {
 	if req.UnilateralRefundNoRecvDelay != nil {
 		s.runtime.UnilateralRefundNoRecvDelay = *req.UnilateralRefundNoRecvDelay
 	}
-	if req.QuoteAmount != nil {
-		s.runtime.QuoteAmount = *req.QuoteAmount
-	}
-	if req.QuoteOnchainAmount != nil {
-		s.runtime.QuoteOnchainAmount = *req.QuoteOnchainAmount
-	}
-
 	return nil
 }
 
@@ -1353,13 +1215,9 @@ func (s *swapState) MarshalJSON() ([]byte, error) {
 		ServerLockAmount uint64              `json:"serverLockAmount"`
 		BTCLockupAddress string              `json:"btcLockupAddress"`
 		ARKLockupAddress string              `json:"arkLockupAddress"`
-		QuoteGets        int                 `json:"quoteGets"`
-		QuoteAccepts     int                 `json:"quoteAccepts"`
-		ClaimRequests    int                 `json:"claimRequests"`
-		RefundRequests   int                 `json:"refundRequests"`
-		LastQuote        boltz.QuoteResponse `json:"lastQuote"`
-		UserLockTxID     string              `json:"userLockTxid"`
-		ServerLockTxID   string              `json:"serverLockTxid"`
+		ClaimRequests    int    `json:"claimRequests"`
+		RefundRequests   int    `json:"refundRequests"`
+		UserLockTxID     string `json:"userLockTxid"`
 	}
 	return json.Marshal(alias{
 		ID:               s.ID,
@@ -1371,32 +1229,10 @@ func (s *swapState) MarshalJSON() ([]byte, error) {
 		ServerLockAmount: s.ServerLockAmount,
 		BTCLockupAddress: s.BTCLockupAddress,
 		ARKLockupAddress: s.ARKLockupAddress,
-		QuoteGets:        s.QuoteGets,
-		QuoteAccepts:     s.QuoteAccepts,
 		ClaimRequests:    s.ClaimRequests,
 		RefundRequests:   s.RefundRequests,
-		LastQuote:        s.LastQuote,
 		UserLockTxID:     s.UserLockTxID,
-		ServerLockTxID:   s.ServerLockTxID,
 	})
-}
-
-func (s *Server) String() string {
-	if s.listener == nil {
-		return ""
-	}
-	addr := s.listener.Addr().String()
-	if strings.HasPrefix(addr, "[") {
-		return "http://" + addr
-	}
-	host, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return "http://" + addr
-	}
-	if host == "" || host == "::" || host == "0.0.0.0" {
-		host = "127.0.0.1"
-	}
-	return "http://" + net.JoinHostPort(host, port)
 }
 
 func main() {
