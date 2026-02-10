@@ -119,13 +119,7 @@ func TestChainSwapBTCtoARKWithQuote(t *testing.T) {
 	err = faucet(ctx, createResp.LockupAddress, 0.00015500)
 	require.NoError(t, err)
 
-	time.Sleep(5 * time.Second)
-
-	swaps, err := client.ListChainSwaps(ctx, &pb.ListChainSwapsRequest{
-		SwapIds: []string{swapID},
-	})
-	require.NoError(t, err)
-	require.Equal(t, "claimed", swaps.GetSwaps()[0].GetStatus())
+	waitChainSwapStatus(t, ctx, client, swapID, "claimed", 30*time.Second)
 
 	endBalance, err := client.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
@@ -557,7 +551,11 @@ func waitChainSwapStatus(
 	resp, err := client.ListChainSwaps(ctx, &pb.ListChainSwapsRequest{SwapIds: []string{swapID}})
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.GetSwaps())
-	require.Equalf(t, expected, resp.GetSwaps()[0].GetStatus(), "final status mismatch for swap %s", swapID)
+	swap := resp.GetSwaps()[0]
+	if swap.GetErrorMessage() != "" {
+		t.Logf("Swap %s error: %s", swapID, swap.GetErrorMessage())
+	}
+	require.Equalf(t, expected, swap.GetStatus(), "final status mismatch for swap %s", swapID)
 }
 
 func refundChainSwapRPCWithRetry(
