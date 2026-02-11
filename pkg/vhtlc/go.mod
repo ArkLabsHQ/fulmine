@@ -1,6 +1,6 @@
 module github.com/ArkLabsHQ/fulmine/pkg/vhtlc
 
-go 1.25.5
+go 1.25.7
 
 require (
 	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20251119163300-38b7bf6a4010
