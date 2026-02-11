@@ -88,9 +88,10 @@ func main() {
 	log.Info("starting fulmine...")
 
 	svcConfig := grpcservice.Config{
-		GRPCPort: cfg.GRPCPort,
-		HTTPPort: cfg.HTTPPort,
-		WithTLS:  cfg.WithTLS,
+		GRPCPort:      cfg.GRPCPort,
+		HTTPPort:      cfg.HTTPPort,
+		DelegatorPort: cfg.DelegatorPort,
+		WithTLS:       cfg.WithTLS,
 	}
 
 	storeCfg := store.Config{
@@ -120,18 +121,22 @@ func main() {
 	pollInterval := time.Duration(cfg.SchedulerPollInterval) * time.Second
 	schedulerSvc := scheduler.NewScheduler(cfg.EsploraURL, pollInterval)
 
-	appSvc, err := application.NewService(
+	appSvc, delegatorSvc, err := application.NewServices(
 		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc,
 		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout,
 		cfg.LnConnectionOpts, cfg.RefreshDbInterval,
+		application.DelegatorConfig{
+			Enabled: cfg.DelegatorEnabled,
+			Fee:     cfg.DelegatorFee,
+		},
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init application service")
 	}
 
 	svc, err := grpcservice.NewService(
-		svcConfig, appSvc, cfg.UnlockerService(), sentryEnabled, cfg.MacaroonSvc(), cfg.ArkServer,
-		cfg.OtelCollectorURL, cfg.OtelPushInterval, cfg.PyroscopeURL,
+		svcConfig, appSvc, delegatorSvc, cfg.UnlockerService(), sentryEnabled,
+		cfg.MacaroonSvc(), cfg.ArkServer, cfg.OtelCollectorURL, cfg.OtelPushInterval, cfg.PyroscopeURL,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init interface service")

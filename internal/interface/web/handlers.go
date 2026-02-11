@@ -1470,3 +1470,139 @@ func toTransfer(tx sdktypes.Transaction) types.Transfer {
 		UnixDate:   dateCreated,
 	}
 }
+
+func (s *service) delegator(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	bodyContent := pages.DelegatorBodyContent()
+	s.pageViewHandler(bodyContent, c)
+}
+
+func (s *service) delegatorActive(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	active := c.Param("active")
+	bodyContent := pages.DelegatorPartialContent(active)
+	partialViewHandler(bodyContent, c)
+}
+
+func (s *service) getDelegateTasks(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	statusStr := c.Param("status")
+	offsetStr := c.Param("offset")
+	
+	status, err := domain.DelegateTaskStatusFromString(statusStr)
+	if err != nil {
+		toast := components.Toast("Invalid status", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
+
+	limit := 20
+	tasks, err := s.svc.GetDelegateTasks(c, status, limit, offset)
+	if err != nil {
+		toast := components.Toast("Unable to get delegate tasks", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	parsedTasks := make([]types.DelegateTask, len(tasks))
+	for i, task := range tasks {
+		parsedTasks[i] = toDelegateTask(task)
+	}
+
+	loadMore := len(tasks) == limit
+	nextOffset := offset + len(tasks)
+
+	if len(parsedTasks) == 0 && offset > 0 {
+		bodyContent := templ.Component(nil)
+		partialViewHandler(bodyContent, c)
+		return
+	}
+
+	bodyContent := pages.DelegatorTasksListContent(parsedTasks, statusStr, nextOffset, loadMore)
+	partialViewHandler(bodyContent, c)
+}
+
+func (s *service) getDelegateTaskDetail(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	taskID := c.Param("id")
+	if taskID == "" {
+		toast := components.Toast("Task ID is required", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	task, err := s.svc.GetDelegateTaskByID(c, taskID)
+	if err != nil {
+		toast := components.Toast("Unable to get task details", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	if task == nil {
+		toast := components.Toast("Task not found", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	parsedTask := toDelegateTask(*task)
+	modal := modals.DelegateTaskDetail(parsedTask)
+	modalHandler(modal, c)
+}
+
+func toDelegateTask(task domain.DelegateTask) types.DelegateTask {
+	unixTime := task.ScheduledAt.Unix()
+	result := types.DelegateTask{
+		ID:                 task.ID,
+		Status:             task.Status.String(),
+		Fee:                strconv.FormatUint(task.Fee, 10),
+		ScheduledAt:        prettyUnixTimestamp(unixTime),
+		ScheduledAtUnix:    unixTime,
+		ScheduledDate:      prettyDay(unixTime), // Keep for backward compatibility
+		ScheduledHour:      prettyHour(unixTime), // Keep for backward compatibility
+		FailReason:         task.FailReason,
+		CommitmentTxid:     task.CommitmentTxid,
+		DelegatorPublicKey: task.DelegatorPublicKey,
+	}
+
+	// Convert Intent
+	if task.Intent.Txid != "" || task.Intent.Message != "" || task.Intent.Proof != "" || len(task.Intent.Inputs) > 0 {
+		intent := &types.DelegateTaskIntent{
+			Txid:    task.Intent.Txid,
+			Message: task.Intent.Message,
+			Proof:   task.Intent.Proof,
+			Inputs:  make([]string, len(task.Intent.Inputs)),
+		}
+		for i, input := range task.Intent.Inputs {
+			intent.Inputs[i] = fmt.Sprintf("%s:%d", input.Hash.String(), input.Index)
+		}
+		result.Intent = intent
+	}
+
+	// Convert ForfeitTxs
+	if len(task.ForfeitTxs) > 0 {
+		result.Forfeits = make([]types.DelegateTaskForfeit, 0, len(task.ForfeitTxs))
+		for outpoint, txid := range task.ForfeitTxs {
+			result.Forfeits = append(result.Forfeits, types.DelegateTaskForfeit{
+				Outpoint: fmt.Sprintf("%s:%d", outpoint.Hash.String(), outpoint.Index),
+				Txid:     txid,
+			})
+		}
+	}
+
+	return result
+}

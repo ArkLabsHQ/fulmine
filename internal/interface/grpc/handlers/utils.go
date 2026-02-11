@@ -7,12 +7,14 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil/psbt"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -282,4 +284,51 @@ func toInputProto(outpoint types.Outpoint) *pb.Input {
 		Txid: outpoint.Txid,
 		Vout: outpoint.VOut,
 	}
+}
+
+func toProtoInput(outpoint wire.OutPoint) *pb.Input {
+	return &pb.Input{
+		Txid: outpoint.Hash.String(),
+		Vout: outpoint.Index,
+	}
+}
+
+func toDelegateProto(delegate domain.DelegateTask) *pb.Delegate {
+	intent := &pb.DelegateIntent{
+		Txid:    delegate.Intent.Txid,
+		Message: delegate.Intent.Message,
+		Proof:   delegate.Intent.Proof,
+		Inputs:  make([]*pb.Input, 0, len(delegate.Intent.Inputs)),
+	}
+	for _, input := range delegate.Intent.Inputs {
+		intent.Inputs = append(intent.Inputs, toProtoInput(input))
+	}
+
+	forfeitTxs := make([]*pb.DelegateForfeitTx, 0, len(delegate.ForfeitTxs))
+	for outpoint, forfeitTx := range delegate.ForfeitTxs {
+		forfeitTxs = append(forfeitTxs, &pb.DelegateForfeitTx{
+			Input:     toProtoInput(outpoint),
+			ForfeitTx: forfeitTx,
+		})
+	}
+
+	return &pb.Delegate{
+		Id:                 delegate.ID,
+		Intent:             intent,
+		ForfeitTxs:         forfeitTxs,
+		Fee:                delegate.Fee,
+		DelegatorPublicKey: delegate.DelegatorPublicKey,
+		ScheduledAt:        delegate.ScheduledAt.Unix(),
+		Status:             delegate.Status.String(),
+		FailReason:         delegate.FailReason,
+		CommitmentTxid:     delegate.CommitmentTxid,
+	}
+}
+
+func toDelegatesProto(delegates []domain.DelegateTask) []*pb.Delegate {
+	list := make([]*pb.Delegate, 0, len(delegates))
+	for _, delegate := range delegates {
+		list = append(list, toDelegateProto(delegate))
+	}
+	return list
 }

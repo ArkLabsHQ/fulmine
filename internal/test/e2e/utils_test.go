@@ -3,17 +3,31 @@ package e2e_test
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
+	"testing"
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
+	arksdk "github.com/arkade-os/go-sdk"
+	"github.com/arkade-os/go-sdk/client"
+	grpcclient "github.com/arkade-os/go-sdk/client/grpc"
+	"github.com/arkade-os/go-sdk/store"
+	"github.com/arkade-os/go-sdk/types"
+	"github.com/arkade-os/go-sdk/wallet"
+	singlekeywallet "github.com/arkade-os/go-sdk/wallet/singlekey"
+	inmemorystore "github.com/arkade-os/go-sdk/wallet/singlekey/store/inmemory"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/creack/pty"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -114,4 +128,118 @@ func runCommand(ctx context.Context, command string) (string, error) {
 		}
 		return out.String(), nil
 	}
+}
+
+func generateNote(t *testing.T, amount uint64) string {
+	adminHttpClient := &http.Client{
+		Timeout: 15 * time.Second,
+	}
+
+	reqBody := bytes.NewReader([]byte(fmt.Sprintf(`{"amount": "%d"}`, amount)))
+	req, err := http.NewRequest("POST", "http://localhost:7071/v1/admin/note", reqBody)
+	if err != nil {
+		t.Fatalf("failed to prepare note request: %s", err)
+	}
+	req.Header.Set("Authorization", "Basic YWRtaW46YWRtaW4=")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := adminHttpClient.Do(req)
+	if err != nil {
+		t.Fatalf("failed to create note: %s", err)
+	}
+	defer resp.Body.Close()
+
+	var noteResp struct {
+		Notes []string `json:"notes"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&noteResp); err != nil {
+		t.Fatalf("failed to parse response: %s", err)
+	}
+	if len(noteResp.Notes) == 0 {
+		t.Fatalf("no notes returned from admin API")
+	}
+
+	return noteResp.Notes[0]
+}
+
+func faucetOffchain(t *testing.T, client arksdk.ArkClient, amount float64) types.Vtxo {
+	_, offchainAddr, _, err := client.Receive(t.Context())
+	require.NoError(t, err)
+
+	note := generateNote(t, uint64(amount*1e8))
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	var incomingFunds []types.Vtxo
+	var incomingErr error
+	go func() {
+		incomingFunds, incomingErr = client.NotifyIncomingFunds(t.Context(), offchainAddr)
+		wg.Done()
+	}()
+
+	txid, err := client.RedeemNotes(t.Context(), []string{note})
+	require.NoError(t, err)
+	require.NotEmpty(t, txid)
+
+	wg.Wait()
+
+	require.NoError(t, incomingErr)
+	require.NotEmpty(t, incomingFunds)
+
+	time.Sleep(time.Second)
+	return incomingFunds[0]
+}
+
+func newDelegatorClient(url string) (pb.DelegatorServiceClient, error) {
+	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
+	conn, err := grpc.NewClient(url, opts)
+	if err != nil {
+		return nil, err
+	}
+	return pb.NewDelegatorServiceClient(conn), nil
+}
+
+func setupArkSDKwithPublicKey(
+	t *testing.T,
+) (arksdk.ArkClient, wallet.WalletService, *btcec.PublicKey, client.TransportClient) {
+	serverUrl := "localhost:7070"
+	password := "pass"
+
+	appDataStore, err := store.NewStore(store.Config{
+		ConfigStoreType:  types.InMemoryStore,
+		AppDataStoreType: types.KVStore,
+	})
+	require.NoError(t, err)
+
+	client, err := arksdk.NewArkClient(appDataStore)
+	require.NoError(t, err)
+
+	walletStore, err := inmemorystore.NewWalletStore()
+	require.NoError(t, err)
+	require.NotNil(t, walletStore)
+
+	wallet, err := singlekeywallet.NewBitcoinWallet(appDataStore.ConfigStore(), walletStore)
+	require.NoError(t, err)
+
+	privkey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+
+	privkeyHex := hex.EncodeToString(privkey.Serialize())
+
+	err = client.InitWithWallet(context.Background(), arksdk.InitWithWalletArgs{
+		Wallet:     wallet,
+		ClientType: arksdk.GrpcClient,
+		ServerUrl:  serverUrl,
+		Password:   password,
+		Seed:       privkeyHex,
+	})
+	require.NoError(t, err)
+
+	err = client.Unlock(context.Background(), password)
+	require.NoError(t, err)
+
+	grpcClient, err := grpcclient.NewClient(serverUrl)
+	require.NoError(t, err)
+
+	return client, wallet, privkey.PubKey(), grpcClient
 }

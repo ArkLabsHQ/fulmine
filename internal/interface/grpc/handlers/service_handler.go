@@ -9,6 +9,7 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
@@ -479,70 +480,6 @@ func (h *serviceHandler) IsInvoiceSettled(
 	return &pb.IsInvoiceSettledResponse{Settled: settled}, nil
 }
 
-func (h *serviceHandler) GetDelegatePublicKey(
-	ctx context.Context, req *pb.GetDelegatePublicKeyRequest,
-) (*pb.GetDelegatePublicKeyResponse, error) {
-	pubKey, err := h.svc.GetDelegatePublicKey(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get delegate public key: %v", err)
-	}
-
-	return &pb.GetDelegatePublicKeyResponse{
-		PublicKey: pubKey,
-	}, nil
-}
-
-func (h *serviceHandler) WatchAddressForRollover(
-	ctx context.Context,
-	req *pb.WatchAddressForRolloverRequest,
-) (*pb.WatchAddressForRolloverResponse, error) {
-	err := h.svc.WatchAddressForRollover(
-		ctx, req.RolloverAddress.Address,
-		req.RolloverAddress.DestinationAddress,
-		req.RolloverAddress.TaprootTree.Scripts,
-	)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to watch address: %v", err)
-	}
-
-	return &pb.WatchAddressForRolloverResponse{}, nil
-}
-
-func (h *serviceHandler) UnwatchAddress(
-	ctx context.Context, req *pb.UnwatchAddressRequest,
-) (*pb.UnwatchAddressResponse, error) {
-	err := h.svc.UnwatchAddress(ctx, req.Address)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to unwatch address: %v", err)
-	}
-
-	return &pb.UnwatchAddressResponse{}, nil
-}
-
-func (h *serviceHandler) ListWatchedAddresses(
-	ctx context.Context, req *pb.ListWatchedAddressesRequest,
-) (*pb.ListWatchedAddressesResponse, error) {
-	targets, err := h.svc.ListWatchedAddresses(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list watched addresses: %v", err)
-	}
-
-	rolloverAddresses := make([]*pb.RolloverAddress, 0, len(targets))
-	for _, target := range targets {
-		rolloverAddresses = append(rolloverAddresses, &pb.RolloverAddress{
-			Address: target.Address,
-			TaprootTree: &pb.Tapscripts{
-				Scripts: target.TaprootTree,
-			},
-			DestinationAddress: target.DestinationAddress,
-		})
-	}
-
-	return &pb.ListWatchedAddressesResponse{
-		Addresses: rolloverAddresses,
-	}, nil
-}
-
 func (h *serviceHandler) GetVirtualTxs(
 	ctx context.Context, req *pb.GetVirtualTxsRequest,
 ) (*pb.GetVirtualTxsResponse, error) {
@@ -619,5 +556,40 @@ func (h *serviceHandler) NextSettlement(
 
 	return &pb.NextSettlementResponse{
 		NextSettlementAt: nextSettlementUnix,
+	}, nil
+}
+
+func (h *serviceHandler) ListDelegates(
+	ctx context.Context, req *pb.ListDelegatesRequest,
+) (*pb.ListDelegatesResponse, error) {
+	statusStr := req.GetStatus()
+	if statusStr == "" {
+		return nil, status.Error(codes.InvalidArgument, "status is required")
+	}
+
+	delegateStatus, err := domain.DelegateTaskStatusFromString(statusStr)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	limit := int(req.GetLimit())
+	if limit <= 0 {
+		limit = 100 // Default limit
+	}
+	if limit > 1000 {
+		limit = 1000 // Max limit
+	}
+	offset := int(req.GetOffset())
+	if offset < 0 {
+		offset = 0
+	}
+
+	delegates, err := h.svc.GetDelegateTasks(ctx, delegateStatus, limit, offset)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &pb.ListDelegatesResponse{
+		Delegates: toDelegatesProto(delegates),
 	}, nil
 }

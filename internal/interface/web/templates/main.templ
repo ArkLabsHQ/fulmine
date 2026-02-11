@@ -270,13 +270,78 @@ templ Layout(bodyContent templ.Component, settings domain.Settings) {
 				updateFiatValues()
 				updateCryptoValues()
 				passAlongQueryParams()
+				formatScheduledDate()
+				formatScheduledHour()
+				formatScheduledDateTime()
+				formatIntentMessageJSON()
 			})
+
+			const formatScheduledDate = () => {
+				document.querySelectorAll('.scheduled-date[data-timestamp]').forEach((el) => {
+					const timestamp = parseInt(el.getAttribute('data-timestamp'))
+					if (timestamp && timestamp > 0) {
+						const date = new Date(timestamp * 1000)
+						el.textContent = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+					}
+				})
+			}
+
+			const formatScheduledHour = () => {
+				document.querySelectorAll('.scheduled-hour[data-timestamp]').forEach((el) => {
+					const timestamp = parseInt(el.getAttribute('data-timestamp'))
+					if (timestamp && timestamp > 0) {
+						const date = new Date(timestamp * 1000)
+						el.textContent = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+					}
+				})
+			}
+
+			const formatScheduledDateTime = () => {
+				document.querySelectorAll('.scheduled-datetime[data-timestamp]').forEach((el) => {
+					const timestamp = parseInt(el.getAttribute('data-timestamp'))
+					if (timestamp && timestamp > 0) {
+						const date = new Date(timestamp * 1000)
+						el.textContent = date.toLocaleString('en-US', { 
+							month: 'long', 
+							day: 'numeric', 
+							year: 'numeric', 
+							hour: '2-digit', 
+							minute: '2-digit',
+							hour12: false
+						})
+					}
+				})
+			}
+
+			const formatIntentMessageJSON = () => {
+				document.querySelectorAll('.intent-message-json[data-json]').forEach((el) => {
+					const jsonString = el.getAttribute('data-json')
+					if (!jsonString) return
+					
+					try {
+						const json = JSON.parse(jsonString)
+						const formatted = JSON.stringify(json, null, 2)
+						el.textContent = formatted
+						el.style.whiteSpace = 'pre-wrap'
+						el.style.wordBreak = 'break-word'
+					} catch (e) {
+						// If not valid JSON, just display as-is
+						el.textContent = jsonString
+						el.style.whiteSpace = 'pre-wrap'
+						el.style.wordBreak = 'break-word'
+					}
+				})
+			}
 
 			document.addEventListener('htmx:load', () => {
 				updateFiatValues()
 				updateCryptoValues()
 				hideCopyButtonsIfNoClipboard()
 				hideScanButtonsIfNoCameraAvailable()
+				formatScheduledDate()
+				formatScheduledHour()
+				formatScheduledDateTime()
+				formatIntentMessageJSON()
 			})
 		
 			// after receiving a toast, delete it after 2 seconds

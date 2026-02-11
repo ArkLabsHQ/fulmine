@@ -3,6 +3,7 @@ package db_test
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -33,16 +36,34 @@ var (
 		},
 	}
 
-	testRolloverTarget = domain.VtxoRolloverTarget{
-		Address:            "test_address",
-		TaprootTree:        []string{"tapscript1", "tapscript2"},
-		DestinationAddress: "destination_address",
-	}
-	secondRolloverTarget = domain.VtxoRolloverTarget{
-		Address:            "second_address",
-		TaprootTree:        []string{"other_tapscript1", "other_tapscript2"},
-		DestinationAddress: "other_destination_address",
-	}
+	testDelegateTask = func() domain.DelegateTask {
+		hash1, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000001")
+		input1 := wire.OutPoint{Hash: *hash1, Index: 0}
+		return domain.DelegateTask{
+			ID:                 "test_task_id",
+			Intent:             domain.Intent{Message: "test_message", Proof: "test_proof", Txid: "test_txid_1", Inputs: []wire.OutPoint{input1}},
+			ForfeitTxs:         map[wire.OutPoint]string{input1: "forfeit_tx_hex"},
+			Fee:                1000,
+			DelegatorPublicKey: "delegator_pubkey",
+			ScheduledAt:        time.Now(),
+			Status:             domain.DelegateTaskStatusPending,
+			FailReason:         "",
+		}
+	}()
+	secondDelegateTask = func() domain.DelegateTask {
+		hash2, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000002")
+		input2 := wire.OutPoint{Hash: *hash2, Index: 1}
+		return domain.DelegateTask{
+			ID:                 "second_task_id",
+			Intent:             domain.Intent{Message: "second_message", Proof: "second_proof", Txid: "test_txid_2", Inputs: []wire.OutPoint{input2}},
+			ForfeitTxs:         map[wire.OutPoint]string{input2: "second_forfeit_tx_hex"},
+			Fee:                2000,
+			DelegatorPublicKey: "second_delegator_pubkey",
+			ScheduledAt:        time.Now().Add(time.Hour),
+			Status:             domain.DelegateTaskStatusPending,
+			FailReason:         "",
+		}
+	}()
 
 	testVHTLC = makeVHTLC()
 
@@ -86,7 +107,7 @@ func TestRepoManager(t *testing.T) {
 
 			testSettingsRepository(t, svc)
 			testVHTLCRepository(t, svc)
-			testVtxoRolloverRepository(t, svc)
+			testDelegateRepository(t, svc)
 			testSwapRepository(t, svc)
 			testSubscribedScriptRepository(t, svc)
 		})
@@ -108,11 +129,16 @@ func testVHTLCRepository(t *testing.T, svc ports.RepoManager) {
 	})
 }
 
-func testVtxoRolloverRepository(t *testing.T, svc ports.RepoManager) {
-	t.Run("vtxo rollover repository", func(t *testing.T) {
-		testAddVtxoRolloverTarget(t, svc.VtxoRollover())
-		testGetAllVtxoRolloverTargets(t, svc.VtxoRollover())
-		testDeleteVtxoRolloverTarget(t, svc.VtxoRollover())
+func testDelegateRepository(t *testing.T, svc ports.RepoManager) {
+	t.Run("delegate repository", func(t *testing.T) {
+		testAddDelegateTask(t, svc.Delegate())
+		testGetAllPendingDelegateTasks(t, svc.Delegate())
+		testGetPendingTaskByInput(t, svc.Delegate())
+		testGetPendingTaskByIntentTxID(t, svc.Delegate())
+		testGetAllDelegateTasks(t, svc.Delegate())
+		testCancelTasks(t, svc.Delegate())
+		testCompleteTasks(t, svc.Delegate())
+		testFailTasks(t, svc.Delegate())
 	})
 }
 
@@ -260,66 +286,741 @@ func testGetAllVHTLC(t *testing.T, repo domain.VHTLCRepository) {
 	})
 }
 
-func testAddVtxoRolloverTarget(t *testing.T, repo domain.VtxoRolloverRepository) {
-	t.Run("add rollover target", func(t *testing.T) {
-		target, err := repo.GetTarget(ctx, testRolloverTarget.Address)
+func testAddDelegateTask(t *testing.T, repo domain.DelegateRepository) {
+	t.Run("add delegate task", func(t *testing.T) {
+		task, err := repo.GetByID(ctx, testDelegateTask.ID)
 		require.Error(t, err)
-		require.Nil(t, target)
+		require.ErrorContains(t, err, "task not found")
+		require.Nil(t, task)
 
-		// Add new target
-		err = repo.AddTarget(ctx, testRolloverTarget)
+		pendingTasks, err := repo.GetAllPending(ctx)
+		require.NoError(t, err)
+		require.Empty(t, pendingTasks)
+
+		allPendingTasks, err := repo.GetAll(ctx, domain.DelegateTaskStatusPending, 100, 0)
+		require.NoError(t, err)
+		require.Empty(t, allPendingTasks)
+
+		err = repo.Add(ctx, testDelegateTask)
 		require.NoError(t, err)
 
-		// Verify the target was added correctly
-		target, err = repo.GetTarget(ctx, testRolloverTarget.Address)
-		require.NoError(t, err)
-		require.NotNil(t, target)
-		require.Equal(t, testRolloverTarget, *target)
+		err = repo.Add(ctx, testDelegateTask)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "already exists")
 
-		// Try to add the same target again, should not error
-		err = repo.AddTarget(ctx, testRolloverTarget)
+		task, err = repo.GetByID(ctx, testDelegateTask.ID)
 		require.NoError(t, err)
+		require.NotNil(t, task)
+		require.Equal(t, testDelegateTask.ID, task.ID)
+		require.Equal(t, testDelegateTask.Intent, task.Intent)
+		require.Equal(t, testDelegateTask.Status, task.Status)
+		require.Equal(t, testDelegateTask.Fee, task.Fee)
+		require.Equal(t, testDelegateTask.DelegatorPublicKey, task.DelegatorPublicKey)
+		require.Equal(t, testDelegateTask.Intent.Inputs, task.Intent.Inputs)
+		require.Equal(t, testDelegateTask.ForfeitTxs, task.ForfeitTxs)
 	})
 }
 
-func testGetAllVtxoRolloverTargets(t *testing.T, repo domain.VtxoRolloverRepository) {
-	t.Run("get all rollover targets", func(t *testing.T) {
-		targets, err := repo.GetAllTargets(ctx)
-		require.NoError(t, err)
-		require.Len(t, targets, 1)
-
-		// Add a second target
-		err = repo.AddTarget(ctx, secondRolloverTarget)
+func testGetAllPendingDelegateTasks(t *testing.T, repo domain.DelegateRepository) {
+	t.Run("get all pending delegate tasks", func(t *testing.T) {
+		pendingTask := testDelegateTask
+		pendingTask.ID = "pending_task_1"
+		pendingTask.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, pendingTask)
 		require.NoError(t, err)
 
-		// Get all targets
-		targets, err = repo.GetAllTargets(ctx)
+		doneTask := secondDelegateTask
+		doneTask.ID = "done_task_1"
+		doneTask.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, doneTask)
 		require.NoError(t, err)
-		require.Len(t, targets, 2)
-		require.Subset(t, []domain.VtxoRolloverTarget{testRolloverTarget, secondRolloverTarget}, targets)
+		err = repo.CompleteTasks(ctx, "commitment_txid_1", doneTask.ID)
+		require.NoError(t, err)
+
+		anotherPendingTask := secondDelegateTask
+		anotherPendingTask.ID = "pending_task_2"
+		anotherPendingTask.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, anotherPendingTask)
+		require.NoError(t, err)
+
+		pendingTasks, err := repo.GetAllPending(ctx)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(pendingTasks), 2)
+
+		taskIDs := make(map[string]bool)
+		for _, pendingTask := range pendingTasks {
+			taskIDs[pendingTask.ID] = true
+			fullTask, err := repo.GetByID(ctx, pendingTask.ID)
+			require.NoError(t, err)
+			require.Equal(t, domain.DelegateTaskStatusPending, fullTask.Status)
+			require.Equal(t, pendingTask.ScheduledAt.Unix(), fullTask.ScheduledAt.Unix())
+		}
+		require.True(t, taskIDs["pending_task_1"])
+		require.True(t, taskIDs["pending_task_2"])
+		require.False(t, taskIDs["done_task_1"])
 	})
 }
 
-func testDeleteVtxoRolloverTarget(t *testing.T, repo domain.VtxoRolloverRepository) {
-	t.Run("delete rollover target", func(t *testing.T) {
-		// Delete existing targets
-		err := repo.DeleteTarget(ctx, testRolloverTarget.Address)
+func testGetPendingTaskByInput(t *testing.T, repo domain.DelegateRepository) {
+	t.Run("get pending task by input", func(t *testing.T) {
+		hash1, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000003")
+		testInput := wire.OutPoint{Hash: *hash1, Index: 0}
+
+		taskIDs, err := repo.GetPendingTaskIDsByInputs(ctx, []wire.OutPoint{testInput})
 		require.NoError(t, err)
-		err = repo.DeleteTarget(ctx, secondRolloverTarget.Address)
+		require.Empty(t, taskIDs)
+
+		pendingTask1 := testDelegateTask
+		pendingTask1.ID = "pending_by_input_1"
+		pendingTask1.Intent.Inputs = []wire.OutPoint{testInput}
+		pendingTask1.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, pendingTask1)
 		require.NoError(t, err)
 
-		// Verify it was removed
-		target, err := repo.GetTarget(ctx, testRolloverTarget.Address)
+		pendingTask2 := testDelegateTask
+		pendingTask2.ID = "pending_by_input_2"
+		pendingTask2.Intent.Inputs = []wire.OutPoint{testInput}
+		pendingTask2.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, pendingTask2)
+		require.NoError(t, err)
+
+		hash2, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000004")
+		differentInput := wire.OutPoint{Hash: *hash2, Index: 0}
+		pendingTask3 := testDelegateTask
+		pendingTask3.ID = "pending_by_input_3"
+		pendingTask3.Intent.Inputs = []wire.OutPoint{differentInput}
+		pendingTask3.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, pendingTask3)
+		require.NoError(t, err)
+
+		doneTask := testDelegateTask
+		doneTask.ID = "done_by_input_1"
+		doneTask.Intent.Inputs = []wire.OutPoint{testInput}
+		doneTask.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, doneTask)
+		require.NoError(t, err)
+		err = repo.CompleteTasks(ctx, "commitment_txid_1", doneTask.ID)
+		require.NoError(t, err)
+
+		taskIDs, err = repo.GetPendingTaskIDsByInputs(ctx, []wire.OutPoint{testInput})
+		require.NoError(t, err)
+		require.Len(t, taskIDs, 2)
+
+		taskIDSet := make(map[string]bool)
+		for _, id := range taskIDs {
+			taskIDSet[id] = true
+		}
+		require.True(t, taskIDSet["pending_by_input_1"])
+		require.True(t, taskIDSet["pending_by_input_2"])
+		require.False(t, taskIDSet["pending_by_input_3"])
+		require.False(t, taskIDSet["done_by_input_1"])
+
+		hash3, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000005")
+		nonExistentInput := wire.OutPoint{Hash: *hash3, Index: 0}
+		taskIDs, err = repo.GetPendingTaskIDsByInputs(ctx, []wire.OutPoint{nonExistentInput})
+		require.NoError(t, err)
+		require.Len(t, taskIDs, 0)
+
+		hash4, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000006")
+		anotherInput := wire.OutPoint{Hash: *hash4, Index: 0}
+		pendingTask4 := testDelegateTask
+		pendingTask4.ID = "pending_by_input_4"
+		pendingTask4.Intent.Inputs = []wire.OutPoint{anotherInput}
+		pendingTask4.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, pendingTask4)
+		require.NoError(t, err)
+
+		taskIDs, err = repo.GetPendingTaskIDsByInputs(ctx, []wire.OutPoint{testInput, anotherInput})
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(taskIDs), 3)
+	})
+
+	t.Run("get pending task by input with empty list", func(t *testing.T) {
+		taskIDs, err := repo.GetPendingTaskIDsByInputs(ctx, []wire.OutPoint{})
+		require.NoError(t, err)
+		require.Len(t, taskIDs, 0)
+	})
+}
+
+func testGetPendingTaskByIntentTxID(t *testing.T, repo domain.DelegateRepository) {
+	t.Run("get pending task by intent txid", func(t *testing.T) {
+		testIntentTxid := "test_intent_txid_123"
+
+		task, err := repo.GetPendingTaskByIntentTxID(ctx, testIntentTxid)
 		require.Error(t, err)
-		require.Nil(t, target)
+		require.ErrorContains(t, err, "task not found")
+		require.Nil(t, task)
 
-		targets, err := repo.GetAllTargets(ctx)
+		pendingTask1 := testDelegateTask
+		pendingTask1.ID = "pending_by_txid_1"
+		pendingTask1.Intent.Txid = testIntentTxid
+		pendingTask1.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, pendingTask1)
 		require.NoError(t, err)
-		require.Empty(t, targets)
 
-		// Try to remove it again, should not error
-		err = repo.DeleteTarget(ctx, testRolloverTarget.Address)
+		task, err = repo.GetPendingTaskByIntentTxID(ctx, testIntentTxid)
 		require.NoError(t, err)
+		require.NotNil(t, task)
+		require.Equal(t, pendingTask1.ID, task.ID)
+		require.Equal(t, pendingTask1.ScheduledAt.Unix(), task.ScheduledAt.Unix())
+
+		anotherIntentTxid := "test_intent_txid_456"
+		pendingTask2 := testDelegateTask
+		pendingTask2.ID = "pending_by_txid_2"
+		pendingTask2.Intent.Txid = anotherIntentTxid
+		pendingTask2.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, pendingTask2)
+		require.NoError(t, err)
+
+		task, err = repo.GetPendingTaskByIntentTxID(ctx, anotherIntentTxid)
+		require.NoError(t, err)
+		require.NotNil(t, task)
+		require.Equal(t, pendingTask2.ID, task.ID)
+
+		doneTask := testDelegateTask
+		doneTask.ID = "done_by_txid_1"
+		doneTask.Intent.Txid = testIntentTxid
+		doneTask.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, doneTask)
+		require.NoError(t, err)
+		err = repo.CompleteTasks(ctx, "commitment_txid_1", doneTask.ID)
+		require.NoError(t, err)
+
+		task, err = repo.GetPendingTaskByIntentTxID(ctx, testIntentTxid)
+		require.NoError(t, err)
+		require.NotNil(t, task)
+		require.Equal(t, pendingTask1.ID, task.ID)
+
+		_, err = repo.GetPendingTaskByIntentTxID(ctx, "non_existent_txid")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("get pending task by intent txid with multiple pending tasks", func(t *testing.T) {
+		sharedIntentTxid := "shared_intent_txid_789"
+
+		pendingTask1 := testDelegateTask
+		pendingTask1.ID = "shared_pending_1"
+		pendingTask1.Intent.Txid = sharedIntentTxid
+		pendingTask1.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, pendingTask1)
+		require.NoError(t, err)
+
+		pendingTask2 := testDelegateTask
+		pendingTask2.ID = "shared_pending_2"
+		pendingTask2.Intent.Txid = sharedIntentTxid
+		pendingTask2.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, pendingTask2)
+		require.NoError(t, err)
+
+		task, err := repo.GetPendingTaskByIntentTxID(ctx, sharedIntentTxid)
+		require.NoError(t, err)
+		require.NotNil(t, task)
+		require.True(t, task.ID == "shared_pending_1" || task.ID == "shared_pending_2")
+	})
+}
+
+func testGetAllDelegateTasks(t *testing.T, repo domain.DelegateRepository) {
+	t.Run("get all delegate tasks", func(t *testing.T) {
+		pendingTask1 := testDelegateTask
+		pendingTask1.ID = "getall_pending_1"
+		pendingTask1.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, pendingTask1)
+		require.NoError(t, err)
+
+		pendingTask2 := testDelegateTask
+		pendingTask2.ID = "getall_pending_2"
+		pendingTask2.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, pendingTask2)
+		require.NoError(t, err)
+
+		completedTask1 := testDelegateTask
+		completedTask1.ID = "getall_completed_1"
+		completedTask1.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, completedTask1)
+		require.NoError(t, err)
+		err = repo.CompleteTasks(ctx, "commitment_txid_getall_1", completedTask1.ID)
+		require.NoError(t, err)
+
+		completedTask2 := testDelegateTask
+		completedTask2.ID = "getall_completed_2"
+		completedTask2.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, completedTask2)
+		require.NoError(t, err)
+		err = repo.CompleteTasks(ctx, "commitment_txid_getall_2", completedTask2.ID)
+		require.NoError(t, err)
+
+		failedTask1 := testDelegateTask
+		failedTask1.ID = "getall_failed_1"
+		failedTask1.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, failedTask1)
+		require.NoError(t, err)
+		err = repo.FailTasks(ctx, "test failure reason", failedTask1.ID)
+		require.NoError(t, err)
+
+		pendingTasks, err := repo.GetAll(ctx, domain.DelegateTaskStatusPending, 100, 0)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(pendingTasks), 2)
+
+		taskIDs := make(map[string]bool)
+		for _, task := range pendingTasks {
+			taskIDs[task.ID] = true
+			require.Equal(t, domain.DelegateTaskStatusPending, task.Status)
+		}
+		require.True(t, taskIDs["getall_pending_1"])
+		require.True(t, taskIDs["getall_pending_2"])
+		require.False(t, taskIDs["getall_completed_1"])
+		require.False(t, taskIDs["getall_completed_2"])
+		require.False(t, taskIDs["getall_failed_1"])
+
+		completedTasks, err := repo.GetAll(ctx, domain.DelegateTaskStatusCompleted, 100, 0)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(completedTasks), 2)
+
+		taskIDs = make(map[string]bool)
+		for _, task := range completedTasks {
+			taskIDs[task.ID] = true
+			require.Equal(t, domain.DelegateTaskStatusCompleted, task.Status)
+		}
+		require.True(t, taskIDs["getall_completed_1"])
+		require.True(t, taskIDs["getall_completed_2"])
+		require.False(t, taskIDs["getall_pending_1"])
+		require.False(t, taskIDs["getall_pending_2"])
+		require.False(t, taskIDs["getall_failed_1"])
+
+		failedTasks, err := repo.GetAll(ctx, domain.DelegateTaskStatusFailed, 100, 0)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(failedTasks), 1)
+
+		taskIDs = make(map[string]bool)
+		for _, task := range failedTasks {
+			taskIDs[task.ID] = true
+			require.Equal(t, domain.DelegateTaskStatusFailed, task.Status)
+			if task.ID == "getall_failed_1" {
+				require.Equal(t, "test failure reason", task.FailReason)
+			}
+		}
+		require.True(t, taskIDs["getall_failed_1"])
+		require.False(t, taskIDs["getall_pending_1"])
+		require.False(t, taskIDs["getall_completed_1"])
+
+		cancelledTask1 := testDelegateTask
+		cancelledTask1.ID = "getall_cancelled_1"
+		cancelledTask1.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, cancelledTask1)
+		require.NoError(t, err)
+		err = repo.CancelTasks(ctx, cancelledTask1.ID)
+		require.NoError(t, err)
+
+		cancelledTasks, err := repo.GetAll(ctx, domain.DelegateTaskStatusCancelled, 100, 0)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(cancelledTasks), 1)
+
+		taskIDs = make(map[string]bool)
+		for _, task := range cancelledTasks {
+			taskIDs[task.ID] = true
+			require.Equal(t, domain.DelegateTaskStatusCancelled, task.Status)
+		}
+		require.True(t, taskIDs["getall_cancelled_1"])
+	})
+
+	t.Run("get all delegate tasks with limit and offset", func(t *testing.T) {
+		initialTasks, err := repo.GetAll(ctx, domain.DelegateTaskStatusPending, 1000, 0)
+		require.NoError(t, err)
+		initialCount := len(initialTasks)
+
+		testTaskIDs := make([]string, 5)
+		for i := range 5 {
+			task := testDelegateTask
+			task.ID = fmt.Sprintf("getall_limit_%d", i)
+			task.Status = domain.DelegateTaskStatusPending
+			task.ScheduledAt = time.Now().Add(time.Duration(i) * time.Second)
+			err := repo.Add(ctx, task)
+			require.NoError(t, err)
+			testTaskIDs[i] = task.ID
+		}
+
+		tasks, err := repo.GetAll(ctx, domain.DelegateTaskStatusPending, 2, 0)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(tasks), 2)
+
+		firstPageIDs := make(map[string]bool)
+		for _, task := range tasks {
+			firstPageIDs[task.ID] = true
+		}
+		hasTestTask := false
+		for _, testID := range testTaskIDs {
+			if firstPageIDs[testID] {
+				hasTestTask = true
+				break
+			}
+		}
+		require.True(t, hasTestTask, "At least one test task should be in the first page")
+
+		tasks, err = repo.GetAll(ctx, domain.DelegateTaskStatusPending, 2, 2)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(tasks), 1)
+
+		allTasks, err := repo.GetAll(ctx, domain.DelegateTaskStatusPending, 1000, 0)
+		require.NoError(t, err)
+		require.Equal(t, initialCount+5, len(allTasks))
+
+		allTaskIDs := make(map[string]bool)
+		for _, task := range allTasks {
+			allTaskIDs[task.ID] = true
+		}
+		for _, testID := range testTaskIDs {
+			require.True(t, allTaskIDs[testID], "Test task %s should be in the full list", testID)
+		}
+	})
+
+	t.Run("get all delegate tasks with empty result", func(t *testing.T) {
+		tasks, err := repo.GetAll(ctx, domain.DelegateTaskStatusPending, 100, 10000)
+		require.NoError(t, err)
+		require.Len(t, tasks, 0)
+	})
+
+	t.Run("get all delegate tasks ordered by scheduled_at desc", func(t *testing.T) {
+		baseTime := time.Now()
+
+		task1 := testDelegateTask
+		task1.ID = "order_test_1"
+		task1.Status = domain.DelegateTaskStatusPending
+		task1.ScheduledAt = baseTime.Add(3 * time.Second)
+		err := repo.Add(ctx, task1)
+		require.NoError(t, err)
+
+		task2 := testDelegateTask
+		task2.ID = "order_test_2"
+		task2.Status = domain.DelegateTaskStatusPending
+		task2.ScheduledAt = baseTime.Add(1 * time.Second)
+		err = repo.Add(ctx, task2)
+		require.NoError(t, err)
+
+		task3 := testDelegateTask
+		task3.ID = "order_test_3"
+		task3.Status = domain.DelegateTaskStatusPending
+		task3.ScheduledAt = baseTime.Add(5 * time.Second)
+		err = repo.Add(ctx, task3)
+		require.NoError(t, err)
+
+		task4 := testDelegateTask
+		task4.ID = "order_test_4"
+		task4.Status = domain.DelegateTaskStatusPending
+		task4.ScheduledAt = baseTime.Add(2 * time.Second)
+		err = repo.Add(ctx, task4)
+		require.NoError(t, err)
+
+		tasks, err := repo.GetAll(ctx, domain.DelegateTaskStatusPending, 1000, 0)
+		require.NoError(t, err)
+
+		require.GreaterOrEqual(t, len(tasks), 4, "Should have at least 4 tasks")
+
+		for i := 0; i < len(tasks)-1; i++ {
+			require.GreaterOrEqual(t, tasks[i].ScheduledAt.Unix(), tasks[i+1].ScheduledAt.Unix(),
+				"All tasks should be ordered by ScheduledAt DESC (most recent first). Task at index %d (ID: %s, scheduled at %v) should come before task at index %d (ID: %s, scheduled at %v)",
+				i, tasks[i].ID, tasks[i].ScheduledAt, i+1, tasks[i+1].ID, tasks[i+1].ScheduledAt)
+		}
+
+		testTaskMap := make(map[string]domain.DelegateTask)
+		for _, task := range tasks {
+			if task.ID == "order_test_1" || task.ID == "order_test_2" ||
+				task.ID == "order_test_3" || task.ID == "order_test_4" {
+				testTaskMap[task.ID] = task
+			}
+		}
+
+		require.Len(t, testTaskMap, 4, "Should find exactly 4 test tasks")
+		require.Equal(t, baseTime.Add(5*time.Second).Unix(), testTaskMap["order_test_3"].ScheduledAt.Unix(), "order_test_3 should have the most recent ScheduledAt")
+		require.Equal(t, baseTime.Add(3*time.Second).Unix(), testTaskMap["order_test_1"].ScheduledAt.Unix(), "order_test_1 should have the second most recent ScheduledAt")
+		require.Equal(t, baseTime.Add(2*time.Second).Unix(), testTaskMap["order_test_4"].ScheduledAt.Unix(), "order_test_4 should have the third most recent ScheduledAt")
+		require.Equal(t, baseTime.Add(1*time.Second).Unix(), testTaskMap["order_test_2"].ScheduledAt.Unix(), "order_test_2 should have the oldest ScheduledAt")
+	})
+}
+
+func testCancelTasks(t *testing.T, repo domain.DelegateRepository) {
+	t.Run("cancel tasks", func(t *testing.T) {
+		cancelTask1 := testDelegateTask
+		cancelTask1.ID = "cancel_task_1"
+		cancelTask1.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, cancelTask1)
+		require.NoError(t, err)
+
+		cancelTask2 := testDelegateTask
+		cancelTask2.ID = "cancel_task_2"
+		cancelTask2.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, cancelTask2)
+		require.NoError(t, err)
+
+		task1, err := repo.GetByID(ctx, cancelTask1.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusPending, task1.Status)
+
+		task2, err := repo.GetByID(ctx, cancelTask2.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusPending, task2.Status)
+
+		err = repo.CancelTasks(ctx, cancelTask1.ID, cancelTask2.ID)
+		require.NoError(t, err)
+
+		task1, err = repo.GetByID(ctx, cancelTask1.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusCancelled, task1.Status)
+
+		task2, err = repo.GetByID(ctx, cancelTask2.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusCancelled, task2.Status)
+
+		pendingTasks, err := repo.GetAllPending(ctx)
+		require.NoError(t, err)
+		for _, pendingTask := range pendingTasks {
+			require.NotEqual(t, cancelTask1.ID, pendingTask.ID)
+			require.NotEqual(t, cancelTask2.ID, pendingTask.ID)
+		}
+	})
+
+	t.Run("cancel tasks with empty list", func(t *testing.T) {
+		err := repo.CancelTasks(ctx)
+		require.NoError(t, err)
+	})
+
+	t.Run("cancel tasks with non-existent IDs", func(t *testing.T) {
+		err := repo.CancelTasks(ctx, "non_existent_1", "non_existent_2")
+		require.NoError(t, err)
+	})
+
+	t.Run("cancel already cancelled task", func(t *testing.T) {
+		cancelledTask := testDelegateTask
+		cancelledTask.ID = "already_cancelled_task"
+		cancelledTask.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, cancelledTask)
+		require.NoError(t, err)
+
+		err = repo.CancelTasks(ctx, cancelledTask.ID)
+		require.NoError(t, err)
+
+		err = repo.CancelTasks(ctx, cancelledTask.ID)
+		require.NoError(t, err)
+
+		task, err := repo.GetByID(ctx, cancelledTask.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusCancelled, task.Status)
+	})
+
+	t.Run("cancel task that is not pending", func(t *testing.T) {
+		doneTask := testDelegateTask
+		doneTask.ID = "done_task_to_cancel"
+		doneTask.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, doneTask)
+		require.NoError(t, err)
+		err = repo.CompleteTasks(ctx, "commitment_txid_1", doneTask.ID)
+		require.NoError(t, err)
+
+		err = repo.CancelTasks(ctx, doneTask.ID)
+		require.NoError(t, err)
+
+		task, err := repo.GetByID(ctx, doneTask.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusCompleted, task.Status)
+		require.Equal(t, "commitment_txid_1", task.CommitmentTxid)
+	})
+}
+
+func testCompleteTasks(t *testing.T, repo domain.DelegateRepository) {
+	t.Run("complete tasks", func(t *testing.T) {
+		successTask1 := testDelegateTask
+		successTask1.ID = "success_task_1"
+		successTask1.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, successTask1)
+		require.NoError(t, err)
+
+		successTask2 := testDelegateTask
+		successTask2.ID = "success_task_2"
+		successTask2.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, successTask2)
+		require.NoError(t, err)
+
+		task1, err := repo.GetByID(ctx, successTask1.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusPending, task1.Status)
+
+		task2, err := repo.GetByID(ctx, successTask2.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusPending, task2.Status)
+
+		err = repo.CompleteTasks(ctx, "commitment_txid_2", successTask1.ID, successTask2.ID)
+		require.NoError(t, err)
+
+		task1, err = repo.GetByID(ctx, successTask1.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusCompleted, task1.Status)
+		require.Equal(t, "commitment_txid_2", task1.CommitmentTxid)
+
+		task2, err = repo.GetByID(ctx, successTask2.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusCompleted, task2.Status)
+		require.Equal(t, "commitment_txid_2", task2.CommitmentTxid)
+
+		pendingTasks, err := repo.GetAllPending(ctx)
+		require.NoError(t, err)
+		for _, pendingTask := range pendingTasks {
+			require.NotEqual(t, successTask1.ID, pendingTask.ID)
+			require.NotEqual(t, successTask2.ID, pendingTask.ID)
+		}
+	})
+
+	t.Run("complete tasks with empty list", func(t *testing.T) {
+		err := repo.CompleteTasks(ctx, "commitment_txid_3")
+		require.NoError(t, err)
+	})
+
+	t.Run("complete tasks with non-existent IDs", func(t *testing.T) {
+		err := repo.CompleteTasks(ctx, "commitment_txid_4", "non_existent_1", "non_existent_2")
+		require.NoError(t, err)
+	})
+
+	t.Run("complete already completed task", func(t *testing.T) {
+		doneTask := testDelegateTask
+		doneTask.ID = "already_done_task"
+		doneTask.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, doneTask)
+		require.NoError(t, err)
+
+		err = repo.CompleteTasks(ctx, "commitment_txid_5", doneTask.ID)
+		require.NoError(t, err)
+
+		err = repo.CompleteTasks(ctx, "commitment_txid_6", doneTask.ID)
+		require.NoError(t, err)
+
+		task, err := repo.GetByID(ctx, doneTask.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusCompleted, task.Status)
+		require.Equal(t, "commitment_txid_5", task.CommitmentTxid)
+	})
+
+	t.Run("complete task that is not pending", func(t *testing.T) {
+		cancelledTask := testDelegateTask
+		cancelledTask.ID = "cancelled_task_to_success"
+		cancelledTask.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, cancelledTask)
+		require.NoError(t, err)
+		err = repo.CancelTasks(ctx, cancelledTask.ID)
+		require.NoError(t, err)
+
+		err = repo.CompleteTasks(ctx, "commitment_txid_7", cancelledTask.ID)
+		require.NoError(t, err)
+
+		task, err := repo.GetByID(ctx, cancelledTask.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusCancelled, task.Status)
+	})
+}
+
+func testFailTasks(t *testing.T, repo domain.DelegateRepository) {
+	t.Run("fail tasks", func(t *testing.T) {
+		failTask1 := testDelegateTask
+		failTask1.ID = "fail_task_1"
+		failTask1.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, failTask1)
+		require.NoError(t, err)
+
+		failTask2 := testDelegateTask
+		failTask2.ID = "fail_task_2"
+		failTask2.Status = domain.DelegateTaskStatusPending
+		err = repo.Add(ctx, failTask2)
+		require.NoError(t, err)
+
+		task1, err := repo.GetByID(ctx, failTask1.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusPending, task1.Status)
+		require.Empty(t, task1.FailReason)
+
+		task2, err := repo.GetByID(ctx, failTask2.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusPending, task2.Status)
+		require.Empty(t, task2.FailReason)
+
+		failReason := "Transaction failed: insufficient funds"
+		err = repo.FailTasks(ctx, failReason, failTask1.ID, failTask2.ID)
+		require.NoError(t, err)
+
+		task1, err = repo.GetByID(ctx, failTask1.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusFailed, task1.Status)
+		require.Equal(t, failReason, task1.FailReason)
+
+		task2, err = repo.GetByID(ctx, failTask2.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusFailed, task2.Status)
+		require.Equal(t, failReason, task2.FailReason)
+
+		pendingTasks, err := repo.GetAllPending(ctx)
+		require.NoError(t, err)
+		for _, pendingTask := range pendingTasks {
+			require.NotEqual(t, failTask1.ID, pendingTask.ID)
+			require.NotEqual(t, failTask2.ID, pendingTask.ID)
+		}
+	})
+
+	t.Run("fail tasks with empty list", func(t *testing.T) {
+		err := repo.FailTasks(ctx, "some reason")
+		require.NoError(t, err)
+	})
+
+	t.Run("fail tasks with empty reason", func(t *testing.T) {
+		failTask := testDelegateTask
+		failTask.ID = "fail_task_empty_reason"
+		failTask.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, failTask)
+		require.NoError(t, err)
+
+		err = repo.FailTasks(ctx, "", failTask.ID)
+		require.NoError(t, err)
+
+		task, err := repo.GetByID(ctx, failTask.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusFailed, task.Status)
+		require.Empty(t, task.FailReason)
+	})
+
+	t.Run("fail tasks with non-existent IDs", func(t *testing.T) {
+		err := repo.FailTasks(ctx, "some reason", "non_existent_1", "non_existent_2")
+		require.NoError(t, err)
+	})
+
+	t.Run("fail task that is not pending", func(t *testing.T) {
+		doneTask := testDelegateTask
+		doneTask.ID = "done_task_to_fail"
+		doneTask.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, doneTask)
+		require.NoError(t, err)
+		err = repo.CompleteTasks(ctx, "commitment_txid_1", doneTask.ID)
+		require.NoError(t, err)
+
+		err = repo.FailTasks(ctx, "some reason", doneTask.ID)
+		require.NoError(t, err)
+
+		task, err := repo.GetByID(ctx, doneTask.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusCompleted, task.Status)
+		require.Equal(t, "commitment_txid_1", task.CommitmentTxid)
+	})
+
+	t.Run("fail task with long reason", func(t *testing.T) {
+		failTask := testDelegateTask
+		failTask.ID = "fail_task_long_reason"
+		failTask.Status = domain.DelegateTaskStatusPending
+		err := repo.Add(ctx, failTask)
+		require.NoError(t, err)
+
+		longReason := "This is a very long failure reason that might contain detailed error information, stack traces, or other diagnostic data that helps understand why the task failed. It could be multiple lines or contain special characters."
+		err = repo.FailTasks(ctx, longReason, failTask.ID)
+		require.NoError(t, err)
+
+		task, err := repo.GetByID(ctx, failTask.ID)
+		require.NoError(t, err)
+		require.Equal(t, domain.DelegateTaskStatusFailed, task.Status)
+		require.Equal(t, longReason, task.FailReason)
 	})
 }
 
@@ -350,8 +1051,6 @@ func testGetAllSwap(t *testing.T, repo domain.SwapRepository) {
 		require.NoError(t, err)
 		require.Len(t, swaps, 1)
 
-		// Add another swap
-
 		count, err := repo.Add(ctx, []domain.Swap{testSwap, secondSwap})
 		require.NoError(t, err)
 		require.Equal(t, 1, count)
@@ -360,7 +1059,6 @@ func testGetAllSwap(t *testing.T, repo domain.SwapRepository) {
 		require.NoError(t, err)
 		require.LessOrEqual(t, 0, count)
 
-		// Get all swaps
 		swaps, err = repo.GetAll(ctx)
 		require.NoError(t, err)
 		require.Len(t, swaps, 2)

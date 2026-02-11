@@ -62,38 +62,15 @@
         ]
       }
     },
-    "/v1/delegate/pubkey": {
+    "/v1/delegates": {
       "get": {
-        "summary": "GetDelegatePublicKey retrieves the Fulmine's public key to be included in VTXO scripts.",
-        "operationId": "Service_GetDelegatePublicKey",
+        "summary": "ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.",
+        "operationId": "Service_ListDelegates",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1GetDelegatePublicKeyResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "tags": [
-          "Service"
-        ]
-      }
-    },
-    "/v1/delegate/unwatch": {
-      "post": {
-        "summary": "UnwatchAddress unsubscribes an address from vtxo rollover",
-        "operationId": "Service_UnwatchAddress",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1UnwatchAddressResponse"
+              "$ref": "#/definitions/v1ListDelegatesResponse"
             }
           },
           "default": {
@@ -105,70 +82,26 @@
         },
         "parameters": [
           {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1UnwatchAddressRequest"
-            }
-          }
-        ],
-        "tags": [
-          "Service"
-        ]
-      }
-    },
-    "/v1/delegate/watch": {
-      "post": {
-        "summary": "WatchAddressForRollover watches an address for rollover",
-        "operationId": "Service_WatchAddressForRollover",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1WatchAddressForRolloverResponse"
-            }
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "type": "string"
           },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
           {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1WatchAddressForRolloverRequest"
-            }
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
           }
         ],
-        "tags": [
-          "Service"
-        ]
-      }
-    },
-    "/v1/delegate/watched": {
-      "get": {
-        "summary": "ListWatchedAddresses lists all watched addresses",
-        "operationId": "Service_ListWatchedAddresses",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1ListWatchedAddressesResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
         "tags": [
           "Service"
         ]
@@ -956,6 +889,76 @@
         }
       }
     },
+    "v1Delegate": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "intent": {
+          "$ref": "#/definitions/v1DelegateIntent"
+        },
+        "forfeitTxs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1DelegateForfeitTx"
+          }
+        },
+        "fee": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "delegatorPublicKey": {
+          "type": "string"
+        },
+        "scheduledAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "status": {
+          "type": "string"
+        },
+        "failReason": {
+          "type": "string"
+        },
+        "commitmentTxid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1DelegateForfeitTx": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "$ref": "#/definitions/v1Input"
+        },
+        "forfeitTx": {
+          "type": "string"
+        }
+      }
+    },
+    "v1DelegateIntent": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "proof": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Input"
+          }
+        }
+      }
+    },
     "v1DelegateRefundParams": {
       "type": "object",
       "properties": {
@@ -989,16 +992,6 @@
           "format": "uint64"
         }
       }
-    },
-    "v1GetDelegatePublicKeyResponse": {
-      "type": "object",
-      "properties": {
-        "publicKey": {
-          "type": "string",
-          "title": "The Fulmine's public key to be used for delegate operations, encoded in hex"
-        }
-      },
-      "description": "Response containing the delegate public key."
     },
     "v1GetInfoResponse": {
       "type": "object",
@@ -1127,6 +1120,18 @@
         }
       }
     },
+    "v1ListDelegatesResponse": {
+      "type": "object",
+      "properties": {
+        "delegates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Delegate"
+          }
+        }
+      }
+    },
     "v1ListVHTLCResponse": {
       "type": "object",
       "properties": {
@@ -1136,19 +1141,6 @@
             "type": "object",
             "$ref": "#/definitions/v1Vtxo"
           }
-        }
-      }
-    },
-    "v1ListWatchedAddressesResponse": {
-      "type": "object",
-      "properties": {
-        "addresses": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1RolloverAddress"
-          },
-          "title": "List of all watched addresses"
         }
       }
     },
@@ -1229,23 +1221,6 @@
         }
       },
       "title": "RelativeLocktime represents a relative timelock"
-    },
-    "v1RolloverAddress": {
-      "type": "object",
-      "properties": {
-        "address": {
-          "type": "string",
-          "title": "The watched address"
-        },
-        "taprootTree": {
-          "$ref": "#/definitions/v1Tapscripts",
-          "title": "Full taproot tree as list of hex tapscripts"
-        },
-        "destinationAddress": {
-          "type": "string",
-          "title": "Where funds will be rolled over to"
-        }
-      }
     },
     "v1Round": {
       "type": "object",
@@ -1384,17 +1359,6 @@
         }
       }
     },
-    "v1Tapscripts": {
-      "type": "object",
-      "properties": {
-        "scripts": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
     "v1TransactionInfo": {
       "type": "object",
       "properties": {
@@ -1430,18 +1394,6 @@
         "TX_TYPE_RECEIVED"
       ],
       "default": "TX_TYPE_UNSPECIFIED"
-    },
-    "v1UnwatchAddressRequest": {
-      "type": "object",
-      "properties": {
-        "address": {
-          "type": "string",
-          "title": "The address to stop watching"
-        }
-      }
-    },
-    "v1UnwatchAddressResponse": {
-      "type": "object"
     },
     "v1Vtxo": {
       "type": "object",
@@ -1492,17 +1444,6 @@
           "format": "uint64"
         }
       }
-    },
-    "v1WatchAddressForRolloverRequest": {
-      "type": "object",
-      "properties": {
-        "rolloverAddress": {
-          "$ref": "#/definitions/v1RolloverAddress"
-        }
-      }
-    },
-    "v1WatchAddressForRolloverResponse": {
-      "type": "object"
     }
   }
 }
