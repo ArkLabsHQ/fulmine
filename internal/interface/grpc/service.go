@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
@@ -37,7 +38,6 @@ type service struct {
 	delegatorHTTPServer *http.Server
 	grpcServer          *grpc.Server
 	delegatorGrpcServer *grpc.Server
-	delegatorConn       *grpc.ClientConn
 	unlockerSvc         ports.Unlocker
 	macaroonSvc         macaroon.Service
 	appStopCh           chan struct{}
@@ -123,14 +123,6 @@ func NewService(
 	notificationHandler := handlers.NewNotificationHandler(appSvc, appStopCh)
 	pb.RegisterNotificationServiceServer(grpcServer, notificationHandler)
 
-	// if a different delegator GRPC port is configured, we need a dedicated GRPC server for the delegator
-	var delegatorGrpcServer *grpc.Server
-	if delegatorSvc != nil {
-		delegatorGrpcServer = grpc.NewServer(grpcConfig...)
-		delegateHandler := handlers.NewDelegatorHandler(delegatorSvc)
-		pb.RegisterDelegatorServiceServer(delegatorGrpcServer, delegateHandler)
-	}
-
 	healthHandler := handlers.NewHealthHandler(appSvc)
 	grpchealth.RegisterHealthServer(grpcServer, healthHandler)
 
@@ -141,22 +133,9 @@ func NewService(
 		})
 	}
 	gatewayOpts := grpc.WithTransportCredentials(gatewayCreds)
-	conn, err := grpc.NewClient(
-		cfg.gatewayAddress(), gatewayOpts,
-	)
+	conn, err := grpc.NewClient(cfg.gatewayAddress(), gatewayOpts)
 	if err != nil {
 		return nil, err
-	}
-
-	// Create separate connection to delegator server if it's on a different port
-	var delegatorConn *grpc.ClientConn
-	if delegatorSvc != nil {
-		delegatorConn, err = grpc.NewClient(
-			cfg.delegatorGatewayAddress(), gatewayOpts,
-		)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	authHeaderMatcher := func(key string) (string, bool) {
@@ -202,27 +181,14 @@ func NewService(
 		}
 	})
 	ctx := context.Background()
-	if err := pb.RegisterServiceHandler(
-		ctx, gwmux, conn,
-	); err != nil {
+	if err := pb.RegisterServiceHandler(ctx, gwmux, conn); err != nil {
 		return nil, err
 	}
-	if err := pb.RegisterWalletServiceHandler(
-		ctx, gwmux, conn,
-	); err != nil {
+	if err := pb.RegisterWalletServiceHandler(ctx, gwmux, conn); err != nil {
 		return nil, err
 	}
-	if err := pb.RegisterNotificationServiceHandler(
-		ctx, gwmux, conn,
-	); err != nil {
+	if err := pb.RegisterNotificationServiceHandler(ctx, gwmux, conn); err != nil {
 		return nil, err
-	}
-
-	// register delegator service handler on main gateway if not using separate HTTP port
-	if delegatorSvc != nil {
-		if err := pb.RegisterDelegatorServiceHandler(ctx, gwmux, delegatorConn); err != nil {
-			return nil, err
-		}
 	}
 
 	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled, arkServer)
@@ -243,10 +209,21 @@ func NewService(
 		TLSConfig: cfg.tlsConfig(),
 	}
 
-	// if a different delegator HTTP port is configured, we need a dedicated HTTP server for the
-	// delegator
+	// Setup server for the delegator if enabled
 	var delegatorHTTPServer *http.Server
+	var delegatorGrpcServer *grpc.Server
 	if delegatorSvc != nil {
+		grpcConfig := []grpc.ServerOption{
+			interceptors.UnaryInterceptor(false), interceptors.StreamInterceptor(false),
+		}
+		delegatorGrpcServer = grpc.NewServer(grpcConfig...)
+		delegateHandler := handlers.NewDelegatorHandler(delegatorSvc)
+		pb.RegisterDelegatorServiceServer(delegatorGrpcServer, delegateHandler)
+
+		conn, err := grpc.NewClient(cfg.delegatorGatewayAddress(), gatewayOpts)
+		if err != nil {
+			return nil, err
+		}
 		delegatorGwmux := runtime.NewServeMux(
 			runtime.WithIncomingHeaderMatcher(authHeaderMatcher),
 			runtime.WithMarshalerOption("application/json+pretty", &runtime.JSONPb{
@@ -260,23 +237,25 @@ func NewService(
 			}),
 		)
 
-		if err := pb.RegisterDelegatorServiceHandler(
-			ctx, delegatorGwmux, delegatorConn,
-		); err != nil {
+		if err := pb.RegisterDelegatorServiceHandler(ctx, delegatorGwmux, conn); err != nil {
 			return nil, err
 		}
 
-		delegatorMux := http.NewServeMux()
-		delegatorMux.Handle("/api/", http.StripPrefix("/api", delegatorGwmux))
+		grpcGateway := http.Handler(delegatorGwmux)
 
-		delegatorHTTPHandler := http.Handler(delegatorMux)
+		handler := router(delegatorGrpcServer, grpcGateway)
+		mux := http.NewServeMux()
+
+		mux.Handle("/", handler)
+
+		httpServerHandler := http.Handler(mux)
 		if cfg.insecure() {
-			delegatorHTTPHandler = h2c.NewHandler(delegatorHTTPHandler, &http2.Server{})
+			httpServerHandler = h2c.NewHandler(httpServerHandler, &http2.Server{})
 		}
 
 		delegatorHTTPServer = &http.Server{
 			Addr:      cfg.delegatorAddress(),
-			Handler:   delegatorHTTPHandler,
+			Handler:   httpServerHandler,
 			TLSConfig: cfg.tlsConfig(),
 		}
 	}
@@ -289,7 +268,6 @@ func NewService(
 		delegatorHTTPServer: delegatorHTTPServer,
 		grpcServer:          grpcServer,
 		delegatorGrpcServer: delegatorGrpcServer,
-		delegatorConn:       delegatorConn,
 		unlockerSvc:         unlockerSvc,
 		macaroonSvc:         macaroonSvc,
 		appStopCh:           appStopCh,
@@ -324,13 +302,6 @@ func (s *service) Start() error {
 	log.Infof("started HTTP server at %s", s.cfg.httpAddress())
 
 	if s.delegatorGrpcServer != nil {
-		delegatorListener, err := net.Listen("tcp", s.cfg.delegatorAddress())
-		if err != nil {
-			return err
-		}
-		// nolint:all
-		go s.delegatorGrpcServer.Serve(delegatorListener)
-
 		if s.cfg.insecure() {
 			// nolint:all
 			go s.delegatorHTTPServer.ListenAndServe()
@@ -376,10 +347,6 @@ func (s *service) Stop() {
 	s.appStopCh <- struct{}{}
 	s.feStopCh <- struct{}{}
 
-	if s.delegatorSvc != nil {
-		s.delegatorSvc.Stop()
-	}
-
 	s.grpcServer.GracefulStop()
 	log.Info("stopped GRPC server")
 
@@ -388,10 +355,9 @@ func (s *service) Stop() {
 	log.Info("stopped HTTP server")
 
 	if s.delegatorGrpcServer != nil {
-		s.delegatorGrpcServer.GracefulStop()
+		s.delegatorSvc.Stop()
 
-		// nolint:all
-		s.delegatorConn.Close()
+		s.delegatorGrpcServer.Stop()
 
 		// nolint:all
 		s.delegatorHTTPServer.Shutdown(context.Background())
@@ -423,4 +389,36 @@ func (s *service) listenToWalletUpdates() {
 			}
 		}
 	}
+}
+
+func router(
+	grpcServer *grpc.Server, grpcGateway http.Handler,
+) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isOptionRequest(r) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+			return
+		}
+
+		if isHttpRequest(r) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+
+			grpcGateway.ServeHTTP(w, r)
+			return
+		}
+		grpcServer.ServeHTTP(w, r)
+	})
+}
+
+func isOptionRequest(req *http.Request) bool {
+	return req.Method == http.MethodOptions
+}
+
+func isHttpRequest(req *http.Request) bool {
+	return req.Method == http.MethodGet ||
+		strings.Contains(req.Header.Get("Content-Type"), "application/json")
 }
