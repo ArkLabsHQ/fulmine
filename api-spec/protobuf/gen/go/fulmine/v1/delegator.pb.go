@@ -136,7 +136,7 @@ type DelegateRequest struct {
 	// The partially signed intent that is gonna be registered by the delegator when close enough to
 	// underlying VTXOs expiration
 	Intent *Intent `protobuf:"bytes,1,opt,name=intent,proto3" json:"intent,omitempty"`
-	// The partially signed forfeit txs that are gonna be sumbitted by the delegator when joining
+	// The partially signed forfeit txs that are gonna be submitted by the delegator when joining
 	// the batch execution
 	ForfeitTxs []string `protobuf:"bytes,2,rep,name=forfeit_txs,json=forfeitTxs,proto3" json:"forfeit_txs,omitempty"`
 	// Opt-in flag to instruct the delegator to not replace an existing delegate that includes at

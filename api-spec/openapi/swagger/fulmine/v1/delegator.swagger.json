@@ -114,7 +114,7 @@
           "items": {
             "type": "string"
           },
-          "title": "The partially signed forfeit txs that are gonna be sumbitted by the delegator when joining\nthe batch execution"
+          "title": "The partially signed forfeit txs that are gonna be submitted by the delegator when joining\nthe batch execution"
         },
         "rejectReplace": {
           "type": "boolean",

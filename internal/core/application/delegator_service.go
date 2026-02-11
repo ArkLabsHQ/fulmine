@@ -666,7 +666,11 @@ func (s *DelegatorService) monitorVtxosSpent(ctx context.Context) {
 
 				repo := s.svc.dbSvc.Delegate()
 				pendingTaskIds, err := repo.GetPendingTaskIDsByInputs(ctx, outpoints)
-				if err == nil && len(pendingTaskIds) > 0 {
+				if err != nil {
+					log.WithError(err).Warn("failed to get pending tasks by inputs")
+				}
+
+				if len(pendingTaskIds) > 0 {
 					if err := repo.CancelTasks(ctx, pendingTaskIds...); err != nil {
 						log.WithError(err).Warnf("failed to cancel %d tasks", len(pendingTaskIds))
 					} else {
