@@ -209,11 +209,13 @@ func NewService(
 		TLSConfig: cfg.tlsConfig(),
 	}
 
-	// if a different delegator HTTP port is configured, we need a dedicated HTTP server for the
-	// delegator
+	// Setup server for the delegator if enabled
 	var delegatorHTTPServer *http.Server
 	var delegatorGrpcServer *grpc.Server
 	if delegatorSvc != nil {
+		grpcConfig := []grpc.ServerOption{
+			interceptors.UnaryInterceptor(false), interceptors.StreamInterceptor(false),
+		}
 		delegatorGrpcServer = grpc.NewServer(grpcConfig...)
 		delegateHandler := handlers.NewDelegatorHandler(delegatorSvc)
 		pb.RegisterDelegatorServiceServer(delegatorGrpcServer, delegateHandler)
