@@ -32,7 +32,7 @@ func TestDelegate(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7002")
+	delegatorClient, err := newDelegatorClient("localhost:7004")
 	require.NoError(t, err)
 	require.NotNil(t, delegatorClient)
 
@@ -282,7 +282,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7002")
+	delegatorClient, err := newDelegatorClient("localhost:7004")
 	require.NoError(t, err)
 	require.NotNil(t, delegatorClient)
 
@@ -537,7 +537,7 @@ func TestMultipleDelegate(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7002")
+	delegatorClient, err := newDelegatorClient("localhost:7004")
 	require.NoError(t, err)
 	require.NotNil(t, delegatorClient)
 
@@ -804,7 +804,7 @@ func TestDelegateSameInput(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7002")
+	delegatorClient, err := newDelegatorClient("localhost:7004")
 	require.NoError(t, err)
 	require.NotNil(t, delegatorClient)
 
@@ -1103,7 +1103,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7002")
+	delegatorClient, err := newDelegatorClient("localhost:7004")
 	require.NoError(t, err)
 	require.NotNil(t, delegatorClient)
 

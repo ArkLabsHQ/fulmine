@@ -115,6 +115,7 @@ services:
     ports:
       - "7000:7000"
       - "7001:7001"
+      - "7004:7002"
     volumes:
       - type: tmpfs
         target: /app/data
