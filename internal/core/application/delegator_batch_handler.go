@@ -3,9 +3,10 @@ package application
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
-	"github.com/ArkLabsHQ/fulmine/internal/utils"
+	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/go-sdk/client"
 	indexer "github.com/arkade-os/go-sdk/indexer"
@@ -18,7 +19,7 @@ import (
 
 // Batch session handler of the delegator service
 type delegatorBatchSessionHandler struct {
-	utils.Musig2BatchSessionHandler
+	musig2BatchSessionHandler
 	delegator     *DelegatorService
 	selectedTasks []registeredIntent
 }
@@ -182,4 +183,90 @@ func (h *delegatorBatchSessionHandler) submitForfeitTxs(
 	}
 
 	return h.delegator.svc.grpcClient.SubmitSignedForfeitTxs(ctx, signedForfeitTxs, "")
+}
+
+// musig2BatchSessionHandler implements the Musig2 methods
+type musig2BatchSessionHandler struct {
+	SweepClosure    script.CSVMultisigClosure
+	SignerSession   tree.SignerSession
+	TransportClient client.TransportClient
+}
+
+func (h *musig2BatchSessionHandler) OnTreeSigningStarted(
+	ctx context.Context, event client.TreeSigningStartedEvent, vtxoTree *tree.TxTree,
+) (bool, error) {
+	signerPubKey := h.SignerSession.GetPublicKey()
+	if !slices.Contains(event.CosignersPubkeys, signerPubKey) {
+		return true, nil
+	}
+
+	script, err := h.SweepClosure.Script()
+	if err != nil {
+		return false, fmt.Errorf("failed to get sweep closure script: %w", err)
+	}
+
+	commitmentTx, err := psbt.NewFromRawBytes(strings.NewReader(event.UnsignedCommitmentTx), true)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse commitment tx: %w", err)
+	}
+
+	if len(commitmentTx.UnsignedTx.TxOut) == 0 {
+		// no tree to sign, skip
+		return true, nil
+	}
+
+	batchOutput := commitmentTx.UnsignedTx.TxOut[0]
+	batchOutputAmount := batchOutput.Value
+
+	sweepTapLeaf := txscript.NewBaseTapLeaf(script)
+	sweepTapTree := txscript.AssembleTaprootScriptTree(sweepTapLeaf)
+	root := sweepTapTree.RootNode.TapHash()
+
+	if err := h.SignerSession.Init(root.CloneBytes(), batchOutputAmount, vtxoTree); err != nil {
+		return false, err
+	}
+
+	nonces, err := h.SignerSession.GetNonces()
+	if err != nil {
+		return false, err
+	}
+
+	return false, h.TransportClient.SubmitTreeNonces(ctx, event.Id, h.SignerSession.GetPublicKey(), nonces)
+}
+
+func (h *musig2BatchSessionHandler) OnTreeNonces(
+	ctx context.Context, event client.TreeNoncesEvent,
+) (bool, error) {
+	hasAllNonces, err := h.SignerSession.AggregateNonces(event.Txid, event.Nonces)
+	if err != nil {
+		return false, err
+	}
+
+	if !hasAllNonces {
+		return false, nil
+	}
+
+	sigs, err := h.SignerSession.Sign()
+	if err != nil {
+		return false, err
+	}
+
+	if err := h.TransportClient.SubmitTreeSignatures(
+		ctx, event.Id, h.SignerSession.GetPublicKey(), sigs,
+	); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (h *musig2BatchSessionHandler) OnTreeNoncesAggregated(
+	ctx context.Context, event client.TreeNoncesAggregatedEvent,
+) (bool, error) {
+	return false, nil
+}
+
+func (h *musig2BatchSessionHandler) OnStreamStartedEvent(
+	event client.StreamStartedEvent,
+) {
 }

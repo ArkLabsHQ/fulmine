@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ArkLabsHQ/fulmine/internal/utils"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
@@ -37,7 +36,7 @@ type batchSessionArgs struct {
 }
 
 type batchSessionHandler struct {
-	utils.Musig2BatchSessionHandler
+	musig2BatchSessionHandler
 	arkClient       arksdk.ArkClient
 	transportClient client.TransportClient
 
@@ -90,8 +89,8 @@ func newBatchSessionHandler(
 	}
 
 	return &batchSessionHandler{
-		Musig2BatchSessionHandler: utils.Musig2BatchSessionHandler{
-			SignerSession: signerSession,
+		musig2BatchSessionHandler: musig2BatchSessionHandler{
+			SignerSession:   signerSession,
 			TransportClient: transportClient,
 		},
 		arkClient:       arkClient,
@@ -118,9 +117,9 @@ func (h *batchSessionHandler) OnBatchStarted(
 			}
 			h.batchSessionId = event.Id
 			batchExpiry := parseLocktime(uint32(event.BatchExpiry))
-			h.Musig2BatchSessionHandler.SweepClosure = script.CSVMultisigClosure{
+			h.musig2BatchSessionHandler.SweepClosure = script.CSVMultisigClosure{
 				MultisigClosure: script.MultisigClosure{PubKeys: []*btcec.PublicKey{h.config.ForfeitPubKey}},
-				Locktime: batchExpiry,
+				Locktime:        batchExpiry,
 			}
 			log.Debugf("batch %s started with our intent %s", event.Id, h.intentId)
 			return false, nil
@@ -156,7 +155,6 @@ func (h *batchSessionHandler) OnTreeSignatureEvent(
 ) error {
 	return nil
 }
-
 
 func (h *batchSessionHandler) createAndSignForfeits(
 	ctx context.Context, connectorsLeaves []*psbt.Packet, builder forfeitTxBuilder,

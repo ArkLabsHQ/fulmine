@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
-	"github.com/ArkLabsHQ/fulmine/internal/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
@@ -540,7 +539,7 @@ func (s *DelegatorService) joinDelegatorBatch(
 	}
 
 	handler := &delegatorBatchSessionHandler{
-		Musig2BatchSessionHandler: utils.Musig2BatchSessionHandler{
+		musig2BatchSessionHandler: musig2BatchSessionHandler{
 			SignerSession:   signerSession,
 			TransportClient: s.svc.grpcClient,
 			SweepClosure: script.CSVMultisigClosure{

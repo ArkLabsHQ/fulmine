@@ -1,4 +1,4 @@
-package utils
+package swap
 
 import (
 	"context"
@@ -13,15 +13,14 @@ import (
 	"github.com/btcsuite/btcd/txscript"
 )
 
-// Musig2BatchSessionHandler implements the Musig2 methods
-// it is used by both the delegator & pkg/swap/batch_handler.go
-type Musig2BatchSessionHandler struct {
-	SweepClosure script.CSVMultisigClosure
-	SignerSession tree.SignerSession
+// musig2BatchSessionHandler implements the Musig2 methods
+type musig2BatchSessionHandler struct {
+	SweepClosure    script.CSVMultisigClosure
+	SignerSession   tree.SignerSession
 	TransportClient client.TransportClient
 }
 
-func (h *Musig2BatchSessionHandler) OnTreeSigningStarted(
+func (h *musig2BatchSessionHandler) OnTreeSigningStarted(
 	ctx context.Context, event client.TreeSigningStartedEvent, vtxoTree *tree.TxTree,
 ) (bool, error) {
 	signerPubKey := h.SignerSession.GetPublicKey()
@@ -63,7 +62,7 @@ func (h *Musig2BatchSessionHandler) OnTreeSigningStarted(
 	return false, h.TransportClient.SubmitTreeNonces(ctx, event.Id, h.SignerSession.GetPublicKey(), nonces)
 }
 
-func (h *Musig2BatchSessionHandler) OnTreeNonces(
+func (h *musig2BatchSessionHandler) OnTreeNonces(
 	ctx context.Context, event client.TreeNoncesEvent,
 ) (bool, error) {
 	hasAllNonces, err := h.SignerSession.AggregateNonces(event.Txid, event.Nonces)
@@ -89,12 +88,13 @@ func (h *Musig2BatchSessionHandler) OnTreeNonces(
 	return true, nil
 }
 
-func (h *Musig2BatchSessionHandler) OnTreeNoncesAggregated(
+func (h *musig2BatchSessionHandler) OnTreeNoncesAggregated(
 	ctx context.Context, event client.TreeNoncesAggregatedEvent,
 ) (bool, error) {
 	return false, nil
 }
 
-func (h *Musig2BatchSessionHandler) OnStreamStartedEvent(
+func (h *musig2BatchSessionHandler) OnStreamStartedEvent(
 	event client.StreamStartedEvent,
-) {}
+) {
+}
