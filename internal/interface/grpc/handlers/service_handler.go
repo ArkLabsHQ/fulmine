@@ -133,7 +133,6 @@ func (h *serviceHandler) GetTransactionHistory(
 			ArkTxid:        tx.ArkTxid,
 			BoardingTxid:   tx.BoardingTxid,
 			Type:           toTxTypeProto(tx.Type),
-			Settled:        tx.Settled,
 		})
 	}
 

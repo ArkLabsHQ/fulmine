@@ -179,7 +179,7 @@
         "EVENT_TYPE_VHTLC_REFUNDED"
       ],
       "default": "EVENT_TYPE_UNSPECIFIED",
-      "description": "EventType defines the type of lifecycle events emitted by Fulmine.\nEvents are streamed via the GetEvents RPC.\n\n - EVENT_TYPE_VHTLC_CREATED: VHTLC_CREATED: A new Virtual HTLC address has been generated.\nThe vhtlc.id field will be populated.\n - EVENT_TYPE_VHTLC_FUNDED: VHTLC_FUNDED: Funds have been received at a VHTLC address.\nThe vhtlc.id and vhtlc.txid fields will be populated.\n - EVENT_TYPE_VHTLC_CLAIMED: VHTLC_CLAIMED: A VHTLC has been claimed using the preimage.\nThe vhtlc.id, vhtlc.txid, and vhtlc.preimage fields will be populated.\n - EVENT_TYPE_VHTLC_REFUNDED: VHTLC_REFUNDED: A VHTLC has been refunded after timeout.\nThe vhtlc.id and vhtlc.txid fields will be populated.\n\nVTXO_RECEIVED: New VTXOs have been received at subscribed addresses."
+      "description": "EventType defines the type of lifecycle events emitted by Fulmine.\nEvents are streamed via the GetVhtlcEvents RPC.\n\n - EVENT_TYPE_VHTLC_CREATED: VHTLC_CREATED: A new Virtual HTLC address has been generated.\nThe vhtlc.id field will be populated.\n - EVENT_TYPE_VHTLC_FUNDED: VHTLC_FUNDED: Funds have been received at a VHTLC address.\nThe vhtlc.id and vhtlc.txid fields will be populated.\n - EVENT_TYPE_VHTLC_CLAIMED: VHTLC_CLAIMED: A VHTLC has been claimed using the preimage.\nThe vhtlc.id, vhtlc.txid, and vhtlc.preimage fields will be populated.\n - EVENT_TYPE_VHTLC_REFUNDED: VHTLC_REFUNDED: A VHTLC has been refunded after timeout.\nThe vhtlc.id and vhtlc.txid fields will be populated."
     },
     "v1GetVhtlcEventsResponse": {
       "type": "object",

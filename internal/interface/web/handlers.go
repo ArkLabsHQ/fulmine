@@ -1448,9 +1448,6 @@ func toTransfer(tx sdktypes.Transaction) types.Transfer {
 	dateCreated := tx.CreatedAt.Unix()
 	// status of tx
 	status := "pending"
-	if tx.Settled {
-		status = "success"
-	}
 	if tx.CreatedAt.IsZero() {
 		status = "unconfirmed"
 		dateCreated = 0

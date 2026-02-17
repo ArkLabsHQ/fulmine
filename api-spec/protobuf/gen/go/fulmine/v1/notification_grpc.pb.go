@@ -46,18 +46,17 @@ type NotificationServiceClient interface {
 	GetVtxoNotifications(ctx context.Context, in *GetVtxoNotificationsRequest, opts ...grpc.CallOption) (NotificationService_GetVtxoNotificationsClient, error)
 	// Notifies about events related to wallet transactions.
 	RoundNotifications(ctx context.Context, in *RoundNotificationsRequest, opts ...grpc.CallOption) (NotificationService_RoundNotificationsClient, error)
-	// GetEvents streams all VHTLC and VTXO lifecycle events in real-time.
+	// GetVhtlcEvents streams VHTLC lifecycle events in real-time.
 	//
 	// This is a server-side streaming RPC that emits events whenever:
 	// - A VHTLC is created, funded, claimed, or refunded
-	// - VTXOs are received or spent at subscribed addresses
 	//
 	// Events include the event type, timestamp, and relevant data (VHTLC ID,
-	// transaction IDs, preimages for claims, full VTXO details, etc.).
+	// transaction IDs, and preimages for claims).
 	//
 	// Example usage with grpcurl:
 	//
-	//	grpcurl -plaintext localhost:7000 fulmine.v1.NotificationService/GetEvents
+	//	grpcurl -plaintext localhost:7000 fulmine.v1.NotificationService/GetVhtlcEvents
 	GetVhtlcEvents(ctx context.Context, in *GetVhtlcEventsRequest, opts ...grpc.CallOption) (NotificationService_GetVhtlcEventsClient, error)
 	// Adds a webhook registered for some kind of event.
 	AddWebhook(ctx context.Context, in *AddWebhookRequest, opts ...grpc.CallOption) (*AddWebhookResponse, error)
@@ -241,18 +240,17 @@ type NotificationServiceServer interface {
 	GetVtxoNotifications(*GetVtxoNotificationsRequest, NotificationService_GetVtxoNotificationsServer) error
 	// Notifies about events related to wallet transactions.
 	RoundNotifications(*RoundNotificationsRequest, NotificationService_RoundNotificationsServer) error
-	// GetEvents streams all VHTLC and VTXO lifecycle events in real-time.
+	// GetVhtlcEvents streams VHTLC lifecycle events in real-time.
 	//
 	// This is a server-side streaming RPC that emits events whenever:
 	// - A VHTLC is created, funded, claimed, or refunded
-	// - VTXOs are received or spent at subscribed addresses
 	//
 	// Events include the event type, timestamp, and relevant data (VHTLC ID,
-	// transaction IDs, preimages for claims, full VTXO details, etc.).
+	// transaction IDs, and preimages for claims).
 	//
 	// Example usage with grpcurl:
 	//
-	//	grpcurl -plaintext localhost:7000 fulmine.v1.NotificationService/GetEvents
+	//	grpcurl -plaintext localhost:7000 fulmine.v1.NotificationService/GetVhtlcEvents
 	GetVhtlcEvents(*GetVhtlcEventsRequest, NotificationService_GetVhtlcEventsServer) error
 	// Adds a webhook registered for some kind of event.
 	AddWebhook(context.Context, *AddWebhookRequest) (*AddWebhookResponse, error)
