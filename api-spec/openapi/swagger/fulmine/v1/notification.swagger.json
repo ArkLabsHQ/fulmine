@@ -169,29 +169,6 @@
         }
       }
     },
-    "v1Event": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "$ref": "#/definitions/v1EventType",
-          "description": "The type of event that occurred."
-        },
-        "timestampUnix": {
-          "type": "string",
-          "format": "int64",
-          "description": "Unix timestamp when the event occurred."
-        },
-        "vhtlc": {
-          "$ref": "#/definitions/v1VhtlcEventData",
-          "description": "Populated for VHTLC_* event types."
-        },
-        "vtxo": {
-          "$ref": "#/definitions/v1VtxoEventData",
-          "description": "Populated for VTXO_* event types."
-        }
-      },
-      "description": "Event represents a lifecycle event for VHTLCs or VTXOs.\r\nSubscribe to events via the GetEvents streaming RPC."
-    },
     "v1EventType": {
       "type": "string",
       "enum": [
@@ -199,18 +176,16 @@
         "EVENT_TYPE_VHTLC_CREATED",
         "EVENT_TYPE_VHTLC_FUNDED",
         "EVENT_TYPE_VHTLC_CLAIMED",
-        "EVENT_TYPE_VHTLC_REFUNDED",
-        "EVENT_TYPE_VTXO_RECEIVED",
-        "EVENT_TYPE_VTXO_SPENT"
+        "EVENT_TYPE_VHTLC_REFUNDED"
       ],
       "default": "EVENT_TYPE_UNSPECIFIED",
-      "description": "EventType defines the type of lifecycle events emitted by Fulmine.\r\nEvents are streamed via the GetEvents RPC.\n\n - EVENT_TYPE_VHTLC_CREATED: VHTLC_CREATED: A new Virtual HTLC address has been generated.\r\nThe vhtlc.id field will be populated.\n - EVENT_TYPE_VHTLC_FUNDED: VHTLC_FUNDED: Funds have been received at a VHTLC address.\r\nThe vhtlc.id and vhtlc.txid fields will be populated.\n - EVENT_TYPE_VHTLC_CLAIMED: VHTLC_CLAIMED: A VHTLC has been claimed using the preimage.\r\nThe vhtlc.id, vhtlc.txid, and vhtlc.preimage fields will be populated.\n - EVENT_TYPE_VHTLC_REFUNDED: VHTLC_REFUNDED: A VHTLC has been refunded after timeout.\r\nThe vhtlc.id and vhtlc.txid fields will be populated.\n - EVENT_TYPE_VTXO_RECEIVED: VTXO_RECEIVED: New VTXOs have been received at subscribed addresses.\r\nThe vtxo.vtxos and vtxo.txid fields will be populated.\n - EVENT_TYPE_VTXO_SPENT: VTXO_SPENT: VTXOs at subscribed addresses have been spent.\r\nThe vtxo.vtxos and vtxo.txid fields will be populated."
+      "description": "EventType defines the type of lifecycle events emitted by Fulmine.\nEvents are streamed via the GetEvents RPC.\n\n - EVENT_TYPE_VHTLC_CREATED: VHTLC_CREATED: A new Virtual HTLC address has been generated.\nThe vhtlc.id field will be populated.\n - EVENT_TYPE_VHTLC_FUNDED: VHTLC_FUNDED: Funds have been received at a VHTLC address.\nThe vhtlc.id and vhtlc.txid fields will be populated.\n - EVENT_TYPE_VHTLC_CLAIMED: VHTLC_CLAIMED: A VHTLC has been claimed using the preimage.\nThe vhtlc.id, vhtlc.txid, and vhtlc.preimage fields will be populated.\n - EVENT_TYPE_VHTLC_REFUNDED: VHTLC_REFUNDED: A VHTLC has been refunded after timeout.\nThe vhtlc.id and vhtlc.txid fields will be populated.\n\nVTXO_RECEIVED: New VTXOs have been received at subscribed addresses."
     },
-    "v1GetEventsResponse": {
+    "v1GetVhtlcEventsResponse": {
       "type": "object",
       "properties": {
         "event": {
-          "$ref": "#/definitions/v1Event"
+          "$ref": "#/definitions/v1VhtlcEvent"
         }
       }
     },
@@ -353,7 +328,7 @@
     "v1UnsubscribeForAddressesResponse": {
       "type": "object"
     },
-    "v1VhtlcEventData": {
+    "v1VhtlcEvent": {
       "type": "object",
       "properties": {
         "id": {
@@ -362,14 +337,23 @@
         },
         "txid": {
           "type": "string",
-          "description": "The transaction ID associated with the event (funding, claim, or refund tx).\r\nEmpty for VHTLC_CREATED events."
+          "description": "The transaction ID associated with the event (funding, claim, or refund tx).\nEmpty for VHTLC_CREATED events."
         },
         "preimage": {
           "type": "string",
-          "description": "The preimage used to claim the VHTLC, hex-encoded.\r\nOnly populated for VHTLC_CLAIMED events."
+          "description": "The preimage used to claim the VHTLC, hex-encoded.\nOnly populated for VHTLC_CLAIMED events."
+        },
+        "type": {
+          "$ref": "#/definitions/v1EventType",
+          "description": "The type of event that occurred."
+        },
+        "timestampUnix": {
+          "type": "string",
+          "format": "int64",
+          "description": "Unix timestamp when the event occurred."
         }
       },
-      "description": "VhtlcEventData contains data specific to VHTLC lifecycle events."
+      "description": "Event represents a lifecycle event for VHTLCs."
     },
     "v1Vtxo": {
       "type": "object",
@@ -420,24 +404,6 @@
           "format": "uint64"
         }
       }
-    },
-    "v1VtxoEventData": {
-      "type": "object",
-      "properties": {
-        "vtxos": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1Vtxo"
-          },
-          "description": "The VTXOs that were received or spent, with full details."
-        },
-        "txid": {
-          "type": "string",
-          "description": "The transaction ID associated with the event."
-        }
-      },
-      "description": "VtxoEventData contains data specific to VTXO lifecycle events."
     },
     "v1WebhookEventType": {
       "type": "string",

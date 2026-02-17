@@ -16,7 +16,7 @@ type notificationHandler struct {
 	svc *application.Service
 
 	notificationListenerHandler *listenerHanlder[*pb.GetVtxoNotificationsResponse]
-	eventsListenerHandler       *listenerHanlder[*pb.GetEventsResponse]
+	vhtlcEventsListenerHandler  *listenerHanlder[*pb.GetVhtlcEventsResponse]
 	stopCh                      <-chan struct{}
 }
 
@@ -24,11 +24,11 @@ func NewNotificationHandler(
 	appSvc *application.Service, stopCh <-chan struct{},
 ) pb.NotificationServiceServer {
 	notifHandler := newListenerHandler[*pb.GetVtxoNotificationsResponse]()
-	eventsHandler := newListenerHandler[*pb.GetEventsResponse]()
+	eventsHandler := newListenerHandler[*pb.GetVhtlcEventsResponse]()
 	svc := &notificationHandler{
 		svc:                         appSvc,
 		notificationListenerHandler: notifHandler,
-		eventsListenerHandler:       eventsHandler,
+		vhtlcEventsListenerHandler:  eventsHandler,
 		stopCh:                      stopCh,
 	}
 	go svc.listenToNotifications()
@@ -95,16 +95,16 @@ func (h *notificationHandler) RoundNotifications(
 	return fmt.Errorf("not implemented")
 }
 
-func (h *notificationHandler) GetEvents(
-	_ *pb.GetEventsRequest, stream pb.NotificationService_GetEventsServer,
+func (h *notificationHandler) GetVhtlcEvents(
+	_ *pb.GetVhtlcEventsRequest, stream pb.NotificationService_GetVhtlcEventsServer,
 ) error {
-	listener := &listener[*pb.GetEventsResponse]{
+	listener := &listener[*pb.GetVhtlcEventsResponse]{
 		id: uuid.NewString(),
-		ch: make(chan *pb.GetEventsResponse),
+		ch: make(chan *pb.GetVhtlcEventsResponse),
 	}
 
-	h.eventsListenerHandler.pushListener(listener)
-	defer h.eventsListenerHandler.removeListener(listener.id)
+	h.vhtlcEventsListenerHandler.pushListener(listener)
+	defer h.vhtlcEventsListenerHandler.removeListener(listener.id)
 
 	for {
 		select {
@@ -162,15 +162,15 @@ func (h *notificationHandler) listenToEvents() {
 	for {
 		select {
 		case event := <-h.svc.GetEvents(context.Background()):
-			for _, l := range h.eventsListenerHandler.listeners {
-				go func(l *listener[*pb.GetEventsResponse]) {
-					l.ch <- &pb.GetEventsResponse{
-						Event: toEventProto(event),
+			for _, l := range h.vhtlcEventsListenerHandler.listeners {
+				go func(l *listener[*pb.GetVhtlcEventsResponse]) {
+					l.ch <- &pb.GetVhtlcEventsResponse{
+						Event: toVhtlcEventProto(event),
 					}
 				}(l)
 			}
 		case <-h.stopCh:
-			h.eventsListenerHandler.stop()
+			h.vhtlcEventsListenerHandler.stop()
 			return
 		}
 	}

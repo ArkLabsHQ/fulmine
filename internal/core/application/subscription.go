@@ -19,7 +19,9 @@ type scriptsStore interface {
 
 type subscriptionHandler struct {
 	indexerBaseURL string
-	scripts        scriptsStore
+	getScripts     func(ctx context.Context) ([]string, error)
+	addScripts     func(ctx context.Context, subscribedScripts []string) (count int, err error)
+	deleteScripts  func(ctx context.Context, subscribedScripts []string) (count int, err error)
 	onEvent        func(event *indexer.ScriptEvent)
 
 	mu          sync.Mutex
@@ -29,9 +31,18 @@ type subscriptionHandler struct {
 }
 
 func newSubscriptionHandler(indexerBaseURL string, scripts scriptsStore, onEvent func(event *indexer.ScriptEvent)) *subscriptionHandler {
+	return newReadOnlySubscriptionHandler(indexerBaseURL, scripts.Get, onEvent).
+		withScriptsMutator(scripts.Add, scripts.Delete)
+}
+
+func newReadOnlySubscriptionHandler(
+	indexerBaseURL string,
+	getScripts func(ctx context.Context) ([]string, error),
+	onEvent func(event *indexer.ScriptEvent),
+) *subscriptionHandler {
 	return &subscriptionHandler{
 		indexerBaseURL: indexerBaseURL,
-		scripts:        scripts,
+		getScripts:     getScripts,
 		onEvent:        onEvent,
 		mu:             sync.Mutex{},
 		closeFn:        nil,
@@ -39,14 +50,27 @@ func newSubscriptionHandler(indexerBaseURL string, scripts scriptsStore, onEvent
 	}
 }
 
+func (h *subscriptionHandler) withScriptsMutator(
+	addScripts func(ctx context.Context, subscribedScripts []string) (count int, err error),
+	deleteScripts func(ctx context.Context, subscribedScripts []string) (count int, err error),
+) *subscriptionHandler {
+	h.addScripts = addScripts
+	h.deleteScripts = deleteScripts
+	return h
+}
+
 func (h *subscriptionHandler) createIndexerClient() (indexer.Indexer, error) {
 	return indexergrpc.NewClient(h.indexerBaseURL)
 }
 
 func (h *subscriptionHandler) subscribe(ctx context.Context, scripts []string) error {
-	count, err := h.scripts.Add(ctx, scripts)
-	if err != nil {
-		return fmt.Errorf("failed to add scripts: %w", err)
+	count := len(scripts)
+	if h.addScripts != nil {
+		var err error
+		count, err = h.addScripts(ctx, scripts)
+		if err != nil {
+			return fmt.Errorf("failed to add scripts: %w", err)
+		}
 	}
 
 	if count == 0 {
@@ -85,9 +109,13 @@ func (h *subscriptionHandler) subscribe(ctx context.Context, scripts []string) e
 }
 
 func (h *subscriptionHandler) unsubscribe(ctx context.Context, scripts []string) error {
-	count, err := h.scripts.Delete(ctx, scripts)
-	if err != nil {
-		return fmt.Errorf("failed to remove scripts: %w", err)
+	count := len(scripts)
+	if h.deleteScripts != nil {
+		var err error
+		count, err = h.deleteScripts(ctx, scripts)
+		if err != nil {
+			return fmt.Errorf("failed to remove scripts: %w", err)
+		}
 	}
 
 	if count == 0 {
@@ -101,7 +129,7 @@ func (h *subscriptionHandler) unsubscribe(ctx context.Context, scripts []string)
 	h.mu.Unlock()
 
 	if len(id) == 0 {
-		scripts, err := h.scripts.Get(ctx)
+		scripts, err := h.getScripts(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get scripts: %w", err)
 		}
@@ -130,7 +158,7 @@ func (h *subscriptionHandler) unsubscribe(ctx context.Context, scripts []string)
 		return nil
 	}
 
-	scripts, err = h.scripts.Get(ctx)
+	scripts, err = h.getScripts(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get scripts: %w", err)
 	}
@@ -174,7 +202,7 @@ func (h *subscriptionHandler) start() error {
 	h.cancelRetry = cancel
 	h.mu.Unlock()
 
-	scripts, err := h.scripts.Get(ctx)
+	scripts, err := h.getScripts(ctx)
 	if err != nil {
 		return err
 	}
@@ -250,7 +278,7 @@ func (h *subscriptionHandler) start() error {
 func (h *subscriptionHandler) create(ctx context.Context) error {
 	var err error
 
-	scripts, err := h.scripts.Get(ctx)
+	scripts, err := h.getScripts(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get scripts: %w", err)
 	}

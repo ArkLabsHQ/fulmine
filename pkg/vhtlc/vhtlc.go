@@ -291,3 +291,27 @@ func (v *VHTLCScript) Opts() Opts {
 		UnilateralRefundWithoutReceiverDelay: v.UnilateralRefundWithoutReceiverClosure.Locktime,
 	}
 }
+
+// LockingScriptFromOpts derives the Taproot scriptPubKey for a VHTLC defined by opts.
+func LockingScriptFromOpts(opts Opts) ([]byte, error) {
+	vhtlcScript, err := NewVHTLCScriptFromOpts(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	tapKey, _, err := vhtlcScript.TapTree()
+	if err != nil {
+		return nil, err
+	}
+
+	return txscript.PayToTaprootScript(tapKey)
+}
+
+// LockingScriptHexFromOpts derives the Taproot scriptPubKey and hex-encodes it.
+func LockingScriptHexFromOpts(opts Opts) (string, error) {
+	scriptPubKey, err := LockingScriptFromOpts(opts)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(scriptPubKey), nil
+}

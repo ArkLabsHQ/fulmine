@@ -12,6 +12,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/btcsuite/btcd/btcec/v2"
+	log "github.com/sirupsen/logrus"
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
 )
@@ -79,6 +80,53 @@ func (r *vhtlcRepository) GetAll(ctx context.Context) ([]domain.Vhtlc, error) {
 	return out, nil
 }
 
+func (r *vhtlcRepository) GetByScripts(ctx context.Context, scripts []string) ([]domain.Vhtlc, error) {
+	if len(scripts) == 0 {
+		return nil, nil
+	}
+
+	rows, err := r.querier.ListVHTLC(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	scriptSet := make(map[string]struct{}, len(scripts))
+	for _, script := range scripts {
+		scriptSet[script] = struct{}{}
+	}
+
+	out := make([]domain.Vhtlc, 0, len(scripts))
+	for _, row := range rows {
+		if _, ok := scriptSet[row.Script]; !ok {
+			continue
+		}
+		v, err := toVhtlc(row)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+
+	return out, nil
+}
+
+func (r *vhtlcRepository) GetScripts(ctx context.Context) ([]string, error) {
+	vhtlcs, err := r.querier.ListVHTLC(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	allScripts := make([]string, 0, len(vhtlcs))
+	for _, vhtlc := range vhtlcs {
+		if vhtlc.Script == "" || vhtlc.Script == "[]" {
+			continue
+		}
+		allScripts = append(allScripts, vhtlc.Script)
+	}
+
+	return allScripts, nil
+}
+
 func (r *vhtlcRepository) Close() {
 	if r.db != nil {
 		r.db.Close()
@@ -144,13 +192,33 @@ func toVhtlc(row queries.Vhtlc) (domain.Vhtlc, error) {
 	return domain.NewVhtlc(opts), nil
 }
 
-func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
-	preimageHash := vhtlc.PreimageHash
-	sender := vhtlc.Sender.SerializeCompressed()
-	receiver := vhtlc.Receiver.SerializeCompressed()
-	server := hex.EncodeToString(vhtlc.Server.SerializeCompressed())
+func toVhtlcRow(v domain.Vhtlc) queries.InsertVHTLCParams {
+	preimageHash := v.PreimageHash
+	sender := v.Sender.SerializeCompressed()
+	receiver := v.Receiver.SerializeCompressed()
+	server := hex.EncodeToString(v.Server.SerializeCompressed())
 
 	vhtlcId := domain.GetVhtlcId(preimageHash, sender, receiver)
+
+	lockingScriptHex, err := vhtlc.LockingScriptHexFromOpts(v.Opts)
+	if err != nil {
+		log.WithError(err).Error("failed to derive taproot locking script for vhtlc")
+		return queries.InsertVHTLCParams{
+			ID:                                       vhtlcId,
+			PreimageHash:                             hex.EncodeToString(preimageHash),
+			Sender:                                   hex.EncodeToString(sender),
+			Receiver:                                 hex.EncodeToString(receiver),
+			Server:                                   server,
+			RefundLocktime:                           int64(v.RefundLocktime),
+			UnilateralClaimDelayType:                 int64(v.UnilateralClaimDelay.Type),
+			UnilateralClaimDelayValue:                int64(v.UnilateralClaimDelay.Value),
+			UnilateralRefundDelayType:                int64(v.UnilateralRefundDelay.Type),
+			UnilateralRefundDelayValue:               int64(v.UnilateralRefundDelay.Value),
+			UnilateralRefundWithoutReceiverDelayType: int64(v.UnilateralRefundWithoutReceiverDelay.Type),
+			UnilateralRefundWithoutReceiverDelayValue: int64(v.UnilateralRefundWithoutReceiverDelay.Value),
+			Script: "[]",
+		}
+	}
 
 	return queries.InsertVHTLCParams{
 		ID:                                       vhtlcId,
@@ -158,12 +226,13 @@ func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
 		Sender:                                   hex.EncodeToString(sender),
 		Receiver:                                 hex.EncodeToString(receiver),
 		Server:                                   server,
-		RefundLocktime:                           int64(vhtlc.RefundLocktime),
-		UnilateralClaimDelayType:                 int64(vhtlc.UnilateralClaimDelay.Type),
-		UnilateralClaimDelayValue:                int64(vhtlc.UnilateralClaimDelay.Value),
-		UnilateralRefundDelayType:                int64(vhtlc.UnilateralRefundDelay.Type),
-		UnilateralRefundDelayValue:               int64(vhtlc.UnilateralRefundDelay.Value),
-		UnilateralRefundWithoutReceiverDelayType: int64(vhtlc.UnilateralRefundWithoutReceiverDelay.Type),
-		UnilateralRefundWithoutReceiverDelayValue: int64(vhtlc.UnilateralRefundWithoutReceiverDelay.Value),
+		RefundLocktime:                           int64(v.RefundLocktime),
+		UnilateralClaimDelayType:                 int64(v.UnilateralClaimDelay.Type),
+		UnilateralClaimDelayValue:                int64(v.UnilateralClaimDelay.Value),
+		UnilateralRefundDelayType:                int64(v.UnilateralRefundDelay.Type),
+		UnilateralRefundDelayValue:               int64(v.UnilateralRefundDelay.Value),
+		UnilateralRefundWithoutReceiverDelayType: int64(v.UnilateralRefundWithoutReceiverDelay.Type),
+		UnilateralRefundWithoutReceiverDelayValue: int64(v.UnilateralRefundWithoutReceiverDelay.Value),
+		Script: lockingScriptHex,
 	}
 }

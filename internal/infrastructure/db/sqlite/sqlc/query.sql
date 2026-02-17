@@ -26,8 +26,9 @@ INSERT INTO vhtlc (
     id, preimage_hash, sender, receiver, server, refund_locktime,
     unilateral_claim_delay_type, unilateral_claim_delay_value,
     unilateral_refund_delay_type, unilateral_refund_delay_value,
-    unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value,
+    script
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetVHTLC :one
 SELECT * FROM vhtlc WHERE id = ?;

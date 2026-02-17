@@ -92,6 +92,57 @@ func (r *vhtlcRepository) Add(ctx context.Context, vhtlc domain.Vhtlc) error {
 	return nil
 }
 
+func (r *vhtlcRepository) GetByScripts(ctx context.Context, scripts []string) ([]domain.Vhtlc, error) {
+	if len(scripts) == 0 {
+		return nil, nil
+	}
+
+	scriptSet := make(map[string]struct{}, len(scripts))
+	for _, script := range scripts {
+		scriptSet[script] = struct{}{}
+	}
+
+	vhtlcs, err := r.GetAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all VHTLCs: %w", err)
+	}
+
+	out := make([]domain.Vhtlc, 0, len(scripts))
+	for _, v := range vhtlcs {
+		lockingScript, err := getVhtlcLockingScript(v)
+		if err != nil {
+			continue
+		}
+		if _, ok := scriptSet[lockingScript]; ok {
+			out = append(out, v)
+		}
+	}
+	return out, nil
+}
+
+// GetScripts returns Taproot locking scripts for all VHTLCs.
+func (r *vhtlcRepository) GetScripts(ctx context.Context) ([]string, error) {
+	vhtlcs, err := r.GetAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all VHTLCs: %w", err)
+	}
+
+	allScripts := make([]string, 0)
+	for _, v := range vhtlcs {
+		lockingScript, err := getVhtlcLockingScript(v)
+		if err != nil {
+			continue
+		}
+		allScripts = append(allScripts, lockingScript)
+	}
+
+	return allScripts, nil
+}
+
+func getVhtlcLockingScript(v domain.Vhtlc) (string, error) {
+	return vhtlc.LockingScriptHexFromOpts(v.Opts)
+}
+
 func (s *vhtlcRepository) Close() {
 	// nolint:all
 	s.store.Close()

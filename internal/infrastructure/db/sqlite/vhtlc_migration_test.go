@@ -8,6 +8,7 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	sqlitedb "github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -142,4 +143,195 @@ func insertTestRows(t *testing.T, db *sql.DB) {
 	`)
 
 	require.NoError(t, err, "failed to insert test swap rows")
+}
+
+// setupNewVhtlcTable creates the new-schema vhtlc table (with id PRIMARY KEY and
+// script column) for tests that need a post-migration schema.
+func setupNewVhtlcTable(t *testing.T, dbh *sql.DB) {
+	t.Helper()
+	_, err := dbh.Exec(`
+		CREATE TABLE IF NOT EXISTS vhtlc (
+			id TEXT PRIMARY KEY,
+			preimage_hash TEXT UNIQUE NOT NULL,
+			sender TEXT NOT NULL,
+			receiver TEXT NOT NULL,
+			server TEXT NOT NULL,
+			refund_locktime INTEGER NOT NULL,
+			unilateral_claim_delay_type INTEGER NOT NULL,
+			unilateral_claim_delay_value INTEGER NOT NULL,
+			unilateral_refund_delay_type INTEGER NOT NULL,
+			unilateral_refund_delay_value INTEGER NOT NULL,
+			unilateral_refund_without_receiver_delay_type INTEGER NOT NULL,
+			unilateral_refund_without_receiver_delay_value INTEGER NOT NULL,
+			script TEXT NOT NULL DEFAULT '[]'
+		);
+	`)
+	require.NoError(t, err, "failed to create new-schema vhtlc table")
+}
+
+// setupNewVhtlcTableWithoutScript creates the new-schema vhtlc table WITHOUT the
+// script column. Used to test the BackfillVhtlcScripts self-heal path.
+func setupNewVhtlcTableWithoutScript(t *testing.T, dbh *sql.DB) {
+	t.Helper()
+	_, err := dbh.Exec(`
+		CREATE TABLE IF NOT EXISTS vhtlc (
+			id TEXT PRIMARY KEY,
+			preimage_hash TEXT UNIQUE NOT NULL,
+			sender TEXT NOT NULL,
+			receiver TEXT NOT NULL,
+			server TEXT NOT NULL,
+			refund_locktime INTEGER NOT NULL,
+			unilateral_claim_delay_type INTEGER NOT NULL,
+			unilateral_claim_delay_value INTEGER NOT NULL,
+			unilateral_refund_delay_type INTEGER NOT NULL,
+			unilateral_refund_delay_value INTEGER NOT NULL,
+			unilateral_refund_without_receiver_delay_type INTEGER NOT NULL,
+			unilateral_refund_without_receiver_delay_value INTEGER NOT NULL
+		);
+	`)
+	require.NoError(t, err, "failed to create vhtlc table without script column")
+}
+
+// insertNewSchemaRowWithScript inserts a VHTLC row into the new-schema table
+// (which has a script column). Uses real secp256k1 keys so BackfillVhtlcScripts
+// can derive a valid taproot script for the row.
+func insertNewSchemaRowWithoutScript(t *testing.T, dbh *sql.DB) (id string) {
+	t.Helper()
+	preimage := make([]byte, 20)
+	for i := range preimage {
+		preimage[i] = byte(i + 1)
+	}
+
+	senderKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+	receiverKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+	serverKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+
+	sender := senderKey.PubKey().SerializeCompressed()
+	receiver := receiverKey.PubKey().SerializeCompressed()
+	server := serverKey.PubKey().SerializeCompressed()
+
+	id = domain.GetVhtlcId(preimage, sender, receiver)
+
+	_, err = dbh.Exec(`
+		INSERT INTO vhtlc (
+			id, preimage_hash, sender, receiver, server, refund_locktime,
+			unilateral_claim_delay_type, unilateral_claim_delay_value,
+			unilateral_refund_delay_type, unilateral_refund_delay_value,
+			unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`,
+		id,
+		hex.EncodeToString(preimage),
+		hex.EncodeToString(sender),
+		hex.EncodeToString(receiver),
+		hex.EncodeToString(server),
+		500000, 1, 10, 1, 20, 1, 30,
+	)
+	require.NoError(t, err, "failed to insert test row")
+	return id
+}
+
+// TestBackfillVhtlcIdempotent verifies that calling BackfillVhtlc on a DB that
+// has already been migrated (id column exists) is a no-op: it returns nil and
+// leaves the row count unchanged.
+func TestBackfillVhtlcIdempotent(t *testing.T) {
+	ctx := context.Background()
+	dbh, err := sqlitedb.OpenDb(":memory:")
+	require.NoError(t, err)
+	defer dbh.Close()
+
+	setupOldVhtlcTable(t, dbh)
+	setupOldSwapTable(t, dbh)
+	insertTestRows(t, dbh)
+
+	// First call: migrates data.
+	err = sqlitedb.BackfillVhtlc(ctx, dbh)
+	require.NoError(t, err, "first BackfillVhtlc call must succeed")
+
+	var firstCount int
+	err = dbh.QueryRow(`SELECT COUNT(*) FROM vhtlc`).Scan(&firstCount)
+	require.NoError(t, err)
+
+	// Second call: id column exists → early return, no-op.
+	err = sqlitedb.BackfillVhtlc(ctx, dbh)
+	require.NoError(t, err, "second BackfillVhtlc call must not return error")
+
+	var secondCount int
+	err = dbh.QueryRow(`SELECT COUNT(*) FROM vhtlc`).Scan(&secondCount)
+	require.NoError(t, err)
+	require.Equal(t, firstCount, secondCount,
+		"row count must be unchanged after idempotent BackfillVhtlc call")
+}
+
+// TestBackfillVhtlcScriptsIdempotent verifies that calling BackfillVhtlcScripts
+// twice on a fully-backfilled DB returns nil and leaves the script values unchanged.
+func TestBackfillVhtlcScriptsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	dbh, err := sqlitedb.OpenDb(":memory:")
+	require.NoError(t, err)
+	defer dbh.Close()
+
+	setupNewVhtlcTable(t, dbh)
+	id := insertNewSchemaRowWithoutScript(t, dbh)
+
+	// First call: populates the script.
+	err = sqlitedb.BackfillVhtlcScripts(ctx, dbh)
+	require.NoError(t, err, "first BackfillVhtlcScripts call must succeed")
+
+	var firstScript string
+	err = dbh.QueryRow(`SELECT script FROM vhtlc WHERE id = ?`, id).Scan(&firstScript)
+	require.NoError(t, err)
+	require.NotEqual(t, "[]", firstScript,
+		"script must be populated after first BackfillVhtlcScripts call")
+
+	// Second call: all scripts already populated (WHERE script='[]' matches nothing).
+	err = sqlitedb.BackfillVhtlcScripts(ctx, dbh)
+	require.NoError(t, err, "second BackfillVhtlcScripts call must not return error")
+
+	var secondScript string
+	err = dbh.QueryRow(`SELECT script FROM vhtlc WHERE id = ?`, id).Scan(&secondScript)
+	require.NoError(t, err)
+	require.Equal(t, firstScript, secondScript,
+		"script value must not change on idempotent BackfillVhtlcScripts call")
+}
+
+// TestBackfillVhtlcScriptsSelfHeal verifies that BackfillVhtlcScripts can add
+// a missing script column (self-heal path) and populate it correctly.
+// This simulates a DB that has the new id PRIMARY KEY schema but was seeded
+// before the SQL migration for the script column was applied.
+func TestBackfillVhtlcScriptsSelfHeal(t *testing.T) {
+	ctx := context.Background()
+	dbh, err := sqlitedb.OpenDb(":memory:")
+	require.NoError(t, err)
+	defer dbh.Close()
+
+	// Create vhtlc table WITH new PK schema but WITHOUT script column.
+	setupNewVhtlcTableWithoutScript(t, dbh)
+	insertNewSchemaRowWithoutScript(t, dbh)
+
+	// Verify script column is absent before calling BackfillVhtlcScripts.
+	var scriptColCount int
+	err = dbh.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('vhtlc') WHERE name = 'script'`).Scan(&scriptColCount)
+	require.NoError(t, err)
+	require.Equal(t, 0, scriptColCount, "script column must not exist before self-heal")
+
+	// BackfillVhtlcScripts must add the missing column and populate it.
+	err = sqlitedb.BackfillVhtlcScripts(ctx, dbh)
+	require.NoError(t, err, "BackfillVhtlcScripts must succeed even when script column is absent")
+
+	// Verify script column now exists.
+	err = dbh.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('vhtlc') WHERE name = 'script'`).Scan(&scriptColCount)
+	require.NoError(t, err)
+	require.Equal(t, 1, scriptColCount, "script column must exist after self-heal")
+
+	// Verify the script was populated (not '[]' sentinel).
+	var script string
+	err = dbh.QueryRow(`SELECT script FROM vhtlc LIMIT 1`).Scan(&script)
+	require.NoError(t, err)
+	require.NotEqual(t, "[]", script,
+		"script must be populated (not '[]' sentinel) after self-heal BackfillVhtlcScripts")
+	require.NotEmpty(t, script, "script must not be empty after self-heal")
 }

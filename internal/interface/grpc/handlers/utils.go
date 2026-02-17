@@ -254,7 +254,7 @@ func toNotificationProto(n application.Notification) *pb.Notification {
 	return notification
 }
 
-func toEventProto(e application.FulmineEvent) *pb.Event {
+func toVhtlcEventProto(e application.VhtlcEvent) *pb.VhtlcEvent {
 	var eventType pb.EventType
 	switch e.Type {
 	case application.EventTypeVhtlcCreated:
@@ -265,38 +265,17 @@ func toEventProto(e application.FulmineEvent) *pb.Event {
 		eventType = pb.EventType_EVENT_TYPE_VHTLC_CLAIMED
 	case application.EventTypeVhtlcRefunded:
 		eventType = pb.EventType_EVENT_TYPE_VHTLC_REFUNDED
-	case application.EventTypeVtxoReceived:
-		eventType = pb.EventType_EVENT_TYPE_VTXO_RECEIVED
-	case application.EventTypeVtxoSpent:
-		eventType = pb.EventType_EVENT_TYPE_VTXO_SPENT
 	default:
 		eventType = pb.EventType_EVENT_TYPE_UNSPECIFIED
 	}
 
-	event := &pb.Event{
+	return &pb.VhtlcEvent{
+		Id:            e.ID,
+		Txid:          e.Txid,
+		Preimage:      e.Preimage,
 		Type:          eventType,
 		TimestampUnix: e.Timestamp.Unix(),
 	}
-
-	// Set oneof field based on event type
-	if e.Vhtlc != nil {
-		event.EventData = &pb.Event_Vhtlc{
-			Vhtlc: &pb.VhtlcEventData{
-				Id:       e.Vhtlc.ID,
-				Txid:     e.Vhtlc.Txid,
-				Preimage: e.Vhtlc.Preimage,
-			},
-		}
-	} else if e.Vtxo != nil {
-		event.EventData = &pb.Event_Vtxo{
-			Vtxo: &pb.VtxoEventData{
-				Vtxos: toVtxosProto(e.Vtxo.Vtxos),
-				Txid:  e.Vtxo.Txid,
-			},
-		}
-	}
-
-	return event
 }
 
 // Todo: Verify that the script is not Taproot Script

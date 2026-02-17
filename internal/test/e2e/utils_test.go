@@ -32,6 +32,15 @@ func newFulmineClient(url string) (pb.ServiceClient, error) {
 	return pb.NewServiceClient(conn), nil
 }
 
+func newNotificationClient(url string) (pb.NotificationServiceClient, error) {
+	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
+	conn, err := grpc.NewClient(url, opts)
+	if err != nil {
+		return nil, err
+	}
+	return pb.NewNotificationServiceClient(conn), nil
+}
+
 func lndAddInvoice(ctx context.Context, sats int) (string, string, error) {
 	command := fmt.Sprintf("%s addinvoice --amt %d", lnd, sats)
 	out, err := runCommand(ctx, command)

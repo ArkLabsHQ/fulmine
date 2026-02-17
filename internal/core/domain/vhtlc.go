@@ -17,6 +17,8 @@ type Vhtlc struct {
 type VHTLCRepository interface {
 	GetAll(ctx context.Context) ([]Vhtlc, error)
 	Get(ctx context.Context, id string) (*Vhtlc, error)
+	GetByScripts(ctx context.Context, scripts []string) ([]Vhtlc, error)
+	GetScripts(ctx context.Context) ([]string, error)
 	Add(ctx context.Context, vhtlc Vhtlc) error
 	Close()
 }

@@ -110,7 +110,7 @@ func (q *Queries) GetSubscribedScript(ctx context.Context, script string) (strin
 
 const getSwap = `-- name: GetSwap :one
 SELECT  swap.id, swap.amount, swap.timestamp, swap.to_currency, swap.from_currency, swap.status, swap.swap_type, swap.invoice, swap.funding_tx_id, swap.redeem_tx_id, swap.vhtlc_id,
-        vhtlc.id, vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value
+        vhtlc.id, vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value, vhtlc.script
 FROM swap
   LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.id
 WHERE swap.id = ?
@@ -148,12 +148,13 @@ func (q *Queries) GetSwap(ctx context.Context, id string) (GetSwapRow, error) {
 		&i.Vhtlc.UnilateralRefundDelayValue,
 		&i.Vhtlc.UnilateralRefundWithoutReceiverDelayType,
 		&i.Vhtlc.UnilateralRefundWithoutReceiverDelayValue,
+		&i.Vhtlc.Script,
 	)
 	return i, err
 }
 
 const getVHTLC = `-- name: GetVHTLC :one
-SELECT id, preimage_hash, sender, receiver, server, refund_locktime, unilateral_claim_delay_type, unilateral_claim_delay_value, unilateral_refund_delay_type, unilateral_refund_delay_value, unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value FROM vhtlc WHERE id = ?
+SELECT id, preimage_hash, sender, receiver, server, refund_locktime, unilateral_claim_delay_type, unilateral_claim_delay_value, unilateral_refund_delay_type, unilateral_refund_delay_value, unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value, script FROM vhtlc WHERE id = ?
 `
 
 func (q *Queries) GetVHTLC(ctx context.Context, id string) (Vhtlc, error) {
@@ -172,6 +173,7 @@ func (q *Queries) GetVHTLC(ctx context.Context, id string) (Vhtlc, error) {
 		&i.UnilateralRefundDelayValue,
 		&i.UnilateralRefundWithoutReceiverDelayType,
 		&i.UnilateralRefundWithoutReceiverDelayValue,
+		&i.Script,
 	)
 	return i, err
 }
@@ -203,8 +205,9 @@ INSERT INTO vhtlc (
     id, preimage_hash, sender, receiver, server, refund_locktime,
     unilateral_claim_delay_type, unilateral_claim_delay_value,
     unilateral_refund_delay_type, unilateral_refund_delay_value,
-    unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value,
+    script
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertVHTLCParams struct {
@@ -220,6 +223,7 @@ type InsertVHTLCParams struct {
 	UnilateralRefundDelayValue                int64
 	UnilateralRefundWithoutReceiverDelayType  int64
 	UnilateralRefundWithoutReceiverDelayValue int64
+	Script                                    string
 }
 
 // VHTLC queries
@@ -237,6 +241,7 @@ func (q *Queries) InsertVHTLC(ctx context.Context, arg InsertVHTLCParams) error 
 		arg.UnilateralRefundDelayValue,
 		arg.UnilateralRefundWithoutReceiverDelayType,
 		arg.UnilateralRefundWithoutReceiverDelayValue,
+		arg.Script,
 	)
 	return err
 }
@@ -269,7 +274,7 @@ func (q *Queries) ListSubscribedScript(ctx context.Context) ([]string, error) {
 }
 
 const listSwaps = `-- name: ListSwaps :many
-SELECT  swap.id, swap.amount, swap.timestamp, swap.to_currency, swap.from_currency, swap.status, swap.swap_type, swap.invoice, swap.funding_tx_id, swap.redeem_tx_id, swap.vhtlc_id, vhtlc.id, vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value
+SELECT  swap.id, swap.amount, swap.timestamp, swap.to_currency, swap.from_currency, swap.status, swap.swap_type, swap.invoice, swap.funding_tx_id, swap.redeem_tx_id, swap.vhtlc_id, vhtlc.id, vhtlc.preimage_hash, vhtlc.sender, vhtlc.receiver, vhtlc.server, vhtlc.refund_locktime, vhtlc.unilateral_claim_delay_type, vhtlc.unilateral_claim_delay_value, vhtlc.unilateral_refund_delay_type, vhtlc.unilateral_refund_delay_value, vhtlc.unilateral_refund_without_receiver_delay_type, vhtlc.unilateral_refund_without_receiver_delay_value, vhtlc.script
 FROM swap
   LEFT JOIN vhtlc ON swap.vhtlc_id = vhtlc.id
 `
@@ -312,6 +317,7 @@ func (q *Queries) ListSwaps(ctx context.Context) ([]ListSwapsRow, error) {
 			&i.Vhtlc.UnilateralRefundDelayValue,
 			&i.Vhtlc.UnilateralRefundWithoutReceiverDelayType,
 			&i.Vhtlc.UnilateralRefundWithoutReceiverDelayValue,
+			&i.Vhtlc.Script,
 		); err != nil {
 			return nil, err
 		}
@@ -327,7 +333,7 @@ func (q *Queries) ListSwaps(ctx context.Context) ([]ListSwapsRow, error) {
 }
 
 const listVHTLC = `-- name: ListVHTLC :many
-SELECT id, preimage_hash, sender, receiver, server, refund_locktime, unilateral_claim_delay_type, unilateral_claim_delay_value, unilateral_refund_delay_type, unilateral_refund_delay_value, unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value FROM vhtlc
+SELECT id, preimage_hash, sender, receiver, server, refund_locktime, unilateral_claim_delay_type, unilateral_claim_delay_value, unilateral_refund_delay_type, unilateral_refund_delay_value, unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value, script FROM vhtlc
 `
 
 func (q *Queries) ListVHTLC(ctx context.Context) ([]Vhtlc, error) {
@@ -352,6 +358,7 @@ func (q *Queries) ListVHTLC(ctx context.Context) ([]Vhtlc, error) {
 			&i.UnilateralRefundDelayValue,
 			&i.UnilateralRefundWithoutReceiverDelayType,
 			&i.UnilateralRefundWithoutReceiverDelayValue,
+			&i.Script,
 		); err != nil {
 			return nil, err
 		}

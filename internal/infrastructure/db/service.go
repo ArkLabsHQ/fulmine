@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"errors"
 	"fmt"
@@ -28,6 +29,24 @@ var (
 	migrations   embed.FS
 	allowedTypes = strings.Join([]string{"badger"}, ",")
 )
+
+// goMigrations lists all Go-side data migrations in chronological order.
+// Each entry's Version matches the golang-migrate version of the SQL migration
+// that introduces the corresponding schema change.
+var goMigrations = []GoMigration{
+	{
+		Version: "20250622101533",
+		Run: func(ctx context.Context, db *sql.DB) error {
+			return sqlitedb.BackfillVhtlc(ctx, db)
+		},
+	},
+	{
+		Version: "20260216162009",
+		Run: func(ctx context.Context, db *sql.DB) error {
+			return sqlitedb.BackfillVhtlcScripts(ctx, db)
+		},
+	},
+}
 
 type ServiceConfig struct {
 	DbType   string
@@ -119,9 +138,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 			return nil, fmt.Errorf("failed to create migration instance: %s", err)
 		}
 
-		// ---- STEPWISE MIGRATION ----
-		vhtlcMigrationBegin := uint(20250622101533)
-		version, dirty, verr := m.Version()
+		_, dirty, verr := m.Version()
 		if verr != nil && !errors.Is(verr, migrate.ErrNilVersion) {
 			return nil, fmt.Errorf("failed to read migration version: %w", verr)
 		}
@@ -129,19 +146,14 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 			return nil, fmt.Errorf("database is in a dirty migration state; manual intervention required")
 		}
 
-		if version < vhtlcMigrationBegin {
-			if err := m.Migrate(vhtlcMigrationBegin); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-				return nil, fmt.Errorf("failed to run migrations: %s", err)
-			}
-
-			err = sqlitedb.BackfillVhtlc(context.Background(), db)
-			if err != nil {
-				return nil, err
-			}
+		// Apply all pending SQL schema migrations first.
+		if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			return nil, fmt.Errorf("failed to run schema migrations: %w", err)
 		}
 
-		if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-			return nil, fmt.Errorf("failed to run remaining migrations: %s", err)
+		// Apply all pending Go-side data migrations through the registry.
+		if err := ApplyGoMigrations(context.Background(), db, goMigrations); err != nil {
+			return nil, fmt.Errorf("failed to run data migrations: %w", err)
 		}
 
 		settingsRepo, err = sqlitedb.NewSettingsRepository(db)

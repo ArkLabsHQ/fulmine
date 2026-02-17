@@ -92,12 +92,13 @@ type Service struct {
 	syncCh        chan types.SyncEvent
 
 	externalSubscription *subscriptionHandler
+	vhtlcSubscription    *subscriptionHandler
 
 	walletUpdates chan WalletUpdate
 
 	// Notification channels
 	notifications chan Notification
-	events        chan FulmineEvent
+	events        chan VhtlcEvent
 
 	stopVtxoEventListener chan struct{}
 }
@@ -123,26 +124,13 @@ const (
 	EventTypeVtxoSpent
 )
 
-// FulmineEvent represents an event emitted by Fulmine for VHTLC and VTXO lifecycle changes
-type FulmineEvent struct {
+// VhtlcEvent represents an event emitted by Fulmine for VHTLC lifecycle changes
+type VhtlcEvent struct {
+	ID        string
+	Txid      string
+	Preimage  string // hex-encoded, only for CLAIMED events
 	Type      EventType
 	Timestamp time.Time
-	// For VHTLC events
-	Vhtlc *VhtlcEventData
-	// For VTXO events
-	Vtxo *VtxoEventData
-}
-
-type VhtlcEventData struct {
-	ID       string
-	Txid     string
-	Preimage string // hex-encoded, only for CLAIMED events
-}
-
-type VtxoEventData struct {
-	Scripts []string
-	Vtxos   []types.Vtxo
-	Txid    string
 }
 
 type SwapResponse struct {
@@ -199,7 +187,7 @@ func NewService(
 			publicKey:             nil,
 			isInitialized:         true,
 			notifications:         make(chan Notification),
-			events:                make(chan FulmineEvent),
+			events:                make(chan VhtlcEvent),
 			stopVtxoEventListener: make(chan struct{}),
 			esploraUrl:            data.ExplorerURL,
 			boltzUrl:              boltzUrl,
@@ -246,7 +234,7 @@ func NewService(
 		grpcClient:            nil,
 		schedulerSvc:          schedulerSvc,
 		notifications:         make(chan Notification),
-		events:                make(chan FulmineEvent),
+		events:                make(chan VhtlcEvent),
 		stopVtxoEventListener: make(chan struct{}),
 		esploraUrl:            esploraUrl,
 		boltzUrl:              boltzUrl,
@@ -401,6 +389,10 @@ func (s *Service) LockNode(ctx context.Context) error {
 		s.externalSubscription.stop()
 	}
 
+	if s.vhtlcSubscription != nil {
+		s.vhtlcSubscription.stop()
+	}
+
 	// close boarding event listener
 	s.stopVtxoEventListener <- struct{}{}
 	close(s.stopVtxoEventListener)
@@ -534,6 +526,16 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			log.WithError(err).Error("failed to start external subscription")
 		}
 
+		s.vhtlcSubscription = newReadOnlySubscriptionHandler(
+			settings.ServerUrl,
+			s.dbSvc.VHTLC().GetScripts,
+			s.handleVhtlcScriptEvent,
+		)
+
+		if err := s.vhtlcSubscription.start(); err != nil {
+			log.WithError(err).Error("failed to start vhtlc subscription")
+		}
+
 		// Load delegate signer key.
 		prvkeyStr, err := s.Dump(context.Background())
 		if err != nil {
@@ -595,6 +597,11 @@ func (s *Service) ResetWallet(ctx context.Context) error {
 
 	if s.externalSubscription != nil {
 		s.externalSubscription.stop()
+	}
+
+	if s.vhtlcSubscription != nil {
+		s.vhtlcSubscription.stop()
+		s.vhtlcSubscription = nil
 	}
 
 	s.isInitialized = false
@@ -906,12 +913,21 @@ func (s *Service) GetSwapVHTLC(
 
 		log.Debugf("added new vhtlc %s", vhtlcId)
 
-		s.emitEvent(FulmineEvent{
+		if s.vhtlcSubscription != nil {
+			scripts, err := offchainAddressesPkScripts([]string{encodedAddr})
+			if err != nil {
+				log.WithError(err).Warn("failed to derive vhtlc locking script")
+			} else if err := s.vhtlcSubscription.subscribe(context.Background(), scripts); err != nil {
+				log.WithError(err).Warn("failed to subscribe vhtlc scripts")
+			} else {
+				log.Debugf("subscribed %d scripts for vhtlc %s", len(scripts), vhtlcId)
+			}
+		}
+
+		s.emitEvent(VhtlcEvent{
+			ID:        vhtlcId,
 			Type:      EventTypeVhtlcCreated,
 			Timestamp: time.Now(),
-			Vhtlc: &VhtlcEventData{
-				ID: vhtlcId,
-			},
 		})
 	}()
 
@@ -973,14 +989,12 @@ func (s *Service) ClaimVHTLC(
 		return "", err
 	}
 
-	s.emitEvent(FulmineEvent{
+	s.emitEvent(VhtlcEvent{
 		Type:      EventTypeVhtlcClaimed,
 		Timestamp: time.Now(),
-		Vhtlc: &VhtlcEventData{
-			ID:       vhtlc_id,
-			Txid:     redeemTxid,
-			Preimage: hex.EncodeToString(preimage),
-		},
+		ID:        vhtlc_id,
+		Txid:      redeemTxid,
+		Preimage:  hex.EncodeToString(preimage),
 	})
 
 	return redeemTxid, nil
@@ -1003,13 +1017,11 @@ func (s *Service) RefundVHTLC(
 		return "", err
 	}
 
-	s.emitEvent(FulmineEvent{
+	s.emitEvent(VhtlcEvent{
+		ID:        vhtlc_id,
+		Txid:      redeemTxid,
 		Type:      EventTypeVhtlcRefunded,
 		Timestamp: time.Now(),
-		Vhtlc: &VhtlcEventData{
-			ID:   vhtlc_id,
-			Txid: redeemTxid,
-		},
 	})
 
 	return redeemTxid, nil
@@ -1183,11 +1195,11 @@ func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification 
 	return s.notifications
 }
 
-func (s *Service) GetEvents(ctx context.Context) <-chan FulmineEvent {
+func (s *Service) GetEvents(ctx context.Context) <-chan VhtlcEvent {
 	return s.events
 }
 
-func (s *Service) emitEvent(event FulmineEvent) {
+func (s *Service) emitEvent(event VhtlcEvent) {
 	go func() {
 		s.events <- event
 	}()
@@ -1740,6 +1752,33 @@ func (s *Service) subscribeForVtxoEvent(ctx context.Context, cfg *types.Config) 
 	}
 }
 
+// handleVhtlcScriptEvent handles indexer script events for VHTLCs.
+// This is called by the vhtlcSubscription handler when a VHTLC script is detected on-chain.
+func (s *Service) handleVhtlcScriptEvent(event *indexer.ScriptEvent) {
+	ctx := context.Background()
+
+	if event == nil || len(event.Scripts) == 0 {
+		log.Debug("received nil or empty script event")
+		return
+	}
+
+	log.Debugf("received vhtlc script event with %d scripts in tx %s", len(event.Scripts), event.Txid)
+
+	vhtlcs, err := s.dbSvc.VHTLC().GetByScripts(ctx, event.Scripts)
+	if err != nil {
+		log.WithError(err).Debug("failed to get vhtlcs for scripts")
+		return
+	}
+	for _, v := range vhtlcs {
+		s.emitEvent(VhtlcEvent{
+			ID:        v.Id,
+			Txid:      event.Txid,
+			Type:      EventTypeVhtlcFunded,
+			Timestamp: time.Now(),
+		})
+	}
+}
+
 // handleAddressEventChannel is used to forward address events to the notifications channel
 func (s *Service) handleAddressEventChannel(config *types.Config) func(event *indexer.ScriptEvent) {
 	return func(event *indexer.ScriptEvent) {
@@ -1794,63 +1833,6 @@ func (s *Service) handleAddressEventChannel(config *types.Config) func(event *in
 				TxData:      indexer.TxData{Tx: event.Tx, Txid: event.Txid},
 			}
 		}(event)
-
-		// Emit VTXO events
-		if len(event.NewVtxos) > 0 {
-			s.emitEvent(FulmineEvent{
-				Type:      EventTypeVtxoReceived,
-				Timestamp: time.Now(),
-				Vtxo: &VtxoEventData{
-					Vtxos: event.NewVtxos,
-					Txid:  event.Txid,
-				},
-			})
-		}
-
-		if len(event.SpentVtxos) > 0 {
-			s.emitEvent(FulmineEvent{
-				Type:      EventTypeVtxoSpent,
-				Timestamp: time.Now(),
-				Vtxo: &VtxoEventData{
-					Vtxos: event.SpentVtxos,
-					Txid:  event.Txid,
-				},
-			})
-		}
-
-		// Check if any new VTXOs are at known VHTLC addresses
-		go func(txid string, addrs []string) {
-			vhtlcs, err := s.dbSvc.VHTLC().GetAll(context.Background())
-			if err != nil {
-				log.WithError(err).Debug("failed to get vhtlcs for funded check")
-				return
-			}
-
-			for _, v := range vhtlcs {
-				vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(v.Opts)
-				if err != nil {
-					continue
-				}
-				vhtlcAddr, err := vhtlcScript.Address(config.Network.Addr)
-				if err != nil {
-					continue
-				}
-
-				for _, addr := range addrs {
-					if addr == vhtlcAddr {
-						s.emitEvent(FulmineEvent{
-							Type:      EventTypeVhtlcFunded,
-							Timestamp: time.Now(),
-							Vhtlc: &VhtlcEventData{
-								ID:   v.Id,
-								Txid: txid,
-							},
-						})
-						break
-					}
-				}
-			}
-		}(event.Txid, addresses)
 	}
 }
 

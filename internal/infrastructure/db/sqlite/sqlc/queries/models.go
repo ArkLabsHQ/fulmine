@@ -53,6 +53,7 @@ type Vhtlc struct {
 	UnilateralRefundDelayValue                int64
 	UnilateralRefundWithoutReceiverDelayType  int64
 	UnilateralRefundWithoutReceiverDelayValue int64
+	Script                                    string
 }
 
 type VtxoRollover struct {

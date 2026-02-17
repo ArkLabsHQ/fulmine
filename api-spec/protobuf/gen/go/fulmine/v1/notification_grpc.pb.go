@@ -23,7 +23,7 @@ const (
 	NotificationService_UnsubscribeForAddresses_FullMethodName = "/fulmine.v1.NotificationService/UnsubscribeForAddresses"
 	NotificationService_GetVtxoNotifications_FullMethodName    = "/fulmine.v1.NotificationService/GetVtxoNotifications"
 	NotificationService_RoundNotifications_FullMethodName      = "/fulmine.v1.NotificationService/RoundNotifications"
-	NotificationService_GetEvents_FullMethodName               = "/fulmine.v1.NotificationService/GetEvents"
+	NotificationService_GetVhtlcEvents_FullMethodName          = "/fulmine.v1.NotificationService/GetVhtlcEvents"
 	NotificationService_AddWebhook_FullMethodName              = "/fulmine.v1.NotificationService/AddWebhook"
 	NotificationService_RemoveWebhook_FullMethodName           = "/fulmine.v1.NotificationService/RemoveWebhook"
 	NotificationService_ListWebhooks_FullMethodName            = "/fulmine.v1.NotificationService/ListWebhooks"
@@ -56,8 +56,9 @@ type NotificationServiceClient interface {
 	// transaction IDs, preimages for claims, full VTXO details, etc.).
 	//
 	// Example usage with grpcurl:
-	//   grpcurl -plaintext localhost:7000 fulmine.v1.NotificationService/GetEvents
-	GetEvents(ctx context.Context, in *GetEventsRequest, opts ...grpc.CallOption) (NotificationService_GetEventsClient, error)
+	//
+	//	grpcurl -plaintext localhost:7000 fulmine.v1.NotificationService/GetEvents
+	GetVhtlcEvents(ctx context.Context, in *GetVhtlcEventsRequest, opts ...grpc.CallOption) (NotificationService_GetVhtlcEventsClient, error)
 	// Adds a webhook registered for some kind of event.
 	AddWebhook(ctx context.Context, in *AddWebhookRequest, opts ...grpc.CallOption) (*AddWebhookResponse, error)
 	// Removes some previously added webhook.
@@ -160,13 +161,13 @@ func (x *notificationServiceRoundNotificationsClient) Recv() (*RoundNotification
 	return m, nil
 }
 
-func (c *notificationServiceClient) GetEvents(ctx context.Context, in *GetEventsRequest, opts ...grpc.CallOption) (NotificationService_GetEventsClient, error) {
+func (c *notificationServiceClient) GetVhtlcEvents(ctx context.Context, in *GetVhtlcEventsRequest, opts ...grpc.CallOption) (NotificationService_GetVhtlcEventsClient, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &NotificationService_ServiceDesc.Streams[2], NotificationService_GetEvents_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &NotificationService_ServiceDesc.Streams[2], NotificationService_GetVhtlcEvents_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &notificationServiceGetEventsClient{ClientStream: stream}
+	x := &notificationServiceGetVhtlcEventsClient{ClientStream: stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -176,17 +177,17 @@ func (c *notificationServiceClient) GetEvents(ctx context.Context, in *GetEvents
 	return x, nil
 }
 
-type NotificationService_GetEventsClient interface {
-	Recv() (*GetEventsResponse, error)
+type NotificationService_GetVhtlcEventsClient interface {
+	Recv() (*GetVhtlcEventsResponse, error)
 	grpc.ClientStream
 }
 
-type notificationServiceGetEventsClient struct {
+type notificationServiceGetVhtlcEventsClient struct {
 	grpc.ClientStream
 }
 
-func (x *notificationServiceGetEventsClient) Recv() (*GetEventsResponse, error) {
-	m := new(GetEventsResponse)
+func (x *notificationServiceGetVhtlcEventsClient) Recv() (*GetVhtlcEventsResponse, error) {
+	m := new(GetVhtlcEventsResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -250,8 +251,9 @@ type NotificationServiceServer interface {
 	// transaction IDs, preimages for claims, full VTXO details, etc.).
 	//
 	// Example usage with grpcurl:
-	//   grpcurl -plaintext localhost:7000 fulmine.v1.NotificationService/GetEvents
-	GetEvents(*GetEventsRequest, NotificationService_GetEventsServer) error
+	//
+	//	grpcurl -plaintext localhost:7000 fulmine.v1.NotificationService/GetEvents
+	GetVhtlcEvents(*GetVhtlcEventsRequest, NotificationService_GetVhtlcEventsServer) error
 	// Adds a webhook registered for some kind of event.
 	AddWebhook(context.Context, *AddWebhookRequest) (*AddWebhookResponse, error)
 	// Removes some previously added webhook.
@@ -276,8 +278,8 @@ func (UnimplementedNotificationServiceServer) GetVtxoNotifications(*GetVtxoNotif
 func (UnimplementedNotificationServiceServer) RoundNotifications(*RoundNotificationsRequest, NotificationService_RoundNotificationsServer) error {
 	return status.Errorf(codes.Unimplemented, "method RoundNotifications not implemented")
 }
-func (UnimplementedNotificationServiceServer) GetEvents(*GetEventsRequest, NotificationService_GetEventsServer) error {
-	return status.Errorf(codes.Unimplemented, "method GetEvents not implemented")
+func (UnimplementedNotificationServiceServer) GetVhtlcEvents(*GetVhtlcEventsRequest, NotificationService_GetVhtlcEventsServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetVhtlcEvents not implemented")
 }
 func (UnimplementedNotificationServiceServer) AddWebhook(context.Context, *AddWebhookRequest) (*AddWebhookResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddWebhook not implemented")
@@ -378,24 +380,24 @@ func (x *notificationServiceRoundNotificationsServer) Send(m *RoundNotifications
 	return x.ServerStream.SendMsg(m)
 }
 
-func _NotificationService_GetEvents_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(GetEventsRequest)
+func _NotificationService_GetVhtlcEvents_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetVhtlcEventsRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(NotificationServiceServer).GetEvents(m, &notificationServiceGetEventsServer{ServerStream: stream})
+	return srv.(NotificationServiceServer).GetVhtlcEvents(m, &notificationServiceGetVhtlcEventsServer{ServerStream: stream})
 }
 
-type NotificationService_GetEventsServer interface {
-	Send(*GetEventsResponse) error
+type NotificationService_GetVhtlcEventsServer interface {
+	Send(*GetVhtlcEventsResponse) error
 	grpc.ServerStream
 }
 
-type notificationServiceGetEventsServer struct {
+type notificationServiceGetVhtlcEventsServer struct {
 	grpc.ServerStream
 }
 
-func (x *notificationServiceGetEventsServer) Send(m *GetEventsResponse) error {
+func (x *notificationServiceGetVhtlcEventsServer) Send(m *GetVhtlcEventsResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -493,8 +495,8 @@ var NotificationService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 		{
-			StreamName:    "GetEvents",
-			Handler:       _NotificationService_GetEvents_Handler,
+			StreamName:    "GetVhtlcEvents",
+			Handler:       _NotificationService_GetVhtlcEvents_Handler,
 			ServerStreams: true,
 		},
 	},
