@@ -8,5 +8,6 @@ type RepoManager interface {
 	Delegate() domain.DelegateRepository
 	Swap() domain.SwapRepository
 	SubscribedScript() domain.SubscribedScriptRepository
+	ChainSwaps() domain.ChainSwapRepository
 	Close()
 }

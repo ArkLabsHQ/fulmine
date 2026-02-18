@@ -144,6 +144,26 @@ service Service {
       get: "/v1/settlement/next"
     };
   };
+  // CreateChainSwap initiates a chain swap between Ark and Bitcoin
+  rpc CreateChainSwap(CreateChainSwapRequest) returns (CreateChainSwapResponse) {
+    option (google.api.http) = {
+      post: "/v1/chainswap"
+      body: "*"
+    };
+  };
+  // ListChainSwaps retrieves all chain swaps
+  rpc ListChainSwaps(ListChainSwapsRequest) returns (ListChainSwapsResponse) {
+    option (google.api.http) = {
+      get: "/v1/chainswaps"
+    };
+  };
+  // RefundChainSwap initiates a cooperative refund for a chain swap
+  rpc RefundChainSwap(RefundChainSwapRequest) returns (RefundChainSwapResponse) {
+    option (google.api.http) = {
+      post: "/v1/chainswap/{id}/refund"
+      body: "*"
+    };
+  };
 
   // ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.
   rpc ListDelegates(ListDelegatesRequest) returns (ListDelegatesResponse) {
@@ -377,19 +397,77 @@ message GetVirtualTxsResponse {
 // If no filter is provided, all VTXOs are returned.
 message GetVtxosRequest {
   oneof filter {
-    bool spendable_only = 1; // Filter for spendable VTXOs only
-    bool spent_only = 2; // Filter for spent VTXOs only
-    bool recoverable_only = 3; // Filter for recoverable VTXOs only
+    bool spendable_only = 1;
+    bool spent_only = 2;
+    bool recoverable_only = 3;
   }
 }
 message GetVtxosResponse {
-  repeated Vtxo vtxos = 1; // List of VTXOs matching the filter
+  repeated Vtxo vtxos = 1;
 }
 
 message NextSettlementRequest {}
 message NextSettlementResponse {
   int64 next_settlement_at = 1;
 }
+
+enum SwapDirection {
+  SWAP_DIRECTION_UNSPECIFIED = 0;
+  SWAP_DIRECTION_ARK_TO_BTC = 1;
+  SWAP_DIRECTION_BTC_TO_ARK = 2;
+}
+
+message CreateChainSwapRequest {
+  SwapDirection direction = 1;
+  uint64 amount = 2;
+  string btc_address = 3;
+
+}
+message CreateChainSwapResponse {
+  string id = 1;
+  string status = 2;
+  string user_lockup_txid = 3;
+
+  string lockup_address = 4;
+
+  uint64 expected_amount = 5;
+
+  uint64 timeout_block_height = 6;
+  string preimage = 7;
+  string error = 8;
+}
+
+message ChainSwapResponse {
+  string id = 1;
+  string from = 2;
+  string to = 3;
+  uint64 amount = 4;
+  string status = 5;
+  string preimage = 6;
+  string user_lockup_txid = 7;
+  string server_lockup_txid = 8;
+  string claim_txid = 9;
+  string refund_txid = 10;
+  string btc_address = 11;
+  int64 timestamp = 12;
+  string error_message = 13;
+}
+
+message ListChainSwapsRequest {
+  repeated string swap_ids = 1;
+}
+message ListChainSwapsResponse {
+  repeated ChainSwapResponse swaps = 1;
+}
+
+message RefundChainSwapRequest {
+  string id = 1;
+}
+message RefundChainSwapResponse {
+  string message = 1;
+}
+
+
 
 message DelegateIntent {
   string txid = 1;

@@ -559,6 +559,139 @@ func (h *serviceHandler) NextSettlement(
 	}, nil
 }
 
+// Chain Swap gRPC handlers
+
+func (h *serviceHandler) CreateChainSwap(
+	ctx context.Context,
+	req *pb.CreateChainSwapRequest,
+) (*pb.CreateChainSwapResponse, error) {
+	if req.Direction == pb.SwapDirection_SWAP_DIRECTION_UNSPECIFIED {
+		return nil, status.Error(codes.InvalidArgument, "direction must be specified")
+	}
+	if req.Amount == 0 {
+		return nil, status.Error(codes.InvalidArgument, "amount must be greater than zero")
+	}
+
+	switch req.Direction {
+	case pb.SwapDirection_SWAP_DIRECTION_ARK_TO_BTC:
+		if req.BtcAddress == "" {
+			return nil, status.Error(codes.InvalidArgument, "btc_address is required for Ark→BTC swap")
+		}
+
+		chainSwap, err := h.svc.CreateChainSwapArkToBtc(ctx, req.Amount, req.BtcAddress)
+		if err != nil {
+			return &pb.CreateChainSwapResponse{
+				Error: err.Error(),
+			}, nil
+		}
+
+		return &pb.CreateChainSwapResponse{
+			Id:             chainSwap.Id,
+			Status:         chainSwapStatusToString(chainSwap.Status),
+			UserLockupTxid: chainSwap.UserLockupTxId,
+			ExpectedAmount: chainSwap.Amount,
+			Preimage:       chainSwap.ClaimPreimage,
+		}, nil
+
+	case pb.SwapDirection_SWAP_DIRECTION_BTC_TO_ARK:
+		chainSwap, err := h.svc.CreateBtcToArkChainSwap(ctx, req.Amount)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+
+		return &pb.CreateChainSwapResponse{
+			Id:                 chainSwap.Id,
+			Status:             chainSwapStatusToString(chainSwap.Status),
+			LockupAddress:      chainSwap.UserBtcLockupAddress,
+			ExpectedAmount:     chainSwap.Amount,
+			TimeoutBlockHeight: 0,
+			Preimage:           chainSwap.ClaimPreimage,
+		}, nil
+
+	default:
+		return nil, status.Error(codes.InvalidArgument, "invalid direction")
+	}
+}
+
+func (h *serviceHandler) ListChainSwaps(
+	ctx context.Context,
+	req *pb.ListChainSwapsRequest,
+) (*pb.ListChainSwapsResponse, error) {
+	swapIDs := req.GetSwapIds()
+
+	chainSwaps, err := h.svc.ListChainSwaps(ctx, swapIDs)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	swaps := make([]*pb.ChainSwapResponse, 0, len(chainSwaps))
+	for i := range chainSwaps {
+		swaps = append(swaps, toChainSwapProto(&chainSwaps[i]))
+	}
+
+	return &pb.ListChainSwapsResponse{Swaps: swaps}, nil
+}
+
+func (h *serviceHandler) RefundChainSwap(
+	ctx context.Context,
+	req *pb.RefundChainSwapRequest,
+) (*pb.RefundChainSwapResponse, error) {
+	if req.Id == "" {
+		return nil, status.Error(codes.InvalidArgument, "swap id is required")
+	}
+
+	if err := h.svc.RefundChainSwap(ctx, req.Id); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &pb.RefundChainSwapResponse{
+		Message: "refund initiated",
+	}, nil
+}
+
+func toChainSwapProto(cs *domain.ChainSwap) *pb.ChainSwapResponse {
+	return &pb.ChainSwapResponse{
+		Id:               cs.Id,
+		From:             string(cs.From),
+		To:               string(cs.To),
+		Amount:           cs.Amount,
+		Status:           chainSwapStatusToString(cs.Status),
+		Preimage:         cs.ClaimPreimage,
+		UserLockupTxid:   cs.UserLockupTxId,
+		ServerLockupTxid: cs.ServerLockupTxId,
+		ClaimTxid:        cs.ClaimTxId,
+		RefundTxid:       cs.RefundTxId,
+		BtcAddress:       cs.UserBtcLockupAddress,
+		Timestamp:        cs.CreatedAt,
+		ErrorMessage:     cs.ErrorMessage,
+	}
+}
+
+func chainSwapStatusToString(status domain.ChainSwapStatus) string {
+	switch status {
+	case domain.ChainSwapPending:
+		return "pending"
+	case domain.ChainSwapUserLocked:
+		return "user_locked"
+	case domain.ChainSwapServerLocked:
+		return "server_locked"
+	case domain.ChainSwapClaimed:
+		return "claimed"
+	case domain.ChainSwapUserLockedFailed:
+		return "user_locked_failed"
+	case domain.ChainSwapFailed:
+		return "failed"
+	case domain.ChainSwapRefundFailed:
+		return "refund_failed"
+	case domain.ChainSwapRefunded:
+		return "refunded"
+	case domain.ChainSwapRefundedUnilaterally:
+		return "refunded_unilaterally"
+	default:
+		return "unknown"
+	}
+}
+
 func (h *serviceHandler) ListDelegates(
 	ctx context.Context, req *pb.ListDelegatesRequest,
 ) (*pb.ListDelegatesResponse, error) {

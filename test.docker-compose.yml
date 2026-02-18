@@ -74,10 +74,11 @@ services:
     ports:
       - "7071:7071"
       - "7070:7070"
+      - "7071:7071"
     environment:
       - ARKD_LOG_LEVEL=6
       - ARKD_NO_MACAROONS=true
-      - ARKD_VTXO_TREE_EXPIRY=1024
+      - ARKD_VTXO_TREE_EXPIRY=512
       - ARKD_UNILATERAL_EXIT_DELAY=512
       - ARKD_PUBLIC_UNILATERAL_EXIT_DELAY=512
       - ARKD_BOARDING_EXIT_DELAY=2048
@@ -117,8 +118,56 @@ services:
       - "7001:7001"
       - "7004:7002"
     volumes:
-      - type: tmpfs
-        target: /app/data
+      - fulmine_data:/app/data
+
+  mock-boltz:
+    build:
+      context: .
+      dockerfile: mockboltz.Dockerfile
+    container_name: mock-boltz
+    restart: unless-stopped
+    depends_on:
+      - arkd
+    ports:
+      - "9101:9001"
+    environment:
+      - MOCK_BOLTZ_LISTEN_ADDR=:9001
+      - MOCK_BOLTZ_ARKD_URL=http://arkd:7070
+      - MOCK_BOLTZ_ARK_HRP=tark
+      - MOCK_BOLTZ_NETWORK=regtest
+      - MOCK_BOLTZ_LOG_LEVEL=debug
+      - MOCK_BOLTZ_ARK_REFUND_LOCKTIME_SECONDS=60
+      - MOCK_BOLTZ_BTC_LOCKUP_TIMEOUT_BLOCKS=720
+      - MOCK_BOLTZ_UNILATERAL_CLAIM_DELAY=512
+      - MOCK_BOLTZ_UNILATERAL_REFUND_DELAY=512
+      - MOCK_BOLTZ_UNILATERAL_REFUND_NO_RECV_DELAY=1024
+      - MOCK_BOLTZ_SERVICE_FEE_PPM=20000
+      - MOCK_BOLTZ_MINER_FEE_SAT=200
+
+  fulmine-mock:
+    container_name: fulmine-mock
+    depends_on:
+      - arkd
+      - mock-boltz
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - FULMINE_ARK_SERVER=arkd:7070
+      - FULMINE_ESPLORA_URL=http://chopsticks:3000
+      - FULMINE_BOLTZ_URL=http://mock-boltz:9001
+      - FULMINE_BOLTZ_WS_URL=ws://mock-boltz:9001
+      - FULMINE_NO_MACAROONS=true
+      - FULMINE_LOG_LEVEL=5
+      - FULMINE_DISABLE_TELEMETRY=true
+      - FULMINE_SWAP_TIMEOUT=120
+      - FULMINE_SCHEDULER_POLL_INTERVAL=10
+    ports:
+      - "7100:7000"
+      - "7101:7001"
+    volumes:
+      - fulmine_mock_data:/app/data
 
   boltz-cln:
     build:
@@ -197,7 +246,7 @@ services:
       - "10010:10009"
   boltz:
     restart: unless-stopped
-    image: boltz/boltz:ark
+    image: boltz/boltz:latest
     container_name: boltz
     ports:
       - "9000:9000"
@@ -372,6 +421,10 @@ volumes:
     name: boltz_datadir
   bitcoin_fulmine_data:
     name: bitcoin_fulmine_data
+  fulmine_data:
+    name: fulmine_data
+  fulmine_mock_data:
+    name: fulmine_mock_data
   lnd_datadir:
     name: lnd_datadir
   cln_datadir:

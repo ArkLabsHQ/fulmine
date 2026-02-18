@@ -89,6 +89,41 @@ SELECT * FROM subscribed_script;
 -- name: DeleteSubscribedScript :exec
 DELETE FROM subscribed_script WHERE script = ?;
 
+-- ChainSwap queries
+-- name: CreateChainSwap :exec
+INSERT INTO chain_swap (
+    id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id,
+    claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message,
+    boltz_create_response_json
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- name: GetChainSwap :one
+SELECT * FROM chain_swap WHERE id = ?;
+
+-- name: ListChainSwaps :many
+SELECT * FROM chain_swap ORDER BY created_at DESC;
+
+-- name: ListChainSwapsByIDs :many
+SELECT * FROM chain_swap WHERE id IN (sqlc.slice('ids')) ORDER BY created_at DESC;
+
+-- name: ListChainSwapsByStatus :many
+SELECT * FROM chain_swap WHERE status = ? ORDER BY created_at DESC;
+
+-- name: UpdateChainSwap :exec
+UPDATE chain_swap
+SET status = ?,
+    user_lockup_tx_id = ?,
+    server_lockup_tx_id = ?,
+    claim_tx_id = ?,
+    refund_tx_id = ?,
+    error_message = ?,
+    boltz_create_response_json = ?,
+    updated_at = strftime('%s', 'now')
+WHERE id = ?;
+
+-- name: DeleteChainSwap :exec
+DELETE FROM chain_swap WHERE id = ?;
+
 -- name: InsertDelegateTask :exec
 INSERT INTO delegate_task (id, intent_txid, intent_message, intent_proof, fee, delegator_public_key, scheduled_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
@@ -99,15 +134,15 @@ ON CONFLICT(task_id, outpoint) DO UPDATE SET
     forfeit_tx = excluded.forfeit_tx;
 
 -- name: GetDelegateTask :many
-SELECT 
-    dt.id, 
+SELECT
+    dt.id,
     dt.intent_txid,
     dt.intent_message,
     dt.intent_proof,
-    dt.fee, 
-    dt.delegator_public_key, 
-    dt.scheduled_at, 
-    dt.status, 
+    dt.fee,
+    dt.delegator_public_key,
+    dt.scheduled_at,
+    dt.status,
     dt.fail_reason,
     dt.commitment_txid,
     dti.outpoint,
@@ -147,15 +182,15 @@ SELECT DISTINCT dt.id FROM delegate_task dt
 		AND dti.outpoint IN (sqlc.slice(outpoints));
 
 -- name: ListDelegateTasks :many
-SELECT 
-    dt.id, 
+SELECT
+    dt.id,
     dt.intent_txid,
     dt.intent_message,
     dt.intent_proof,
-    dt.fee, 
-    dt.delegator_public_key, 
-    dt.scheduled_at, 
-    dt.status, 
+    dt.fee,
+    dt.delegator_public_key,
+    dt.scheduled_at,
+    dt.status,
     dt.fail_reason,
     dt.commitment_txid,
     dti.outpoint,

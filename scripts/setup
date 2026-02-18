@@ -6,6 +6,7 @@ composeFile="test.docker-compose.yml"
 password="password"
 fulmineBoltzUrl="http://127.0.0.1:7003/api/v1"
 fulmineUrl="http://127.0.0.1:7001/api/v1"
+fulmineMockUrl="http://127.0.0.1:7101/api/v1"
 arkdUrl="http://arkd:7070"
 channelAmount=1000000
 invoiceAmount=300000
@@ -84,7 +85,7 @@ else
 fi
 sleep 5
 
-echo "provisioning Arakde server..."
+echo "provisioning Arkade server..."
 err=$($arkd wallet create --password $password)
 if [ $? -ne 0 ]; then
     exit "  ❌ failed to initialize (status=$status) (err=$err)"
@@ -107,7 +108,7 @@ if [ $? -ne 0 ] || [ -z "$addr" ]; then
 fi
 
 funded_count=0
-for i in {1..5}; do
+for i in {1..21}; do
     err=$(nigiri faucet $addr)
     if [ $? -ne 0 ]; then
         exit "  ❌ failed to fund (status=$status) (err=$err)"
@@ -118,7 +119,7 @@ done
 echo "  ✅ funded onchain with $funded_count BTC"
 
 echo "setting up Boltz stack..."
-if ! run_quiet $compose up -d boltz; then
+if ! run_quiet $compose up -d boltz mock-boltz; then
     exit "  ❌ failed to start stack (status=$status) (err=$err)"
 else
     echo "  ✅ stack started"
@@ -282,7 +283,7 @@ else
 fi
 
 echo "setting up Client stack..."
-if ! run_quiet $compose up -d fulmine; then
+if ! run_quiet $compose up -d fulmine fulmine-mock; then
     exit "  ❌ failed to start stack (status=$status) (err=$err)"
 else
     echo "  ✅ stack started"
@@ -324,6 +325,49 @@ if [ $? -ne 0 ]; then
     exit "  ❌ failed to settle (status=$status) (err=$err)"
 else
     echo "  ✅ funded offchain with 0.001 BTC"
+fi
+
+
+echo "provisioning Fulmine used by mocked Boltz..."
+seed=$(curl -s $fulmineMockUrl/wallet/genseed | jq -r .hex)
+if [ $? -ne 0 ]; then
+    exit "  ❌ failed to generate seed (status=$status) (err=$err)"
+fi
+
+err=$(curl -s -X POST $fulmineMockUrl/wallet/create -H 'Content-Type: application/json' \
+    -d "{\"private_key\": \"$seed\", \"password\": \"$password\", \"server_url\": \"$arkdUrl\"}")
+if [ $? -ne 0 ]; then
+    exit "  ❌ failed to initialize mocked Fulmine (status=$status) (err=$err)"
+else
+    echo "  ✅ mocked Fulmine initialized"
+fi
+sleep 1
+
+err=$(curl -s -X POST $fulmineMockUrl/wallet/unlock -H 'Content-Type: application/json' \
+    -d "{\"password\": \"$password\"}")
+if [ $? -ne 0 ]; then
+    exit "  ❌ failed to unlock mocked Fulmine (status=$status) (err=$err)"
+else
+    echo "  ✅ mocked Fulmine unlocked"
+fi
+sleep 1
+
+addr=$(curl -s -X POST $fulmineMockUrl/onboard -H 'Content-Type: application/json' | jq -r .address)
+if [ $? -ne 0 ]; then
+    exit "  ❌ failed to get mocked Fulmine boarding address (status=$status) (err=$err)"
+fi
+sleep 5
+
+err=$(nigiri faucet $addr 0.001)
+if [ $? -ne 0 ]; then
+    exit "  ❌ failed to fund mocked Fulmine boarding address (addr=$addr) (status=$status) (err=$err)"
+fi
+
+err=$(curl -s $fulmineMockUrl/settle)
+if [ $? -ne 0 ]; then
+    exit "  ❌ failed to settle mocked Fulmine (status=$status) (err=$err)"
+else
+    echo "  ✅ mocked Fulmine funded offchain with 0.001 BTC"
 fi
 
 run_quiet docker restart boltz

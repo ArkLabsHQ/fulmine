@@ -32,6 +32,50 @@ func (q *Queries) CancelDelegateTasks(ctx context.Context, ids []string) error {
 	return err
 }
 
+const createChainSwap = `-- name: CreateChainSwap :exec
+INSERT INTO chain_swap (
+    id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id,
+    claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message,
+    boltz_create_response_json
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`
+
+type CreateChainSwapParams struct {
+	ID                      string
+	FromCurrency            string
+	ToCurrency              string
+	Amount                  int64
+	Status                  int64
+	UserLockupTxID          sql.NullString
+	ServerLockupTxID        sql.NullString
+	ClaimTxID               sql.NullString
+	ClaimPreimage           string
+	RefundTxID              sql.NullString
+	UserBtcLockupAddress    sql.NullString
+	ErrorMessage            sql.NullString
+	BoltzCreateResponseJson sql.NullString
+}
+
+// ChainSwap queries
+func (q *Queries) CreateChainSwap(ctx context.Context, arg CreateChainSwapParams) error {
+	_, err := q.db.ExecContext(ctx, createChainSwap,
+		arg.ID,
+		arg.FromCurrency,
+		arg.ToCurrency,
+		arg.Amount,
+		arg.Status,
+		arg.UserLockupTxID,
+		arg.ServerLockupTxID,
+		arg.ClaimTxID,
+		arg.ClaimPreimage,
+		arg.RefundTxID,
+		arg.UserBtcLockupAddress,
+		arg.ErrorMessage,
+		arg.BoltzCreateResponseJson,
+	)
+	return err
+}
+
 const createSwap = `-- name: CreateSwap :exec
 INSERT INTO swap (
   id, amount, timestamp, to_currency, from_currency, swap_type, status, invoice, funding_tx_id, redeem_tx_id, vhtlc_id
@@ -67,6 +111,15 @@ func (q *Queries) CreateSwap(ctx context.Context, arg CreateSwapParams) error {
 		arg.RedeemTxID,
 		arg.VhtlcID,
 	)
+	return err
+}
+
+const deleteChainSwap = `-- name: DeleteChainSwap :exec
+DELETE FROM chain_swap WHERE id = ?
+`
+
+func (q *Queries) DeleteChainSwap(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteChainSwap, id)
 	return err
 }
 
@@ -124,16 +177,43 @@ func (q *Queries) FailDelegateTasks(ctx context.Context, arg FailDelegateTasksPa
 	return err
 }
 
+const getChainSwap = `-- name: GetChainSwap :one
+SELECT id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id, claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message, created_at, updated_at, boltz_create_response_json FROM chain_swap WHERE id = ?
+`
+
+func (q *Queries) GetChainSwap(ctx context.Context, id string) (ChainSwap, error) {
+	row := q.db.QueryRowContext(ctx, getChainSwap, id)
+	var i ChainSwap
+	err := row.Scan(
+		&i.ID,
+		&i.FromCurrency,
+		&i.ToCurrency,
+		&i.Amount,
+		&i.Status,
+		&i.UserLockupTxID,
+		&i.ServerLockupTxID,
+		&i.ClaimTxID,
+		&i.ClaimPreimage,
+		&i.RefundTxID,
+		&i.UserBtcLockupAddress,
+		&i.ErrorMessage,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BoltzCreateResponseJson,
+	)
+	return i, err
+}
+
 const getDelegateTask = `-- name: GetDelegateTask :many
-SELECT 
-    dt.id, 
+SELECT
+    dt.id,
     dt.intent_txid,
     dt.intent_message,
     dt.intent_proof,
-    dt.fee, 
-    dt.delegator_public_key, 
-    dt.scheduled_at, 
-    dt.status, 
+    dt.fee,
+    dt.delegator_public_key,
+    dt.scheduled_at,
+    dt.status,
     dt.fail_reason,
     dt.commitment_txid,
     dti.outpoint,
@@ -490,6 +570,145 @@ func (q *Queries) InsertVHTLC(ctx context.Context, arg InsertVHTLCParams) error 
 	return err
 }
 
+const listChainSwaps = `-- name: ListChainSwaps :many
+SELECT id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id, claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message, created_at, updated_at, boltz_create_response_json FROM chain_swap ORDER BY created_at DESC
+`
+
+func (q *Queries) ListChainSwaps(ctx context.Context) ([]ChainSwap, error) {
+	rows, err := q.db.QueryContext(ctx, listChainSwaps)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ChainSwap
+	for rows.Next() {
+		var i ChainSwap
+		if err := rows.Scan(
+			&i.ID,
+			&i.FromCurrency,
+			&i.ToCurrency,
+			&i.Amount,
+			&i.Status,
+			&i.UserLockupTxID,
+			&i.ServerLockupTxID,
+			&i.ClaimTxID,
+			&i.ClaimPreimage,
+			&i.RefundTxID,
+			&i.UserBtcLockupAddress,
+			&i.ErrorMessage,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.BoltzCreateResponseJson,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listChainSwapsByIDs = `-- name: ListChainSwapsByIDs :many
+SELECT id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id, claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message, created_at, updated_at, boltz_create_response_json FROM chain_swap WHERE id IN (/*SLICE:ids*/?) ORDER BY created_at DESC
+`
+
+func (q *Queries) ListChainSwapsByIDs(ctx context.Context, ids []string) ([]ChainSwap, error) {
+	query := listChainSwapsByIDs
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ChainSwap
+	for rows.Next() {
+		var i ChainSwap
+		if err := rows.Scan(
+			&i.ID,
+			&i.FromCurrency,
+			&i.ToCurrency,
+			&i.Amount,
+			&i.Status,
+			&i.UserLockupTxID,
+			&i.ServerLockupTxID,
+			&i.ClaimTxID,
+			&i.ClaimPreimage,
+			&i.RefundTxID,
+			&i.UserBtcLockupAddress,
+			&i.ErrorMessage,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.BoltzCreateResponseJson,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listChainSwapsByStatus = `-- name: ListChainSwapsByStatus :many
+SELECT id, from_currency, to_currency, amount, status, user_lockup_tx_id, server_lockup_tx_id, claim_tx_id, claim_preimage, refund_tx_id, user_btc_lockup_address, error_message, created_at, updated_at, boltz_create_response_json FROM chain_swap WHERE status = ? ORDER BY created_at DESC
+`
+
+func (q *Queries) ListChainSwapsByStatus(ctx context.Context, status int64) ([]ChainSwap, error) {
+	rows, err := q.db.QueryContext(ctx, listChainSwapsByStatus, status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ChainSwap
+	for rows.Next() {
+		var i ChainSwap
+		if err := rows.Scan(
+			&i.ID,
+			&i.FromCurrency,
+			&i.ToCurrency,
+			&i.Amount,
+			&i.Status,
+			&i.UserLockupTxID,
+			&i.ServerLockupTxID,
+			&i.ClaimTxID,
+			&i.ClaimPreimage,
+			&i.RefundTxID,
+			&i.UserBtcLockupAddress,
+			&i.ErrorMessage,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.BoltzCreateResponseJson,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDelegateTaskPending = `-- name: ListDelegateTaskPending :many
 SELECT id, scheduled_at FROM delegate_task WHERE status = 0
 `
@@ -523,15 +742,15 @@ func (q *Queries) ListDelegateTaskPending(ctx context.Context) ([]ListDelegateTa
 }
 
 const listDelegateTasks = `-- name: ListDelegateTasks :many
-SELECT 
-    dt.id, 
+SELECT
+    dt.id,
     dt.intent_txid,
     dt.intent_message,
     dt.intent_proof,
-    dt.fee, 
-    dt.delegator_public_key, 
-    dt.scheduled_at, 
-    dt.status, 
+    dt.fee,
+    dt.delegator_public_key,
+    dt.scheduled_at,
+    dt.status,
     dt.fail_reason,
     dt.commitment_txid,
     dti.outpoint,
@@ -776,6 +995,44 @@ func (q *Queries) SuccessDelegateTasks(ctx context.Context, arg SuccessDelegateT
 		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
 	}
 	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
+
+const updateChainSwap = `-- name: UpdateChainSwap :exec
+UPDATE chain_swap
+SET status = ?,
+    user_lockup_tx_id = ?,
+    server_lockup_tx_id = ?,
+    claim_tx_id = ?,
+    refund_tx_id = ?,
+    error_message = ?,
+    boltz_create_response_json = ?,
+    updated_at = strftime('%s', 'now')
+WHERE id = ?
+`
+
+type UpdateChainSwapParams struct {
+	Status                  int64
+	UserLockupTxID          sql.NullString
+	ServerLockupTxID        sql.NullString
+	ClaimTxID               sql.NullString
+	RefundTxID              sql.NullString
+	ErrorMessage            sql.NullString
+	BoltzCreateResponseJson sql.NullString
+	ID                      string
+}
+
+func (q *Queries) UpdateChainSwap(ctx context.Context, arg UpdateChainSwapParams) error {
+	_, err := q.db.ExecContext(ctx, updateChainSwap,
+		arg.Status,
+		arg.UserLockupTxID,
+		arg.ServerLockupTxID,
+		arg.ClaimTxID,
+		arg.RefundTxID,
+		arg.ErrorMessage,
+		arg.BoltzCreateResponseJson,
+		arg.ID,
+	)
 	return err
 }
 
