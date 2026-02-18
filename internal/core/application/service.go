@@ -122,6 +122,10 @@ type Service struct {
 	notifications chan Notification
 
 	stopVtxoEventListener chan struct{}
+
+	// callback functions to stop and start delegator service
+	onUnlock func()
+	onLock   func()
 }
 
 type Notification struct {
@@ -138,7 +142,45 @@ type SwapResponse struct {
 	Invoice    string
 }
 
-func NewService(
+type DelegatorConfig struct {
+	Enabled bool
+	Fee     uint64
+}
+
+func NewServices(
+	buildInfo BuildInfo,
+	storeCfg store.Config,
+	storeSvc types.Store,
+	dbSvc ports.RepoManager,
+	schedulerSvc ports.SchedulerService,
+	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
+	connectionOpts *domain.LnConnectionOpts,
+	refreshDbInterval int64,
+	delegatorConfig DelegatorConfig,
+) (*Service, *DelegatorService, error) {
+	svc, err := newService(
+		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc, esploraUrl,
+		boltzUrl, boltzWSUrl, swapTimeout, connectionOpts, refreshDbInterval,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if delegatorConfig.Enabled {
+		delegatorSvc := newDelegatorService(svc, delegatorConfig.Fee)
+		svc.onUnlock = func() {
+			delegatorSvc.start()
+		}
+		svc.onLock = func() {
+			delegatorSvc.Stop()
+		}
+		return svc, delegatorSvc, nil
+	}
+
+	return svc, nil, nil
+}
+
+func newService(
 	buildInfo BuildInfo,
 	storeCfg store.Config,
 	storeSvc types.Store,
@@ -378,6 +420,10 @@ func (s *Service) LockNode(ctx context.Context) error {
 		return err
 	}
 
+	if s.onLock != nil {
+		s.onLock()
+	}
+
 	if s.schedulerSvc != nil {
 		s.schedulerSvc.Stop()
 		log.Info("scheduler stopped")
@@ -416,15 +462,13 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	s.syncCh = make(chan types.SyncEvent, 1)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		s.syncLock.Lock()
 		defer s.syncLock.Unlock()
 		ev := <-s.ArkClient.IsSynced(context.Background())
 		s.syncEvent = &ev
 		s.syncCh <- ev
-		wg.Done()
-	}()
+	})
 
 	if err := s.Unlock(ctx, password); err != nil {
 		return err
@@ -454,6 +498,27 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		// Do nothing here if restore failed.
 		if s.syncEvent == nil {
 			return
+		}
+
+		// Load delegate signer key.
+		prvkeyStr, err := s.Dump(ctx)
+		if err != nil {
+			log.WithError(err).Error("failed to get delegate signer key")
+			return
+		}
+
+		buf, err := hex.DecodeString(prvkeyStr)
+		if err != nil {
+			log.WithError(err).Error("failed to decode delegate signer key")
+			return
+		}
+
+		privkey, pubkey := btcec.PrivKeyFromBytes(buf)
+		s.publicKey = pubkey
+		s.privateKey = privkey
+
+		if s.onUnlock != nil {
+			s.onUnlock()
 		}
 
 		if s.boltzSvc == nil {
@@ -520,20 +585,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			log.WithError(err).Error("failed to start external subscription")
 		}
 
-		// Load delegate signer key.
-		prvkeyStr, err := s.Dump(context.Background())
-		if err != nil {
-			log.WithError(err).Error("failed to get delegate signer key")
-		}
-
-		buf, err := hex.DecodeString(prvkeyStr)
-		if err != nil {
-			log.WithError(err).Error("failed to decode delegate signer key")
-		}
-
-		privkey, pubkey := btcec.PrivKeyFromBytes(buf)
-		s.publicKey = pubkey
-		s.privateKey = privkey
 		// nolint
 		s.swapHandler, _ = swap.NewSwapHandler(
 			s.ArkClient, s.grpcClient, s.indexerClient, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
@@ -693,6 +744,14 @@ func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, 
 	}
 
 	return resp.Txs, nil
+}
+
+func (s *Service) GetDelegateTasks(ctx context.Context, status domain.DelegateTaskStatus, limit int, offset int) ([]domain.DelegateTask, error) {
+	return s.dbSvc.Delegate().GetAll(ctx, status, limit, offset)
+}
+
+func (s *Service) GetDelegateTaskByID(ctx context.Context, id string) (*domain.DelegateTask, error) {
+	return s.dbSvc.Delegate().GetByID(ctx, id)
 }
 
 func (s *Service) GetVtxos(ctx context.Context, filterType string) ([]types.Vtxo, error) {
@@ -1201,64 +1260,6 @@ func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification 
 	return s.notifications
 }
 
-func (s *Service) GetDelegatePublicKey(ctx context.Context) (string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
-	}
-
-	if s.publicKey == nil {
-		return "", fmt.Errorf("delegate service not initialized")
-	}
-
-	return hex.EncodeToString(s.publicKey.SerializeCompressed()), nil
-}
-
-func (s *Service) WatchAddressForRollover(
-	ctx context.Context, address, destinationAddress string, taprootTree []string,
-) error {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return err
-	}
-
-	if address == "" {
-		return fmt.Errorf("missing address")
-	}
-	if len(taprootTree) == 0 {
-		return fmt.Errorf("missing taproot tree")
-	}
-	if destinationAddress == "" {
-		return fmt.Errorf("missing destination address")
-	}
-
-	target := domain.VtxoRolloverTarget{
-		Address:            address,
-		TaprootTree:        taprootTree,
-		DestinationAddress: destinationAddress,
-	}
-
-	return s.dbSvc.VtxoRollover().AddTarget(ctx, target)
-}
-
-func (s *Service) UnwatchAddress(ctx context.Context, address string) error {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return err
-	}
-
-	if address == "" {
-		return fmt.Errorf("missing address")
-	}
-
-	return s.dbSvc.VtxoRollover().DeleteTarget(ctx, address)
-}
-
-func (s *Service) ListWatchedAddresses(ctx context.Context) ([]domain.VtxoRolloverTarget, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return nil, err
-	}
-
-	return s.dbSvc.VtxoRollover().GetAllTargets(ctx)
-}
-
 func (s *Service) IsLocked(ctx context.Context) bool {
 	if s.ArkClient == nil {
 		return true
@@ -1751,32 +1752,6 @@ func (s *Service) RefundChainSwap(ctx context.Context, id string) error {
 	}
 }
 
-func parseLocktime(locktime uint32) arklib.RelativeLocktime {
-	if locktime >= 512 {
-		return arklib.RelativeLocktime{Type: arklib.LocktimeTypeSecond, Value: locktime}
-	}
-
-	return arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: locktime}
-}
-
-func parsePubkey(pubkey string) (*btcec.PublicKey, error) {
-	if len(pubkey) <= 0 {
-		return nil, nil
-	}
-
-	dec, err := hex.DecodeString(pubkey)
-	if err != nil {
-		return nil, fmt.Errorf("invalid pubkey: %s", err)
-	}
-
-	pk, err := btcec.ParsePubKey(dec)
-	if err != nil {
-		return nil, fmt.Errorf("invalid pubkey: %s", err)
-	}
-
-	return pk, nil
-}
-
 func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 	if !s.isInitialized {
 		return fmt.Errorf("service not initialized")
@@ -2262,12 +2237,12 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 
 	if refundLT.IsSeconds() {
 		at := time.Unix(int64(refundLT), 0)
-		if err := s.schedulerSvc.ScheduleRefundAtTime(at, unilateral); err != nil {
+		if err := s.schedulerSvc.ScheduleTaskAtTime(at, unilateral); err != nil {
 			return err
 		}
 		log.Debugf("scheduled unilateral refund of swap %s at %s", swapId, at.Format(time.RFC3339))
 	} else {
-		if err := s.schedulerSvc.ScheduleRefundAtHeight(uint32(refundLT), unilateral); err != nil {
+		if err := s.schedulerSvc.ScheduleTaskAtHeight(uint32(refundLT), unilateral); err != nil {
 			return err
 		}
 		log.Debugf("scheduling vhtlc refund of swap %s at height %d", swapId, int64(refundLT))
@@ -2329,12 +2304,12 @@ func (s *Service) scheduleChainSwapRefund(swapId string, opts vhtlc.Opts) (err e
 
 	if refundLT.IsSeconds() {
 		at := time.Unix(int64(refundLT), 0)
-		if err := s.schedulerSvc.ScheduleRefundAtTime(at, unilateral); err != nil {
+		if err := s.schedulerSvc.ScheduleTaskAtTime(at, unilateral); err != nil {
 			return err
 		}
 		log.Debugf("scheduled unilateral refund of chain swap %s at %s", swapId, at.Format(time.RFC3339))
 	} else {
-		if err := s.schedulerSvc.ScheduleRefundAtHeight(uint32(refundLT), unilateral); err != nil {
+		if err := s.schedulerSvc.ScheduleTaskAtHeight(uint32(refundLT), unilateral); err != nil {
 			return err
 		}
 		log.Debugf("scheduling chain swap vhtlc refund of swap %s at height %d", swapId, int64(refundLT))

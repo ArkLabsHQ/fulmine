@@ -37,7 +37,7 @@ type ServiceConfig struct {
 type service struct {
 	settingsRepo         domain.SettingsRepository
 	vhtlcRepo            domain.VHTLCRepository
-	vtxoRolloverRepo     domain.VtxoRolloverRepository
+	delegateRepo         domain.DelegateRepository
 	swapRepo             domain.SwapRepository
 	subscribedScriptRepo domain.SubscribedScriptRepository
 	chainSwapRepo        domain.ChainSwapRepository
@@ -47,7 +47,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 	var (
 		settingsRepo         domain.SettingsRepository
 		vhtlcRepo            domain.VHTLCRepository
-		vtxoRolloverRepo     domain.VtxoRolloverRepository
+		delegateRepo         domain.DelegateRepository
 		swapRepo             domain.SwapRepository
 		subscribedScriptRepo domain.SubscribedScriptRepository
 		chainSwapRepo        domain.ChainSwapRepository
@@ -78,9 +78,9 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open vhtlc db: %s", err)
 		}
-		vtxoRolloverRepo, err = badgerdb.NewVtxoRolloverRepository(baseDir, logger)
+		delegateRepo, err = badgerdb.NewDelegateRepository(baseDir, logger)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open vtxo rollover db: %s", err)
+			return nil, fmt.Errorf("failed to open delegate db: %s", err)
 		}
 		swapRepo, err = badgerdb.NewSwapRepository(baseDir, logger)
 		if err != nil {
@@ -154,9 +154,9 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open vhtlc db: %s", err)
 		}
-		vtxoRolloverRepo, err = sqlitedb.NewVtxoRolloverRepository(db)
+		delegateRepo, err = sqlitedb.NewDelegateRepository(db)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open vtxo rollover db: %s", err)
+			return nil, fmt.Errorf("failed to open delegate db: %s", err)
 		}
 		swapRepo, err = sqlitedb.NewSwapRepository(db)
 		if err != nil {
@@ -180,7 +180,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 	return &service{
 		settingsRepo:         settingsRepo,
 		vhtlcRepo:            vhtlcRepo,
-		vtxoRolloverRepo:     vtxoRolloverRepo,
+		delegateRepo:         delegateRepo,
 		swapRepo:             swapRepo,
 		subscribedScriptRepo: subscribedScriptRepo,
 		chainSwapRepo:        chainSwapRepo,
@@ -195,8 +195,8 @@ func (s *service) VHTLC() domain.VHTLCRepository {
 	return s.vhtlcRepo
 }
 
-func (s *service) VtxoRollover() domain.VtxoRolloverRepository {
-	return s.vtxoRolloverRepo
+func (s *service) Delegate() domain.DelegateRepository {
+	return s.delegateRepo
 }
 
 func (s *service) Swap() domain.SwapRepository {
@@ -214,7 +214,7 @@ func (s *service) ChainSwaps() domain.ChainSwapRepository {
 func (s *service) Close() {
 	s.settingsRepo.Close()
 	s.vhtlcRepo.Close()
-	s.vtxoRolloverRepo.Close()
+	s.delegateRepo.Close()
 	s.swapRepo.Close()
 	s.subscribedScriptRepo.Close()
 }

@@ -1,7 +1,7 @@
 .PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-mutinynet run-2 run-cln test test-vhtlc vet proto proto-lint up-test-env setup-arkd down-test-env
 
 GOLANGCI_LINT ?= $(shell \
-	echo "docker run --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v2.5.0 golangci-lint"; \
+	echo "docker run --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v2.9.0 golangci-lint"; \
 )
 
 define setup_env

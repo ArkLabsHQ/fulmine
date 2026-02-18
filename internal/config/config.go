@@ -37,6 +37,9 @@ type Config struct {
 	SchedulerPollInterval int64
 	ProfilingEnabled      bool
 	RefreshDbInterval     int64
+	DelegatorPort         uint32
+	DelegatorFee          uint64
+	DelegatorEnabled      bool
 
 	UnlockerType     string
 	UnlockerFilePath string
@@ -77,6 +80,9 @@ var (
 	SchedulerPollInterval = "SCHEDULER_POLL_INTERVAL"
 	ProfilingEnabled      = "PROFILING_ENABLED"
 	RefreshDbInterval     = "REFRESH_DB_INTERVAL"
+	DelegatorPort         = "DELEGATOR_PORT"
+	DelegatorFee          = "DELEGATOR_FEE"
+	DelegatorEnabled      = "DELEGATOR_ENABLED"
 
 	// Unlocker configuration
 	UnlockerType     = "UNLOCKER_TYPE"
@@ -105,6 +111,9 @@ var (
 	defaultProfilingEnabled      = false
 	defaultRefreshDbInterval     = 0
 	defaultOtelPushInterval      = 10 // 10 seconds
+	defaultDelegatorPort         = 7002
+	defaultDelegatorFee          = 0
+	defaultDelegatorEnabled      = false
 )
 
 func LoadConfig() (*Config, error) {
@@ -114,6 +123,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(Datadir, defaultDatadir)
 	viper.SetDefault(GRPCPort, defaultGRPCPort)
 	viper.SetDefault(HTTPPort, defaultHTTPPort)
+	viper.SetDefault(DelegatorPort, defaultDelegatorPort)
 	viper.SetDefault(WithTLS, defaultWithTLS)
 	viper.SetDefault(LogLevel, defaultLogLevel)
 	viper.SetDefault(ArkServer, defaultArkServer)
@@ -129,7 +139,10 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(ProfilingEnabled, defaultProfilingEnabled)
 	viper.SetDefault(RefreshDbInterval, defaultRefreshDbInterval)
 	viper.SetDefault(OtelPushInterval, defaultOtelPushInterval)
+	viper.SetDefault(DelegatorFee, defaultDelegatorFee)
+	viper.SetDefault(DelegatorEnabled, defaultDelegatorEnabled)
 
+	// TODO: move to validate method
 	if err := initDatadir(); err != nil {
 		return nil, fmt.Errorf("error while creating datadir: %s", err)
 	}
@@ -150,6 +163,12 @@ func LoadConfig() (*Config, error) {
 	}
 	if viper.GetInt64(SchedulerPollInterval) < 1 {
 		return nil, fmt.Errorf("scheduler poll interval must be at least 1 second")
+	}
+	if viper.GetBool(DelegatorEnabled) {
+		if viper.GetUint32(DelegatorPort) == viper.GetUint32(GRPCPort) ||
+			viper.GetUint32(DelegatorPort) == viper.GetUint32(HTTPPort) {
+			return nil, fmt.Errorf("delegator must not run on same port of the wallet")
+		}
 	}
 
 	config := &Config{
@@ -174,6 +193,9 @@ func LoadConfig() (*Config, error) {
 		OtelCollectorURL:      viper.GetString(OtelCollectorURL),
 		OtelPushInterval:      viper.GetInt64(OtelPushInterval),
 		PyroscopeURL:          viper.GetString(PyroscopeURL),
+		DelegatorPort:         viper.GetUint32(DelegatorPort),
+		DelegatorFee:          viper.GetUint64(DelegatorFee),
+		DelegatorEnabled:      viper.GetBool(DelegatorEnabled),
 
 		LnConnectionOpts: lnConnectionOpts,
 	}

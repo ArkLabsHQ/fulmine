@@ -1,0 +1,163 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "fulmine/v1/delegator.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "DelegatorService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/delegate": {
+      "post": {
+        "summary": "Delegate is consumed by clients to request the delegation of the refresh of their VTXOs",
+        "operationId": "DelegatorService_Delegate",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DelegateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1DelegateRequest"
+            }
+          }
+        ],
+        "tags": [
+          "DelegatorService"
+        ]
+      }
+    },
+    "/v1/delegator/info": {
+      "get": {
+        "summary": "GetDelegatorInfo returns info about the delegator contract",
+        "operationId": "DelegatorService_GetDelegatorInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetDelegatorInfoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "DelegatorService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1DelegateRequest": {
+      "type": "object",
+      "properties": {
+        "intent": {
+          "$ref": "#/definitions/v1Intent",
+          "title": "The partially signed intent that is gonna be registered by the delegator when close enough to\nunderlying VTXOs expiration"
+        },
+        "forfeitTxs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "The partially signed forfeit txs that are gonna be submitted by the delegator when joining\nthe batch execution"
+        },
+        "rejectReplace": {
+          "type": "boolean",
+          "title": "Opt-in flag to instruct the delegator to not replace an existing delegate that includes at\nleast one VTXO included in this request"
+        }
+      },
+      "title": "DelegateRequest is the request message for Delegate rpc"
+    },
+    "v1DelegateResponse": {
+      "type": "object",
+      "title": "DelegateResponse is the response message for Delegate rpc"
+    },
+    "v1GetDelegatorInfoResponse": {
+      "type": "object",
+      "properties": {
+        "pubkey": {
+          "type": "string",
+          "title": "The delegator pubkey to include in the vtxo script"
+        },
+        "fee": {
+          "type": "string",
+          "title": "The service fee applied by the delegator"
+        },
+        "delegatorAddress": {
+          "type": "string",
+          "title": "The delegator address for the service fee, if any"
+        }
+      },
+      "title": "GetDelegatorInfoResponse is the response message for GetDelegatorInfo rpc"
+    },
+    "v1Intent": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "Intent message in plain-text (stringified JSON)"
+        },
+        "proof": {
+          "type": "string",
+          "title": "Intent proof tx (psbt in base64 format)"
+        }
+      },
+      "title": "Intent represents an intent message"
+    }
+  }
+}

@@ -11,14 +11,18 @@ services:
       - type: tmpfs
         target: /var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d nbxplorer -h 127.0.0.1 -p 5432"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d nbxplorer -h 127.0.0.1 -p 5432",
+        ]
       interval: 2s
       timeout: 2s
       retries: 30
   nbxplorer:
     restart: unless-stopped
     container_name: nbxplorer
-    ports: 
+    ports:
       - 32838:32838
     image: nicolasdorier/nbxplorer:2.5.30
     environment:
@@ -40,7 +44,7 @@ services:
         target: /datadir
     depends_on:
       pgnbxplorer:
-        condition: service_healthy 
+        condition: service_healthy
   arkd-wallet:
     restart: unless-stopped
     build:
@@ -68,6 +72,7 @@ services:
     depends_on:
       - arkd-wallet
     ports:
+      - "7071:7071"
       - "7070:7070"
       - "7071:7071"
     environment:
@@ -107,9 +112,11 @@ services:
       - FULMINE_DISABLE_TELEMETRY=true
       - FULMINE_SWAP_TIMEOUT=120
       - FULMINE_SCHEDULER_POLL_INTERVAL=10
+      - FULMINE_DELEGATOR_ENABLED=true
     ports:
       - "7000:7000"
       - "7001:7001"
+      - "7004:7002"
     volumes:
       - fulmine_data:/app/data
 
@@ -163,7 +170,7 @@ services:
       - fulmine_mock_data:/app/data
 
   boltz-cln:
-    build: 
+    build:
       context: .
       dockerfile: cln.Dockerfile
     restart: unless-stopped
@@ -176,7 +183,7 @@ services:
     command:
       - --bind-addr=0.0.0.0:9735
       - --bitcoin-rpcconnect=bitcoin:18443
-      - --bitcoin-rpcpassword=123 
+      - --bitcoin-rpcpassword=123
       - --bitcoin-rpcuser=admin1
       - --log-level=debug
       - --network=regtest
@@ -194,54 +201,62 @@ services:
     restart: unless-stopped
     container_name: boltz-lnd
     healthcheck:
-      test: ["CMD", "lncli", "--rpcserver=localhost:10009", "--macaroonpath=/root/.lnd/data/chain/bitcoin/regtest/admin.macaroon", "--tlscertpath=/root/.lnd/tls.cert", "getinfo"]
+      test:
+        [
+          "CMD",
+          "lncli",
+          "--rpcserver=localhost:10009",
+          "--macaroonpath=/root/.lnd/data/chain/bitcoin/regtest/admin.macaroon",
+          "--tlscertpath=/root/.lnd/tls.cert",
+          "getinfo",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
     command:
-      - '--bitcoin.regtest'
-      - '--bitcoin.node=bitcoind'
-      - '--maxpendingchannels=10'
-      - '--rpclisten=0.0.0.0:10009'
-      - '--bitcoind.rpchost=bitcoin:18443'
-      - '--bitcoind.rpcuser=admin1'
-      - '--bitcoind.rpcpass=123'
-      - '--bitcoind.zmqpubrawblock=tcp://bitcoin:28332'
-      - '--bitcoind.zmqpubrawtx=tcp://bitcoin:28333'
-      - '--db.bolt.auto-compact'
-      - '--db.prune-revocation'
-      - '--alias=Ark Labs'
-      - '--tlsextradomain=boltz-lnd'
-      - '--protocol.option-scid-alias'
-      - '--protocol.wumbo-channels'
-      - '--accept-keysend'
-      - '--minchansize=25000'
-      - '--noseedbackup'
-      - '--gc-canceled-invoices-on-startup'
-      - '--coin-selection-strategy=random'
-      - '--protocol.custom-message=513'
-      - '--protocol.custom-nodeann=39'
-      - '--protocol.custom-init=39'
-      - '--no-rest-tls'
-      - '--restcors=*'
+      - "--bitcoin.regtest"
+      - "--bitcoin.node=bitcoind"
+      - "--maxpendingchannels=10"
+      - "--rpclisten=0.0.0.0:10009"
+      - "--bitcoind.rpchost=bitcoin:18443"
+      - "--bitcoind.rpcuser=admin1"
+      - "--bitcoind.rpcpass=123"
+      - "--bitcoind.zmqpubrawblock=tcp://bitcoin:28332"
+      - "--bitcoind.zmqpubrawtx=tcp://bitcoin:28333"
+      - "--db.bolt.auto-compact"
+      - "--db.prune-revocation"
+      - "--alias=Ark Labs"
+      - "--tlsextradomain=boltz-lnd"
+      - "--protocol.option-scid-alias"
+      - "--protocol.wumbo-channels"
+      - "--accept-keysend"
+      - "--minchansize=25000"
+      - "--noseedbackup"
+      - "--gc-canceled-invoices-on-startup"
+      - "--coin-selection-strategy=random"
+      - "--protocol.custom-message=513"
+      - "--protocol.custom-nodeann=39"
+      - "--protocol.custom-init=39"
+      - "--no-rest-tls"
+      - "--restcors=*"
     volumes:
       - lnd_datadir:/root/.lnd
     ports:
-      - '9736:9735'
-      - '10010:10009'
+      - "9736:9735"
+      - "10010:10009"
   boltz:
     restart: unless-stopped
     image: boltz/boltz:latest
     container_name: boltz
     ports:
-      - '9000:9000'
-      - '9001:9001'
-      - '9004:9004'
-      - '9005:9005'
+      - "9000:9000"
+      - "9001:9001"
+      - "9004:9004"
+      - "9005:9005"
     expose:
-      - '9001'
-      - '9004'
-      - '9005'
+      - "9001"
+      - "9004"
+      - "9005"
     depends_on:
       boltz-postgres:
         condition: service_healthy
@@ -263,7 +278,7 @@ services:
         claim = 10 # 10 mins
         refund = 10 # 10 mins
         refundWithoutReceiver = 20 # 20 mins
-        
+
         [api]
         host = "0.0.0.0"
         port = 9001
@@ -372,7 +387,7 @@ services:
       POSTGRES_DB: boltz
       POSTGRES_HOST_AUTH_METHOD: trust
     expose:
-      - '5432'
+      - "5432"
     volumes:
       - postgres_datadir:/var/lib/postgresql/data
   boltz-fulmine:

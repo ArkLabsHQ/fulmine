@@ -1,6 +1,6 @@
 module github.com/ArkLabsHQ/fulmine/pkg/swap
 
-go 1.25.5
+go 1.25.7
 
 require (
 	github.com/nbd-wtf/ln-decodepay v1.13.0
@@ -11,7 +11,7 @@ require (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-20260116135645-5d6845a62019
 	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260102141947-c66f85422174
-	github.com/arkade-os/go-sdk v0.8.2-0.20260121113217-12e71e4566e6
+	github.com/arkade-os/go-sdk v0.8.2-0.20260209154302-0dfe674a2164
 	github.com/ccoveille/go-safecast v1.6.1
 )
 
@@ -30,7 +30,7 @@ require (
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/google/cel-go v0.26.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/lightningnetwork/lightning-onion v1.2.1-0.20240712235311-98bd56499dfb // indirect
@@ -50,6 +50,8 @@ require (
 	go.etcd.io/etcd/client/v2 v2.305.16 // indirect
 	go.etcd.io/etcd/pkg/v3 v3.5.16 // indirect
 	go.etcd.io/etcd/raft/v3 v3.5.16 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.38.0 // indirect
+	go.opentelemetry.io/proto/otlp v1.7.1 // indirect
 	golang.org/x/mod v0.28.0 // indirect
 	golang.org/x/net v0.46.1-0.20251013234738-63d1a5100f82 // indirect
 	golang.org/x/text v0.30.0 // indirect
@@ -108,6 +110,7 @@ require (
 )
 
 replace (
+	github.com/ArkLabsHQ/fulmine => ../..
 	github.com/ArkLabsHQ/fulmine/pkg/boltz => ../boltz
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc => ../vhtlc
 )
