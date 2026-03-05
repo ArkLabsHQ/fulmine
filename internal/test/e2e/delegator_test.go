@@ -10,6 +10,7 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/arkade-os/arkd/pkg/ark-lib/asset"
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
@@ -1398,4 +1399,322 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	}
 	require.NotNil(t, leafVtxo)
 	require.Equal(t, int(aliceOutputAmount), int(leafVtxo.Amount))
+}
+
+// TestDelegateWithAssets tests delegation of an asset VTXO.
+// It issues an asset, sends it to a delegation address, delegates via the
+// delegator service, waits for the round to complete, and asserts that the
+// refreshed VTXO carries the correct asset balance.
+func TestDelegateWithAssets(t *testing.T) {
+	ctx := t.Context()
+	alice, _, alicePubKey, grpcClient := setupArkSDKwithPublicKey(t)
+	defer alice.Stop()
+	defer grpcClient.Close()
+
+	delegatorClient, err := newDelegatorClient("localhost:7004")
+	require.NoError(t, err)
+	require.NotNil(t, delegatorClient)
+
+	delegateInfo, err := delegatorClient.GetDelegatorInfo(ctx, &pb.GetDelegatorInfoRequest{})
+	require.NoError(t, err)
+	require.NotEmpty(t, delegateInfo.GetPubkey())
+	require.NotEmpty(t, delegateInfo.GetFee())
+
+	delegatorPubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
+	require.NoError(t, err)
+	delegatorPubKey, err := btcec.ParsePubKey(delegatorPubKeyBytes)
+	require.NoError(t, err)
+	require.NotNil(t, delegatorPubKey)
+
+	_, aliceAddr, _, _, err := alice.GetAddresses(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, aliceAddr)
+
+	aliceArkAddr, err := arklib.DecodeAddressV0(aliceAddr[0])
+	require.NoError(t, err)
+	require.NotNil(t, aliceArkAddr)
+
+	aliceConfig, err := alice.GetConfigData(ctx)
+	require.NoError(t, err)
+
+	signerPubKey := aliceConfig.SignerPubKey
+
+	// --- Set up delegation tapscript (same 3-closure structure as TestDelegate) ---
+	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
+		PubKeys: []*btcec.PublicKey{alicePubKey, delegatorPubKey, signerPubKey},
+	}
+
+	exitLocktime := arklib.RelativeLocktime{
+		Type:  arklib.LocktimeTypeSecond,
+		Value: 1024,
+	}
+
+	delegationVtxoScript := script.TapscriptsVtxoScript{
+		Closures: []script.Closure{
+			collaborativeAliceDelegatorClosure,
+			&script.MultisigClosure{
+				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
+			},
+			&script.CSVMultisigClosure{
+				Locktime: exitLocktime,
+				MultisigClosure: script.MultisigClosure{
+					PubKeys: []*btcec.PublicKey{alicePubKey},
+				},
+			},
+		},
+	}
+
+	vtxoTapKey, vtxoTapTree, err := delegationVtxoScript.TapTree()
+	require.NoError(t, err)
+
+	arkAddress := arklib.Address{
+		HRP:        "tark",
+		VtxoTapKey: vtxoTapKey,
+		Signer:     signerPubKey,
+	}
+
+	arkAddressStr, err := arkAddress.EncodeV0()
+	require.NoError(t, err)
+
+	// --- Fund alice and issue asset ---
+	// Fund alice with enough BTC for the asset issuance and transfer.
+	faucetOffchain(t, alice, 0.001)
+
+	const assetSupply = 5000
+	assetId := issueAsset(t, alice, assetSupply)
+
+	// Allow time for the indexer to pick up the issuance.
+	time.Sleep(3 * time.Second)
+
+	assetVtxos := listVtxosWithAsset(t, alice, assetId)
+	require.NotEmpty(t, assetVtxos, "alice should have the issued asset VTXO")
+	requireVtxoHasAsset(t, assetVtxos[0], assetId, assetSupply)
+
+	// --- Send asset VTXO to the delegation address ---
+	// Asset VTXOs carry a BTC dust amount; the actual asset amount is in the Assets field.
+	const assetTransferAmount = 5000
+	const btcDustAmount = 450
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	var incomingFunds []types.Vtxo
+	var incomingErr error
+	go func() {
+		incomingFunds, incomingErr = alice.NotifyIncomingFunds(ctx, arkAddressStr)
+		wg.Done()
+	}()
+	_, err = alice.SendOffChain(ctx, []types.Receiver{{
+		To:     arkAddressStr,
+		Amount: btcDustAmount,
+		Assets: []types.Asset{{AssetId: assetId, Amount: assetTransferAmount}},
+	}})
+	require.NoError(t, err)
+
+	wg.Wait()
+	require.NoError(t, incomingErr)
+	require.NotEmpty(t, incomingFunds)
+
+	aliceVtxo := incomingFunds[0]
+
+	// --- Build intent proof ---
+	intentMessage := intent.RegisterMessage{
+		BaseMessage: intent.BaseMessage{
+			Type: intent.IntentMessageTypeRegister,
+		},
+		CosignersPublicKeys: []string{delegateInfo.GetPubkey()},
+		ValidAt:             time.Now().Add(3 * time.Second).Unix(),
+		ExpireAt:            0,
+	}
+
+	encodedIntentMessage, err := intentMessage.Encode()
+	require.NoError(t, err)
+
+	vtxoHash, err := chainhash.NewHashFromStr(aliceVtxo.Txid)
+	require.NoError(t, err)
+
+	exitScript, err := delegationVtxoScript.ExitClosures()[0].Script()
+	require.NoError(t, err)
+
+	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(exitScript).TapHash(),
+	)
+	require.NoError(t, err)
+
+	sequence, err := arklib.BIP68Sequence(exitLocktime)
+	require.NoError(t, err)
+
+	delegatePkScript, err := arkAddress.GetPkScript()
+	require.NoError(t, err)
+
+	alicePkScript, err := aliceArkAddr.GetPkScript()
+	require.NoError(t, err)
+
+	// Build the asset packet for the intent proof.
+	// The asset packet tells arkd which assets to carry over in the refreshed VTXO.
+	assetIdParsed, err := asset.NewAssetIdFromString(assetId)
+	require.NoError(t, err)
+
+	assetInput, err := asset.NewAssetInput(1, assetTransferAmount) // vin=1 (PSBT input index; 0 is the toSpend fake input)
+	require.NoError(t, err)
+
+	assetOutput, err := asset.NewAssetOutput(0, assetTransferAmount) // vout=0 (alice's P2TR output)
+	require.NoError(t, err)
+
+	assetGroup, err := asset.NewAssetGroup(
+		assetIdParsed, nil, []asset.AssetInput{*assetInput}, []asset.AssetOutput{*assetOutput}, nil,
+	)
+	require.NoError(t, err)
+
+	assetPacket, err := asset.NewPacket([]asset.AssetGroup{*assetGroup})
+	require.NoError(t, err)
+
+	assetPacketTxOut, err := assetPacket.TxOut()
+	require.NoError(t, err)
+
+	// The intent proof uses the BTC amount from the VTXO (dust), not the asset amount.
+	// Include the asset packet OP_RETURN output so arkd propagates asset data to the leaf tx.
+	intentProof, err := intent.New(
+		encodedIntentMessage,
+		[]intent.Input{
+			{
+				OutPoint: &wire.OutPoint{
+					Hash:  *vtxoHash,
+					Index: aliceVtxo.VOut,
+				},
+				Sequence: sequence,
+				WitnessUtxo: &wire.TxOut{
+					Value:    int64(aliceVtxo.Amount),
+					PkScript: delegatePkScript,
+				},
+			},
+		},
+		[]*wire.TxOut{
+			{
+				Value:    int64(aliceVtxo.Amount),
+				PkScript: alicePkScript,
+			},
+			assetPacketTxOut,
+		},
+	)
+	require.NoError(t, err)
+
+	tapLeafScript := &psbt.TaprootTapLeafScript{
+		ControlBlock: exitScriptMerkleProof.ControlBlock,
+		Script:       exitScriptMerkleProof.Script,
+		LeafVersion:  txscript.BaseLeafVersion,
+	}
+
+	intentProof.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
+	intentProof.Inputs[1].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
+
+	scripts, err := delegationVtxoScript.Encode()
+	require.NoError(t, err)
+
+	tapTree := txutils.TapTree(scripts)
+
+	err = txutils.SetArkPsbtField(&intentProof.Packet, 1, txutils.VtxoTaprootTreeField, tapTree)
+	require.NoError(t, err)
+
+	unsignedIntentProof, err := intentProof.B64Encode()
+	require.NoError(t, err)
+
+	signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
+	require.NoError(t, err)
+
+	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
+	require.NoError(t, err)
+
+	encodedIntentProof, err := signedIntentProofPsbt.B64Encode()
+	require.NoError(t, err)
+
+	// --- Build forfeit tx ---
+	forfeitOutputAddr, err := btcutil.DecodeAddress(aliceConfig.ForfeitAddress, nil)
+	require.NoError(t, err)
+
+	forfeitOutputScript, err := txscript.PayToAddrScript(forfeitOutputAddr)
+	require.NoError(t, err)
+
+	connectorAmount := aliceConfig.Dust
+
+	// Forfeit tx uses the BTC amount from the VTXO.
+	partialForfeitTx, err := tree.BuildForfeitTxWithOutput(
+		[]*wire.OutPoint{{
+			Hash:  *vtxoHash,
+			Index: aliceVtxo.VOut,
+		}},
+		[]uint32{wire.MaxTxInSequenceNum},
+		[]*wire.TxOut{{
+			Value:    int64(aliceVtxo.Amount),
+			PkScript: delegatePkScript,
+		}},
+		&wire.TxOut{
+			Value:    int64(aliceVtxo.Amount + connectorAmount),
+			PkScript: forfeitOutputScript,
+		},
+		0,
+	)
+	require.NoError(t, err)
+
+	updater, err := psbt.NewUpdater(partialForfeitTx)
+	require.NoError(t, err)
+	require.NotNil(t, updater)
+
+	err = updater.AddInSighashType(txscript.SigHashAnyOneCanPay|txscript.SigHashAll, 0)
+	require.NoError(t, err)
+
+	aliceDelegatorScript, err := collaborativeAliceDelegatorClosure.Script()
+	require.NoError(t, err)
+
+	aliceDelegatorMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(aliceDelegatorScript).TapHash(),
+	)
+	require.NoError(t, err)
+
+	aliceDelegatorTapLeafScript := &psbt.TaprootTapLeafScript{
+		ControlBlock: aliceDelegatorMerkleProof.ControlBlock,
+		Script:       aliceDelegatorMerkleProof.Script,
+		LeafVersion:  txscript.BaseLeafVersion,
+	}
+
+	updater.Upsbt.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{aliceDelegatorTapLeafScript}
+
+	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
+	require.NoError(t, err)
+
+	signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
+	require.NoError(t, err)
+
+	// --- Delegate ---
+	_, err = delegatorClient.Delegate(ctx, &pb.DelegateRequest{
+		Intent: &pb.Intent{
+			Message: encodedIntentMessage,
+			Proof:   encodedIntentProof,
+		},
+		ForfeitTxs: []string{signedPartialForfeitTx},
+	})
+	require.NoError(t, err)
+
+	// Wait for the delegator to process the round.
+	time.Sleep(30 * time.Second)
+
+	// --- Verify the refreshed VTXO ---
+	allSpendable, _, err := alice.ListVtxos(ctx)
+	require.NoError(t, err)
+
+	// Find the refreshed VTXO: non-preconfirmed, carrying the BTC dust amount.
+	var refreshedVtxo *types.Vtxo
+	for _, v := range allSpendable {
+		if !v.Preconfirmed && v.Amount == btcDustAmount {
+			refreshedVtxo = &v
+			break
+		}
+	}
+	require.NotNil(t, refreshedVtxo, "expected a non-preconfirmed VTXO with dust amount after delegation")
+	require.Equal(t, int(btcDustAmount), int(refreshedVtxo.Amount))
+
+	// Verify the refreshed VTXO carries the asset data.
+	refreshedAssetVtxos := listVtxosWithAsset(t, alice, assetId)
+	require.NotEmpty(t, refreshedAssetVtxos, "expected at least one VTXO with asset %s after delegation", assetId)
+	requireVtxoHasAsset(t, refreshedAssetVtxos[0], assetId, assetTransferAmount)
+	require.False(t, refreshedAssetVtxos[0].Preconfirmed, "refreshed asset VTXO should not be preconfirmed after delegation round")
 }

@@ -362,3 +362,42 @@ func setupArkSDKwithPublicKey(
 
 	return client, wallet, privkey.PubKey(), grpcClient
 }
+
+// issueAsset issues a new asset with the given supply and returns the asset ID string.
+func issueAsset(t *testing.T, client arksdk.ArkClient, supply uint64) string {
+	t.Helper()
+	_, assetIds, err := client.IssueAsset(t.Context(), supply, nil, nil)
+	require.NoError(t, err)
+	require.Len(t, assetIds, 1)
+	return assetIds[0].String()
+}
+
+// listVtxosWithAsset returns all spendable VTXOs that contain the given asset ID.
+func listVtxosWithAsset(t *testing.T, client arksdk.ArkClient, assetID string) []types.Vtxo {
+	t.Helper()
+	vtxos, _, err := client.ListVtxos(t.Context())
+	require.NoError(t, err)
+
+	assetVtxos := make([]types.Vtxo, 0, len(vtxos))
+	for _, vtxo := range vtxos {
+		for _, asset := range vtxo.Assets {
+			if asset.AssetId == assetID {
+				assetVtxos = append(assetVtxos, vtxo)
+				break
+			}
+		}
+	}
+	return assetVtxos
+}
+
+// requireVtxoHasAsset asserts that the given VTXO contains an asset with the given ID and amount.
+func requireVtxoHasAsset(t *testing.T, vtxo types.Vtxo, assetID string, expectedAmount uint64) {
+	t.Helper()
+	for _, asset := range vtxo.Assets {
+		if asset.AssetId == assetID {
+			require.Equal(t, expectedAmount, asset.Amount, "asset %s amount mismatch", assetID)
+			return
+		}
+	}
+	t.Fatalf("vtxo %s:%d does not contain asset %s", vtxo.Txid, vtxo.VOut, assetID)
+}
