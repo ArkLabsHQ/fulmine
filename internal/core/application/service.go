@@ -28,8 +28,7 @@ import (
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/client"
 	grpcclient "github.com/arkade-os/go-sdk/client/grpc"
-	indexer "github.com/arkade-os/go-sdk/indexer"
-	indexerTransport "github.com/arkade-os/go-sdk/indexer/grpc"
+	"github.com/arkade-os/go-sdk/indexer"
 	"github.com/arkade-os/go-sdk/store"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -90,12 +89,10 @@ type Service struct {
 	BuildInfo BuildInfo
 
 	arksdk.ArkClient
-	storeCfg      store.Config
-	storeRepo     types.Store
-	dbSvc         ports.RepoManager
-	grpcClient    client.TransportClient
-	indexerClient indexer.Indexer
-	schedulerSvc  ports.SchedulerService
+	storeCfg     store.Config
+	storeRepo    types.Store
+	dbSvc        ports.RepoManager
+	schedulerSvc ports.SchedulerService
 	lnSvc         ports.LnService
 	boltzSvc      *boltz.Api
 	swapHandler   *swap.SwapHandler
@@ -206,24 +203,12 @@ func newService(
 			return nil, err
 		}
 
-		grpcClient, err := grpcclient.NewClient(data.ServerUrl)
-		if err != nil {
-			return nil, err
-		}
-
-		indexerClient, err := indexerTransport.NewClient(data.ServerUrl)
-		if err != nil {
-			return nil, err
-		}
-
 		svc := &Service{
 			BuildInfo:             buildInfo,
 			ArkClient:             arkClient,
 			storeCfg:              storeCfg,
 			storeRepo:             storeSvc,
 			dbSvc:                 dbSvc,
-			grpcClient:            grpcClient,
-			indexerClient:         indexerClient,
 			schedulerSvc:          schedulerSvc,
 			publicKey:             nil,
 			isInitialized:         true,
@@ -271,7 +256,6 @@ func newService(
 		storeCfg:              storeCfg,
 		storeRepo:             storeSvc,
 		dbSvc:                 dbSvc,
-		grpcClient:            nil,
 		schedulerSvc:          schedulerSvc,
 		notifications:         make(chan Notification),
 		stopVtxoEventListener: make(chan struct{}),
@@ -288,6 +272,14 @@ func newService(
 
 func (s *Service) IsInitialized() bool {
 	return s.isInitialized
+}
+
+func (s *Service) transport() client.TransportClient {
+	return s.ArkClient.GetTransport()
+}
+
+func (s *Service) indexer() indexer.Indexer {
+	return s.ArkClient.GetIndexer()
 }
 
 func (s *Service) IsSynced() (bool, error) {
@@ -337,17 +329,15 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		return fmt.Errorf("invalid server URL: %w", err)
 	}
 
-	client, err := grpcclient.NewClient(validatedServerUrl)
+	// Temporary gRPC client to fetch server info before Init().
+	// Init() will create its own transport/indexer inside ArkClient.
+	tmpClient, err := grpcclient.NewClient(validatedServerUrl)
 	if err != nil {
 		return err
 	}
 
-	indexerClient, err := indexerTransport.NewClient(validatedServerUrl)
-	if err != nil {
-		return err
-	}
-
-	infos, err := client.GetInfo(ctx)
+	infos, err := tmpClient.GetInfo(ctx)
+	tmpClient.Close()
 	if err != nil {
 		return err
 	}
@@ -394,8 +384,6 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	s.esploraUrl = config.ExplorerURL
 	s.publicKey = prvKey.PubKey()
 	s.privateKey = prvKey
-	s.grpcClient = client
-	s.indexerClient = indexerClient
 	s.isInitialized = true
 
 	// Revitilise all Swaps If Present
@@ -578,7 +566,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		s.externalSubscription = newSubscriptionHandler(
-			settings.ServerUrl, s.dbSvc.SubscribedScript(), s.handleAddressEventChannel(arkConfig),
+			s.indexer(), s.dbSvc.SubscribedScript(), s.handleAddressEventChannel(arkConfig),
 		)
 
 		if err := s.externalSubscription.start(); err != nil {
@@ -587,7 +575,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 		// nolint
 		s.swapHandler, _ = swap.NewSwapHandler(
-			s.ArkClient, s.grpcClient, s.indexerClient, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
+			s.ArkClient, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
 		)
 
 		go s.recoverChainSwaps(context.Background(), arkConfig)
@@ -730,7 +718,7 @@ func (s *Service) GetRound(ctx context.Context, roundId string) (*indexer.Commit
 	if !s.isInitialized {
 		return nil, fmt.Errorf("service not initialized")
 	}
-	return s.indexerClient.GetCommitmentTx(ctx, roundId)
+	return s.indexer().GetCommitmentTx(ctx, roundId)
 }
 
 func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, error) {
@@ -738,7 +726,7 @@ func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, 
 		return nil, fmt.Errorf("service not initialized")
 	}
 
-	resp, err := s.indexerClient.GetVirtualTxs(ctx, txids)
+	resp, err := s.indexer().GetVirtualTxs(ctx, txids)
 	if err != nil {
 		return nil, err
 	}
@@ -795,7 +783,7 @@ func (s *Service) GetVtxos(ctx context.Context, filterType string) ([]types.Vtxo
 		return nil, err
 	}
 
-	resp, err := s.indexerClient.GetVtxos(ctx, option)
+	resp, err := s.indexer().GetVtxos(ctx, option)
 	if err != nil {
 		return nil, err
 	}
@@ -1910,7 +1898,7 @@ func (s *Service) restoreSwapHistory(ctx context.Context) error {
 		// nolint
 		option.WithScripts(refundedSubmarineSwaps)
 
-		resp, err := s.indexerClient.GetVtxos(ctx, option)
+		resp, err := s.indexer().GetVtxos(ctx, option)
 		if err != nil {
 			return fmt.Errorf("failed to fetch vtxos for refunded swaps: %s", err)
 		}
@@ -1935,7 +1923,7 @@ func (s *Service) restoreSwapHistory(ctx context.Context) error {
 		// nolint
 		option.WithScripts(successfulReverseSwaps)
 
-		resp, err := s.indexerClient.GetVtxos(ctx, option)
+		resp, err := s.indexer().GetVtxos(ctx, option)
 		if err != nil {
 			return fmt.Errorf("failed to fetch vtxos for successful reverse swaps: %s", err)
 		}

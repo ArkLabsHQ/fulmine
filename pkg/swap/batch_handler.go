@@ -37,8 +37,7 @@ type batchSessionArgs struct {
 
 type batchSessionHandler struct {
 	musig2BatchSessionHandler
-	arkClient       arksdk.ArkClient
-	transportClient client.TransportClient
+	arkClient arksdk.ArkClient
 
 	intentId       string
 	vtxos          []client.TapscriptsVtxo
@@ -93,14 +92,13 @@ func newBatchSessionHandler(
 			SignerSession:   signerSession,
 			TransportClient: transportClient,
 		},
-		arkClient:       arkClient,
-		transportClient: transportClient,
-		intentId:        intentId,
-		vtxos:           vtxos,
-		receivers:       receivers,
-		vhtlcScripts:    vhtlcScripts,
-		config:          config,
-		vtxosToForfeit:  vtxosToForfeit,
+		arkClient:      arkClient,
+		intentId:       intentId,
+		vtxos:          vtxos,
+		receivers:      receivers,
+		vhtlcScripts:   vhtlcScripts,
+		config:         config,
+		vtxosToForfeit: vtxosToForfeit,
 	}, nil
 }
 
@@ -118,7 +116,7 @@ func (h *batchSessionHandler) OnBatchStarted(
 
 	for _, id := range event.HashedIntentIds {
 		if id == hashedIntentId {
-			if err := h.transportClient.ConfirmRegistration(ctx, h.intentId); err != nil {
+			if err := h.TransportClient.ConfirmRegistration(ctx, h.intentId); err != nil {
 				return false, err
 			}
 			h.batchSessionId = event.Id
@@ -249,7 +247,6 @@ type claimBatchSessionHandler struct {
 
 func newClaimBatchSessionHandler(
 	arkClient arksdk.ArkClient,
-	transportClient client.TransportClient,
 	intentId string,
 	vtxos []client.TapscriptsVtxo,
 	receivers []types.Receiver,
@@ -262,7 +259,7 @@ func newClaimBatchSessionHandler(
 		return nil, fmt.Errorf("missing preimage")
 	}
 	handler, err := newBatchSessionHandler(
-		arkClient, transportClient, intentId, vtxos, receivers, vhtlcScripts, config, signerSession,
+		arkClient, arkClient.GetTransport(), intentId, vtxos, receivers, vhtlcScripts, config, signerSession,
 	)
 	if err != nil {
 		return nil, err
@@ -292,7 +289,7 @@ func (h *claimBatchSessionHandler) OnBatchFinalization(
 	}
 
 	if len(forfeits) > 0 {
-		if err := h.transportClient.SubmitSignedForfeitTxs(ctx, forfeits, ""); err != nil {
+		if err := h.TransportClient.SubmitSignedForfeitTxs(ctx, forfeits, ""); err != nil {
 			return fmt.Errorf("failed to submit signed forfeits: %w", err)
 		}
 	}
@@ -355,7 +352,7 @@ func (h *refundBatchSessionHandler) OnBatchFinalization(
 	}
 
 	if len(forfeits) > 0 {
-		if err := h.transportClient.SubmitSignedForfeitTxs(ctx, forfeits, ""); err != nil {
+		if err := h.TransportClient.SubmitSignedForfeitTxs(ctx, forfeits, ""); err != nil {
 			return fmt.Errorf("failed to submit signed forfeits: %w", err)
 		}
 	}
@@ -470,7 +467,7 @@ func (h *collabRefundBatchSessionHandler) OnBatchFinalization(
 		return fmt.Errorf("failed to sign forfeit: %w", err)
 	}
 
-	if err := h.transportClient.SubmitSignedForfeitTxs(ctx, []string{signedForfeitTx}, ""); err != nil {
+	if err := h.TransportClient.SubmitSignedForfeitTxs(ctx, []string{signedForfeitTx}, ""); err != nil {
 		return fmt.Errorf("failed to submit signed forfeit: %w", err)
 	}
 

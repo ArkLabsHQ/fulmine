@@ -36,15 +36,13 @@ import (
 var ErrorNoVtxosFound = fmt.Errorf("no vtxos found for the given vhtlc opts")
 
 type SwapHandler struct {
-	arkClient       arksdk.ArkClient
-	transportClient client.TransportClient
-	indexerClient   indexer.Indexer
-	boltzSvc        *boltz.Api
-	explorerClient  ExplorerClient
-	privateKey      *btcec.PrivateKey
-	publicKey       *btcec.PublicKey
-	timeout         uint32
-	config          types.Config
+	arkClient      arksdk.ArkClient
+	boltzSvc       *boltz.Api
+	explorerClient ExplorerClient
+	privateKey     *btcec.PrivateKey
+	publicKey      *btcec.PublicKey
+	timeout        uint32
+	config         types.Config
 }
 
 type SwapStatus int
@@ -70,8 +68,6 @@ type Swap struct {
 
 func NewSwapHandler(
 	arkClient arksdk.ArkClient,
-	transportClient client.TransportClient,
-	indexerClient indexer.Indexer,
 	boltzSvc *boltz.Api,
 	esploraURL string,
 	privateKey *btcec.PrivateKey,
@@ -82,15 +78,13 @@ func NewSwapHandler(
 		return nil, fmt.Errorf("failed to get config data: %w", err)
 	}
 	return &SwapHandler{
-		arkClient:       arkClient,
-		transportClient: transportClient,
-		indexerClient:   indexerClient,
-		boltzSvc:        boltzSvc,
-		explorerClient:  NewExplorerClient(esploraURL),
-		privateKey:      privateKey,
-		publicKey:       privateKey.PubKey(),
-		timeout:         timeout,
-		config:          *cfg,
+		arkClient:      arkClient,
+		boltzSvc:       boltzSvc,
+		explorerClient: NewExplorerClient(esploraURL),
+		privateKey:     privateKey,
+		publicKey:      privateKey.PubKey(),
+		timeout:        timeout,
+		config:         *cfg,
 	}, nil
 }
 
@@ -279,7 +273,7 @@ func (h *SwapHandler) ClaimVHTLC(
 		checkpointTxs = append(checkpointTxs, tx)
 	}
 
-	arkTxid, finalArkTx, signedCheckpoints, err := h.transportClient.SubmitTx(
+	arkTxid, finalArkTx, signedCheckpoints, err := h.arkClient.GetTransport().SubmitTx(
 		ctx, signedArkTx, checkpointTxs,
 	)
 	if err != nil {
@@ -299,7 +293,7 @@ func (h *SwapHandler) ClaimVHTLC(
 		return "", err
 	}
 
-	if err := h.transportClient.FinalizeTx(ctx, arkTxid, finalCheckpoints); err != nil {
+	if err := h.arkClient.GetTransport().FinalizeTx(ctx, arkTxid, finalCheckpoints); err != nil {
 		return "", err
 	}
 
@@ -478,7 +472,7 @@ func (h *SwapHandler) RefundSwap(
 		return "", fmt.Errorf("failed to encode final refund tx: %s", err)
 	}
 
-	arkTxid, finalRefundTx, serverSignedCheckpoints, err := h.transportClient.SubmitTx(
+	arkTxid, finalRefundTx, serverSignedCheckpoints, err := h.arkClient.GetTransport().SubmitTx(
 		ctx, signedRefund, []string{unsignedCheckpointTx},
 	)
 	if err != nil {
@@ -522,7 +516,7 @@ func (h *SwapHandler) RefundSwap(
 		return "", fmt.Errorf("failed to encode final checkpoint tx: %s", err)
 	}
 
-	if err := h.transportClient.FinalizeTx(ctx, arkTxid, []string{finalCheckpointTx}); err != nil {
+	if err := h.arkClient.GetTransport().FinalizeTx(ctx, arkTxid, []string{finalCheckpointTx}); err != nil {
 		return "", fmt.Errorf("failed to finalize refund tx: %w", err)
 	}
 
@@ -553,20 +547,20 @@ func (h *SwapHandler) SettleVHTLCWithClaimPath(
 		return "", fmt.Errorf("failed to sign intent proof: %w", err)
 	}
 
-	intentID, err := h.transportClient.RegisterIntent(ctx, signedProof, message)
+	intentID, err := h.arkClient.GetTransport().RegisterIntent(ctx, signedProof, message)
 	if err != nil {
 		return "", fmt.Errorf("failed to register VHTLC claim intent: %w", err)
 	}
 
 	topics := getEventTopics(session.vtxos, session.signerSession.GetPublicKey())
-	eventsCh, cancel, err := h.transportClient.GetEventStream(ctx, topics)
+	eventsCh, cancel, err := h.arkClient.GetTransport().GetEventStream(ctx, topics)
 	if err != nil {
 		return "", fmt.Errorf("failed to get event stream: %w", err)
 	}
 	defer cancel()
 
 	claimHandler, err := newClaimBatchSessionHandler(
-		h.arkClient, h.transportClient,
+		h.arkClient,
 		intentID,
 		session.vtxos,
 		[]types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
@@ -608,13 +602,13 @@ func (h *SwapHandler) SettleVhtlcWithRefundPath(
 		return "", fmt.Errorf("failed to sign intent proof: %w", err)
 	}
 
-	intentID, err := h.transportClient.RegisterIntent(ctx, signedProof, message)
+	intentID, err := h.arkClient.GetTransport().RegisterIntent(ctx, signedProof, message)
 	if err != nil {
 		return "", fmt.Errorf("failed to register VHTLC refund intent: %w", err)
 	}
 
 	topics := getEventTopics(session.vtxos, session.signerSession.GetPublicKey())
-	eventsCh, cancel, err := h.transportClient.GetEventStream(ctx, topics)
+	eventsCh, cancel, err := h.arkClient.GetTransport().GetEventStream(ctx, topics)
 	if err != nil {
 		return "", fmt.Errorf("failed to get event stream: %w", err)
 	}
@@ -624,7 +618,7 @@ func (h *SwapHandler) SettleVhtlcWithRefundPath(
 	withoutReceiver := !withReceiver
 	refundHandler, err := newRefundBatchSessionHandler(
 		h.arkClient,
-		h.transportClient,
+		h.arkClient.GetTransport(),
 		intentID,
 		session.vtxos,
 		[]types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
@@ -661,7 +655,7 @@ func (h *SwapHandler) SettleVHTLCWithCollaborativeRefundPath(
 		return "", fmt.Errorf("failed to cosign intent proof: %w", err)
 	}
 
-	intentId, err := h.transportClient.RegisterIntent(ctx, signedProof, message)
+	intentId, err := h.arkClient.GetTransport().RegisterIntent(ctx, signedProof, message)
 	if err != nil {
 		return "", fmt.Errorf("failed to register intent: %w", err)
 	}
@@ -669,7 +663,7 @@ func (h *SwapHandler) SettleVHTLCWithCollaborativeRefundPath(
 	withReceiver := true
 	handler, err := newCollabRefundBatchSessionHandler(
 		h.arkClient,
-		h.transportClient,
+		h.arkClient.GetTransport(),
 		intentId,
 		session.vtxos,
 		[]types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
@@ -685,7 +679,7 @@ func (h *SwapHandler) SettleVHTLCWithCollaborativeRefundPath(
 
 	topics := getEventTopics(session.vtxos, session.signerSession.GetPublicKey())
 
-	eventsCh, cancel, err := h.transportClient.GetEventStream(ctx, topics)
+	eventsCh, cancel, err := h.arkClient.GetTransport().GetEventStream(ctx, topics)
 	if err != nil {
 		return "", fmt.Errorf("failed to get event stream: %w", err)
 	}
@@ -970,7 +964,7 @@ func (h *SwapHandler) getVHTLCFunds(
 	if err := vtxosRequest.WithScripts(scripts); err != nil {
 		return nil, err
 	}
-	resp, err := h.indexerClient.GetVtxos(ctx, vtxosRequest)
+	resp, err := h.arkClient.GetIndexer().GetVtxos(ctx, vtxosRequest)
 	if err != nil {
 		return nil, err
 	}

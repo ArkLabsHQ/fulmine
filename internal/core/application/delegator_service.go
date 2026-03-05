@@ -289,7 +289,7 @@ func (s *DelegatorService) newDelegateTask(
 	if err := opts.WithOutpoints(outpoints); err != nil {
 		return nil, fmt.Errorf("failed to get vtxos: %w", err)
 	}
-	vtxos, err := s.svc.indexerClient.GetVtxos(ctx, opts)
+	vtxos, err := s.svc.indexer().GetVtxos(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get vtxos: %w", err)
 	}
@@ -388,7 +388,7 @@ func (s *DelegatorService) registerDelegate(id string) error {
 		return nil
 	}
 
-	intentId, err := s.svc.grpcClient.RegisterIntent(s.ctx, task.Intent.Proof, task.Intent.Message)
+	intentId, err := s.svc.transport().RegisterIntent(s.ctx, task.Intent.Proof, task.Intent.Message)
 	if err != nil {
 		log.WithError(err).Errorf("failed to register intent for delegate task %s", id)
 		return repo.FailTasks(s.ctx, err.Error(), id)
@@ -417,7 +417,7 @@ func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
 	var stop func()
 	var err error
 
-	connectStream := connectEventStream(s.svc.grpcClient)
+	connectStream := connectEventStream(s.svc.transport())
 
 	eventsCh, stop, err = connectStreamWithRetry(ctx, nil, connectStream)
 	if err != nil {
@@ -510,7 +510,7 @@ func (s *DelegatorService) joinDelegatorBatch(
 
 	// confirm registrations and compute topics
 	for _, selectedTask := range selectedDelegatorTasks {
-		if err := s.svc.grpcClient.ConfirmRegistration(ctx, selectedTask.intentID); err != nil {
+		if err := s.svc.transport().ConfirmRegistration(ctx, selectedTask.intentID); err != nil {
 			log.WithError(err).Warnf(
 				"failed to confirm registration for intent %s", selectedTask.intentID,
 			)
@@ -524,7 +524,7 @@ func (s *DelegatorService) joinDelegatorBatch(
 		}
 	}
 
-	eventsCh, stop, err := s.svc.grpcClient.GetEventStream(ctx, topics)
+	eventsCh, stop, err := s.svc.transport().GetEventStream(ctx, topics)
 	if err != nil {
 		return "", fmt.Errorf(
 			"failed to establish initial connection to event stream with event stream topics: %w",
@@ -541,7 +541,7 @@ func (s *DelegatorService) joinDelegatorBatch(
 	handler := &delegatorBatchSessionHandler{
 		musig2BatchSessionHandler: musig2BatchSessionHandler{
 			SignerSession:   signerSession,
-			TransportClient: s.svc.grpcClient,
+			TransportClient: s.svc.transport(),
 			SweepClosure: script.CSVMultisigClosure{
 				MultisigClosure: script.MultisigClosure{
 					PubKeys: []*btcec.PublicKey{cfg.ForfeitPubKey},
@@ -633,7 +633,7 @@ func (s *DelegatorService) monitorVtxosSpent(ctx context.Context) {
 	var stop func()
 	var err error
 
-	eventsCh, stop, err = connectStreamWithRetry(ctx, nil, s.svc.grpcClient.GetTransactionsStream)
+	eventsCh, stop, err = connectStreamWithRetry(ctx, nil, s.svc.transport().GetTransactionsStream)
 	if err != nil {
 		log.WithError(err).Error("failed to establish initial connection to transaction stream")
 		return
@@ -694,7 +694,7 @@ func (s *DelegatorService) monitorVtxosSpent(ctx context.Context) {
 		case event, ok := <-eventsCh:
 			if !ok {
 				newEventsCh, newStop, err := connectStreamWithRetry(
-					ctx, stop, s.svc.grpcClient.GetTransactionsStream,
+					ctx, stop, s.svc.transport().GetTransactionsStream,
 				)
 				if err != nil {
 					log.WithError(err).Error(
