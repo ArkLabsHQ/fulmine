@@ -18,10 +18,10 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
+	client "github.com/arkade-os/arkd/pkg/client-lib"
+	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
-	"github.com/arkade-os/go-sdk/client"
-	"github.com/arkade-os/go-sdk/indexer"
-	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -42,7 +42,7 @@ type SwapHandler struct {
 	privateKey     *btcec.PrivateKey
 	publicKey      *btcec.PublicKey
 	timeout        uint32
-	config         types.Config
+	config         clientTypes.Config
 }
 
 type SwapStatus int
@@ -145,7 +145,7 @@ func (h *SwapHandler) GetInvoice(
 
 func (h *SwapHandler) GetVHTLCFunds(
 	ctx context.Context, vhtlcOpts []vhtlc.Opts,
-) ([]types.Vtxo, error) {
+) ([]clientTypes.Vtxo, error) {
 	vHTLCs := make([]*vhtlc.VHTLCScript, 0, len(vhtlcOpts))
 	for _, opts := range vhtlcOpts {
 		vHTLC, err := vhtlc.NewVHTLCScriptFromOpts(opts)
@@ -273,7 +273,7 @@ func (h *SwapHandler) ClaimVHTLC(
 		checkpointTxs = append(checkpointTxs, tx)
 	}
 
-	arkTxid, finalArkTx, signedCheckpoints, err := h.arkClient.GetTransport().SubmitTx(
+	arkTxid, finalArkTx, signedCheckpoints, err := h.arkClient.Client().SubmitTx(
 		ctx, signedArkTx, checkpointTxs,
 	)
 	if err != nil {
@@ -293,7 +293,7 @@ func (h *SwapHandler) ClaimVHTLC(
 		return "", err
 	}
 
-	if err := h.arkClient.GetTransport().FinalizeTx(ctx, arkTxid, finalCheckpoints); err != nil {
+	if err := h.arkClient.Client().FinalizeTx(ctx, arkTxid, finalCheckpoints); err != nil {
 		return "", err
 	}
 
@@ -472,7 +472,7 @@ func (h *SwapHandler) RefundSwap(
 		return "", fmt.Errorf("failed to encode final refund tx: %s", err)
 	}
 
-	arkTxid, finalRefundTx, serverSignedCheckpoints, err := h.arkClient.GetTransport().SubmitTx(
+	arkTxid, finalRefundTx, serverSignedCheckpoints, err := h.arkClient.Client().SubmitTx(
 		ctx, signedRefund, []string{unsignedCheckpointTx},
 	)
 	if err != nil {
@@ -516,7 +516,7 @@ func (h *SwapHandler) RefundSwap(
 		return "", fmt.Errorf("failed to encode final checkpoint tx: %s", err)
 	}
 
-	if err := h.arkClient.GetTransport().FinalizeTx(ctx, arkTxid, []string{finalCheckpointTx}); err != nil {
+	if err := h.arkClient.Client().FinalizeTx(ctx, arkTxid, []string{finalCheckpointTx}); err != nil {
 		return "", fmt.Errorf("failed to finalize refund tx: %w", err)
 	}
 
@@ -547,13 +547,13 @@ func (h *SwapHandler) SettleVHTLCWithClaimPath(
 		return "", fmt.Errorf("failed to sign intent proof: %w", err)
 	}
 
-	intentID, err := h.arkClient.GetTransport().RegisterIntent(ctx, signedProof, message)
+	intentID, err := h.arkClient.Client().RegisterIntent(ctx, signedProof, message)
 	if err != nil {
 		return "", fmt.Errorf("failed to register VHTLC claim intent: %w", err)
 	}
 
 	topics := getEventTopics(session.vtxos, session.signerSession.GetPublicKey())
-	eventsCh, cancel, err := h.arkClient.GetTransport().GetEventStream(ctx, topics)
+	eventsCh, cancel, err := h.arkClient.Client().GetEventStream(ctx, topics)
 	if err != nil {
 		return "", fmt.Errorf("failed to get event stream: %w", err)
 	}
@@ -563,7 +563,7 @@ func (h *SwapHandler) SettleVHTLCWithClaimPath(
 		h.arkClient,
 		intentID,
 		session.vtxos,
-		[]types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
+		[]clientTypes.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
 		preimage,
 		map[string]*vhtlc.VHTLCScript{session.vtxos[0].Script: session.vhtlcScript},
 		h.config,
@@ -573,7 +573,7 @@ func (h *SwapHandler) SettleVHTLCWithClaimPath(
 		return "", fmt.Errorf("failed to setup claim batch session handler: %w", err)
 	}
 
-	txid, err := arksdk.JoinBatchSession(ctx, eventsCh, claimHandler)
+	txid, _, _, _, _, err := client.JoinBatchSession(ctx, eventsCh, claimHandler)
 	if err != nil {
 		return "", fmt.Errorf("batch session failed: %w", err)
 	}
@@ -602,13 +602,13 @@ func (h *SwapHandler) SettleVhtlcWithRefundPath(
 		return "", fmt.Errorf("failed to sign intent proof: %w", err)
 	}
 
-	intentID, err := h.arkClient.GetTransport().RegisterIntent(ctx, signedProof, message)
+	intentID, err := h.arkClient.Client().RegisterIntent(ctx, signedProof, message)
 	if err != nil {
 		return "", fmt.Errorf("failed to register VHTLC refund intent: %w", err)
 	}
 
 	topics := getEventTopics(session.vtxos, session.signerSession.GetPublicKey())
-	eventsCh, cancel, err := h.arkClient.GetTransport().GetEventStream(ctx, topics)
+	eventsCh, cancel, err := h.arkClient.Client().GetEventStream(ctx, topics)
 	if err != nil {
 		return "", fmt.Errorf("failed to get event stream: %w", err)
 	}
@@ -618,10 +618,10 @@ func (h *SwapHandler) SettleVhtlcWithRefundPath(
 	withoutReceiver := !withReceiver
 	refundHandler, err := newRefundBatchSessionHandler(
 		h.arkClient,
-		h.arkClient.GetTransport(),
+		h.arkClient.Client(),
 		intentID,
 		session.vtxos,
-		[]types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
+		[]clientTypes.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
 		withoutReceiver,
 		map[string]*vhtlc.VHTLCScript{session.vtxos[0].Script: session.vhtlcScript},
 		h.config,
@@ -632,7 +632,7 @@ func (h *SwapHandler) SettleVhtlcWithRefundPath(
 		return "", fmt.Errorf("failed to setup refund batch session handler: %w", err)
 	}
 
-	txid, err := arksdk.JoinBatchSession(ctx, eventsCh, refundHandler)
+	txid, _, _, _, _, err := client.JoinBatchSession(ctx, eventsCh, refundHandler)
 	if err != nil {
 		return "", fmt.Errorf("batch session failed: %w", err)
 	}
@@ -655,7 +655,7 @@ func (h *SwapHandler) SettleVHTLCWithCollaborativeRefundPath(
 		return "", fmt.Errorf("failed to cosign intent proof: %w", err)
 	}
 
-	intentId, err := h.arkClient.GetTransport().RegisterIntent(ctx, signedProof, message)
+	intentId, err := h.arkClient.Client().RegisterIntent(ctx, signedProof, message)
 	if err != nil {
 		return "", fmt.Errorf("failed to register intent: %w", err)
 	}
@@ -663,10 +663,10 @@ func (h *SwapHandler) SettleVHTLCWithCollaborativeRefundPath(
 	withReceiver := true
 	handler, err := newCollabRefundBatchSessionHandler(
 		h.arkClient,
-		h.arkClient.GetTransport(),
+		h.arkClient.Client(),
 		intentId,
 		session.vtxos,
-		[]types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
+		[]clientTypes.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
 		withReceiver,
 		map[string]*vhtlc.VHTLCScript{session.vtxos[0].Script: session.vhtlcScript},
 		h.config,
@@ -679,13 +679,13 @@ func (h *SwapHandler) SettleVHTLCWithCollaborativeRefundPath(
 
 	topics := getEventTopics(session.vtxos, session.signerSession.GetPublicKey())
 
-	eventsCh, cancel, err := h.arkClient.GetTransport().GetEventStream(ctx, topics)
+	eventsCh, cancel, err := h.arkClient.Client().GetEventStream(ctx, topics)
 	if err != nil {
 		return "", fmt.Errorf("failed to get event stream: %w", err)
 	}
 	defer cancel()
 
-	txid, err := arksdk.JoinBatchSession(ctx, eventsCh, handler)
+	txid, _, _, _, _, err := client.JoinBatchSession(ctx, eventsCh, handler)
 	if err != nil {
 		return "", fmt.Errorf("batch session failed: %w", err)
 	}
@@ -760,7 +760,7 @@ func (h *SwapHandler) submarineSwap(
 		return nil, err
 	}
 
-	receivers := []types.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
+	receivers := []clientTypes.Receiver{{To: swap.Address, Amount: swap.ExpectedAmount}}
 	var txid string
 	for range 3 {
 		// Fund the VHTLC
@@ -945,7 +945,7 @@ func (h *SwapHandler) reverseSwap(
 
 func (h *SwapHandler) getVHTLCFunds(
 	ctx context.Context, vhtlcs []*vhtlc.VHTLCScript,
-) ([]types.Vtxo, error) {
+) ([]clientTypes.Vtxo, error) {
 	scripts := make([]string, 0, len(vhtlcs))
 	for _, vHTLC := range vhtlcs {
 		tapKey, _, err := vHTLC.TapTree()
@@ -964,7 +964,7 @@ func (h *SwapHandler) getVHTLCFunds(
 	if err := vtxosRequest.WithScripts(scripts); err != nil {
 		return nil, err
 	}
-	resp, err := h.arkClient.GetIndexer().GetVtxos(ctx, vtxosRequest)
+	resp, err := h.arkClient.Indexer().GetVtxos(ctx, vtxosRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -1151,7 +1151,7 @@ func (h *SwapHandler) getBatchSessionArgs(
 		signerSession = &ephemeralSignerSession
 	}
 
-	vtxoTapscripts := []client.TapscriptsVtxo{{
+	vtxoTapscripts := []clientTypes.VtxoWithTapTree{{
 		Vtxo:       vtxos[0],
 		Tapscripts: vhtlcScript.GetRevealedTapscripts(),
 	}}

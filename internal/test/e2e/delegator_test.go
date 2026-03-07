@@ -14,7 +14,7 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
-	"github.com/arkade-os/go-sdk/types"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -100,13 +100,13 @@ func TestDelegate(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	var incomingFunds []types.Vtxo
+	var incomingFunds []clientTypes.Vtxo
 	var incomingErr error
 	go func() {
 		incomingFunds, incomingErr = alice.NotifyIncomingFunds(ctx, arkAddressStr)
 		wg.Done()
 	}()
-	_, err = alice.SendOffChain(ctx, []types.Receiver{{
+	_, err = alice.SendOffChain(ctx, []clientTypes.Receiver{{
 		To:     arkAddressStr,
 		Amount: 21000,
 	}})
@@ -350,13 +350,13 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	var incomingFunds []types.Vtxo
+	var incomingFunds []clientTypes.Vtxo
 	var incomingErr error
 	go func() {
 		incomingFunds, incomingErr = alice.NotifyIncomingFunds(ctx, arkAddressStr)
 		wg.Done()
 	}()
-	_, err = alice.SendOffChain(ctx, []types.Receiver{{
+	_, err = alice.SendOffChain(ctx, []clientTypes.Receiver{{
 		To:     arkAddressStr,
 		Amount: 21000,
 	}})
@@ -648,18 +648,18 @@ func TestMultipleDelegate(t *testing.T) {
 	connectorAmount := aliceConfig.Dust
 
 	const numVtxos = 10
-	vtxos := make([]types.Vtxo, 0, numVtxos)
+	vtxos := make([]clientTypes.Vtxo, 0, numVtxos)
 
 	for range numVtxos {
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
-		var incomingFunds []types.Vtxo
+		var incomingFunds []clientTypes.Vtxo
 		var incomingErr error
 		go func() {
 			incomingFunds, incomingErr = alice.NotifyIncomingFunds(ctx, arkAddressStr)
 			wg.Done()
 		}()
-		_, err = alice.SendOffChain(ctx, []types.Receiver{{
+		_, err = alice.SendOffChain(ctx, []clientTypes.Receiver{{
 			To:     arkAddressStr,
 			Amount: 21000,
 		}})
@@ -872,13 +872,13 @@ func TestDelegateSameInput(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	var incomingFunds []types.Vtxo
+	var incomingFunds []clientTypes.Vtxo
 	var incomingErr error
 	go func() {
 		incomingFunds, incomingErr = alice.NotifyIncomingFunds(ctx, arkAddressStr)
 		wg.Done()
 	}()
-	_, err = alice.SendOffChain(ctx, []types.Receiver{{
+	_, err = alice.SendOffChain(ctx, []clientTypes.Receiver{{
 		To:     arkAddressStr,
 		Amount: 21000,
 	}})
@@ -1214,12 +1214,12 @@ func TestDelegateSeveralInputs(t *testing.T) {
 
 	connectorAmount := aliceConfig.Dust
 
-	vtxos := make([]types.Vtxo, 0, numVtxos)
+	vtxos := make([]clientTypes.Vtxo, 0, numVtxos)
 
 	for i := 0; i < numVtxos; i++ {
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
-		var incomingFunds []types.Vtxo
+		var incomingFunds []clientTypes.Vtxo
 		var incomingErr error
 		go func() {
 			incomingFunds, incomingErr = alice.NotifyIncomingFunds(ctx, arkAddressStr)
@@ -1229,7 +1229,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 		if i == numVtxos-1 {
 			amount = 50 // subdust vtxo
 		}
-		_, err = alice.SendOffChain(ctx, []types.Receiver{{
+		_, err = alice.SendOffChain(ctx, []clientTypes.Receiver{{
 			To:     arkAddressStr,
 			Amount: uint64(amount),
 		}})
@@ -1389,7 +1389,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, spendable, 2)
 
-	var leafVtxo *types.Vtxo
+	var leafVtxo *clientTypes.Vtxo
 	for _, vtxo := range spendable {
 		if !vtxo.Preconfirmed {
 			leafVtxo = &vtxo

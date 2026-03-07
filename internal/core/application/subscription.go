@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/arkade-os/go-sdk/indexer"
+	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -19,7 +19,7 @@ type scriptsStore interface {
 type subscriptionHandler struct {
 	indexerClient indexer.Indexer
 	scripts       scriptsStore
-	onEvent       func(event *indexer.ScriptEvent)
+	onEvent       func(event indexer.ScriptEvent)
 
 	mu          sync.Mutex
 	closeFn     func()
@@ -27,7 +27,9 @@ type subscriptionHandler struct {
 	id          string
 }
 
-func newSubscriptionHandler(indexerClient indexer.Indexer, scripts scriptsStore, onEvent func(event *indexer.ScriptEvent)) *subscriptionHandler {
+func newSubscriptionHandler(
+	indexerClient indexer.Indexer, scripts scriptsStore, onEvent func(event indexer.ScriptEvent),
+) *subscriptionHandler {
 	return &subscriptionHandler{
 		indexerClient: indexerClient,
 		scripts:       scripts,

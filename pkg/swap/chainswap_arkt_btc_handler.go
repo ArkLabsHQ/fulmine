@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
-	"github.com/arkade-os/go-sdk/types"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr/musig2"
@@ -99,7 +99,7 @@ func (h *arkToBtcHandler) handleArkToBtcSwapCreated(
 ) error {
 	log.Infof("Swap %s created on Boltz", h.chainSwapState.SwapID)
 
-	receivers := []types.Receiver{
+	receivers := []clientTypes.Receiver{
 		{
 			To:     h.swapResp.LockupDetails.LockupAddress,
 			Amount: h.chainSwapState.Swap.Amount,

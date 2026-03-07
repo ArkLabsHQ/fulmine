@@ -11,8 +11,8 @@ import (
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
-	"github.com/arkade-os/go-sdk/client"
-	"github.com/arkade-os/go-sdk/types"
+	"github.com/arkade-os/arkd/pkg/client-lib/client"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -178,7 +178,7 @@ func connectStreamWithRetry[T any](
 }
 
 func getSpentVtxosFromTransactionEvent(event client.TransactionEvent) []wire.OutPoint {
-	spentVtxos := make([]types.Vtxo, 0)
+	spentVtxos := make([]clientTypes.Vtxo, 0)
 
 	if event.CommitmentTx != nil {
 		spentVtxos = append(spentVtxos, event.CommitmentTx.SpentVtxos...)

@@ -13,7 +13,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
-	"github.com/arkade-os/go-sdk/types"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -180,7 +180,7 @@ func (h *serviceHandler) SendOffChain(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	receivers := []types.Receiver{{To: address, Amount: amount}}
+	receivers := []clientTypes.Receiver{{To: address, Amount: amount}}
 	var arkTxid string
 	for range 3 {
 		arkTxid, err = h.svc.SendOffChain(ctx, receivers)

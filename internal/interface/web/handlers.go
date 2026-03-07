@@ -21,7 +21,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
-	sdktypes "github.com/arkade-os/go-sdk/types"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	qrcode "github.com/skip2/go-qrcode"
@@ -473,7 +473,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 		return
 	}
 
-	receivers := []sdktypes.Receiver{{To: address, Amount: value}}
+	receivers := []clientTypes.Receiver{{To: address, Amount: value}}
 
 	if utils.IsValidArkAddress(address) {
 		for range 3 {
@@ -764,7 +764,9 @@ func (s *service) swapPreview(c *gin.Context) {
 	partialViewHandler(bodyContent, c)
 }
 
-func (s *service) getTransfer(c *gin.Context, transfer types.Transfer, explorerUrl string) templ.Component {
+func (s *service) getTransfer(
+	c *gin.Context, transfer types.Transfer, explorerUrl string,
+) templ.Component {
 	if transfer.Status == "pending" {
 		var nextSettlementStr string
 		nextSettlement := s.svc.WhenNextSettlement(c)
@@ -1005,9 +1007,11 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		transformedSwap := toSwap(swap)
 
 		if transformedSwap.Kind == "submarine" {
-			updatedTransfers, sendTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return swap.FundingTxId != "" && swap.FundingTxId == t.ArkTxid
-			})
+			updatedTransfers, sendTransfer, ok := RemoveFind(
+				transferTxns, func(t clientTypes.Transaction) bool {
+					return swap.FundingTxId != "" && swap.FundingTxId == t.ArkTxid
+				},
+			)
 
 			if ok {
 				transferTxns = updatedTransfers
@@ -1015,9 +1019,11 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 				transformedSwap.VHTLCTransfer = &modifiedSendTransfer
 			}
 
-			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return swap.RedeemTxId != "" && swap.RedeemTxId == t.ArkTxid
-			})
+			updatedTransfers, receiveTransfer, ok := RemoveFind(
+				transferTxns, func(t clientTypes.Transaction) bool {
+					return swap.RedeemTxId != "" && swap.RedeemTxId == t.ArkTxid
+				},
+			)
 			if ok {
 				transferTxns = updatedTransfers
 				modifiedReceiveTransfer := toTransfer(receiveTransfer)
@@ -1025,9 +1031,11 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			}
 
 		} else {
-			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return swap.RedeemTxId != "" && swap.RedeemTxId == t.ArkTxid
-			})
+			updatedTransfers, receiveTransfer, ok := RemoveFind(
+				transferTxns, func(t clientTypes.Transaction) bool {
+					return swap.RedeemTxId != "" && swap.RedeemTxId == t.ArkTxid
+				},
+			)
 
 			if ok {
 				transferTxns = updatedTransfers
@@ -1051,9 +1059,11 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		transformedPayment := toPayment(p)
 
 		if transformedPayment.Kind == "send" {
-			updatedTransfers, sendTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return p.FundingTxId != "" && p.FundingTxId == t.ArkTxid
-			})
+			updatedTransfers, sendTransfer, ok := RemoveFind(
+				transferTxns, func(t clientTypes.Transaction) bool {
+					return p.FundingTxId != "" && p.FundingTxId == t.ArkTxid
+				},
+			)
 
 			if ok {
 				transferTxns = updatedTransfers
@@ -1061,9 +1071,11 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 				transformedPayment.PaymentTransfer = &modifiedSendTransfer
 			}
 
-			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return p.RedeemTxId != "" && p.RedeemTxId == t.ArkTxid
-			})
+			updatedTransfers, receiveTransfer, ok := RemoveFind(
+				transferTxns, func(t clientTypes.Transaction) bool {
+					return p.RedeemTxId != "" && p.RedeemTxId == t.ArkTxid
+				},
+			)
 
 			if ok {
 				transferTxns = updatedTransfers
@@ -1071,9 +1083,11 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 				transformedPayment.ReclaimTransfer = &modifiedReceiveTransfer
 			}
 		} else {
-			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return p.RedeemTxId != "" && p.RedeemTxId == t.ArkTxid
-			})
+			updatedTransfers, receiveTransfer, ok := RemoveFind(
+				transferTxns, func(t clientTypes.Transaction) bool {
+					return p.RedeemTxId != "" && p.RedeemTxId == t.ArkTxid
+				},
+			)
 
 			if ok {
 				transferTxns = updatedTransfers
@@ -1438,10 +1452,10 @@ func toPayment(payment domain.Swap) types.Payment {
 
 }
 
-func toTransfer(tx sdktypes.Transaction) types.Transfer {
+func toTransfer(tx clientTypes.Transaction) types.Transfer {
 	// amount
 	amount := strconv.FormatUint(tx.Amount, 10)
-	if tx.Type == sdktypes.TxSent {
+	if tx.Type == clientTypes.TxSent {
 		amount = "-" + amount
 	}
 	// date of creation
@@ -1495,7 +1509,7 @@ func (s *service) getDelegateTasks(c *gin.Context) {
 
 	statusStr := c.Param("status")
 	offsetStr := c.Param("offset")
-	
+
 	status, err := domain.DelegateTaskStatusFromString(statusStr)
 	if err != nil {
 		toast := components.Toast("Invalid status", true)
@@ -1572,7 +1586,7 @@ func toDelegateTask(task domain.DelegateTask) types.DelegateTask {
 		Fee:                strconv.FormatUint(task.Fee, 10),
 		ScheduledAt:        prettyUnixTimestamp(unixTime),
 		ScheduledAtUnix:    unixTime,
-		ScheduledDate:      prettyDay(unixTime), // Keep for backward compatibility
+		ScheduledDate:      prettyDay(unixTime),  // Keep for backward compatibility
 		ScheduledHour:      prettyHour(unixTime), // Keep for backward compatibility
 		FailReason:         task.FailReason,
 		CommitmentTxid:     task.CommitmentTxid,

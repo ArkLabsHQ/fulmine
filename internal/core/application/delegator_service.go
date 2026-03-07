@@ -15,9 +15,9 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
-	"github.com/arkade-os/go-sdk/client"
-	indexer "github.com/arkade-os/go-sdk/indexer"
-	"github.com/arkade-os/go-sdk/types"
+	"github.com/arkade-os/arkd/pkg/client-lib/client"
+	indexer "github.com/arkade-os/arkd/pkg/client-lib/indexer"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
@@ -277,9 +277,9 @@ func (s *DelegatorService) newDelegateTask(
 	}
 
 	// verify all inputs are real VTXOs and not unrolled or spent
-	outpoints := make([]types.Outpoint, len(task.Intent.Inputs))
+	outpoints := make([]clientTypes.Outpoint, len(task.Intent.Inputs))
 	for i, input := range task.Intent.Inputs {
-		outpoints[i] = types.Outpoint{
+		outpoints[i] = clientTypes.Outpoint{
 			Txid: input.Hash.String(),
 			VOut: input.Index,
 		}
@@ -517,7 +517,7 @@ func (s *DelegatorService) joinDelegatorBatch(
 			continue
 		}
 		for _, input := range selectedTask.inputs {
-			topics = append(topics, types.Outpoint{
+			topics = append(topics, clientTypes.Outpoint{
 				Txid: input.Hash.String(),
 				VOut: input.Index,
 			}.String())
@@ -724,7 +724,7 @@ func (s *DelegatorService) monitorVtxosSpent(ctx context.Context) {
 }
 
 func validateForfeits(
-	delegatorPublicKey *btcec.PublicKey, cfg *types.Config, forfeitTxs []*psbt.Packet,
+	delegatorPublicKey *btcec.PublicKey, cfg *clientTypes.Config, forfeitTxs []*psbt.Packet,
 ) error {
 	// TODO validate intent fee
 

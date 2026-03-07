@@ -8,7 +8,7 @@ import (
 
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
-	"github.com/arkade-os/go-sdk/client"
+	"github.com/arkade-os/arkd/pkg/client-lib/client"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/txscript"
 )

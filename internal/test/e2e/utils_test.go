@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -19,14 +19,14 @@ import (
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
+	"github.com/arkade-os/arkd/pkg/client-lib/client"
+	grpcclient "github.com/arkade-os/arkd/pkg/client-lib/client/grpc"
+	"github.com/arkade-os/arkd/pkg/client-lib/store"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	"github.com/arkade-os/arkd/pkg/client-lib/wallet"
+	singlekeywallet "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey"
+	inmemorystore "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey/store/inmemory"
 	arksdk "github.com/arkade-os/go-sdk"
-	"github.com/arkade-os/go-sdk/client"
-	grpcclient "github.com/arkade-os/go-sdk/client/grpc"
-	"github.com/arkade-os/go-sdk/store"
-	"github.com/arkade-os/go-sdk/types"
-	"github.com/arkade-os/go-sdk/wallet"
-	singlekeywallet "github.com/arkade-os/go-sdk/wallet/singlekey"
-	inmemorystore "github.com/arkade-os/go-sdk/wallet/singlekey/store/inmemory"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/creack/pty"
 	"github.com/stretchr/testify/require"
@@ -281,15 +281,15 @@ func generateNote(t *testing.T, amount uint64) string {
 	return noteResp.Notes[0]
 }
 
-func faucetOffchain(t *testing.T, client arksdk.ArkClient, amount float64) types.Vtxo {
-	_, offchainAddr, _, err := client.Receive(t.Context())
+func faucetOffchain(t *testing.T, client arksdk.ArkClient, amount float64) clientTypes.Vtxo {
+	offchainAddr, err := client.NewOffchainAddress(t.Context())
 	require.NoError(t, err)
 
 	note := generateNote(t, uint64(amount*1e8))
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	var incomingFunds []types.Vtxo
+	var incomingFunds []clientTypes.Vtxo
 	var incomingErr error
 	go func() {
 		incomingFunds, incomingErr = client.NotifyIncomingFunds(t.Context(), offchainAddr)
@@ -325,12 +325,11 @@ func setupArkSDKwithPublicKey(
 	password := "pass"
 
 	appDataStore, err := store.NewStore(store.Config{
-		ConfigStoreType:  types.InMemoryStore,
-		AppDataStoreType: types.KVStore,
+		ConfigStoreType: clientTypes.InMemoryStore,
 	})
 	require.NoError(t, err)
 
-	client, err := arksdk.NewArkClient(appDataStore)
+	arkClient, err := arksdk.NewArkClient("", false)
 	require.NoError(t, err)
 
 	walletStore, err := inmemorystore.NewWalletStore()
@@ -345,20 +344,16 @@ func setupArkSDKwithPublicKey(
 
 	privkeyHex := hex.EncodeToString(privkey.Serialize())
 
-	err = client.InitWithWallet(context.Background(), arksdk.InitWithWalletArgs{
-		Wallet:     wallet,
-		ClientType: arksdk.GrpcClient,
-		ServerUrl:  serverUrl,
-		Password:   password,
-		Seed:       privkeyHex,
-	})
+	err = arkClient.Init(
+		t.Context(), serverUrl, privkeyHex, password, arksdk.WithWallet(wallet),
+	)
 	require.NoError(t, err)
 
-	err = client.Unlock(context.Background(), password)
+	err = arkClient.Unlock(t.Context(), password)
 	require.NoError(t, err)
 
 	grpcClient, err := grpcclient.NewClient(serverUrl)
 	require.NoError(t, err)
 
-	return client, wallet, privkey.PubKey(), grpcClient
+	return arkClient, wallet, privkey.PubKey(), grpcClient
 }
