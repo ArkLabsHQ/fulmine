@@ -13,7 +13,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db"
 	scheduler "github.com/ArkLabsHQ/fulmine/internal/infrastructure/scheduler/gocron"
 	grpcservice "github.com/ArkLabsHQ/fulmine/internal/interface/grpc"
-	"github.com/arkade-os/go-sdk/types"
 	"github.com/getsentry/sentry-go"
 	sentrylogrus "github.com/getsentry/sentry-go/logrus"
 	log "github.com/sirupsen/logrus"
@@ -26,11 +25,6 @@ var (
 	date    = "unknown"
 
 	sentryDsn = ""
-)
-
-const (
-	configStoreType  = types.FileStore
-	appDataStoreType = types.SQLStore
 )
 
 func main() {

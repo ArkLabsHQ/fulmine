@@ -113,7 +113,7 @@ func (h *delegatorBatchSessionHandler) submitForfeitTxs(
 			log.WithError(err).Warnf("failed to set outpoints for get vtxos request")
 			continue
 		}
-		vtxos, err := h.delegator.svc.indexer().GetVtxos(ctx, opts)
+		vtxos, err := h.delegator.svc.Indexer().GetVtxos(ctx, opts)
 		if err != nil {
 			log.WithError(err).Warnf("failed to get vtxos for task %s", selectedTaskId)
 			continue
@@ -182,7 +182,7 @@ func (h *delegatorBatchSessionHandler) submitForfeitTxs(
 		signedForfeitTxs = append(signedForfeitTxs, signedForfeitTx)
 	}
 
-	return h.delegator.svc.transport().SubmitSignedForfeitTxs(ctx, signedForfeitTxs, "")
+	return h.delegator.svc.Client().SubmitSignedForfeitTxs(ctx, signedForfeitTxs, "")
 }
 
 // musig2BatchSessionHandler implements the Musig2 methods

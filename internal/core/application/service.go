@@ -26,7 +26,6 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	client "github.com/arkade-os/arkd/pkg/client-lib"
-	transportClient "github.com/arkade-os/arkd/pkg/client-lib/client"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
@@ -255,18 +254,6 @@ func newService(
 
 func (s *Service) IsInitialized() bool {
 	return s.isInitialized
-}
-
-func (s *Service) transport() transportClient.TransportClient {
-	return s.ArkClient.Client()
-}
-
-func (s *Service) indexer() indexer.Indexer {
-	return s.ArkClient.Indexer()
-}
-
-func (s *Service) explorer() indexer.Indexer {
-	return s.ArkClient.Indexer()
 }
 
 func (s *Service) IsSynced() (bool, error) {
@@ -530,7 +517,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		s.externalSubscription = newSubscriptionHandler(
-			s.indexer(), s.dbSvc.SubscribedScript(), s.handleAddressEventChannel(arkConfig),
+			s.Indexer(), s.dbSvc.SubscribedScript(), s.handleAddressEventChannel(arkConfig),
 		)
 
 		if err := s.externalSubscription.start(); err != nil {
@@ -686,7 +673,7 @@ func (s *Service) GetRound(ctx context.Context, roundId string) (*indexer.Commit
 	if !s.isInitialized {
 		return nil, fmt.Errorf("service not initialized")
 	}
-	return s.indexer().GetCommitmentTx(ctx, roundId)
+	return s.Indexer().GetCommitmentTx(ctx, roundId)
 }
 
 func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, error) {
@@ -694,7 +681,7 @@ func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, 
 		return nil, fmt.Errorf("service not initialized")
 	}
 
-	resp, err := s.indexer().GetVirtualTxs(ctx, txids)
+	resp, err := s.Indexer().GetVirtualTxs(ctx, txids)
 	if err != nil {
 		return nil, err
 	}
@@ -755,7 +742,7 @@ func (s *Service) GetVtxos(ctx context.Context, filterType string) ([]clientType
 		return nil, err
 	}
 
-	resp, err := s.indexer().GetVtxos(ctx, option)
+	resp, err := s.Indexer().GetVtxos(ctx, option)
 	if err != nil {
 		return nil, err
 	}
@@ -1909,7 +1896,7 @@ func (s *Service) restoreSwapHistory(ctx context.Context) error {
 		// nolint
 		option.WithScripts(refundedSubmarineSwaps)
 
-		resp, err := s.indexer().GetVtxos(ctx, option)
+		resp, err := s.Indexer().GetVtxos(ctx, option)
 		if err != nil {
 			return fmt.Errorf("failed to fetch vtxos for refunded swaps: %s", err)
 		}
@@ -1934,7 +1921,7 @@ func (s *Service) restoreSwapHistory(ctx context.Context) error {
 		// nolint
 		option.WithScripts(successfulReverseSwaps)
 
-		resp, err := s.indexer().GetVtxos(ctx, option)
+		resp, err := s.Indexer().GetVtxos(ctx, option)
 		if err != nil {
 			return fmt.Errorf("failed to fetch vtxos for successful reverse swaps: %s", err)
 		}
