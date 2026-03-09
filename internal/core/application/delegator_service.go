@@ -417,9 +417,7 @@ func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
 	var stop func()
 	var err error
 
-	connectStream := connectEventStream(s.svc.Client())
-
-	eventsCh, stop, err = connectStreamWithRetry(ctx, nil, connectStream)
+	eventsCh, stop, err = s.svc.Client().GetEventStream(ctx, nil)
 	if err != nil {
 		log.WithError(err).Error("failed to establish initial connection to event stream")
 		return
@@ -434,16 +432,8 @@ func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
 			return
 		case notify, ok := <-eventsCh:
 			if !ok {
-				newEventsCh, newStop, err := connectStreamWithRetry(ctx, stop, connectStream)
-				if err != nil {
-					log.WithError(err).Error(
-						"failed to reconnect to event stream, stopping listenBatchEvents...",
-					)
-					return
-				}
-				eventsCh = newEventsCh
-				stop = newStop
-				continue
+				log.Debug("stream closed")
+				return
 			}
 			if notify.Err != nil {
 				log.WithError(notify.Err).Error("error received from event stream")
@@ -633,7 +623,7 @@ func (s *DelegatorService) monitorVtxosSpent(ctx context.Context) {
 	var stop func()
 	var err error
 
-	eventsCh, stop, err = connectStreamWithRetry(ctx, nil, s.svc.Client().GetTransactionsStream)
+	eventsCh, stop, err = s.svc.Client().GetTransactionsStream(ctx)
 	if err != nil {
 		log.WithError(err).Error("failed to establish initial connection to transaction stream")
 		return
@@ -693,18 +683,8 @@ func (s *DelegatorService) monitorVtxosSpent(ctx context.Context) {
 			return
 		case event, ok := <-eventsCh:
 			if !ok {
-				newEventsCh, newStop, err := connectStreamWithRetry(
-					ctx, stop, s.svc.Client().GetTransactionsStream,
-				)
-				if err != nil {
-					log.WithError(err).Error(
-						"failed to reconnect to transaction stream, stopping monitorVtxosSpent...",
-					)
-					return
-				}
-				eventsCh = newEventsCh
-				stop = newStop
-				continue
+				log.Debug("tx event stream closed")
+				return
 			}
 			if event.Err != nil {
 				log.WithError(event.Err).Error("error received from transaction stream")

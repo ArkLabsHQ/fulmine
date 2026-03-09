@@ -25,7 +25,6 @@ import (
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
-	client "github.com/arkade-os/arkd/pkg/client-lib"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
@@ -153,7 +152,7 @@ func NewServices(
 ) (*Service, *DelegatorService, error) {
 	svc, err := newService(
 		buildInfo, datadir, dbSvc, schedulerSvc, esploraUrl,
-		boltzUrl, boltzWSUrl, swapTimeout, connectionOpts, refreshDbInterval,
+		boltzUrl, boltzWSUrl, swapTimeout, connectionOpts,
 	)
 	if err != nil {
 		return nil, nil, err
@@ -180,10 +179,9 @@ func newService(
 	schedulerSvc ports.SchedulerService,
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 	connectionOpts *domain.LnConnectionOpts,
-	refreshDbInterval int64,
 ) (*Service, error) {
 	verbose := log.IsLevelEnabled(log.DebugLevel)
-	if arkClient, err := arksdk.LoadNewArkClient(datadir, verbose); err == nil {
+	if arkClient, err := arksdk.LoadArkClient(datadir, verbose); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
 		if err != nil {
 			return nil, err
@@ -303,11 +301,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		return fmt.Errorf("invalid server URL: %w", err)
 	}
 
-	opts := []arksdk.InitOption{
-		arksdk.WithExplorerUrl(s.esploraUrl),
-		arksdk.WithWalletType(client.SingleKeyWallet),
-	}
-	if err := s.Init(ctx, validatedServerUrl, privateKey, password, opts...); err != nil {
+	if err := s.Init(ctx, validatedServerUrl, privateKey, password); err != nil {
 		return err
 	}
 
@@ -2083,24 +2077,28 @@ func (s *Service) handleAddressEventChannel(
 	config *clientTypes.Config,
 ) func(event indexer.ScriptEvent) {
 	return func(event indexer.ScriptEvent) {
-		if len(event.SpentVtxos) <= 0 && len(event.NewVtxos) <= 0 {
-			log.Warn("Received nil event from event channel")
+		if event.Connection != nil {
 			return
 		}
-
 		if event.Err != nil {
 			log.WithError(event.Err).Error("AddressEvent subscription error")
 			return
 		}
 
+		data := event.Data
+		if len(data.SpentVtxos) <= 0 && len(data.NewVtxos) <= 0 {
+			log.Warn("Received nil event from event channel")
+			return
+		}
+
 		log.Infof(
 			"received address event(%d spent vtxos, %d new vtxos)",
-			len(event.SpentVtxos), len(event.NewVtxos),
+			len(data.SpentVtxos), len(data.NewVtxos),
 		)
 
 		// convert scripts to addresses
-		addresses := make([]string, 0, len(event.Scripts))
-		for _, script := range event.Scripts {
+		addresses := make([]string, 0, len(data.Scripts))
+		for _, script := range data.Scripts {
 			decodedPubKey, err := hex.DecodeString(script)
 			if err != nil {
 				log.WithError(err).Errorf("failed to decode script %s", script)
@@ -2131,10 +2129,10 @@ func (s *Service) handleAddressEventChannel(
 		go func(evt indexer.ScriptEvent) {
 			s.notifications <- Notification{
 				Addrs:       addresses,
-				NewVtxos:    event.NewVtxos,
-				SpentVtxos:  event.SpentVtxos,
-				Checkpoints: event.CheckpointTxs,
-				TxData:      indexer.TxData{Tx: event.Tx, Txid: event.Txid},
+				NewVtxos:    data.NewVtxos,
+				SpentVtxos:  data.SpentVtxos,
+				Checkpoints: data.CheckpointTxs,
+				TxData:      indexer.TxData{Tx: data.Tx, Txid: data.Txid},
 			}
 		}(event)
 	}

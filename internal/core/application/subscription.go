@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -207,18 +208,44 @@ func (h *subscriptionHandler) start() error {
 			h.mu.Unlock()
 
 			stopped := false
+			waitForReconnection := false
 			for !stopped {
 				select {
 				case <-ctx.Done():
 					return
 				case event := <-subscriptionChannel:
+					if event.Connection != nil {
+						if event.Connection.State == clientTypes.StreamConnectionStateDisconnected {
+							waitForReconnection = true
+							log.Debug("connection lost, waiting for reconnection...")
+						}
+						if waitForReconnection &&
+							event.Connection.State == clientTypes.StreamConnectionStateReconnected {
+							log.Debug("connection restored, resubscribing...")
+						}
+						if waitForReconnection &&
+							event.Connection.State == clientTypes.StreamConnectionStateReady {
+							if err := h.create(ctx); err != nil {
+								log.WithError(err).Error(
+									"failed to resubscribe after reconnection",
+								)
+								return
+							}
+							log.Debug("restored subscriptions")
+							waitForReconnection = false
+						}
+						continue
+					}
 					if event.Err != nil {
 						onError(event.Err)
 						stopped = true
 						continue
 					}
 
-					log.Debugf("received transaction event: %s for subscription %s", event.Txid, h.id)
+					log.Debugf(
+						"received transaction event: %s for subscription %s",
+						event.Data.Txid, h.id,
+					)
 					go h.onEvent(event)
 				}
 			}
