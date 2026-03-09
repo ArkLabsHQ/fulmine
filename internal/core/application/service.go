@@ -121,6 +121,9 @@ type Service struct {
 	// Notification channels
 	notifications chan Notification
 
+	// HTLC lifecycle event channel (buffered, non-blocking send)
+	htlcEvents chan HtlcEvent
+
 	stopVtxoEventListener chan struct{}
 
 	// callback functions to stop and start delegator service
@@ -228,6 +231,7 @@ func newService(
 			publicKey:             nil,
 			isInitialized:         true,
 			notifications:         make(chan Notification),
+			htlcEvents:            make(chan HtlcEvent, 1024),
 			stopVtxoEventListener: make(chan struct{}),
 			esploraUrl:            data.ExplorerURL,
 			boltzUrl:              boltzUrl,
@@ -274,6 +278,7 @@ func newService(
 		grpcClient:            nil,
 		schedulerSvc:          schedulerSvc,
 		notifications:         make(chan Notification),
+		htlcEvents:            make(chan HtlcEvent, 1024),
 		stopVtxoEventListener: make(chan struct{}),
 		esploraUrl:            esploraUrl,
 		boltzUrl:              boltzUrl,
@@ -1002,6 +1007,13 @@ func (s *Service) GetSwapVHTLC(
 		}
 
 		log.Debugf("added new vhtlc %s", vhtlcId)
+
+		s.emitHtlcEvent(HtlcEvent{
+			Type:      HtlcEventCreated,
+			Timestamp: time.Now().Unix(),
+			VhtlcId:   vhtlcId,
+			Address:   encodedAddr,
+		})
 	}()
 
 	return encodedAddr, vhtlcId, vHTLCScript, nil
@@ -1048,33 +1060,73 @@ func (s *Service) ListVHTLC(
 func (s *Service) ClaimVHTLC(
 	ctx context.Context, preimage []byte, vhtlc_id string,
 ) (string, error) {
-	return s.withVhtlc(ctx, vhtlc_id, func(opts vhtlc.Opts) (string, error) {
+	txid, err := s.withVhtlc(ctx, vhtlc_id, func(opts vhtlc.Opts) (string, error) {
 		return s.swapHandler.ClaimVHTLC(ctx, preimage, opts)
 	})
+	if err == nil {
+		s.emitHtlcEvent(HtlcEvent{
+			Type:      HtlcEventSpent,
+			Timestamp: time.Now().Unix(),
+			VhtlcId:   vhtlc_id,
+			TxId:      txid,
+			SpendKind: SpendTypeClaimed,
+		})
+	}
+	return txid, err
 }
 
 func (s *Service) RefundVHTLC(
 	ctx context.Context, swapId, vhtlc_id string, withReceiver bool,
 ) (string, error) {
-	return s.withVhtlc(ctx, vhtlc_id, func(opts vhtlc.Opts) (string, error) {
+	txid, err := s.withVhtlc(ctx, vhtlc_id, func(opts vhtlc.Opts) (string, error) {
 		return s.swapHandler.RefundSwap(ctx, swap.SwapTypeSubmarine, swapId, withReceiver, opts)
 	})
+	if err == nil {
+		s.emitHtlcEvent(HtlcEvent{
+			Type:      HtlcEventSpent,
+			Timestamp: time.Now().Unix(),
+			VhtlcId:   vhtlc_id,
+			TxId:      txid,
+			SpendKind: SpendTypeRefunded,
+		})
+	}
+	return txid, err
 }
 
 // SettleVHTLCWithClaimPath settles a VHTLC via claim path (revealing preimage) in a batch session.
 func (s *Service) SettleVHTLCWithClaimPath(
 	ctx context.Context, vhtlcId string, preimage []byte,
 ) (string, error) {
-	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
+	txid, err := s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
 		return s.swapHandler.SettleVHTLCWithClaimPath(ctx, opts, preimage)
 	})
+	if err == nil {
+		s.emitHtlcEvent(HtlcEvent{
+			Type:      HtlcEventSpent,
+			Timestamp: time.Now().Unix(),
+			VhtlcId:   vhtlcId,
+			TxId:      txid,
+			SpendKind: SpendTypeClaimed,
+		})
+	}
+	return txid, err
 }
 
 // SettleVHTLCWithRefundPath settles a VHTLC via refund path in a batch session.
 func (s *Service) SettleVHTLCWithRefundPath(ctx context.Context, vhtlcId string) (string, error) {
-	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
+	txid, err := s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
 		return s.swapHandler.SettleVhtlcWithRefundPath(ctx, opts)
 	})
+	if err == nil {
+		s.emitHtlcEvent(HtlcEvent{
+			Type:      HtlcEventSpent,
+			Timestamp: time.Now().Unix(),
+			VhtlcId:   vhtlcId,
+			TxId:      txid,
+			SpendKind: SpendTypeRefunded,
+		})
+	}
+	return txid, err
 }
 
 // SettleVHTLCWithCollaborativeRefundPath settles a VHTLC via delegate refund path.
@@ -1083,13 +1135,23 @@ func (s *Service) SettleVHTLCWithRefundPath(ctx context.Context, vhtlcId string)
 func (s *Service) SettleVHTLCWithCollaborativeRefundPath(
 	ctx context.Context, vhtlcId, intentProof, intentMessage, partialForfeitTx string,
 ) (string, error) {
-	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
+	txid, err := s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
 
 		delegatorSignerSession := tree.NewTreeSignerSession(s.privateKey)
 		return s.swapHandler.SettleVHTLCWithCollaborativeRefundPath(
 			ctx, opts, partialForfeitTx, intentProof, intentMessage, delegatorSignerSession,
 		)
 	})
+	if err == nil {
+		s.emitHtlcEvent(HtlcEvent{
+			Type:      HtlcEventSpent,
+			Timestamp: time.Now().Unix(),
+			VhtlcId:   vhtlcId,
+			TxId:      txid,
+			SpendKind: SpendTypeRefunded,
+		})
+	}
+	return txid, err
 }
 
 func (s *Service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
@@ -1207,6 +1269,16 @@ func (s *Service) IncreaseOutboundCapacity(
 	swapStatus := domain.SwapStatus(swapDetails.Status)
 	vHTLC := domain.NewVhtlc(*swapDetails.Opts)
 
+	if swapDetails.TxId != "" && swapDetails.Opts != nil {
+		s.emitHtlcEvent(HtlcEvent{
+			Type:      HtlcEventFunded,
+			Timestamp: time.Now().Unix(),
+			VhtlcId:   vHTLC.Id,
+			TxId:      swapDetails.TxId,
+			Amount:    swapDetails.Amount,
+		})
+	}
+
 	go func() {
 		_, dbErr := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
 			Id:          swapDetails.Id,
@@ -1258,6 +1330,21 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 
 func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification {
 	return s.notifications
+}
+
+// GetHtlcEvents returns a read-only channel of HTLC lifecycle events.
+func (s *Service) GetHtlcEvents(_ context.Context) <-chan HtlcEvent {
+	return s.htlcEvents
+}
+
+// emitHtlcEvent sends an event on the htlcEvents channel without blocking.
+// If the channel buffer is full, the event is dropped and a warning is logged.
+func (s *Service) emitHtlcEvent(e HtlcEvent) {
+	select {
+	case s.htlcEvents <- e:
+	default:
+		log.Warn("htlc event channel full, dropping event")
+	}
 }
 
 func (s *Service) IsLocked(ctx context.Context) bool {
@@ -1329,6 +1416,16 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (*SwapResponse
 	swapStatus := domain.SwapStatus(swapDetails.Status)
 	vHTLC := domain.NewVhtlc(*swapDetails.Opts)
 
+	if swapDetails.TxId != "" {
+		s.emitHtlcEvent(HtlcEvent{
+			Type:      HtlcEventFunded,
+			Timestamp: time.Now().Unix(),
+			VhtlcId:   vHTLC.Id,
+			TxId:      swapDetails.TxId,
+			Amount:    swapDetails.Amount,
+		})
+	}
+
 	go func() {
 		count, err := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
 			Id:          swapDetails.Id,
@@ -1392,6 +1489,16 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (*SwapResponse, er
 
 	swapStatus := domain.SwapStatus(swapDetails.Status)
 	vHTLC := domain.NewVhtlc(*swapDetails.Opts)
+
+	if swapDetails.TxId != "" {
+		s.emitHtlcEvent(HtlcEvent{
+			Type:      HtlcEventFunded,
+			Timestamp: time.Now().Unix(),
+			VhtlcId:   vHTLC.Id,
+			TxId:      swapDetails.TxId,
+			Amount:    swapDetails.Amount,
+		})
+	}
 
 	go func() {
 		count, err := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
@@ -2187,7 +2294,20 @@ func (s *Service) payInvoiceLN(ctx context.Context, invoice string) (string, err
 }
 
 func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error) {
+	vhtlcId := domain.GetVhtlcId(
+		opts.PreimageHash,
+		opts.Sender.SerializeCompressed(),
+		opts.Receiver.SerializeCompressed(),
+	)
+
 	unilateral := func() {
+		s.emitHtlcEvent(HtlcEvent{
+			Type:           HtlcEventRefundable,
+			Timestamp:      time.Now().Unix(),
+			VhtlcId:        vhtlcId,
+			RefundLocktime: uint64(opts.RefundLocktime),
+		})
+
 		vtxos, err := s.swapHandler.GetVHTLCFunds(context.Background(), []vhtlc.Opts{opts})
 		if err != nil {
 			log.WithError(err).Error("failed to check vhtlc status")
@@ -2219,6 +2339,14 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 			log.WithError(err).Error("failed to refund vhtlc")
 			return
 		}
+
+		s.emitHtlcEvent(HtlcEvent{
+			Type:      HtlcEventSpent,
+			Timestamp: time.Now().Unix(),
+			VhtlcId:   vhtlcId,
+			TxId:      txid,
+			SpendKind: SpendTypeRefunded,
+		})
 
 		swapData := domain.Swap{
 			Id:         swapId,
@@ -2252,7 +2380,20 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 }
 
 func (s *Service) scheduleChainSwapRefund(swapId string, opts vhtlc.Opts) (err error) {
+	vhtlcId := domain.GetVhtlcId(
+		opts.PreimageHash,
+		opts.Sender.SerializeCompressed(),
+		opts.Receiver.SerializeCompressed(),
+	)
+
 	unilateral := func() {
+		s.emitHtlcEvent(HtlcEvent{
+			Type:           HtlcEventRefundable,
+			Timestamp:      time.Now().Unix(),
+			VhtlcId:        vhtlcId,
+			RefundLocktime: uint64(opts.RefundLocktime),
+		})
+
 		chainSwap, err := s.dbSvc.ChainSwaps().Get(context.Background(), swapId)
 		if err != nil {
 			log.WithError(err).Errorf("failed to get chain swap %s", swapId)
@@ -2290,6 +2431,14 @@ func (s *Service) scheduleChainSwapRefund(swapId string, opts vhtlc.Opts) (err e
 			log.WithError(err).Error("failed to refund chain swap vhtlc")
 			return
 		}
+
+		s.emitHtlcEvent(HtlcEvent{
+			Type:      HtlcEventSpent,
+			Timestamp: time.Now().Unix(),
+			VhtlcId:   vhtlcId,
+			TxId:      txid,
+			SpendKind: SpendTypeRefunded,
+		})
 
 		chainSwap.RefundedUnilaterally(txid)
 

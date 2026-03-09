@@ -214,6 +214,38 @@
         ]
       }
     },
+    "/v1/events": {
+      "get": {
+        "summary": "GetEventStream streams all wallet and VHTLC lifecycle events.",
+        "operationId": "Service_GetEventStream",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/v1GetEventStreamResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of v1GetEventStreamResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/info": {
       "get": {
         "summary": "GetInfo returns info about the ark account",
@@ -845,6 +877,15 @@
       ],
       "default": "NETWORK_UNSPECIFIED"
     },
+    "HtlcSpentEventSpendType": {
+      "type": "string",
+      "enum": [
+        "SPEND_TYPE_UNSPECIFIED",
+        "SPEND_TYPE_CLAIMED",
+        "SPEND_TYPE_REFUNDED"
+      ],
+      "default": "SPEND_TYPE_UNSPECIFIED"
+    },
     "RelativeLocktimeLocktimeType": {
       "type": "string",
       "enum": [
@@ -1189,6 +1230,30 @@
         }
       }
     },
+    "v1GetEventStreamResponse": {
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "int64"
+        },
+        "txAssociated": {
+          "$ref": "#/definitions/v1TxAssociatedEvent"
+        },
+        "htlcCreated": {
+          "$ref": "#/definitions/v1HtlcCreatedEvent"
+        },
+        "htlcFunded": {
+          "$ref": "#/definitions/v1HtlcFundedEvent"
+        },
+        "htlcSpent": {
+          "$ref": "#/definitions/v1HtlcSpentEvent"
+        },
+        "htlcRefundable": {
+          "$ref": "#/definitions/v1HtlcRefundableEvent"
+        }
+      }
+    },
     "v1GetInfoResponse": {
       "type": "object",
       "properties": {
@@ -1292,6 +1357,62 @@
             "type": "object",
             "$ref": "#/definitions/v1Vtxo"
           }
+        }
+      }
+    },
+    "v1HtlcCreatedEvent": {
+      "type": "object",
+      "properties": {
+        "vhtlcId": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1HtlcFundedEvent": {
+      "type": "object",
+      "properties": {
+        "vhtlcId": {
+          "type": "string"
+        },
+        "fundingTxid": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1HtlcRefundableEvent": {
+      "type": "object",
+      "properties": {
+        "vhtlcId": {
+          "type": "string"
+        },
+        "refundLocktime": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1HtlcSpentEvent": {
+      "type": "object",
+      "properties": {
+        "vhtlcId": {
+          "type": "string"
+        },
+        "redeemTxid": {
+          "type": "string"
+        },
+        "spendType": {
+          "$ref": "#/definitions/HtlcSpentEventSpendType"
         }
       }
     },
@@ -1607,6 +1728,31 @@
         },
         "settledBy": {
           "type": "string"
+        }
+      }
+    },
+    "v1TxAssociatedEvent": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        },
+        "tx": {
+          "type": "string"
+        },
+        "newVtxos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Vtxo"
+          }
+        },
+        "spentVtxos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Vtxo"
+          }
         }
       }
     },
