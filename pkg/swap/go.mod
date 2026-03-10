@@ -11,8 +11,8 @@ require (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-20260116135645-5d6845a62019
 	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260303153651-8615412e4dea
-	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260308035255-9992ae62d48e
-	github.com/arkade-os/go-sdk v0.8.2-0.20260309115223-32689776d5b2
+	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260310110142-4b97ff8d7ff5
+	github.com/arkade-os/go-sdk v0.8.2-0.20260310134708-37b01576f9ab
 	github.com/ccoveille/go-safecast v1.6.1
 )
 
@@ -132,5 +132,4 @@ replace (
 	github.com/ArkLabsHQ/fulmine => ../..
 	github.com/ArkLabsHQ/fulmine/pkg/boltz => ../boltz
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc => ../vhtlc
-	github.com/arkade-os/go-sdk => ../../../go-sdk
 )
