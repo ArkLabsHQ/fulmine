@@ -273,7 +273,7 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 	receiverPubKey := info.Pubkey
 	require.NotEmpty(t, info.Pubkey)
 
-	senderArkClient, _, senderPubKey, _ := setupArkSDKwithPublicKey(t)
+	senderArkClient, senderPubKey, _ := setupArkSDKwithPublicKey(t)
 
 	_, offchain, boarding, _, err := senderArkClient.GetAddresses(ctx)
 	require.NoError(t, err)
