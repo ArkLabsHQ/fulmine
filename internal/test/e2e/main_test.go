@@ -35,9 +35,9 @@ func TestMain(m *testing.M) {
 		log.Fatalf("❌ failed to refill Fulmine used by Boltz: %s", err)
 	}
 
-	// if err := refillFulmine(ctx, mockFulmineURL); err != nil {
-	// 	log.Fatalf("❌ failed to refill Fulmine mock: %s", err)
-	// }
+	if err := refillFulmine(ctx, mockFulmineURL); err != nil {
+		log.Fatalf("❌ failed to refill Fulmine mock: %s", err)
+	}
 
 	os.Exit(m.Run())
 }

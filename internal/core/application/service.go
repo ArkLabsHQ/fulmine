@@ -301,7 +301,12 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		return fmt.Errorf("invalid server URL: %w", err)
 	}
 
-	if err := s.Init(ctx, validatedServerUrl, privateKey, password); err != nil {
+	var opts []arksdk.InitOption
+	if s.esploraUrl != "" {
+		opts = append(opts, arksdk.WithExplorerURL(s.esploraUrl))
+	}
+
+	if err := s.Init(ctx, validatedServerUrl, privateKey, password, opts...); err != nil {
 		return err
 	}
 
