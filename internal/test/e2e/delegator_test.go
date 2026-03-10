@@ -11,6 +11,7 @@ import (
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/asset"
+	"github.com/arkade-os/arkd/pkg/ark-lib/extension"
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
@@ -1568,7 +1569,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	assetPacket, err := asset.NewPacket([]asset.AssetGroup{*assetGroup})
 	require.NoError(t, err)
 
-	assetPacketTxOut, err := assetPacket.TxOut()
+	assetPacketTxOut, err := extension.Extension{assetPacket}.TxOut()
 	require.NoError(t, err)
 
 	// The intent proof uses the BTC amount from the VTXO (dust), not the asset amount.
