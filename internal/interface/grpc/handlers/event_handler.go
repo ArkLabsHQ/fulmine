@@ -87,9 +87,10 @@ func toEventStreamResponse(e application.HtlcEvent) *pb.GetEventStreamResponse {
 		}
 	case application.HtlcEventSpent:
 		spendType := pb.HtlcSpentEvent_SPEND_TYPE_UNSPECIFIED
-		if e.SpendKind == application.SpendTypeClaimed {
+		switch e.SpendKind {
+		case application.SpendTypeClaimed:
 			spendType = pb.HtlcSpentEvent_SPEND_TYPE_CLAIMED
-		} else if e.SpendKind == application.SpendTypeRefunded {
+		case application.SpendTypeRefunded:
 			spendType = pb.HtlcSpentEvent_SPEND_TYPE_REFUNDED
 		}
 		resp.Event = &pb.GetEventStreamResponse_HtlcSpent{
@@ -119,9 +120,9 @@ func toTxAssociatedResponse(n application.Notification) *pb.GetEventStreamRespon
 		Timestamp: time.Now().Unix(),
 		Event: &pb.GetEventStreamResponse_TxAssociated{
 			TxAssociated: &pb.TxAssociatedEvent{
-				Txid:      n.Txid,
-				Tx:        n.Tx,
-				NewVtxos:  toVtxosProto(n.NewVtxos),
+				Txid:       n.Txid,
+				Tx:         n.Tx,
+				NewVtxos:   toVtxosProto(n.NewVtxos),
 				SpentVtxos: toVtxosProto(n.SpentVtxos),
 			},
 		},

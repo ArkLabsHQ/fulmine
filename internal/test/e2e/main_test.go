@@ -16,7 +16,7 @@ import (
 
 const (
 	clientFulmineURL = "localhost:7000"
-	boltzFulmineURL = "localhost:7002"
+	boltzFulmineURL  = "localhost:7002"
 	mockFulmineURL   = "localhost:7100"
 )
 
@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("❌ failed to refill Fulmine used by Boltz: %s", err)
 	}
 
-	if err := refillFulmine(ctx,boltzFulmineURL); err != nil {
+	if err := refillFulmine(ctx, boltzFulmineURL); err != nil {
 		log.Fatalf("❌ failed to refill Fulmine used by Client: %s", err)
 	}
 
