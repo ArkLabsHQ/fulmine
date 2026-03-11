@@ -11,8 +11,8 @@ require (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-20260116135645-5d6845a62019
 	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260303153651-8615412e4dea
-	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260310110142-4b97ff8d7ff5
-	github.com/arkade-os/go-sdk v0.8.2-0.20260311103530-755a67d96ae7
+	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260311130119-76bfe3cdc4cb
+	github.com/arkade-os/go-sdk v0.8.2-0.20260311132730-13490c69fd70
 	github.com/ccoveille/go-safecast v1.6.1
 )
 
@@ -22,7 +22,7 @@ require (
 	github.com/FactomProject/btcutilecc v0.0.0-20130527213604-d3a63a5752ec // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
-	github.com/arkade-os/arkd/api-spec v0.0.0-20260303153651-8615412e4dea // indirect
+	github.com/arkade-os/arkd/api-spec v0.0.0-20260311130119-76bfe3cdc4cb // indirect
 	github.com/arkade-os/arkd/pkg/errors v0.0.0-20260303153651-8615412e4dea // indirect
 	github.com/btcsuite/btclog/v2 v2.0.1-0.20250602222548-9967d19bb084 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
