@@ -28,8 +28,8 @@ github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260310110142-4b97ff8d7ff5 h1:T
 github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260310110142-4b97ff8d7ff5/go.mod h1:IPANIRF7HRnOYhOJAzCcd9n/uY1Zdq1pJRq2THdSxLY=
 github.com/arkade-os/arkd/pkg/errors v0.0.0-20260303153651-8615412e4dea h1:x9ZwZL+F2b9E0uBZYBVjCLGtlqIE4zahDOY4C89h3X4=
 github.com/arkade-os/arkd/pkg/errors v0.0.0-20260303153651-8615412e4dea/go.mod h1:NYGE+baj57ynbXNwjISJddMDpMqAWOX27dV22xqFm2A=
-github.com/arkade-os/go-sdk v0.8.2-0.20260311094917-f8d10d7742ef h1:KNEU9UgLJexqFpbb5vxaedOyZrxAdA0DtaeEETvA16E=
-github.com/arkade-os/go-sdk v0.8.2-0.20260311094917-f8d10d7742ef/go.mod h1:kUZwZPrrFXTl8TxBYQAJRC6/m0CeoMNgGaWq6MiTTx8=
+github.com/arkade-os/go-sdk v0.8.2-0.20260311103530-755a67d96ae7 h1:3UHRC3hl1iP9NDeiIoP2tOKE1/geDsngFCmKsE6g8MY=
+github.com/arkade-os/go-sdk v0.8.2-0.20260311103530-755a67d96ae7/go.mod h1:kUZwZPrrFXTl8TxBYQAJRC6/m0CeoMNgGaWq6MiTTx8=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
