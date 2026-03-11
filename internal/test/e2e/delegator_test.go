@@ -525,7 +525,9 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	time.Sleep(30 * time.Second)
+	time.Sleep(5 * time.Second)
+	mineRegtestBlocks(t, ctx, 1)
+	time.Sleep(5 * time.Second)
 
 	balance, err := alice.Balance(t.Context())
 	require.NoError(t, err)

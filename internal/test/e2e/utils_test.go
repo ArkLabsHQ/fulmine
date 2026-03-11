@@ -317,6 +317,8 @@ func newDelegatorClient(url string) (pb.DelegatorServiceClient, error) {
 func setupArkSDKwithPublicKey(
 	t *testing.T,
 ) (arksdk.ArkClient, *btcec.PublicKey, client.TransportClient) {
+	t.Helper()
+
 	serverUrl := "localhost:7070"
 	password := "pass"
 
@@ -333,6 +335,18 @@ func setupArkSDKwithPublicKey(
 
 	err = arkClient.Unlock(t.Context(), password)
 	require.NoError(t, err)
+
+	syncCtx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
+	defer cancel()
+
+	select {
+	case syncEvent, ok := <-arkClient.IsSynced(syncCtx):
+		require.True(t, ok, "sync channel closed before client reported sync")
+		require.NoError(t, syncEvent.Err)
+		require.True(t, syncEvent.Synced, "ark client did not report synced")
+	case <-syncCtx.Done():
+		t.Fatalf("timed out waiting for ark client sync: %v", syncCtx.Err())
+	}
 
 	grpcClient, err := grpcclient.NewClient(serverUrl)
 	require.NoError(t, err)
