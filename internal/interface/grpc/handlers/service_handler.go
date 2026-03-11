@@ -42,6 +42,7 @@ func NewServiceHandler(
 		stopCh:               stopCh,
 	}
 	go handler.listenToHtlcEvents()
+	go handler.listenToChainSwapEvents()
 	return handler
 }
 

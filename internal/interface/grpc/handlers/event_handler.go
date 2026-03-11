@@ -113,6 +113,94 @@ func toEventStreamResponse(e application.HtlcEvent) *pb.GetEventStreamResponse {
 	return resp
 }
 
+// listenToChainSwapEvents reads chain swap lifecycle events from the application
+// service and fans them out to all connected event stream listeners.
+func (h *serviceHandler) listenToChainSwapEvents() {
+	chainSwapCh := h.svc.GetChainSwapEvents(context.Background())
+	for {
+		select {
+		case event, ok := <-chainSwapCh:
+			if !ok {
+				return
+			}
+			pbEvent := toChainSwapEventStreamResponse(event)
+			h.eventListenerHandler.lock.Lock()
+			for _, l := range h.eventListenerHandler.listeners {
+				go func(l *listener[*pb.GetEventStreamResponse]) {
+					l.ch <- pbEvent
+				}(l)
+			}
+			h.eventListenerHandler.lock.Unlock()
+		case <-h.stopCh:
+			// listenToHtlcEvents owns the eventListenerHandler.stop() call.
+			// This goroutine just exits.
+			return
+		}
+	}
+}
+
+// toChainSwapEventStreamResponse converts a ChainSwapEvent into the protobuf
+// GetEventStreamResponse with the appropriate oneof variant.
+func toChainSwapEventStreamResponse(e application.ChainSwapEvent) *pb.GetEventStreamResponse {
+	resp := &pb.GetEventStreamResponse{Timestamp: e.Timestamp}
+	switch e.Type {
+	case application.ChainSwapEventCreated:
+		resp.Event = &pb.GetEventStreamResponse_ChainSwapCreated{
+			ChainSwapCreated: &pb.ChainSwapCreatedEvent{
+				SwapId:    e.SwapId,
+				Direction: e.Direction,
+				Amount:    e.Amount,
+			},
+		}
+	case application.ChainSwapEventUserLocked:
+		resp.Event = &pb.GetEventStreamResponse_ChainSwapUserLocked{
+			ChainSwapUserLocked: &pb.ChainSwapUserLockedEvent{
+				SwapId:         e.SwapId,
+				UserLockupTxid: e.UserLockTxId,
+			},
+		}
+	case application.ChainSwapEventServerLocked:
+		resp.Event = &pb.GetEventStreamResponse_ChainSwapServerLocked{
+			ChainSwapServerLocked: &pb.ChainSwapServerLockedEvent{
+				SwapId:           e.SwapId,
+				ServerLockupTxid: e.ServerLockTxId,
+			},
+		}
+	case application.ChainSwapEventClaimed:
+		resp.Event = &pb.GetEventStreamResponse_ChainSwapClaimed{
+			ChainSwapClaimed: &pb.ChainSwapClaimedEvent{
+				SwapId:    e.SwapId,
+				ClaimTxid: e.ClaimTxId,
+			},
+		}
+	case application.ChainSwapEventRefunded:
+		kind := pb.ChainSwapRefundedEvent_REFUND_KIND_UNSPECIFIED
+		switch e.RefundKind {
+		case application.ChainSwapRefundCooperative:
+			kind = pb.ChainSwapRefundedEvent_REFUND_KIND_COOPERATIVE
+		case application.ChainSwapRefundUnilateral:
+			kind = pb.ChainSwapRefundedEvent_REFUND_KIND_UNILATERAL
+		}
+		resp.Event = &pb.GetEventStreamResponse_ChainSwapRefunded{
+			ChainSwapRefunded: &pb.ChainSwapRefundedEvent{
+				SwapId:     e.SwapId,
+				RefundTxid: e.RefundTxId,
+				Kind:       kind,
+			},
+		}
+	case application.ChainSwapEventFailed:
+		resp.Event = &pb.GetEventStreamResponse_ChainSwapFailed{
+			ChainSwapFailed: &pb.ChainSwapFailedEvent{
+				SwapId:       e.SwapId,
+				ErrorMessage: e.ErrorMessage,
+			},
+		}
+	default:
+		log.Warnf("unknown chain swap event type: %s", e.Type)
+	}
+	return resp
+}
+
 // toTxAssociatedResponse converts a VTXO notification into a
 // GetEventStreamResponse with TxAssociatedEvent.
 func toTxAssociatedResponse(n application.Notification) *pb.GetEventStreamResponse {

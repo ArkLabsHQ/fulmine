@@ -170,6 +170,132 @@ func TestEventFanOut_MultipleConsumers(t *testing.T) {
 	}
 }
 
+func TestToChainSwapEventStreamResponse_Created(t *testing.T) {
+	event := application.ChainSwapEvent{
+		Type:      application.ChainSwapEventCreated,
+		Timestamp: time.Now().Unix(),
+		SwapId:    "swap-123",
+		Direction: "ark_to_btc",
+		Amount:    50000,
+	}
+
+	resp := toChainSwapEventStreamResponse(event)
+	require.NotNil(t, resp)
+	require.Equal(t, event.Timestamp, resp.Timestamp)
+
+	created := resp.GetChainSwapCreated()
+	require.NotNil(t, created)
+	require.Equal(t, "swap-123", created.SwapId)
+	require.Equal(t, "ark_to_btc", created.Direction)
+	require.Equal(t, uint64(50000), created.Amount)
+}
+
+func TestToChainSwapEventStreamResponse_UserLocked(t *testing.T) {
+	event := application.ChainSwapEvent{
+		Type:         application.ChainSwapEventUserLocked,
+		Timestamp:    time.Now().Unix(),
+		SwapId:       "swap-456",
+		UserLockTxId: "user-lock-txid",
+	}
+
+	resp := toChainSwapEventStreamResponse(event)
+	require.NotNil(t, resp)
+
+	userLocked := resp.GetChainSwapUserLocked()
+	require.NotNil(t, userLocked)
+	require.Equal(t, "swap-456", userLocked.SwapId)
+	require.Equal(t, "user-lock-txid", userLocked.UserLockupTxid)
+}
+
+func TestToChainSwapEventStreamResponse_ServerLocked(t *testing.T) {
+	event := application.ChainSwapEvent{
+		Type:           application.ChainSwapEventServerLocked,
+		Timestamp:      time.Now().Unix(),
+		SwapId:         "swap-789",
+		ServerLockTxId: "server-lock-txid",
+	}
+
+	resp := toChainSwapEventStreamResponse(event)
+	require.NotNil(t, resp)
+
+	serverLocked := resp.GetChainSwapServerLocked()
+	require.NotNil(t, serverLocked)
+	require.Equal(t, "swap-789", serverLocked.SwapId)
+	require.Equal(t, "server-lock-txid", serverLocked.ServerLockupTxid)
+}
+
+func TestToChainSwapEventStreamResponse_Claimed(t *testing.T) {
+	event := application.ChainSwapEvent{
+		Type:      application.ChainSwapEventClaimed,
+		Timestamp: time.Now().Unix(),
+		SwapId:    "swap-claimed",
+		ClaimTxId: "claim-txid-abc",
+	}
+
+	resp := toChainSwapEventStreamResponse(event)
+	require.NotNil(t, resp)
+
+	claimed := resp.GetChainSwapClaimed()
+	require.NotNil(t, claimed)
+	require.Equal(t, "swap-claimed", claimed.SwapId)
+	require.Equal(t, "claim-txid-abc", claimed.ClaimTxid)
+}
+
+func TestToChainSwapEventStreamResponse_Refunded_Cooperative(t *testing.T) {
+	event := application.ChainSwapEvent{
+		Type:       application.ChainSwapEventRefunded,
+		Timestamp:  time.Now().Unix(),
+		SwapId:     "swap-refund-coop",
+		RefundTxId: "refund-txid-coop",
+		RefundKind: application.ChainSwapRefundCooperative,
+	}
+
+	resp := toChainSwapEventStreamResponse(event)
+	require.NotNil(t, resp)
+
+	refunded := resp.GetChainSwapRefunded()
+	require.NotNil(t, refunded)
+	require.Equal(t, "swap-refund-coop", refunded.SwapId)
+	require.Equal(t, "refund-txid-coop", refunded.RefundTxid)
+	require.Equal(t, pb.ChainSwapRefundedEvent_REFUND_KIND_COOPERATIVE, refunded.Kind)
+}
+
+func TestToChainSwapEventStreamResponse_Refunded_Unilateral(t *testing.T) {
+	event := application.ChainSwapEvent{
+		Type:       application.ChainSwapEventRefunded,
+		Timestamp:  time.Now().Unix(),
+		SwapId:     "swap-refund-uni",
+		RefundTxId: "refund-txid-uni",
+		RefundKind: application.ChainSwapRefundUnilateral,
+	}
+
+	resp := toChainSwapEventStreamResponse(event)
+	require.NotNil(t, resp)
+
+	refunded := resp.GetChainSwapRefunded()
+	require.NotNil(t, refunded)
+	require.Equal(t, "swap-refund-uni", refunded.SwapId)
+	require.Equal(t, "refund-txid-uni", refunded.RefundTxid)
+	require.Equal(t, pb.ChainSwapRefundedEvent_REFUND_KIND_UNILATERAL, refunded.Kind)
+}
+
+func TestToChainSwapEventStreamResponse_Failed(t *testing.T) {
+	event := application.ChainSwapEvent{
+		Type:         application.ChainSwapEventFailed,
+		Timestamp:    time.Now().Unix(),
+		SwapId:       "swap-failed",
+		ErrorMessage: "something went wrong",
+	}
+
+	resp := toChainSwapEventStreamResponse(event)
+	require.NotNil(t, resp)
+
+	failed := resp.GetChainSwapFailed()
+	require.NotNil(t, failed)
+	require.Equal(t, "swap-failed", failed.SwapId)
+	require.Equal(t, "something went wrong", failed.ErrorMessage)
+}
+
 func TestTxAssociatedResponse(t *testing.T) {
 	notif := application.Notification{}
 	notif.Txid = "tx-assoc-id"

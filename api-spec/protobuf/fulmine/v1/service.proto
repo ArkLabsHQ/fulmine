@@ -520,6 +520,12 @@ message GetEventStreamResponse {
     HtlcFundedEvent htlc_funded = 4;
     HtlcSpentEvent htlc_spent = 5;
     HtlcRefundableEvent htlc_refundable = 6;
+    ChainSwapCreatedEvent chain_swap_created = 7;
+    ChainSwapUserLockedEvent chain_swap_user_locked = 8;
+    ChainSwapServerLockedEvent chain_swap_server_locked = 9;
+    ChainSwapClaimedEvent chain_swap_claimed = 10;
+    ChainSwapRefundedEvent chain_swap_refunded = 11;
+    ChainSwapFailedEvent chain_swap_failed = 12;
   }
 }
 
@@ -556,4 +562,41 @@ message HtlcSpentEvent {
 message HtlcRefundableEvent {
   string vhtlc_id = 1;
   uint64 refund_locktime = 2;
+}
+
+message ChainSwapCreatedEvent {
+  string swap_id = 1;
+  string direction = 2;
+  uint64 amount = 3;
+}
+
+message ChainSwapUserLockedEvent {
+  string swap_id = 1;
+  string user_lockup_txid = 2;
+}
+
+message ChainSwapServerLockedEvent {
+  string swap_id = 1;
+  string server_lockup_txid = 2;
+}
+
+message ChainSwapClaimedEvent {
+  string swap_id = 1;
+  string claim_txid = 2;
+}
+
+message ChainSwapRefundedEvent {
+  enum RefundKind {
+    REFUND_KIND_UNSPECIFIED = 0;
+    REFUND_KIND_COOPERATIVE = 1;
+    REFUND_KIND_UNILATERAL = 2;
+  }
+  string swap_id = 1;
+  string refund_txid = 2;
+  RefundKind kind = 3;
+}
+
+message ChainSwapFailedEvent {
+  string swap_id = 1;
+  string error_message = 2;
 }

@@ -867,6 +867,15 @@
     }
   },
   "definitions": {
+    "ChainSwapRefundedEventRefundKind": {
+      "type": "string",
+      "enum": [
+        "REFUND_KIND_UNSPECIFIED",
+        "REFUND_KIND_COOPERATIVE",
+        "REFUND_KIND_UNILATERAL"
+      ],
+      "default": "REFUND_KIND_UNSPECIFIED"
+    },
     "GetInfoResponseNetwork": {
       "type": "string",
       "enum": [
@@ -937,6 +946,57 @@
         }
       }
     },
+    "v1ChainSwapClaimedEvent": {
+      "type": "object",
+      "properties": {
+        "swapId": {
+          "type": "string"
+        },
+        "claimTxid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ChainSwapCreatedEvent": {
+      "type": "object",
+      "properties": {
+        "swapId": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1ChainSwapFailedEvent": {
+      "type": "object",
+      "properties": {
+        "swapId": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ChainSwapRefundedEvent": {
+      "type": "object",
+      "properties": {
+        "swapId": {
+          "type": "string"
+        },
+        "refundTxid": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/ChainSwapRefundedEventRefundKind"
+        }
+      }
+    },
     "v1ChainSwapResponse": {
       "type": "object",
       "properties": {
@@ -979,6 +1039,28 @@
           "format": "int64"
         },
         "errorMessage": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ChainSwapServerLockedEvent": {
+      "type": "object",
+      "properties": {
+        "swapId": {
+          "type": "string"
+        },
+        "serverLockupTxid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ChainSwapUserLockedEvent": {
+      "type": "object",
+      "properties": {
+        "swapId": {
+          "type": "string"
+        },
+        "userLockupTxid": {
           "type": "string"
         }
       }
@@ -1251,6 +1333,24 @@
         },
         "htlcRefundable": {
           "$ref": "#/definitions/v1HtlcRefundableEvent"
+        },
+        "chainSwapCreated": {
+          "$ref": "#/definitions/v1ChainSwapCreatedEvent"
+        },
+        "chainSwapUserLocked": {
+          "$ref": "#/definitions/v1ChainSwapUserLockedEvent"
+        },
+        "chainSwapServerLocked": {
+          "$ref": "#/definitions/v1ChainSwapServerLockedEvent"
+        },
+        "chainSwapClaimed": {
+          "$ref": "#/definitions/v1ChainSwapClaimedEvent"
+        },
+        "chainSwapRefunded": {
+          "$ref": "#/definitions/v1ChainSwapRefundedEvent"
+        },
+        "chainSwapFailed": {
+          "$ref": "#/definitions/v1ChainSwapFailedEvent"
         }
       }
     },
