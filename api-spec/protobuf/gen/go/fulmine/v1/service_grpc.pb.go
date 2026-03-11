@@ -45,6 +45,7 @@ const (
 	Service_ListChainSwaps_FullMethodName             = "/fulmine.v1.Service/ListChainSwaps"
 	Service_RefundChainSwap_FullMethodName            = "/fulmine.v1.Service/RefundChainSwap"
 	Service_ListDelegates_FullMethodName              = "/fulmine.v1.Service/ListDelegates"
+	Service_GetEventStream_FullMethodName             = "/fulmine.v1.Service/GetEventStream"
 )
 
 // ServiceClient is the client API for Service service.
@@ -98,6 +99,8 @@ type ServiceClient interface {
 	RefundChainSwap(ctx context.Context, in *RefundChainSwapRequest, opts ...grpc.CallOption) (*RefundChainSwapResponse, error)
 	// ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.
 	ListDelegates(ctx context.Context, in *ListDelegatesRequest, opts ...grpc.CallOption) (*ListDelegatesResponse, error)
+	// GetEventStream streams all wallet and VHTLC lifecycle events.
+	GetEventStream(ctx context.Context, in *GetEventStreamRequest, opts ...grpc.CallOption) (Service_GetEventStreamClient, error)
 }
 
 type serviceClient struct {
@@ -368,6 +371,39 @@ func (c *serviceClient) ListDelegates(ctx context.Context, in *ListDelegatesRequ
 	return out, nil
 }
 
+func (c *serviceClient) GetEventStream(ctx context.Context, in *GetEventStreamRequest, opts ...grpc.CallOption) (Service_GetEventStreamClient, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &Service_ServiceDesc.Streams[0], Service_GetEventStream_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &serviceGetEventStreamClient{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Service_GetEventStreamClient interface {
+	Recv() (*GetEventStreamResponse, error)
+	grpc.ClientStream
+}
+
+type serviceGetEventStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *serviceGetEventStreamClient) Recv() (*GetEventStreamResponse, error) {
+	m := new(GetEventStreamResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // ServiceServer is the server API for Service service.
 // All implementations should embed UnimplementedServiceServer
 // for forward compatibility
@@ -419,6 +455,8 @@ type ServiceServer interface {
 	RefundChainSwap(context.Context, *RefundChainSwapRequest) (*RefundChainSwapResponse, error)
 	// ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.
 	ListDelegates(context.Context, *ListDelegatesRequest) (*ListDelegatesResponse, error)
+	// GetEventStream streams all wallet and VHTLC lifecycle events.
+	GetEventStream(*GetEventStreamRequest, Service_GetEventStreamServer) error
 }
 
 // UnimplementedServiceServer should be embedded to have forward compatible implementations.
@@ -502,6 +540,9 @@ func (UnimplementedServiceServer) RefundChainSwap(context.Context, *RefundChainS
 }
 func (UnimplementedServiceServer) ListDelegates(context.Context, *ListDelegatesRequest) (*ListDelegatesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListDelegates not implemented")
+}
+func (UnimplementedServiceServer) GetEventStream(*GetEventStreamRequest, Service_GetEventStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetEventStream not implemented")
 }
 
 // UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -983,6 +1024,27 @@ func _Service_ListDelegates_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_GetEventStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetEventStreamRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ServiceServer).GetEventStream(m, &serviceGetEventStreamServer{ServerStream: stream})
+}
+
+type Service_GetEventStreamServer interface {
+	Send(*GetEventStreamResponse) error
+	grpc.ServerStream
+}
+
+type serviceGetEventStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *serviceGetEventStreamServer) Send(m *GetEventStreamResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // Service_ServiceDesc is the grpc.ServiceDesc for Service service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1095,6 +1157,12 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Service_ListDelegates_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "GetEventStream",
+			Handler:       _Service_GetEventStream_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "fulmine/v1/service.proto",
 }

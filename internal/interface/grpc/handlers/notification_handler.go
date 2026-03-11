@@ -16,14 +16,17 @@ type notificationHandler struct {
 	svc *application.Service
 
 	notificationListenerHandler *listenerHanlder[*pb.GetVtxoNotificationsResponse]
+	eventListenerHandler        *listenerHanlder[*pb.GetEventStreamResponse]
 	stopCh                      <-chan struct{}
 }
 
 func NewNotificationHandler(
-	appSvc *application.Service, stopCh <-chan struct{},
+	appSvc *application.Service,
+	stopCh <-chan struct{},
+	eventListenerHandler *listenerHanlder[*pb.GetEventStreamResponse],
 ) pb.NotificationServiceServer {
 	handler := newListenerHandler[*pb.GetVtxoNotificationsResponse]()
-	svc := &notificationHandler{appSvc, handler, stopCh}
+	svc := &notificationHandler{appSvc, handler, eventListenerHandler, stopCh}
 	go svc.listenToNotifications()
 	return svc
 }
@@ -109,12 +112,27 @@ func (h *notificationHandler) listenToNotifications() {
 	for {
 		select {
 		case event := <-h.svc.GetVtxoNotifications(context.Background()):
+			// Fan-out to VTXO notification listeners
+			h.notificationListenerHandler.lock.Lock()
 			for _, l := range h.notificationListenerHandler.listeners {
 				go func(l *listener[*pb.GetVtxoNotificationsResponse]) {
 					l.ch <- &pb.GetVtxoNotificationsResponse{
 						Notification: toNotificationProto(event),
 					}
 				}(l)
+			}
+			h.notificationListenerHandler.lock.Unlock()
+
+			// Also fan-out as TxAssociatedEvent to event stream listeners
+			if h.eventListenerHandler != nil {
+				txAssocEvent := toTxAssociatedResponse(event)
+				h.eventListenerHandler.lock.Lock()
+				for _, l := range h.eventListenerHandler.listeners {
+					go func(l *listener[*pb.GetEventStreamResponse]) {
+						l.ch <- txAssocEvent
+					}(l)
+				}
+				h.eventListenerHandler.lock.Unlock()
 			}
 		case <-h.stopCh:
 			h.notificationListenerHandler.stop()

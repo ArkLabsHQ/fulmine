@@ -171,6 +171,13 @@ service Service {
       get: "/v1/delegates"
     };
   };
+
+  // GetEventStream streams all wallet and VHTLC lifecycle events.
+  rpc GetEventStream(GetEventStreamRequest) returns (stream GetEventStreamResponse) {
+    option (google.api.http) = {
+      get: "/v1/events"
+    };
+  };
 }
 
 message GetAddressRequest {}
@@ -501,4 +508,95 @@ message ListDelegatesRequest {
 
 message ListDelegatesResponse {
   repeated Delegate delegates = 1;
+}
+
+message GetEventStreamRequest {}
+
+message GetEventStreamResponse {
+  int64 timestamp = 1;
+  oneof event {
+    TxAssociatedEvent tx_associated = 2;
+    HtlcCreatedEvent htlc_created = 3;
+    HtlcFundedEvent htlc_funded = 4;
+    HtlcSpentEvent htlc_spent = 5;
+    HtlcRefundableEvent htlc_refundable = 6;
+    ChainSwapCreatedEvent chain_swap_created = 7;
+    ChainSwapUserLockedEvent chain_swap_user_locked = 8;
+    ChainSwapServerLockedEvent chain_swap_server_locked = 9;
+    ChainSwapClaimedEvent chain_swap_claimed = 10;
+    ChainSwapRefundedEvent chain_swap_refunded = 11;
+    ChainSwapFailedEvent chain_swap_failed = 12;
+  }
+}
+
+message TxAssociatedEvent {
+  string txid = 1;
+  string tx = 2;
+  repeated Vtxo new_vtxos = 3;
+  repeated Vtxo spent_vtxos = 4;
+}
+
+message HtlcCreatedEvent {
+  string vhtlc_id = 1;
+  string address = 2;
+  uint64 amount = 3;
+}
+
+message HtlcFundedEvent {
+  string vhtlc_id = 1;
+  string funding_txid = 2;
+  uint64 amount = 3;
+}
+
+message HtlcSpentEvent {
+  enum SpendType {
+    SPEND_TYPE_UNSPECIFIED = 0;
+    SPEND_TYPE_CLAIMED = 1;
+    SPEND_TYPE_REFUNDED = 2;
+  }
+  string vhtlc_id = 1;
+  string redeem_txid = 2;
+  SpendType spend_type = 3;
+}
+
+message HtlcRefundableEvent {
+  string vhtlc_id = 1;
+  uint64 refund_locktime = 2;
+}
+
+message ChainSwapCreatedEvent {
+  string swap_id = 1;
+  string direction = 2;
+  uint64 amount = 3;
+}
+
+message ChainSwapUserLockedEvent {
+  string swap_id = 1;
+  string user_lockup_txid = 2;
+}
+
+message ChainSwapServerLockedEvent {
+  string swap_id = 1;
+  string server_lockup_txid = 2;
+}
+
+message ChainSwapClaimedEvent {
+  string swap_id = 1;
+  string claim_txid = 2;
+}
+
+message ChainSwapRefundedEvent {
+  enum RefundKind {
+    REFUND_KIND_UNSPECIFIED = 0;
+    REFUND_KIND_COOPERATIVE = 1;
+    REFUND_KIND_UNILATERAL = 2;
+  }
+  string swap_id = 1;
+  string refund_txid = 2;
+  RefundKind kind = 3;
+}
+
+message ChainSwapFailedEvent {
+  string swap_id = 1;
+  string error_message = 2;
 }

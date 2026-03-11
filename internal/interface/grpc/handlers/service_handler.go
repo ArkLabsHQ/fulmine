@@ -20,11 +20,30 @@ import (
 )
 
 type serviceHandler struct {
-	svc *application.Service
+	svc                  *application.Service
+	eventListenerHandler *listenerHanlder[*pb.GetEventStreamResponse]
+	stopCh               <-chan struct{}
 }
 
-func NewServiceHandler(svc *application.Service) pb.ServiceServer {
-	return &serviceHandler{svc}
+// NewEventListenerHandler creates a shared event listener handler that must be
+// passed to both NewServiceHandler and NewNotificationHandler.
+func NewEventListenerHandler() *listenerHanlder[*pb.GetEventStreamResponse] {
+	return newListenerHandler[*pb.GetEventStreamResponse]()
+}
+
+func NewServiceHandler(
+	svc *application.Service,
+	stopCh <-chan struct{},
+	eventListenerHandler *listenerHanlder[*pb.GetEventStreamResponse],
+) pb.ServiceServer {
+	handler := &serviceHandler{
+		svc:                  svc,
+		eventListenerHandler: eventListenerHandler,
+		stopCh:               stopCh,
+	}
+	go handler.listenToHtlcEvents()
+	go handler.listenToChainSwapEvents()
+	return handler
 }
 
 func (h *serviceHandler) GetAddress(

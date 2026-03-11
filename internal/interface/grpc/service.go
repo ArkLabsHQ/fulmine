@@ -117,10 +117,12 @@ func NewService(
 	walletHandler := handlers.NewWalletHandler(appSvc)
 	pb.RegisterWalletServiceServer(grpcServer, walletHandler)
 
-	serviceHandler := handlers.NewServiceHandler(appSvc)
+	eventListenerHandler := handlers.NewEventListenerHandler()
+
+	serviceHandler := handlers.NewServiceHandler(appSvc, appStopCh, eventListenerHandler)
 	pb.RegisterServiceServer(grpcServer, serviceHandler)
 
-	notificationHandler := handlers.NewNotificationHandler(appSvc, appStopCh)
+	notificationHandler := handlers.NewNotificationHandler(appSvc, appStopCh, eventListenerHandler)
 	pb.RegisterNotificationServiceServer(grpcServer, notificationHandler)
 
 	healthHandler := handlers.NewHealthHandler(appSvc)
