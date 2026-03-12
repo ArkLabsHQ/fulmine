@@ -16,7 +16,6 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
-	"github.com/arkade-os/arkd/pkg/client-lib/types"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
@@ -1514,10 +1513,10 @@ func TestDelegateWithAssets(t *testing.T) {
 	wg.Go(func() {
 		incomingFunds, incomingErr = alice.NotifyIncomingFunds(ctx, arkAddressStr)
 	})
-	_, err = alice.SendOffChain(ctx, []types.Receiver{{
+	_, err = alice.SendOffChain(ctx, []clientTypes.Receiver{{
 		To:     arkAddressStr,
 		Amount: btcDustAmount,
-		Assets: []types.Asset{{AssetId: assetId, Amount: assetTransferAmount}},
+		Assets: []clientTypes.Asset{{AssetId: assetId, Amount: assetTransferAmount}},
 	}})
 	require.NoError(t, err)
 
@@ -1713,7 +1712,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	require.NoError(t, err)
 
 	// Find the refreshed VTXO: non-preconfirmed, carrying the BTC dust amount.
-	var refreshedVtxo *types.Vtxo
+	var refreshedVtxo *clientTypes.Vtxo
 	for _, v := range allSpendable {
 		if !v.Preconfirmed && v.Amount == btcDustAmount {
 			refreshedVtxo = &v

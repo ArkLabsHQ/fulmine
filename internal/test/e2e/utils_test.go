@@ -336,7 +336,7 @@ func setupArkSDKwithPublicKey(
 	err = arkClient.Unlock(t.Context(), password)
 	require.NoError(t, err)
 
-	syncCtx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
+	syncCtx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 
 	select {
