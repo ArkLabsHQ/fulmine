@@ -2130,14 +2130,16 @@ func (s *Service) handleAddressEventChannel(
 
 		}
 
-		// non-blocking forward to notifications channel
 		go func(evt indexer.ScriptEvent) {
-			s.notifications <- Notification{
+			select {
+			case s.notifications <- Notification{
 				Addrs:       addresses,
 				NewVtxos:    data.NewVtxos,
 				SpentVtxos:  data.SpentVtxos,
 				Checkpoints: data.CheckpointTxs,
 				TxData:      indexer.TxData{Tx: data.Tx, Txid: data.Txid},
+			}:
+			default:
 			}
 		}(event)
 	}
