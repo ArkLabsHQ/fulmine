@@ -1,6 +1,6 @@
 module github.com/ArkLabsHQ/fulmine
 
-go 1.25.7
+go 1.26.0
 
 replace github.com/ArkLabsHQ/fulmine/pkg/vhtlc => ./pkg/vhtlc
 
@@ -19,10 +19,10 @@ require (
 	github.com/a-h/templ v0.3.1001
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260303153651-8615412e4dea
-	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260311130119-76bfe3cdc4cb
+	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260312030432-9ac7220f14e3
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/go-sdk v0.8.2-0.20260311132730-13490c69fd70
+	github.com/arkade-os/go-sdk v0.8.2-0.20260312032319-84eccba6abdb
 	github.com/creack/pty v1.1.18
 	github.com/dgraph-io/badger/v4 v4.8.0
 	github.com/getsentry/sentry-go v0.32.0
