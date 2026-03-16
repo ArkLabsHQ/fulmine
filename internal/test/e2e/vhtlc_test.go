@@ -15,14 +15,8 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
-	"github.com/arkade-os/go-sdk/client"
-	grpcclient "github.com/arkade-os/go-sdk/client/grpc"
-	"github.com/arkade-os/go-sdk/store"
-	"github.com/arkade-os/go-sdk/types"
-	"github.com/arkade-os/go-sdk/wallet"
-	singlekeywallet "github.com/arkade-os/go-sdk/wallet/singlekey"
-	inmemorystore "github.com/arkade-os/go-sdk/wallet/singlekey/store/inmemory"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -279,7 +273,7 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 	receiverPubKey := info.Pubkey
 	require.NotEmpty(t, info.Pubkey)
 
-	senderArkClient, _, senderPubKey, _ := setupArkSDK(t)
+	senderArkClient, senderPubKey, _ := setupArkSDKwithPublicKey(t)
 
 	_, offchain, boarding, _, err := senderArkClient.GetAddresses(ctx)
 	require.NoError(t, err)
@@ -299,8 +293,8 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
 
 	vhtlcReq := &pb.CreateVHTLCRequest{
-		PreimageHash:   preimageHash,
-		SenderPubkey:   hex.EncodeToString(senderPubKey.SerializeCompressed()),
+		PreimageHash: preimageHash,
+		SenderPubkey: hex.EncodeToString(senderPubKey.SerializeCompressed()),
 		UnilateralClaimDelay: &pb.RelativeLocktime{
 			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
 			Value: 512,
@@ -321,7 +315,7 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 	require.NoError(t, err)
 	senderOffchainBalanceInit := senderBalance.OffchainBalance.Total
 
-	_, err = senderArkClient.SendOffChain(ctx, []types.Receiver{
+	_, err = senderArkClient.SendOffChain(ctx, []clientTypes.Receiver{
 		{
 			To:     vhtlcAddrInfo.Address,
 			Amount: 1000,
@@ -562,49 +556,4 @@ func buildDelegatePartialForfeit(
 	require.NoError(t, err)
 
 	return signedPartialForfeitTx, nil
-}
-
-func setupArkSDK(
-	t *testing.T,
-) (arksdk.ArkClient, wallet.WalletService, *btcec.PublicKey, client.TransportClient) {
-	serverUrl := "localhost:7070"
-	password := "pass"
-
-	appDataStore, err := store.NewStore(store.Config{
-		ConfigStoreType:  types.InMemoryStore,
-		AppDataStoreType: types.KVStore,
-	})
-	require.NoError(t, err)
-
-	client, err := arksdk.NewArkClient(appDataStore)
-	require.NoError(t, err)
-
-	walletStore, err := inmemorystore.NewWalletStore()
-	require.NoError(t, err)
-	require.NotNil(t, walletStore)
-
-	wallet, err := singlekeywallet.NewBitcoinWallet(appDataStore.ConfigStore(), walletStore)
-	require.NoError(t, err)
-
-	privkey, err := btcec.NewPrivateKey()
-	require.NoError(t, err)
-
-	privkeyHex := hex.EncodeToString(privkey.Serialize())
-
-	err = client.InitWithWallet(context.Background(), arksdk.InitWithWalletArgs{
-		Wallet:     wallet,
-		ClientType: arksdk.GrpcClient,
-		ServerUrl:  serverUrl,
-		Password:   password,
-		Seed:       privkeyHex,
-	})
-	require.NoError(t, err)
-
-	err = client.Unlock(context.Background(), password)
-	require.NoError(t, err)
-
-	grpcClient, err := grpcclient.NewClient(serverUrl)
-	require.NoError(t, err)
-
-	return client, wallet, privkey.PubKey(), grpcClient
 }

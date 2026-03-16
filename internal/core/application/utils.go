@@ -2,17 +2,15 @@ package application
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"time"
 
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
-	"github.com/arkade-os/go-sdk/client"
-	"github.com/arkade-os/go-sdk/types"
+	"github.com/arkade-os/arkd/pkg/client-lib/client"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -120,65 +118,8 @@ func (i registeredIntent) intentIDHash() string {
 	return hex.EncodeToString(buf[:])
 }
 
-func connectEventStream(grpcClient client.TransportClient) func(context.Context) (<-chan client.BatchEventChannel, func(), error) {
-	return func(ctx context.Context) (<-chan client.BatchEventChannel, func(), error) {
-		return grpcClient.GetEventStream(ctx, nil)
-	}
-}
-
-func connectStreamWithRetry[T any](
-	ctx context.Context, currentStop func(),
-	connectStream func(ctx context.Context) (<-chan T, func(), error),
-) (<-chan T, func(), error) {
-	const (
-		initialBackoff = 1 * time.Second
-		maxBackoff     = 5 * time.Minute
-		backoffFactor  = 2.0
-	)
-
-	if currentStop != nil {
-		currentStop()
-	}
-
-	backoff := initialBackoff
-	attempt := 0
-
-	for {
-		attempt++
-		log.WithFields(log.Fields{
-			"attempt": attempt,
-			"backoff": backoff,
-		}).Warn("event stream closed, attempting to reconnect...")
-
-		eventsCh, stop, err := connectStream(ctx)
-		if err == nil {
-			log.WithField("attempt", attempt).Info("successfully reconnected to event stream")
-			return eventsCh, stop, nil
-		}
-
-		log.WithError(err).WithField("attempt", attempt).Warn("failed to reconnect to event stream")
-
-		select {
-		case <-ctx.Done():
-			log.Info("context cancelled, stopping reconnect attempts")
-			return nil, nil, ctx.Err()
-		default:
-		}
-
-		nextBackoff := min(time.Duration(float64(backoff)*backoffFactor), maxBackoff)
-
-		select {
-		case <-ctx.Done():
-			log.Info("context cancelled during backoff, stopping reconnect attempts")
-			return nil, nil, ctx.Err()
-		case <-time.After(nextBackoff):
-			backoff = nextBackoff
-		}
-	}
-}
-
 func getSpentVtxosFromTransactionEvent(event client.TransactionEvent) []wire.OutPoint {
-	spentVtxos := make([]types.Vtxo, 0)
+	spentVtxos := make([]clientTypes.Vtxo, 0)
 
 	if event.CommitmentTx != nil {
 		spentVtxos = append(spentVtxos, event.CommitmentTx.SpentVtxos...)

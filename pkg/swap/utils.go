@@ -16,8 +16,7 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
-	"github.com/arkade-os/go-sdk/client"
-	"github.com/arkade-os/go-sdk/types"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -29,7 +28,7 @@ import (
 	decodepay "github.com/nbd-wtf/ln-decodepay"
 )
 
-func checkpointExitScript(cfg types.Config) []byte {
+func checkpointExitScript(cfg clientTypes.Config) []byte {
 	buf, _ := hex.DecodeString(cfg.CheckpointTapscript)
 	return buf
 }
@@ -303,7 +302,7 @@ func validatePreimage(preimage, expectedHash []byte) error {
 	return nil
 }
 
-func getEventTopics(vtxos []client.TapscriptsVtxo, signerPubkey string) []string {
+func getEventTopics(vtxos []clientTypes.VtxoWithTapTree, signerPubkey string) []string {
 	topics := make([]string, 0, len(vtxos)+1)
 	for _, vtxo := range vtxos {
 		topics = append(topics, vtxo.Vtxo.Outpoint.String())
@@ -344,7 +343,7 @@ func getClaimIntent(
 		return "", "", err
 	}
 
-	receivers := []types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}}
+	receivers := []clientTypes.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}}
 
 	intentMessage, err := getIntentMessage(session.signerSession)
 	if err != nil {
@@ -423,7 +422,7 @@ func getRefundIntent(session *batchSessionArgs) (string, string, error) {
 		return "", "", err
 	}
 
-	receivers := []types.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}}
+	receivers := []clientTypes.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}}
 
 	intentMessage, err := getIntentMessage(session.signerSession)
 	if err != nil {
@@ -494,7 +493,7 @@ func getRefundClosure(forfeitClosures []script.Closure) (script.Closure, error) 
 }
 
 func getIntentInputs(
-	vtxos []client.TapscriptsVtxo, vhtlcScript *vhtlc.VHTLCScript,
+	vtxos []clientTypes.VtxoWithTapTree, vhtlcScript *vhtlc.VHTLCScript,
 	settlementTapscript *waddrmgr.Tapscript, inputSequence uint32,
 ) ([]intent.Input, []*arklib.TaprootMerkleProof, [][]*psbt.Unknown, error) {
 	vhtlcTapKey, vhtlcTapTree, err := vhtlcScript.TapTree()
@@ -547,7 +546,7 @@ func getIntentInputs(
 	return inputs, tapLeaves, arkFields, nil
 }
 
-func getIntentOutputs(receivers []types.Receiver) ([]*wire.TxOut, error) {
+func getIntentOutputs(receivers []clientTypes.Receiver) ([]*wire.TxOut, error) {
 	outputs := make([]*wire.TxOut, 0, len(receivers))
 	for _, receiver := range receivers {
 		decodedAddr, err := arklib.DecodeAddressV0(receiver.To)

@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -19,14 +19,10 @@ import (
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
+	"github.com/arkade-os/arkd/pkg/client-lib/client"
+	grpcclient "github.com/arkade-os/arkd/pkg/client-lib/client/grpc"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
-	"github.com/arkade-os/go-sdk/client"
-	grpcclient "github.com/arkade-os/go-sdk/client/grpc"
-	"github.com/arkade-os/go-sdk/store"
-	"github.com/arkade-os/go-sdk/types"
-	"github.com/arkade-os/go-sdk/wallet"
-	singlekeywallet "github.com/arkade-os/go-sdk/wallet/singlekey"
-	inmemorystore "github.com/arkade-os/go-sdk/wallet/singlekey/store/inmemory"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/creack/pty"
 	"github.com/stretchr/testify/require"
@@ -281,15 +277,15 @@ func generateNote(t *testing.T, amount uint64) string {
 	return noteResp.Notes[0]
 }
 
-func faucetOffchain(t *testing.T, client arksdk.ArkClient, amount float64) types.Vtxo {
-	_, offchainAddr, _, err := client.Receive(t.Context())
+func faucetOffchain(t *testing.T, client arksdk.ArkClient, amount float64) clientTypes.Vtxo {
+	offchainAddr, err := client.NewOffchainAddress(t.Context())
 	require.NoError(t, err)
 
 	note := generateNote(t, uint64(amount*1e8))
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	var incomingFunds []types.Vtxo
+	var incomingFunds []clientTypes.Vtxo
 	var incomingErr error
 	go func() {
 		incomingFunds, incomingErr = client.NotifyIncomingFunds(t.Context(), offchainAddr)
@@ -320,24 +316,13 @@ func newDelegatorClient(url string) (pb.DelegatorServiceClient, error) {
 
 func setupArkSDKwithPublicKey(
 	t *testing.T,
-) (arksdk.ArkClient, wallet.WalletService, *btcec.PublicKey, client.TransportClient) {
+) (arksdk.ArkClient, *btcec.PublicKey, client.TransportClient) {
+	t.Helper()
+
 	serverUrl := "localhost:7070"
 	password := "pass"
 
-	appDataStore, err := store.NewStore(store.Config{
-		ConfigStoreType:  types.InMemoryStore,
-		AppDataStoreType: types.KVStore,
-	})
-	require.NoError(t, err)
-
-	client, err := arksdk.NewArkClient(appDataStore)
-	require.NoError(t, err)
-
-	walletStore, err := inmemorystore.NewWalletStore()
-	require.NoError(t, err)
-	require.NotNil(t, walletStore)
-
-	wallet, err := singlekeywallet.NewBitcoinWallet(appDataStore.ConfigStore(), walletStore)
+	arkClient, err := arksdk.NewArkClient("", false)
 	require.NoError(t, err)
 
 	privkey, err := btcec.NewPrivateKey()
@@ -345,20 +330,65 @@ func setupArkSDKwithPublicKey(
 
 	privkeyHex := hex.EncodeToString(privkey.Serialize())
 
-	err = client.InitWithWallet(context.Background(), arksdk.InitWithWalletArgs{
-		Wallet:     wallet,
-		ClientType: arksdk.GrpcClient,
-		ServerUrl:  serverUrl,
-		Password:   password,
-		Seed:       privkeyHex,
-	})
+	err = arkClient.Init(t.Context(), serverUrl, privkeyHex, password)
 	require.NoError(t, err)
 
-	err = client.Unlock(context.Background(), password)
+	err = arkClient.Unlock(t.Context(), password)
 	require.NoError(t, err)
+
+	syncCtx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+
+	select {
+	case syncEvent, ok := <-arkClient.IsSynced(syncCtx):
+		require.True(t, ok, "sync channel closed before client reported sync")
+		require.NoError(t, syncEvent.Err)
+		require.True(t, syncEvent.Synced, "ark client did not report synced")
+	case <-syncCtx.Done():
+		t.Fatalf("timed out waiting for ark client sync: %v", syncCtx.Err())
+	}
 
 	grpcClient, err := grpcclient.NewClient(serverUrl)
 	require.NoError(t, err)
 
-	return client, wallet, privkey.PubKey(), grpcClient
+	return arkClient, privkey.PubKey(), grpcClient
+}
+
+// issueAsset issues a new asset with the given supply and returns the asset ID string.
+func issueAsset(t *testing.T, client arksdk.ArkClient, supply uint64) string {
+	t.Helper()
+	_, assetIds, err := client.IssueAsset(t.Context(), supply, nil, nil)
+	require.NoError(t, err)
+	require.Len(t, assetIds, 1)
+	return assetIds[0].String()
+}
+
+// listVtxosWithAsset returns all spendable VTXOs that contain the given asset ID.
+func listVtxosWithAsset(t *testing.T, client arksdk.ArkClient, assetID string) []clientTypes.Vtxo {
+	t.Helper()
+	vtxos, _, err := client.ListVtxos(t.Context())
+	require.NoError(t, err)
+
+	assetVtxos := make([]clientTypes.Vtxo, 0, len(vtxos))
+	for _, vtxo := range vtxos {
+		for _, asset := range vtxo.Assets {
+			if asset.AssetId == assetID {
+				assetVtxos = append(assetVtxos, vtxo)
+				break
+			}
+		}
+	}
+	return assetVtxos
+}
+
+// requireVtxoHasAsset asserts that the given VTXO contains an asset with the given ID and amount.
+func requireVtxoHasAsset(t *testing.T, vtxo clientTypes.Vtxo, assetID string, expectedAmount uint64) {
+	t.Helper()
+	for _, asset := range vtxo.Assets {
+		if asset.AssetId == assetID {
+			require.Equal(t, expectedAmount, asset.Amount, "asset %s amount mismatch", assetID)
+			return
+		}
+	}
+	t.Fatalf("vtxo %s:%d does not contain asset %s", vtxo.Txid, vtxo.VOut, assetID)
 }

@@ -8,9 +8,9 @@ import (
 
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
-	"github.com/arkade-os/go-sdk/client"
-	indexer "github.com/arkade-os/go-sdk/indexer"
-	"github.com/arkade-os/go-sdk/types"
+	"github.com/arkade-os/arkd/pkg/client-lib/client"
+	indexer "github.com/arkade-os/arkd/pkg/client-lib/indexer"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
@@ -101,9 +101,9 @@ func (h *delegatorBatchSessionHandler) submitForfeitTxs(
 		}
 
 		// include only the forfeit tx of vtxo that are not recoverable
-		outpoints := make([]types.Outpoint, len(task.Intent.Inputs))
+		outpoints := make([]clientTypes.Outpoint, len(task.Intent.Inputs))
 		for i, input := range task.Intent.Inputs {
-			outpoints[i] = types.Outpoint{
+			outpoints[i] = clientTypes.Outpoint{
 				Txid: input.Hash.String(),
 				VOut: input.Index,
 			}
@@ -113,7 +113,7 @@ func (h *delegatorBatchSessionHandler) submitForfeitTxs(
 			log.WithError(err).Warnf("failed to set outpoints for get vtxos request")
 			continue
 		}
-		vtxos, err := h.delegator.svc.indexerClient.GetVtxos(ctx, opts)
+		vtxos, err := h.delegator.svc.Indexer().GetVtxos(ctx, opts)
 		if err != nil {
 			log.WithError(err).Warnf("failed to get vtxos for task %s", selectedTaskId)
 			continue
@@ -182,7 +182,7 @@ func (h *delegatorBatchSessionHandler) submitForfeitTxs(
 		signedForfeitTxs = append(signedForfeitTxs, signedForfeitTx)
 	}
 
-	return h.delegator.svc.grpcClient.SubmitSignedForfeitTxs(ctx, signedForfeitTxs, "")
+	return h.delegator.svc.Client().SubmitSignedForfeitTxs(ctx, signedForfeitTxs, "")
 }
 
 // musig2BatchSessionHandler implements the Musig2 methods

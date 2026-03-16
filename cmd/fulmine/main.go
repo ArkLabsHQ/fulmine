@@ -13,8 +13,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db"
 	scheduler "github.com/ArkLabsHQ/fulmine/internal/infrastructure/scheduler/gocron"
 	grpcservice "github.com/ArkLabsHQ/fulmine/internal/interface/grpc"
-	"github.com/arkade-os/go-sdk/store"
-	"github.com/arkade-os/go-sdk/types"
 	"github.com/getsentry/sentry-go"
 	sentrylogrus "github.com/getsentry/sentry-go/logrus"
 	log "github.com/sirupsen/logrus"
@@ -27,11 +25,6 @@ var (
 	date    = "unknown"
 
 	sentryDsn = ""
-)
-
-const (
-	configStoreType  = types.FileStore
-	appDataStoreType = types.SQLStore
 )
 
 func main() {
@@ -94,16 +87,6 @@ func main() {
 		WithTLS:       cfg.WithTLS,
 	}
 
-	storeCfg := store.Config{
-		BaseDir:          cfg.Datadir,
-		ConfigStoreType:  configStoreType,
-		AppDataStoreType: appDataStoreType,
-	}
-	storeSvc, err := store.NewStore(storeCfg)
-	if err != nil {
-		log.WithError(err).Fatal(err)
-	}
-
 	dbSvc, err := db.NewService(db.ServiceConfig{
 		DbType:   cfg.DbType,
 		DbConfig: []any{cfg.Datadir},
@@ -122,7 +105,7 @@ func main() {
 	schedulerSvc := scheduler.NewScheduler(cfg.EsploraURL, pollInterval)
 
 	appSvc, delegatorSvc, err := application.NewServices(
-		buildInfo, storeCfg, storeSvc, dbSvc, schedulerSvc,
+		buildInfo, cfg.Datadir, dbSvc, schedulerSvc,
 		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout,
 		cfg.LnConnectionOpts, cfg.RefreshDbInterval,
 		application.DelegatorConfig{

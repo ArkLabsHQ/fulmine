@@ -37,7 +37,7 @@ func TestChainSwapArkToBTC(t *testing.T) {
 		Amount:     3000,
 		BtcAddress: btcAddress,
 	})
-	require.NoError(t, err, "CreateChainSwap should succeed")
+	require.NoError(t, err)
 
 	swapID := createResp.GetId()
 	t.Logf("Created chain swap: %s", swapID)
@@ -71,7 +71,7 @@ func TestChainSwapBTCtoARK(t *testing.T) {
 		Direction: pb.SwapDirection_SWAP_DIRECTION_BTC_TO_ARK,
 		Amount:    3000,
 	})
-	require.NoError(t, err, "CreateChainSwap should succeed")
+	require.NoError(t, err)
 
 	swapID := createResp.GetId()
 	t.Logf("Created chain swap: %s", swapID)
@@ -110,7 +110,7 @@ func TestChainSwapBTCtoARKWithQuote(t *testing.T) {
 		Direction: pb.SwapDirection_SWAP_DIRECTION_BTC_TO_ARK,
 		Amount:    3000,
 	})
-	require.NoError(t, err, "CreateChainSwap should succeed")
+	require.NoError(t, err)
 
 	swapID := createResp.GetId()
 	t.Logf("Created chain swap: %s", swapID)
@@ -171,9 +171,9 @@ func TestChainSwapMockArkToBTCScriptPathClaim(t *testing.T) {
 		BtcAddress: btcAddress,
 	})
 	require.NoError(t, err)
-	require.Emptyf(t, createResp.GetError(), "CreateChainSwap returned application error: %s", createResp.GetError())
+	require.Empty(t, createResp.GetError())
 	swapID := createResp.GetId()
-	require.NotEmpty(t, swapID, "CreateChainSwap returned empty swap id")
+	require.NotEmpty(t, swapID)
 	require.NotEmpty(t, swapID)
 
 	// For script-path claim we must provide a real, spendable server lockup tx from regtest.
@@ -287,7 +287,7 @@ func TestChainSwapMockArkToBTCUnilateralRefund(t *testing.T) {
 	waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 80*time.Second)
 
 	state := mockGetSwap(t, swapID)
-	require.Greater(t, state.RefundRequests, 0, "expected failed cooperative refund attempt before unilateral refund")
+	require.Greater(t, state.RefundRequests, 0)
 }
 
 func TestChainSwapMockBTCToARKUnilateralRefund(t *testing.T) {
@@ -351,7 +351,7 @@ func TestChainSwapMockRefundChainSwapRPC(t *testing.T) {
 			BtcAddress: btcAddress,
 		})
 		require.NoError(t, err)
-		require.Emptyf(t, createResp.GetError(), "CreateChainSwap returned application error: %s", createResp.GetError())
+		require.Empty(t, createResp.GetError())
 		swapID := createResp.GetId()
 		require.NotEmpty(t, swapID)
 
@@ -363,7 +363,7 @@ func TestChainSwapMockRefundChainSwapRPC(t *testing.T) {
 		waitChainSwapStatus(t, ctx, client, swapID, "refunded", 40*time.Second)
 
 		state := mockGetSwap(t, swapID)
-		require.Greater(t, state.RefundRequests, 0, "expected cooperative refund call to mock boltz")
+		require.Greater(t, state.RefundRequests, 0)
 	})
 
 	t.Run("btc_to_ark", func(t *testing.T) {
@@ -389,7 +389,7 @@ func TestChainSwapMockRefundChainSwapRPC(t *testing.T) {
 			Amount:    3000,
 		})
 		require.NoError(t, err)
-		require.Emptyf(t, createResp.GetError(), "CreateChainSwap returned application error: %s", createResp.GetError())
+		require.Empty(t, createResp.GetError())
 		swapID := createResp.GetId()
 		require.NotEmpty(t, swapID)
 		require.NotEmpty(t, createResp.GetLockupAddress())
@@ -427,7 +427,7 @@ func TestChainSwapRecovery(t *testing.T) {
 			Amount:     3000,
 			BtcAddress: btcAddress,
 		})
-		require.NoError(t, err, "CreateChainSwap should succeed")
+		require.NoError(t, err)
 
 		swapID := createResp.GetId()
 		require.NotEmpty(t, swapID)
@@ -478,7 +478,7 @@ func TestChainSwapRecovery(t *testing.T) {
 		waitChainSwapStatus(t, ctx, client, swapID, "refunded", 30*time.Second)
 
 		state := mockGetSwap(t, swapID)
-		require.Greater(t, state.RefundRequests, 0, "expected cooperative refund call to mock boltz")
+		require.Greater(t, state.RefundRequests, 0)
 	})
 
 	t.Run("btc_to_ark_refund_mock", func(t *testing.T) {
@@ -553,7 +553,7 @@ func waitChainSwapStatus(
 	if swap.GetErrorMessage() != "" {
 		t.Logf("Swap %s error: %s", swapID, swap.GetErrorMessage())
 	}
-	require.Equalf(t, expected, swap.GetStatus(), "final status mismatch for swap %s", swapID)
+	require.Equal(t, expected, swap.GetStatus())
 }
 
 func refundChainSwapRPCWithRetry(

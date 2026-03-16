@@ -733,7 +733,7 @@ func (h *SwapHandler) RefundBtcToArkSwap(
 
 	log.Infof("CLTV timeout reached at block %d (required %d)", currentHeight, requiredHeight)
 
-	_, _, boardingAddr, err := h.arkClient.Receive(ctx)
+	boardingAddr, err := h.arkClient.NewBoardingAddress(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get boarding address: %w", err)
 	}

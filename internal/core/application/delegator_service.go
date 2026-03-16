@@ -15,9 +15,9 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
-	"github.com/arkade-os/go-sdk/client"
-	indexer "github.com/arkade-os/go-sdk/indexer"
-	"github.com/arkade-os/go-sdk/types"
+	"github.com/arkade-os/arkd/pkg/client-lib/client"
+	indexer "github.com/arkade-os/arkd/pkg/client-lib/indexer"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
@@ -277,9 +277,9 @@ func (s *DelegatorService) newDelegateTask(
 	}
 
 	// verify all inputs are real VTXOs and not unrolled or spent
-	outpoints := make([]types.Outpoint, len(task.Intent.Inputs))
+	outpoints := make([]clientTypes.Outpoint, len(task.Intent.Inputs))
 	for i, input := range task.Intent.Inputs {
-		outpoints[i] = types.Outpoint{
+		outpoints[i] = clientTypes.Outpoint{
 			Txid: input.Hash.String(),
 			VOut: input.Index,
 		}
@@ -289,7 +289,7 @@ func (s *DelegatorService) newDelegateTask(
 	if err := opts.WithOutpoints(outpoints); err != nil {
 		return nil, fmt.Errorf("failed to get vtxos: %w", err)
 	}
-	vtxos, err := s.svc.indexerClient.GetVtxos(ctx, opts)
+	vtxos, err := s.svc.Indexer().GetVtxos(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get vtxos: %w", err)
 	}
@@ -388,7 +388,7 @@ func (s *DelegatorService) registerDelegate(id string) error {
 		return nil
 	}
 
-	intentId, err := s.svc.grpcClient.RegisterIntent(s.ctx, task.Intent.Proof, task.Intent.Message)
+	intentId, err := s.svc.Client().RegisterIntent(s.ctx, task.Intent.Proof, task.Intent.Message)
 	if err != nil {
 		log.WithError(err).Errorf("failed to register intent for delegate task %s", id)
 		return repo.FailTasks(s.ctx, err.Error(), id)
@@ -417,9 +417,7 @@ func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
 	var stop func()
 	var err error
 
-	connectStream := connectEventStream(s.svc.grpcClient)
-
-	eventsCh, stop, err = connectStreamWithRetry(ctx, nil, connectStream)
+	eventsCh, stop, err = s.svc.Client().GetEventStream(ctx, nil)
 	if err != nil {
 		log.WithError(err).Error("failed to establish initial connection to event stream")
 		return
@@ -434,16 +432,8 @@ func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
 			return
 		case notify, ok := <-eventsCh:
 			if !ok {
-				newEventsCh, newStop, err := connectStreamWithRetry(ctx, stop, connectStream)
-				if err != nil {
-					log.WithError(err).Error(
-						"failed to reconnect to event stream, stopping listenBatchEvents...",
-					)
-					return
-				}
-				eventsCh = newEventsCh
-				stop = newStop
-				continue
+				log.Debug("stream closed")
+				return
 			}
 			if notify.Err != nil {
 				log.WithError(notify.Err).Error("error received from event stream")
@@ -510,21 +500,21 @@ func (s *DelegatorService) joinDelegatorBatch(
 
 	// confirm registrations and compute topics
 	for _, selectedTask := range selectedDelegatorTasks {
-		if err := s.svc.grpcClient.ConfirmRegistration(ctx, selectedTask.intentID); err != nil {
+		if err := s.svc.Client().ConfirmRegistration(ctx, selectedTask.intentID); err != nil {
 			log.WithError(err).Warnf(
 				"failed to confirm registration for intent %s", selectedTask.intentID,
 			)
 			continue
 		}
 		for _, input := range selectedTask.inputs {
-			topics = append(topics, types.Outpoint{
+			topics = append(topics, clientTypes.Outpoint{
 				Txid: input.Hash.String(),
 				VOut: input.Index,
 			}.String())
 		}
 	}
 
-	eventsCh, stop, err := s.svc.grpcClient.GetEventStream(ctx, topics)
+	eventsCh, stop, err := s.svc.Client().GetEventStream(ctx, topics)
 	if err != nil {
 		return "", fmt.Errorf(
 			"failed to establish initial connection to event stream with event stream topics: %w",
@@ -541,7 +531,7 @@ func (s *DelegatorService) joinDelegatorBatch(
 	handler := &delegatorBatchSessionHandler{
 		musig2BatchSessionHandler: musig2BatchSessionHandler{
 			SignerSession:   signerSession,
-			TransportClient: s.svc.grpcClient,
+			TransportClient: s.svc.Client(),
 			SweepClosure: script.CSVMultisigClosure{
 				MultisigClosure: script.MultisigClosure{
 					PubKeys: []*btcec.PublicKey{cfg.ForfeitPubKey},
@@ -633,7 +623,7 @@ func (s *DelegatorService) monitorVtxosSpent(ctx context.Context) {
 	var stop func()
 	var err error
 
-	eventsCh, stop, err = connectStreamWithRetry(ctx, nil, s.svc.grpcClient.GetTransactionsStream)
+	eventsCh, stop, err = s.svc.Client().GetTransactionsStream(ctx)
 	if err != nil {
 		log.WithError(err).Error("failed to establish initial connection to transaction stream")
 		return
@@ -693,18 +683,8 @@ func (s *DelegatorService) monitorVtxosSpent(ctx context.Context) {
 			return
 		case event, ok := <-eventsCh:
 			if !ok {
-				newEventsCh, newStop, err := connectStreamWithRetry(
-					ctx, stop, s.svc.grpcClient.GetTransactionsStream,
-				)
-				if err != nil {
-					log.WithError(err).Error(
-						"failed to reconnect to transaction stream, stopping monitorVtxosSpent...",
-					)
-					return
-				}
-				eventsCh = newEventsCh
-				stop = newStop
-				continue
+				log.Debug("tx event stream closed")
+				return
 			}
 			if event.Err != nil {
 				log.WithError(event.Err).Error("error received from transaction stream")
@@ -724,7 +704,7 @@ func (s *DelegatorService) monitorVtxosSpent(ctx context.Context) {
 }
 
 func validateForfeits(
-	delegatorPublicKey *btcec.PublicKey, cfg *types.Config, forfeitTxs []*psbt.Packet,
+	delegatorPublicKey *btcec.PublicKey, cfg *clientTypes.Config, forfeitTxs []*psbt.Packet,
 ) error {
 	// TODO validate intent fee
 
