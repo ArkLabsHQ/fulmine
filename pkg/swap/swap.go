@@ -960,11 +960,7 @@ func (h *SwapHandler) getVHTLCFunds(
 		scripts = append(scripts, hex.EncodeToString(outScript))
 	}
 
-	vtxosRequest := indexer.GetVtxosRequestOption{}
-	if err := vtxosRequest.WithScripts(scripts); err != nil {
-		return nil, err
-	}
-	resp, err := h.arkClient.Indexer().GetVtxos(ctx, vtxosRequest)
+	resp, err := h.arkClient.Indexer().GetVtxos(ctx, indexer.WithScripts(scripts))
 	if err != nil {
 		return nil, err
 	}

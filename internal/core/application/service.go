@@ -151,8 +151,8 @@ func NewServices(
 	delegatorConfig DelegatorConfig,
 ) (*Service, *DelegatorService, error) {
 	svc, err := newService(
-		buildInfo, datadir, dbSvc, schedulerSvc, esploraUrl,
-		boltzUrl, boltzWSUrl, swapTimeout, connectionOpts,
+		buildInfo, datadir, dbSvc, schedulerSvc, refreshDbInterval,
+		esploraUrl, boltzUrl, boltzWSUrl, swapTimeout, connectionOpts,
 	)
 	if err != nil {
 		return nil, nil, err
@@ -177,11 +177,15 @@ func newService(
 	datadir string,
 	dbSvc ports.RepoManager,
 	schedulerSvc ports.SchedulerService,
+	refreshDbInterval int64,
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 	connectionOpts *domain.LnConnectionOpts,
 ) (*Service, error) {
 	verbose := log.IsLevelEnabled(log.DebugLevel)
-	if arkClient, err := arksdk.LoadArkClient(datadir, verbose); err == nil {
+	opts := []arksdk.ClientOption{
+		arksdk.WithRefreshDbInterval(time.Duration(refreshDbInterval) * time.Second),
+	}
+	if arkClient, err := arksdk.LoadArkClient(datadir, verbose, opts...); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
 		if err != nil {
 			return nil, err
@@ -217,7 +221,7 @@ func newService(
 		}
 	}
 
-	arkClient, err := arksdk.NewArkClient(datadir, verbose)
+	arkClient, err := arksdk.NewArkClient(datadir, verbose, opts...)
 	if err != nil {
 		// nolint:all
 		settingsRepo.CleanSettings(ctx)
@@ -705,15 +709,15 @@ func (s *Service) GetVtxos(ctx context.Context, filterType string) ([]clientType
 		return nil, err
 	}
 
-	option := indexer.GetVtxosRequestOption{}
+	opts := []indexer.GetVtxosOption{}
 
 	switch filterType {
 	case "spendable":
-		option.WithSpendableOnly()
+		opts = append(opts, indexer.WithSpendableOnly())
 	case "spent":
-		option.WithSpentOnly()
+		opts = append(opts, indexer.WithSpentOnly())
 	case "recoverable":
-		option.WithRecoverableOnly()
+		opts = append(opts, indexer.WithRecoverableOnly())
 	case "all":
 	default:
 		return nil, fmt.Errorf("invalid filter type: %s", filterType)
@@ -737,11 +741,9 @@ func (s *Service) GetVtxos(ctx context.Context, filterType string) ([]clientType
 		scripts = append(scripts, hex.EncodeToString(script))
 	}
 
-	if err := option.WithScripts(scripts); err != nil {
-		return nil, err
-	}
+	opts = append(opts, indexer.WithScripts(scripts))
 
-	resp, err := s.Indexer().GetVtxos(ctx, option)
+	resp, err := s.Indexer().GetVtxos(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1891,11 +1893,7 @@ func (s *Service) restoreSwapHistory(ctx context.Context) error {
 	}
 
 	if len(refundedSubmarineSwaps) > 0 {
-		option := indexer.GetVtxosRequestOption{}
-		// nolint
-		option.WithScripts(refundedSubmarineSwaps)
-
-		resp, err := s.Indexer().GetVtxos(ctx, option)
+		resp, err := s.Indexer().GetVtxos(ctx, indexer.WithScripts(refundedSubmarineSwaps))
 		if err != nil {
 			return fmt.Errorf("failed to fetch vtxos for refunded swaps: %s", err)
 		}
@@ -1916,11 +1914,7 @@ func (s *Service) restoreSwapHistory(ctx context.Context) error {
 	}
 
 	if len(successfulReverseSwaps) != 0 {
-		option := indexer.GetVtxosRequestOption{}
-		// nolint
-		option.WithScripts(successfulReverseSwaps)
-
-		resp, err := s.Indexer().GetVtxos(ctx, option)
+		resp, err := s.Indexer().GetVtxos(ctx, indexer.WithScripts(successfulReverseSwaps))
 		if err != nil {
 			return fmt.Errorf("failed to fetch vtxos for successful reverse swaps: %s", err)
 		}

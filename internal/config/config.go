@@ -109,7 +109,7 @@ var (
 	defaultSwapTimeout           = 15  // In seconds
 	defaultSchedulerPollInterval = 600 // 10 minutes
 	defaultProfilingEnabled      = false
-	defaultRefreshDbInterval     = 0
+	defaultRefreshDbInterval     = 60
 	defaultOtelPushInterval      = 10 // 10 seconds
 	defaultDelegatorPort         = 7002
 	defaultDelegatorFee          = 0

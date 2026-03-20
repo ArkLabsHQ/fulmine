@@ -108,12 +108,8 @@ func (h *delegatorBatchSessionHandler) submitForfeitTxs(
 				VOut: input.Index,
 			}
 		}
-		opts := indexer.GetVtxosRequestOption{}
-		if err := opts.WithOutpoints(outpoints); err != nil {
-			log.WithError(err).Warnf("failed to set outpoints for get vtxos request")
-			continue
-		}
-		vtxos, err := h.delegator.svc.Indexer().GetVtxos(ctx, opts)
+
+		vtxos, err := h.delegator.svc.Indexer().GetVtxos(ctx, indexer.WithOutpoints(outpoints))
 		if err != nil {
 			log.WithError(err).Warnf("failed to get vtxos for task %s", selectedTaskId)
 			continue
