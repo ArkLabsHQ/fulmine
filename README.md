@@ -1,6 +1,6 @@
 # ⚡️fulmine
 
-[![Go Version](https://img.shields.io/badge/Go-1.26.0-blue.svg)](https://golang.org/doc/go1.25)
+[![Go Version](https://img.shields.io/badge/Go-1.26.1-blue.svg)](https://golang.org/doc/go1.25)
 [![GitHub Release](https://img.shields.io/github/v/release/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/releases/latest)
 [![License](https://img.shields.io/github/license/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/blob/main/LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/stargazers)
@@ -239,7 +239,7 @@ For more detailed information about request and response structures, please refe
 
 ## 👨‍💻 Development
 
-To get started with fulmine development you need Go `1.26.0` or higher and Node.js `18.17.1` or higher.
+To get started with fulmine development you need Go `1.26.1` or higher and Node.js `18.17.1` or higher.
 
 ```bash
 git clone https://github.com/ArkLabsHQ/fulmine.git
