@@ -12,6 +12,10 @@ replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-d
 
 replace github.com/ltcsuite/ltcd => github.com/ltcsuite/ltcd v0.23.5
 
+replace github.com/arkade-os/go-sdk => ../go-sdk
+
+replace github.com/arkade-os/arkd/pkg/client-lib => ../arkd/pkg/client-lib
+
 require (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/swap v0.0.0-00010101000000-000000000000
@@ -19,10 +23,10 @@ require (
 	github.com/a-h/templ v0.3.1001
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260323091657-eeb0baef6937
-	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260323091657-eeb0baef6937
+	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260326144949-02f7156cda43
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/go-sdk v0.8.2-0.20260326000054-355e04f93e13
+	github.com/arkade-os/go-sdk v0.8.2-0.20260326155034-01a4cbe07017
 	github.com/creack/pty v1.1.18
 	github.com/dgraph-io/badger/v4 v4.8.0
 	github.com/getsentry/sentry-go v0.32.0
