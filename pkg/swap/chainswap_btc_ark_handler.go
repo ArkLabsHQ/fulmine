@@ -114,6 +114,7 @@ func (b *btcToArkHandler) handleBtcToArkServerLocked(
 	b.chainSwapState.Swap.ServerLock(serverLockupTxID)
 
 	// Claim Ark VTXOs lockup
+	//TODO check if we should pass outpoint similarly as in swap
 	claimTxid, err := b.swapHandler.ClaimVHTLC(ctx, b.preimage, b.chainSwapState.Swap.VhtlcOpts, nil)
 	if err != nil {
 		// ChainSwap.Fail() emits FailEvent automatically
