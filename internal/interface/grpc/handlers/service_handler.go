@@ -250,14 +250,14 @@ func (h *serviceHandler) ClaimVHTLC(
 	}
 
 	// Parse optional outpoint to target a specific VTXO.
-	var outpoint clientTypes.Outpoint
+	var outpoint *clientTypes.Outpoint
 	if reqOutpoint := req.GetOutpoint(); reqOutpoint != nil {
 		txid := reqOutpoint.GetTxid()
 		if txid == "" {
 			return nil, status.Error(codes.InvalidArgument, "outpoint txid is required when outpoint is provided")
 		}
 
-		outpoint = clientTypes.Outpoint{
+		outpoint = &clientTypes.Outpoint{
 			Txid: outpoint.Txid,
 			VOut: outpoint.VOut,
 		}

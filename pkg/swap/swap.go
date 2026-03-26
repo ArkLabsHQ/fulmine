@@ -176,23 +176,39 @@ func (h *SwapHandler) ClaimVHTLC(
 	}
 
 	// If a specific outpoint is provided, filter to that VTXO.
+	claimable := make([]clientTypes.Vtxo, 0, len(vtxos))
+	for _, candidate := range vtxos {
+		if candidate.Spent {
+			continue
+		}
+		claimable = append(claimable, candidate)
+	}
+	if len(claimable) == 0 {
+		return "", ErrorNoVtxosFound
+	}
+
 	var vtxo *clientTypes.Vtxo
 	if outpoint != nil {
 		for _, v := range vtxos {
 			if v.Txid == outpoint.Txid && v.VOut == outpoint.VOut {
 				vtxo = &v
+				break
 			}
 		}
 		if vtxo == nil {
 			return "", fmt.Errorf("outpoint %s not found among VTXOs for this VHTLC", outpoint)
 		}
 	} else {
-		// otherwise, sort the list of vtxos to ensure the oldest one us always
-		//claimed (in case VHTLC has been wrongly funded more than one time)
-		sort.Slice(vtxos, func(i, j int) bool {
-			return vtxos[i].CreatedAt.Before(vtxos[j].CreatedAt)
+		sort.Slice(claimable, func(i, j int) bool {
+			if claimable[i].CreatedAt.Equal(claimable[j].CreatedAt) {
+				if claimable[i].Txid == claimable[j].Txid {
+					return claimable[i].VOut < claimable[j].VOut
+				}
+				return claimable[i].Txid < claimable[j].Txid
+			}
+			return claimable[i].CreatedAt.Before(claimable[j].CreatedAt)
 		})
-		vtxo = &vtxos[0]
+		vtxo = &claimable[0]
 	}
 
 	//this is safety net for Boltz Fulmine if VTXO is recoverable in the moment of Claim

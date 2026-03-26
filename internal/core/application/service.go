@@ -994,10 +994,10 @@ func (s *Service) ListVHTLC(
 }
 
 func (s *Service) ClaimVHTLC(
-	ctx context.Context, preimage []byte, vhtlc_id string, outpoint clientTypes.Outpoint,
+	ctx context.Context, preimage []byte, vhtlc_id string, outpoint *clientTypes.Outpoint,
 ) (string, error) {
 	return s.withVhtlc(ctx, vhtlc_id, func(opts vhtlc.Opts) (string, error) {
-		return s.swapHandler.ClaimVHTLC(ctx, preimage, opts, &outpoint)
+		return s.swapHandler.ClaimVHTLC(ctx, preimage, opts, outpoint)
 	})
 }
 
