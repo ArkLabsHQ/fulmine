@@ -285,11 +285,7 @@ func (s *DelegatorService) newDelegateTask(
 		}
 	}
 
-	opts := indexer.GetVtxosRequestOption{}
-	if err := opts.WithOutpoints(outpoints); err != nil {
-		return nil, fmt.Errorf("failed to get vtxos: %w", err)
-	}
-	vtxos, err := s.svc.Indexer().GetVtxos(ctx, opts)
+	vtxos, err := s.svc.Indexer().GetVtxos(ctx, indexer.WithOutpoints(outpoints))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get vtxos: %w", err)
 	}
