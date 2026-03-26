@@ -197,6 +197,89 @@ func TestClaimVHTLCWithOutpoint(t *testing.T) {
 	require.True(t, foundOther, "the 1000-sat VTXO should still exist and be unspent")
 }
 
+// TestClaimVHTLOldestVtxo funds the same VHTLC address 3 times with different
+// amounts, oldest vtxo should be claimed
+func TestClaimVHTLOldestVtxo(t *testing.T) {
+	f, err := newFulmineClient("localhost:7000")
+	require.NoError(t, err)
+	require.NotNil(t, f)
+
+	ctx := t.Context()
+
+	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+	require.NoError(t, err)
+	require.NotEmpty(t, info)
+
+	// Create a VHTLC (sender = receiver for simplicity)
+	preimage := make([]byte, 32)
+	_, err = rand.Read(preimage)
+	require.NoError(t, err)
+	sha256Hash := sha256.Sum256(preimage)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+
+	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+		PreimageHash:   preimageHash,
+		ReceiverPubkey: info.GetPubkey(),
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 1024,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, vhtlcResp.Address)
+
+	// Fund the VHTLC address twice with different amounts
+	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlcResp.Address,
+		Amount:  1000,
+	})
+	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+
+	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlcResp.Address,
+		Amount:  2000,
+	})
+	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+
+	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlcResp.Address,
+		Amount:  3000,
+	})
+	require.NoError(t, err)
+
+	// Claim only the 2000-sat VTXO by specifying its outpoint
+	redeemTxid, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
+		VhtlcId:  vhtlcResp.Id,
+		Preimage: hex.EncodeToString(preimage),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, redeemTxid)
+	require.NotEmpty(t, redeemTxid.GetRedeemTxid())
+
+	vtxos, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
+	require.NoError(t, err)
+
+	for _, v := range vtxos.GetVhtlcs() {
+		if v.Amount == 1000 {
+			require.True(t, v.IsSpent)
+		} else {
+			require.False(t, v.IsSpent)
+		}
+	}
+}
+
 // TestClaimVhtlcSettlement tests the VHTLC claim path integration
 func TestClaimVhtlcSettlement(t *testing.T) {
 	f, err := newFulmineClient("localhost:7000")

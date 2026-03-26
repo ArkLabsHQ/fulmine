@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -192,6 +193,9 @@ func (h *SwapHandler) ClaimVHTLC(
 			return "", fmt.Errorf("outpoint %s not found among VTXOs for this VHTLC", outpoint)
 		}
 	} else {
+		sort.Slice(vtxos, func(i, j int) bool {
+			return vtxos[i].CreatedAt.Before(vtxos[j].CreatedAt)
+		})
 		vtxo = &vtxos[0]
 	}
 
