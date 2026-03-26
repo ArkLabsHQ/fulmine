@@ -12,10 +12,6 @@ replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-d
 
 replace github.com/ltcsuite/ltcd => github.com/ltcsuite/ltcd v0.23.5
 
-replace github.com/arkade-os/go-sdk => ../go-sdk
-
-replace github.com/arkade-os/arkd/pkg/client-lib => ../arkd/pkg/client-lib
-
 require (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/swap v0.0.0-00010101000000-000000000000
