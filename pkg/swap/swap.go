@@ -160,6 +160,7 @@ func (h *SwapHandler) GetVHTLCFunds(
 
 func (h *SwapHandler) ClaimVHTLC(
 	ctx context.Context, preimage []byte, vhtlcOpts vhtlc.Opts,
+	outpoint *wire.OutPoint,
 ) (string, error) {
 	vHTLC, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
 	if err != nil {
@@ -174,7 +175,25 @@ func (h *SwapHandler) ClaimVHTLC(
 		return "", ErrorNoVtxosFound
 	}
 
-	vtxo := &vtxos[0]
+	// If a specific outpoint is provided, filter to that VTXO.
+	var vtxo *clientTypes.Vtxo
+	if outpoint != nil {
+		for i := range vtxos {
+			txHash, err := chainhash.NewHashFromStr(vtxos[i].Txid)
+			if err != nil {
+				continue
+			}
+			if txHash.IsEqual(&outpoint.Hash) && vtxos[i].VOut == outpoint.Index {
+				vtxo = &vtxos[i]
+				break
+			}
+		}
+		if vtxo == nil {
+			return "", fmt.Errorf("outpoint %s not found among VTXOs for this VHTLC", outpoint)
+		}
+	} else {
+		vtxo = &vtxos[0]
+	}
 
 	//this is safety net for Boltz Fulmine if VTXO is recoverable in the moment of Claim
 	if vtxo.IsRecoverable() && vtxo.Amount >= h.config.Dust {
@@ -1055,7 +1074,7 @@ func (h *SwapHandler) waitAndClaim(
 				log.Debug("claiming VHTLC with preimage...")
 				if err := retry(ctx, interval, func(ctx context.Context) (bool, error) {
 					var err error
-					txid, err = h.ClaimVHTLC(ctx, preimage, *vhtlcOpts)
+					txid, err = h.ClaimVHTLC(ctx, preimage, *vhtlcOpts, nil)
 					if err != nil {
 						if errors.Is(err, ErrorNoVtxosFound) {
 							return false, nil

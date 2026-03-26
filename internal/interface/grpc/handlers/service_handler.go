@@ -15,6 +15,8 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/btcsuite/btcd/btcutil/psbt"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/wire"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -249,7 +251,24 @@ func (h *serviceHandler) ClaimVHTLC(
 		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
 	}
 
-	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes, vhtlcId)
+	// Parse optional outpoint to target a specific VTXO.
+	var outpoint *wire.OutPoint
+	if reqOutpoint := req.GetOutpoint(); reqOutpoint != nil {
+		txid := reqOutpoint.GetTxid()
+		if txid == "" {
+			return nil, status.Error(codes.InvalidArgument, "outpoint txid is required when outpoint is provided")
+		}
+		txHash, err := chainhash.NewHashFromStr(txid)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid outpoint txid: %v", err))
+		}
+		outpoint = &wire.OutPoint{
+			Hash:  *txHash,
+			Index: reqOutpoint.GetVout(),
+		}
+	}
+
+	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes, vhtlcId, outpoint)
 	if err != nil {
 		return nil, err
 	}

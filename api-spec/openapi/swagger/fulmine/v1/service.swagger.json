@@ -958,6 +958,10 @@
         },
         "preimage": {
           "type": "string"
+        },
+        "outpoint": {
+          "$ref": "#/definitions/v1Input",
+          "description": "Optional outpoint to target a specific VTXO when multiple VTXOs exist at the same VHTLC address."
         }
       }
     },
