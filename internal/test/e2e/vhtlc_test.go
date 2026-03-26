@@ -197,9 +197,9 @@ func TestClaimVHTLCWithOutpoint(t *testing.T) {
 	require.True(t, foundOther, "the 1000-sat VTXO should still exist and be unspent")
 }
 
-// TestClaimVHTLOldestVtxo funds the same VHTLC address 3 times with different
+// TestClaimVHTLCOldestVtxo funds the same VHTLC address 3 times with different
 // amounts, oldest vtxo should be claimed
-func TestClaimVHTLOldestVtxo(t *testing.T) {
+func TestClaimVHTLCOldestVtxo(t *testing.T) {
 	f, err := newFulmineClient("localhost:7000")
 	require.NoError(t, err)
 	require.NotNil(t, f)

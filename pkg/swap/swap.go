@@ -160,8 +160,7 @@ func (h *SwapHandler) GetVHTLCFunds(
 }
 
 func (h *SwapHandler) ClaimVHTLC(
-	ctx context.Context, preimage []byte, vhtlcOpts vhtlc.Opts,
-	outpoint *wire.OutPoint,
+	ctx context.Context, preimage []byte, vhtlcOpts vhtlc.Opts, outpoint *clientTypes.Outpoint,
 ) (string, error) {
 	vHTLC, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
 	if err != nil {
@@ -179,20 +178,17 @@ func (h *SwapHandler) ClaimVHTLC(
 	// If a specific outpoint is provided, filter to that VTXO.
 	var vtxo *clientTypes.Vtxo
 	if outpoint != nil {
-		for i := range vtxos {
-			txHash, err := chainhash.NewHashFromStr(vtxos[i].Txid)
-			if err != nil {
-				continue
-			}
-			if txHash.IsEqual(&outpoint.Hash) && vtxos[i].VOut == outpoint.Index {
-				vtxo = &vtxos[i]
-				break
+		for _, v := range vtxos {
+			if v.Txid == outpoint.Txid && v.VOut == outpoint.VOut {
+				vtxo = &v
 			}
 		}
 		if vtxo == nil {
 			return "", fmt.Errorf("outpoint %s not found among VTXOs for this VHTLC", outpoint)
 		}
 	} else {
+		// otherwise, sort the list of vtxos to ensure the oldest one us always
+		//claimed (in case VHTLC has been wrongly funded more than one time)
 		sort.Slice(vtxos, func(i, j int) bool {
 			return vtxos[i].CreatedAt.Before(vtxos[j].CreatedAt)
 		})

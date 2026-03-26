@@ -32,7 +32,6 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/wire"
 	"github.com/lightningnetwork/lnd/input"
 	log "github.com/sirupsen/logrus"
 )
@@ -995,11 +994,10 @@ func (s *Service) ListVHTLC(
 }
 
 func (s *Service) ClaimVHTLC(
-	ctx context.Context, preimage []byte, vhtlc_id string,
-	outpoint *wire.OutPoint,
+	ctx context.Context, preimage []byte, vhtlc_id string, outpoint clientTypes.Outpoint,
 ) (string, error) {
 	return s.withVhtlc(ctx, vhtlc_id, func(opts vhtlc.Opts) (string, error) {
-		return s.swapHandler.ClaimVHTLC(ctx, preimage, opts, outpoint)
+		return s.swapHandler.ClaimVHTLC(ctx, preimage, opts, &outpoint)
 	})
 }
 
