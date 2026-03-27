@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -159,26 +160,21 @@ func (h *SwapHandler) GetVHTLCFunds(
 }
 
 func (h *SwapHandler) ClaimVHTLC(
-	ctx context.Context, preimage []byte, vhtlcOpts vhtlc.Opts,
+	ctx context.Context, preimage []byte, vhtlcOpts vhtlc.Opts, outpoint *clientTypes.Outpoint,
 ) (string, error) {
 	vHTLC, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
 	if err != nil {
 		return "", err
 	}
 
-	vtxos, err := h.getVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vHTLC})
+	vtxo, err := h.selectClaimableVTXO(ctx, vHTLC, outpoint)
 	if err != nil {
 		return "", err
 	}
-	if len(vtxos) == 0 {
-		return "", ErrorNoVtxosFound
-	}
-
-	vtxo := &vtxos[0]
 
 	//this is safety net for Boltz Fulmine if VTXO is recoverable in the moment of Claim
 	if vtxo.IsRecoverable() && vtxo.Amount >= h.config.Dust {
-		txid, err := h.SettleVHTLCWithClaimPath(ctx, vhtlcOpts, preimage)
+		txid, err := h.SettleVHTLCWithClaimPath(ctx, vhtlcOpts, preimage, &vtxo.Outpoint)
 		if err != nil {
 			return "", fmt.Errorf("failed to settle vhtlc with claim path: %w", err)
 		}
@@ -302,29 +298,21 @@ func (h *SwapHandler) ClaimVHTLC(
 
 func (h *SwapHandler) RefundSwap(
 	ctx context.Context, swapType, swapId string, withReceiver bool, vhtlcOpts vhtlc.Opts,
+	outpoint *clientTypes.Outpoint,
 ) (string, error) {
 	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
 	if err != nil {
 		return "", err
 	}
-	vhtlcAddr, err := vhtlcScript.Address(h.config.Network.Addr)
+
+	vtxo, err := h.selectClaimableVTXO(ctx, vhtlcScript, outpoint)
 	if err != nil {
 		return "", err
 	}
-
-	vtxos, err := h.getVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
-	if err != nil {
-		return "", err
-	}
-	if len(vtxos) == 0 {
-		return "", fmt.Errorf("no vtxos found for vhtlc %s", vhtlcAddr)
-	}
-
-	vtxo := vtxos[0]
 
 	//this is safety net for Boltz Fulmine if VTXO is recoverable in the moment of Refund
 	if vtxo.IsRecoverable() && vtxo.Amount >= h.config.Dust {
-		txid, err := h.SettleVhtlcWithRefundPath(ctx, vhtlcOpts)
+		txid, err := h.SettleVhtlcWithRefundPath(ctx, vhtlcOpts, &vtxo.Outpoint)
 		if err != nil {
 			return "", fmt.Errorf("failed to settle vhtlc with refund path: %w", err)
 		}
@@ -526,13 +514,13 @@ func (h *SwapHandler) RefundSwap(
 // SettleVHTLCWithClaimPath settles a VHTLC using the claim path (revealing preimage) via batch session.
 // This is used for reverse submarine swaps where Fulmine is the receiver.
 func (h *SwapHandler) SettleVHTLCWithClaimPath(
-	ctx context.Context, vhtlcOpts vhtlc.Opts, preimage []byte,
+	ctx context.Context, vhtlcOpts vhtlc.Opts, preimage []byte, outpoint *clientTypes.Outpoint,
 ) (string, error) {
 	if err := validatePreimage(preimage, vhtlcOpts.PreimageHash); err != nil {
 		return "", err
 	}
 
-	session, err := h.getBatchSessionArgs(ctx, vhtlcOpts, nil)
+	session, err := h.getBatchSessionArgs(ctx, vhtlcOpts, outpoint, nil)
 	if err != nil {
 		return "", err
 	}
@@ -585,9 +573,9 @@ func (h *SwapHandler) SettleVHTLCWithClaimPath(
 // SettleVhtlcWithRefundPath settles a VHTLC using the refund path via batch session.
 // This is used for submarine swaps where Fulmine is the sender and needs to recover funds.
 func (h *SwapHandler) SettleVhtlcWithRefundPath(
-	ctx context.Context, vhtlcOpts vhtlc.Opts,
+	ctx context.Context, vhtlcOpts vhtlc.Opts, outpoint *clientTypes.Outpoint,
 ) (string, error) {
-	session, err := h.getBatchSessionArgs(ctx, vhtlcOpts, nil)
+	session, err := h.getBatchSessionArgs(ctx, vhtlcOpts, outpoint, nil)
 	if err != nil {
 		return "", err
 	}
@@ -644,8 +632,9 @@ func (h *SwapHandler) SettleVhtlcWithRefundPath(
 func (h *SwapHandler) SettleVHTLCWithCollaborativeRefundPath(
 	ctx context.Context, vhtlcOpts vhtlc.Opts,
 	partialForfeitTx, proof, message string, signerSession tree.SignerSession,
+	outpoint *clientTypes.Outpoint,
 ) (string, error) {
-	session, err := h.getBatchSessionArgs(ctx, vhtlcOpts, &signerSession)
+	session, err := h.getBatchSessionArgs(ctx, vhtlcOpts, outpoint, &signerSession)
 	if err != nil {
 		return "", err
 	}
@@ -817,7 +806,9 @@ func (h *SwapHandler) submarineSwap(
 				withReceiver := true
 				swapDetails.Status = SwapFailed
 
-				txid, err := h.RefundSwap(context.Background(), SwapTypeSubmarine, swap.Id, withReceiver, *vhtlcOpts)
+				txid, err := h.RefundSwap(
+					context.Background(), SwapTypeSubmarine, swap.Id, withReceiver, *vhtlcOpts, nil,
+				)
 				if err != nil {
 					log.WithError(err).Warnf("failed to refund swap %s collaboratively", swap.Id)
 					go func() {
@@ -1055,7 +1046,7 @@ func (h *SwapHandler) waitAndClaim(
 				log.Debug("claiming VHTLC with preimage...")
 				if err := retry(ctx, interval, func(ctx context.Context) (bool, error) {
 					var err error
-					txid, err = h.ClaimVHTLC(ctx, preimage, *vhtlcOpts)
+					txid, err = h.ClaimVHTLC(ctx, preimage, *vhtlcOpts, nil)
 					if err != nil {
 						if errors.Is(err, ErrorNoVtxosFound) {
 							return false, nil
@@ -1110,26 +1101,16 @@ func (h *SwapHandler) collaborativeRefund(
 // or refund a vhtlc.
 // NOTE: signerSession is meant to not be nil only if the collaborative refund path is used.
 func (h *SwapHandler) getBatchSessionArgs(
-	ctx context.Context, vhtlcOpts vhtlc.Opts, signerSession *tree.SignerSession,
+	ctx context.Context, vhtlcOpts vhtlc.Opts, outpoint *clientTypes.Outpoint, signerSession *tree.SignerSession,
 ) (*batchSessionArgs, error) {
 	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create VHTLC script: %w", err)
 	}
 
-	vhtlcs := []*vhtlc.VHTLCScript{vhtlcScript}
-	vtxos, err := h.getVHTLCFunds(ctx, vhtlcs)
+	vtxo, err := h.selectClaimableVTXO(ctx, vhtlcScript, outpoint)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query VTXOs: %w", err)
-	}
-
-	if len(vtxos) == 0 {
-		return nil, ErrorNoVtxosFound
-	}
-
-	var totalAmount uint64
-	for _, vtxo := range vtxos {
-		totalAmount += vtxo.Amount
+		return nil, err
 	}
 
 	myAddr, err := h.arkClient.NewOffchainAddress(ctx)
@@ -1148,15 +1129,61 @@ func (h *SwapHandler) getBatchSessionArgs(
 	}
 
 	vtxoTapscripts := []clientTypes.VtxoWithTapTree{{
-		Vtxo:       vtxos[0],
+		Vtxo:       *vtxo,
 		Tapscripts: vhtlcScript.GetRevealedTapscripts(),
 	}}
 
 	return &batchSessionArgs{
 		vhtlcScript:     vhtlcScript,
-		totalAmount:     totalAmount,
+		totalAmount:     vtxo.Amount,
 		destinationAddr: myAddr,
 		signerSession:   *signerSession,
 		vtxos:           vtxoTapscripts,
 	}, nil
+}
+
+func (h *SwapHandler) selectClaimableVTXO(
+	ctx context.Context, vhtlcScript *vhtlc.VHTLCScript, outpoint *clientTypes.Outpoint,
+) (*clientTypes.Vtxo, error) {
+	vtxos, err := h.getVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(vtxos) == 0 {
+		return nil, ErrorNoVtxosFound
+	}
+
+	filtered := make([]clientTypes.Vtxo, 0, len(vtxos))
+	for _, candidate := range vtxos {
+		if candidate.Spent {
+			continue
+		}
+		filtered = append(filtered, candidate)
+	}
+
+	if len(filtered) == 0 {
+		return nil, ErrorNoVtxosFound
+	}
+
+	if outpoint != nil {
+		for i := range filtered {
+			if filtered[i].Txid == outpoint.Txid && filtered[i].VOut == outpoint.VOut {
+				return &filtered[i], nil
+			}
+		}
+		return nil, fmt.Errorf("outpoint %s not found among VTXOs for this VHTLC", outpoint)
+	}
+
+	sort.Slice(filtered, func(i, j int) bool {
+		if filtered[i].CreatedAt.Equal(filtered[j].CreatedAt) {
+			if filtered[i].Txid == filtered[j].Txid {
+				return filtered[i].VOut < filtered[j].VOut
+			}
+			return filtered[i].Txid < filtered[j].Txid
+		}
+		return filtered[i].CreatedAt.Before(filtered[j].CreatedAt)
+	})
+
+	return &filtered[0], nil
 }
