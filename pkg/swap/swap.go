@@ -167,15 +167,7 @@ func (h *SwapHandler) ClaimVHTLC(
 		return "", err
 	}
 
-	vtxos, err := h.getVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vHTLC})
-	if err != nil {
-		return "", err
-	}
-	if len(vtxos) == 0 {
-		return "", ErrorNoVtxosFound
-	}
-
-	vtxo, err := selectClaimableVTXO(vtxos, outpoint)
+	vtxo, err := h.selectClaimableVTXO(ctx, vHTLC, outpoint)
 	if err != nil {
 		return "", err
 	}
@@ -312,20 +304,8 @@ func (h *SwapHandler) RefundSwap(
 	if err != nil {
 		return "", err
 	}
-	vhtlcAddr, err := vhtlcScript.Address(h.config.Network.Addr)
-	if err != nil {
-		return "", err
-	}
 
-	vtxos, err := h.getVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
-	if err != nil {
-		return "", err
-	}
-	if len(vtxos) == 0 {
-		return "", fmt.Errorf("no vtxos found for vhtlc %s", vhtlcAddr)
-	}
-
-	vtxo, err := selectClaimableVTXO(vtxos, outpoint)
+	vtxo, err := h.selectClaimableVTXO(ctx, vhtlcScript, outpoint)
 	if err != nil {
 		return "", err
 	}
@@ -1128,27 +1108,9 @@ func (h *SwapHandler) getBatchSessionArgs(
 		return nil, fmt.Errorf("failed to create VHTLC script: %w", err)
 	}
 
-	vhtlcs := []*vhtlc.VHTLCScript{vhtlcScript}
-	vtxos, err := h.getVHTLCFunds(ctx, vhtlcs)
+	vtxo, err := h.selectClaimableVTXO(ctx, vhtlcScript, outpoint)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query VTXOs: %w", err)
-	}
-
-	if len(vtxos) == 0 {
-		return nil, ErrorNoVtxosFound
-	}
-
-	if outpoint != nil {
-		selectedVTXO, err := selectClaimableVTXO(vtxos, outpoint)
-		if err != nil {
-			return nil, err
-		}
-		vtxos = []clientTypes.Vtxo{*selectedVTXO}
-	}
-
-	var totalAmount uint64
-	for _, vtxo := range vtxos {
-		totalAmount += vtxo.Amount
+		return nil, err
 	}
 
 	myAddr, err := h.arkClient.NewOffchainAddress(ctx)
@@ -1167,51 +1129,61 @@ func (h *SwapHandler) getBatchSessionArgs(
 	}
 
 	vtxoTapscripts := []clientTypes.VtxoWithTapTree{{
-		Vtxo:       vtxos[0],
+		Vtxo:       *vtxo,
 		Tapscripts: vhtlcScript.GetRevealedTapscripts(),
 	}}
 
 	return &batchSessionArgs{
 		vhtlcScript:     vhtlcScript,
-		totalAmount:     totalAmount,
+		totalAmount:     vtxo.Amount,
 		destinationAddr: myAddr,
 		signerSession:   *signerSession,
 		vtxos:           vtxoTapscripts,
 	}, nil
 }
 
-func selectClaimableVTXO(
-	vtxos []clientTypes.Vtxo, outpoint *clientTypes.Outpoint,
+func (h *SwapHandler) selectClaimableVTXO(
+	ctx context.Context, vhtlcScript *vhtlc.VHTLCScript, outpoint *clientTypes.Outpoint,
 ) (*clientTypes.Vtxo, error) {
-	claimable := make([]clientTypes.Vtxo, 0, len(vtxos))
+	vtxos, err := h.getVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(vtxos) == 0 {
+		return nil, ErrorNoVtxosFound
+	}
+
+	filtered := make([]clientTypes.Vtxo, 0, len(vtxos))
 	for _, candidate := range vtxos {
 		if candidate.Spent {
 			continue
 		}
-		claimable = append(claimable, candidate)
+		filtered = append(filtered, candidate)
 	}
-	if len(claimable) == 0 {
+
+	if len(filtered) == 0 {
 		return nil, ErrorNoVtxosFound
 	}
 
 	if outpoint != nil {
-		for i := range claimable {
-			if claimable[i].Txid == outpoint.Txid && claimable[i].VOut == outpoint.VOut {
-				return &claimable[i], nil
+		for i := range filtered {
+			if filtered[i].Txid == outpoint.Txid && filtered[i].VOut == outpoint.VOut {
+				return &filtered[i], nil
 			}
 		}
 		return nil, fmt.Errorf("outpoint %s not found among VTXOs for this VHTLC", outpoint)
 	}
 
-	sort.Slice(claimable, func(i, j int) bool {
-		if claimable[i].CreatedAt.Equal(claimable[j].CreatedAt) {
-			if claimable[i].Txid == claimable[j].Txid {
-				return claimable[i].VOut < claimable[j].VOut
+	sort.Slice(filtered, func(i, j int) bool {
+		if filtered[i].CreatedAt.Equal(filtered[j].CreatedAt) {
+			if filtered[i].Txid == filtered[j].Txid {
+				return filtered[i].VOut < filtered[j].VOut
 			}
-			return claimable[i].Txid < claimable[j].Txid
+			return filtered[i].Txid < filtered[j].Txid
 		}
-		return claimable[i].CreatedAt.Before(claimable[j].CreatedAt)
+		return filtered[i].CreatedAt.Before(filtered[j].CreatedAt)
 	})
 
-	return &claimable[0], nil
+	return &filtered[0], nil
 }
