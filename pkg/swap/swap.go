@@ -306,6 +306,7 @@ func (h *SwapHandler) ClaimVHTLC(
 
 func (h *SwapHandler) RefundSwap(
 	ctx context.Context, swapType, swapId string, withReceiver bool, vhtlcOpts vhtlc.Opts,
+	outpoint *clientTypes.Outpoint,
 ) (string, error) {
 	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
 	if err != nil {
@@ -324,11 +325,14 @@ func (h *SwapHandler) RefundSwap(
 		return "", fmt.Errorf("no vtxos found for vhtlc %s", vhtlcAddr)
 	}
 
-	vtxo := vtxos[0]
+	vtxo, err := selectClaimableVTXO(vtxos, outpoint)
+	if err != nil {
+		return "", err
+	}
 
 	//this is safety net for Boltz Fulmine if VTXO is recoverable in the moment of Refund
 	if vtxo.IsRecoverable() && vtxo.Amount >= h.config.Dust {
-		txid, err := h.SettleVhtlcWithRefundPath(ctx, vhtlcOpts)
+		txid, err := h.SettleVhtlcWithRefundPath(ctx, vhtlcOpts, &vtxo.Outpoint)
 		if err != nil {
 			return "", fmt.Errorf("failed to settle vhtlc with refund path: %w", err)
 		}
@@ -589,9 +593,9 @@ func (h *SwapHandler) SettleVHTLCWithClaimPath(
 // SettleVhtlcWithRefundPath settles a VHTLC using the refund path via batch session.
 // This is used for submarine swaps where Fulmine is the sender and needs to recover funds.
 func (h *SwapHandler) SettleVhtlcWithRefundPath(
-	ctx context.Context, vhtlcOpts vhtlc.Opts,
+	ctx context.Context, vhtlcOpts vhtlc.Opts, outpoint *clientTypes.Outpoint,
 ) (string, error) {
-	session, err := h.getBatchSessionArgs(ctx, vhtlcOpts, nil, nil)
+	session, err := h.getBatchSessionArgs(ctx, vhtlcOpts, outpoint, nil)
 	if err != nil {
 		return "", err
 	}
@@ -648,8 +652,9 @@ func (h *SwapHandler) SettleVhtlcWithRefundPath(
 func (h *SwapHandler) SettleVHTLCWithCollaborativeRefundPath(
 	ctx context.Context, vhtlcOpts vhtlc.Opts,
 	partialForfeitTx, proof, message string, signerSession tree.SignerSession,
+	outpoint *clientTypes.Outpoint,
 ) (string, error) {
-	session, err := h.getBatchSessionArgs(ctx, vhtlcOpts, nil, &signerSession)
+	session, err := h.getBatchSessionArgs(ctx, vhtlcOpts, outpoint, &signerSession)
 	if err != nil {
 		return "", err
 	}
@@ -821,7 +826,9 @@ func (h *SwapHandler) submarineSwap(
 				withReceiver := true
 				swapDetails.Status = SwapFailed
 
-				txid, err := h.RefundSwap(context.Background(), SwapTypeSubmarine, swap.Id, withReceiver, *vhtlcOpts)
+				txid, err := h.RefundSwap(
+					context.Background(), SwapTypeSubmarine, swap.Id, withReceiver, *vhtlcOpts, nil,
+				)
 				if err != nil {
 					log.WithError(err).Warnf("failed to refund swap %s collaboratively", swap.Id)
 					go func() {

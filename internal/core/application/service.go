@@ -1002,26 +1002,30 @@ func (s *Service) ClaimVHTLC(
 }
 
 func (s *Service) RefundVHTLC(
-	ctx context.Context, swapId, vhtlc_id string, withReceiver bool,
+	ctx context.Context, swapId, vhtlc_id string, withReceiver bool, outpoint *clientTypes.Outpoint,
 ) (string, error) {
 	return s.withVhtlc(ctx, vhtlc_id, func(opts vhtlc.Opts) (string, error) {
-		return s.swapHandler.RefundSwap(ctx, swap.SwapTypeSubmarine, swapId, withReceiver, opts)
+		return s.swapHandler.RefundSwap(
+			ctx, swap.SwapTypeSubmarine, swapId, withReceiver, opts, outpoint,
+		)
 	})
 }
 
 // SettleVHTLCWithClaimPath settles a VHTLC via claim path (revealing preimage) in a batch session.
 func (s *Service) SettleVHTLCWithClaimPath(
-	ctx context.Context, vhtlcId string, preimage []byte,
+	ctx context.Context, vhtlcId string, preimage []byte, outpoint *clientTypes.Outpoint,
 ) (string, error) {
 	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
-		return s.swapHandler.SettleVHTLCWithClaimPath(ctx, opts, preimage, nil)
+		return s.swapHandler.SettleVHTLCWithClaimPath(ctx, opts, preimage, outpoint)
 	})
 }
 
 // SettleVHTLCWithRefundPath settles a VHTLC via refund path in a batch session.
-func (s *Service) SettleVHTLCWithRefundPath(ctx context.Context, vhtlcId string) (string, error) {
+func (s *Service) SettleVHTLCWithRefundPath(
+	ctx context.Context, vhtlcId string, outpoint *clientTypes.Outpoint,
+) (string, error) {
 	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
-		return s.swapHandler.SettleVhtlcWithRefundPath(ctx, opts)
+		return s.swapHandler.SettleVhtlcWithRefundPath(ctx, opts, outpoint)
 	})
 }
 
@@ -1030,12 +1034,13 @@ func (s *Service) SettleVHTLCWithRefundPath(ctx context.Context, vhtlcId string)
 // complete the batch session.
 func (s *Service) SettleVHTLCWithCollaborativeRefundPath(
 	ctx context.Context, vhtlcId, intentProof, intentMessage, partialForfeitTx string,
+	outpoint *clientTypes.Outpoint,
 ) (string, error) {
 	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
 
 		delegatorSignerSession := tree.NewTreeSignerSession(s.privateKey)
 		return s.swapHandler.SettleVHTLCWithCollaborativeRefundPath(
-			ctx, opts, partialForfeitTx, intentProof, intentMessage, delegatorSignerSession,
+			ctx, opts, partialForfeitTx, intentProof, intentMessage, delegatorSignerSession, outpoint,
 		)
 	})
 }
@@ -2208,7 +2213,7 @@ func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error)
 		}
 
 		txid, err := s.swapHandler.RefundSwap(
-			context.Background(), swap.SwapTypeSubmarine, swapId, false, opts,
+			context.Background(), swap.SwapTypeSubmarine, swapId, false, opts, nil,
 		)
 		if err != nil {
 			log.WithError(err).Error("failed to refund vhtlc")
@@ -2280,7 +2285,7 @@ func (s *Service) scheduleChainSwapRefund(swapId string, opts vhtlc.Opts) (err e
 		}
 
 		txid, err := s.swapHandler.RefundSwap(
-			context.Background(), swap.SwapTypeChain, swapId, false, opts,
+			context.Background(), swap.SwapTypeChain, swapId, false, opts, nil,
 		)
 		if err != nil {
 			log.WithError(err).Error("failed to refund chain swap vhtlc")

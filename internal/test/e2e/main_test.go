@@ -103,7 +103,8 @@ func refillFulmine(ctx context.Context, url string) error {
 		}
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 	_, err = f.Settle(ctx, &pb.SettleRequest{})
+	time.Sleep(5 * time.Second)
 	return err
 }

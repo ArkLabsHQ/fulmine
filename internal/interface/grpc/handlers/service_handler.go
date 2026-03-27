@@ -249,18 +249,9 @@ func (h *serviceHandler) ClaimVHTLC(
 		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
 	}
 
-	// Parse optional outpoint to target a specific VTXO.
-	var outpoint *clientTypes.Outpoint
-	if reqOutpoint := req.GetOutpoint(); reqOutpoint != nil {
-		txid := reqOutpoint.GetTxid()
-		if txid == "" {
-			return nil, status.Error(codes.InvalidArgument, "outpoint txid is required when outpoint is provided")
-		}
-
-		outpoint = &clientTypes.Outpoint{
-			Txid: txid,
-			VOut: reqOutpoint.GetVout(),
-		}
+	outpoint, err := parseInputOutpoint(req.GetOutpoint())
+	if err != nil {
+		return nil, err
 	}
 
 	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes, vhtlcId, outpoint)
@@ -278,10 +269,14 @@ func (h *serviceHandler) RefundVHTLCWithoutReceiver(
 	if vhtlcId == "" {
 		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
 	}
+	outpoint, err := parseInputOutpoint(req.GetOutpoint())
+	if err != nil {
+		return nil, err
+	}
 	withReceiver := true
 	withoutReceiver := !withReceiver
 
-	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", vhtlcId, withoutReceiver)
+	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", vhtlcId, withoutReceiver, outpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -296,9 +291,12 @@ func (h *serviceHandler) SettleVHTLC(
 	if vhtlcId == "" {
 		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
 	}
+	outpoint, err := parseInputOutpoint(req.GetOutpoint())
+	if err != nil {
+		return nil, err
+	}
 
 	var txid string
-	var err error
 
 	switch settlement := req.GetSettlementType().(type) {
 	case *pb.SettleVHTLCRequest_Claim:
@@ -314,7 +312,7 @@ func (h *serviceHandler) SettleVHTLC(
 			)
 		}
 
-		txid, err = h.svc.SettleVHTLCWithClaimPath(ctx, vhtlcId, preimageBytes)
+		txid, err = h.svc.SettleVHTLCWithClaimPath(ctx, vhtlcId, preimageBytes, outpoint)
 		if err != nil {
 			return nil, err
 		}
@@ -342,13 +340,13 @@ func (h *serviceHandler) SettleVHTLC(
 			}
 
 			txid, err = h.svc.SettleVHTLCWithCollaborativeRefundPath(
-				ctx, vhtlcId, proof, message, forfeitTx,
+				ctx, vhtlcId, proof, message, forfeitTx, outpoint,
 			)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			txid, err = h.svc.SettleVHTLCWithRefundPath(ctx, vhtlcId)
+			txid, err = h.svc.SettleVHTLCWithRefundPath(ctx, vhtlcId, outpoint)
 			if err != nil {
 				return nil, err
 			}
@@ -358,6 +356,24 @@ func (h *serviceHandler) SettleVHTLC(
 	}
 
 	return &pb.SettleVHTLCResponse{Txid: txid}, nil
+}
+
+func parseInputOutpoint(input *pb.Input) (*clientTypes.Outpoint, error) {
+	if input == nil {
+		return nil, nil
+	}
+
+	txid := input.GetTxid()
+	if txid == "" {
+		return nil, status.Error(
+			codes.InvalidArgument, "outpoint txid is required when outpoint is provided",
+		)
+	}
+
+	return &clientTypes.Outpoint{
+		Txid: txid,
+		VOut: input.GetVout(),
+	}, nil
 }
 
 func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest) (*pb.ListVHTLCResponse, error) {

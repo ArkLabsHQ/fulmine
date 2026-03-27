@@ -614,7 +614,7 @@ func (h *SwapHandler) RefundArkToBTCSwap(
 	unilateralRefundCallback func(swapId string, opts vhtlc.Opts) error,
 ) (string, error) {
 	refundTxid, err := h.RefundSwap(
-		context.Background(), SwapTypeChain, swapId, true, vhtlcOpts,
+		context.Background(), SwapTypeChain, swapId, true, vhtlcOpts, nil,
 	)
 	if err != nil {
 		log.WithError(err).Error("failed to refund swap collaboratively")

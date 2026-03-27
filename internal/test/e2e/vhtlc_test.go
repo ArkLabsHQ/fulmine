@@ -280,6 +280,83 @@ func TestClaimVHTLCOldestVtxo(t *testing.T) {
 	}
 }
 
+func TestSettleVHTLCClaimWithOutpoint(t *testing.T) {
+	f, err := newFulmineClient("localhost:7000")
+	require.NoError(t, err)
+	require.NotNil(t, f)
+
+	ctx := t.Context()
+
+	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+	require.NoError(t, err)
+	require.NotEmpty(t, info)
+
+	preimage := make([]byte, 32)
+	_, err = rand.Read(preimage)
+	require.NoError(t, err)
+	sha256Hash := sha256.Sum256(preimage)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+
+	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+		PreimageHash:   preimageHash,
+		ReceiverPubkey: info.GetPubkey(),
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 1024,
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlcResp.Address,
+		Amount:  1000,
+	})
+	require.NoError(t, err)
+
+	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlcResp.Address,
+		Amount:  2000,
+	})
+	require.NoError(t, err)
+
+	vhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
+	require.NoError(t, err)
+
+	targetVtxo, otherVtxo := findVHTLCsByAmount(t, vhtlcs.GetVhtlcs(), 2000, 1000)
+
+	settleResp, err := f.SettleVHTLC(ctx, &pb.SettleVHTLCRequest{
+		VhtlcId: vhtlcResp.Id,
+		Outpoint: &pb.Input{
+			Txid: targetVtxo.Outpoint.GetTxid(),
+			Vout: targetVtxo.Outpoint.GetVout(),
+		},
+		SettlementType: &pb.SettleVHTLCRequest_Claim{
+			Claim: &pb.ClaimPath{
+				Preimage: hex.EncodeToString(preimage),
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, settleResp)
+	require.NotEmpty(t, settleResp.GetTxid())
+
+	time.Sleep(2 * time.Second)
+
+	updatedVHTLCs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
+	require.NoError(t, err)
+
+	requireVHTLCSpentState(t, updatedVHTLCs.GetVhtlcs(), targetVtxo, true)
+	requireVHTLCSpentState(t, updatedVHTLCs.GetVhtlcs(), otherVtxo, false)
+}
+
 // TestClaimVhtlcSettlement tests the VHTLC claim path integration
 func TestClaimVhtlcSettlement(t *testing.T) {
 	f, err := newFulmineClient("localhost:7000")
@@ -351,6 +428,81 @@ func TestClaimVhtlcSettlement(t *testing.T) {
 	balanceAfter, err := f.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
 	require.Equal(t, balanceBefore.Amount, balanceAfter.Amount)
+}
+
+func TestRefundVHTLCWithoutReceiverWithOutpoint(t *testing.T) {
+	fulmineClient, err := newFulmineClient("localhost:7000")
+	require.NoError(t, err)
+	require.NotNil(t, fulmineClient)
+
+	ctx := t.Context()
+
+	preimage := make([]byte, 32)
+	_, err = rand.Read(preimage)
+	require.NoError(t, err)
+	sha256Hash := sha256.Sum256(preimage)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+
+	receiverPrivKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+
+	vhtlc, err := fulmineClient.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+		PreimageHash:   preimageHash,
+		ReceiverPubkey: hex.EncodeToString(receiverPrivKey.PubKey().SerializeCompressed()),
+		RefundLocktime: uint32(1577836800),
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = fulmineClient.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlc.Address,
+		Amount:  1000,
+	})
+	require.NoError(t, err)
+
+	_, err = fulmineClient.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlc.Address,
+		Amount:  2000,
+	})
+	require.NoError(t, err)
+
+	vhtlcs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
+	require.NoError(t, err)
+
+	targetVtxo, otherVtxo := findVHTLCsByAmount(t, vhtlcs.GetVhtlcs(), 2000, 1000)
+
+	refundResp, err := fulmineClient.RefundVHTLCWithoutReceiver(
+		ctx,
+		&pb.RefundVHTLCWithoutReceiverRequest{
+			VhtlcId: vhtlc.Id,
+			Outpoint: &pb.Input{
+				Txid: targetVtxo.Outpoint.GetTxid(),
+				Vout: targetVtxo.Outpoint.GetVout(),
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.NotNil(t, refundResp)
+	require.NotEmpty(t, refundResp.GetRedeemTxid())
+
+	time.Sleep(2 * time.Second)
+
+	updatedVHTLCs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
+	require.NoError(t, err)
+
+	requireVHTLCSpentState(t, updatedVHTLCs.GetVhtlcs(), targetVtxo, true)
+	requireVHTLCSpentState(t, updatedVHTLCs.GetVhtlcs(), otherVtxo, false)
 }
 
 // TestRefundVhtlcSettlement tests the VHTLC refund path integration, this can be used by Boltz Fulmine when
@@ -429,6 +581,81 @@ func TestRefundVhtlcSettlement(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, balanceAfter)
 	require.Equal(t, balanceBefore.Amount, balanceAfter.Amount)
+}
+
+func TestSettleVHTLCRefundWithOutpoint(t *testing.T) {
+	fulmineClient, err := newFulmineClient("localhost:7000")
+	require.NoError(t, err)
+	require.NotNil(t, fulmineClient)
+
+	ctx := t.Context()
+
+	preimage := make([]byte, 32)
+	_, err = rand.Read(preimage)
+	require.NoError(t, err)
+	sha256Hash := sha256.Sum256(preimage)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+
+	receiverPrivKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+
+	vhtlc, err := fulmineClient.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+		PreimageHash:   preimageHash,
+		ReceiverPubkey: hex.EncodeToString(receiverPrivKey.PubKey().SerializeCompressed()),
+		RefundLocktime: uint32(1577836800),
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = fulmineClient.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlc.Address,
+		Amount:  1000,
+	})
+	require.NoError(t, err)
+
+	_, err = fulmineClient.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlc.Address,
+		Amount:  2000,
+	})
+	require.NoError(t, err)
+
+	vhtlcs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
+	require.NoError(t, err)
+
+	targetVtxo, otherVtxo := findVHTLCsByAmount(t, vhtlcs.GetVhtlcs(), 2000, 1000)
+
+	settleResp, err := fulmineClient.SettleVHTLC(ctx, &pb.SettleVHTLCRequest{
+		VhtlcId: vhtlc.Id,
+		Outpoint: &pb.Input{
+			Txid: targetVtxo.Outpoint.GetTxid(),
+			Vout: targetVtxo.Outpoint.GetVout(),
+		},
+		SettlementType: &pb.SettleVHTLCRequest_Refund{
+			Refund: &pb.RefundPath{},
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, settleResp)
+	require.NotEmpty(t, settleResp.GetTxid())
+
+	time.Sleep(2 * time.Second)
+
+	updatedVHTLCs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
+	require.NoError(t, err)
+
+	requireVHTLCSpentState(t, updatedVHTLCs.GetVhtlcs(), targetVtxo, true)
+	requireVHTLCSpentState(t, updatedVHTLCs.GetVhtlcs(), otherVtxo, false)
 }
 
 // TestSettleVHTLCByDelegateRefund tests the VHTLC delegate refund flow which is applicable in SWAP
@@ -595,6 +822,163 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 	require.Equal(t, senderOffchainBalanceInit, senderBalance.OffchainBalance.Total)
 }
 
+func TestSettleVHTLCByDelegateRefundWithOutpoint(t *testing.T) {
+	fulmineClient, err := newFulmineClient("localhost:7000")
+	require.NoError(t, err)
+	require.NotNil(t, fulmineClient)
+
+	ctx := t.Context()
+
+	info, err := fulmineClient.GetInfo(ctx, &pb.GetInfoRequest{})
+	require.NoError(t, err)
+	receiverPubKey := info.Pubkey
+	require.NotEmpty(t, info.Pubkey)
+
+	senderArkClient, senderPubKey, _ := setupArkSDKwithPublicKey(t)
+
+	_, offchain, boarding, _, err := senderArkClient.GetAddresses(ctx)
+	require.NoError(t, err)
+
+	err = faucet(ctx, strings.TrimSpace(boarding[0]), 0.001)
+	require.NoError(t, err)
+
+	time.Sleep(5 * time.Second)
+
+	_, err = senderArkClient.Settle(ctx)
+	require.NoError(t, err)
+
+	preimage := make([]byte, 32)
+	_, err = rand.Read(preimage)
+	require.NoError(t, err)
+	sha256Hash := sha256.Sum256(preimage)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+
+	vhtlcReq := &pb.CreateVHTLCRequest{
+		PreimageHash: preimageHash,
+		SenderPubkey: hex.EncodeToString(senderPubKey.SerializeCompressed()),
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 1024,
+		},
+	}
+	vhtlcAddrInfo, err := fulmineClient.CreateVHTLC(ctx, vhtlcReq)
+	require.NoError(t, err)
+
+	_, err = senderArkClient.SendOffChain(ctx, []clientTypes.Receiver{{
+		To:     vhtlcAddrInfo.Address,
+		Amount: 1000,
+	}})
+	require.NoError(t, err)
+
+	_, err = senderArkClient.SendOffChain(ctx, []clientTypes.Receiver{{
+		To:     vhtlcAddrInfo.Address,
+		Amount: 2000,
+	}})
+	require.NoError(t, err)
+
+	vhtlcs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcAddrInfo.GetId()})
+	require.NoError(t, err)
+
+	targetVtxo, otherVtxo := findVHTLCsByAmount(t, vhtlcs.GetVhtlcs(), 2000, 1000)
+
+	validAt := time.Now()
+	intentMessage, err := intent.RegisterMessage{
+		BaseMessage: intent.BaseMessage{
+			Type: intent.IntentMessageTypeRegister,
+		},
+		ExpireAt:            validAt.Add(5 * time.Minute).Unix(),
+		ValidAt:             validAt.Unix(),
+		CosignersPublicKeys: []string{receiverPubKey},
+	}.Encode()
+	require.NoError(t, err)
+
+	senderOffchainAddrStr := offchain[0]
+	senderOffchainAddr, err := arklib.DecodeAddressV0(senderOffchainAddrStr)
+	require.NoError(t, err)
+	senderPkScript, err := senderOffchainAddr.GetPkScript()
+	require.NoError(t, err)
+
+	taprootTree := vhtlcAddrInfo.GetSwapTree()
+	vhtlcScript, err := vhtlc.NewVhtlcScript(
+		preimageHash,
+		taprootTree.GetClaimLeaf().GetOutput(),
+		taprootTree.GetRefundLeaf().GetOutput(),
+		taprootTree.GetRefundWithoutBoltzLeaf().GetOutput(),
+		taprootTree.GetUnilateralClaimLeaf().GetOutput(),
+		taprootTree.GetUnilateralRefundLeaf().GetOutput(),
+		taprootTree.GetUnilateralRefundWithoutBoltzLeaf().GetOutput(),
+	)
+	require.NoError(t, err)
+
+	intentProof, err := buildDelegateIntentProof(
+		t,
+		ctx,
+		senderArkClient,
+		intentMessage,
+		targetVtxo,
+		vhtlcAddrInfo.GetAddress(),
+		vhtlcScript,
+		senderPkScript,
+	)
+	require.NoError(t, err)
+
+	cfg, err := senderArkClient.GetConfigData(ctx)
+	require.NoError(t, err)
+	forfeitOutputAddr, err := btcutil.DecodeAddress(cfg.ForfeitAddress, nil)
+	require.NoError(t, err)
+
+	forfeitOutputScript, err := txscript.PayToAddrScript(forfeitOutputAddr)
+	require.NoError(t, err)
+
+	partialForfeitTx, err := buildDelegatePartialForfeit(
+		t,
+		ctx,
+		senderArkClient,
+		targetVtxo,
+		vhtlcAddrInfo.GetAddress(),
+		vhtlcScript,
+		forfeitOutputScript,
+		int64(cfg.Dust),
+	)
+	require.NoError(t, err)
+
+	settleResp, err := fulmineClient.SettleVHTLC(ctx, &pb.SettleVHTLCRequest{
+		VhtlcId: vhtlcAddrInfo.GetId(),
+		Outpoint: &pb.Input{
+			Txid: targetVtxo.Outpoint.GetTxid(),
+			Vout: targetVtxo.Outpoint.GetVout(),
+		},
+		SettlementType: &pb.SettleVHTLCRequest_Refund{
+			Refund: &pb.RefundPath{
+				DelegateParams: &pb.DelegateRefundParams{
+					SignedIntentProof: intentProof,
+					IntentMessage:     intentMessage,
+					PartialForfeitTx:  partialForfeitTx,
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, settleResp)
+	require.NotEmpty(t, settleResp.GetTxid())
+
+	time.Sleep(2 * time.Second)
+
+	updatedVHTLCs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcAddrInfo.GetId()})
+	require.NoError(t, err)
+
+	requireVHTLCSpentState(t, updatedVHTLCs.GetVhtlcs(), targetVtxo, true)
+	requireVHTLCSpentState(t, updatedVHTLCs.GetVhtlcs(), otherVtxo, false)
+}
+
 func buildDelegateIntentProof(
 	t *testing.T,
 	ctx context.Context,
@@ -737,4 +1121,41 @@ func buildDelegatePartialForfeit(
 	require.NoError(t, err)
 
 	return signedPartialForfeitTx, nil
+}
+
+func findVHTLCsByAmount(
+	t *testing.T, vhtlcs []*pb.Vtxo, targetAmount, otherAmount uint64,
+) (*pb.Vtxo, *pb.Vtxo) {
+	t.Helper()
+
+	var targetVtxo, otherVtxo *pb.Vtxo
+	for _, v := range vhtlcs {
+		switch v.Amount {
+		case targetAmount:
+			targetVtxo = v
+		case otherAmount:
+			otherVtxo = v
+		}
+	}
+
+	require.NotNil(t, targetVtxo, "expected target VTXO with amount %d", targetAmount)
+	require.NotNil(t, otherVtxo, "expected other VTXO with amount %d", otherAmount)
+
+	return targetVtxo, otherVtxo
+}
+
+func requireVHTLCSpentState(
+	t *testing.T, vhtlcs []*pb.Vtxo, expected *pb.Vtxo, spent bool,
+) {
+	t.Helper()
+
+	for _, v := range vhtlcs {
+		if v.Outpoint.GetTxid() == expected.Outpoint.GetTxid() &&
+			v.Outpoint.GetVout() == expected.Outpoint.GetVout() {
+			require.Equal(t, spent, v.IsSpent)
+			return
+		}
+	}
+
+	t.Fatalf("vtxo %s:%d not found", expected.Outpoint.GetTxid(), expected.Outpoint.GetVout())
 }
