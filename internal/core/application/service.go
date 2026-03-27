@@ -1014,7 +1014,7 @@ func (s *Service) SettleVHTLCWithClaimPath(
 	ctx context.Context, vhtlcId string, preimage []byte,
 ) (string, error) {
 	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
-		return s.swapHandler.SettleVHTLCWithClaimPath(ctx, opts, preimage)
+		return s.swapHandler.SettleVHTLCWithClaimPath(ctx, opts, preimage, nil)
 	})
 }
 

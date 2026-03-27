@@ -258,8 +258,8 @@ func (h *serviceHandler) ClaimVHTLC(
 		}
 
 		outpoint = &clientTypes.Outpoint{
-			Txid: outpoint.Txid,
-			VOut: outpoint.VOut,
+			Txid: txid,
+			VOut: reqOutpoint.GetVout(),
 		}
 	}
 
