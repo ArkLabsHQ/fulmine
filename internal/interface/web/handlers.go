@@ -1475,7 +1475,6 @@ func toTransfer(tx clientTypes.Transaction) types.Transfer {
 
 	return types.Transfer{
 		Amount:     amount,
-		ArkTxid:    tx.ArkTxid,
 		CreatedAt:  prettyUnixTimestamp(dateCreated),
 		Day:        prettyDay(dateCreated),
 		Explorable: explorable,
