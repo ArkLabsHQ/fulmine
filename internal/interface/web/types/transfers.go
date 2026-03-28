@@ -2,7 +2,6 @@ package types
 
 type Transfer struct {
 	Amount     string `json:"amount"`
-	ArkTxid    string `json:"arkTxid"`
 	CreatedAt  string `json:"createdAt"`
 	Day        string `json:"day"`
 	Explorable bool   `json:"explorable"`

@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 
 func refillArkd(ctx context.Context) error {
 	arkdExec := "docker exec arkd arkd"
-	balanceThreshold := 5.0
+	balanceThreshold := 10.0
 
 	command := fmt.Sprintf("%s wallet balance", arkdExec)
 	out, err := runCommand(ctx, command)
