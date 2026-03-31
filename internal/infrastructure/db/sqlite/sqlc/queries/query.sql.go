@@ -114,6 +114,15 @@ func (q *Queries) CreateSwap(ctx context.Context, arg CreateSwapParams) error {
 	return err
 }
 
+const deleteBancoPair = `-- name: DeleteBancoPair :exec
+DELETE FROM banco_pair WHERE pair = ?
+`
+
+func (q *Queries) DeleteBancoPair(ctx context.Context, pair string) error {
+	_, err := q.db.ExecContext(ctx, deleteBancoPair, pair)
+	return err
+}
+
 const deleteChainSwap = `-- name: DeleteChainSwap :exec
 DELETE FROM chain_swap WHERE id = ?
 `
@@ -175,6 +184,23 @@ func (q *Queries) FailDelegateTasks(ctx context.Context, arg FailDelegateTasksPa
 	}
 	_, err := q.db.ExecContext(ctx, query, queryParams...)
 	return err
+}
+
+const getBancoPair = `-- name: GetBancoPair :one
+SELECT pair, quote_asset_id, min_amount, max_amount, price_feed FROM banco_pair WHERE pair = ?
+`
+
+func (q *Queries) GetBancoPair(ctx context.Context, pair string) (BancoPair, error) {
+	row := q.db.QueryRowContext(ctx, getBancoPair, pair)
+	var i BancoPair
+	err := row.Scan(
+		&i.Pair,
+		&i.QuoteAssetID,
+		&i.MinAmount,
+		&i.MaxAmount,
+		&i.PriceFeed,
+	)
+	return i, err
 }
 
 const getChainSwap = `-- name: GetChainSwap :one
@@ -469,6 +495,31 @@ func (q *Queries) GetVtxoRollover(ctx context.Context, address string) (VtxoRoll
 	return i, err
 }
 
+const insertBancoPair = `-- name: InsertBancoPair :exec
+INSERT INTO banco_pair (pair, quote_asset_id, min_amount, max_amount, price_feed)
+VALUES (?, ?, ?, ?, ?)
+`
+
+type InsertBancoPairParams struct {
+	Pair         string
+	QuoteAssetID string
+	MinAmount    int64
+	MaxAmount    int64
+	PriceFeed    string
+}
+
+// BancoPair queries
+func (q *Queries) InsertBancoPair(ctx context.Context, arg InsertBancoPairParams) error {
+	_, err := q.db.ExecContext(ctx, insertBancoPair,
+		arg.Pair,
+		arg.QuoteAssetID,
+		arg.MinAmount,
+		arg.MaxAmount,
+		arg.PriceFeed,
+	)
+	return err
+}
+
 const insertDelegateTask = `-- name: InsertDelegateTask :exec
 INSERT INTO delegate_task (id, intent_txid, intent_message, intent_proof, fee, delegator_public_key, scheduled_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `
@@ -568,6 +619,39 @@ func (q *Queries) InsertVHTLC(ctx context.Context, arg InsertVHTLCParams) error 
 		arg.UnilateralRefundWithoutReceiverDelayValue,
 	)
 	return err
+}
+
+const listBancoPairs = `-- name: ListBancoPairs :many
+SELECT pair, quote_asset_id, min_amount, max_amount, price_feed FROM banco_pair
+`
+
+func (q *Queries) ListBancoPairs(ctx context.Context) ([]BancoPair, error) {
+	rows, err := q.db.QueryContext(ctx, listBancoPairs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []BancoPair
+	for rows.Next() {
+		var i BancoPair
+		if err := rows.Scan(
+			&i.Pair,
+			&i.QuoteAssetID,
+			&i.MinAmount,
+			&i.MaxAmount,
+			&i.PriceFeed,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listChainSwaps = `-- name: ListChainSwaps :many
@@ -995,6 +1079,31 @@ func (q *Queries) SuccessDelegateTasks(ctx context.Context, arg SuccessDelegateT
 		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
 	}
 	_, err := q.db.ExecContext(ctx, query, queryParams...)
+	return err
+}
+
+const updateBancoPair = `-- name: UpdateBancoPair :exec
+UPDATE banco_pair
+SET quote_asset_id = ?, min_amount = ?, max_amount = ?, price_feed = ?
+WHERE pair = ?
+`
+
+type UpdateBancoPairParams struct {
+	QuoteAssetID string
+	MinAmount    int64
+	MaxAmount    int64
+	PriceFeed    string
+	Pair         string
+}
+
+func (q *Queries) UpdateBancoPair(ctx context.Context, arg UpdateBancoPairParams) error {
+	_, err := q.db.ExecContext(ctx, updateBancoPair,
+		arg.QuoteAssetID,
+		arg.MinAmount,
+		arg.MaxAmount,
+		arg.PriceFeed,
+		arg.Pair,
+	)
 	return err
 }
 

@@ -94,6 +94,22 @@ services:
       - type: tmpfs
         target: /app/data
 
+  introspector:
+    image: ghcr.io/arklabshq/introspector:v0.0.1-rc.2
+    container_name: introspector
+    restart: unless-stopped
+    depends_on:
+      - arkd
+    ports:
+      - "7073:7073"
+    environment:
+      - INTROSPECTOR_SECRET_KEY=f40f6e7a5cf262f4093d4605b8f40cbaf9da9e59bf32f24bb27a4ffc74f71eab
+      - INTROSPECTOR_NO_TLS=true
+      - INTROSPECTOR_LOG_LEVEL=5
+    volumes:
+      - type: tmpfs
+        target: /app/data
+
   fulmine:
     container_name: fulmine
     depends_on:
@@ -113,6 +129,8 @@ services:
       - FULMINE_SWAP_TIMEOUT=120
       - FULMINE_SCHEDULER_POLL_INTERVAL=10
       - FULMINE_DELEGATOR_ENABLED=true
+      - FULMINE_TAKER_ENABLED=true
+      - FULMINE_INTROSPECTOR_URL=introspector:7073
     ports:
       - "7000:7000"
       - "7001:7001"

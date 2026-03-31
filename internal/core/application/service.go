@@ -16,6 +16,7 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
+	introclient "github.com/ArkLabsHQ/introspector/pkg/client"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/cln"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/lnd"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
@@ -140,6 +141,12 @@ type DelegatorConfig struct {
 	Fee     uint64
 }
 
+type TakerConfig struct {
+	Enabled     bool
+	IntroClient introclient.TransportClient
+	PriceFeed   ports.PriceFeed
+}
+
 func NewServices(
 	buildInfo BuildInfo,
 	datadir string,
@@ -149,27 +156,47 @@ func NewServices(
 	connectionOpts *domain.LnConnectionOpts,
 	refreshDbInterval int64,
 	delegatorConfig DelegatorConfig,
-) (*Service, *DelegatorService, error) {
+	takerConfig TakerConfig,
+) (*Service, *DelegatorService, *BancoTakerService, error) {
 	svc, err := newService(
 		buildInfo, datadir, dbSvc, schedulerSvc, refreshDbInterval,
 		esploraUrl, boltzUrl, boltzWSUrl, swapTimeout, connectionOpts,
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
+
+	var unlockFns []func()
+	var lockFns []func()
+	var delegatorSvc *DelegatorService
+	var takerSvc *BancoTakerService
 
 	if delegatorConfig.Enabled {
-		delegatorSvc := newDelegatorService(svc, delegatorConfig.Fee)
-		svc.onUnlock = func() {
-			delegatorSvc.start()
-		}
-		svc.onLock = func() {
-			delegatorSvc.Stop()
-		}
-		return svc, delegatorSvc, nil
+		delegatorSvc = newDelegatorService(svc, delegatorConfig.Fee)
+		unlockFns = append(unlockFns, delegatorSvc.start)
+		lockFns = append(lockFns, delegatorSvc.Stop)
 	}
 
-	return svc, nil, nil
+	if takerConfig.Enabled {
+		takerSvc = newBancoTakerService(svc, dbSvc.BancoPair(), takerConfig.IntroClient, takerConfig.PriceFeed)
+		unlockFns = append(unlockFns, takerSvc.start)
+		lockFns = append(lockFns, takerSvc.Stop)
+	}
+
+	if len(unlockFns) > 0 {
+		svc.onUnlock = func() {
+			for _, f := range unlockFns {
+				f()
+			}
+		}
+		svc.onLock = func() {
+			for _, f := range lockFns {
+				f()
+			}
+		}
+	}
+
+	return svc, delegatorSvc, takerSvc, nil
 }
 
 func newService(

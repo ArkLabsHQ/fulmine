@@ -62,6 +62,124 @@
         ]
       }
     },
+    "/v1/banco/pair": {
+      "post": {
+        "summary": "AddBancoPair adds a new trading pair to the banco taker service.",
+        "operationId": "Service_AddBancoPair",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1AddBancoPairResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1AddBancoPairRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      },
+      "put": {
+        "summary": "UpdateBancoPair updates an existing trading pair configuration.",
+        "operationId": "Service_UpdateBancoPair",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UpdateBancoPairResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UpdateBancoPairRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v1/banco/pair/{pair}": {
+      "delete": {
+        "summary": "RemoveBancoPair removes a trading pair from the banco taker service.",
+        "operationId": "Service_RemoveBancoPair",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RemoveBancoPairResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "pair",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v1/banco/pairs": {
+      "get": {
+        "summary": "ListBancoPairs returns all configured trading pairs.",
+        "operationId": "Service_ListBancoPairs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListBancoPairsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/chainswap": {
       "post": {
         "summary": "CreateChainSwap initiates a chain swap between Ark and Bitcoin",
@@ -882,6 +1000,53 @@
         }
       }
     },
+    "v1AddBancoPairRequest": {
+      "type": "object",
+      "properties": {
+        "pair": {
+          "type": "string"
+        },
+        "quoteAssetId": {
+          "type": "string"
+        },
+        "minAmount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "maxAmount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "priceFeed": {
+          "type": "string"
+        }
+      }
+    },
+    "v1AddBancoPairResponse": {
+      "type": "object"
+    },
+    "v1BancoPairInfo": {
+      "type": "object",
+      "properties": {
+        "pair": {
+          "type": "string"
+        },
+        "quoteAssetId": {
+          "type": "string"
+        },
+        "minAmount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "maxAmount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "priceFeed": {
+          "type": "string"
+        }
+      }
+    },
     "v1BuildInfo": {
       "type": "object",
       "properties": {
@@ -1319,6 +1484,18 @@
         }
       }
     },
+    "v1ListBancoPairsResponse": {
+      "type": "object",
+      "properties": {
+        "pairs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1BancoPairInfo"
+          }
+        }
+      }
+    },
     "v1ListChainSwapsResponse": {
       "type": "object",
       "properties": {
@@ -1444,6 +1621,9 @@
         }
       },
       "title": "RelativeLocktime represents a relative timelock"
+    },
+    "v1RemoveBancoPairResponse": {
+      "type": "object"
     },
     "v1Round": {
       "type": "object",
@@ -1630,6 +1810,31 @@
         "TX_TYPE_RECEIVED"
       ],
       "default": "TX_TYPE_UNSPECIFIED"
+    },
+    "v1UpdateBancoPairRequest": {
+      "type": "object",
+      "properties": {
+        "pair": {
+          "type": "string"
+        },
+        "quoteAssetId": {
+          "type": "string"
+        },
+        "minAmount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "maxAmount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "priceFeed": {
+          "type": "string"
+        }
+      }
+    },
+    "v1UpdateBancoPairResponse": {
+      "type": "object"
     },
     "v1Vtxo": {
       "type": "object",

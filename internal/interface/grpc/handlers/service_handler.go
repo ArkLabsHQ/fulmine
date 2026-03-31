@@ -20,11 +20,12 @@ import (
 )
 
 type serviceHandler struct {
-	svc *application.Service
+	svc      *application.Service
+	takerSvc *application.BancoTakerService
 }
 
-func NewServiceHandler(svc *application.Service) pb.ServiceServer {
-	return &serviceHandler{svc}
+func NewServiceHandler(svc *application.Service, takerSvc *application.BancoTakerService) pb.ServiceServer {
+	return &serviceHandler{svc, takerSvc}
 }
 
 func (h *serviceHandler) GetAddress(
@@ -755,4 +756,85 @@ func (h *serviceHandler) ListDelegates(
 	return &pb.ListDelegatesResponse{
 		Delegates: toDelegatesProto(delegates),
 	}, nil
+}
+
+func (h *serviceHandler) AddBancoPair(
+	ctx context.Context, req *pb.AddBancoPairRequest,
+) (*pb.AddBancoPairResponse, error) {
+	if h.takerSvc == nil {
+		return nil, status.Error(codes.FailedPrecondition, "banco taker service is not enabled")
+	}
+
+	pair := domain.BancoPair{
+		Pair:         req.GetPair(),
+		QuoteAssetID: req.GetQuoteAssetId(),
+		MinAmount:    req.GetMinAmount(),
+		MaxAmount:    req.GetMaxAmount(),
+		PriceFeed:    req.GetPriceFeed(),
+	}
+
+	if err := h.takerSvc.AddPair(ctx, pair); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to add pair: %v", err)
+	}
+	return &pb.AddBancoPairResponse{}, nil
+}
+
+func (h *serviceHandler) UpdateBancoPair(
+	ctx context.Context, req *pb.UpdateBancoPairRequest,
+) (*pb.UpdateBancoPairResponse, error) {
+	if h.takerSvc == nil {
+		return nil, status.Error(codes.FailedPrecondition, "banco taker service is not enabled")
+	}
+
+	pair := domain.BancoPair{
+		Pair:         req.GetPair(),
+		QuoteAssetID: req.GetQuoteAssetId(),
+		MinAmount:    req.GetMinAmount(),
+		MaxAmount:    req.GetMaxAmount(),
+		PriceFeed:    req.GetPriceFeed(),
+	}
+
+	if err := h.takerSvc.UpdatePair(ctx, pair); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to update pair: %v", err)
+	}
+	return &pb.UpdateBancoPairResponse{}, nil
+}
+
+func (h *serviceHandler) RemoveBancoPair(
+	ctx context.Context, req *pb.RemoveBancoPairRequest,
+) (*pb.RemoveBancoPairResponse, error) {
+	if h.takerSvc == nil {
+		return nil, status.Error(codes.FailedPrecondition, "banco taker service is not enabled")
+	}
+
+	if err := h.takerSvc.RemovePair(ctx, req.GetPair()); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to remove pair: %v", err)
+	}
+	return &pb.RemoveBancoPairResponse{}, nil
+}
+
+func (h *serviceHandler) ListBancoPairs(
+	ctx context.Context, req *pb.ListBancoPairsRequest,
+) (*pb.ListBancoPairsResponse, error) {
+	if h.takerSvc == nil {
+		return nil, status.Error(codes.FailedPrecondition, "banco taker service is not enabled")
+	}
+
+	pairs, err := h.takerSvc.ListPairs(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list pairs: %v", err)
+	}
+
+	pbPairs := make([]*pb.BancoPairInfo, 0, len(pairs))
+	for _, p := range pairs {
+		pbPairs = append(pbPairs, &pb.BancoPairInfo{
+			Pair:         p.Pair,
+			QuoteAssetId: p.QuoteAssetID,
+			MinAmount:    p.MinAmount,
+			MaxAmount:    p.MaxAmount,
+			PriceFeed:    p.PriceFeed,
+		})
+	}
+
+	return &pb.ListBancoPairsResponse{Pairs: pbPairs}, nil
 }

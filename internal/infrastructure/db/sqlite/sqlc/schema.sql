@@ -90,3 +90,11 @@ CREATE TABLE IF NOT EXISTS delegate_task_input (
     PRIMARY KEY (task_id, outpoint),
     FOREIGN KEY (task_id) REFERENCES delegate_task(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS banco_pair (
+    pair TEXT PRIMARY KEY,
+    quote_asset_id TEXT NOT NULL DEFAULT '',
+    min_amount INTEGER NOT NULL,
+    max_amount INTEGER NOT NULL,
+    price_feed TEXT NOT NULL
+);

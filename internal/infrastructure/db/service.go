@@ -41,6 +41,7 @@ type service struct {
 	swapRepo             domain.SwapRepository
 	subscribedScriptRepo domain.SubscribedScriptRepository
 	chainSwapRepo        domain.ChainSwapRepository
+	bancoPairRepo        domain.BancoPairRepository
 }
 
 func NewService(config ServiceConfig) (ports.RepoManager, error) {
@@ -51,6 +52,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		swapRepo             domain.SwapRepository
 		subscribedScriptRepo domain.SubscribedScriptRepository
 		chainSwapRepo        domain.ChainSwapRepository
+		bancoPairRepo        domain.BancoPairRepository
 		err                  error
 	)
 
@@ -173,6 +175,11 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 			return nil, fmt.Errorf("failed to open chain swap db: %s", err)
 		}
 
+		bancoPairRepo, err = sqlitedb.NewBancoPairRepository(db)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open banco pair db: %s", err)
+		}
+
 	default:
 		return nil, fmt.Errorf("unsopported db type %s, please select one of %s", config.DbType, allowedTypes)
 	}
@@ -184,6 +191,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		swapRepo:             swapRepo,
 		subscribedScriptRepo: subscribedScriptRepo,
 		chainSwapRepo:        chainSwapRepo,
+		bancoPairRepo:        bancoPairRepo,
 	}, nil
 }
 
@@ -209,6 +217,10 @@ func (s *service) SubscribedScript() domain.SubscribedScriptRepository {
 
 func (s *service) ChainSwaps() domain.ChainSwapRepository {
 	return s.chainSwapRepo
+}
+
+func (s *service) BancoPair() domain.BancoPairRepository {
+	return s.bancoPairRepo
 }
 
 func (s *service) Close() {

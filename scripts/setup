@@ -118,6 +118,14 @@ for i in {1..21}; do
 done
 echo "  ✅ funded onchain with $funded_count BTC"
 
+echo "setting up introspector..."
+if ! run_quiet $compose up -d introspector; then
+    exit "  ❌ failed to start introspector (status=$status) (err=$err)"
+else
+    echo "  ✅ introspector started"
+fi
+sleep 2
+
 echo "setting up Boltz stack..."
 if ! run_quiet $compose up -d boltz mock-boltz; then
     exit "  ❌ failed to start stack (status=$status) (err=$err)"

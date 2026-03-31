@@ -50,6 +50,7 @@ func NewService(
 	cfg Config,
 	appSvc *application.Service,
 	delegatorSvc *application.DelegatorService,
+	takerSvc *application.BancoTakerService,
 	unlockerSvc ports.Unlocker,
 	sentryEnabled bool,
 	macaroonSvc macaroon.Service,
@@ -117,7 +118,7 @@ func NewService(
 	walletHandler := handlers.NewWalletHandler(appSvc)
 	pb.RegisterWalletServiceServer(grpcServer, walletHandler)
 
-	serviceHandler := handlers.NewServiceHandler(appSvc)
+	serviceHandler := handlers.NewServiceHandler(appSvc, takerSvc)
 	pb.RegisterServiceServer(grpcServer, serviceHandler)
 
 	notificationHandler := handlers.NewNotificationHandler(appSvc, appStopCh)

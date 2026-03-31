@@ -45,6 +45,10 @@ const (
 	Service_ListChainSwaps_FullMethodName             = "/fulmine.v1.Service/ListChainSwaps"
 	Service_RefundChainSwap_FullMethodName            = "/fulmine.v1.Service/RefundChainSwap"
 	Service_ListDelegates_FullMethodName              = "/fulmine.v1.Service/ListDelegates"
+	Service_AddBancoPair_FullMethodName               = "/fulmine.v1.Service/AddBancoPair"
+	Service_UpdateBancoPair_FullMethodName            = "/fulmine.v1.Service/UpdateBancoPair"
+	Service_RemoveBancoPair_FullMethodName            = "/fulmine.v1.Service/RemoveBancoPair"
+	Service_ListBancoPairs_FullMethodName             = "/fulmine.v1.Service/ListBancoPairs"
 )
 
 // ServiceClient is the client API for Service service.
@@ -98,6 +102,14 @@ type ServiceClient interface {
 	RefundChainSwap(ctx context.Context, in *RefundChainSwapRequest, opts ...grpc.CallOption) (*RefundChainSwapResponse, error)
 	// ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.
 	ListDelegates(ctx context.Context, in *ListDelegatesRequest, opts ...grpc.CallOption) (*ListDelegatesResponse, error)
+	// AddBancoPair adds a new trading pair to the banco taker service.
+	AddBancoPair(ctx context.Context, in *AddBancoPairRequest, opts ...grpc.CallOption) (*AddBancoPairResponse, error)
+	// UpdateBancoPair updates an existing trading pair configuration.
+	UpdateBancoPair(ctx context.Context, in *UpdateBancoPairRequest, opts ...grpc.CallOption) (*UpdateBancoPairResponse, error)
+	// RemoveBancoPair removes a trading pair from the banco taker service.
+	RemoveBancoPair(ctx context.Context, in *RemoveBancoPairRequest, opts ...grpc.CallOption) (*RemoveBancoPairResponse, error)
+	// ListBancoPairs returns all configured trading pairs.
+	ListBancoPairs(ctx context.Context, in *ListBancoPairsRequest, opts ...grpc.CallOption) (*ListBancoPairsResponse, error)
 }
 
 type serviceClient struct {
@@ -368,6 +380,46 @@ func (c *serviceClient) ListDelegates(ctx context.Context, in *ListDelegatesRequ
 	return out, nil
 }
 
+func (c *serviceClient) AddBancoPair(ctx context.Context, in *AddBancoPairRequest, opts ...grpc.CallOption) (*AddBancoPairResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AddBancoPairResponse)
+	err := c.cc.Invoke(ctx, Service_AddBancoPair_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) UpdateBancoPair(ctx context.Context, in *UpdateBancoPairRequest, opts ...grpc.CallOption) (*UpdateBancoPairResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateBancoPairResponse)
+	err := c.cc.Invoke(ctx, Service_UpdateBancoPair_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) RemoveBancoPair(ctx context.Context, in *RemoveBancoPairRequest, opts ...grpc.CallOption) (*RemoveBancoPairResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoveBancoPairResponse)
+	err := c.cc.Invoke(ctx, Service_RemoveBancoPair_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) ListBancoPairs(ctx context.Context, in *ListBancoPairsRequest, opts ...grpc.CallOption) (*ListBancoPairsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListBancoPairsResponse)
+	err := c.cc.Invoke(ctx, Service_ListBancoPairs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServiceServer is the server API for Service service.
 // All implementations should embed UnimplementedServiceServer
 // for forward compatibility
@@ -419,6 +471,14 @@ type ServiceServer interface {
 	RefundChainSwap(context.Context, *RefundChainSwapRequest) (*RefundChainSwapResponse, error)
 	// ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.
 	ListDelegates(context.Context, *ListDelegatesRequest) (*ListDelegatesResponse, error)
+	// AddBancoPair adds a new trading pair to the banco taker service.
+	AddBancoPair(context.Context, *AddBancoPairRequest) (*AddBancoPairResponse, error)
+	// UpdateBancoPair updates an existing trading pair configuration.
+	UpdateBancoPair(context.Context, *UpdateBancoPairRequest) (*UpdateBancoPairResponse, error)
+	// RemoveBancoPair removes a trading pair from the banco taker service.
+	RemoveBancoPair(context.Context, *RemoveBancoPairRequest) (*RemoveBancoPairResponse, error)
+	// ListBancoPairs returns all configured trading pairs.
+	ListBancoPairs(context.Context, *ListBancoPairsRequest) (*ListBancoPairsResponse, error)
 }
 
 // UnimplementedServiceServer should be embedded to have forward compatible implementations.
@@ -502,6 +562,18 @@ func (UnimplementedServiceServer) RefundChainSwap(context.Context, *RefundChainS
 }
 func (UnimplementedServiceServer) ListDelegates(context.Context, *ListDelegatesRequest) (*ListDelegatesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListDelegates not implemented")
+}
+func (UnimplementedServiceServer) AddBancoPair(context.Context, *AddBancoPairRequest) (*AddBancoPairResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddBancoPair not implemented")
+}
+func (UnimplementedServiceServer) UpdateBancoPair(context.Context, *UpdateBancoPairRequest) (*UpdateBancoPairResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateBancoPair not implemented")
+}
+func (UnimplementedServiceServer) RemoveBancoPair(context.Context, *RemoveBancoPairRequest) (*RemoveBancoPairResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveBancoPair not implemented")
+}
+func (UnimplementedServiceServer) ListBancoPairs(context.Context, *ListBancoPairsRequest) (*ListBancoPairsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListBancoPairs not implemented")
 }
 
 // UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -983,6 +1055,78 @@ func _Service_ListDelegates_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_AddBancoPair_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddBancoPairRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).AddBancoPair(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_AddBancoPair_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).AddBancoPair(ctx, req.(*AddBancoPairRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_UpdateBancoPair_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateBancoPairRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).UpdateBancoPair(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_UpdateBancoPair_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).UpdateBancoPair(ctx, req.(*UpdateBancoPairRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_RemoveBancoPair_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveBancoPairRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).RemoveBancoPair(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_RemoveBancoPair_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).RemoveBancoPair(ctx, req.(*RemoveBancoPairRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_ListBancoPairs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListBancoPairsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).ListBancoPairs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_ListBancoPairs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).ListBancoPairs(ctx, req.(*ListBancoPairsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Service_ServiceDesc is the grpc.ServiceDesc for Service service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1093,6 +1237,22 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListDelegates",
 			Handler:    _Service_ListDelegates_Handler,
+		},
+		{
+			MethodName: "AddBancoPair",
+			Handler:    _Service_AddBancoPair_Handler,
+		},
+		{
+			MethodName: "UpdateBancoPair",
+			Handler:    _Service_UpdateBancoPair_Handler,
+		},
+		{
+			MethodName: "RemoveBancoPair",
+			Handler:    _Service_RemoveBancoPair_Handler,
+		},
+		{
+			MethodName: "ListBancoPairs",
+			Handler:    _Service_ListBancoPairs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

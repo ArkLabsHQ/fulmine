@@ -41,6 +41,9 @@ type Config struct {
 	DelegatorFee          uint64
 	DelegatorEnabled      bool
 
+	TakerEnabled    bool
+	IntrospectorURL string
+
 	UnlockerType     string
 	UnlockerFilePath string
 	UnlockerPassword string
@@ -84,6 +87,9 @@ var (
 	DelegatorFee          = "DELEGATOR_FEE"
 	DelegatorEnabled      = "DELEGATOR_ENABLED"
 
+	TakerEnabled    = "TAKER_ENABLED"
+	IntrospectorURL = "INTROSPECTOR_URL"
+
 	// Unlocker configuration
 	UnlockerType     = "UNLOCKER_TYPE"
 	UnlockerFilePath = "UNLOCKER_FILE_PATH"
@@ -114,6 +120,8 @@ var (
 	defaultDelegatorPort         = 7002
 	defaultDelegatorFee          = 0
 	defaultDelegatorEnabled      = false
+
+	defaultTakerEnabled = false
 )
 
 func LoadConfig() (*Config, error) {
@@ -141,6 +149,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(OtelPushInterval, defaultOtelPushInterval)
 	viper.SetDefault(DelegatorFee, defaultDelegatorFee)
 	viper.SetDefault(DelegatorEnabled, defaultDelegatorEnabled)
+	viper.SetDefault(TakerEnabled, defaultTakerEnabled)
 
 	// TODO: move to validate method
 	if err := initDatadir(); err != nil {
@@ -197,7 +206,14 @@ func LoadConfig() (*Config, error) {
 		DelegatorFee:          viper.GetUint64(DelegatorFee),
 		DelegatorEnabled:      viper.GetBool(DelegatorEnabled),
 
+		TakerEnabled:    viper.GetBool(TakerEnabled),
+		IntrospectorURL: viper.GetString(IntrospectorURL),
+
 		LnConnectionOpts: lnConnectionOpts,
+	}
+
+	if config.TakerEnabled && config.IntrospectorURL == "" {
+		return nil, fmt.Errorf("INTROSPECTOR_URL is required when TAKER_ENABLED is true")
 	}
 
 	if err := config.initUnlockerService(); err != nil {

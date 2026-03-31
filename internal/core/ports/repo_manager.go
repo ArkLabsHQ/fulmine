@@ -9,5 +9,6 @@ type RepoManager interface {
 	Swap() domain.SwapRepository
 	SubscribedScript() domain.SubscribedScriptRepository
 	ChainSwaps() domain.ChainSwapRepository
+	BancoPair() domain.BancoPairRepository
 	Close()
 }

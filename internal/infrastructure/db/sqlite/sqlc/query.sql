@@ -200,3 +200,22 @@ LEFT JOIN delegate_task_input dti ON dt.id = dti.task_id
 WHERE dt.status = ?
 ORDER BY dt.scheduled_at DESC
 LIMIT ? OFFSET ?;
+
+-- BancoPair queries
+-- name: InsertBancoPair :exec
+INSERT INTO banco_pair (pair, quote_asset_id, min_amount, max_amount, price_feed)
+VALUES (?, ?, ?, ?, ?);
+
+-- name: UpdateBancoPair :exec
+UPDATE banco_pair
+SET quote_asset_id = ?, min_amount = ?, max_amount = ?, price_feed = ?
+WHERE pair = ?;
+
+-- name: DeleteBancoPair :exec
+DELETE FROM banco_pair WHERE pair = ?;
+
+-- name: ListBancoPairs :many
+SELECT * FROM banco_pair;
+
+-- name: GetBancoPair :one
+SELECT * FROM banco_pair WHERE pair = ?;

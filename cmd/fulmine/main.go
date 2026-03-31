@@ -11,11 +11,15 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/config"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db"
+	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/pricefeed"
 	scheduler "github.com/ArkLabsHQ/fulmine/internal/infrastructure/scheduler/gocron"
 	grpcservice "github.com/ArkLabsHQ/fulmine/internal/interface/grpc"
+	introclient "github.com/ArkLabsHQ/introspector/pkg/client"
 	"github.com/getsentry/sentry-go"
 	sentrylogrus "github.com/getsentry/sentry-go/logrus"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // nolint:all
@@ -104,7 +108,22 @@ func main() {
 	pollInterval := time.Duration(cfg.SchedulerPollInterval) * time.Second
 	schedulerSvc := scheduler.NewScheduler(cfg.EsploraURL, pollInterval)
 
-	appSvc, delegatorSvc, err := application.NewServices(
+	var introClient introclient.TransportClient
+	if cfg.TakerEnabled && cfg.IntrospectorURL != "" {
+		introConn, err := grpc.NewClient(cfg.IntrospectorURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.WithError(err).Fatal("failed to connect to introspector")
+		}
+		introClient = introclient.NewGRPCClient(introConn)
+	}
+
+	takerConfig := application.TakerConfig{
+		Enabled:     cfg.TakerEnabled,
+		IntroClient: introClient,
+		PriceFeed:   pricefeed.NewCoinGeckoPriceFeed(),
+	}
+
+	appSvc, delegatorSvc, takerSvc, err := application.NewServices(
 		buildInfo, cfg.Datadir, dbSvc, schedulerSvc,
 		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout,
 		cfg.LnConnectionOpts, cfg.RefreshDbInterval,
@@ -112,13 +131,14 @@ func main() {
 			Enabled: cfg.DelegatorEnabled,
 			Fee:     cfg.DelegatorFee,
 		},
+		takerConfig,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init application service")
 	}
 
 	svc, err := grpcservice.NewService(
-		svcConfig, appSvc, delegatorSvc, cfg.UnlockerService(), sentryEnabled,
+		svcConfig, appSvc, delegatorSvc, takerSvc, cfg.UnlockerService(), sentryEnabled,
 		cfg.MacaroonSvc(), cfg.ArkServer, cfg.OtelCollectorURL, cfg.OtelPushInterval, cfg.PyroscopeURL,
 	)
 	if err != nil {

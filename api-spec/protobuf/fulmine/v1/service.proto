@@ -171,6 +171,33 @@ service Service {
       get: "/v1/delegates"
     };
   };
+
+  // AddBancoPair adds a new trading pair to the banco taker service.
+  rpc AddBancoPair(AddBancoPairRequest) returns (AddBancoPairResponse) {
+    option (google.api.http) = {
+      post: "/v1/banco/pair"
+      body: "*"
+    };
+  };
+  // UpdateBancoPair updates an existing trading pair configuration.
+  rpc UpdateBancoPair(UpdateBancoPairRequest) returns (UpdateBancoPairResponse) {
+    option (google.api.http) = {
+      put: "/v1/banco/pair"
+      body: "*"
+    };
+  };
+  // RemoveBancoPair removes a trading pair from the banco taker service.
+  rpc RemoveBancoPair(RemoveBancoPairRequest) returns (RemoveBancoPairResponse) {
+    option (google.api.http) = {
+      delete: "/v1/banco/pair/{pair}"
+    };
+  };
+  // ListBancoPairs returns all configured trading pairs.
+  rpc ListBancoPairs(ListBancoPairsRequest) returns (ListBancoPairsResponse) {
+    option (google.api.http) = {
+      get: "/v1/banco/pairs"
+    };
+  };
 }
 
 message GetAddressRequest {}
@@ -507,4 +534,40 @@ message ListDelegatesRequest {
 
 message ListDelegatesResponse {
   repeated Delegate delegates = 1;
+}
+
+message BancoPairInfo {
+  string pair = 1;
+  string quote_asset_id = 2;
+  uint64 min_amount = 3;
+  uint64 max_amount = 4;
+  string price_feed = 5;
+}
+
+message AddBancoPairRequest {
+  string pair = 1;
+  string quote_asset_id = 2;
+  uint64 min_amount = 3;
+  uint64 max_amount = 4;
+  string price_feed = 5;
+}
+message AddBancoPairResponse {}
+
+message UpdateBancoPairRequest {
+  string pair = 1;
+  string quote_asset_id = 2;
+  uint64 min_amount = 3;
+  uint64 max_amount = 4;
+  string price_feed = 5;
+}
+message UpdateBancoPairResponse {}
+
+message RemoveBancoPairRequest {
+  string pair = 1;
+}
+message RemoveBancoPairResponse {}
+
+message ListBancoPairsRequest {}
+message ListBancoPairsResponse {
+  repeated BancoPairInfo pairs = 1;
 }

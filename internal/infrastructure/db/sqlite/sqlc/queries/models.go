@@ -8,6 +8,14 @@ import (
 	"database/sql"
 )
 
+type BancoPair struct {
+	Pair         string
+	QuoteAssetID string
+	MinAmount    int64
+	MaxAmount    int64
+	PriceFeed    string
+}
+
 type ChainSwap struct {
 	ID                      string
 	FromCurrency            string
