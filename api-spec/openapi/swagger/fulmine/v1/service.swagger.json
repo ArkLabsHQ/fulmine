@@ -773,7 +773,7 @@
         },
         "parameters": [
           {
-            "name": "vhtlcId",
+            "name": "vhtlcIds",
             "in": "query",
             "required": false,
             "type": "array",

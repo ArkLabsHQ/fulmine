@@ -377,7 +377,7 @@ func parseInputOutpoint(input *pb.Input) (*clientTypes.Outpoint, error) {
 }
 
 func (h *serviceHandler) ListVHTLCs(ctx context.Context, req *pb.ListVHTLCsRequest) (*pb.ListVHTLCsResponse, error) {
-	vtxos, _, err := h.svc.ListVHTLCs(ctx, req.GetVhtlcId())
+	vtxos, _, err := h.svc.ListVHTLCs(ctx, req.GetVhtlcIds())
 	if err != nil {
 		return nil, err
 	}

@@ -35,7 +35,7 @@ SELECT * FROM vhtlc WHERE id = ?;
 -- name: ListVHTLC :many
 SELECT * FROM vhtlc;
 
--- name: ListVHTLCByIDs :many
+-- name: ListVHTLCsByID :many
 SELECT * FROM vhtlc
 WHERE id IN (sqlc.slice('ids'));
 

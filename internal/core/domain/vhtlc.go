@@ -17,7 +17,7 @@ type Vhtlc struct {
 type VHTLCRepository interface {
 	GetAll(ctx context.Context) ([]Vhtlc, error)
 	Get(ctx context.Context, id string) (*Vhtlc, error)
-	GetByIds(ctx context.Context, id []string) ([]Vhtlc, error)
+	GetByIds(ctx context.Context, ids []string) ([]Vhtlc, error)
 	Add(ctx context.Context, vhtlc Vhtlc) error
 	Close()
 }

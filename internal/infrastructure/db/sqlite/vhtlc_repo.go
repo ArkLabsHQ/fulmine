@@ -64,7 +64,7 @@ func (r *vhtlcRepository) Get(ctx context.Context, id string) (*domain.Vhtlc, er
 }
 
 func (r *vhtlcRepository) GetByIds(ctx context.Context, ids []string) ([]domain.Vhtlc, error) {
-	rows, err := r.querier.ListVHTLCByIDs(ctx, ids)
+	rows, err := r.querier.ListVHTLCsByID(ctx, ids)
 	if err != nil {
 		return nil, err
 	}

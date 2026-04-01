@@ -944,13 +944,13 @@ func (q *Queries) ListVHTLC(ctx context.Context) ([]Vhtlc, error) {
 	return items, nil
 }
 
-const listVHTLCByIDs = `-- name: ListVHTLCByIDs :many
+const listVHTLCsByID = `-- name: ListVHTLCsByID :many
 SELECT id, preimage_hash, sender, receiver, server, refund_locktime, unilateral_claim_delay_type, unilateral_claim_delay_value, unilateral_refund_delay_type, unilateral_refund_delay_value, unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value FROM vhtlc
 WHERE id IN (/*SLICE:ids*/?)
 `
 
-func (q *Queries) ListVHTLCByIDs(ctx context.Context, ids []string) ([]Vhtlc, error) {
-	query := listVHTLCByIDs
+func (q *Queries) ListVHTLCsByID(ctx context.Context, ids []string) ([]Vhtlc, error) {
+	query := listVHTLCsByID
 	var queryParams []interface{}
 	if len(ids) > 0 {
 		for _, v := range ids {

@@ -126,7 +126,7 @@ func testVHTLCRepository(t *testing.T, svc ports.RepoManager) {
 	t.Run("vHTLC repository", func(t *testing.T) {
 		testAddVHTLC(t, svc.VHTLC())
 		testGetAllVHTLC(t, svc.VHTLC())
-		testGetByIdsVHTLC(t, svc.VHTLC())
+		testGetVHTLCsById(t, svc.VHTLC())
 	})
 }
 
@@ -287,9 +287,13 @@ func testGetAllVHTLC(t *testing.T, repo domain.VHTLCRepository) {
 	})
 }
 
-func testGetByIdsVHTLC(t *testing.T, repo domain.VHTLCRepository) {
+func testGetVHTLCsById(t *testing.T, repo domain.VHTLCRepository) {
 	t.Run("get vHTLCs by ids", func(t *testing.T) {
 		vHTLC, err := repo.GetByIds(ctx, nil)
+		require.NoError(t, err)
+		require.Len(t, vHTLC, 0)
+
+		vHTLC, err = repo.GetByIds(ctx, []string{"nonexisting1", "nonexisting2"})
 		require.NoError(t, err)
 		require.Len(t, vHTLC, 0)
 
