@@ -754,6 +754,40 @@
         ]
       }
     },
+    "/v1/vhtlcs": {
+      "get": {
+        "operationId": "Service_ListVHTLCs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListVHTLCsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vhtlcId",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/virtualTx/{txids}": {
       "get": {
         "summary": "GetVirtualTxs returns the virtual transactions in hex format for the specified txids.",
@@ -1344,6 +1378,18 @@
       }
     },
     "v1ListVHTLCResponse": {
+      "type": "object",
+      "properties": {
+        "vhtlcs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Vtxo"
+          }
+        }
+      }
+    },
+    "v1ListVHTLCsResponse": {
       "type": "object",
       "properties": {
         "vhtlcs": {

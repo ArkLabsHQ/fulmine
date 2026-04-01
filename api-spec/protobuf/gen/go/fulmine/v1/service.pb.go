@@ -168,7 +168,7 @@ func (x RelativeLocktime_LocktimeType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RelativeLocktime_LocktimeType.Descriptor instead.
 func (RelativeLocktime_LocktimeType) EnumDescriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{43, 0}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{45, 0}
 }
 
 type GetAddressRequest struct {
@@ -2058,6 +2058,100 @@ func (x *ListVHTLCResponse) GetVhtlcs() []*Vtxo {
 	return nil
 }
 
+type ListVHTLCsRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	VhtlcId []string `protobuf:"bytes,1,rep,name=vhtlc_id,json=vhtlcId,proto3" json:"vhtlc_id,omitempty"`
+}
+
+func (x *ListVHTLCsRequest) Reset() {
+	*x = ListVHTLCsRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_fulmine_v1_service_proto_msgTypes[35]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ListVHTLCsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListVHTLCsRequest) ProtoMessage() {}
+
+func (x *ListVHTLCsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_fulmine_v1_service_proto_msgTypes[35]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListVHTLCsRequest.ProtoReflect.Descriptor instead.
+func (*ListVHTLCsRequest) Descriptor() ([]byte, []int) {
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *ListVHTLCsRequest) GetVhtlcId() []string {
+	if x != nil {
+		return x.VhtlcId
+	}
+	return nil
+}
+
+type ListVHTLCsResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Vhtlcs []*Vtxo `protobuf:"bytes,1,rep,name=vhtlcs,proto3" json:"vhtlcs,omitempty"`
+}
+
+func (x *ListVHTLCsResponse) Reset() {
+	*x = ListVHTLCsResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_fulmine_v1_service_proto_msgTypes[36]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *ListVHTLCsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListVHTLCsResponse) ProtoMessage() {}
+
+func (x *ListVHTLCsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_fulmine_v1_service_proto_msgTypes[36]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListVHTLCsResponse.ProtoReflect.Descriptor instead.
+func (*ListVHTLCsResponse) Descriptor() ([]byte, []int) {
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ListVHTLCsResponse) GetVhtlcs() []*Vtxo {
+	if x != nil {
+		return x.Vhtlcs
+	}
+	return nil
+}
+
 type GetInvoiceRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -2069,7 +2163,7 @@ type GetInvoiceRequest struct {
 func (x *GetInvoiceRequest) Reset() {
 	*x = GetInvoiceRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[35]
+		mi := &file_fulmine_v1_service_proto_msgTypes[37]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2082,7 +2176,7 @@ func (x *GetInvoiceRequest) String() string {
 func (*GetInvoiceRequest) ProtoMessage() {}
 
 func (x *GetInvoiceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[35]
+	mi := &file_fulmine_v1_service_proto_msgTypes[37]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2095,7 +2189,7 @@ func (x *GetInvoiceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInvoiceRequest.ProtoReflect.Descriptor instead.
 func (*GetInvoiceRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{35}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *GetInvoiceRequest) GetAmount() uint64 {
@@ -2116,7 +2210,7 @@ type GetInvoiceResponse struct {
 func (x *GetInvoiceResponse) Reset() {
 	*x = GetInvoiceResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[36]
+		mi := &file_fulmine_v1_service_proto_msgTypes[38]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2129,7 +2223,7 @@ func (x *GetInvoiceResponse) String() string {
 func (*GetInvoiceResponse) ProtoMessage() {}
 
 func (x *GetInvoiceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[36]
+	mi := &file_fulmine_v1_service_proto_msgTypes[38]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2142,7 +2236,7 @@ func (x *GetInvoiceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInvoiceResponse.ProtoReflect.Descriptor instead.
 func (*GetInvoiceResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{36}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *GetInvoiceResponse) GetInvoice() string {
@@ -2163,7 +2257,7 @@ type PayInvoiceRequest struct {
 func (x *PayInvoiceRequest) Reset() {
 	*x = PayInvoiceRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[37]
+		mi := &file_fulmine_v1_service_proto_msgTypes[39]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2176,7 +2270,7 @@ func (x *PayInvoiceRequest) String() string {
 func (*PayInvoiceRequest) ProtoMessage() {}
 
 func (x *PayInvoiceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[37]
+	mi := &file_fulmine_v1_service_proto_msgTypes[39]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2189,7 +2283,7 @@ func (x *PayInvoiceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PayInvoiceRequest.ProtoReflect.Descriptor instead.
 func (*PayInvoiceRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{37}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *PayInvoiceRequest) GetInvoice() string {
@@ -2210,7 +2304,7 @@ type PayInvoiceResponse struct {
 func (x *PayInvoiceResponse) Reset() {
 	*x = PayInvoiceResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[38]
+		mi := &file_fulmine_v1_service_proto_msgTypes[40]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2223,7 +2317,7 @@ func (x *PayInvoiceResponse) String() string {
 func (*PayInvoiceResponse) ProtoMessage() {}
 
 func (x *PayInvoiceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[38]
+	mi := &file_fulmine_v1_service_proto_msgTypes[40]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2236,7 +2330,7 @@ func (x *PayInvoiceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PayInvoiceResponse.ProtoReflect.Descriptor instead.
 func (*PayInvoiceResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{38}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *PayInvoiceResponse) GetTxid() string {
@@ -2262,7 +2356,7 @@ type TaprootTree struct {
 func (x *TaprootTree) Reset() {
 	*x = TaprootTree{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[39]
+		mi := &file_fulmine_v1_service_proto_msgTypes[41]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2275,7 +2369,7 @@ func (x *TaprootTree) String() string {
 func (*TaprootTree) ProtoMessage() {}
 
 func (x *TaprootTree) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[39]
+	mi := &file_fulmine_v1_service_proto_msgTypes[41]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2288,7 +2382,7 @@ func (x *TaprootTree) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaprootTree.ProtoReflect.Descriptor instead.
 func (*TaprootTree) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{39}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *TaprootTree) GetClaimLeaf() *TaprootLeaf {
@@ -2345,7 +2439,7 @@ type TaprootLeaf struct {
 func (x *TaprootLeaf) Reset() {
 	*x = TaprootLeaf{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[40]
+		mi := &file_fulmine_v1_service_proto_msgTypes[42]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2358,7 +2452,7 @@ func (x *TaprootLeaf) String() string {
 func (*TaprootLeaf) ProtoMessage() {}
 
 func (x *TaprootLeaf) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[40]
+	mi := &file_fulmine_v1_service_proto_msgTypes[42]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2371,7 +2465,7 @@ func (x *TaprootLeaf) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaprootLeaf.ProtoReflect.Descriptor instead.
 func (*TaprootLeaf) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{40}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *TaprootLeaf) GetVersion() int32 {
@@ -2399,7 +2493,7 @@ type IsInvoiceSettledRequest struct {
 func (x *IsInvoiceSettledRequest) Reset() {
 	*x = IsInvoiceSettledRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[41]
+		mi := &file_fulmine_v1_service_proto_msgTypes[43]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2412,7 +2506,7 @@ func (x *IsInvoiceSettledRequest) String() string {
 func (*IsInvoiceSettledRequest) ProtoMessage() {}
 
 func (x *IsInvoiceSettledRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[41]
+	mi := &file_fulmine_v1_service_proto_msgTypes[43]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2425,7 +2519,7 @@ func (x *IsInvoiceSettledRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IsInvoiceSettledRequest.ProtoReflect.Descriptor instead.
 func (*IsInvoiceSettledRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{41}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *IsInvoiceSettledRequest) GetInvoice() string {
@@ -2446,7 +2540,7 @@ type IsInvoiceSettledResponse struct {
 func (x *IsInvoiceSettledResponse) Reset() {
 	*x = IsInvoiceSettledResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[42]
+		mi := &file_fulmine_v1_service_proto_msgTypes[44]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2459,7 +2553,7 @@ func (x *IsInvoiceSettledResponse) String() string {
 func (*IsInvoiceSettledResponse) ProtoMessage() {}
 
 func (x *IsInvoiceSettledResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[42]
+	mi := &file_fulmine_v1_service_proto_msgTypes[44]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2472,7 +2566,7 @@ func (x *IsInvoiceSettledResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IsInvoiceSettledResponse.ProtoReflect.Descriptor instead.
 func (*IsInvoiceSettledResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{42}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *IsInvoiceSettledResponse) GetSettled() bool {
@@ -2495,7 +2589,7 @@ type RelativeLocktime struct {
 func (x *RelativeLocktime) Reset() {
 	*x = RelativeLocktime{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[43]
+		mi := &file_fulmine_v1_service_proto_msgTypes[45]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2508,7 +2602,7 @@ func (x *RelativeLocktime) String() string {
 func (*RelativeLocktime) ProtoMessage() {}
 
 func (x *RelativeLocktime) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[43]
+	mi := &file_fulmine_v1_service_proto_msgTypes[45]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2521,7 +2615,7 @@ func (x *RelativeLocktime) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RelativeLocktime.ProtoReflect.Descriptor instead.
 func (*RelativeLocktime) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{43}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *RelativeLocktime) GetType() RelativeLocktime_LocktimeType {
@@ -2549,7 +2643,7 @@ type Tapscripts struct {
 func (x *Tapscripts) Reset() {
 	*x = Tapscripts{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[44]
+		mi := &file_fulmine_v1_service_proto_msgTypes[46]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2562,7 +2656,7 @@ func (x *Tapscripts) String() string {
 func (*Tapscripts) ProtoMessage() {}
 
 func (x *Tapscripts) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[44]
+	mi := &file_fulmine_v1_service_proto_msgTypes[46]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2575,7 +2669,7 @@ func (x *Tapscripts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Tapscripts.ProtoReflect.Descriptor instead.
 func (*Tapscripts) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{44}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *Tapscripts) GetScripts() []string {
@@ -2596,7 +2690,7 @@ type GetVirtualTxsRequest struct {
 func (x *GetVirtualTxsRequest) Reset() {
 	*x = GetVirtualTxsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[45]
+		mi := &file_fulmine_v1_service_proto_msgTypes[47]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2609,7 +2703,7 @@ func (x *GetVirtualTxsRequest) String() string {
 func (*GetVirtualTxsRequest) ProtoMessage() {}
 
 func (x *GetVirtualTxsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[45]
+	mi := &file_fulmine_v1_service_proto_msgTypes[47]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2622,7 +2716,7 @@ func (x *GetVirtualTxsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVirtualTxsRequest.ProtoReflect.Descriptor instead.
 func (*GetVirtualTxsRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{45}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *GetVirtualTxsRequest) GetTxids() []string {
@@ -2643,7 +2737,7 @@ type GetVirtualTxsResponse struct {
 func (x *GetVirtualTxsResponse) Reset() {
 	*x = GetVirtualTxsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[46]
+		mi := &file_fulmine_v1_service_proto_msgTypes[48]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2656,7 +2750,7 @@ func (x *GetVirtualTxsResponse) String() string {
 func (*GetVirtualTxsResponse) ProtoMessage() {}
 
 func (x *GetVirtualTxsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[46]
+	mi := &file_fulmine_v1_service_proto_msgTypes[48]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2669,7 +2763,7 @@ func (x *GetVirtualTxsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVirtualTxsResponse.ProtoReflect.Descriptor instead.
 func (*GetVirtualTxsResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{46}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *GetVirtualTxsResponse) GetTxs() []string {
@@ -2697,7 +2791,7 @@ type GetVtxosRequest struct {
 func (x *GetVtxosRequest) Reset() {
 	*x = GetVtxosRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[47]
+		mi := &file_fulmine_v1_service_proto_msgTypes[49]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2710,7 +2804,7 @@ func (x *GetVtxosRequest) String() string {
 func (*GetVtxosRequest) ProtoMessage() {}
 
 func (x *GetVtxosRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[47]
+	mi := &file_fulmine_v1_service_proto_msgTypes[49]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2723,7 +2817,7 @@ func (x *GetVtxosRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVtxosRequest.ProtoReflect.Descriptor instead.
 func (*GetVtxosRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{47}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{49}
 }
 
 func (m *GetVtxosRequest) GetFilter() isGetVtxosRequest_Filter {
@@ -2787,7 +2881,7 @@ type GetVtxosResponse struct {
 func (x *GetVtxosResponse) Reset() {
 	*x = GetVtxosResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[48]
+		mi := &file_fulmine_v1_service_proto_msgTypes[50]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2800,7 +2894,7 @@ func (x *GetVtxosResponse) String() string {
 func (*GetVtxosResponse) ProtoMessage() {}
 
 func (x *GetVtxosResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[48]
+	mi := &file_fulmine_v1_service_proto_msgTypes[50]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2813,7 +2907,7 @@ func (x *GetVtxosResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVtxosResponse.ProtoReflect.Descriptor instead.
 func (*GetVtxosResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{48}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *GetVtxosResponse) GetVtxos() []*Vtxo {
@@ -2832,7 +2926,7 @@ type NextSettlementRequest struct {
 func (x *NextSettlementRequest) Reset() {
 	*x = NextSettlementRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[49]
+		mi := &file_fulmine_v1_service_proto_msgTypes[51]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2845,7 +2939,7 @@ func (x *NextSettlementRequest) String() string {
 func (*NextSettlementRequest) ProtoMessage() {}
 
 func (x *NextSettlementRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[49]
+	mi := &file_fulmine_v1_service_proto_msgTypes[51]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2858,7 +2952,7 @@ func (x *NextSettlementRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NextSettlementRequest.ProtoReflect.Descriptor instead.
 func (*NextSettlementRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{49}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{51}
 }
 
 type NextSettlementResponse struct {
@@ -2872,7 +2966,7 @@ type NextSettlementResponse struct {
 func (x *NextSettlementResponse) Reset() {
 	*x = NextSettlementResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[50]
+		mi := &file_fulmine_v1_service_proto_msgTypes[52]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2885,7 +2979,7 @@ func (x *NextSettlementResponse) String() string {
 func (*NextSettlementResponse) ProtoMessage() {}
 
 func (x *NextSettlementResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[50]
+	mi := &file_fulmine_v1_service_proto_msgTypes[52]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2898,7 +2992,7 @@ func (x *NextSettlementResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NextSettlementResponse.ProtoReflect.Descriptor instead.
 func (*NextSettlementResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{50}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *NextSettlementResponse) GetNextSettlementAt() int64 {
@@ -2921,7 +3015,7 @@ type CreateChainSwapRequest struct {
 func (x *CreateChainSwapRequest) Reset() {
 	*x = CreateChainSwapRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[51]
+		mi := &file_fulmine_v1_service_proto_msgTypes[53]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2934,7 +3028,7 @@ func (x *CreateChainSwapRequest) String() string {
 func (*CreateChainSwapRequest) ProtoMessage() {}
 
 func (x *CreateChainSwapRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[51]
+	mi := &file_fulmine_v1_service_proto_msgTypes[53]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2947,7 +3041,7 @@ func (x *CreateChainSwapRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateChainSwapRequest.ProtoReflect.Descriptor instead.
 func (*CreateChainSwapRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{51}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *CreateChainSwapRequest) GetDirection() SwapDirection {
@@ -2989,7 +3083,7 @@ type CreateChainSwapResponse struct {
 func (x *CreateChainSwapResponse) Reset() {
 	*x = CreateChainSwapResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[52]
+		mi := &file_fulmine_v1_service_proto_msgTypes[54]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3002,7 +3096,7 @@ func (x *CreateChainSwapResponse) String() string {
 func (*CreateChainSwapResponse) ProtoMessage() {}
 
 func (x *CreateChainSwapResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[52]
+	mi := &file_fulmine_v1_service_proto_msgTypes[54]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3015,7 +3109,7 @@ func (x *CreateChainSwapResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateChainSwapResponse.ProtoReflect.Descriptor instead.
 func (*CreateChainSwapResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{52}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *CreateChainSwapResponse) GetId() string {
@@ -3097,7 +3191,7 @@ type ChainSwapResponse struct {
 func (x *ChainSwapResponse) Reset() {
 	*x = ChainSwapResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[53]
+		mi := &file_fulmine_v1_service_proto_msgTypes[55]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3110,7 +3204,7 @@ func (x *ChainSwapResponse) String() string {
 func (*ChainSwapResponse) ProtoMessage() {}
 
 func (x *ChainSwapResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[53]
+	mi := &file_fulmine_v1_service_proto_msgTypes[55]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3123,7 +3217,7 @@ func (x *ChainSwapResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChainSwapResponse.ProtoReflect.Descriptor instead.
 func (*ChainSwapResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{53}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ChainSwapResponse) GetId() string {
@@ -3228,7 +3322,7 @@ type ListChainSwapsRequest struct {
 func (x *ListChainSwapsRequest) Reset() {
 	*x = ListChainSwapsRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[54]
+		mi := &file_fulmine_v1_service_proto_msgTypes[56]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3241,7 +3335,7 @@ func (x *ListChainSwapsRequest) String() string {
 func (*ListChainSwapsRequest) ProtoMessage() {}
 
 func (x *ListChainSwapsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[54]
+	mi := &file_fulmine_v1_service_proto_msgTypes[56]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3254,7 +3348,7 @@ func (x *ListChainSwapsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListChainSwapsRequest.ProtoReflect.Descriptor instead.
 func (*ListChainSwapsRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{54}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *ListChainSwapsRequest) GetSwapIds() []string {
@@ -3275,7 +3369,7 @@ type ListChainSwapsResponse struct {
 func (x *ListChainSwapsResponse) Reset() {
 	*x = ListChainSwapsResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[55]
+		mi := &file_fulmine_v1_service_proto_msgTypes[57]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3288,7 +3382,7 @@ func (x *ListChainSwapsResponse) String() string {
 func (*ListChainSwapsResponse) ProtoMessage() {}
 
 func (x *ListChainSwapsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[55]
+	mi := &file_fulmine_v1_service_proto_msgTypes[57]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3301,7 +3395,7 @@ func (x *ListChainSwapsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListChainSwapsResponse.ProtoReflect.Descriptor instead.
 func (*ListChainSwapsResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{55}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *ListChainSwapsResponse) GetSwaps() []*ChainSwapResponse {
@@ -3322,7 +3416,7 @@ type RefundChainSwapRequest struct {
 func (x *RefundChainSwapRequest) Reset() {
 	*x = RefundChainSwapRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[56]
+		mi := &file_fulmine_v1_service_proto_msgTypes[58]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3335,7 +3429,7 @@ func (x *RefundChainSwapRequest) String() string {
 func (*RefundChainSwapRequest) ProtoMessage() {}
 
 func (x *RefundChainSwapRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[56]
+	mi := &file_fulmine_v1_service_proto_msgTypes[58]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3348,7 +3442,7 @@ func (x *RefundChainSwapRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefundChainSwapRequest.ProtoReflect.Descriptor instead.
 func (*RefundChainSwapRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{56}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *RefundChainSwapRequest) GetId() string {
@@ -3369,7 +3463,7 @@ type RefundChainSwapResponse struct {
 func (x *RefundChainSwapResponse) Reset() {
 	*x = RefundChainSwapResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[57]
+		mi := &file_fulmine_v1_service_proto_msgTypes[59]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3382,7 +3476,7 @@ func (x *RefundChainSwapResponse) String() string {
 func (*RefundChainSwapResponse) ProtoMessage() {}
 
 func (x *RefundChainSwapResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[57]
+	mi := &file_fulmine_v1_service_proto_msgTypes[59]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3395,7 +3489,7 @@ func (x *RefundChainSwapResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefundChainSwapResponse.ProtoReflect.Descriptor instead.
 func (*RefundChainSwapResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{57}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *RefundChainSwapResponse) GetMessage() string {
@@ -3419,7 +3513,7 @@ type DelegateIntent struct {
 func (x *DelegateIntent) Reset() {
 	*x = DelegateIntent{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[58]
+		mi := &file_fulmine_v1_service_proto_msgTypes[60]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3432,7 +3526,7 @@ func (x *DelegateIntent) String() string {
 func (*DelegateIntent) ProtoMessage() {}
 
 func (x *DelegateIntent) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[58]
+	mi := &file_fulmine_v1_service_proto_msgTypes[60]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3445,7 +3539,7 @@ func (x *DelegateIntent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DelegateIntent.ProtoReflect.Descriptor instead.
 func (*DelegateIntent) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{58}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *DelegateIntent) GetTxid() string {
@@ -3488,7 +3582,7 @@ type DelegateForfeitTx struct {
 func (x *DelegateForfeitTx) Reset() {
 	*x = DelegateForfeitTx{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[59]
+		mi := &file_fulmine_v1_service_proto_msgTypes[61]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3501,7 +3595,7 @@ func (x *DelegateForfeitTx) String() string {
 func (*DelegateForfeitTx) ProtoMessage() {}
 
 func (x *DelegateForfeitTx) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[59]
+	mi := &file_fulmine_v1_service_proto_msgTypes[61]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3514,7 +3608,7 @@ func (x *DelegateForfeitTx) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DelegateForfeitTx.ProtoReflect.Descriptor instead.
 func (*DelegateForfeitTx) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{59}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *DelegateForfeitTx) GetInput() *Input {
@@ -3550,7 +3644,7 @@ type Delegate struct {
 func (x *Delegate) Reset() {
 	*x = Delegate{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[60]
+		mi := &file_fulmine_v1_service_proto_msgTypes[62]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3563,7 +3657,7 @@ func (x *Delegate) String() string {
 func (*Delegate) ProtoMessage() {}
 
 func (x *Delegate) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[60]
+	mi := &file_fulmine_v1_service_proto_msgTypes[62]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3576,7 +3670,7 @@ func (x *Delegate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Delegate.ProtoReflect.Descriptor instead.
 func (*Delegate) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{60}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *Delegate) GetId() string {
@@ -3655,7 +3749,7 @@ type ListDelegatesRequest struct {
 func (x *ListDelegatesRequest) Reset() {
 	*x = ListDelegatesRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[61]
+		mi := &file_fulmine_v1_service_proto_msgTypes[63]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3668,7 +3762,7 @@ func (x *ListDelegatesRequest) String() string {
 func (*ListDelegatesRequest) ProtoMessage() {}
 
 func (x *ListDelegatesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[61]
+	mi := &file_fulmine_v1_service_proto_msgTypes[63]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3681,7 +3775,7 @@ func (x *ListDelegatesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDelegatesRequest.ProtoReflect.Descriptor instead.
 func (*ListDelegatesRequest) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{61}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *ListDelegatesRequest) GetStatus() string {
@@ -3716,7 +3810,7 @@ type ListDelegatesResponse struct {
 func (x *ListDelegatesResponse) Reset() {
 	*x = ListDelegatesResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_fulmine_v1_service_proto_msgTypes[62]
+		mi := &file_fulmine_v1_service_proto_msgTypes[64]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -3729,7 +3823,7 @@ func (x *ListDelegatesResponse) String() string {
 func (*ListDelegatesResponse) ProtoMessage() {}
 
 func (x *ListDelegatesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fulmine_v1_service_proto_msgTypes[62]
+	mi := &file_fulmine_v1_service_proto_msgTypes[64]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3742,7 +3836,7 @@ func (x *ListDelegatesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDelegatesResponse.ProtoReflect.Descriptor instead.
 func (*ListDelegatesResponse) Descriptor() ([]byte, []int) {
-	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{62}
+	return file_fulmine_v1_service_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *ListDelegatesResponse) GetDelegates() []*Delegate {
@@ -3967,6 +4061,13 @@ var file_fulmine_v1_service_proto_rawDesc = []byte{
 	0x74, 0x56, 0x48, 0x54, 0x4c, 0x43, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x28,
 	0x0a, 0x06, 0x76, 0x68, 0x74, 0x6c, 0x63, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x10,
 	0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x56, 0x74, 0x78, 0x6f,
+	0x52, 0x06, 0x76, 0x68, 0x74, 0x6c, 0x63, 0x73, 0x22, 0x2e, 0x0a, 0x11, 0x4c, 0x69, 0x73, 0x74,
+	0x56, 0x48, 0x54, 0x4c, 0x43, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x19, 0x0a,
+	0x08, 0x76, 0x68, 0x74, 0x6c, 0x63, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52,
+	0x07, 0x76, 0x68, 0x74, 0x6c, 0x63, 0x49, 0x64, 0x22, 0x3e, 0x0a, 0x12, 0x4c, 0x69, 0x73, 0x74,
+	0x56, 0x48, 0x54, 0x4c, 0x43, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x28,
+	0x0a, 0x06, 0x76, 0x68, 0x74, 0x6c, 0x63, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x10,
+	0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x56, 0x74, 0x78, 0x6f,
 	0x52, 0x06, 0x76, 0x68, 0x74, 0x6c, 0x63, 0x73, 0x22, 0x2b, 0x0a, 0x11, 0x47, 0x65, 0x74, 0x49,
 	0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x16, 0x0a,
 	0x06, 0x61, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x06, 0x61,
@@ -4178,7 +4279,7 @@ var file_fulmine_v1_service_proto_rawDesc = []byte{
 	0x57, 0x41, 0x50, 0x5f, 0x44, 0x49, 0x52, 0x45, 0x43, 0x54, 0x49, 0x4f, 0x4e, 0x5f, 0x41, 0x52,
 	0x4b, 0x5f, 0x54, 0x4f, 0x5f, 0x42, 0x54, 0x43, 0x10, 0x01, 0x12, 0x1d, 0x0a, 0x19, 0x53, 0x57,
 	0x41, 0x50, 0x5f, 0x44, 0x49, 0x52, 0x45, 0x43, 0x54, 0x49, 0x4f, 0x4e, 0x5f, 0x42, 0x54, 0x43,
-	0x5f, 0x54, 0x4f, 0x5f, 0x41, 0x52, 0x4b, 0x10, 0x02, 0x32, 0xd8, 0x16, 0x0a, 0x07, 0x53, 0x65,
+	0x5f, 0x54, 0x4f, 0x5f, 0x41, 0x52, 0x4b, 0x10, 0x02, 0x32, 0xb9, 0x17, 0x0a, 0x07, 0x53, 0x65,
 	0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x60, 0x0a, 0x0a, 0x47, 0x65, 0x74, 0x41, 0x64, 0x64, 0x72,
 	0x65, 0x73, 0x73, 0x12, 0x1d, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31,
 	0x2e, 0x47, 0x65, 0x74, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65,
@@ -4290,88 +4391,94 @@ var file_fulmine_v1_service_proto_rawDesc = []byte{
 	0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x56,
 	0x48, 0x54, 0x4c, 0x43, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x11, 0x82, 0xd3,
 	0xe4, 0x93, 0x02, 0x0b, 0x12, 0x09, 0x2f, 0x76, 0x31, 0x2f, 0x76, 0x68, 0x74, 0x6c, 0x63, 0x12,
-	0x63, 0x0a, 0x0a, 0x47, 0x65, 0x74, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x12, 0x1d, 0x2e,
+	0x5f, 0x0a, 0x0a, 0x4c, 0x69, 0x73, 0x74, 0x56, 0x48, 0x54, 0x4c, 0x43, 0x73, 0x12, 0x1d, 0x2e,
+	0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x56,
+	0x48, 0x54, 0x4c, 0x43, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x66,
+	0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x56, 0x48,
+	0x54, 0x4c, 0x43, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x12, 0x82, 0xd3,
+	0xe4, 0x93, 0x02, 0x0c, 0x12, 0x0a, 0x2f, 0x76, 0x31, 0x2f, 0x76, 0x68, 0x74, 0x6c, 0x63, 0x73,
+	0x12, 0x63, 0x0a, 0x0a, 0x47, 0x65, 0x74, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x12, 0x1d,
+	0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x49,
+	0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e,
 	0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x49, 0x6e,
-	0x76, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x66,
-	0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x49, 0x6e, 0x76,
-	0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x16, 0x82, 0xd3,
-	0xe4, 0x93, 0x02, 0x10, 0x3a, 0x01, 0x2a, 0x22, 0x0b, 0x2f, 0x76, 0x31, 0x2f, 0x69, 0x6e, 0x76,
-	0x6f, 0x69, 0x63, 0x65, 0x12, 0x67, 0x0a, 0x0a, 0x50, 0x61, 0x79, 0x49, 0x6e, 0x76, 0x6f, 0x69,
-	0x63, 0x65, 0x12, 0x1d, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e,
-	0x50, 0x61, 0x79, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x1a, 0x1e, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x50,
-	0x61, 0x79, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x22, 0x1a, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x14, 0x3a, 0x01, 0x2a, 0x22, 0x0f, 0x2f, 0x76,
-	0x31, 0x2f, 0x69, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x2f, 0x70, 0x61, 0x79, 0x12, 0x79, 0x0a,
-	0x10, 0x49, 0x73, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x53, 0x65, 0x74, 0x74, 0x6c, 0x65,
-	0x64, 0x12, 0x23, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x49,
-	0x73, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x53, 0x65, 0x74, 0x74, 0x6c, 0x65, 0x64, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x24, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65,
-	0x2e, 0x76, 0x31, 0x2e, 0x49, 0x73, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x53, 0x65, 0x74,
-	0x74, 0x6c, 0x65, 0x64, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1a, 0x82, 0xd3,
-	0xe4, 0x93, 0x02, 0x14, 0x12, 0x12, 0x2f, 0x76, 0x31, 0x2f, 0x69, 0x6e, 0x76, 0x6f, 0x69, 0x63,
-	0x65, 0x2f, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x73, 0x0a, 0x0d, 0x47, 0x65, 0x74, 0x56,
-	0x69, 0x72, 0x74, 0x75, 0x61, 0x6c, 0x54, 0x78, 0x73, 0x12, 0x20, 0x2e, 0x66, 0x75, 0x6c, 0x6d,
-	0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x56, 0x69, 0x72, 0x74, 0x75, 0x61,
-	0x6c, 0x54, 0x78, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x66, 0x75,
-	0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x56, 0x69, 0x72, 0x74,
-	0x75, 0x61, 0x6c, 0x54, 0x78, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1d,
-	0x82, 0xd3, 0xe4, 0x93, 0x02, 0x17, 0x12, 0x15, 0x2f, 0x76, 0x31, 0x2f, 0x76, 0x69, 0x72, 0x74,
-	0x75, 0x61, 0x6c, 0x54, 0x78, 0x2f, 0x7b, 0x74, 0x78, 0x69, 0x64, 0x73, 0x7d, 0x12, 0x58, 0x0a,
-	0x08, 0x47, 0x65, 0x74, 0x56, 0x74, 0x78, 0x6f, 0x73, 0x12, 0x1b, 0x2e, 0x66, 0x75, 0x6c, 0x6d,
-	0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x56, 0x74, 0x78, 0x6f, 0x73, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1c, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65,
-	0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x56, 0x74, 0x78, 0x6f, 0x73, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x11, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x0b, 0x12, 0x09, 0x2f, 0x76,
-	0x31, 0x2f, 0x76, 0x74, 0x78, 0x6f, 0x73, 0x12, 0x74, 0x0a, 0x0e, 0x4e, 0x65, 0x78, 0x74, 0x53,
-	0x65, 0x74, 0x74, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x12, 0x21, 0x2e, 0x66, 0x75, 0x6c, 0x6d,
-	0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x4e, 0x65, 0x78, 0x74, 0x53, 0x65, 0x74, 0x74, 0x6c,
-	0x65, 0x6d, 0x65, 0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x66,
-	0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x4e, 0x65, 0x78, 0x74, 0x53, 0x65,
-	0x74, 0x74, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x22, 0x1b, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x15, 0x12, 0x13, 0x2f, 0x76, 0x31, 0x2f, 0x73, 0x65,
-	0x74, 0x74, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x2f, 0x6e, 0x65, 0x78, 0x74, 0x12, 0x74, 0x0a,
-	0x0f, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x53, 0x77, 0x61, 0x70,
-	0x12, 0x22, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x72,
-	0x65, 0x61, 0x74, 0x65, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x53, 0x77, 0x61, 0x70, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76,
-	0x31, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x53, 0x77, 0x61,
-	0x70, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x18, 0x82, 0xd3, 0xe4, 0x93, 0x02,
-	0x12, 0x3a, 0x01, 0x2a, 0x22, 0x0d, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x73,
-	0x77, 0x61, 0x70, 0x12, 0x6f, 0x0a, 0x0e, 0x4c, 0x69, 0x73, 0x74, 0x43, 0x68, 0x61, 0x69, 0x6e,
-	0x53, 0x77, 0x61, 0x70, 0x73, 0x12, 0x21, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e,
-	0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x53, 0x77, 0x61, 0x70,
-	0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69,
-	0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x53,
-	0x77, 0x61, 0x70, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x16, 0x82, 0xd3,
-	0xe4, 0x93, 0x02, 0x10, 0x12, 0x0e, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x73,
-	0x77, 0x61, 0x70, 0x73, 0x12, 0x80, 0x01, 0x0a, 0x0f, 0x52, 0x65, 0x66, 0x75, 0x6e, 0x64, 0x43,
-	0x68, 0x61, 0x69, 0x6e, 0x53, 0x77, 0x61, 0x70, 0x12, 0x22, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69,
-	0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x52, 0x65, 0x66, 0x75, 0x6e, 0x64, 0x43, 0x68, 0x61, 0x69,
-	0x6e, 0x53, 0x77, 0x61, 0x70, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e, 0x66,
-	0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x52, 0x65, 0x66, 0x75, 0x6e, 0x64,
-	0x43, 0x68, 0x61, 0x69, 0x6e, 0x53, 0x77, 0x61, 0x70, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
-	0x65, 0x22, 0x24, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1e, 0x3a, 0x01, 0x2a, 0x22, 0x19, 0x2f, 0x76,
-	0x31, 0x2f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x73, 0x77, 0x61, 0x70, 0x2f, 0x7b, 0x69, 0x64, 0x7d,
-	0x2f, 0x72, 0x65, 0x66, 0x75, 0x6e, 0x64, 0x12, 0x6b, 0x0a, 0x0d, 0x4c, 0x69, 0x73, 0x74, 0x44,
-	0x65, 0x6c, 0x65, 0x67, 0x61, 0x74, 0x65, 0x73, 0x12, 0x20, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69,
-	0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x44, 0x65, 0x6c, 0x65, 0x67, 0x61,
-	0x74, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x66, 0x75, 0x6c,
-	0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x44, 0x65, 0x6c, 0x65,
-	0x67, 0x61, 0x74, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x15, 0x82,
-	0xd3, 0xe4, 0x93, 0x02, 0x0f, 0x12, 0x0d, 0x2f, 0x76, 0x31, 0x2f, 0x64, 0x65, 0x6c, 0x65, 0x67,
-	0x61, 0x74, 0x65, 0x73, 0x42, 0xb0, 0x01, 0x0a, 0x0e, 0x63, 0x6f, 0x6d, 0x2e, 0x66, 0x75, 0x6c,
-	0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x42, 0x0c, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65,
-	0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01, 0x5a, 0x47, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e,
-	0x63, 0x6f, 0x6d, 0x2f, 0x41, 0x72, 0x6b, 0x4c, 0x61, 0x62, 0x73, 0x48, 0x51, 0x2f, 0x66, 0x75,
-	0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2f, 0x61, 0x70, 0x69, 0x2d, 0x73, 0x70, 0x65, 0x63, 0x2f, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x67, 0x65, 0x6e, 0x2f, 0x66, 0x75, 0x6c, 0x6d,
-	0x69, 0x6e, 0x65, 0x2f, 0x76, 0x31, 0x3b, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x76, 0x31,
-	0xa2, 0x02, 0x03, 0x46, 0x58, 0x58, 0xaa, 0x02, 0x0a, 0x46, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65,
-	0x2e, 0x56, 0x31, 0xca, 0x02, 0x0a, 0x46, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x5c, 0x56, 0x31,
-	0xe2, 0x02, 0x16, 0x46, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50,
-	0x42, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x0b, 0x46, 0x75, 0x6c, 0x6d,
-	0x69, 0x6e, 0x65, 0x3a, 0x3a, 0x56, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x76, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x16, 0x82,
+	0xd3, 0xe4, 0x93, 0x02, 0x10, 0x3a, 0x01, 0x2a, 0x22, 0x0b, 0x2f, 0x76, 0x31, 0x2f, 0x69, 0x6e,
+	0x76, 0x6f, 0x69, 0x63, 0x65, 0x12, 0x67, 0x0a, 0x0a, 0x50, 0x61, 0x79, 0x49, 0x6e, 0x76, 0x6f,
+	0x69, 0x63, 0x65, 0x12, 0x1d, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31,
+	0x2e, 0x50, 0x61, 0x79, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e,
+	0x50, 0x61, 0x79, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x22, 0x1a, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x14, 0x3a, 0x01, 0x2a, 0x22, 0x0f, 0x2f,
+	0x76, 0x31, 0x2f, 0x69, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x2f, 0x70, 0x61, 0x79, 0x12, 0x79,
+	0x0a, 0x10, 0x49, 0x73, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x53, 0x65, 0x74, 0x74, 0x6c,
+	0x65, 0x64, 0x12, 0x23, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e,
+	0x49, 0x73, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x53, 0x65, 0x74, 0x74, 0x6c, 0x65, 0x64,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x24, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e,
+	0x65, 0x2e, 0x76, 0x31, 0x2e, 0x49, 0x73, 0x49, 0x6e, 0x76, 0x6f, 0x69, 0x63, 0x65, 0x53, 0x65,
+	0x74, 0x74, 0x6c, 0x65, 0x64, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1a, 0x82,
+	0xd3, 0xe4, 0x93, 0x02, 0x14, 0x12, 0x12, 0x2f, 0x76, 0x31, 0x2f, 0x69, 0x6e, 0x76, 0x6f, 0x69,
+	0x63, 0x65, 0x2f, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x73, 0x0a, 0x0d, 0x47, 0x65, 0x74,
+	0x56, 0x69, 0x72, 0x74, 0x75, 0x61, 0x6c, 0x54, 0x78, 0x73, 0x12, 0x20, 0x2e, 0x66, 0x75, 0x6c,
+	0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x56, 0x69, 0x72, 0x74, 0x75,
+	0x61, 0x6c, 0x54, 0x78, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x66,
+	0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x56, 0x69, 0x72,
+	0x74, 0x75, 0x61, 0x6c, 0x54, 0x78, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
+	0x1d, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x17, 0x12, 0x15, 0x2f, 0x76, 0x31, 0x2f, 0x76, 0x69, 0x72,
+	0x74, 0x75, 0x61, 0x6c, 0x54, 0x78, 0x2f, 0x7b, 0x74, 0x78, 0x69, 0x64, 0x73, 0x7d, 0x12, 0x58,
+	0x0a, 0x08, 0x47, 0x65, 0x74, 0x56, 0x74, 0x78, 0x6f, 0x73, 0x12, 0x1b, 0x2e, 0x66, 0x75, 0x6c,
+	0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x56, 0x74, 0x78, 0x6f, 0x73,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1c, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e,
+	0x65, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x65, 0x74, 0x56, 0x74, 0x78, 0x6f, 0x73, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x11, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x0b, 0x12, 0x09, 0x2f,
+	0x76, 0x31, 0x2f, 0x76, 0x74, 0x78, 0x6f, 0x73, 0x12, 0x74, 0x0a, 0x0e, 0x4e, 0x65, 0x78, 0x74,
+	0x53, 0x65, 0x74, 0x74, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x12, 0x21, 0x2e, 0x66, 0x75, 0x6c,
+	0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x4e, 0x65, 0x78, 0x74, 0x53, 0x65, 0x74, 0x74,
+	0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e,
+	0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x4e, 0x65, 0x78, 0x74, 0x53,
+	0x65, 0x74, 0x74, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
+	0x65, 0x22, 0x1b, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x15, 0x12, 0x13, 0x2f, 0x76, 0x31, 0x2f, 0x73,
+	0x65, 0x74, 0x74, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x2f, 0x6e, 0x65, 0x78, 0x74, 0x12, 0x74,
+	0x0a, 0x0f, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x53, 0x77, 0x61,
+	0x70, 0x12, 0x22, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x43,
+	0x72, 0x65, 0x61, 0x74, 0x65, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x53, 0x77, 0x61, 0x70, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e,
+	0x76, 0x31, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x53, 0x77,
+	0x61, 0x70, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x18, 0x82, 0xd3, 0xe4, 0x93,
+	0x02, 0x12, 0x3a, 0x01, 0x2a, 0x22, 0x0d, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x68, 0x61, 0x69, 0x6e,
+	0x73, 0x77, 0x61, 0x70, 0x12, 0x6f, 0x0a, 0x0e, 0x4c, 0x69, 0x73, 0x74, 0x43, 0x68, 0x61, 0x69,
+	0x6e, 0x53, 0x77, 0x61, 0x70, 0x73, 0x12, 0x21, 0x2e, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65,
+	0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x53, 0x77, 0x61,
+	0x70, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x66, 0x75, 0x6c, 0x6d,
+	0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x43, 0x68, 0x61, 0x69, 0x6e,
+	0x53, 0x77, 0x61, 0x70, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x16, 0x82,
+	0xd3, 0xe4, 0x93, 0x02, 0x10, 0x12, 0x0e, 0x2f, 0x76, 0x31, 0x2f, 0x63, 0x68, 0x61, 0x69, 0x6e,
+	0x73, 0x77, 0x61, 0x70, 0x73, 0x12, 0x80, 0x01, 0x0a, 0x0f, 0x52, 0x65, 0x66, 0x75, 0x6e, 0x64,
+	0x43, 0x68, 0x61, 0x69, 0x6e, 0x53, 0x77, 0x61, 0x70, 0x12, 0x22, 0x2e, 0x66, 0x75, 0x6c, 0x6d,
+	0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x52, 0x65, 0x66, 0x75, 0x6e, 0x64, 0x43, 0x68, 0x61,
+	0x69, 0x6e, 0x53, 0x77, 0x61, 0x70, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e,
+	0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x52, 0x65, 0x66, 0x75, 0x6e,
+	0x64, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x53, 0x77, 0x61, 0x70, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x22, 0x24, 0x82, 0xd3, 0xe4, 0x93, 0x02, 0x1e, 0x3a, 0x01, 0x2a, 0x22, 0x19, 0x2f,
+	0x76, 0x31, 0x2f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x73, 0x77, 0x61, 0x70, 0x2f, 0x7b, 0x69, 0x64,
+	0x7d, 0x2f, 0x72, 0x65, 0x66, 0x75, 0x6e, 0x64, 0x12, 0x6b, 0x0a, 0x0d, 0x4c, 0x69, 0x73, 0x74,
+	0x44, 0x65, 0x6c, 0x65, 0x67, 0x61, 0x74, 0x65, 0x73, 0x12, 0x20, 0x2e, 0x66, 0x75, 0x6c, 0x6d,
+	0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x44, 0x65, 0x6c, 0x65, 0x67,
+	0x61, 0x74, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x66, 0x75,
+	0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x4c, 0x69, 0x73, 0x74, 0x44, 0x65, 0x6c,
+	0x65, 0x67, 0x61, 0x74, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x15,
+	0x82, 0xd3, 0xe4, 0x93, 0x02, 0x0f, 0x12, 0x0d, 0x2f, 0x76, 0x31, 0x2f, 0x64, 0x65, 0x6c, 0x65,
+	0x67, 0x61, 0x74, 0x65, 0x73, 0x42, 0xb0, 0x01, 0x0a, 0x0e, 0x63, 0x6f, 0x6d, 0x2e, 0x66, 0x75,
+	0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2e, 0x76, 0x31, 0x42, 0x0c, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63,
+	0x65, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01, 0x5a, 0x47, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
+	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x41, 0x72, 0x6b, 0x4c, 0x61, 0x62, 0x73, 0x48, 0x51, 0x2f, 0x66,
+	0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x2f, 0x61, 0x70, 0x69, 0x2d, 0x73, 0x70, 0x65, 0x63, 0x2f,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x67, 0x65, 0x6e, 0x2f, 0x66, 0x75, 0x6c,
+	0x6d, 0x69, 0x6e, 0x65, 0x2f, 0x76, 0x31, 0x3b, 0x66, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x76,
+	0x31, 0xa2, 0x02, 0x03, 0x46, 0x58, 0x58, 0xaa, 0x02, 0x0a, 0x46, 0x75, 0x6c, 0x6d, 0x69, 0x6e,
+	0x65, 0x2e, 0x56, 0x31, 0xca, 0x02, 0x0a, 0x46, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x5c, 0x56,
+	0x31, 0xe2, 0x02, 0x16, 0x46, 0x75, 0x6c, 0x6d, 0x69, 0x6e, 0x65, 0x5c, 0x56, 0x31, 0x5c, 0x47,
+	0x50, 0x42, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x0b, 0x46, 0x75, 0x6c,
+	0x6d, 0x69, 0x6e, 0x65, 0x3a, 0x3a, 0x56, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -4387,7 +4494,7 @@ func file_fulmine_v1_service_proto_rawDescGZIP() []byte {
 }
 
 var file_fulmine_v1_service_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_fulmine_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 63)
+var file_fulmine_v1_service_proto_msgTypes = make([]protoimpl.MessageInfo, 65)
 var file_fulmine_v1_service_proto_goTypes = []interface{}{
 	(SwapDirection)(0),                         // 0: fulmine.v1.SwapDirection
 	(GetInfoResponse_Network)(0),               // 1: fulmine.v1.GetInfoResponse.Network
@@ -4427,128 +4534,133 @@ var file_fulmine_v1_service_proto_goTypes = []interface{}{
 	(*SettleVHTLCResponse)(nil),                // 35: fulmine.v1.SettleVHTLCResponse
 	(*ListVHTLCRequest)(nil),                   // 36: fulmine.v1.ListVHTLCRequest
 	(*ListVHTLCResponse)(nil),                  // 37: fulmine.v1.ListVHTLCResponse
-	(*GetInvoiceRequest)(nil),                  // 38: fulmine.v1.GetInvoiceRequest
-	(*GetInvoiceResponse)(nil),                 // 39: fulmine.v1.GetInvoiceResponse
-	(*PayInvoiceRequest)(nil),                  // 40: fulmine.v1.PayInvoiceRequest
-	(*PayInvoiceResponse)(nil),                 // 41: fulmine.v1.PayInvoiceResponse
-	(*TaprootTree)(nil),                        // 42: fulmine.v1.TaprootTree
-	(*TaprootLeaf)(nil),                        // 43: fulmine.v1.TaprootLeaf
-	(*IsInvoiceSettledRequest)(nil),            // 44: fulmine.v1.IsInvoiceSettledRequest
-	(*IsInvoiceSettledResponse)(nil),           // 45: fulmine.v1.IsInvoiceSettledResponse
-	(*RelativeLocktime)(nil),                   // 46: fulmine.v1.RelativeLocktime
-	(*Tapscripts)(nil),                         // 47: fulmine.v1.Tapscripts
-	(*GetVirtualTxsRequest)(nil),               // 48: fulmine.v1.GetVirtualTxsRequest
-	(*GetVirtualTxsResponse)(nil),              // 49: fulmine.v1.GetVirtualTxsResponse
-	(*GetVtxosRequest)(nil),                    // 50: fulmine.v1.GetVtxosRequest
-	(*GetVtxosResponse)(nil),                   // 51: fulmine.v1.GetVtxosResponse
-	(*NextSettlementRequest)(nil),              // 52: fulmine.v1.NextSettlementRequest
-	(*NextSettlementResponse)(nil),             // 53: fulmine.v1.NextSettlementResponse
-	(*CreateChainSwapRequest)(nil),             // 54: fulmine.v1.CreateChainSwapRequest
-	(*CreateChainSwapResponse)(nil),            // 55: fulmine.v1.CreateChainSwapResponse
-	(*ChainSwapResponse)(nil),                  // 56: fulmine.v1.ChainSwapResponse
-	(*ListChainSwapsRequest)(nil),              // 57: fulmine.v1.ListChainSwapsRequest
-	(*ListChainSwapsResponse)(nil),             // 58: fulmine.v1.ListChainSwapsResponse
-	(*RefundChainSwapRequest)(nil),             // 59: fulmine.v1.RefundChainSwapRequest
-	(*RefundChainSwapResponse)(nil),            // 60: fulmine.v1.RefundChainSwapResponse
-	(*DelegateIntent)(nil),                     // 61: fulmine.v1.DelegateIntent
-	(*DelegateForfeitTx)(nil),                  // 62: fulmine.v1.DelegateForfeitTx
-	(*Delegate)(nil),                           // 63: fulmine.v1.Delegate
-	(*ListDelegatesRequest)(nil),               // 64: fulmine.v1.ListDelegatesRequest
-	(*ListDelegatesResponse)(nil),              // 65: fulmine.v1.ListDelegatesResponse
-	(*BuildInfo)(nil),                          // 66: fulmine.v1.BuildInfo
-	(*Round)(nil),                              // 67: fulmine.v1.Round
-	(*TransactionInfo)(nil),                    // 68: fulmine.v1.TransactionInfo
-	(*Input)(nil),                              // 69: fulmine.v1.Input
-	(*Vtxo)(nil),                               // 70: fulmine.v1.Vtxo
+	(*ListVHTLCsRequest)(nil),                  // 38: fulmine.v1.ListVHTLCsRequest
+	(*ListVHTLCsResponse)(nil),                 // 39: fulmine.v1.ListVHTLCsResponse
+	(*GetInvoiceRequest)(nil),                  // 40: fulmine.v1.GetInvoiceRequest
+	(*GetInvoiceResponse)(nil),                 // 41: fulmine.v1.GetInvoiceResponse
+	(*PayInvoiceRequest)(nil),                  // 42: fulmine.v1.PayInvoiceRequest
+	(*PayInvoiceResponse)(nil),                 // 43: fulmine.v1.PayInvoiceResponse
+	(*TaprootTree)(nil),                        // 44: fulmine.v1.TaprootTree
+	(*TaprootLeaf)(nil),                        // 45: fulmine.v1.TaprootLeaf
+	(*IsInvoiceSettledRequest)(nil),            // 46: fulmine.v1.IsInvoiceSettledRequest
+	(*IsInvoiceSettledResponse)(nil),           // 47: fulmine.v1.IsInvoiceSettledResponse
+	(*RelativeLocktime)(nil),                   // 48: fulmine.v1.RelativeLocktime
+	(*Tapscripts)(nil),                         // 49: fulmine.v1.Tapscripts
+	(*GetVirtualTxsRequest)(nil),               // 50: fulmine.v1.GetVirtualTxsRequest
+	(*GetVirtualTxsResponse)(nil),              // 51: fulmine.v1.GetVirtualTxsResponse
+	(*GetVtxosRequest)(nil),                    // 52: fulmine.v1.GetVtxosRequest
+	(*GetVtxosResponse)(nil),                   // 53: fulmine.v1.GetVtxosResponse
+	(*NextSettlementRequest)(nil),              // 54: fulmine.v1.NextSettlementRequest
+	(*NextSettlementResponse)(nil),             // 55: fulmine.v1.NextSettlementResponse
+	(*CreateChainSwapRequest)(nil),             // 56: fulmine.v1.CreateChainSwapRequest
+	(*CreateChainSwapResponse)(nil),            // 57: fulmine.v1.CreateChainSwapResponse
+	(*ChainSwapResponse)(nil),                  // 58: fulmine.v1.ChainSwapResponse
+	(*ListChainSwapsRequest)(nil),              // 59: fulmine.v1.ListChainSwapsRequest
+	(*ListChainSwapsResponse)(nil),             // 60: fulmine.v1.ListChainSwapsResponse
+	(*RefundChainSwapRequest)(nil),             // 61: fulmine.v1.RefundChainSwapRequest
+	(*RefundChainSwapResponse)(nil),            // 62: fulmine.v1.RefundChainSwapResponse
+	(*DelegateIntent)(nil),                     // 63: fulmine.v1.DelegateIntent
+	(*DelegateForfeitTx)(nil),                  // 64: fulmine.v1.DelegateForfeitTx
+	(*Delegate)(nil),                           // 65: fulmine.v1.Delegate
+	(*ListDelegatesRequest)(nil),               // 66: fulmine.v1.ListDelegatesRequest
+	(*ListDelegatesResponse)(nil),              // 67: fulmine.v1.ListDelegatesResponse
+	(*BuildInfo)(nil),                          // 68: fulmine.v1.BuildInfo
+	(*Round)(nil),                              // 69: fulmine.v1.Round
+	(*TransactionInfo)(nil),                    // 70: fulmine.v1.TransactionInfo
+	(*Input)(nil),                              // 71: fulmine.v1.Input
+	(*Vtxo)(nil),                               // 72: fulmine.v1.Vtxo
 }
 var file_fulmine_v1_service_proto_depIdxs = []int32{
 	1,  // 0: fulmine.v1.GetInfoResponse.network:type_name -> fulmine.v1.GetInfoResponse.Network
-	66, // 1: fulmine.v1.GetInfoResponse.build_info:type_name -> fulmine.v1.BuildInfo
-	67, // 2: fulmine.v1.GetRoundInfoResponse.round:type_name -> fulmine.v1.Round
-	68, // 3: fulmine.v1.GetTransactionHistoryResponse.transactions:type_name -> fulmine.v1.TransactionInfo
-	46, // 4: fulmine.v1.CreateVHTLCRequest.unilateral_claim_delay:type_name -> fulmine.v1.RelativeLocktime
-	46, // 5: fulmine.v1.CreateVHTLCRequest.unilateral_refund_delay:type_name -> fulmine.v1.RelativeLocktime
-	46, // 6: fulmine.v1.CreateVHTLCRequest.unilateral_refund_without_receiver_delay:type_name -> fulmine.v1.RelativeLocktime
-	42, // 7: fulmine.v1.CreateVHTLCResponse.swap_tree:type_name -> fulmine.v1.TaprootTree
-	69, // 8: fulmine.v1.ClaimVHTLCRequest.outpoint:type_name -> fulmine.v1.Input
-	69, // 9: fulmine.v1.RefundVHTLCWithoutReceiverRequest.outpoint:type_name -> fulmine.v1.Input
+	68, // 1: fulmine.v1.GetInfoResponse.build_info:type_name -> fulmine.v1.BuildInfo
+	69, // 2: fulmine.v1.GetRoundInfoResponse.round:type_name -> fulmine.v1.Round
+	70, // 3: fulmine.v1.GetTransactionHistoryResponse.transactions:type_name -> fulmine.v1.TransactionInfo
+	48, // 4: fulmine.v1.CreateVHTLCRequest.unilateral_claim_delay:type_name -> fulmine.v1.RelativeLocktime
+	48, // 5: fulmine.v1.CreateVHTLCRequest.unilateral_refund_delay:type_name -> fulmine.v1.RelativeLocktime
+	48, // 6: fulmine.v1.CreateVHTLCRequest.unilateral_refund_without_receiver_delay:type_name -> fulmine.v1.RelativeLocktime
+	44, // 7: fulmine.v1.CreateVHTLCResponse.swap_tree:type_name -> fulmine.v1.TaprootTree
+	71, // 8: fulmine.v1.ClaimVHTLCRequest.outpoint:type_name -> fulmine.v1.Input
+	71, // 9: fulmine.v1.RefundVHTLCWithoutReceiverRequest.outpoint:type_name -> fulmine.v1.Input
 	32, // 10: fulmine.v1.SettleVHTLCRequest.claim:type_name -> fulmine.v1.ClaimPath
 	33, // 11: fulmine.v1.SettleVHTLCRequest.refund:type_name -> fulmine.v1.RefundPath
-	69, // 12: fulmine.v1.SettleVHTLCRequest.outpoint:type_name -> fulmine.v1.Input
+	71, // 12: fulmine.v1.SettleVHTLCRequest.outpoint:type_name -> fulmine.v1.Input
 	34, // 13: fulmine.v1.RefundPath.delegate_params:type_name -> fulmine.v1.DelegateRefundParams
-	70, // 14: fulmine.v1.ListVHTLCResponse.vhtlcs:type_name -> fulmine.v1.Vtxo
-	43, // 15: fulmine.v1.TaprootTree.claim_leaf:type_name -> fulmine.v1.TaprootLeaf
-	43, // 16: fulmine.v1.TaprootTree.refund_leaf:type_name -> fulmine.v1.TaprootLeaf
-	43, // 17: fulmine.v1.TaprootTree.refund_without_boltz_leaf:type_name -> fulmine.v1.TaprootLeaf
-	43, // 18: fulmine.v1.TaprootTree.unilateral_claim_leaf:type_name -> fulmine.v1.TaprootLeaf
-	43, // 19: fulmine.v1.TaprootTree.unilateral_refund_leaf:type_name -> fulmine.v1.TaprootLeaf
-	43, // 20: fulmine.v1.TaprootTree.unilateral_refund_without_boltz_leaf:type_name -> fulmine.v1.TaprootLeaf
-	2,  // 21: fulmine.v1.RelativeLocktime.type:type_name -> fulmine.v1.RelativeLocktime.LocktimeType
-	70, // 22: fulmine.v1.GetVtxosResponse.vtxos:type_name -> fulmine.v1.Vtxo
-	0,  // 23: fulmine.v1.CreateChainSwapRequest.direction:type_name -> fulmine.v1.SwapDirection
-	56, // 24: fulmine.v1.ListChainSwapsResponse.swaps:type_name -> fulmine.v1.ChainSwapResponse
-	69, // 25: fulmine.v1.DelegateIntent.inputs:type_name -> fulmine.v1.Input
-	69, // 26: fulmine.v1.DelegateForfeitTx.input:type_name -> fulmine.v1.Input
-	61, // 27: fulmine.v1.Delegate.intent:type_name -> fulmine.v1.DelegateIntent
-	62, // 28: fulmine.v1.Delegate.forfeit_txs:type_name -> fulmine.v1.DelegateForfeitTx
-	63, // 29: fulmine.v1.ListDelegatesResponse.delegates:type_name -> fulmine.v1.Delegate
-	3,  // 30: fulmine.v1.Service.GetAddress:input_type -> fulmine.v1.GetAddressRequest
-	5,  // 31: fulmine.v1.Service.GetBalance:input_type -> fulmine.v1.GetBalanceRequest
-	7,  // 32: fulmine.v1.Service.GetInfo:input_type -> fulmine.v1.GetInfoRequest
-	9,  // 33: fulmine.v1.Service.GetOnboardAddress:input_type -> fulmine.v1.GetOnboardAddressRequest
-	11, // 34: fulmine.v1.Service.GetRoundInfo:input_type -> fulmine.v1.GetRoundInfoRequest
-	13, // 35: fulmine.v1.Service.GetTransactionHistory:input_type -> fulmine.v1.GetTransactionHistoryRequest
-	15, // 36: fulmine.v1.Service.RedeemNote:input_type -> fulmine.v1.RedeemNoteRequest
-	17, // 37: fulmine.v1.Service.Settle:input_type -> fulmine.v1.SettleRequest
-	19, // 38: fulmine.v1.Service.SendOffChain:input_type -> fulmine.v1.SendOffChainRequest
-	21, // 39: fulmine.v1.Service.SendOnChain:input_type -> fulmine.v1.SendOnChainRequest
-	23, // 40: fulmine.v1.Service.SignTransaction:input_type -> fulmine.v1.SignTransactionRequest
-	25, // 41: fulmine.v1.Service.CreateVHTLC:input_type -> fulmine.v1.CreateVHTLCRequest
-	27, // 42: fulmine.v1.Service.ClaimVHTLC:input_type -> fulmine.v1.ClaimVHTLCRequest
-	29, // 43: fulmine.v1.Service.RefundVHTLCWithoutReceiver:input_type -> fulmine.v1.RefundVHTLCWithoutReceiverRequest
-	31, // 44: fulmine.v1.Service.SettleVHTLC:input_type -> fulmine.v1.SettleVHTLCRequest
-	36, // 45: fulmine.v1.Service.ListVHTLC:input_type -> fulmine.v1.ListVHTLCRequest
-	38, // 46: fulmine.v1.Service.GetInvoice:input_type -> fulmine.v1.GetInvoiceRequest
-	40, // 47: fulmine.v1.Service.PayInvoice:input_type -> fulmine.v1.PayInvoiceRequest
-	44, // 48: fulmine.v1.Service.IsInvoiceSettled:input_type -> fulmine.v1.IsInvoiceSettledRequest
-	48, // 49: fulmine.v1.Service.GetVirtualTxs:input_type -> fulmine.v1.GetVirtualTxsRequest
-	50, // 50: fulmine.v1.Service.GetVtxos:input_type -> fulmine.v1.GetVtxosRequest
-	52, // 51: fulmine.v1.Service.NextSettlement:input_type -> fulmine.v1.NextSettlementRequest
-	54, // 52: fulmine.v1.Service.CreateChainSwap:input_type -> fulmine.v1.CreateChainSwapRequest
-	57, // 53: fulmine.v1.Service.ListChainSwaps:input_type -> fulmine.v1.ListChainSwapsRequest
-	59, // 54: fulmine.v1.Service.RefundChainSwap:input_type -> fulmine.v1.RefundChainSwapRequest
-	64, // 55: fulmine.v1.Service.ListDelegates:input_type -> fulmine.v1.ListDelegatesRequest
-	4,  // 56: fulmine.v1.Service.GetAddress:output_type -> fulmine.v1.GetAddressResponse
-	6,  // 57: fulmine.v1.Service.GetBalance:output_type -> fulmine.v1.GetBalanceResponse
-	8,  // 58: fulmine.v1.Service.GetInfo:output_type -> fulmine.v1.GetInfoResponse
-	10, // 59: fulmine.v1.Service.GetOnboardAddress:output_type -> fulmine.v1.GetOnboardAddressResponse
-	12, // 60: fulmine.v1.Service.GetRoundInfo:output_type -> fulmine.v1.GetRoundInfoResponse
-	14, // 61: fulmine.v1.Service.GetTransactionHistory:output_type -> fulmine.v1.GetTransactionHistoryResponse
-	16, // 62: fulmine.v1.Service.RedeemNote:output_type -> fulmine.v1.RedeemNoteResponse
-	18, // 63: fulmine.v1.Service.Settle:output_type -> fulmine.v1.SettleResponse
-	20, // 64: fulmine.v1.Service.SendOffChain:output_type -> fulmine.v1.SendOffChainResponse
-	22, // 65: fulmine.v1.Service.SendOnChain:output_type -> fulmine.v1.SendOnChainResponse
-	24, // 66: fulmine.v1.Service.SignTransaction:output_type -> fulmine.v1.SignTransactionResponse
-	26, // 67: fulmine.v1.Service.CreateVHTLC:output_type -> fulmine.v1.CreateVHTLCResponse
-	28, // 68: fulmine.v1.Service.ClaimVHTLC:output_type -> fulmine.v1.ClaimVHTLCResponse
-	30, // 69: fulmine.v1.Service.RefundVHTLCWithoutReceiver:output_type -> fulmine.v1.RefundVHTLCWithoutReceiverResponse
-	35, // 70: fulmine.v1.Service.SettleVHTLC:output_type -> fulmine.v1.SettleVHTLCResponse
-	37, // 71: fulmine.v1.Service.ListVHTLC:output_type -> fulmine.v1.ListVHTLCResponse
-	39, // 72: fulmine.v1.Service.GetInvoice:output_type -> fulmine.v1.GetInvoiceResponse
-	41, // 73: fulmine.v1.Service.PayInvoice:output_type -> fulmine.v1.PayInvoiceResponse
-	45, // 74: fulmine.v1.Service.IsInvoiceSettled:output_type -> fulmine.v1.IsInvoiceSettledResponse
-	49, // 75: fulmine.v1.Service.GetVirtualTxs:output_type -> fulmine.v1.GetVirtualTxsResponse
-	51, // 76: fulmine.v1.Service.GetVtxos:output_type -> fulmine.v1.GetVtxosResponse
-	53, // 77: fulmine.v1.Service.NextSettlement:output_type -> fulmine.v1.NextSettlementResponse
-	55, // 78: fulmine.v1.Service.CreateChainSwap:output_type -> fulmine.v1.CreateChainSwapResponse
-	58, // 79: fulmine.v1.Service.ListChainSwaps:output_type -> fulmine.v1.ListChainSwapsResponse
-	60, // 80: fulmine.v1.Service.RefundChainSwap:output_type -> fulmine.v1.RefundChainSwapResponse
-	65, // 81: fulmine.v1.Service.ListDelegates:output_type -> fulmine.v1.ListDelegatesResponse
-	56, // [56:82] is the sub-list for method output_type
-	30, // [30:56] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	72, // 14: fulmine.v1.ListVHTLCResponse.vhtlcs:type_name -> fulmine.v1.Vtxo
+	72, // 15: fulmine.v1.ListVHTLCsResponse.vhtlcs:type_name -> fulmine.v1.Vtxo
+	45, // 16: fulmine.v1.TaprootTree.claim_leaf:type_name -> fulmine.v1.TaprootLeaf
+	45, // 17: fulmine.v1.TaprootTree.refund_leaf:type_name -> fulmine.v1.TaprootLeaf
+	45, // 18: fulmine.v1.TaprootTree.refund_without_boltz_leaf:type_name -> fulmine.v1.TaprootLeaf
+	45, // 19: fulmine.v1.TaprootTree.unilateral_claim_leaf:type_name -> fulmine.v1.TaprootLeaf
+	45, // 20: fulmine.v1.TaprootTree.unilateral_refund_leaf:type_name -> fulmine.v1.TaprootLeaf
+	45, // 21: fulmine.v1.TaprootTree.unilateral_refund_without_boltz_leaf:type_name -> fulmine.v1.TaprootLeaf
+	2,  // 22: fulmine.v1.RelativeLocktime.type:type_name -> fulmine.v1.RelativeLocktime.LocktimeType
+	72, // 23: fulmine.v1.GetVtxosResponse.vtxos:type_name -> fulmine.v1.Vtxo
+	0,  // 24: fulmine.v1.CreateChainSwapRequest.direction:type_name -> fulmine.v1.SwapDirection
+	58, // 25: fulmine.v1.ListChainSwapsResponse.swaps:type_name -> fulmine.v1.ChainSwapResponse
+	71, // 26: fulmine.v1.DelegateIntent.inputs:type_name -> fulmine.v1.Input
+	71, // 27: fulmine.v1.DelegateForfeitTx.input:type_name -> fulmine.v1.Input
+	63, // 28: fulmine.v1.Delegate.intent:type_name -> fulmine.v1.DelegateIntent
+	64, // 29: fulmine.v1.Delegate.forfeit_txs:type_name -> fulmine.v1.DelegateForfeitTx
+	65, // 30: fulmine.v1.ListDelegatesResponse.delegates:type_name -> fulmine.v1.Delegate
+	3,  // 31: fulmine.v1.Service.GetAddress:input_type -> fulmine.v1.GetAddressRequest
+	5,  // 32: fulmine.v1.Service.GetBalance:input_type -> fulmine.v1.GetBalanceRequest
+	7,  // 33: fulmine.v1.Service.GetInfo:input_type -> fulmine.v1.GetInfoRequest
+	9,  // 34: fulmine.v1.Service.GetOnboardAddress:input_type -> fulmine.v1.GetOnboardAddressRequest
+	11, // 35: fulmine.v1.Service.GetRoundInfo:input_type -> fulmine.v1.GetRoundInfoRequest
+	13, // 36: fulmine.v1.Service.GetTransactionHistory:input_type -> fulmine.v1.GetTransactionHistoryRequest
+	15, // 37: fulmine.v1.Service.RedeemNote:input_type -> fulmine.v1.RedeemNoteRequest
+	17, // 38: fulmine.v1.Service.Settle:input_type -> fulmine.v1.SettleRequest
+	19, // 39: fulmine.v1.Service.SendOffChain:input_type -> fulmine.v1.SendOffChainRequest
+	21, // 40: fulmine.v1.Service.SendOnChain:input_type -> fulmine.v1.SendOnChainRequest
+	23, // 41: fulmine.v1.Service.SignTransaction:input_type -> fulmine.v1.SignTransactionRequest
+	25, // 42: fulmine.v1.Service.CreateVHTLC:input_type -> fulmine.v1.CreateVHTLCRequest
+	27, // 43: fulmine.v1.Service.ClaimVHTLC:input_type -> fulmine.v1.ClaimVHTLCRequest
+	29, // 44: fulmine.v1.Service.RefundVHTLCWithoutReceiver:input_type -> fulmine.v1.RefundVHTLCWithoutReceiverRequest
+	31, // 45: fulmine.v1.Service.SettleVHTLC:input_type -> fulmine.v1.SettleVHTLCRequest
+	36, // 46: fulmine.v1.Service.ListVHTLC:input_type -> fulmine.v1.ListVHTLCRequest
+	38, // 47: fulmine.v1.Service.ListVHTLCs:input_type -> fulmine.v1.ListVHTLCsRequest
+	40, // 48: fulmine.v1.Service.GetInvoice:input_type -> fulmine.v1.GetInvoiceRequest
+	42, // 49: fulmine.v1.Service.PayInvoice:input_type -> fulmine.v1.PayInvoiceRequest
+	46, // 50: fulmine.v1.Service.IsInvoiceSettled:input_type -> fulmine.v1.IsInvoiceSettledRequest
+	50, // 51: fulmine.v1.Service.GetVirtualTxs:input_type -> fulmine.v1.GetVirtualTxsRequest
+	52, // 52: fulmine.v1.Service.GetVtxos:input_type -> fulmine.v1.GetVtxosRequest
+	54, // 53: fulmine.v1.Service.NextSettlement:input_type -> fulmine.v1.NextSettlementRequest
+	56, // 54: fulmine.v1.Service.CreateChainSwap:input_type -> fulmine.v1.CreateChainSwapRequest
+	59, // 55: fulmine.v1.Service.ListChainSwaps:input_type -> fulmine.v1.ListChainSwapsRequest
+	61, // 56: fulmine.v1.Service.RefundChainSwap:input_type -> fulmine.v1.RefundChainSwapRequest
+	66, // 57: fulmine.v1.Service.ListDelegates:input_type -> fulmine.v1.ListDelegatesRequest
+	4,  // 58: fulmine.v1.Service.GetAddress:output_type -> fulmine.v1.GetAddressResponse
+	6,  // 59: fulmine.v1.Service.GetBalance:output_type -> fulmine.v1.GetBalanceResponse
+	8,  // 60: fulmine.v1.Service.GetInfo:output_type -> fulmine.v1.GetInfoResponse
+	10, // 61: fulmine.v1.Service.GetOnboardAddress:output_type -> fulmine.v1.GetOnboardAddressResponse
+	12, // 62: fulmine.v1.Service.GetRoundInfo:output_type -> fulmine.v1.GetRoundInfoResponse
+	14, // 63: fulmine.v1.Service.GetTransactionHistory:output_type -> fulmine.v1.GetTransactionHistoryResponse
+	16, // 64: fulmine.v1.Service.RedeemNote:output_type -> fulmine.v1.RedeemNoteResponse
+	18, // 65: fulmine.v1.Service.Settle:output_type -> fulmine.v1.SettleResponse
+	20, // 66: fulmine.v1.Service.SendOffChain:output_type -> fulmine.v1.SendOffChainResponse
+	22, // 67: fulmine.v1.Service.SendOnChain:output_type -> fulmine.v1.SendOnChainResponse
+	24, // 68: fulmine.v1.Service.SignTransaction:output_type -> fulmine.v1.SignTransactionResponse
+	26, // 69: fulmine.v1.Service.CreateVHTLC:output_type -> fulmine.v1.CreateVHTLCResponse
+	28, // 70: fulmine.v1.Service.ClaimVHTLC:output_type -> fulmine.v1.ClaimVHTLCResponse
+	30, // 71: fulmine.v1.Service.RefundVHTLCWithoutReceiver:output_type -> fulmine.v1.RefundVHTLCWithoutReceiverResponse
+	35, // 72: fulmine.v1.Service.SettleVHTLC:output_type -> fulmine.v1.SettleVHTLCResponse
+	37, // 73: fulmine.v1.Service.ListVHTLC:output_type -> fulmine.v1.ListVHTLCResponse
+	39, // 74: fulmine.v1.Service.ListVHTLCs:output_type -> fulmine.v1.ListVHTLCsResponse
+	41, // 75: fulmine.v1.Service.GetInvoice:output_type -> fulmine.v1.GetInvoiceResponse
+	43, // 76: fulmine.v1.Service.PayInvoice:output_type -> fulmine.v1.PayInvoiceResponse
+	47, // 77: fulmine.v1.Service.IsInvoiceSettled:output_type -> fulmine.v1.IsInvoiceSettledResponse
+	51, // 78: fulmine.v1.Service.GetVirtualTxs:output_type -> fulmine.v1.GetVirtualTxsResponse
+	53, // 79: fulmine.v1.Service.GetVtxos:output_type -> fulmine.v1.GetVtxosResponse
+	55, // 80: fulmine.v1.Service.NextSettlement:output_type -> fulmine.v1.NextSettlementResponse
+	57, // 81: fulmine.v1.Service.CreateChainSwap:output_type -> fulmine.v1.CreateChainSwapResponse
+	60, // 82: fulmine.v1.Service.ListChainSwaps:output_type -> fulmine.v1.ListChainSwapsResponse
+	62, // 83: fulmine.v1.Service.RefundChainSwap:output_type -> fulmine.v1.RefundChainSwapResponse
+	67, // 84: fulmine.v1.Service.ListDelegates:output_type -> fulmine.v1.ListDelegatesResponse
+	58, // [58:85] is the sub-list for method output_type
+	31, // [31:58] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_fulmine_v1_service_proto_init() }
@@ -4979,7 +5091,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[35].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetInvoiceRequest); i {
+			switch v := v.(*ListVHTLCsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -4991,7 +5103,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[36].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetInvoiceResponse); i {
+			switch v := v.(*ListVHTLCsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5003,7 +5115,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[37].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PayInvoiceRequest); i {
+			switch v := v.(*GetInvoiceRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5015,7 +5127,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[38].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PayInvoiceResponse); i {
+			switch v := v.(*GetInvoiceResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5027,7 +5139,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[39].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TaprootTree); i {
+			switch v := v.(*PayInvoiceRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5039,7 +5151,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[40].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TaprootLeaf); i {
+			switch v := v.(*PayInvoiceResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5051,7 +5163,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[41].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*IsInvoiceSettledRequest); i {
+			switch v := v.(*TaprootTree); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5063,7 +5175,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[42].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*IsInvoiceSettledResponse); i {
+			switch v := v.(*TaprootLeaf); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5075,7 +5187,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[43].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RelativeLocktime); i {
+			switch v := v.(*IsInvoiceSettledRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5087,7 +5199,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[44].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Tapscripts); i {
+			switch v := v.(*IsInvoiceSettledResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5099,7 +5211,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[45].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetVirtualTxsRequest); i {
+			switch v := v.(*RelativeLocktime); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5111,7 +5223,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[46].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetVirtualTxsResponse); i {
+			switch v := v.(*Tapscripts); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5123,7 +5235,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[47].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetVtxosRequest); i {
+			switch v := v.(*GetVirtualTxsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5135,7 +5247,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[48].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetVtxosResponse); i {
+			switch v := v.(*GetVirtualTxsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5147,7 +5259,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[49].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*NextSettlementRequest); i {
+			switch v := v.(*GetVtxosRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5159,7 +5271,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[50].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*NextSettlementResponse); i {
+			switch v := v.(*GetVtxosResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5171,7 +5283,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[51].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateChainSwapRequest); i {
+			switch v := v.(*NextSettlementRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5183,7 +5295,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[52].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*CreateChainSwapResponse); i {
+			switch v := v.(*NextSettlementResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5195,7 +5307,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[53].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ChainSwapResponse); i {
+			switch v := v.(*CreateChainSwapRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5207,7 +5319,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[54].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListChainSwapsRequest); i {
+			switch v := v.(*CreateChainSwapResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5219,7 +5331,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[55].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListChainSwapsResponse); i {
+			switch v := v.(*ChainSwapResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5231,7 +5343,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[56].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RefundChainSwapRequest); i {
+			switch v := v.(*ListChainSwapsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5243,7 +5355,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[57].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*RefundChainSwapResponse); i {
+			switch v := v.(*ListChainSwapsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5255,7 +5367,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[58].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DelegateIntent); i {
+			switch v := v.(*RefundChainSwapRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5267,7 +5379,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[59].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*DelegateForfeitTx); i {
+			switch v := v.(*RefundChainSwapResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5279,7 +5391,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[60].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Delegate); i {
+			switch v := v.(*DelegateIntent); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5291,7 +5403,7 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[61].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListDelegatesRequest); i {
+			switch v := v.(*DelegateForfeitTx); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -5303,6 +5415,30 @@ func file_fulmine_v1_service_proto_init() {
 			}
 		}
 		file_fulmine_v1_service_proto_msgTypes[62].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Delegate); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_fulmine_v1_service_proto_msgTypes[63].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ListDelegatesRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_fulmine_v1_service_proto_msgTypes[64].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ListDelegatesResponse); i {
 			case 0:
 				return &v.state
@@ -5319,7 +5455,7 @@ func file_fulmine_v1_service_proto_init() {
 		(*SettleVHTLCRequest_Claim)(nil),
 		(*SettleVHTLCRequest_Refund)(nil),
 	}
-	file_fulmine_v1_service_proto_msgTypes[47].OneofWrappers = []interface{}{
+	file_fulmine_v1_service_proto_msgTypes[49].OneofWrappers = []interface{}{
 		(*GetVtxosRequest_SpendableOnly)(nil),
 		(*GetVtxosRequest_SpentOnly)(nil),
 		(*GetVtxosRequest_RecoverableOnly)(nil),
@@ -5330,7 +5466,7 @@ func file_fulmine_v1_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_fulmine_v1_service_proto_rawDesc,
 			NumEnums:      3,
-			NumMessages:   63,
+			NumMessages:   65,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

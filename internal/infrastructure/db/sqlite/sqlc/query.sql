@@ -35,6 +35,10 @@ SELECT * FROM vhtlc WHERE id = ?;
 -- name: ListVHTLC :many
 SELECT * FROM vhtlc;
 
+-- name: ListVHTLCByIDs :many
+SELECT * FROM vhtlc
+WHERE id IN (sqlc.slice('ids'));
+
 -- VtxoRollover queries
 -- name: UpsertVtxoRollover :exec
 INSERT INTO vtxo_rollover (address, taproot_tree, destination_address) VALUES (?, ?, ?)
