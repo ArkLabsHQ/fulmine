@@ -27,6 +27,9 @@ const (
 	tlvMakerPkScript       = 0x05
 	tlvMakerPublicKey      = 0x07
 	tlvIntrospectorPubkey  = 0x08
+	tlvRatioNum            = 0x09
+	tlvRatioDen            = 0x0a
+	tlvOfferAsset          = 0x0b
 	tlvExitTimelock        = 0x0c
 )
 
@@ -35,6 +38,9 @@ type BancoOffer struct {
 	SwapPkScript       []byte
 	WantAmount         uint64
 	WantAsset          *asset.AssetId      // nil = BTC
+	OfferAsset         *asset.AssetId      // nil = BTC
+	RatioNum           uint64              // partial-fill numerator; 0 = not set
+	RatioDen           uint64              // partial-fill denominator; 0 = not set
 	CancelAt           uint64              // unix timestamp; 0 = no cancel path
 	MakerPkScript      []byte              // 34 bytes: OP_1 + PUSH32 + 32-byte key
 	MakerPublicKey     *btcec.PublicKey     // required if cancel or exit
@@ -104,6 +110,22 @@ func DeserializeOffer(data []byte) (*BancoOffer, error) {
 				return nil, fmt.Errorf("invalid maker public key: %w", err)
 			}
 			offer.MakerPublicKey = pubkey
+		case tlvRatioNum:
+			if len(value) != 8 {
+				return nil, fmt.Errorf("invalid ratioNum: expected 8 bytes, got %d", len(value))
+			}
+			offer.RatioNum = binary.BigEndian.Uint64(value)
+		case tlvRatioDen:
+			if len(value) != 8 {
+				return nil, fmt.Errorf("invalid ratioDen: expected 8 bytes, got %d", len(value))
+			}
+			offer.RatioDen = binary.BigEndian.Uint64(value)
+		case tlvOfferAsset:
+			assetId, err := asset.NewAssetIdFromBytes(value)
+			if err != nil {
+				return nil, fmt.Errorf("invalid offerAsset: %w", err)
+			}
+			offer.OfferAsset = assetId
 		case tlvIntrospectorPubkey:
 			if len(value) != 32 {
 				return nil, fmt.Errorf("invalid introspectorPubkey: expected 32 bytes, got %d", len(value))
@@ -170,6 +192,24 @@ func (o *BancoOffer) Serialize() ([]byte, error) {
 			return nil, fmt.Errorf("failed to serialize wantAsset: %w", err)
 		}
 		encodeTLV(&buf, tlvWantAsset, assetBytes)
+	}
+
+	if o.RatioNum > 0 {
+		ratioBuf := make([]byte, 8)
+		binary.BigEndian.PutUint64(ratioBuf, o.RatioNum)
+		encodeTLV(&buf, tlvRatioNum, ratioBuf)
+	}
+	if o.RatioDen > 0 {
+		ratioBuf := make([]byte, 8)
+		binary.BigEndian.PutUint64(ratioBuf, o.RatioDen)
+		encodeTLV(&buf, tlvRatioDen, ratioBuf)
+	}
+	if o.OfferAsset != nil {
+		assetBytes, err := o.OfferAsset.Serialize()
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize offerAsset: %w", err)
+		}
+		encodeTLV(&buf, tlvOfferAsset, assetBytes)
 	}
 
 	if o.CancelAt > 0 {

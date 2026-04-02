@@ -95,7 +95,7 @@ services:
         target: /app/data
 
   introspector:
-    image: ghcr.io/arklabshq/introspector:v0.0.1-rc.2
+    image: ghcr.io/arklabshq/introspector:v0.0.1-rc.3
     container_name: introspector
     restart: unless-stopped
     depends_on:

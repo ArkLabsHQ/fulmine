@@ -50,12 +50,14 @@ func (t *TemplRender) Instance(name string, data interface{}) render.Render {
 type service struct {
 	*gin.Engine
 	svc       *application.Service
+	takerSvc  *application.BancoTakerService
 	stopCh    chan struct{}
 	arkServer string
 }
 
 func NewService(
 	appSvc *application.Service,
+	takerSvc *application.BancoTakerService,
 	stopCh chan struct{},
 	sentryEnabled bool,
 	arkServer string,
@@ -71,6 +73,7 @@ func NewService(
 	svc := &service{
 		Engine:    router,
 		svc:       appSvc,
+		takerSvc:  takerSvc,
 		stopCh:    stopCh,
 		arkServer: arkServer,
 	}
@@ -110,6 +113,13 @@ func NewService(
 	svc.GET("/delegator/:active", svc.delegatorActive)
 	svc.GET("/delegate/tasks/:status/:offset", svc.getDelegateTasks)
 	svc.GET("/delegate/task/:id", svc.getDelegateTaskDetail)
+
+	svc.GET("/banco", svc.banco)
+	svc.GET("/banco/pairs", svc.bancoPairs)
+	svc.POST("/banco/pair", svc.bancoAddPair)
+	svc.PUT("/banco/pair", svc.bancoUpdatePair)
+	svc.DELETE("/banco/pair/:pair", svc.bancoRemovePair)
+	svc.GET("/banco/pair/:pair/edit", svc.bancoEditPair)
 
 	svc.GET("/modal/feeinfo", svc.feeInfoModal)
 	svc.GET("/modal/lnconnectinfo", svc.lnConnectInfoModal)

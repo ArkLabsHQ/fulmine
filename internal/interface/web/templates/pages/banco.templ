@@ -1,0 +1,207 @@
+package pages
+
+import (
+	"fmt"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
+)
+
+templ BancoBodyContent(pairs []domain.BancoPair) {
+	@components.DesktopHeader()
+	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+		<div>
+			@components.Header("Banco Dashboard")
+			<div id="bancoPairsList">
+				@BancoPairsList(pairs)
+			</div>
+			<div class="mt-8">
+				@BancoAddForm()
+			</div>
+		</div>
+	</div>
+}
+
+templ BancoNotEnabled() {
+	@components.DesktopHeader()
+	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+		<div>
+			@components.Header("Banco Dashboard")
+			<p class="text-white/50 text-center mt-10">Banco taker bot is not enabled</p>
+		</div>
+	</div>
+}
+
+templ BancoPairsList(pairs []domain.BancoPair) {
+	if len(pairs) == 0 {
+		<p class="text-white/50 text-center py-8">No pairs configured</p>
+	} else {
+		for _, pair := range pairs {
+			@BancoPairRow(pair)
+		}
+	}
+}
+
+templ BancoPairRow(pair domain.BancoPair) {
+	<div class="border border-white/10 rounded-lg p-4 mb-3" id={"pair-" + pair.Pair}>
+		<div class="flex justify-between items-start">
+			<div>
+				<p class="font-semibold text-lg">{pair.Pair}</p>
+				<p class="text-white/50 text-sm mt-1">
+					{fmt.Sprintf("%d", pair.MinAmount)} - {fmt.Sprintf("%d", pair.MaxAmount)} sats
+				</p>
+				<p class="text-white/50 text-sm mt-1 truncate max-w-xs">{pair.PriceFeed}</p>
+			</div>
+			<div class="flex gap-2">
+				<button
+					class="text-sm px-3 py-1 rounded-lg border border-white/20 hover:border-white/40"
+					hx-get={"/banco/pair/" + pair.Pair + "/edit"}
+					hx-target={"#pair-" + pair.Pair}
+					hx-swap="outerHTML">
+					Edit
+				</button>
+				<button
+					class="text-sm px-3 py-1 rounded-lg border border-red/30 text-red hover:border-red/60"
+					hx-delete={"/banco/pair/" + pair.Pair}
+					hx-target="#bancoPairsList"
+					hx-swap="innerHTML"
+					hx-confirm="Remove this pair?">
+					Delete
+				</button>
+			</div>
+		</div>
+	</div>
+}
+
+templ BancoPairEditRow(pair domain.BancoPair) {
+	<div class="border border-orange/50 rounded-lg p-4 mb-3" id={"pair-" + pair.Pair}>
+		<form hx-put="/banco/pair" hx-target="#bancoPairsList" hx-swap="innerHTML">
+			<input type="hidden" name="originalPair" value={pair.Pair}/>
+			<div class="grid grid-cols-2 gap-3 mb-3">
+				<div>
+					@components.Label("Base Asset")
+					<input
+						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
+						name="base"
+						value={pair.Base()}
+						placeholder="BTC or asset ID"/>
+				</div>
+				<div>
+					@components.Label("Quote Asset")
+					<input
+						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
+						name="quote"
+						value={pair.Quote()}
+						placeholder="BTC or asset ID"/>
+				</div>
+			</div>
+			<div class="grid grid-cols-2 gap-3 mb-3">
+				<div>
+					@components.Label("Min Amount (sats)")
+					<input
+						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
+						name="minAmount"
+						type="number"
+						value={fmt.Sprintf("%d", pair.MinAmount)}/>
+				</div>
+				<div>
+					@components.Label("Max Amount (sats)")
+					<input
+						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
+						name="maxAmount"
+						type="number"
+						value={fmt.Sprintf("%d", pair.MaxAmount)}/>
+				</div>
+			</div>
+			<div class="mb-3">
+				@components.Label("Price Feed URL")
+				<input
+					class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
+					name="priceFeed"
+					value={pair.PriceFeed}
+					placeholder="https://..."/>
+			</div>
+			<div class="flex gap-2 justify-end">
+				<button
+					type="button"
+					class="text-sm px-4 py-2 rounded-lg border border-white/20 hover:border-white/40"
+					hx-get="/banco/pairs"
+					hx-target="#bancoPairsList"
+					hx-swap="innerHTML">
+					Cancel
+				</button>
+				<button
+					type="submit"
+					class="text-sm px-4 py-2 rounded-lg bg-orange text-black font-semibold">
+					Save
+				</button>
+			</div>
+		</form>
+	</div>
+}
+
+templ BancoAddForm() {
+	<div class="border border-white/10 rounded-lg p-4">
+		<p class="font-semibold mb-4">Add Pair</p>
+		<form hx-post="/banco/pair" hx-target="#bancoPairsList" hx-swap="innerHTML">
+			<div class="grid grid-cols-2 gap-3 mb-3">
+				<div>
+					@components.Label("Base Asset")
+					<input
+						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
+						name="base"
+						placeholder="BTC or asset ID"
+						required/>
+				</div>
+				<div>
+					@components.Label("Quote Asset")
+					<input
+						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
+						name="quote"
+						placeholder="BTC or asset ID"
+						required/>
+				</div>
+			</div>
+			<div class="grid grid-cols-2 gap-3 mb-3">
+				<div>
+					@components.Label("Min Amount (sats)")
+					<input
+						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
+						name="minAmount"
+						type="number"
+						required/>
+				</div>
+				<div>
+					@components.Label("Max Amount (sats)")
+					<input
+						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
+						name="maxAmount"
+						type="number"
+						required/>
+				</div>
+			</div>
+			<div class="mb-3">
+				@components.Label("Price Feed URL")
+				<input
+					class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
+					name="priceFeed"
+					placeholder="https://..."
+					required/>
+			</div>
+			<div class="flex justify-end">
+				<button
+					type="submit"
+					class="text-sm px-4 py-2 rounded-lg bg-orange text-black font-semibold">
+					Add Pair
+				</button>
+			</div>
+		</form>
+	</div>
+	<script>
+		const bancoForm = document.querySelector('form[hx-post="/banco/pair"]')
+		if (bancoForm) {
+			bancoForm.addEventListener('htmx:afterRequest', (e) => {
+				if (e.detail.successful) bancoForm.reset()
+			})
+		}
+	</script>
+}

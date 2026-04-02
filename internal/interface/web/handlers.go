@@ -1620,3 +1620,204 @@ func toDelegateTask(task domain.DelegateTask) types.DelegateTask {
 
 	return result
 }
+
+// Banco taker bot handlers
+
+func (s *service) banco(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	if s.takerSvc == nil {
+		bodyContent := pages.BancoNotEnabled()
+		s.pageViewHandler(bodyContent, c)
+		return
+	}
+	pairs, err := s.takerSvc.ListPairs(c)
+	if err != nil {
+		toast := components.Toast("Unable to list banco pairs", true)
+		toastHandler(toast, c)
+		return
+	}
+	bodyContent := pages.BancoBodyContent(pairs)
+	s.pageViewHandler(bodyContent, c)
+}
+
+func (s *service) bancoPairs(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	if s.takerSvc == nil {
+		toast := components.Toast("Banco taker bot is not enabled", true)
+		toastHandler(toast, c)
+		return
+	}
+	pairs, err := s.takerSvc.ListPairs(c)
+	if err != nil {
+		toast := components.Toast("Unable to list banco pairs", true)
+		toastHandler(toast, c)
+		return
+	}
+	bodyContent := pages.BancoPairsList(pairs)
+	partialViewHandler(bodyContent, c)
+}
+
+func (s *service) bancoAddPair(c *gin.Context) {
+	if s.takerSvc == nil {
+		toast := components.Toast("Banco taker bot is not enabled", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	pair, err := parseBancoPairForm(c)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	if err := s.takerSvc.AddPair(c, pair); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	pairs, err := s.takerSvc.ListPairs(c)
+	if err != nil {
+		toast := components.Toast("Pair added but failed to refresh list", true)
+		toastHandler(toast, c)
+		return
+	}
+	bodyContent := pages.BancoPairsList(pairs)
+	partialViewHandler(bodyContent, c)
+}
+
+func (s *service) bancoUpdatePair(c *gin.Context) {
+	if s.takerSvc == nil {
+		toast := components.Toast("Banco taker bot is not enabled", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	originalPair := c.PostForm("originalPair")
+	pair, err := parseBancoPairForm(c)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	// If pair name changed, remove old and add new
+	if originalPair != "" && originalPair != pair.Pair {
+		if err := s.takerSvc.RemovePair(c, originalPair); err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+		if err := s.takerSvc.AddPair(c, pair); err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+	} else {
+		if err := s.takerSvc.UpdatePair(c, pair); err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+	}
+
+	pairs, err := s.takerSvc.ListPairs(c)
+	if err != nil {
+		toast := components.Toast("Pair updated but failed to refresh list", true)
+		toastHandler(toast, c)
+		return
+	}
+	bodyContent := pages.BancoPairsList(pairs)
+	partialViewHandler(bodyContent, c)
+}
+
+func (s *service) bancoRemovePair(c *gin.Context) {
+	if s.takerSvc == nil {
+		toast := components.Toast("Banco taker bot is not enabled", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	pairName := c.Param("pair")
+	if err := s.takerSvc.RemovePair(c, pairName); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	pairs, err := s.takerSvc.ListPairs(c)
+	if err != nil {
+		toast := components.Toast("Pair removed but failed to refresh list", true)
+		toastHandler(toast, c)
+		return
+	}
+	bodyContent := pages.BancoPairsList(pairs)
+	partialViewHandler(bodyContent, c)
+}
+
+func (s *service) bancoEditPair(c *gin.Context) {
+	if s.takerSvc == nil {
+		toast := components.Toast("Banco taker bot is not enabled", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	pairName := c.Param("pair")
+	pairs, err := s.takerSvc.ListPairs(c)
+	if err != nil {
+		toast := components.Toast("Unable to load pair", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	for _, pair := range pairs {
+		if pair.Pair == pairName {
+			bodyContent := pages.BancoPairEditRow(pair)
+			partialViewHandler(bodyContent, c)
+			return
+		}
+	}
+
+	toast := components.Toast("Pair not found", true)
+	toastHandler(toast, c)
+}
+
+func parseBancoPairForm(c *gin.Context) (domain.BancoPair, error) {
+	base := c.PostForm("base")
+	quote := c.PostForm("quote")
+	minAmountStr := c.PostForm("minAmount")
+	maxAmountStr := c.PostForm("maxAmount")
+	priceFeed := c.PostForm("priceFeed")
+
+	if base == "" || quote == "" {
+		return domain.BancoPair{}, fmt.Errorf("base and quote assets are required")
+	}
+
+	minAmount, err := strconv.ParseUint(minAmountStr, 10, 64)
+	if err != nil {
+		return domain.BancoPair{}, fmt.Errorf("invalid min amount")
+	}
+	maxAmount, err := strconv.ParseUint(maxAmountStr, 10, 64)
+	if err != nil {
+		return domain.BancoPair{}, fmt.Errorf("invalid max amount")
+	}
+
+	pairName := base + "/" + quote
+	quoteAssetID := ""
+	if quote != "BTC" {
+		quoteAssetID = quote
+	}
+
+	return domain.BancoPair{
+		Pair:         pairName,
+		QuoteAssetID: quoteAssetID,
+		MinAmount:    minAmount,
+		MaxAmount:    maxAmount,
+		PriceFeed:    priceFeed,
+	}, nil
+}
