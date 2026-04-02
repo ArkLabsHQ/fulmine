@@ -18,6 +18,7 @@ import (
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -1160,22 +1161,29 @@ func requireVHTLCSpentState(
 	t.Fatalf("vtxo %s:%d not found", expected.Outpoint.GetTxid(), expected.Outpoint.GetVout())
 }
 
-// TestClaimVHTLCIdempotent verifies that calling ClaimVHTLC on an already-claimed
-// VHTLC returns the same arkTxid instead of failing with "no vtxos found".
+// TestClaimVHTLCPendingFinalization verifies that calling ClaimVHTLC on a VHTLC
+// whose VTXO was already submitted (SubmitTx) but not finalized (FinalizeTx)
+// correctly detects the pending state and completes the finalization.
 // This covers the production incident where SubmitTx succeeded but FinalizeTx
 // failed due to rate limiting, leaving the VTXO in a partially-executed state.
-// On retry, the idempotency check detects the spent VTXO and finalizes the
-// pending transaction.
-func TestClaimVHTLCIdempotent(t *testing.T) {
+func TestClaimVHTLCPendingFinalization(t *testing.T) {
+	ctx := t.Context()
+
 	f, err := newFulmineClient("localhost:7000")
 	require.NoError(t, err)
-	require.NotNil(t, f)
 
-	ctx := t.Context()
+	arkadeWallet, _, _ := setupArkSDKwithPublicKey(t)
+	_, _, boarding, _, err := arkadeWallet.GetAddresses(ctx)
+	require.NoError(t, err)
+
+	err = faucet(ctx, strings.TrimSpace(boarding[0]), 0.001)
+	require.NoError(t, err)
+	time.Sleep(5 * time.Second)
+	_, err = arkadeWallet.Settle(ctx)
+	require.NoError(t, err)
 
 	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
 	require.NoError(t, err)
-	require.NotEmpty(t, info)
 
 	// Create a VHTLC (sender = receiver for simplicity)
 	preimage := make([]byte, 32)
@@ -1203,70 +1211,60 @@ func TestClaimVHTLCIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, vhtlcResp.Address)
 
-	// Fund the VHTLC
-	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
-		Address: vhtlcResp.Address,
-		Amount:  1000,
+	_, err = arkadeWallet.SendOffChain(ctx, []clientTypes.Receiver{
+		{
+			To:     vhtlcResp.Address,
+			Amount: 1000,
+		},
 	})
 	require.NoError(t, err)
 
-	// First claim: should succeed normally
-	firstResult, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
+	// Build the VHTLCScript from the response
+	senderPubkeyBytes, err := hex.DecodeString(vhtlcResp.GetRefundPubkey())
+	require.NoError(t, err)
+	senderPubkey, err := schnorr.ParsePubKey(senderPubkeyBytes)
+	require.NoError(t, err)
+
+	vhtlcScript, vtxo := buildVHTLCScriptAndVtxo(t, ctx, f, senderPubkey, vhtlcResp, preimageHash)
+
+	// Submit the claim tx but DO NOT finalize — simulates the partial execution state
+	submitted := submitClaimVHTLC(t, arkadeWallet, f, vtxo, vhtlcScript, vhtlcResp.Address, preimage)
+	require.NotEmpty(t, submitted.arkTxid)
+
+	// Now call ClaimVHTLC via the normal gRPC path.
+	// The VTXO is spent (SubmitTx marked it) but not finalized.
+	// The pending detection should find it and call FinalizePendingTxs.
+	result, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
 		VhtlcId:  vhtlcResp.Id,
 		Preimage: hex.EncodeToString(preimage),
 	})
-	require.NoError(t, err)
-	require.NotNil(t, firstResult)
-	require.NotEmpty(t, firstResult.GetRedeemTxid())
-
-	firstTxid := firstResult.GetRedeemTxid()
-
-	// Verify the VTXO is now spent
-	vhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
-	require.NoError(t, err)
-	require.NotEmpty(t, vhtlcs.GetVhtlcs())
-
-	var spentVtxo *pb.Vtxo
-	for _, v := range vhtlcs.GetVhtlcs() {
-		if v.IsSpent {
-			spentVtxo = v
-			break
-		}
-	}
-	require.NotNil(t, spentVtxo, "expected at least one spent VTXO after claim")
-
-	// Second claim: with the fix, this should detect the spent VTXO via
-	// checkAndFinalizePendingVHTLC and return the same arkTxid.
-	// Without the fix, this would fail with "no vtxos found".
-	secondResult, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
-		VhtlcId:  vhtlcResp.Id,
-		Preimage: hex.EncodeToString(preimage),
-	})
-	require.NoError(t, err, "second ClaimVHTLC should succeed via idempotency check")
-	require.NotNil(t, secondResult)
-	require.Equal(t, firstTxid, secondResult.GetRedeemTxid(),
-		"idempotent retry should return the same arkTxid")
+	require.NoError(t, err, "ClaimVHTLC should succeed by finalizing the pending tx")
+	require.NotNil(t, result)
+	require.NotEmpty(t, result.GetRedeemTxid())
 }
 
-// TestRefundVHTLCIdempotent verifies that the refund path's idempotency check
-// works correctly. It creates a VHTLC, claims it (which spends the VTXO), then
-// calls RefundVHTLCWithoutReceiver. The idempotency check should detect the
-// already-spent VTXO and return the arkTxid from the claim, preventing the
-// "no vtxos found" error.
-// This tests cross-path idempotency: once a VTXO is spent (by claim or refund),
-// either path should detect it and return the existing arkTxid.
-func TestRefundVHTLCIdempotent(t *testing.T) {
+// TestRefundVHTLCPendingFinalization verifies that calling RefundVHTLCWithoutReceiver
+// on a VHTLC whose VTXO was already submitted (SubmitTx) but not finalized (FinalizeTx)
+// correctly detects the pending state and completes the finalization.
+func TestRefundVHTLCPendingFinalization(t *testing.T) {
+	ctx := t.Context()
+
 	f, err := newFulmineClient("localhost:7000")
 	require.NoError(t, err)
-	require.NotNil(t, f)
 
-	ctx := t.Context()
+	arkClient, _, _ := setupArkSDKwithPublicKey(t)
+	_, _, boarding, _, err := arkClient.GetAddresses(ctx)
+	require.NoError(t, err)
+
+	err = faucet(ctx, strings.TrimSpace(boarding[0]), 0.001)
+	require.NoError(t, err)
+	time.Sleep(5 * time.Second)
+	_, err = arkClient.Settle(ctx)
+	require.NoError(t, err)
 
 	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
 	require.NoError(t, err)
-	require.NotEmpty(t, info)
 
-	// Create a VHTLC with receiver_pubkey set (so we can claim it)
 	preimage := make([]byte, 32)
 	_, err = rand.Read(preimage)
 	require.NoError(t, err)
@@ -1292,35 +1290,105 @@ func TestRefundVHTLCIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, vhtlcResp.Address)
 
-	// Fund the VHTLC
-	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
-		Address: vhtlcResp.Address,
-		Amount:  1000,
-	})
-	require.NoError(t, err)
-
-	// Claim the VHTLC (this spends the VTXO)
-	claimResult, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
-		VhtlcId:  vhtlcResp.Id,
-		Preimage: hex.EncodeToString(preimage),
-	})
-	require.NoError(t, err)
-	require.NotNil(t, claimResult)
-	require.NotEmpty(t, claimResult.GetRedeemTxid())
-
-	claimTxid := claimResult.GetRedeemTxid()
-
-	// Now call RefundVHTLCWithoutReceiver on the same VHTLC.
-	// The VTXO is already spent by the claim. The idempotency check in
-	// RefundSwap should detect the spent VTXO and return the arkTxid.
-	// Without the fix, this would fail with "no vtxos found".
-	refundResult, err := f.RefundVHTLCWithoutReceiver(ctx,
-		&pb.RefundVHTLCWithoutReceiverRequest{
-			VhtlcId: vhtlcResp.Id,
+	_, err = arkClient.SendOffChain(ctx, []clientTypes.Receiver{
+		{
+			To:     vhtlcResp.Address,
+			Amount: 1000,
 		},
-	)
-	require.NoError(t, err, "RefundVHTLC on already-claimed VHTLC should succeed via idempotency check")
-	require.NotNil(t, refundResult)
-	require.Equal(t, claimTxid, refundResult.GetRedeemTxid(),
-		"idempotent check should return the arkTxid from the claim")
+	})
+	require.NoError(t, err)
+
+	// Build the VHTLCScript from the response
+	senderPubkeyBytes, err := hex.DecodeString(vhtlcResp.GetRefundPubkey())
+	require.NoError(t, err)
+	senderPubkey, err := schnorr.ParsePubKey(senderPubkeyBytes)
+	require.NoError(t, err)
+
+	vhtlcScript, vtxo := buildVHTLCScriptAndVtxo(t, ctx, f, senderPubkey, vhtlcResp, preimageHash)
+
+	// Submit the claim tx but DO NOT finalize — simulates the partial execution state
+	submitted := submitClaimVHTLC(t, arkClient, f, vtxo, vhtlcScript, vhtlcResp.Address, preimage)
+	require.NotEmpty(t, submitted.arkTxid)
+
+	// Now call RefundVHTLCWithoutReceiver via the normal gRPC path.
+	// The VTXO is spent (SubmitTx marked it) but not finalized.
+	// The pending detection should find it and call FinalizePendingTxs.
+	result, err := f.RefundVHTLCWithoutReceiver(ctx, &pb.RefundVHTLCWithoutReceiverRequest{
+		VhtlcId: vhtlcResp.Id,
+	})
+	require.NoError(t, err, "RefundVHTLC should succeed by finalizing the pending tx")
+	require.NotNil(t, result)
+	require.NotEmpty(t, result.GetRedeemTxid())
+}
+
+// buildVHTLCScriptAndVtxo reconstructs the VHTLCScript and finds the unspent VTXO
+// from a CreateVHTLC response. Used by tests that need to call submitClaimVHTLC directly.
+func buildVHTLCScriptAndVtxo(
+	t *testing.T,
+	ctx context.Context,
+	f pb.ServiceClient,
+	senderPubKey *btcec.PublicKey,
+	vhtlcResp *pb.CreateVHTLCResponse,
+	preimageHash string,
+) (*vhtlc.VHTLCScript, *clientTypes.Vtxo) {
+	t.Helper()
+
+	receiverPubkeyBytes, err := hex.DecodeString(vhtlcResp.GetClaimPubkey())
+	require.NoError(t, err)
+	receiverPubkey, err := schnorr.ParsePubKey(receiverPubkeyBytes)
+	require.NoError(t, err)
+
+	serverPubkeyBytes, err := hex.DecodeString(vhtlcResp.GetServerPubkey())
+	require.NoError(t, err)
+	serverPubkey, err := schnorr.ParsePubKey(serverPubkeyBytes)
+	require.NoError(t, err)
+
+	preimageHashBytes, err := hex.DecodeString(preimageHash)
+	require.NoError(t, err)
+
+	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlc.Opts{
+		Sender:         senderPubKey,
+		Receiver:       receiverPubkey,
+		Server:         serverPubkey,
+		PreimageHash:   preimageHashBytes,
+		RefundLocktime: arklib.AbsoluteLocktime(vhtlcResp.GetRefundLocktime()),
+		UnilateralClaimDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeSecond,
+			Value: uint32(vhtlcResp.GetUnilateralClaimDelay()),
+		},
+		UnilateralRefundDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeSecond,
+			Value: uint32(vhtlcResp.GetUnilateralRefundDelay()),
+		},
+		UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeSecond,
+			Value: uint32(vhtlcResp.GetUnilateralRefundWithoutReceiverDelay()),
+		},
+	})
+	require.NoError(t, err)
+
+	// Get the unspent VTXO from the VHTLC
+	vhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
+	require.NoError(t, err)
+	require.NotEmpty(t, vhtlcs.GetVhtlcs())
+
+	var pbVtxo *pb.Vtxo
+	for _, v := range vhtlcs.GetVhtlcs() {
+		if !v.IsSpent {
+			pbVtxo = v
+			break
+		}
+	}
+	require.NotNil(t, pbVtxo, "expected an unspent VTXO at the VHTLC address")
+
+	vtxo := &clientTypes.Vtxo{
+		Outpoint: clientTypes.Outpoint{
+			Txid: pbVtxo.Outpoint.GetTxid(),
+			VOut: pbVtxo.Outpoint.GetVout(),
+		},
+		Amount:    pbVtxo.Amount,
+		CreatedAt: time.Unix(pbVtxo.CreatedAt, 0),
+	}
+
+	return vhtlcScript, vtxo
 }

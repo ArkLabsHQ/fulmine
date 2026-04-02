@@ -167,17 +167,19 @@ func (h *SwapHandler) ClaimVHTLC(
 		return "", err
 	}
 
-	// Idempotency check: detect partial execution (SubmitTx succeeded, FinalizeTx failed).
-	// If the VHTLC VTXO is already spent, finalize pending txs and return the arkTxid.
-	if arkTxid, found, err := h.checkAndFinalizePendingVHTLC(ctx, vHTLC, outpoint); err != nil {
-		return "", err
-	} else if found {
-		return arkTxid, nil
-	}
-
-	vtxo, err := h.selectClaimableVTXO(ctx, vHTLC, outpoint)
+	vtxo, pending, err := h.selectClaimableVTXO(ctx, vHTLC, outpoint)
 	if err != nil {
 		return "", err
+	}
+	if pending {
+		txids, err := h.arkClient.FinalizePendingTxs(ctx, nil)
+		if err != nil {
+			return "", fmt.Errorf("failed to finalize pending txs: %w", err)
+		}
+		if len(txids) > 0 {
+			return txids[0], nil
+		}
+		return "", fmt.Errorf("vtxo is pending but no pending txs found to finalize")
 	}
 
 	//this is safety net for Boltz Fulmine if VTXO is recoverable in the moment of Claim
@@ -313,17 +315,19 @@ func (h *SwapHandler) RefundSwap(
 		return "", err
 	}
 
-	// Idempotency check: detect partial execution (SubmitTx succeeded, FinalizeTx failed).
-	// If the VHTLC VTXO is already spent, finalize pending txs and return the arkTxid.
-	if arkTxid, found, err := h.checkAndFinalizePendingVHTLC(ctx, vhtlcScript, outpoint); err != nil {
-		return "", err
-	} else if found {
-		return arkTxid, nil
-	}
-
-	vtxo, err := h.selectClaimableVTXO(ctx, vhtlcScript, outpoint)
+	vtxo, pending, err := h.selectClaimableVTXO(ctx, vhtlcScript, outpoint)
 	if err != nil {
 		return "", err
+	}
+	if pending {
+		txids, err := h.arkClient.FinalizePendingTxs(ctx, nil)
+		if err != nil {
+			return "", fmt.Errorf("failed to finalize pending txs: %w", err)
+		}
+		if len(txids) > 0 {
+			return txids[0], nil
+		}
+		return "", fmt.Errorf("vtxo is pending but no pending txs found to finalize")
 	}
 
 	//this is safety net for Boltz Fulmine if VTXO is recoverable in the moment of Refund
@@ -1124,9 +1128,12 @@ func (h *SwapHandler) getBatchSessionArgs(
 		return nil, fmt.Errorf("failed to create VHTLC script: %w", err)
 	}
 
-	vtxo, err := h.selectClaimableVTXO(ctx, vhtlcScript, outpoint)
+	vtxo, pending, err := h.selectClaimableVTXO(ctx, vhtlcScript, outpoint)
 	if err != nil {
 		return nil, err
+	}
+	if pending {
+		return nil, fmt.Errorf("vtxo is pending finalization, call FinalizePendingTxs first")
 	}
 
 	myAddr, err := h.arkClient.NewOffchainAddress(ctx)
@@ -1159,107 +1166,77 @@ func (h *SwapHandler) getBatchSessionArgs(
 }
 
 func (h *SwapHandler) selectClaimableVTXO(
-	ctx context.Context, vhtlcScript *vhtlc.VHTLCScript, outpoint *clientTypes.Outpoint,
-) (*clientTypes.Vtxo, error) {
-	vtxos, err := h.getVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
-	if err != nil {
-		return nil, err
-	}
-
-	if len(vtxos) == 0 {
-		return nil, ErrorNoVtxosFound
-	}
-
-	filtered := make([]clientTypes.Vtxo, 0, len(vtxos))
-	for _, candidate := range vtxos {
-		if candidate.Spent {
-			continue
-		}
-		filtered = append(filtered, candidate)
-	}
-
-	if len(filtered) == 0 {
-		return nil, ErrorNoVtxosFound
-	}
-
-	if outpoint != nil {
-		for i := range filtered {
-			if filtered[i].Txid == outpoint.Txid && filtered[i].VOut == outpoint.VOut {
-				return &filtered[i], nil
-			}
-		}
-		return nil, fmt.Errorf("outpoint %s not found among VTXOs for this VHTLC", outpoint)
-	}
-
-	sort.Slice(filtered, func(i, j int) bool {
-		if filtered[i].CreatedAt.Equal(filtered[j].CreatedAt) {
-			if filtered[i].Txid == filtered[j].Txid {
-				return filtered[i].VOut < filtered[j].VOut
-			}
-			return filtered[i].Txid < filtered[j].Txid
-		}
-		return filtered[i].CreatedAt.Before(filtered[j].CreatedAt)
-	})
-
-	return &filtered[0], nil
-}
-
-// checkAndFinalizePendingVHTLC detects partial execution state where SubmitTx
-// succeeded but FinalizeTx failed (e.g. due to rate limiting). In this state
-// the VHTLC VTXO is marked spent with SpentBy set, but the output VTXO at
-// the wallet's offchain address is still pending finalization.
-// If found, it calls FinalizePendingTxs to complete the finalization.
-// Returns (arkTxid, true, nil) if a pending tx was detected and finalized.
-// Returns ("", false, nil) if no partial execution state was found.
-// Returns ("", false, err) on error.
-func (h *SwapHandler) checkAndFinalizePendingVHTLC(
 	ctx context.Context,
 	vhtlcScript *vhtlc.VHTLCScript,
 	outpoint *clientTypes.Outpoint,
-) (string, bool, error) {
+) (*clientTypes.Vtxo, bool, error) {
+
 	vtxos, err := h.getVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
 	if err != nil {
-		return "", false, fmt.Errorf("checkAndFinalizePendingVHTLC: failed to get VHTLC funds: %w", err)
+		return nil, false, err
+	}
+	if len(vtxos) == 0 {
+		return nil, false, ErrorNoVtxosFound
 	}
 
-	// Find a VTXO that is spent with a SpentBy value set, indicating SubmitTx
-	// succeeded (checkpoint tx was created) but FinalizeTx may not have completed.
-	var pendingArkTxid string
-	for _, v := range vtxos {
-		if !v.Spent || v.SpentBy == "" {
-			continue
+	pendingByOutpoint := make(map[string]bool)
+	eligibleVtxos := make([]clientTypes.Vtxo, 0, len(vtxos))
+
+	for _, vtxo := range vtxos {
+		key := vtxo.Outpoint.String()
+
+		if vtxo.Spent {
+			isPending, err := h.isVtxoPending(ctx, vtxo)
+			if err != nil {
+				return nil, false, err
+			}
+			if !isPending {
+				continue
+			}
+			pendingByOutpoint[key] = true
 		}
-		if outpoint != nil && (v.Txid != outpoint.Txid || v.VOut != outpoint.VOut) {
-			continue
+
+		eligibleVtxos = append(eligibleVtxos, vtxo)
+	}
+
+	if len(eligibleVtxos) == 0 {
+		return nil, false, ErrorNoVtxosFound
+	}
+
+	if outpoint != nil {
+		for i := range eligibleVtxos {
+			v := &eligibleVtxos[i]
+			if v.Txid == outpoint.Txid && v.VOut == outpoint.VOut {
+				return v, pendingByOutpoint[v.Outpoint.String()], nil
+			}
 		}
-		pendingArkTxid = v.ArkTxid
-		break
+		return nil, false, fmt.Errorf("outpoint %s not found among VTXOs for this VHTLC", outpoint)
 	}
 
-	if pendingArkTxid == "" {
-		return "", false, nil
-	}
+	sort.Slice(eligibleVtxos, func(i, j int) bool {
+		a, b := eligibleVtxos[i], eligibleVtxos[j]
 
-	log.Infof("checkAndFinalizePendingVHTLC: detected pending ark tx %s, calling FinalizePendingTxs", pendingArkTxid)
+		if !a.CreatedAt.Equal(b.CreatedAt) {
+			return a.CreatedAt.Before(b.CreatedAt)
+		}
+		if a.Txid != b.Txid {
+			return a.Txid < b.Txid
+		}
+		return a.VOut < b.VOut
+	})
 
-	finalizedTxids, err := h.arkClient.FinalizePendingTxs(ctx, nil)
+	v := &eligibleVtxos[0]
+	return v, pendingByOutpoint[v.Outpoint.String()], nil
+}
+
+func (h *SwapHandler) isVtxoPending(ctx context.Context, vtxo clientTypes.Vtxo) (bool, error) {
+	resp, err := h.arkClient.Indexer().GetVtxos(ctx,
+		indexer.WithScripts([]string{vtxo.Script}),
+		indexer.WithPendingOnly(),
+	)
 	if err != nil {
-		return "", false, fmt.Errorf("checkAndFinalizePendingVHTLC: FinalizePendingTxs failed: %w", err)
+		return false, err
 	}
 
-	txFinalized := false
-	for _, txid := range finalizedTxids {
-		if txid == pendingArkTxid {
-			txFinalized = true
-			break
-		}
-	}
-
-	if !txFinalized {
-		// The tx was not returned by FinalizePendingTxs. This can happen if it
-		// was already finalized in a prior call and is no longer pending.
-		log.Warnf("checkAndFinalizePendingVHTLC: ark tx %s was not in FinalizePendingTxs result, it may already be finalized", pendingArkTxid)
-	}
-
-	return pendingArkTxid, true, nil
+	return len(resp.Vtxos) > 0, nil
 }
