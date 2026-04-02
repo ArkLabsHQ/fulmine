@@ -21,23 +21,25 @@ const PacketType = uint8(0x03)
 
 const (
 	tlvSwapPkScript        = 0x01
-	tlvWantAmount         = 0x02
-	tlvWantAsset          = 0x03
-	tlvCancelDelay        = 0x04
-	tlvMakerPkScript      = 0x05
-	tlvMakerPublicKey     = 0x07
-	tlvMakerExitDelay = 0x08
+	tlvWantAmount          = 0x02
+	tlvWantAsset           = 0x03
+	tlvCancelDelay         = 0x04
+	tlvMakerPkScript       = 0x05
+	tlvMakerPublicKey      = 0x07
+	tlvIntrospectorPubkey  = 0x08
+	tlvExitTimelock        = 0x0c
 )
 
 // BancoOffer contains all the fields from a decoded banco swap offer TLV packet.
 type BancoOffer struct {
-	SwapPkScript        []byte
+	SwapPkScript       []byte
 	WantAmount         uint64
-	WantAsset          string // empty = BTC
-	CancelAt        	 uint64 // unix timestamp; 0 = no cancel path
-	MakerPkScript      []byte // 34 bytes: OP_1 + PUSH32 + 32-byte key
-	MakerPublicKey     *btcec.PublicKey // required if cancel or exit 
-	ExitDelay *arklib.RelativeLocktime
+	WantAsset          *asset.AssetId      // nil = BTC
+	CancelAt           uint64              // unix timestamp; 0 = no cancel path
+	MakerPkScript      []byte              // 34 bytes: OP_1 + PUSH32 + 32-byte key
+	MakerPublicKey     *btcec.PublicKey     // required if cancel or exit
+	IntrospectorPubkey *btcec.PublicKey     // required; x-only 32 bytes
+	ExitDelay          *arklib.RelativeLocktime
 }
 
 // DeserializeOffer parses the TLV payload from an UnknownPacket whose type == PacketType.
@@ -48,6 +50,7 @@ func DeserializeOffer(data []byte) (*BancoOffer, error) {
 	hasSwapPkScript := false
 	hasWantAmount := false
 	hasMakerPkScript := false
+	hasIntrospectorPubkey := false
 
 	offset := 0
 	for offset < len(data) {
@@ -82,7 +85,11 @@ func DeserializeOffer(data []byte) (*BancoOffer, error) {
 			offer.WantAmount = binary.BigEndian.Uint64(value)
 			hasWantAmount = true
 		case tlvWantAsset:
-			offer.WantAsset = string(value)
+			assetId, err := asset.NewAssetIdFromBytes(value)
+			if err != nil {
+				return nil, fmt.Errorf("invalid wantAsset: %w", err)
+			}
+			offer.WantAsset = assetId
 		case tlvCancelDelay:
 			if len(value) != 8 {
 				return nil, fmt.Errorf("invalid cancelDelay: expected 8 bytes, got %d", len(value))
@@ -94,18 +101,31 @@ func DeserializeOffer(data []byte) (*BancoOffer, error) {
 		case tlvMakerPublicKey:
 			pubkey, err := schnorr.ParsePubKey(value)
 			if err != nil {
-				return nil, fmt.Errorf("invalid maker public key")
+				return nil, fmt.Errorf("invalid maker public key: %w", err)
 			}
 			offer.MakerPublicKey = pubkey
-		case tlvMakerExitDelay:
-			delay := binary.BigEndian.Uint32(value)
-			typeExit := arklib.LocktimeTypeSecond
-			if delay < 512 {
-				typeExit = arklib.LocktimeTypeBlock
+		case tlvIntrospectorPubkey:
+			if len(value) != 32 {
+				return nil, fmt.Errorf("invalid introspectorPubkey: expected 32 bytes, got %d", len(value))
 			}
+			pubkey, err := schnorr.ParsePubKey(value)
+			if err != nil {
+				return nil, fmt.Errorf("invalid introspector public key: %w", err)
+			}
+			offer.IntrospectorPubkey = pubkey
+			hasIntrospectorPubkey = true
+		case tlvExitTimelock:
+			if len(value) != 9 {
+				return nil, fmt.Errorf("invalid exitTimelock: expected 9 bytes, got %d", len(value))
+			}
+			typeExit := arklib.LocktimeTypeBlock
+			if value[0] == 1 {
+				typeExit = arklib.LocktimeTypeSecond
+			}
+			delay := binary.BigEndian.Uint64(value[1:9])
 			offer.ExitDelay = &arklib.RelativeLocktime{
-				Type: typeExit,
-				Value: delay,
+				Type:  typeExit,
+				Value: uint32(delay),
 			}
 		default:
 			return nil, fmt.Errorf("unknown TLV type: 0x%02x", tlvType)
@@ -114,13 +134,16 @@ func DeserializeOffer(data []byte) (*BancoOffer, error) {
 
 	// Validate required fields
 	if !hasSwapPkScript {
-		return nil, errors.New("missing required field: swapAddress")
+		return nil, errors.New("missing required field: swapPkScript")
 	}
 	if !hasWantAmount {
 		return nil, errors.New("missing required field: wantAmount")
 	}
 	if !hasMakerPkScript {
 		return nil, errors.New("missing required field: makerPkScript")
+	}
+	if !hasIntrospectorPubkey {
+		return nil, errors.New("missing required field: introspectorPubkey")
 	}
 
 	if len(offer.MakerPkScript) != 34 {
@@ -130,7 +153,7 @@ func DeserializeOffer(data []byte) (*BancoOffer, error) {
 	return offer, nil
 }
 
-// EncodeOffer serializes a BancoOffer into TLV bytes.
+// Serialize encodes a BancoOffer into TLV bytes.
 // Matches ts-sdk Offer.encode().
 func (o *BancoOffer) Serialize() ([]byte, error) {
 	var buf bytes.Buffer
@@ -141,8 +164,12 @@ func (o *BancoOffer) Serialize() ([]byte, error) {
 	binary.BigEndian.PutUint64(amountBuf, o.WantAmount)
 	encodeTLV(&buf, tlvWantAmount, amountBuf)
 
-	if o.WantAsset != "" {
-		encodeTLV(&buf, tlvWantAsset, []byte(o.WantAsset))
+	if o.WantAsset != nil {
+		assetBytes, err := o.WantAsset.Serialize()
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize wantAsset: %w", err)
+		}
+		encodeTLV(&buf, tlvWantAsset, assetBytes)
 	}
 
 	if o.CancelAt > 0 {
@@ -155,11 +182,17 @@ func (o *BancoOffer) Serialize() ([]byte, error) {
 	if o.MakerPublicKey != nil {
 		encodeTLV(&buf, tlvMakerPublicKey, schnorr.SerializePubKey(o.MakerPublicKey))
 	}
+	if o.IntrospectorPubkey != nil {
+		encodeTLV(&buf, tlvIntrospectorPubkey, schnorr.SerializePubKey(o.IntrospectorPubkey))
+	}
 
-	if o.ExitDelay != nil { 
-		exitDelayBuf := make([]byte, 4)
-		binary.BigEndian.PutUint32(exitDelayBuf, o.ExitDelay.Value)
-		encodeTLV(&buf, tlvMakerExitDelay, exitDelayBuf)
+	if o.ExitDelay != nil {
+		exitBuf := make([]byte, 9)
+		if o.ExitDelay.Type == arklib.LocktimeTypeSecond {
+			exitBuf[0] = 1
+		}
+		binary.BigEndian.PutUint64(exitBuf[1:], uint64(o.ExitDelay.Value))
+		encodeTLV(&buf, tlvExitTimelock, exitBuf)
 	}
 
 	return buf.Bytes(), nil
@@ -189,7 +222,7 @@ func (o *BancoOffer) FulfillScript() ([]byte, error) {
 		b.AddOp(txscript.OP_EQUAL)
 	}
 
-	if o.WantAsset == "" {
+	if o.WantAsset == nil {
 		// BTC fulfill: value check + scriptPubKey check
 		b := txscript.NewScriptBuilder()
 		b.AddOp(txscript.OP_0)
@@ -203,15 +236,12 @@ func (o *BancoOffer) FulfillScript() ([]byte, error) {
 	}
 
 	// Asset fulfill: INSPECTOUTASSETLOOKUP + value check + scriptPubKey check
+	// Stack for INSPECTOUTASSETLOOKUP (top-to-bottom): lookup_index, txid, output_index.
+	// For full fill, the taker creates a single asset group at output 0, so lookup_index=0.
 	b := txscript.NewScriptBuilder()
-	b.AddOp(txscript.OP_0) // group index 0
-
-	assetID, err := asset.NewAssetIdFromString(o.WantAsset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse wantAsset: %w", err)
-	}
-	b.AddData(assetID.Txid[:])
-	b.AddInt64(int64(assetID.Index))
+	b.AddOp(txscript.OP_0) // output index 0
+	b.AddData(o.WantAsset.Txid[:])
+	b.AddOp(txscript.OP_0) // asset group lookup index 0
 	b.AddOp(arkade.OP_INSPECTOUTASSETLOOKUP)
 	b.AddOp(txscript.OP_DUP)
 	b.AddOp(txscript.OP_1NEGATE)
@@ -228,29 +258,18 @@ func (o *BancoOffer) FulfillScript() ([]byte, error) {
 }
 
 // VtxoScript builds the full VTXO taptree (fulfill + optional cancel + exit).
-func (s *BancoOffer) VtxoScript(introspector, server *btcec.PublicKey) (*script.TapscriptsVtxoScript, error) {
+func (s *BancoOffer) VtxoScript(server *btcec.PublicKey) (*script.TapscriptsVtxoScript, error) {
 	fulfillScript, err := s.FulfillScript()
 	if err != nil {
 		return nil, err
 	}
 
 	scriptHash := arkade.ArkadeScriptHash(fulfillScript)
-	tweakedKey := arkade.ComputeArkadeScriptPublicKey(introspector, scriptHash)
+	tweakedKey := arkade.ComputeArkadeScriptPublicKey(s.IntrospectorPubkey, scriptHash)
 
 	closures := []script.Closure{&script.MultisigClosure{
-		PubKeys: []*btcec.PublicKey{tweakedKey, server},
+		PubKeys: []*btcec.PublicKey{server, tweakedKey},
 	}}
-
-	if s.ExitDelay != nil {
-		exitClosure := &script.CSVMultisigClosure{
-			MultisigClosure: script.MultisigClosure{
-				PubKeys: []*btcec.PublicKey{s.MakerPublicKey},
-			},
-			Locktime: *s.ExitDelay,
-		}
-		closures = append(closures, exitClosure)
-	}
-
 
 	if s.CancelAt > 0 {
 		cancelClosure := &script.CLTVMultisigClosure{
@@ -260,6 +279,16 @@ func (s *BancoOffer) VtxoScript(introspector, server *btcec.PublicKey) (*script.
 			Locktime: arklib.AbsoluteLocktime(s.CancelAt),
 		}
 		closures = append(closures, cancelClosure)
+	}
+
+	if s.ExitDelay != nil {
+		exitClosure := &script.CSVMultisigClosure{
+			MultisigClosure: script.MultisigClosure{
+				PubKeys: []*btcec.PublicKey{s.MakerPublicKey, server},
+			},
+			Locktime: *s.ExitDelay,
+		}
+		closures = append(closures, exitClosure)
 	}
 
 	return &script.TapscriptsVtxoScript{Closures: closures}, nil

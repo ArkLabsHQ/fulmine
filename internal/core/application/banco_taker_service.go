@@ -319,7 +319,11 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 	defer s.mu.Unlock()
 
 	// Find a matching pair (must match both base and quote)
-	pair := s.findMatchingPair(depositAsset, offer.WantAsset)
+	wantAssetStr := ""
+	if offer.WantAsset != nil {
+		wantAssetStr = offer.WantAsset.String()
+	}
+	pair := s.findMatchingPair(depositAsset, wantAssetStr)
 	if pair == nil {
 		return
 	}
@@ -334,7 +338,7 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 
 	// Pre-check BTC balance for BTC offers.
 	// For asset offers the balance check happens inside FulfillOffer during coin selection.
-	if offer.WantAsset == "" {
+	if offer.WantAsset == nil {
 		balance, err := s.svc.Balance(ctx)
 		if err != nil {
 			log.WithError(err).Warn("taker: failed to check balance")
@@ -406,7 +410,7 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 	log.WithFields(log.Fields{
 		"txid":       txid,
 		"wantAmount": offer.WantAmount,
-		"wantAsset":  offer.WantAsset,
+		"wantAsset":  wantAssetStr,
 	}).Info("taker: attempting to fulfill banco offer")
 
 	result, err := banco.FulfillOffer(

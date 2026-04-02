@@ -29,10 +29,10 @@ import (
 
 // CreateOfferParams holds parameters for creating a banco swap offer.
 type CreateOfferParams struct {
-	WantAmount  uint64 // sats the maker wants to receive
-	WantAsset   string // "txid:vout" for asset swaps, empty for BTC
-	CancelAt uint64  // 0 = no cancel, TODO support cancel tapscript
-	ExitDelay *arklib.RelativeLocktime
+	WantAmount uint64           // sats the maker wants to receive
+	WantAsset  *asset.AssetId   // nil for BTC
+	CancelAt   uint64           // 0 = no cancel, TODO support cancel tapscript
+	ExitDelay  *arklib.RelativeLocktime
 }
 
 // CreateOfferResult contains the result of creating an offer.
@@ -105,12 +105,13 @@ func CreateOffer(
 	offer := &BancoOffer{
 		WantAmount:         params.WantAmount,
 		WantAsset:          params.WantAsset,
-		CancelAt:        		params.CancelAt,
+		CancelAt:           params.CancelAt,
 		MakerPkScript:      makerPkScript,
+		IntrospectorPubkey: introspectorPubkey,
 	}
 
 	// Compute swap address
-	vtxoScript, err := offer.VtxoScript(introspectorPubkey, cfg.SignerPubKey)
+	vtxoScript, err := offer.VtxoScript(cfg.SignerPubKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build vtxo script: %w", err)
 	}

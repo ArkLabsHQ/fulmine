@@ -18,7 +18,6 @@ import (
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
-	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
@@ -50,21 +49,7 @@ func FulfillOffer(
 		return nil, fmt.Errorf("failed to decode checkpoint tapscript: %w", err)
 	}
 
-	introspectorInfo, err := introClient.GetInfo(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	pubkeyBytes, err := hex.DecodeString(introspectorInfo.SignerPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	introspectorPubKey, err := btcec.ParsePubKey(pubkeyBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	swapVtxoScript, err := offer.VtxoScript(introspectorPubKey, cfg.SignerPubKey)
+	swapVtxoScript, err := offer.VtxoScript(cfg.SignerPubKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build swap vtxo script: %w", err)
 	}
@@ -316,7 +301,6 @@ func FulfillOffer(
 		return nil, fmt.Errorf("introspector submission failed: %w", err)
 	}
 
-	fmt.Println(introSignedTx)
 	arkTxid, _, serverSignedCheckpoints, err := transportClient.SubmitTx(
 		ctx, introSignedTx, introSignedCheckpoints,
 	)
@@ -420,10 +404,11 @@ func buildFulfillAssetPacket(
 	}
 
 	// Route maker's wanted asset to output 0
-	if offer.WantAsset != "" {
-		t, exists := transfers[offer.WantAsset]
+	if offer.WantAsset != nil {
+		wantAssetStr := offer.WantAsset.String()
+		t, exists := transfers[wantAssetStr]
 		if !exists {
-			return nil, fmt.Errorf("asset %s not found in inputs", offer.WantAsset)
+			return nil, fmt.Errorf("asset %s not found in inputs", wantAssetStr)
 		}
 		output, err := asset.NewAssetOutput(0, offer.WantAmount)
 		if err != nil {
@@ -451,8 +436,26 @@ func buildFulfillAssetPacket(
 	}
 
 	groups := make([]asset.AssetGroup, 0, len(transfers))
+
+	// The wanted asset group MUST be at index 0 because the fulfill script
+	// uses lookup_index=0 in OP_INSPECTOUTASSETLOOKUP.
+	if offer.WantAsset != nil {
+		wantAssetStr := offer.WantAsset.String()
+		if t, exists := transfers[wantAssetStr]; exists && len(t.inputs) > 0 {
+			group, err := asset.NewAssetGroup(offer.WantAsset, nil, t.inputs, t.outputs, nil)
+			if err != nil {
+				return nil, err
+			}
+			groups = append(groups, *group)
+		}
+	}
+
 	for assetIdStr, t := range transfers {
 		if len(t.inputs) == 0 {
+			continue
+		}
+		// Skip the wanted asset since it was already added at index 0.
+		if offer.WantAsset != nil && assetIdStr == offer.WantAsset.String() {
 			continue
 		}
 		assetId, err := asset.NewAssetIdFromString(assetIdStr)

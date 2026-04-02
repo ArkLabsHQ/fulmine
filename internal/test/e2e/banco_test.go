@@ -9,6 +9,7 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/pkg/banco"
+	"github.com/arkade-os/arkd/pkg/ark-lib/asset"
 	introclient "github.com/ArkLabsHQ/introspector/pkg/client"
 	"github.com/arkade-os/arkd/pkg/client-lib/client"
 	grpcclient "github.com/arkade-os/arkd/pkg/client-lib/client/grpc"
@@ -153,7 +154,6 @@ func TestBancoTakerBotAssetToBTC(t *testing.T) {
 	intro := newIntroClient(t)
 	offerResult, err := banco.CreateOffer(ctx, banco.CreateOfferParams{
 		WantAmount: 5000,
-		WantAsset:  "",
 	}, transport, intro, maker)
 	require.NoError(t, err)
 	require.NotEmpty(t, offerResult.SwapAddress)
@@ -209,9 +209,11 @@ func TestBancoTakerBotBTCToAsset(t *testing.T) {
 	// Maker creates offer: deposit BTC, want 500 of asset.
 	transport := arkTransportClient(t)
 	intro := newIntroClient(t)
+	wantAssetID, err := asset.NewAssetIdFromString(assetID)
+	require.NoError(t, err)
 	offerResult, err := banco.CreateOffer(ctx, banco.CreateOfferParams{
 		WantAmount: 500,
-		WantAsset:  assetID,
+		WantAsset:  wantAssetID,
 	}, transport, intro, maker)
 	require.NoError(t, err)
 	require.NotEmpty(t, offerResult.SwapAddress)
@@ -271,9 +273,11 @@ func TestBancoTakerBotAssetToAsset(t *testing.T) {
 	// Maker creates offer: deposit assetA, want 500 of assetB.
 	transport := arkTransportClient(t)
 	intro := newIntroClient(t)
+	wantAssetID, err := asset.NewAssetIdFromString(assetB)
+	require.NoError(t, err)
 	offerResult, err := banco.CreateOffer(ctx, banco.CreateOfferParams{
 		WantAmount: 500,
-		WantAsset:  assetB,
+		WantAsset:  wantAssetID,
 	}, transport, intro, maker)
 	require.NoError(t, err)
 	require.NotEmpty(t, offerResult.SwapAddress)
