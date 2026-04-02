@@ -84,10 +84,15 @@ func main() {
 
 	log.Info("starting fulmine...")
 
+	var delegatorPort uint32
+	if cfg.DelegatorEnabled {
+		delegatorPort = cfg.DelegatorPort
+	}
+
 	svcConfig := grpcservice.Config{
 		GRPCPort:      cfg.GRPCPort,
 		HTTPPort:      cfg.HTTPPort,
-		DelegatorPort: cfg.DelegatorPort,
+		DelegatorPort: delegatorPort,
 		WithTLS:       cfg.WithTLS,
 	}
 
