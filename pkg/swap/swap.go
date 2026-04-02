@@ -1231,7 +1231,7 @@ func (h *SwapHandler) selectClaimableVTXO(
 
 func (h *SwapHandler) isVtxoPending(ctx context.Context, vtxo clientTypes.Vtxo) (bool, error) {
 	resp, err := h.arkClient.Indexer().GetVtxos(ctx,
-		indexer.WithScripts([]string{vtxo.Script}),
+		indexer.WithOutpoints([]clientTypes.Outpoint{vtxo.Outpoint}),
 		indexer.WithPendingOnly(),
 	)
 	if err != nil {
