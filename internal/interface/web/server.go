@@ -118,8 +118,8 @@ func NewService(
 	svc.GET("/banco/pairs", svc.bancoPairs)
 	svc.POST("/banco/pair", svc.bancoAddPair)
 	svc.PUT("/banco/pair", svc.bancoUpdatePair)
-	svc.DELETE("/banco/pair/:pair", svc.bancoRemovePair)
-	svc.GET("/banco/pair/:pair/edit", svc.bancoEditPair)
+	svc.DELETE("/banco/pair", svc.bancoRemovePair)
+	svc.GET("/banco/pair/edit", svc.bancoEditPair)
 
 	svc.GET("/modal/feeinfo", svc.feeInfoModal)
 	svc.GET("/modal/lnconnectinfo", svc.lnConnectInfoModal)

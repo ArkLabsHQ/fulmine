@@ -203,12 +203,12 @@ LIMIT ? OFFSET ?;
 
 -- BancoPair queries
 -- name: InsertBancoPair :exec
-INSERT INTO banco_pair (pair, quote_asset_id, min_amount, max_amount, price_feed)
-VALUES (?, ?, ?, ?, ?);
+INSERT INTO banco_pair (pair, quote_asset_id, min_amount, max_amount, price_feed, invert_price)
+VALUES (?, ?, ?, ?, ?, ?);
 
 -- name: UpdateBancoPair :exec
 UPDATE banco_pair
-SET quote_asset_id = ?, min_amount = ?, max_amount = ?, price_feed = ?
+SET quote_asset_id = ?, min_amount = ?, max_amount = ?, price_feed = ?, invert_price = ?
 WHERE pair = ?;
 
 -- name: DeleteBancoPair :exec

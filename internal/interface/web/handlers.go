@@ -1662,6 +1662,9 @@ func (s *service) bancoPairs(c *gin.Context) {
 }
 
 func (s *service) bancoAddPair(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
 	if s.takerSvc == nil {
 		toast := components.Toast("Banco taker bot is not enabled", true)
 		toastHandler(toast, c)
@@ -1692,6 +1695,9 @@ func (s *service) bancoAddPair(c *gin.Context) {
 }
 
 func (s *service) bancoUpdatePair(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
 	if s.takerSvc == nil {
 		toast := components.Toast("Banco taker bot is not enabled", true)
 		toastHandler(toast, c)
@@ -1737,13 +1743,16 @@ func (s *service) bancoUpdatePair(c *gin.Context) {
 }
 
 func (s *service) bancoRemovePair(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
 	if s.takerSvc == nil {
 		toast := components.Toast("Banco taker bot is not enabled", true)
 		toastHandler(toast, c)
 		return
 	}
 
-	pairName := c.Param("pair")
+	pairName := c.Query("name")
 	if err := s.takerSvc.RemovePair(c, pairName); err != nil {
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
@@ -1761,13 +1770,16 @@ func (s *service) bancoRemovePair(c *gin.Context) {
 }
 
 func (s *service) bancoEditPair(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
 	if s.takerSvc == nil {
 		toast := components.Toast("Banco taker bot is not enabled", true)
 		toastHandler(toast, c)
 		return
 	}
 
-	pairName := c.Param("pair")
+	pairName := c.Query("name")
 	pairs, err := s.takerSvc.ListPairs(c)
 	if err != nil {
 		toast := components.Toast("Unable to load pair", true)
@@ -1793,6 +1805,7 @@ func parseBancoPairForm(c *gin.Context) (domain.BancoPair, error) {
 	minAmountStr := c.PostForm("minAmount")
 	maxAmountStr := c.PostForm("maxAmount")
 	priceFeed := c.PostForm("priceFeed")
+	invertPrice := c.PostForm("invertPrice") == "on"
 
 	if base == "" || quote == "" {
 		return domain.BancoPair{}, fmt.Errorf("base and quote assets are required")
@@ -1819,5 +1832,6 @@ func parseBancoPairForm(c *gin.Context) (domain.BancoPair, error) {
 		MinAmount:    minAmount,
 		MaxAmount:    maxAmount,
 		PriceFeed:    priceFeed,
+		InvertPrice:  invertPrice,
 	}, nil
 }

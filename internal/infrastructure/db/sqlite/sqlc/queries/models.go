@@ -14,6 +14,7 @@ type BancoPair struct {
 	MinAmount    int64
 	MaxAmount    int64
 	PriceFeed    string
+	InvertPrice  int64
 }
 
 type ChainSwap struct {

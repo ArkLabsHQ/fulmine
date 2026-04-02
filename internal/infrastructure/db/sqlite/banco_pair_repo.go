@@ -25,12 +25,17 @@ func NewBancoPairRepository(db *sql.DB) (domain.BancoPairRepository, error) {
 }
 
 func (r *bancoPairRepository) Add(ctx context.Context, pair domain.BancoPair) error {
+	var invertPrice int64
+	if pair.InvertPrice {
+		invertPrice = 1
+	}
 	err := r.querier.InsertBancoPair(ctx, queries.InsertBancoPairParams{
 		Pair:         pair.Pair,
 		QuoteAssetID: pair.QuoteAssetID,
 		MinAmount:    int64(pair.MinAmount),
 		MaxAmount:    int64(pair.MaxAmount),
 		PriceFeed:    pair.PriceFeed,
+		InvertPrice:  invertPrice,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to insert banco pair: %w", err)
@@ -39,11 +44,16 @@ func (r *bancoPairRepository) Add(ctx context.Context, pair domain.BancoPair) er
 }
 
 func (r *bancoPairRepository) Update(ctx context.Context, pair domain.BancoPair) error {
+	var invertPrice int64
+	if pair.InvertPrice {
+		invertPrice = 1
+	}
 	err := r.querier.UpdateBancoPair(ctx, queries.UpdateBancoPairParams{
 		QuoteAssetID: pair.QuoteAssetID,
 		MinAmount:    int64(pair.MinAmount),
 		MaxAmount:    int64(pair.MaxAmount),
 		PriceFeed:    pair.PriceFeed,
+		InvertPrice:  invertPrice,
 		Pair:         pair.Pair,
 	})
 	if err != nil {
@@ -74,6 +84,7 @@ func (r *bancoPairRepository) List(ctx context.Context) ([]domain.BancoPair, err
 			MinAmount:    uint64(row.MinAmount),
 			MaxAmount:    uint64(row.MaxAmount),
 			PriceFeed:    row.PriceFeed,
+			InvertPrice:  row.InvertPrice != 0,
 		})
 	}
 	return pairs, nil

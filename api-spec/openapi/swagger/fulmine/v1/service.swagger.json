@@ -1019,6 +1019,9 @@
         },
         "priceFeed": {
           "type": "string"
+        },
+        "invertPrice": {
+          "type": "boolean"
         }
       }
     },
@@ -1044,6 +1047,9 @@
         },
         "priceFeed": {
           "type": "string"
+        },
+        "invertPrice": {
+          "type": "boolean"
         }
       }
     },
@@ -1830,6 +1836,9 @@
         },
         "priceFeed": {
           "type": "string"
+        },
+        "invertPrice": {
+          "type": "boolean"
         }
       }
     },

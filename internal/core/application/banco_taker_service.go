@@ -383,12 +383,17 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 	// offerPrice = what the maker wants / what the maker deposited
 	offerPrice := float64(offer.WantAmount) / float64(swapOutputValue)
 
+	if pair.InvertPrice {
+		feedPrice = 1.0 / feedPrice
+	}
+
 	log.WithFields(log.Fields{
-		"txid":       txid,
-		"offerPrice": offerPrice,
-		"feedPrice":  feedPrice,
-		"wantAmount": offer.WantAmount,
-		"swapAmount": swapOutputValue,
+		"txid":        txid,
+		"offerPrice":  offerPrice,
+		"feedPrice":   feedPrice,
+		"invertPrice": pair.InvertPrice,
+		"wantAmount":  offer.WantAmount,
+		"swapAmount":  swapOutputValue,
 	}).Debug("taker: computed offer price")
 
 	if offerPrice > feedPrice {

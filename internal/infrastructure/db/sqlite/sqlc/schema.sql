@@ -96,5 +96,6 @@ CREATE TABLE IF NOT EXISTS banco_pair (
     quote_asset_id TEXT NOT NULL DEFAULT '',
     min_amount INTEGER NOT NULL,
     max_amount INTEGER NOT NULL,
-    price_feed TEXT NOT NULL
+    price_feed TEXT NOT NULL,
+    invert_price INTEGER NOT NULL DEFAULT 0
 );

@@ -2,9 +2,14 @@ package pages
 
 import (
 	"fmt"
+	"strings"
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 )
+
+func pairID(pair string) string {
+	return "pair-" + strings.ReplaceAll(pair, "/", "-")
+}
 
 templ BancoBodyContent(pairs []domain.BancoPair) {
 	@components.DesktopHeader()
@@ -17,7 +22,7 @@ templ BancoBodyContent(pairs []domain.BancoPair) {
 			</div>
 			@Hr()
 			@Separator("Add New Pair")
-			@BancoAddForm()
+			@BancoAddForm(pairs)
 		</div>
 	</div>
 }
@@ -50,7 +55,7 @@ templ BancoPairsList(pairs []domain.BancoPair) {
 }
 
 templ BancoPairRow(pair domain.BancoPair) {
-	<div class="py-4" id={"pair-" + pair.Pair}>
+	<div class="py-4" id={pairID(pair.Pair)}>
 		<div class="flex justify-between items-center">
 			<div class="flex items-center gap-4">
 				<div class="flex items-center w-10 h-10 bg-white/05 border border-white/20 rounded-full">
@@ -70,14 +75,14 @@ templ BancoPairRow(pair domain.BancoPair) {
 			<div class="flex items-center gap-2">
 				<button
 					class="bg-white/05 hover:bg-white/10 border border-white/20 hover:border-white/30 cursor-pointer w-8 h-8 rounded-full flex items-center justify-center"
-					hx-get={"/banco/pair/" + pair.Pair + "/edit"}
-					hx-target={"#pair-" + pair.Pair}
+					hx-get={"/banco/pair/edit?name=" + pair.Pair}
+					hx-target={"#" + pairID(pair.Pair)}
 					hx-swap="outerHTML">
 					@components.EditIcon()
 				</button>
 				<button
 					class="bg-red/10 hover:bg-red/20 border border-red/20 hover:border-red/30 cursor-pointer w-8 h-8 rounded-full flex items-center justify-center text-red"
-					hx-delete={"/banco/pair/" + pair.Pair}
+					hx-delete={"/banco/pair?name=" + pair.Pair}
 					hx-target="#bancoPairsList"
 					hx-swap="innerHTML"
 					hx-confirm="Remove this pair?">
@@ -85,12 +90,17 @@ templ BancoPairRow(pair domain.BancoPair) {
 				</button>
 			</div>
 		</div>
-		<p class="text-white/30 text-xs mt-2 truncate pl-14">{pair.PriceFeed}</p>
+		<div class="flex items-center gap-2 mt-2 pl-14">
+			<p class="text-white/30 text-xs truncate">{pair.PriceFeed}</p>
+			if pair.InvertPrice {
+				<p class="text-xs text-orange bg-orange/10 px-1.5 py-0.5 rounded">1/x</p>
+			}
+		</div>
 	</div>
 }
 
 templ BancoPairEditRow(pair domain.BancoPair) {
-	<div class="py-4" id={"pair-" + pair.Pair}>
+	<div class="py-4" id={pairID(pair.Pair)}>
 		<form hx-put="/banco/pair" hx-target="#bancoPairsList" hx-swap="innerHTML">
 			<input type="hidden" name="originalPair" value={pair.Pair}/>
 			<div class="border border-orange/30 bg-orange/05 rounded-lg p-4">
@@ -115,9 +125,12 @@ templ BancoPairEditRow(pair domain.BancoPair) {
 						@bancoNumberInput("maxAmount", fmt.Sprintf("%d", pair.MaxAmount))
 					</div>
 				</div>
-				<div class="mb-4">
+				<div class="mb-3">
 					@components.Label("Price Feed URL")
 					@components.InputGeneric("priceFeed", "https://...", pair.PriceFeed)
+				</div>
+				<div class="mb-4">
+					@bancoCheckbox("invertPrice", "Invert price (use 1/feed price)", pair.InvertPrice)
 				</div>
 				<div class="flex gap-3 justify-end">
 					<button
@@ -137,7 +150,8 @@ templ BancoPairEditRow(pair domain.BancoPair) {
 	</div>
 }
 
-templ BancoAddForm() {
+templ BancoAddForm(pairs []domain.BancoPair) {
+	@templ.JSONScript("bancoPairs", pairs)
 	<form hx-post="/banco/pair" hx-target="#bancoPairsList" hx-swap="innerHTML">
 		<div class="grid grid-cols-2 gap-3 mb-3">
 			<div>
@@ -159,10 +173,16 @@ templ BancoAddForm() {
 				@bancoNumberInput("maxAmount", "")
 			</div>
 		</div>
-		<div class="mb-4">
+		<div id="bancoFeedGroup" class="mb-3">
 			@components.Label("Price Feed URL")
 			@components.InputGeneric("priceFeed", "https://...", "")
 		</div>
+		<div id="bancoInvertGroup" class="mb-4">
+			@bancoCheckbox("invertPrice", "Invert price (use 1/feed price)", false)
+		</div>
+		<p id="bancoAutoNotice" class="text-xs text-orange mb-4 hidden">
+			Price feed and invert auto-filled from inverse pair
+		</p>
 		<div class="flex justify-end">
 			<button type="submit" class="orange md:w-auto">
 				Add Pair
@@ -173,10 +193,71 @@ templ BancoAddForm() {
 		const bancoForm = document.querySelector('form[hx-post="/banco/pair"]')
 		if (bancoForm) {
 			bancoForm.addEventListener('htmx:afterRequest', (e) => {
-				if (e.detail.successful) bancoForm.reset()
+				if (e.detail.successful) {
+					bancoForm.reset()
+					bancoUnlock()
+				}
 			})
 		}
+
+		const bancoPairs = JSON.parse(document.getElementById('bancoPairs').textContent || '[]')
+		const baseInput = bancoForm?.querySelector('#base')
+		const quoteInput = bancoForm?.querySelector('#quote')
+		const feedInput = bancoForm?.querySelector('#priceFeed')
+		const invertInput = bancoForm?.querySelector('#invertPrice')
+		const feedGroup = document.getElementById('bancoFeedGroup')
+		const invertGroup = document.getElementById('bancoInvertGroup')
+		const autoNotice = document.getElementById('bancoAutoNotice')
+
+		const bancoCheckInverse = () => {
+			const base = baseInput?.value?.trim()
+			const quote = quoteInput?.value?.trim()
+			if (!base || !quote) { bancoUnlock(); return }
+
+			const inverse = bancoPairs.find(p => p.pair === quote + '/' + base)
+			if (inverse) {
+				feedInput.value = inverse.priceFeed
+				feedInput.disabled = true
+				invertInput.checked = !inverse.invertPrice
+				invertInput.disabled = true
+				feedGroup.classList.add('opacity-50')
+				invertGroup.classList.add('opacity-50')
+				autoNotice.classList.remove('hidden')
+			} else {
+				bancoUnlock()
+			}
+		}
+
+		const bancoUnlock = () => {
+			if (feedInput) feedInput.disabled = false
+			if (invertInput) invertInput.disabled = false
+			feedGroup?.classList.remove('opacity-50')
+			invertGroup?.classList.remove('opacity-50')
+			autoNotice?.classList.add('hidden')
+		}
+
+		baseInput?.addEventListener('input', bancoCheckInverse)
+		quoteInput?.addEventListener('input', bancoCheckInverse)
+
+		bancoForm?.addEventListener('htmx:configRequest', () => {
+			if (feedInput) feedInput.disabled = false
+			if (invertInput) invertInput.disabled = false
+		})
 	</script>
+}
+
+templ bancoCheckbox(id, label string, checked bool) {
+	<label class="flex items-center gap-3 cursor-pointer mt-2">
+		<input
+			class="w-4 h-4 accent-orange"
+			type="checkbox"
+			id={id}
+			name={id}
+			if checked {
+				checked
+			}/>
+		<span class="text-sm text-white/70">{label}</span>
+	</label>
 }
 
 templ bancoNumberInput(id, value string) {

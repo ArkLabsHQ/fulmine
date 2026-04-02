@@ -1,0 +1,1 @@
+ALTER TABLE banco_pair ADD COLUMN invert_price INTEGER NOT NULL DEFAULT 0;

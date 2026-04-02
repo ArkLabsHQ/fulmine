@@ -187,7 +187,7 @@ func (q *Queries) FailDelegateTasks(ctx context.Context, arg FailDelegateTasksPa
 }
 
 const getBancoPair = `-- name: GetBancoPair :one
-SELECT pair, quote_asset_id, min_amount, max_amount, price_feed FROM banco_pair WHERE pair = ?
+SELECT pair, quote_asset_id, min_amount, max_amount, price_feed, invert_price FROM banco_pair WHERE pair = ?
 `
 
 func (q *Queries) GetBancoPair(ctx context.Context, pair string) (BancoPair, error) {
@@ -199,6 +199,7 @@ func (q *Queries) GetBancoPair(ctx context.Context, pair string) (BancoPair, err
 		&i.MinAmount,
 		&i.MaxAmount,
 		&i.PriceFeed,
+		&i.InvertPrice,
 	)
 	return i, err
 }
@@ -496,8 +497,8 @@ func (q *Queries) GetVtxoRollover(ctx context.Context, address string) (VtxoRoll
 }
 
 const insertBancoPair = `-- name: InsertBancoPair :exec
-INSERT INTO banco_pair (pair, quote_asset_id, min_amount, max_amount, price_feed)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO banco_pair (pair, quote_asset_id, min_amount, max_amount, price_feed, invert_price)
+VALUES (?, ?, ?, ?, ?, ?)
 `
 
 type InsertBancoPairParams struct {
@@ -506,6 +507,7 @@ type InsertBancoPairParams struct {
 	MinAmount    int64
 	MaxAmount    int64
 	PriceFeed    string
+	InvertPrice  int64
 }
 
 // BancoPair queries
@@ -516,6 +518,7 @@ func (q *Queries) InsertBancoPair(ctx context.Context, arg InsertBancoPairParams
 		arg.MinAmount,
 		arg.MaxAmount,
 		arg.PriceFeed,
+		arg.InvertPrice,
 	)
 	return err
 }
@@ -622,7 +625,7 @@ func (q *Queries) InsertVHTLC(ctx context.Context, arg InsertVHTLCParams) error 
 }
 
 const listBancoPairs = `-- name: ListBancoPairs :many
-SELECT pair, quote_asset_id, min_amount, max_amount, price_feed FROM banco_pair
+SELECT pair, quote_asset_id, min_amount, max_amount, price_feed, invert_price FROM banco_pair
 `
 
 func (q *Queries) ListBancoPairs(ctx context.Context) ([]BancoPair, error) {
@@ -640,6 +643,7 @@ func (q *Queries) ListBancoPairs(ctx context.Context) ([]BancoPair, error) {
 			&i.MinAmount,
 			&i.MaxAmount,
 			&i.PriceFeed,
+			&i.InvertPrice,
 		); err != nil {
 			return nil, err
 		}
@@ -1084,7 +1088,7 @@ func (q *Queries) SuccessDelegateTasks(ctx context.Context, arg SuccessDelegateT
 
 const updateBancoPair = `-- name: UpdateBancoPair :exec
 UPDATE banco_pair
-SET quote_asset_id = ?, min_amount = ?, max_amount = ?, price_feed = ?
+SET quote_asset_id = ?, min_amount = ?, max_amount = ?, price_feed = ?, invert_price = ?
 WHERE pair = ?
 `
 
@@ -1093,6 +1097,7 @@ type UpdateBancoPairParams struct {
 	MinAmount    int64
 	MaxAmount    int64
 	PriceFeed    string
+	InvertPrice  int64
 	Pair         string
 }
 
@@ -1102,6 +1107,7 @@ func (q *Queries) UpdateBancoPair(ctx context.Context, arg UpdateBancoPairParams
 		arg.MinAmount,
 		arg.MaxAmount,
 		arg.PriceFeed,
+		arg.InvertPrice,
 		arg.Pair,
 	)
 	return err

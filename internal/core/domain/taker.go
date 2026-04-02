@@ -15,6 +15,7 @@ type BancoPair struct {
 	MinAmount     uint64 `json:"minAmount"`               // satoshis
 	MaxAmount     uint64 `json:"maxAmount"`               // satoshis
 	PriceFeed     string `json:"priceFeed"`               // price API URL
+	InvertPrice   bool   `json:"invertPrice"`             // if true, use 1/feedPrice for comparison
 }
 
 // Base returns the base asset of the pair (e.g. "BTC" from "BTC/USDT").

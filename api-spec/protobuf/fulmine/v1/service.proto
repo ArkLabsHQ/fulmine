@@ -542,6 +542,7 @@ message BancoPairInfo {
   uint64 min_amount = 3;
   uint64 max_amount = 4;
   string price_feed = 5;
+  bool invert_price = 6;
 }
 
 message AddBancoPairRequest {
@@ -550,6 +551,7 @@ message AddBancoPairRequest {
   uint64 min_amount = 3;
   uint64 max_amount = 4;
   string price_feed = 5;
+  bool invert_price = 6;
 }
 message AddBancoPairResponse {}
 
@@ -559,6 +561,7 @@ message UpdateBancoPairRequest {
   uint64 min_amount = 3;
   uint64 max_amount = 4;
   string price_feed = 5;
+  bool invert_price = 6;
 }
 message UpdateBancoPairResponse {}
 

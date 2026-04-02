@@ -771,6 +771,7 @@ func (h *serviceHandler) AddBancoPair(
 		MinAmount:    req.GetMinAmount(),
 		MaxAmount:    req.GetMaxAmount(),
 		PriceFeed:    req.GetPriceFeed(),
+		InvertPrice:  req.GetInvertPrice(),
 	}
 
 	if err := h.takerSvc.AddPair(ctx, pair); err != nil {
@@ -792,6 +793,7 @@ func (h *serviceHandler) UpdateBancoPair(
 		MinAmount:    req.GetMinAmount(),
 		MaxAmount:    req.GetMaxAmount(),
 		PriceFeed:    req.GetPriceFeed(),
+		InvertPrice:  req.GetInvertPrice(),
 	}
 
 	if err := h.takerSvc.UpdatePair(ctx, pair); err != nil {
@@ -833,6 +835,7 @@ func (h *serviceHandler) ListBancoPairs(
 			MinAmount:    p.MinAmount,
 			MaxAmount:    p.MaxAmount,
 			PriceFeed:    p.PriceFeed,
+			InvertPrice:  p.InvertPrice,
 		})
 	}
 
