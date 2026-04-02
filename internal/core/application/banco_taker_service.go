@@ -36,7 +36,7 @@ type BancoTakerService struct {
 
 	mu     sync.Mutex
 	pairs  []domain.BancoPair
-	prices map[string]cachedPrice // pair -> cached price with timestamp
+	prices map[string]cachedPrice // feedURL -> cached price with timestamp
 
 	ctx      context.Context
 	cancelFn context.CancelFunc
@@ -163,7 +163,8 @@ func (s *BancoTakerService) Status() TakerStatus {
 func (s *BancoTakerService) getPrice(pair *domain.BancoPair) (float64, error) {
 	now := time.Now()
 
-	cached, ok := s.prices[pair.Pair]
+	cacheKey := pair.PriceFeed
+	cached, ok := s.prices[cacheKey]
 
 	if ok && now.Sub(cached.fetchedAt) < priceCacheTTL {
 		return cached.price, nil
@@ -183,7 +184,7 @@ func (s *BancoTakerService) getPrice(pair *domain.BancoPair) (float64, error) {
 		return 0, fmt.Errorf("failed to fetch price for %s: %w", pair.Pair, err)
 	}
 
-	s.prices[pair.Pair] = cachedPrice{price: price, fetchedAt: now}
+	s.prices[cacheKey] = cachedPrice{price: price, fetchedAt: now}
 
 	log.WithFields(log.Fields{
 		"pair":  pair.Pair,

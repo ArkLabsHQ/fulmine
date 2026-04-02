@@ -1684,14 +1684,7 @@ func (s *service) bancoAddPair(c *gin.Context) {
 		return
 	}
 
-	pairs, err := s.takerSvc.ListPairs(c)
-	if err != nil {
-		toast := components.Toast("Pair added but failed to refresh list", true)
-		toastHandler(toast, c)
-		return
-	}
-	bodyContent := pages.BancoPairsList(pairs)
-	partialViewHandler(bodyContent, c)
+	s.renderBancoContent(c)
 }
 
 func (s *service) bancoUpdatePair(c *gin.Context) {
@@ -1704,7 +1697,6 @@ func (s *service) bancoUpdatePair(c *gin.Context) {
 		return
 	}
 
-	originalPair := c.PostForm("originalPair")
 	pair, err := parseBancoPairForm(c)
 	if err != nil {
 		toast := components.Toast(err.Error(), true)
@@ -1712,34 +1704,13 @@ func (s *service) bancoUpdatePair(c *gin.Context) {
 		return
 	}
 
-	// If pair name changed, remove old and add new
-	if originalPair != "" && originalPair != pair.Pair {
-		if err := s.takerSvc.RemovePair(c, originalPair); err != nil {
-			toast := components.Toast(err.Error(), true)
-			toastHandler(toast, c)
-			return
-		}
-		if err := s.takerSvc.AddPair(c, pair); err != nil {
-			toast := components.Toast(err.Error(), true)
-			toastHandler(toast, c)
-			return
-		}
-	} else {
-		if err := s.takerSvc.UpdatePair(c, pair); err != nil {
-			toast := components.Toast(err.Error(), true)
-			toastHandler(toast, c)
-			return
-		}
-	}
-
-	pairs, err := s.takerSvc.ListPairs(c)
-	if err != nil {
-		toast := components.Toast("Pair updated but failed to refresh list", true)
+	if err := s.takerSvc.UpdatePair(c, pair); err != nil {
+		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
 		return
 	}
-	bodyContent := pages.BancoPairsList(pairs)
-	partialViewHandler(bodyContent, c)
+
+	s.renderBancoContent(c)
 }
 
 func (s *service) bancoRemovePair(c *gin.Context) {
@@ -1759,14 +1730,7 @@ func (s *service) bancoRemovePair(c *gin.Context) {
 		return
 	}
 
-	pairs, err := s.takerSvc.ListPairs(c)
-	if err != nil {
-		toast := components.Toast("Pair removed but failed to refresh list", true)
-		toastHandler(toast, c)
-		return
-	}
-	bodyContent := pages.BancoPairsList(pairs)
-	partialViewHandler(bodyContent, c)
+	s.renderBancoContent(c)
 }
 
 func (s *service) bancoEditPair(c *gin.Context) {
@@ -1797,6 +1761,17 @@ func (s *service) bancoEditPair(c *gin.Context) {
 
 	toast := components.Toast("Pair not found", true)
 	toastHandler(toast, c)
+}
+
+func (s *service) renderBancoContent(c *gin.Context) {
+	pairs, err := s.takerSvc.ListPairs(c)
+	if err != nil {
+		toast := components.Toast("Unable to refresh pairs", true)
+		toastHandler(toast, c)
+		return
+	}
+	bodyContent := pages.BancoContent(pairs)
+	partialViewHandler(bodyContent, c)
 }
 
 func parseBancoPairForm(c *gin.Context) (domain.BancoPair, error) {

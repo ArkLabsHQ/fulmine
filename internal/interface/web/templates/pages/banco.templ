@@ -2,13 +2,13 @@ package pages
 
 import (
 	"fmt"
-	"strings"
+	"net/url"
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 )
 
 func pairID(pair string) string {
-	return "pair-" + strings.ReplaceAll(pair, "/", "-")
+	return "pair-" + url.QueryEscape(pair)
 }
 
 templ BancoBodyContent(pairs []domain.BancoPair) {
@@ -16,15 +16,21 @@ templ BancoBodyContent(pairs []domain.BancoPair) {
 	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 		<div>
 			@components.Header("Banco Taker")
-			@Separator("Trading Pairs")
-			<div id="bancoPairsList">
-				@BancoPairsList(pairs)
+			<div id="bancoContent">
+				@BancoContent(pairs)
 			</div>
-			@Hr()
-			@Separator("Add New Pair")
-			@BancoAddForm(pairs)
 		</div>
 	</div>
+}
+
+templ BancoContent(pairs []domain.BancoPair) {
+	@Separator("Trading Pairs")
+	<div id="bancoPairsList">
+		@BancoPairsList(pairs)
+	</div>
+	@Hr()
+	@Separator("Add New Pair")
+	@BancoAddForm(pairs)
 }
 
 templ BancoNotEnabled() {
@@ -83,7 +89,7 @@ templ BancoPairRow(pair domain.BancoPair) {
 				<button
 					class="bg-red/10 hover:bg-red/20 border border-red/20 hover:border-red/30 cursor-pointer w-8 h-8 rounded-full flex items-center justify-center text-red"
 					hx-delete={"/banco/pair?name=" + pair.Pair}
-					hx-target="#bancoPairsList"
+					hx-target="#bancoContent"
 					hx-swap="innerHTML"
 					hx-confirm="Remove this pair?">
 					@components.CloseIcon()
@@ -101,18 +107,19 @@ templ BancoPairRow(pair domain.BancoPair) {
 
 templ BancoPairEditRow(pair domain.BancoPair) {
 	<div class="py-4" id={pairID(pair.Pair)}>
-		<form hx-put="/banco/pair" hx-target="#bancoPairsList" hx-swap="innerHTML">
-			<input type="hidden" name="originalPair" value={pair.Pair}/>
+		<form hx-put="/banco/pair" hx-target="#bancoContent" hx-swap="innerHTML">
+			<input type="hidden" name="base" value={pair.Base()}/>
+			<input type="hidden" name="quote" value={pair.Quote()}/>
 			<div class="border border-orange/30 bg-orange/05 rounded-lg p-4">
 				<p class="font-semibold mb-4">Editing {pair.Pair}</p>
 				<div class="grid grid-cols-2 gap-3 mb-3">
 					<div>
 						@components.Label("Base Asset")
-						@components.InputGeneric("base", "BTC or asset ID", pair.Base())
+						@components.InputFake(pair.Base())
 					</div>
 					<div>
 						@components.Label("Quote Asset")
-						@components.InputGeneric("quote", "BTC or asset ID", pair.Quote())
+						@components.InputFake(pair.Quote())
 					</div>
 				</div>
 				<div class="grid grid-cols-2 gap-3 mb-3">
@@ -137,8 +144,8 @@ templ BancoPairEditRow(pair domain.BancoPair) {
 						type="button"
 						class="button md:w-auto"
 						hx-get="/banco/pairs"
-						hx-target="#bancoPairsList"
-						hx-swap="innerHTML">
+						hx-target={"#" + pairID(pair.Pair)}
+						hx-swap="outerHTML">
 						Cancel
 					</button>
 					<button type="submit" class="orange md:w-auto">
@@ -152,7 +159,7 @@ templ BancoPairEditRow(pair domain.BancoPair) {
 
 templ BancoAddForm(pairs []domain.BancoPair) {
 	@templ.JSONScript("bancoPairs", pairs)
-	<form hx-post="/banco/pair" hx-target="#bancoPairsList" hx-swap="innerHTML">
+	<form hx-post="/banco/pair" hx-target="#bancoContent" hx-swap="innerHTML">
 		<div class="grid grid-cols-2 gap-3 mb-3">
 			<div>
 				@components.Label("Base Asset")
@@ -190,59 +197,52 @@ templ BancoAddForm(pairs []domain.BancoPair) {
 		</div>
 	</form>
 	<script>
-		const bancoForm = document.querySelector('form[hx-post="/banco/pair"]')
-		if (bancoForm) {
-			bancoForm.addEventListener('htmx:afterRequest', (e) => {
-				if (e.detail.successful) {
-					bancoForm.reset()
+		{
+			const bancoForm = document.querySelector('form[hx-post="/banco/pair"]')
+			const bancoPairs = JSON.parse(document.getElementById('bancoPairs').textContent || '[]')
+			const baseInput = bancoForm?.querySelector('#base')
+			const quoteInput = bancoForm?.querySelector('#quote')
+			const feedInput = bancoForm?.querySelector('#priceFeed')
+			const invertInput = bancoForm?.querySelector('#invertPrice')
+			const feedGroup = document.getElementById('bancoFeedGroup')
+			const invertGroup = document.getElementById('bancoInvertGroup')
+			const autoNotice = document.getElementById('bancoAutoNotice')
+
+			const bancoCheckInverse = () => {
+				const base = baseInput?.value?.trim()
+				const quote = quoteInput?.value?.trim()
+				if (!base || !quote) { bancoUnlock(); return }
+
+				const inverse = bancoPairs.find(p => p.pair === quote + '/' + base)
+				if (inverse) {
+					feedInput.value = inverse.priceFeed
+					feedInput.disabled = true
+					invertInput.checked = !inverse.invertPrice
+					invertInput.disabled = true
+					feedGroup.classList.add('opacity-50')
+					invertGroup.classList.add('opacity-50')
+					autoNotice.classList.remove('hidden')
+				} else {
 					bancoUnlock()
 				}
+			}
+
+			const bancoUnlock = () => {
+				if (feedInput) feedInput.disabled = false
+				if (invertInput) invertInput.disabled = false
+				feedGroup?.classList.remove('opacity-50')
+				invertGroup?.classList.remove('opacity-50')
+				autoNotice?.classList.add('hidden')
+			}
+
+			baseInput?.addEventListener('input', bancoCheckInverse)
+			quoteInput?.addEventListener('input', bancoCheckInverse)
+
+			bancoForm?.addEventListener('htmx:configRequest', () => {
+				if (feedInput) feedInput.disabled = false
+				if (invertInput) invertInput.disabled = false
 			})
 		}
-
-		const bancoPairs = JSON.parse(document.getElementById('bancoPairs').textContent || '[]')
-		const baseInput = bancoForm?.querySelector('#base')
-		const quoteInput = bancoForm?.querySelector('#quote')
-		const feedInput = bancoForm?.querySelector('#priceFeed')
-		const invertInput = bancoForm?.querySelector('#invertPrice')
-		const feedGroup = document.getElementById('bancoFeedGroup')
-		const invertGroup = document.getElementById('bancoInvertGroup')
-		const autoNotice = document.getElementById('bancoAutoNotice')
-
-		const bancoCheckInverse = () => {
-			const base = baseInput?.value?.trim()
-			const quote = quoteInput?.value?.trim()
-			if (!base || !quote) { bancoUnlock(); return }
-
-			const inverse = bancoPairs.find(p => p.pair === quote + '/' + base)
-			if (inverse) {
-				feedInput.value = inverse.priceFeed
-				feedInput.disabled = true
-				invertInput.checked = !inverse.invertPrice
-				invertInput.disabled = true
-				feedGroup.classList.add('opacity-50')
-				invertGroup.classList.add('opacity-50')
-				autoNotice.classList.remove('hidden')
-			} else {
-				bancoUnlock()
-			}
-		}
-
-		const bancoUnlock = () => {
-			if (feedInput) feedInput.disabled = false
-			if (invertInput) invertInput.disabled = false
-			feedGroup?.classList.remove('opacity-50')
-			invertGroup?.classList.remove('opacity-50')
-			autoNotice?.classList.add('hidden')
-		}
-
-		baseInput?.addEventListener('input', bancoCheckInverse)
-		quoteInput?.addEventListener('input', bancoCheckInverse)
-
-		bancoForm?.addEventListener('htmx:configRequest', () => {
-			if (feedInput) feedInput.disabled = false
-			if (invertInput) invertInput.disabled = false
-		})
 	</script>
 }
 
