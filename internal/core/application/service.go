@@ -962,6 +962,11 @@ func (s *Service) ListVHTLCs(
 		return nil, nil, err
 	}
 
+	// Return empty list if an empty one is provided
+	if len(vhtlcIds) <= 0 {
+		return nil, nil, nil
+	}
+
 	vhtlcList, err := s.dbSvc.VHTLC().GetByIds(ctx, vhtlcIds)
 	if err != nil {
 		return nil, nil, err
