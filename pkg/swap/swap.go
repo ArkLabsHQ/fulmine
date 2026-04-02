@@ -167,6 +167,14 @@ func (h *SwapHandler) ClaimVHTLC(
 		return "", err
 	}
 
+	// Idempotency check: detect partial execution (SubmitTx succeeded, FinalizeTx failed).
+	// If the VHTLC VTXO is already spent, finalize pending txs and return the arkTxid.
+	if arkTxid, found, err := h.checkAndFinalizePendingVHTLC(ctx, vHTLC, outpoint); err != nil {
+		return "", err
+	} else if found {
+		return arkTxid, nil
+	}
+
 	vtxo, err := h.selectClaimableVTXO(ctx, vHTLC, outpoint)
 	if err != nil {
 		return "", err
@@ -303,6 +311,14 @@ func (h *SwapHandler) RefundSwap(
 	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
 	if err != nil {
 		return "", err
+	}
+
+	// Idempotency check: detect partial execution (SubmitTx succeeded, FinalizeTx failed).
+	// If the VHTLC VTXO is already spent, finalize pending txs and return the arkTxid.
+	if arkTxid, found, err := h.checkAndFinalizePendingVHTLC(ctx, vhtlcScript, outpoint); err != nil {
+		return "", err
+	} else if found {
+		return arkTxid, nil
 	}
 
 	vtxo, err := h.selectClaimableVTXO(ctx, vhtlcScript, outpoint)
@@ -1186,4 +1202,64 @@ func (h *SwapHandler) selectClaimableVTXO(
 	})
 
 	return &filtered[0], nil
+}
+
+// checkAndFinalizePendingVHTLC detects partial execution state where SubmitTx
+// succeeded but FinalizeTx failed (e.g. due to rate limiting). In this state
+// the VHTLC VTXO is marked spent with SpentBy set, but the output VTXO at
+// the wallet's offchain address is still pending finalization.
+// If found, it calls FinalizePendingTxs to complete the finalization.
+// Returns (arkTxid, true, nil) if a pending tx was detected and finalized.
+// Returns ("", false, nil) if no partial execution state was found.
+// Returns ("", false, err) on error.
+func (h *SwapHandler) checkAndFinalizePendingVHTLC(
+	ctx context.Context,
+	vhtlcScript *vhtlc.VHTLCScript,
+	outpoint *clientTypes.Outpoint,
+) (string, bool, error) {
+	vtxos, err := h.getVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
+	if err != nil {
+		return "", false, fmt.Errorf("checkAndFinalizePendingVHTLC: failed to get VHTLC funds: %w", err)
+	}
+
+	// Find a VTXO that is spent with a SpentBy value set, indicating SubmitTx
+	// succeeded (checkpoint tx was created) but FinalizeTx may not have completed.
+	var pendingArkTxid string
+	for _, v := range vtxos {
+		if !v.Spent || v.SpentBy == "" {
+			continue
+		}
+		if outpoint != nil && (v.Txid != outpoint.Txid || v.VOut != outpoint.VOut) {
+			continue
+		}
+		pendingArkTxid = v.ArkTxid
+		break
+	}
+
+	if pendingArkTxid == "" {
+		return "", false, nil
+	}
+
+	log.Infof("checkAndFinalizePendingVHTLC: detected pending ark tx %s, calling FinalizePendingTxs", pendingArkTxid)
+
+	finalizedTxids, err := h.arkClient.FinalizePendingTxs(ctx, nil)
+	if err != nil {
+		return "", false, fmt.Errorf("checkAndFinalizePendingVHTLC: FinalizePendingTxs failed: %w", err)
+	}
+
+	txFinalized := false
+	for _, txid := range finalizedTxids {
+		if txid == pendingArkTxid {
+			txFinalized = true
+			break
+		}
+	}
+
+	if !txFinalized {
+		// The tx was not returned by FinalizePendingTxs. This can happen if it
+		// was already finalized in a prior call and is no longer pending.
+		log.Warnf("checkAndFinalizePendingVHTLC: ark tx %s was not in FinalizePendingTxs result, it may already be finalized", pendingArkTxid)
+	}
+
+	return pendingArkTxid, true, nil
 }

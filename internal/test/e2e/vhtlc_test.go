@@ -1159,3 +1159,168 @@ func requireVHTLCSpentState(
 
 	t.Fatalf("vtxo %s:%d not found", expected.Outpoint.GetTxid(), expected.Outpoint.GetVout())
 }
+
+// TestClaimVHTLCIdempotent verifies that calling ClaimVHTLC on an already-claimed
+// VHTLC returns the same arkTxid instead of failing with "no vtxos found".
+// This covers the production incident where SubmitTx succeeded but FinalizeTx
+// failed due to rate limiting, leaving the VTXO in a partially-executed state.
+// On retry, the idempotency check detects the spent VTXO and finalizes the
+// pending transaction.
+func TestClaimVHTLCIdempotent(t *testing.T) {
+	f, err := newFulmineClient("localhost:7000")
+	require.NoError(t, err)
+	require.NotNil(t, f)
+
+	ctx := t.Context()
+
+	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+	require.NoError(t, err)
+	require.NotEmpty(t, info)
+
+	// Create a VHTLC (sender = receiver for simplicity)
+	preimage := make([]byte, 32)
+	_, err = rand.Read(preimage)
+	require.NoError(t, err)
+	sha256Hash := sha256.Sum256(preimage)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+
+	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+		PreimageHash:   preimageHash,
+		ReceiverPubkey: info.GetPubkey(),
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 1024,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, vhtlcResp.Address)
+
+	// Fund the VHTLC
+	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlcResp.Address,
+		Amount:  1000,
+	})
+	require.NoError(t, err)
+
+	// First claim: should succeed normally
+	firstResult, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
+		VhtlcId:  vhtlcResp.Id,
+		Preimage: hex.EncodeToString(preimage),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, firstResult)
+	require.NotEmpty(t, firstResult.GetRedeemTxid())
+
+	firstTxid := firstResult.GetRedeemTxid()
+
+	// Verify the VTXO is now spent
+	vhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
+	require.NoError(t, err)
+	require.NotEmpty(t, vhtlcs.GetVhtlcs())
+
+	var spentVtxo *pb.Vtxo
+	for _, v := range vhtlcs.GetVhtlcs() {
+		if v.IsSpent {
+			spentVtxo = v
+			break
+		}
+	}
+	require.NotNil(t, spentVtxo, "expected at least one spent VTXO after claim")
+
+	// Second claim: with the fix, this should detect the spent VTXO via
+	// checkAndFinalizePendingVHTLC and return the same arkTxid.
+	// Without the fix, this would fail with "no vtxos found".
+	secondResult, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
+		VhtlcId:  vhtlcResp.Id,
+		Preimage: hex.EncodeToString(preimage),
+	})
+	require.NoError(t, err, "second ClaimVHTLC should succeed via idempotency check")
+	require.NotNil(t, secondResult)
+	require.Equal(t, firstTxid, secondResult.GetRedeemTxid(),
+		"idempotent retry should return the same arkTxid")
+}
+
+// TestRefundVHTLCIdempotent verifies that the refund path's idempotency check
+// works correctly. It creates a VHTLC, claims it (which spends the VTXO), then
+// calls RefundVHTLCWithoutReceiver. The idempotency check should detect the
+// already-spent VTXO and return the arkTxid from the claim, preventing the
+// "no vtxos found" error.
+// This tests cross-path idempotency: once a VTXO is spent (by claim or refund),
+// either path should detect it and return the existing arkTxid.
+func TestRefundVHTLCIdempotent(t *testing.T) {
+	f, err := newFulmineClient("localhost:7000")
+	require.NoError(t, err)
+	require.NotNil(t, f)
+
+	ctx := t.Context()
+
+	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+	require.NoError(t, err)
+	require.NotEmpty(t, info)
+
+	// Create a VHTLC with receiver_pubkey set (so we can claim it)
+	preimage := make([]byte, 32)
+	_, err = rand.Read(preimage)
+	require.NoError(t, err)
+	sha256Hash := sha256.Sum256(preimage)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+
+	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+		PreimageHash:   preimageHash,
+		ReceiverPubkey: info.GetPubkey(),
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 1024,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, vhtlcResp.Address)
+
+	// Fund the VHTLC
+	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlcResp.Address,
+		Amount:  1000,
+	})
+	require.NoError(t, err)
+
+	// Claim the VHTLC (this spends the VTXO)
+	claimResult, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
+		VhtlcId:  vhtlcResp.Id,
+		Preimage: hex.EncodeToString(preimage),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, claimResult)
+	require.NotEmpty(t, claimResult.GetRedeemTxid())
+
+	claimTxid := claimResult.GetRedeemTxid()
+
+	// Now call RefundVHTLCWithoutReceiver on the same VHTLC.
+	// The VTXO is already spent by the claim. The idempotency check in
+	// RefundSwap should detect the spent VTXO and return the arkTxid.
+	// Without the fix, this would fail with "no vtxos found".
+	refundResult, err := f.RefundVHTLCWithoutReceiver(ctx,
+		&pb.RefundVHTLCWithoutReceiverRequest{
+			VhtlcId: vhtlcResp.Id,
+		},
+	)
+	require.NoError(t, err, "RefundVHTLC on already-claimed VHTLC should succeed via idempotency check")
+	require.NotNil(t, refundResult)
+	require.Equal(t, claimTxid, refundResult.GetRedeemTxid(),
+		"idempotent check should return the arkTxid from the claim")
+}
