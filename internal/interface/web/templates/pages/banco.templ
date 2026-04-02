@@ -10,13 +10,14 @@ templ BancoBodyContent(pairs []domain.BancoPair) {
 	@components.DesktopHeader()
 	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 		<div>
-			@components.Header("Banco Dashboard")
+			@components.Header("Banco Taker")
+			@Separator("Trading Pairs")
 			<div id="bancoPairsList">
 				@BancoPairsList(pairs)
 			</div>
-			<div class="mt-8">
-				@BancoAddForm()
-			</div>
+			@Hr()
+			@Separator("Add New Pair")
+			@BancoAddForm()
 		</div>
 	</div>
 }
@@ -25,177 +26,149 @@ templ BancoNotEnabled() {
 	@components.DesktopHeader()
 	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 		<div>
-			@components.Header("Banco Dashboard")
-			<p class="text-white/50 text-center mt-10">Banco taker bot is not enabled</p>
+			@components.Header("Banco Taker")
+			<div class="flex flex-col items-center w-full mt-16">
+				@components.HistoryEmpty()
+				<p class="text-white/50 mt-4">Banco taker bot is not enabled</p>
+			</div>
 		</div>
 	</div>
 }
 
 templ BancoPairsList(pairs []domain.BancoPair) {
 	if len(pairs) == 0 {
-		<p class="text-white/50 text-center py-8">No pairs configured</p>
+		<div class="flex flex-col items-center w-full py-8">
+			@components.HistoryEmpty()
+			<p class="text-white/50 mt-4 text-sm">No pairs configured yet</p>
+		</div>
 	} else {
 		for _, pair := range pairs {
 			@BancoPairRow(pair)
+			<hr class="border border-1 border-white/10 w-full"/>
 		}
 	}
 }
 
 templ BancoPairRow(pair domain.BancoPair) {
-	<div class="border border-white/10 rounded-lg p-4 mb-3" id={"pair-" + pair.Pair}>
-		<div class="flex justify-between items-start">
-			<div>
-				<p class="font-semibold text-lg">{pair.Pair}</p>
-				<p class="text-white/50 text-sm mt-1">
-					{fmt.Sprintf("%d", pair.MinAmount)} - {fmt.Sprintf("%d", pair.MaxAmount)} sats
-				</p>
-				<p class="text-white/50 text-sm mt-1 truncate max-w-xs">{pair.PriceFeed}</p>
+	<div class="py-4" id={"pair-" + pair.Pair}>
+		<div class="flex justify-between items-center">
+			<div class="flex items-center gap-4">
+				<div class="flex items-center w-10 h-10 bg-white/05 border border-white/20 rounded-full">
+					<div class="flex items-center justify-center w-full h-full">
+						@components.SwapIcon()
+					</div>
+				</div>
+				<div>
+					<p class="font-semibold">{pair.Pair}</p>
+					<div class="flex items-center gap-2 mt-0.5">
+						<p class="text-xs text-white/50 bg-white/10 px-2 py-0.5 rounded-md">
+							{fmt.Sprintf("%d", pair.MinAmount)} - {fmt.Sprintf("%d", pair.MaxAmount)} sats
+						</p>
+					</div>
+				</div>
 			</div>
-			<div class="flex gap-2">
+			<div class="flex items-center gap-2">
 				<button
-					class="text-sm px-3 py-1 rounded-lg border border-white/20 hover:border-white/40"
+					class="bg-white/05 hover:bg-white/10 border border-white/20 hover:border-white/30 cursor-pointer w-8 h-8 rounded-full flex items-center justify-center"
 					hx-get={"/banco/pair/" + pair.Pair + "/edit"}
 					hx-target={"#pair-" + pair.Pair}
 					hx-swap="outerHTML">
-					Edit
+					@components.EditIcon()
 				</button>
 				<button
-					class="text-sm px-3 py-1 rounded-lg border border-red/30 text-red hover:border-red/60"
+					class="bg-red/10 hover:bg-red/20 border border-red/20 hover:border-red/30 cursor-pointer w-8 h-8 rounded-full flex items-center justify-center text-red"
 					hx-delete={"/banco/pair/" + pair.Pair}
 					hx-target="#bancoPairsList"
 					hx-swap="innerHTML"
 					hx-confirm="Remove this pair?">
-					Delete
+					@components.CloseIcon()
 				</button>
 			</div>
 		</div>
+		<p class="text-white/30 text-xs mt-2 truncate pl-14">{pair.PriceFeed}</p>
 	</div>
 }
 
 templ BancoPairEditRow(pair domain.BancoPair) {
-	<div class="border border-orange/50 rounded-lg p-4 mb-3" id={"pair-" + pair.Pair}>
+	<div class="py-4" id={"pair-" + pair.Pair}>
 		<form hx-put="/banco/pair" hx-target="#bancoPairsList" hx-swap="innerHTML">
 			<input type="hidden" name="originalPair" value={pair.Pair}/>
-			<div class="grid grid-cols-2 gap-3 mb-3">
-				<div>
-					@components.Label("Base Asset")
-					<input
-						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
-						name="base"
-						value={pair.Base()}
-						placeholder="BTC or asset ID"/>
+			<div class="border border-orange/30 bg-orange/05 rounded-lg p-4">
+				<p class="font-semibold mb-4">Editing {pair.Pair}</p>
+				<div class="grid grid-cols-2 gap-3 mb-3">
+					<div>
+						@components.Label("Base Asset")
+						@components.InputGeneric("base", "BTC or asset ID", pair.Base())
+					</div>
+					<div>
+						@components.Label("Quote Asset")
+						@components.InputGeneric("quote", "BTC or asset ID", pair.Quote())
+					</div>
 				</div>
-				<div>
-					@components.Label("Quote Asset")
-					<input
-						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
-						name="quote"
-						value={pair.Quote()}
-						placeholder="BTC or asset ID"/>
+				<div class="grid grid-cols-2 gap-3 mb-3">
+					<div>
+						@components.Label("Min Amount (sats)")
+						@bancoNumberInput("minAmount", fmt.Sprintf("%d", pair.MinAmount))
+					</div>
+					<div>
+						@components.Label("Max Amount (sats)")
+						@bancoNumberInput("maxAmount", fmt.Sprintf("%d", pair.MaxAmount))
+					</div>
 				</div>
-			</div>
-			<div class="grid grid-cols-2 gap-3 mb-3">
-				<div>
-					@components.Label("Min Amount (sats)")
-					<input
-						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
-						name="minAmount"
-						type="number"
-						value={fmt.Sprintf("%d", pair.MinAmount)}/>
+				<div class="mb-4">
+					@components.Label("Price Feed URL")
+					@components.InputGeneric("priceFeed", "https://...", pair.PriceFeed)
 				</div>
-				<div>
-					@components.Label("Max Amount (sats)")
-					<input
-						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
-						name="maxAmount"
-						type="number"
-						value={fmt.Sprintf("%d", pair.MaxAmount)}/>
+				<div class="flex gap-3 justify-end">
+					<button
+						type="button"
+						class="button md:w-auto"
+						hx-get="/banco/pairs"
+						hx-target="#bancoPairsList"
+						hx-swap="innerHTML">
+						Cancel
+					</button>
+					<button type="submit" class="orange md:w-auto">
+						Save
+					</button>
 				</div>
-			</div>
-			<div class="mb-3">
-				@components.Label("Price Feed URL")
-				<input
-					class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
-					name="priceFeed"
-					value={pair.PriceFeed}
-					placeholder="https://..."/>
-			</div>
-			<div class="flex gap-2 justify-end">
-				<button
-					type="button"
-					class="text-sm px-4 py-2 rounded-lg border border-white/20 hover:border-white/40"
-					hx-get="/banco/pairs"
-					hx-target="#bancoPairsList"
-					hx-swap="innerHTML">
-					Cancel
-				</button>
-				<button
-					type="submit"
-					class="text-sm px-4 py-2 rounded-lg bg-orange text-black font-semibold">
-					Save
-				</button>
 			</div>
 		</form>
 	</div>
 }
 
 templ BancoAddForm() {
-	<div class="border border-white/10 rounded-lg p-4">
-		<p class="font-semibold mb-4">Add Pair</p>
-		<form hx-post="/banco/pair" hx-target="#bancoPairsList" hx-swap="innerHTML">
-			<div class="grid grid-cols-2 gap-3 mb-3">
-				<div>
-					@components.Label("Base Asset")
-					<input
-						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
-						name="base"
-						placeholder="BTC or asset ID"
-						required/>
-				</div>
-				<div>
-					@components.Label("Quote Asset")
-					<input
-						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
-						name="quote"
-						placeholder="BTC or asset ID"
-						required/>
-				</div>
+	<form hx-post="/banco/pair" hx-target="#bancoPairsList" hx-swap="innerHTML">
+		<div class="grid grid-cols-2 gap-3 mb-3">
+			<div>
+				@components.Label("Base Asset")
+				@components.InputGeneric("base", "BTC or asset ID", "")
 			</div>
-			<div class="grid grid-cols-2 gap-3 mb-3">
-				<div>
-					@components.Label("Min Amount (sats)")
-					<input
-						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
-						name="minAmount"
-						type="number"
-						required/>
-				</div>
-				<div>
-					@components.Label("Max Amount (sats)")
-					<input
-						class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
-						name="maxAmount"
-						type="number"
-						required/>
-				</div>
+			<div>
+				@components.Label("Quote Asset")
+				@components.InputGeneric("quote", "BTC or asset ID", "")
 			</div>
-			<div class="mb-3">
-				@components.Label("Price Feed URL")
-				<input
-					class="bg-graybg border border-white/20 p-3 rounded-lg w-full"
-					name="priceFeed"
-					placeholder="https://..."
-					required/>
+		</div>
+		<div class="grid grid-cols-2 gap-3 mb-3">
+			<div>
+				@components.Label("Min Amount (sats)")
+				@bancoNumberInput("minAmount", "")
 			</div>
-			<div class="flex justify-end">
-				<button
-					type="submit"
-					class="text-sm px-4 py-2 rounded-lg bg-orange text-black font-semibold">
-					Add Pair
-				</button>
+			<div>
+				@components.Label("Max Amount (sats)")
+				@bancoNumberInput("maxAmount", "")
 			</div>
-		</form>
-	</div>
+		</div>
+		<div class="mb-4">
+			@components.Label("Price Feed URL")
+			@components.InputGeneric("priceFeed", "https://...", "")
+		</div>
+		<div class="flex justify-end">
+			<button type="submit" class="orange md:w-auto">
+				Add Pair
+			</button>
+		</div>
+	</form>
 	<script>
 		const bancoForm = document.querySelector('form[hx-post="/banco/pair"]')
 		if (bancoForm) {
@@ -204,4 +177,17 @@ templ BancoAddForm() {
 			})
 		}
 	</script>
+}
+
+templ bancoNumberInput(id, value string) {
+	<div class="border border-1 border-white/20 bg-graybg p-4 rounded-lg">
+		<input
+			class="bg-graybg border-0 p-0 mr-4"
+			id={id}
+			name={id}
+			type="number"
+			placeholder="0"
+			value={value}
+			required/>
+	</div>
 }
