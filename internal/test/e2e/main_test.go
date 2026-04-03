@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 
 func refillArkd(ctx context.Context) error {
 	arkdExec := "docker exec arkd arkd"
-	balanceThreshold := 5.0
+	balanceThreshold := 10.0
 
 	command := fmt.Sprintf("%s wallet balance", arkdExec)
 	out, err := runCommand(ctx, command)
@@ -104,7 +104,13 @@ func refillFulmine(ctx context.Context, url string) error {
 	}
 
 	time.Sleep(5 * time.Second)
-	_, err = f.Settle(ctx, &pb.SettleRequest{})
+	for attempts := 0; attempts < 3; attempts++ {
+		_, err = f.Settle(ctx, &pb.SettleRequest{})
+		if err == nil {
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
 	time.Sleep(5 * time.Second)
 	return err
 }
