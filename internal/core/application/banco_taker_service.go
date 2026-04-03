@@ -429,42 +429,62 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 		return
 	}
 
-	// offerPrice = what the maker wants / what the maker deposited.
-	// For BTC deposits: deposited amount is swapOutputValue (sats).
-	// For asset deposits: deposited amount is the asset amount from the asset packet.
-	var depositAmount float64
+	// offerPrice = BTC per asset unit (in whole BTC, not sats).
+	// For BTC deposits (maker deposited BTC, wants asset):
+	//   offerPrice = depositedBTC / wantedAsset
+	// For asset deposits (maker deposited asset, wants BTC):
+	//   offerPrice = wantedBTC / depositedAsset
+	var offerPrice float64
 	if depositAsset == "BTC" {
-		depositAmount = float64(swapOutputValue)
+		if offer.WantAmount <= 0 {
+			log.WithField("txid", txid).Debug("taker: zero want amount, skipping")
+			return
+		}
+		offerPrice = (float64(swapOutputValue) / 1e8) / float64(offer.WantAmount)
 	} else {
-		depositAmount = float64(depositAssetAmount)
+		if depositAssetAmount <= 0 {
+			log.WithField("txid", txid).Debug("taker: zero deposit amount, skipping")
+			return
+		}
+		offerPrice = (float64(offer.WantAmount) / 1e8) / float64(depositAssetAmount)
 	}
-	if depositAmount <= 0 {
-		log.WithField("txid", txid).Debug("taker: zero deposit amount, skipping")
-		return
-	}
-	offerPrice := float64(offer.WantAmount) / depositAmount
 
 	if pair.InvertPrice {
 		feedPrice = 1.0 / feedPrice
 	}
 
 	log.WithFields(log.Fields{
-		"txid":        txid,
-		"offerPrice":  offerPrice,
-		"feedPrice":   feedPrice,
-		"invertPrice": pair.InvertPrice,
-		"wantAmount":  offer.WantAmount,
-		"swapAmount":  swapOutputValue,
+		"txid":         txid,
+		"offerPrice":   offerPrice,
+		"feedPrice":    feedPrice,
+		"invertPrice":  pair.InvertPrice,
+		"wantAmount":   offer.WantAmount,
+		"depositAsset": depositAsset,
+		"swapAmount":   swapOutputValue,
 	}).Debug("taker: computed offer price")
 
-	// Accept offers within 1% margin of the feed price
-	if offerPrice > feedPrice*1.01 {
-		log.WithFields(log.Fields{
-			"txid":       txid,
-			"offerPrice": offerPrice,
-			"feedPrice":  feedPrice,
-		}).Debug("taker: offer price exceeds feed price, skipping")
-		return
+	// Accept offers within 1% margin of the feed price.
+	// Direction depends on which side the banco is on:
+	// - BTC deposit: banco sells asset, skip if price too low (selling below market)
+	// - Asset deposit: banco buys asset, skip if price too high (buying above market)
+	if depositAsset == "BTC" {
+		if offerPrice < feedPrice*0.99 {
+			log.WithFields(log.Fields{
+				"txid":       txid,
+				"offerPrice": offerPrice,
+				"feedPrice":  feedPrice,
+			}).Debug("taker: offer price below feed price, skipping")
+			return
+		}
+	} else {
+		if offerPrice > feedPrice*1.01 {
+			log.WithFields(log.Fields{
+				"txid":       txid,
+				"offerPrice": offerPrice,
+				"feedPrice":  feedPrice,
+			}).Debug("taker: offer price exceeds feed price, skipping")
+			return
+		}
 	}
 
 	// Fulfill the offer
