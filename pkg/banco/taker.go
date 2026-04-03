@@ -138,18 +138,23 @@ func FulfillOffer(
 		totalTakerBtc += v.Amount
 	}
 
-	makerBtcAmount := int64(offer.WantAmount)
+	// When the maker wants an asset (not BTC), the output carries the asset
+	// on a dust BTC carrier. The asset amount is routed via the asset packet.
+	var makerBtcAmount int64
+	if offer.WantAsset != nil {
+		makerBtcAmount = 330 // dust limit for asset-carrying outputs
+	} else {
+		makerBtcAmount = int64(offer.WantAmount)
+	}
 	btcChange := int64(totalTakerBtc) - makerBtcAmount
 	if btcChange < 0 {
 		return nil, fmt.Errorf("insufficient BTC: have %d, need %d", totalTakerBtc, makerBtcAmount)
 	}
 
+	// Merge BTC change into the taker output to avoid creating sub-dust outputs.
 	outputs := []*wire.TxOut{
 		{Value: makerBtcAmount, PkScript: offer.MakerPkScript},
-		{Value: int64(swapVtxo.Amount), PkScript: takerPkScript},
-	}
-	if btcChange > 0 {
-		outputs = append(outputs, &wire.TxOut{Value: btcChange, PkScript: takerPkScript})
+		{Value: int64(swapVtxo.Amount) + btcChange, PkScript: takerPkScript},
 	}
 
 	fulfillScriptBytes, err := offer.FulfillScript()
@@ -168,8 +173,8 @@ func FulfillOffer(
 
 	// Build asset packet tracking asset flows across inputs/outputs.
 	// Input 0 = swap VTXO, inputs 1+ = taker VTXOs.
-	// Output 0 = maker, output 1 = taker, output 2 = taker BTC change (optional).
-	assetPacket, err := buildFulfillAssetPacket(swapVtxo, takerVtxos, offer, btcChange > 0)
+	// Output 0 = maker, output 1 = taker (receives swap assets + BTC change).
+	assetPacket, err := buildFulfillAssetPacket(swapVtxo, takerVtxos, offer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build asset packet: %w", err)
 	}
@@ -399,14 +404,11 @@ func FulfillOffer(
 
 // buildFulfillAssetPacket creates an asset packet for the fulfillment tx.
 // Input layout:  0 = swap VTXO, 1..N = taker VTXOs.
-// Output layout: 0 = maker, 1 = taker (receives swap assets + taker asset change),
-//
-//	2 = taker BTC change (optional).
+// Output layout: 0 = maker, 1 = taker (receives swap assets + taker asset change + BTC change).
 func buildFulfillAssetPacket(
 	swapVtxo clientTypes.Vtxo,
 	takerVtxos []clientTypes.VtxoWithTapTree,
 	offer *BancoOffer,
-	hasBtcChange bool,
 ) (asset.Packet, error) {
 	type assetTransfer struct {
 		inputs  []asset.AssetInput
