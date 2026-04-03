@@ -289,9 +289,24 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 	// Compute the deposited amount from the tx itself by finding the output
 	// that matches the offer's swap address pkScript.
 
+	log.WithFields(log.Fields{
+		"txid":          txid,
+		"swapPkScript":  fmt.Sprintf("%x", offer.SwapPkScript),
+		"wantAmount":    offer.WantAmount,
+		"wantAsset":     fmt.Sprintf("%v", offer.WantAsset),
+		"offerAsset":    fmt.Sprintf("%v", offer.OfferAsset),
+	}).Debug("taker: decoded banco offer")
+
 	var swapOutputValue int64
 	var swapOutputIndex int
 	for i, out := range tx.UnsignedTx.TxOut {
+		log.WithFields(log.Fields{
+			"txid":     txid,
+			"outIndex": i,
+			"outValue": out.Value,
+			"outScript": fmt.Sprintf("%x", out.PkScript),
+			"match":    bytes.Equal(out.PkScript, offer.SwapPkScript),
+		}).Debug("taker: checking output against swapPkScript")
 		if bytes.Equal(out.PkScript, offer.SwapPkScript) {
 			swapOutputValue = out.Value
 			swapOutputIndex = i
@@ -303,9 +318,13 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 		return
 	}
 
+	log.WithFields(log.Fields{
+		"txid":            txid,
+		"swapOutputIndex": swapOutputIndex,
+		"swapOutputValue": swapOutputValue,
+	}).Debug("taker: found swap output")
+
 	// Determine the deposit (base) asset from the extension's asset packet.
-	// If an asset packet is present, the deposited asset is the first group's ID.
-	// If no asset packet, the deposit is BTC.
 	depositAsset := "BTC"
 	if assetPacket := ext.GetAssetPacket(); len(assetPacket) > 0 {
 		for _, asst := range assetPacket {
@@ -326,6 +345,11 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 		}
 	}
 
+	log.WithFields(log.Fields{
+		"txid":         txid,
+		"depositAsset": depositAsset,
+	}).Debug("taker: determined deposit asset")
+
 	// we lock to sync processing of different orders
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -335,21 +359,51 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 	if offer.WantAsset != nil {
 		wantAssetStr = offer.WantAsset.String()
 	}
+
+	log.WithFields(log.Fields{
+		"txid":         txid,
+		"depositAsset": depositAsset,
+		"wantAsset":    wantAssetStr,
+		"numPairs":     len(s.pairs),
+	}).Debug("taker: matching pair")
+
 	pair := s.findMatchingPair(depositAsset, wantAssetStr)
 	if pair == nil {
+		log.WithFields(log.Fields{
+			"txid":         txid,
+			"depositAsset": depositAsset,
+			"wantAsset":    wantAssetStr,
+		}).Debug("taker: no matching pair found, skipping")
 		return
 	}
 
+	log.WithFields(log.Fields{
+		"txid":       txid,
+		"pair":       pair.Pair,
+		"minAmount":  pair.MinAmount,
+		"maxAmount":  pair.MaxAmount,
+		"wantAmount": offer.WantAmount,
+	}).Debug("taker: matched pair, checking bounds")
+
 	// Check amount bounds
 	if offer.WantAmount < pair.MinAmount {
+		log.WithFields(log.Fields{
+			"txid":       txid,
+			"wantAmount": offer.WantAmount,
+			"minAmount":  pair.MinAmount,
+		}).Debug("taker: want amount below min, skipping")
 		return
 	}
 	if offer.WantAmount > pair.MaxAmount {
+		log.WithFields(log.Fields{
+			"txid":       txid,
+			"wantAmount": offer.WantAmount,
+			"maxAmount":  pair.MaxAmount,
+		}).Debug("taker: want amount above max, skipping")
 		return
 	}
 
 	// Pre-check BTC balance for BTC offers.
-	// For asset offers the balance check happens inside FulfillOffer during coin selection.
 	if offer.WantAsset == nil {
 		balance, err := s.svc.Balance(ctx)
 		if err != nil {
