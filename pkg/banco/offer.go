@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/ArkLabsHQ/introspector/pkg/arkade"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/asset"
@@ -337,17 +339,19 @@ func (s *BancoOffer) VtxoScript(server *btcec.PublicKey) (*script.TapscriptsVtxo
 // FindBancoOffer searches extension packets for a banco offer.
 // Returns nil, nil if not found (not an error -- the tx just isn't an offer).
 func FindBancoOffer(ext extension.Extension) (*BancoOffer, error) {
-	for _, p := range ext {
+	for i, p := range ext {
 		unknown, ok := p.(extension.UnknownPacket)
 		if !ok {
+			log.Debugf("FindBancoOffer: packet %d is %T, not UnknownPacket", i, p)
 			continue
 		}
+		log.Debugf("FindBancoOffer: packet %d is UnknownPacket type=0x%02x dataLen=%d (want 0x%02x)", i, unknown.PacketType, len(unknown.Data), PacketType)
 		if unknown.PacketType != PacketType {
 			continue
 		}
 		offer, err := DeserializeOffer(unknown.Data)
 		if err != nil {
-			return nil, fmt.Errorf("malformed banco offer packet: %w", err)
+			return nil, fmt.Errorf("malformed banco offer packet (index %d, dataLen %d): %w", i, len(unknown.Data), err)
 		}
 		return offer, nil
 	}
