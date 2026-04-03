@@ -486,8 +486,18 @@ func findUnspentVHTLCVtxo(
 			Txid: unspent.Outpoint.GetTxid(),
 			VOut: unspent.Outpoint.GetVout(),
 		},
-		Amount:    unspent.Amount,
-		CreatedAt: time.Unix(unspent.CreatedAt, 0),
+		Script:          unspent.Script,
+		Amount:          unspent.Amount,
+		CommitmentTxids: unspent.GetCommitmentTxids(),
+		ExpiresAt:       time.Unix(unspent.ExpiresAt, 0),
+		CreatedAt:       time.Unix(unspent.CreatedAt, 0),
+		Preconfirmed:    unspent.IsPreconfirmed,
+		Swept:           unspent.IsSwept,
+		Unrolled:        unspent.IsUnrolled,
+		Spent:           unspent.IsSpent,
+		SpentBy:         unspent.SpentBy,
+		SettledBy:       unspent.SettledBy,
+		ArkTxid:         unspent.ArkTxid,
 	}
 }
 
@@ -548,7 +558,9 @@ func submitPendingClaimVHTLC(
 	claimTapscript, err := vhtlc.script.ClaimTapscript()
 	require.NoError(t, err)
 
-	tapScript, _ := hex.DecodeString(cfg.CheckpointTapscript)
+	tapScript, err := hex.DecodeString(cfg.CheckpointTapscript)
+	require.NoError(t, err)
+
 	arkTx, checkpoints, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
@@ -643,7 +655,9 @@ func submitPendingRefundVHTLCWithoutReceiver(
 	refundTapscript, err := vhtlc.script.RefundTapscript(false)
 	require.NoError(t, err)
 
-	tapScript, _ := hex.DecodeString(cfg.CheckpointTapscript)
+	tapScript, err := hex.DecodeString(cfg.CheckpointTapscript)
+	require.NoError(t, err)
+
 	arkTx, checkpoints, err := offchain.BuildTxs(
 		[]offchain.VtxoInput{
 			{
@@ -710,6 +724,7 @@ func requirePendingVHTLC(
 		indexer.WithPendingOnly(),
 	)
 	require.NoError(t, err)
+	require.NotEmpty(t, resp.Vtxos)
 
 	for _, pendingVtxo := range resp.Vtxos {
 		if pendingVtxo.Txid == vhtlc.vtxo.Txid && pendingVtxo.VOut == vhtlc.vtxo.VOut {
