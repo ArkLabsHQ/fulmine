@@ -171,7 +171,7 @@
     },
     "/v1/delegates": {
       "get": {
-        "summary": "ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.",
+        "summary": "ListDelegates returns delegate tasks filtered by status, paginated by limit/offset.",
         "operationId": "Service_ListDelegates",
         "responses": {
           "200": {
@@ -1109,7 +1109,7 @@
           "type": "string",
           "format": "uint64"
         },
-        "delegatorPublicKey": {
+        "delegatePublicKey": {
           "type": "string"
         },
         "scheduledAt": {
