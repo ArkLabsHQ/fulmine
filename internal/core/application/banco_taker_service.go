@@ -163,7 +163,7 @@ func (s *BancoTakerService) Status() TakerStatus {
 func (s *BancoTakerService) getPrice(pair *domain.BancoPair) (float64, error) {
 	now := time.Now()
 
-	cacheKey := pair.PriceFeed
+	cacheKey := strings.TrimSpace(pair.PriceFeed)
 	cached, ok := s.prices[cacheKey]
 
 	if ok && now.Sub(cached.fetchedAt) < priceCacheTTL {
@@ -172,7 +172,7 @@ func (s *BancoTakerService) getPrice(pair *domain.BancoPair) (float64, error) {
 
 	// Unlock while making the HTTP call to avoid blocking other goroutines.
 	s.mu.Unlock()
-	price, err := s.priceFeed.FetchPrice(s.ctx, pair.PriceFeed)
+	price, err := s.priceFeed.FetchPrice(s.ctx, strings.TrimSpace(pair.PriceFeed))
 	s.mu.Lock()
 
 	if err != nil {
