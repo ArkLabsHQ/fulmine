@@ -427,8 +427,9 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 		return
 	}
 
-	// offerPrice = what the maker wants / what the maker deposited
-	offerPrice := float64(offer.WantAmount) / float64(swapOutputValue)
+	// offerPrice = what the maker wants / what the maker deposited (in BTC, not sats)
+	// feedPrice is in BTC (from CoinGecko), so normalize swapOutputValue to BTC
+	offerPrice := float64(offer.WantAmount) / (float64(swapOutputValue) / 1e8)
 
 	if pair.InvertPrice {
 		feedPrice = 1.0 / feedPrice
