@@ -252,10 +252,32 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 		return
 	}
 
+	log.WithFields(log.Fields{
+		"txid":       notification.Txid,
+		"numPackets": len(ext),
+	}).Debug("taker: parsed extension")
+	for i, p := range ext {
+		switch pkt := p.(type) {
+		case extension.UnknownPacket:
+			log.WithFields(log.Fields{
+				"txid":       notification.Txid,
+				"index":      i,
+				"packetType": fmt.Sprintf("0x%02x", pkt.PacketType),
+				"dataLen":    len(pkt.Data),
+			}).Debug("taker: extension packet (unknown)")
+		default:
+			log.WithFields(log.Fields{
+				"txid":  notification.Txid,
+				"index": i,
+				"type":  fmt.Sprintf("%T", p),
+			}).Debug("taker: extension packet (known)")
+		}
+	}
+
 	// Look for a banco offer in the extension
 	offer, err := banco.FindBancoOffer(ext)
 	if err != nil {
-		log.WithError(err).Warn("taker: failed to decode banco offer from extension")
+		log.WithError(err).WithField("txid", notification.Txid).Warn("taker: failed to decode banco offer from extension")
 		return
 	}
 	if offer == nil {
