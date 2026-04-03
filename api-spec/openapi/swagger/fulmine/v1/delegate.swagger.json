@@ -1,12 +1,12 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "fulmine/v1/delegator.proto",
+    "title": "fulmine/v1/delegate.proto",
     "version": "version not set"
   },
   "tags": [
     {
-      "name": "DelegatorService"
+      "name": "DelegateService"
     }
   ],
   "consumes": [
@@ -19,7 +19,7 @@
     "/v1/delegate": {
       "post": {
         "summary": "Delegate is consumed by clients to request the delegation of the refresh of their VTXOs",
-        "operationId": "DelegatorService_Delegate",
+        "operationId": "DelegateService_Delegate",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -45,19 +45,19 @@
           }
         ],
         "tags": [
-          "DelegatorService"
+          "DelegateService"
         ]
       }
     },
-    "/v1/delegator/info": {
+    "/v1/delegate/info": {
       "get": {
-        "summary": "GetDelegatorInfo returns info about the delegator contract",
-        "operationId": "DelegatorService_GetDelegatorInfo",
+        "summary": "GetDelegateInfo returns info about the delegate contract",
+        "operationId": "DelegateService_GetDelegateInfo",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1GetDelegatorInfoResponse"
+              "$ref": "#/definitions/v1GetDelegateInfoResponse"
             }
           },
           "default": {
@@ -68,7 +68,30 @@
           }
         },
         "tags": [
-          "DelegatorService"
+          "DelegateService"
+        ]
+      }
+    },
+    "/v1/delegator/info": {
+      "get": {
+        "summary": "GetDelegateInfo returns info about the delegate contract",
+        "operationId": "DelegateService_GetDelegateInfo2",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetDelegateInfoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "DelegateService"
         ]
       }
     }
@@ -107,18 +130,18 @@
       "properties": {
         "intent": {
           "$ref": "#/definitions/v1Intent",
-          "title": "The partially signed intent that is gonna be registered by the delegator when close enough to\nunderlying VTXOs expiration"
+          "title": "The partially signed intent that is gonna be registered by the delegate when close enough to\nunderlying VTXOs expiration"
         },
         "forfeitTxs": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "title": "The partially signed forfeit txs that are gonna be submitted by the delegator when joining\nthe batch execution"
+          "title": "The partially signed forfeit txs that are gonna be submitted by the delegate when joining\nthe batch execution"
         },
         "rejectReplace": {
           "type": "boolean",
-          "title": "Opt-in flag to instruct the delegator to not replace an existing delegate that includes at\nleast one VTXO included in this request"
+          "title": "Opt-in flag to instruct the delegate to not replace an existing delegate that includes at\nleast one VTXO included in this request"
         }
       },
       "title": "DelegateRequest is the request message for Delegate rpc"
@@ -127,23 +150,27 @@
       "type": "object",
       "title": "DelegateResponse is the response message for Delegate rpc"
     },
-    "v1GetDelegatorInfoResponse": {
+    "v1GetDelegateInfoResponse": {
       "type": "object",
       "properties": {
         "pubkey": {
           "type": "string",
-          "title": "The delegator pubkey to include in the vtxo script"
+          "title": "The delegate pubkey to include in the vtxo script"
         },
         "fee": {
           "type": "string",
-          "title": "The service fee applied by the delegator"
+          "title": "The service fee applied by the delegate"
         },
         "delegatorAddress": {
           "type": "string",
-          "title": "The delegator address for the service fee, if any"
+          "title": "The delegate address for the service fee, if any (wrong name, will be deprecated)"
+        },
+        "delegateAddress": {
+          "type": "string",
+          "title": "The delegate address for the service fee, if any"
         }
       },
-      "title": "GetDelegatorInfoResponse is the response message for GetDelegatorInfo rpc"
+      "title": "GetDelegateInfoResponse is the response message for GetDelegateInfo rpc"
     },
     "v1Intent": {
       "type": "object",

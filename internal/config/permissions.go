@@ -11,7 +11,7 @@ const (
 	EntityWallet       = "wallet"
 	EntityService      = "service"
 	EntityNotification = "notification"
-	EntityDelegator    = "delegator"
+	EntityDelegate     = "delegate"
 
 	ActionAccess = "access"
 
@@ -45,9 +45,9 @@ func WhitelistedByMethod() map[string][]bakery.Op {
 		fmt.Sprintf("/%s/RestoreWallet", fulminev1.WalletService_ServiceDesc.ServiceName):  {{Entity: EntityWallet, Action: ActionAccess}},
 		fmt.Sprintf("/%s/Status", fulminev1.WalletService_ServiceDesc.ServiceName):         {{Entity: EntityWallet, Action: ActionAccess}},
 		fmt.Sprintf("/%s/Auth", fulminev1.WalletService_ServiceDesc.ServiceName):           {{Entity: EntityWallet, Action: ActionAccess}},
-		// delegator.proto methods
-		fmt.Sprintf("/%s/GetDelegatorInfo", fulminev1.DelegatorService_ServiceDesc.ServiceName): {{Entity: EntityDelegator, Action: ActionAccess}},
-		fmt.Sprintf("/%s/Delegate", fulminev1.DelegatorService_ServiceDesc.ServiceName):         {{Entity: EntityDelegator, Action: ActionAccess}},
+		// delegate.proto methods
+		fmt.Sprintf("/%s/GetDelegateInfo", fulminev1.DelegateService_ServiceDesc.ServiceName): {{Entity: EntityDelegate, Action: ActionAccess}},
+		fmt.Sprintf("/%s/Delegate", fulminev1.DelegateService_ServiceDesc.ServiceName):        {{Entity: EntityDelegate, Action: ActionAccess}},
 		// gRPC reflection (for grpcurl / dev tooling)
 		"/grpc.reflection.v1.ServerReflection/ServerReflectionInfo":      {{Entity: EntityService, Action: ActionAccess}},
 		"/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo": {{Entity: EntityService, Action: ActionAccess}},

@@ -81,10 +81,10 @@ func main() {
 	log.Info("starting fulmine...")
 
 	svcConfig := grpcservice.Config{
-		GRPCPort:      cfg.GRPCPort,
-		HTTPPort:      cfg.HTTPPort,
-		DelegatorPort: cfg.DelegatorPort,
-		WithTLS:       cfg.WithTLS,
+		GRPCPort:     cfg.GRPCPort,
+		HTTPPort:     cfg.HTTPPort,
+		DelegatePort: cfg.DelegatePort,
+		WithTLS:      cfg.WithTLS,
 	}
 
 	dbSvc, err := db.NewService(db.ServiceConfig{
@@ -104,13 +104,13 @@ func main() {
 	pollInterval := time.Duration(cfg.SchedulerPollInterval) * time.Second
 	schedulerSvc := scheduler.NewScheduler(cfg.EsploraURL, pollInterval)
 
-	appSvc, delegatorSvc, err := application.NewServices(
+	appSvc, delegateSvc, err := application.NewServices(
 		buildInfo, cfg.Datadir, dbSvc, schedulerSvc,
 		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout,
 		cfg.LnConnectionOpts, cfg.RefreshDbInterval,
-		application.DelegatorConfig{
-			Enabled: cfg.DelegatorEnabled,
-			Fee:     cfg.DelegatorFee,
+		application.DelegateConfig{
+			Enabled: cfg.DelegateEnabled,
+			Fee:     cfg.DelegateFee,
 		},
 	)
 	if err != nil {
@@ -118,7 +118,7 @@ func main() {
 	}
 
 	svc, err := grpcservice.NewService(
-		svcConfig, appSvc, delegatorSvc, cfg.UnlockerService(), sentryEnabled,
+		svcConfig, appSvc, delegateSvc, cfg.UnlockerService(), sentryEnabled,
 		cfg.MacaroonSvc(), cfg.ArkServer, cfg.OtelCollectorURL, cfg.OtelPushInterval, cfg.PyroscopeURL,
 	)
 	if err != nil {

@@ -98,7 +98,7 @@ type ServiceClient interface {
 	ListChainSwaps(ctx context.Context, in *ListChainSwapsRequest, opts ...grpc.CallOption) (*ListChainSwapsResponse, error)
 	// RefundChainSwap initiates a cooperative refund for a chain swap
 	RefundChainSwap(ctx context.Context, in *RefundChainSwapRequest, opts ...grpc.CallOption) (*RefundChainSwapResponse, error)
-	// ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.
+	// ListDelegates returns delegate tasks filtered by status, paginated by limit/offset.
 	ListDelegates(ctx context.Context, in *ListDelegatesRequest, opts ...grpc.CallOption) (*ListDelegatesResponse, error)
 }
 
@@ -430,7 +430,7 @@ type ServiceServer interface {
 	ListChainSwaps(context.Context, *ListChainSwapsRequest) (*ListChainSwapsResponse, error)
 	// RefundChainSwap initiates a cooperative refund for a chain swap
 	RefundChainSwap(context.Context, *RefundChainSwapRequest) (*RefundChainSwapResponse, error)
-	// ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.
+	// ListDelegates returns delegate tasks filtered by status, paginated by limit/offset.
 	ListDelegates(context.Context, *ListDelegatesRequest) (*ListDelegatesResponse, error)
 }
 

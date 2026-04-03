@@ -40,28 +40,28 @@ var (
 		hash1, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000001")
 		input1 := wire.OutPoint{Hash: *hash1, Index: 0}
 		return domain.DelegateTask{
-			ID:                 "test_task_id",
-			Intent:             domain.Intent{Message: "test_message", Proof: "test_proof", Txid: "test_txid_1", Inputs: []wire.OutPoint{input1}},
-			ForfeitTxs:         map[wire.OutPoint]string{input1: "forfeit_tx_hex"},
-			Fee:                1000,
-			DelegatorPublicKey: "delegator_pubkey",
-			ScheduledAt:        time.Now(),
-			Status:             domain.DelegateTaskStatusPending,
-			FailReason:         "",
+			ID:                "test_task_id",
+			Intent:            domain.Intent{Message: "test_message", Proof: "test_proof", Txid: "test_txid_1", Inputs: []wire.OutPoint{input1}},
+			ForfeitTxs:        map[wire.OutPoint]string{input1: "forfeit_tx_hex"},
+			Fee:               1000,
+			DelegatePublicKey: "delegate_pubkey",
+			ScheduledAt:       time.Now(),
+			Status:            domain.DelegateTaskStatusPending,
+			FailReason:        "",
 		}
 	}()
 	secondDelegateTask = func() domain.DelegateTask {
 		hash2, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000002")
 		input2 := wire.OutPoint{Hash: *hash2, Index: 1}
 		return domain.DelegateTask{
-			ID:                 "second_task_id",
-			Intent:             domain.Intent{Message: "second_message", Proof: "second_proof", Txid: "test_txid_2", Inputs: []wire.OutPoint{input2}},
-			ForfeitTxs:         map[wire.OutPoint]string{input2: "second_forfeit_tx_hex"},
-			Fee:                2000,
-			DelegatorPublicKey: "second_delegator_pubkey",
-			ScheduledAt:        time.Now().Add(time.Hour),
-			Status:             domain.DelegateTaskStatusPending,
-			FailReason:         "",
+			ID:                "second_task_id",
+			Intent:            domain.Intent{Message: "second_message", Proof: "second_proof", Txid: "test_txid_2", Inputs: []wire.OutPoint{input2}},
+			ForfeitTxs:        map[wire.OutPoint]string{input2: "second_forfeit_tx_hex"},
+			Fee:               2000,
+			DelegatePublicKey: "second_delegate_pubkey",
+			ScheduledAt:       time.Now().Add(time.Hour),
+			Status:            domain.DelegateTaskStatusPending,
+			FailReason:        "",
 		}
 	}()
 
@@ -347,7 +347,7 @@ func testAddDelegateTask(t *testing.T, repo domain.DelegateRepository) {
 		require.Equal(t, testDelegateTask.Intent, task.Intent)
 		require.Equal(t, testDelegateTask.Status, task.Status)
 		require.Equal(t, testDelegateTask.Fee, task.Fee)
-		require.Equal(t, testDelegateTask.DelegatorPublicKey, task.DelegatorPublicKey)
+		require.Equal(t, testDelegateTask.DelegatePublicKey, task.DelegatePublicKey)
 		require.Equal(t, testDelegateTask.Intent.Inputs, task.Intent.Inputs)
 		require.Equal(t, testDelegateTask.ForfeitTxs, task.ForfeitTxs)
 	})
