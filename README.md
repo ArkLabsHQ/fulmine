@@ -9,7 +9,7 @@
 ![fulmine-og-v2](https://github.com/user-attachments/assets/8d59879d-727b-4aa7-8a9f-4d696406c6cf)
 
 
-Fulmine is Bitcoin wallet daemon that enables swap providers and payment hubs to optimize Lightning Network channel liquidity while minimizing on-chain fees.
+Fulmine is a Bitcoin wallet daemon built on [Arkade](https://arkadeos.com). It can be used as a general-purpose Arkade wallet or as an infrastructure node for Arkade-native services — such as serving VHTLCs or acting as a delegate for automated VTXO refresh.
 
 ## 🚀 Usage
 
@@ -128,13 +128,15 @@ While the wallet seed is encrypted using AES-256 with a password that the user s
 
 ### 🔌 API Interfaces
 
-fulmine provides three main interfaces:
+Fulmine provides three main interfaces:
 
 1. **Web UI** - Available at [http://localhost:7001](http://localhost:7001) by default
 2. **REST API** - Available at [http://localhost:7001/api](http://localhost:7001/api)
 3. **gRPC Service** - Available at `localhost:7000`
 
-### 💰 Wallet Service
+### 🔑 Wallet Setup & Basic Usage
+
+Before using any wallet-dependent features, you need to set up and unlock your wallet.
 
 1. Generate Seed
 
@@ -152,11 +154,11 @@ fulmine provides three main interfaces:
    Private key supported formats:
    - 64 chars hexadecimal
    - Nostr nsec (NIP-19)
-  
+
    ```sh
    curl -X POST http://localhost:7001/api/v1/wallet/create \
         -H "Content-Type: application/json" \
-        -d '{"private_key": <hex or nsec>, "password": <strong password>, "server_url": "https://server.example.com"}'
+        -d '{"privateKey": "<hex or nsec>", "password": "<strong password>", "serverUrl": "https://server.example.com"}'
    ```
 
 3. Unlock Wallet
@@ -164,7 +166,7 @@ fulmine provides three main interfaces:
    ```sh
    curl -X POST http://localhost:7001/api/v1/wallet/unlock \
         -H "Content-Type: application/json" \
-        -d '{"password": <strong password>}'
+        -d '{"password": "<strong password>"}'
    ```
 
 4. Lock Wallet
@@ -180,60 +182,213 @@ fulmine provides three main interfaces:
    curl -X GET http://localhost:7001/api/v1/wallet/status
    ```
 
-### ⚡ Service API
-
-1. Get Address
+6. Get Arkade Address
 
    ```sh
    curl -X GET http://localhost:7001/api/v1/address
    ```
 
-2. Get Balance
+7. Get Onboard Address
 
    ```sh
-   curl -X GET http://localhost:7001/api/v1/balance
+   curl -X GET http://localhost:7001/api/v1/onboard
    ```
 
-3. Send funds offchain
+8. Send funds offchain
 
    ```sh
    curl -X POST http://localhost:7001/api/v1/send/offchain \
         -H "Content-Type: application/json" \
-        -d '{"address": <ark address>, "amount": <in sats>}'
+        -d '{"address": "<ark address>", "amount": <amount in sats>}'
    ```
 
-4. Send funds onchain
+9. Send funds onchain
 
    ```sh
    curl -X POST http://localhost:7001/api/v1/send/onchain \
         -H "Content-Type: application/json" \
-        -d '{"address": <bitcoin address>, "amount": <in sats>}'
+        -d '{"address": "<bitcoin address>", "amount": <amount in sats>}'
    ```
 
-5. Settle transactions, Renew VTXOs or swap boarding UTXOs for VTXOs
+### 🔔 Notification API
+
+> **Note:** Wallet setup is not required to use the Notification API.
+
+Fulmine can track off-chain addresses on behalf of external services and deliver notifications whenever funds are received or spent.
+
+1. Subscribe to Addresses
+
+   Ask Fulmine to watch one or more off-chain addresses.
 
    ```sh
-   curl -X GET http://localhost:7001/api/v1/settle
+   curl -X POST http://localhost:7001/api/v1/subscribe \
+        -H "Content-Type: application/json" \
+        -d '{"addresses": ["<ark address>", "<ark address>"]}'
    ```
 
-6. Get transaction history
+2. Unsubscribe from Addresses
+
+   Stop watching one or more addresses.
 
    ```sh
-   curl -X GET http://localhost:7001/api/v1/transactions
+   curl -X POST http://localhost:7001/api/v1/unsubscribe \
+        -H "Content-Type: application/json" \
+        -d '{"addresses": ["<ark address>"]}'
    ```
 
-7. Refund VHTLC Without Receiver
-   Refunds a VHTLC output without requiring the receiver's cooperation. Useful for reclaiming funds after timeout if the receiver is unavailable.
+3. Stream Notifications
+
+   Open a server-sent event stream to receive real-time notifications for all subscribed addresses. Each event contains the affected addresses, newly received VTXOs (`newVtxos`), and spent VTXOs (`spentVtxos`).
+
+   ```sh
+   curl -X GET http://localhost:7001/api/v1/notifications
+   ```
+
+### ⚡ VHTLC API
+
+> **Note:** Wallet setup is required before using the VHTLC APIs.
+
+Virtual Hash Time-Locked Contracts (VHTLCs) are Arkade-native HTLCs that live off-chain. They enable atomic swaps and conditional payments without touching the base layer.
+
+1. Create VHTLC
+
+   Computes a VHTLC address from:
+   * a preimage hash
+   * sender or receiver pubkeys. The missing key (depending on whether fulmine has to fund or claim the VHTLC) is added by fulmine using one of its internal wallet.
+   * optional locktimes, if not provided fulmine uses the following default values:
+      - `refundLocktime`: 24hrs. This is the offchain (absolute) locktime the sender must wait to refund the VHTLC offchain (can be expressed in blocks only on regtest)
+      - `unilateralClaimDelay`: 8 mins. This is the locktime the receiver has to wait to claim the VHTLC after it's been unrolled onchain
+      - `unilateralRefundDelay`: 16 mins. This is the locktime sender and Boltz have to wait to refund the VHTLC collaboratively after it's been unrolled onchain
+      - `unilateralRefundWithoutEeceiverDelay`: 32 mins. This is the locktime the sender has to wait to refund alone the VHTLC after it's been unrolled onchain
+
+   ```sh
+   curl -X POST http://localhost:7001/api/v1/vhtlc \
+        -H "Content-Type: application/json" \
+        -d '{
+          "preimageHash": "<hex preimage hash>",
+          "senderPubkey": "<hex sender pubkey>",
+          "receiverPubkey": "<hex receiver pubkey>",
+          "refundLocktime": 1024,
+          "unilateralClaimDelay": {"type": "LOCKTIME_TYPE_SECONDS", "value": 2048},
+          "unilateralRefundDelay": {"type": "LOCKTIME_TYPE_SECONDS", "value": 4096},
+          "unilateralRefundWithoutEeceiverDelay": {"type": "LOCKTIME_TYPE_SECONDS", "value": 8192}
+        }'
+   ```
+
+   Returns: VHTLC `id`, `address`, `claimPubkey`, `refundPubkey`, `serverPubkey`, `swapTree`, and the resolved locktime values.  
+   The `vhtlcId` is the sha256 hash of preimage hash + sender ec pubkey + receiver ec pubkey.
+
+2. List VHTLCs
+
+   Returns VHTLCs by their  `vhtlcId`s.
+
+   ```sh
+   curl -X GET "http://localhost:7001/api/v1/vhtlcs?vhtlcIds=id1,id2"
+   ```
+
+3. ListVHTLC
+
+   Returns a VHTLC by its `vhtlcId`.
+
+   ```sh
+   curl -X GET "http://localhost:7001/api/v1/vhtlc?vhtlcId=id1"
+   ```
+   
+4. Claim VHTLC
+
+   Claims a VHTLC by revealing the preimage. Moves the funds into a regular VTXO.
+
+   ```sh
+   curl -X POST http://localhost:7001/api/v1/vhtlc/claim \
+        -H "Content-Type: application/json" \
+        -d '{"vhtlcId": "<vhtlc id>", "preimage": "<hex preimage>"}'
+   ```
+
+   Returns: `{ "claimTxid": "<txid>" }`
+
+5. Settle VHTLC
+
+   Settles a VHTLC via either the claim path (reveal preimage) or the collaborative refund path (delegate params).
+
+   Claim path:
+   ```sh
+   curl -X POST http://localhost:7001/api/v1/vhtlc/settle \
+        -H "Content-Type: application/json" \
+        -d '{"vhtlcId": "<vhtlc id>", "claim": {"preimage": "<hex preimage>"}}'
+   ```
+
+   Refund path:
+   ```sh
+   curl -X POST http://localhost:7001/api/v1/vhtlc/settle \
+        -H "Content-Type: application/json" \
+        -d '{
+          "vhtlcId": "<vhtlc id>",
+          "refund": {
+            "delegateParams": {
+              "signedIntentProof": "<base64>",
+              "intentMessage": "<json string>",
+              "partialForfeitTx": "<base64 psbt>"
+            }
+          }
+        }'
+   ```
+
+   Returns: `{ "commitmentTxid": "<txid>" }`
+
+6. Refund VHTLC Without Receiver
+
+   Unilaterally refunds a VHTLC after the timeout has expired, without requiring the receiver's cooperation.
 
    ```sh
    curl -X POST http://localhost:7001/api/v1/vhtlc/refundWithoutReceiver \
         -H "Content-Type: application/json" \
-        -d '{"preimage_hash": "<hex preimage hash>"}'
+        -d '{"vhtlcId": "<vhtlc id>"}'
    ```
-   - Replace `<hex preimage hash>` with the actual preimage hash for the VHTLC you wish to refund.
-   - Returns: `{ "redeem_txid": "<txid>" }` on success.
 
-Note: Replace `http://localhost:7001` with the appropriate host and port where your fulmine is running. Also, ensure to replace placeholder values (like `strong password`, `ark_address`, etc.) with actual values when making requests.
+   Returns: `{ "refundTxid": "<txid>" }`
+
+### 🤝 Delegate API
+
+> **Note:** Wallet setup is not required to use the Delegator API.
+
+Fulmine can act as a delegate: it monitors VTXO expiry on behalf of clients and automatically refreshes them before they expire. Clients submit a signed intent and pre-signed forfeit transactions; Fulmine handles the rest.
+
+1. Get Delegate Info
+
+   Returns the delegate's pubkey (to include in VTXO scripts), service fee, and fee address.
+
+   ```sh
+   curl -X GET http://localhost:7001/api/v1/delegator/info
+   ```
+
+   Returns: `{ "pubkey": "<hex>", "fee": "<amount>", "delegatorAddress": "<ark address>" }`
+
+2. Delegate
+
+   Submit a delegation request. The `intent.message` is a stringified JSON describing the VTXOs to refresh. The `intent.proof` is a partially signed PSBT (base64). `forfeitTxs` are partially signed forfeit transactions (base64), one per VTXO input.
+
+   ```sh
+   curl -X POST http://localhost:7001/api/v1/delegate \
+        -H "Content-Type: application/json" \
+        -d '{
+          "intent": {
+            "message": "{\"vtxos\": [...]}",
+            "proof": "<base64 psbt>"
+          },
+          "forfeitTxs": ["<base64 psbt>"],
+          "rejectReplace": false
+        }'
+   ```
+
+3. List Delegates
+
+   Returns delegate tasks filtered by status, paginated.
+
+   ```sh
+   curl -X GET "http://localhost:7001/api/v1/delegates?status=<pending|completed|failed>&limit=10&offset=0"
+   ```
+
+Note: Replace `http://localhost:7001` with the appropriate host and port where your Fulmine is running.
 
 For more detailed information about request and response structures, please refer to the proto files in the `api-spec/protobuf/fulmine/v1/` directory.
 
@@ -248,7 +403,7 @@ go mod download
 make run
 ```
 
-Now navigate to [http://localhost:7001/](http://localhost:7001/) to see the dashboard.
+Now navigate to [http://localhost:7001/](http://localhost:7001/) to see the web UI.
 
 ### Testing
 
