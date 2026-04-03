@@ -167,9 +167,19 @@ func (h *SwapHandler) ClaimVHTLC(
 		return "", err
 	}
 
-	vtxo, err := h.selectClaimableVTXO(ctx, vHTLC, outpoint)
+	vtxo, pending, err := h.selectClaimableVTXO(ctx, vHTLC, outpoint)
 	if err != nil {
 		return "", err
+	}
+	if pending {
+		txids, err := h.finalizePendingClaimVHTLCTxs(ctx, *vtxo, vHTLC, preimage)
+		if err != nil {
+			return "", fmt.Errorf("failed to finalize pending txs: %w", err)
+		}
+		if len(txids) > 0 {
+			return txids[0], nil
+		}
+		return "", fmt.Errorf("vtxo is pending but no pending txs found to finalize")
 	}
 
 	//this is safety net for Boltz Fulmine if VTXO is recoverable in the moment of Claim
@@ -305,9 +315,19 @@ func (h *SwapHandler) RefundSwap(
 		return "", err
 	}
 
-	vtxo, err := h.selectClaimableVTXO(ctx, vhtlcScript, outpoint)
+	vtxo, pending, err := h.selectClaimableVTXO(ctx, vhtlcScript, outpoint)
 	if err != nil {
 		return "", err
+	}
+	if pending {
+		txids, err := h.finalizePendingRefundVHTLCTxs(ctx, *vtxo, vhtlcScript)
+		if err != nil {
+			return "", fmt.Errorf("failed to finalize pending txs: %w", err)
+		}
+		if len(txids) > 0 {
+			return txids[0], nil
+		}
+		return "", fmt.Errorf("vtxo is pending but no pending txs found to finalize")
 	}
 
 	//this is safety net for Boltz Fulmine if VTXO is recoverable in the moment of Refund
@@ -958,6 +978,32 @@ func (h *SwapHandler) getVHTLCFunds(
 	return resp.Vtxos, nil
 }
 
+func (h *SwapHandler) getPendingVHTLCFunds(
+	ctx context.Context, vhtlcs []*vhtlc.VHTLCScript,
+) ([]clientTypes.Vtxo, error) {
+	scripts := make([]string, 0, len(vhtlcs))
+	for _, vHTLC := range vhtlcs {
+		tapKey, _, err := vHTLC.TapTree()
+		if err != nil {
+			return nil, err
+		}
+
+		outScript, err := script.P2TRScript(tapKey)
+		if err != nil {
+			return nil, err
+		}
+		scripts = append(scripts, hex.EncodeToString(outScript))
+	}
+
+	resp, err := h.arkClient.Indexer().GetVtxos(
+		ctx, indexer.WithScripts(scripts), indexer.WithPendingOnly(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Vtxos, nil
+}
+
 func (h *SwapHandler) getVHTLC(
 	_ context.Context,
 	receiverPubkey, senderPubkey *btcec.PublicKey, preimageHash []byte,
@@ -1108,9 +1154,12 @@ func (h *SwapHandler) getBatchSessionArgs(
 		return nil, fmt.Errorf("failed to create VHTLC script: %w", err)
 	}
 
-	vtxo, err := h.selectClaimableVTXO(ctx, vhtlcScript, outpoint)
+	vtxo, pending, err := h.selectClaimableVTXO(ctx, vhtlcScript, outpoint)
 	if err != nil {
 		return nil, err
+	}
+	if pending {
+		return nil, fmt.Errorf("vtxo is pending finalization, call FinalizePendingTxs first")
 	}
 
 	myAddr, err := h.arkClient.NewOffchainAddress(ctx)
@@ -1143,47 +1192,191 @@ func (h *SwapHandler) getBatchSessionArgs(
 }
 
 func (h *SwapHandler) selectClaimableVTXO(
-	ctx context.Context, vhtlcScript *vhtlc.VHTLCScript, outpoint *clientTypes.Outpoint,
-) (*clientTypes.Vtxo, error) {
+	ctx context.Context,
+	vhtlcScript *vhtlc.VHTLCScript,
+	outpoint *clientTypes.Outpoint,
+) (*clientTypes.Vtxo, bool, error) {
+
 	vtxos, err := h.getVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
+	if err != nil {
+		return nil, false, err
+	}
+	pendingVtxos, err := h.getPendingVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
+	if err != nil {
+		return nil, false, err
+	}
+	if len(vtxos) == 0 && len(pendingVtxos) == 0 {
+		return nil, false, ErrorNoVtxosFound
+	}
+
+	pendingByOutpoint := make(map[string]bool)
+	eligibleVtxos := make([]clientTypes.Vtxo, 0, len(vtxos))
+	indexedEligible := make(map[string]struct{}, len(vtxos)+len(pendingVtxos))
+
+	for _, vtxo := range vtxos {
+		key := vtxo.Outpoint.String()
+
+		if vtxo.Spent {
+			isPending, err := h.isVtxoPending(ctx, vtxo)
+			if err != nil {
+				return nil, false, err
+			}
+			if !isPending {
+				continue
+			}
+			pendingByOutpoint[key] = true
+		}
+
+		eligibleVtxos = append(eligibleVtxos, vtxo)
+		indexedEligible[key] = struct{}{}
+	}
+
+	for _, vtxo := range pendingVtxos {
+		key := vtxo.Outpoint.String()
+		pendingByOutpoint[key] = true
+		if _, ok := indexedEligible[key]; ok {
+			continue
+		}
+		eligibleVtxos = append(eligibleVtxos, vtxo)
+		indexedEligible[key] = struct{}{}
+	}
+
+	if len(eligibleVtxos) == 0 {
+		return nil, false, ErrorNoVtxosFound
+	}
+
+	if outpoint != nil {
+		for i := range eligibleVtxos {
+			v := &eligibleVtxos[i]
+			if v.Txid == outpoint.Txid && v.VOut == outpoint.VOut {
+				return v, pendingByOutpoint[v.Outpoint.String()], nil
+			}
+		}
+		return nil, false, fmt.Errorf("outpoint %s not found among VTXOs for this VHTLC", outpoint)
+	}
+
+	sort.Slice(eligibleVtxos, func(i, j int) bool {
+		a, b := eligibleVtxos[i], eligibleVtxos[j]
+
+		if !a.CreatedAt.Equal(b.CreatedAt) {
+			return a.CreatedAt.Before(b.CreatedAt)
+		}
+		if a.Txid != b.Txid {
+			return a.Txid < b.Txid
+		}
+		return a.VOut < b.VOut
+	})
+
+	v := &eligibleVtxos[0]
+	return v, pendingByOutpoint[v.Outpoint.String()], nil
+}
+
+func (h *SwapHandler) isVtxoPending(ctx context.Context, vtxo clientTypes.Vtxo) (bool, error) {
+	resp, err := h.arkClient.Indexer().GetVtxos(ctx,
+		indexer.WithScripts([]string{vtxo.Script}),
+		indexer.WithPendingOnly(),
+	)
+	if err != nil {
+		return false, err
+	}
+
+	for _, pendingVtxo := range resp.Vtxos {
+		if pendingVtxo.Txid == vtxo.Txid && pendingVtxo.VOut == vtxo.VOut {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (h *SwapHandler) finalizePendingVHTLCTxs(
+	ctx context.Context,
+	inputs []pendingTxIntentInput,
+	locktime uint32,
+	signCheckpoint func(string) (string, error),
+) ([]string, error) {
+	proof, message, err := getPendingTxIntent(inputs, locktime)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(vtxos) == 0 {
-		return nil, ErrorNoVtxosFound
+	signedProof, err := h.arkClient.SignTransaction(ctx, proof)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign pending tx proof: %w", err)
 	}
 
-	filtered := make([]clientTypes.Vtxo, 0, len(vtxos))
-	for _, candidate := range vtxos {
-		if candidate.Spent {
-			continue
-		}
-		filtered = append(filtered, candidate)
+	pendingTxs, err := h.arkClient.Client().GetPendingTx(ctx, signedProof, message)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(filtered) == 0 {
-		return nil, ErrorNoVtxosFound
-	}
-
-	if outpoint != nil {
-		for i := range filtered {
-			if filtered[i].Txid == outpoint.Txid && filtered[i].VOut == outpoint.VOut {
-				return &filtered[i], nil
+	txids := make([]string, 0, len(pendingTxs))
+	for _, tx := range pendingTxs {
+		finalCheckpoints := make([]string, 0, len(tx.SignedCheckpointTxs))
+		for _, checkpoint := range tx.SignedCheckpointTxs {
+			signedCheckpoint, err := signCheckpoint(checkpoint)
+			if err != nil {
+				return nil, fmt.Errorf("failed to sign checkpoint tx: %w", err)
 			}
+			finalCheckpoints = append(finalCheckpoints, signedCheckpoint)
 		}
-		return nil, fmt.Errorf("outpoint %s not found among VTXOs for this VHTLC", outpoint)
+
+		if err := h.arkClient.Client().FinalizeTx(ctx, tx.Txid, finalCheckpoints); err != nil {
+			return nil, fmt.Errorf("failed to finalize tx %s: %w", tx.Txid, err)
+		}
+
+		txids = append(txids, tx.Txid)
 	}
 
-	sort.Slice(filtered, func(i, j int) bool {
-		if filtered[i].CreatedAt.Equal(filtered[j].CreatedAt) {
-			if filtered[i].Txid == filtered[j].Txid {
-				return filtered[i].VOut < filtered[j].VOut
-			}
-			return filtered[i].Txid < filtered[j].Txid
-		}
-		return filtered[i].CreatedAt.Before(filtered[j].CreatedAt)
-	})
+	return txids, nil
+}
 
-	return &filtered[0], nil
+func (h *SwapHandler) finalizePendingClaimVHTLCTxs(
+	ctx context.Context, vtxo clientTypes.Vtxo, vhtlcScript *vhtlc.VHTLCScript, preimage []byte,
+) ([]string, error) {
+	signCheckpoint := func(checkpoint string) (string, error) {
+		ptx, err := psbt.NewFromRawBytes(strings.NewReader(checkpoint), true)
+		if err != nil {
+			return "", err
+		}
+
+		if err := txutils.SetArkPsbtField(
+			ptx, 0, txutils.ConditionWitnessField, wire.TxWitness{preimage},
+		); err != nil {
+			return "", err
+		}
+
+		encoded, err := ptx.B64Encode()
+		if err != nil {
+			return "", err
+		}
+
+		return h.arkClient.SignTransaction(ctx, encoded)
+	}
+
+	return h.finalizePendingVHTLCTxs(ctx, []pendingTxIntentInput{{
+		Vtxo: clientTypes.VtxoWithTapTree{
+			Vtxo:       vtxo,
+			Tapscripts: vhtlcScript.GetRevealedTapscripts(),
+		},
+		Closure:          vhtlcScript.ClaimClosure,
+		Sequence:         wire.MaxTxInSequenceNum,
+		ConditionWitness: wire.TxWitness{preimage},
+	}}, 0, signCheckpoint)
+}
+
+func (h *SwapHandler) finalizePendingRefundVHTLCTxs(
+	ctx context.Context, vtxo clientTypes.Vtxo, vhtlcScript *vhtlc.VHTLCScript,
+) ([]string, error) {
+	signCheckpoint := func(checkpoint string) (string, error) {
+		return h.arkClient.SignTransaction(ctx, checkpoint)
+	}
+
+	return h.finalizePendingVHTLCTxs(ctx, []pendingTxIntentInput{{
+		Vtxo: clientTypes.VtxoWithTapTree{
+			Vtxo:       vtxo,
+			Tapscripts: vhtlcScript.GetRevealedTapscripts(),
+		},
+		Closure:  vhtlcScript.RefundWithoutReceiverClosure,
+		Sequence: wire.MaxTxInSequenceNum - 1,
+	}}, uint32(vhtlcScript.RefundWithoutReceiverClosure.Locktime), signCheckpoint)
 }
