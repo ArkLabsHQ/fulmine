@@ -9,7 +9,7 @@
 ![fulmine-og-v2](https://github.com/user-attachments/assets/8d59879d-727b-4aa7-8a9f-4d696406c6cf)
 
 
-Fulmine is a Bitcoin wallet daemon built on [Arkade](https://arkade.fun). It can be used as a general-purpose Arkade wallet or as an infrastructure node for Arkade-native services — such as serving VHTLCs or acting as a delegate for automated VTXO refresh.
+Fulmine is a Bitcoin wallet daemon built on [Arkade](https://arkadeos.com). It can be used as a general-purpose Arkade wallet or as an infrastructure node for Arkade-native services — such as serving VHTLCs or acting as a delegate for automated VTXO refresh.
 
 ## 🚀 Usage
 
