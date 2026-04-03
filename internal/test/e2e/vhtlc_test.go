@@ -1168,8 +1168,6 @@ func requireVHTLCSpentState(
 // TestClaimVHTLCPendingFinalization verifies that calling ClaimVHTLC on a VHTLC
 // whose VTXO was already submitted (SubmitTx) but not finalized (FinalizeTx)
 // correctly detects the pending state and completes the finalization.
-// This covers the production incident where SubmitTx succeeded but FinalizeTx
-// failed due to rate limiting, leaving the VTXO in a partially-executed state.
 func TestClaimVHTLCPendingFinalization(t *testing.T) {
 	ctx := t.Context()
 
@@ -1226,7 +1224,7 @@ func TestClaimVHTLCPendingFinalization(t *testing.T) {
 	vhtlc := buildTestVHTLC(t, f, vhtlcResp, preimageHash)
 	pendingTxid := submitPendingClaimVHTLC(t, arkadeWallet, f, vhtlc, preimage)
 	require.NotEmpty(t, pendingTxid)
-
+	requirePendingVHTLC(t, arkadeWallet, vhtlc)
 	// Now call ClaimVHTLC via the normal gRPC path.
 	// The VTXO is spent (SubmitTx marked it) but not finalized.
 	// The pending detection should find it and call FinalizePendingTxs.
@@ -1298,6 +1296,7 @@ func TestRefundVHTLCPendingFinalization(t *testing.T) {
 	vhtlc := buildTestVHTLC(t, f, vhtlcResp, preimageHash)
 	pendingTxid := submitPendingRefundVHTLCWithoutReceiver(t, arkClient, f, vhtlc)
 	require.NotEmpty(t, pendingTxid)
+	requirePendingVHTLC(t, arkClient, vhtlc)
 
 	// Now call RefundVHTLCWithoutReceiver via the normal gRPC path.
 	// The VTXO is spent (SubmitTx marked it) but not finalized.

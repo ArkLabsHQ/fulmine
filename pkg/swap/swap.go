@@ -1196,58 +1196,49 @@ func (h *SwapHandler) selectClaimableVTXO(
 	vhtlcScript *vhtlc.VHTLCScript,
 	outpoint *clientTypes.Outpoint,
 ) (*clientTypes.Vtxo, bool, error) {
-
-	vtxos, err := h.getVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
+	spendableVtxos, err := h.getVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
 	if err != nil {
 		return nil, false, err
 	}
+
 	pendingVtxos, err := h.getPendingVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
 	if err != nil {
 		return nil, false, err
 	}
-	if len(vtxos) == 0 && len(pendingVtxos) == 0 {
+
+	if len(spendableVtxos) == 0 && len(pendingVtxos) == 0 {
 		return nil, false, ErrorNoVtxosFound
 	}
 
 	pendingByOutpoint := make(map[string]bool)
-	eligibleVtxos := make([]clientTypes.Vtxo, 0, len(vtxos))
-	indexedEligible := make(map[string]struct{}, len(vtxos)+len(pendingVtxos))
+	candidateVtxos := make([]clientTypes.Vtxo, 0, len(spendableVtxos)+len(pendingVtxos))
+	seenOutpoints := make(map[string]struct{}, len(spendableVtxos)+len(pendingVtxos))
 
-	for _, vtxo := range vtxos {
+	for _, vtxo := range spendableVtxos {
 		key := vtxo.Outpoint.String()
-
-		if vtxo.Spent {
-			isPending, err := h.isVtxoPending(ctx, vtxo)
-			if err != nil {
-				return nil, false, err
-			}
-			if !isPending {
-				continue
-			}
-			pendingByOutpoint[key] = true
-		}
-
-		eligibleVtxos = append(eligibleVtxos, vtxo)
-		indexedEligible[key] = struct{}{}
+		candidateVtxos = append(candidateVtxos, vtxo)
+		seenOutpoints[key] = struct{}{}
 	}
 
 	for _, vtxo := range pendingVtxos {
 		key := vtxo.Outpoint.String()
 		pendingByOutpoint[key] = true
-		if _, ok := indexedEligible[key]; ok {
+
+		if _, seen := seenOutpoints[key]; seen {
 			continue
 		}
-		eligibleVtxos = append(eligibleVtxos, vtxo)
-		indexedEligible[key] = struct{}{}
+
+		candidateVtxos = append(candidateVtxos, vtxo)
+		seenOutpoints[key] = struct{}{}
 	}
 
-	if len(eligibleVtxos) == 0 {
+	if len(candidateVtxos) == 0 {
 		return nil, false, ErrorNoVtxosFound
 	}
 
 	if outpoint != nil {
-		for i := range eligibleVtxos {
-			v := &eligibleVtxos[i]
+		for i := range candidateVtxos {
+			v := &candidateVtxos[i]
 			if v.Txid == outpoint.Txid && v.VOut == outpoint.VOut {
 				return v, pendingByOutpoint[v.Outpoint.String()], nil
 			}
@@ -1255,8 +1246,8 @@ func (h *SwapHandler) selectClaimableVTXO(
 		return nil, false, fmt.Errorf("outpoint %s not found among VTXOs for this VHTLC", outpoint)
 	}
 
-	sort.Slice(eligibleVtxos, func(i, j int) bool {
-		a, b := eligibleVtxos[i], eligibleVtxos[j]
+	sort.Slice(candidateVtxos, func(i, j int) bool {
+		a, b := candidateVtxos[i], candidateVtxos[j]
 
 		if !a.CreatedAt.Equal(b.CreatedAt) {
 			return a.CreatedAt.Before(b.CreatedAt)
@@ -1267,7 +1258,7 @@ func (h *SwapHandler) selectClaimableVTXO(
 		return a.VOut < b.VOut
 	})
 
-	v := &eligibleVtxos[0]
+	v := &candidateVtxos[0]
 	return v, pendingByOutpoint[v.Outpoint.String()], nil
 }
 

@@ -27,6 +27,7 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	"github.com/arkade-os/arkd/pkg/client-lib/client"
 	grpcclient "github.com/arkade-os/arkd/pkg/client-lib/client/grpc"
+	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -688,6 +689,35 @@ func submitPendingRefundVHTLCWithoutReceiver(
 	require.NoError(t, err)
 
 	return arkTxid
+}
+
+func requirePendingVHTLC(
+	t *testing.T,
+	arkClient arksdk.ArkClient,
+	vhtlc testVHTLC,
+) {
+	t.Helper()
+
+	tapKey, _, err := vhtlc.script.TapTree()
+	require.NoError(t, err)
+
+	pkScript, err := script.P2TRScript(tapKey)
+	require.NoError(t, err)
+
+	resp, err := arkClient.Indexer().GetVtxos(
+		t.Context(),
+		indexer.WithScripts([]string{hex.EncodeToString(pkScript)}),
+		indexer.WithPendingOnly(),
+	)
+	require.NoError(t, err)
+
+	for _, pendingVtxo := range resp.Vtxos {
+		if pendingVtxo.Txid == vhtlc.vtxo.Txid && pendingVtxo.VOut == vhtlc.vtxo.VOut {
+			return
+		}
+	}
+
+	t.Fatalf("expected VHTLC %s:%d to be pending", vhtlc.vtxo.Txid, vhtlc.vtxo.VOut)
 }
 
 func verifyFinalArkTx(
