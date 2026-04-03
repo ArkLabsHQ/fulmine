@@ -270,20 +270,9 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 	var swapOutputValue int64
 	var swapOutputIndex int
 	for i, out := range tx.UnsignedTx.TxOut {
-		log.WithFields(log.Fields{
-			"txid":      txid,
-			"outIndex":  i,
-			"value":     out.Value,
-			"scriptLen": len(out.PkScript),
-		}).Debug("taker: inspecting tx output")
 		if bytes.Equal(out.PkScript, offer.SwapPkScript) {
 			swapOutputValue = out.Value
 			swapOutputIndex = i
-			log.WithFields(log.Fields{
-				"txid":     txid,
-				"outIndex": i,
-				"value":    out.Value,
-			}).Debug("taker: found matching swap output")
 			break
 		}
 	}
@@ -345,41 +334,22 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 			log.WithError(err).Warn("taker: failed to check balance")
 			return
 		}
-		log.WithFields(log.Fields{
-			"txid":       txid,
-			"balance":    balance.OffchainBalance.Total,
-			"wantAmount": offer.WantAmount,
-		}).Debug("taker: BTC balance check")
 		if balance.OffchainBalance.Total < offer.WantAmount {
 			log.WithFields(log.Fields{
 				"txid":       txid,
 				"balance":    balance.OffchainBalance.Total,
 				"wantAmount": offer.WantAmount,
-			}).Debug("taker: insufficient BTC balance")
+			}).Debug("taker: insufficient BTC balance, skipping")
 			return
 		}
 	}
 
-
-	log.WithFields(log.Fields{
-		"txid":      txid,
-		"pair":      pair.Pair,
-		"priceFeed": pair.PriceFeed,
-	}).Debug("taker: fetching price from feed")
 
 	feedPrice, err := s.getPrice(pair)
 	if err != nil {
 		log.WithError(err).WithField("pair", pair.Pair).Warn("taker: failed to get price, skipping offer")
 		return
 	}
-
-	log.WithFields(log.Fields{
-		"txid":      txid,
-		"feedPrice": feedPrice,
-		"pair":      pair.Pair,
-	}).Debug("taker: fetched feed price")
-
-
 
 	// offerPrice = what the maker wants / what the maker deposited
 	offerPrice := float64(offer.WantAmount) / float64(swapOutputValue)
@@ -406,17 +376,13 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 		return
 	}
 
-	log.WithFields(log.Fields{
-		"txid":       txid,
-		"offerPrice": offerPrice,
-		"feedPrice":  feedPrice,
-	}).Debug("taker: offer price acceptable, proceeding to fulfill")
-
 	// Fulfill the offer
 	log.WithFields(log.Fields{
 		"txid":       txid,
+		"pair":       pair.Pair,
+		"offerPrice": offerPrice,
+		"feedPrice":  feedPrice,
 		"wantAmount": offer.WantAmount,
-		"wantAsset":  wantAssetStr,
 	}).Info("taker: attempting to fulfill banco offer")
 
 	result, err := banco.FulfillOffer(

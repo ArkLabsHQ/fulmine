@@ -2474,3 +2474,8 @@ func convertSwapStatus(swapStatus string) domain.SwapStatus {
 	return domain.SwapFailed
 
 }
+
+// GetAssetInfo fetches asset metadata from the indexer.
+func (s *Service) GetAssetInfo(ctx context.Context, assetID string) (*indexer.AssetInfo, error) {
+	return s.Indexer().GetAsset(ctx, assetID)
+}

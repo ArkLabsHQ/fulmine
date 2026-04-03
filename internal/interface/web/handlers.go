@@ -1638,7 +1638,8 @@ func (s *service) banco(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	bodyContent := pages.BancoBodyContent(pairs)
+	assets := s.fetchAssetNames(c, pairs)
+	bodyContent := pages.BancoBodyContent(pairs, assets)
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -1651,14 +1652,7 @@ func (s *service) bancoPairs(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	pairs, err := s.takerSvc.ListPairs(c)
-	if err != nil {
-		toast := components.Toast("Unable to list banco pairs", true)
-		toastHandler(toast, c)
-		return
-	}
-	bodyContent := pages.BancoPairsList(pairs)
-	partialViewHandler(bodyContent, c)
+	s.renderBancoContent(c)
 }
 
 func (s *service) bancoAddPair(c *gin.Context) {
@@ -1751,9 +1745,10 @@ func (s *service) bancoEditPair(c *gin.Context) {
 		return
 	}
 
+	assets := s.fetchAssetNames(c, pairs)
 	for _, pair := range pairs {
 		if pair.Pair == pairName {
-			bodyContent := pages.BancoPairEditRow(pair)
+			bodyContent := pages.BancoPairEditRow(pair, assets)
 			partialViewHandler(bodyContent, c)
 			return
 		}
@@ -1770,8 +1765,38 @@ func (s *service) renderBancoContent(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	bodyContent := pages.BancoContent(pairs)
+	assets := s.fetchAssetNames(c, pairs)
+	bodyContent := pages.BancoContent(pairs, assets)
 	partialViewHandler(bodyContent, c)
+}
+
+// fetchAssetNames collects unique non-BTC asset IDs from pairs and fetches
+// their display name from the indexer. Returns a map of assetID -> name.
+// Failures are silently ignored (the template falls back to shortened hex).
+func (s *service) fetchAssetNames(ctx *gin.Context, pairs []domain.BancoPair) map[string]string {
+	seen := make(map[string]struct{})
+	for _, p := range pairs {
+		if b := p.Base(); b != "BTC" {
+			seen[b] = struct{}{}
+		}
+		if q := p.Quote(); q != "BTC" {
+			seen[q] = struct{}{}
+		}
+	}
+	names := make(map[string]string, len(seen))
+	for id := range seen {
+		info, err := s.svc.GetAssetInfo(ctx, id)
+		if err != nil {
+			continue
+		}
+		for _, md := range info.Metadata {
+			if string(md.Key) == "name" || string(md.Key) == "ticker" {
+				names[id] = string(md.Value)
+				break
+			}
+		}
+	}
+	return names
 }
 
 func parseBancoPairForm(c *gin.Context) (domain.BancoPair, error) {

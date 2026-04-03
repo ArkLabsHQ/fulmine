@@ -11,23 +11,42 @@ func pairID(pair string) string {
 	return "pair-" + url.QueryEscape(pair)
 }
 
-templ BancoBodyContent(pairs []domain.BancoPair) {
+func shortHex(id string) string {
+	if len(id) <= 12 {
+		return id
+	}
+	return id[:6] + "..." + id[len(id)-4:]
+}
+
+func assetLabel(id string, names map[string]string) string {
+	if id == "BTC" {
+		return "BTC"
+	}
+	if name, ok := names[id]; ok {
+		return name
+	}
+	return shortHex(id)
+}
+
+func pairLabel(pair domain.BancoPair, names map[string]string) string {
+	return assetLabel(pair.Base(), names) + " / " + assetLabel(pair.Quote(), names)
+}
+
+templ BancoBodyContent(pairs []domain.BancoPair, assets map[string]string) {
 	@components.DesktopHeader()
 	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 		<div>
 			@components.Header("Banco Taker")
 			<div id="bancoContent">
-				@BancoContent(pairs)
+				@BancoContent(pairs, assets)
 			</div>
 		</div>
 	</div>
 }
 
-templ BancoContent(pairs []domain.BancoPair) {
+templ BancoContent(pairs []domain.BancoPair, assets map[string]string) {
 	@Separator("Trading Pairs")
-	<div id="bancoPairsList">
-		@BancoPairsList(pairs)
-	</div>
+	@BancoPairsList(pairs, assets)
 	@Hr()
 	@Separator("Add New Pair")
 	@BancoAddForm(pairs)
@@ -46,7 +65,7 @@ templ BancoNotEnabled() {
 	</div>
 }
 
-templ BancoPairsList(pairs []domain.BancoPair) {
+templ BancoPairsList(pairs []domain.BancoPair, assets map[string]string) {
 	if len(pairs) == 0 {
 		<div class="flex flex-col items-center w-full py-8">
 			@components.HistoryEmpty()
@@ -54,40 +73,35 @@ templ BancoPairsList(pairs []domain.BancoPair) {
 		</div>
 	} else {
 		for _, pair := range pairs {
-			@BancoPairRow(pair)
-			<hr class="border border-1 border-white/10 w-full"/>
+			@BancoPairRow(pair, assets)
 		}
 	}
 }
 
-templ BancoPairRow(pair domain.BancoPair) {
-	<div class="py-4" id={pairID(pair.Pair)}>
-		<div class="flex justify-between items-center">
-			<div class="flex items-center gap-4">
-				<div class="flex items-center w-10 h-10 bg-white/05 border border-white/20 rounded-full">
-					<div class="flex items-center justify-center w-full h-full">
-						@components.SwapIcon()
-					</div>
+templ BancoPairRow(pair domain.BancoPair, assets map[string]string) {
+	<div class="py-3 border-b border-white/10" id={pairID(pair.Pair)}>
+		<div class="flex items-center justify-between">
+			<div class="min-w-0">
+				<div class="flex items-center gap-2">
+					<p class="font-semibold">{pairLabel(pair, assets)}</p>
+					if pair.InvertPrice {
+						<p class="text-xs text-orange bg-orange/10 px-1.5 py-0.5 rounded">1/x</p>
+					}
 				</div>
-				<div>
-					<p class="font-semibold">{pair.Pair}</p>
-					<div class="flex items-center gap-2 mt-0.5">
-						<p class="text-xs text-white/50 bg-white/10 px-2 py-0.5 rounded-md">
-							{fmt.Sprintf("%d", pair.MinAmount)} - {fmt.Sprintf("%d", pair.MaxAmount)} sats
-						</p>
-					</div>
-				</div>
+				<p class="text-xs text-white/40 mt-1">
+					{fmt.Sprintf("%d", pair.MinAmount)} – {fmt.Sprintf("%d", pair.MaxAmount)} sats
+				</p>
 			</div>
-			<div class="flex items-center gap-2">
+			<div class="flex-shrink-0 flex items-center gap-2 ml-3">
 				<button
-					class="bg-white/05 hover:bg-white/10 border border-white/20 hover:border-white/30 cursor-pointer w-8 h-8 rounded-full flex items-center justify-center"
+					class="text-white/40 hover:text-white p-1"
 					hx-get={"/banco/pair/edit?name=" + pair.Pair}
 					hx-target={"#" + pairID(pair.Pair)}
 					hx-swap="outerHTML">
 					@components.EditIcon()
 				</button>
 				<button
-					class="bg-red/10 hover:bg-red/20 border border-red/20 hover:border-red/30 cursor-pointer w-8 h-8 rounded-full flex items-center justify-center text-red"
+					class="text-white/40 hover:text-red p-1"
 					hx-delete={"/banco/pair?name=" + pair.Pair}
 					hx-target="#bancoContent"
 					hx-swap="innerHTML"
@@ -96,62 +110,42 @@ templ BancoPairRow(pair domain.BancoPair) {
 				</button>
 			</div>
 		</div>
-		<div class="flex items-center gap-2 mt-2 pl-14">
-			<p class="text-white/30 text-xs truncate">{pair.PriceFeed}</p>
-			if pair.InvertPrice {
-				<p class="text-xs text-orange bg-orange/10 px-1.5 py-0.5 rounded">1/x</p>
-			}
-		</div>
 	</div>
 }
 
-templ BancoPairEditRow(pair domain.BancoPair) {
-	<div class="py-4" id={pairID(pair.Pair)}>
+templ BancoPairEditRow(pair domain.BancoPair, assets map[string]string) {
+	<div class="py-3 border-b border-orange/30" id={pairID(pair.Pair)}>
 		<form hx-put="/banco/pair" hx-target="#bancoContent" hx-swap="innerHTML">
 			<input type="hidden" name="base" value={pair.Base()}/>
 			<input type="hidden" name="quote" value={pair.Quote()}/>
-			<div class="border border-orange/30 bg-orange/05 rounded-lg p-4">
-				<p class="font-semibold mb-4">Editing {pair.Pair}</p>
-				<div class="grid grid-cols-2 gap-3 mb-3">
-					<div>
-						@components.Label("Base Asset")
-						@components.InputFake(pair.Base())
-					</div>
-					<div>
-						@components.Label("Quote Asset")
-						@components.InputFake(pair.Quote())
-					</div>
+			<p class="font-semibold mb-3">{pairLabel(pair, assets)}</p>
+			<div class="grid grid-cols-2 gap-3 mb-3">
+				<div>
+					@components.Label("Min (sats)")
+					@bancoNumberInput("minAmount", fmt.Sprintf("%d", pair.MinAmount))
 				</div>
-				<div class="grid grid-cols-2 gap-3 mb-3">
-					<div>
-						@components.Label("Min Amount (sats)")
-						@bancoNumberInput("minAmount", fmt.Sprintf("%d", pair.MinAmount))
-					</div>
-					<div>
-						@components.Label("Max Amount (sats)")
-						@bancoNumberInput("maxAmount", fmt.Sprintf("%d", pair.MaxAmount))
-					</div>
+				<div>
+					@components.Label("Max (sats)")
+					@bancoNumberInput("maxAmount", fmt.Sprintf("%d", pair.MaxAmount))
 				</div>
-				<div class="mb-3">
-					@components.Label("Price Feed URL")
-					@components.InputGeneric("priceFeed", "https://...", pair.PriceFeed)
-				</div>
-				<div class="mb-4">
-					@bancoCheckbox("invertPrice", "Invert price (use 1/feed price)", pair.InvertPrice)
-				</div>
-				<div class="flex gap-3 justify-end">
-					<button
-						type="button"
-						class="button md:w-auto"
-						hx-get="/banco/pairs"
-						hx-target={"#" + pairID(pair.Pair)}
-						hx-swap="outerHTML">
-						Cancel
-					</button>
-					<button type="submit" class="orange md:w-auto">
-						Save
-					</button>
-				</div>
+			</div>
+			<div class="mb-3">
+				@components.Label("Price Feed URL")
+				@components.InputGeneric("priceFeed", "https://...", pair.PriceFeed)
+			</div>
+			@bancoCheckbox("invertPrice", "Invert price (1/x)", pair.InvertPrice)
+			<div class="flex gap-3 justify-end mt-4">
+				<button
+					type="button"
+					class="button md:w-auto"
+					hx-get="/banco/pairs"
+					hx-target="#bancoContent"
+					hx-swap="innerHTML">
+					Cancel
+				</button>
+				<button type="submit" class="orange md:w-auto">
+					Save
+				</button>
 			</div>
 		</form>
 	</div>
@@ -172,11 +166,11 @@ templ BancoAddForm(pairs []domain.BancoPair) {
 		</div>
 		<div class="grid grid-cols-2 gap-3 mb-3">
 			<div>
-				@components.Label("Min Amount (sats)")
+				@components.Label("Min (sats)")
 				@bancoNumberInput("minAmount", "")
 			</div>
 			<div>
-				@components.Label("Max Amount (sats)")
+				@components.Label("Max (sats)")
 				@bancoNumberInput("maxAmount", "")
 			</div>
 		</div>
@@ -184,13 +178,13 @@ templ BancoAddForm(pairs []domain.BancoPair) {
 			@components.Label("Price Feed URL")
 			@components.InputGeneric("priceFeed", "https://...", "")
 		</div>
-		<div id="bancoInvertGroup" class="mb-4">
-			@bancoCheckbox("invertPrice", "Invert price (use 1/feed price)", false)
+		<div id="bancoInvertGroup">
+			@bancoCheckbox("invertPrice", "Invert price (1/x)", false)
 		</div>
-		<p id="bancoAutoNotice" class="text-xs text-orange mb-4 hidden">
-			Price feed and invert auto-filled from inverse pair
+		<p id="bancoAutoNotice" class="text-xs text-orange mt-2 hidden">
+			Auto-filled from inverse pair
 		</p>
-		<div class="flex justify-end">
+		<div class="flex justify-end mt-4">
 			<button type="submit" class="orange md:w-auto">
 				Add Pair
 			</button>
@@ -247,7 +241,7 @@ templ BancoAddForm(pairs []domain.BancoPair) {
 }
 
 templ bancoCheckbox(id, label string, checked bool) {
-	<label class="flex items-center gap-3 cursor-pointer mt-2">
+	<label class="flex items-center gap-3 cursor-pointer">
 		<input
 			class="w-4 h-4 accent-orange"
 			type="checkbox"
@@ -256,14 +250,14 @@ templ bancoCheckbox(id, label string, checked bool) {
 			if checked {
 				checked
 			}/>
-		<span class="text-sm text-white/70">{label}</span>
+		<span class="text-sm text-white/50">{label}</span>
 	</label>
 }
 
 templ bancoNumberInput(id, value string) {
 	<div class="border border-1 border-white/20 bg-graybg p-4 rounded-lg">
 		<input
-			class="bg-graybg border-0 p-0 mr-4"
+			class="bg-graybg border-0 p-0"
 			id={id}
 			name={id}
 			type="number"
