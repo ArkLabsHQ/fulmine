@@ -443,7 +443,8 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 		"swapAmount":  swapOutputValue,
 	}).Debug("taker: computed offer price")
 
-	if offerPrice > feedPrice {
+	// Accept offers within 1% margin of the feed price
+	if offerPrice > feedPrice*1.01 {
 		log.WithFields(log.Fields{
 			"txid":       txid,
 			"offerPrice": offerPrice,
