@@ -19,10 +19,11 @@ require (
 	github.com/a-h/templ v0.3.1001
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260323091657-eeb0baef6937
-	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260326144949-02f7156cda43
+	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260403181126-d372608bf69c
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/go-sdk v0.8.2-0.20260326155034-01a4cbe07017
+	github.com/arkade-os/go-sdk v0.9.0
+	github.com/ccoveille/go-safecast v1.6.1
 	github.com/creack/pty v1.1.18
 	github.com/dgraph-io/badger/v4 v4.8.0
 	github.com/getsentry/sentry-go v0.32.0
@@ -75,7 +76,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btclog/v2 v2.0.1-0.20250602222548-9967d19bb084 // indirect
 	github.com/btcsuite/winsvc v1.0.0 // indirect
-	github.com/ccoveille/go-safecast v1.6.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/containerd/continuity v0.4.3 // indirect
