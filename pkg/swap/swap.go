@@ -1262,23 +1262,6 @@ func (h *SwapHandler) selectClaimableVTXO(
 	return v, pendingByOutpoint[v.Outpoint.String()], nil
 }
 
-func (h *SwapHandler) isVtxoPending(ctx context.Context, vtxo clientTypes.Vtxo) (bool, error) {
-	resp, err := h.arkClient.Indexer().GetVtxos(ctx,
-		indexer.WithScripts([]string{vtxo.Script}),
-		indexer.WithPendingOnly(),
-	)
-	if err != nil {
-		return false, err
-	}
-
-	for _, pendingVtxo := range resp.Vtxos {
-		if pendingVtxo.Txid == vtxo.Txid && pendingVtxo.VOut == vtxo.VOut {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
 func (h *SwapHandler) finalizePendingVHTLCTxs(
 	ctx context.Context,
 	inputs []pendingTxIntentInput,
