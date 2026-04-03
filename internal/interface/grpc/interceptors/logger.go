@@ -3,6 +3,7 @@ package interceptors
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"time"
@@ -53,37 +54,31 @@ func streamLogger(
 }
 
 func logUnaryCall(method string, req interface{}, dur time.Duration, err error) {
-	entry := log.WithFields(log.Fields{
-		"method":      method,
-		"duration_ms": dur.Milliseconds(),
-	})
+	str := fmt.Sprintf("method=%s duration=%dms ", method, dur.Milliseconds())
 
 	if log.IsLevelEnabled(log.DebugLevel) {
-		if sanitizedReq, ok := sanitizeRequest(req); ok {
-			entry = entry.WithField("request", sanitizedReq)
+		if sanitizedReq, ok := sanitizeRequest(req); ok && sanitizedReq != "{}" {
+			str += fmt.Sprintf(" request=%s", sanitizedReq)
 		}
 	}
 
 	if err != nil {
-		entry.WithError(err).Warn("gRPC call failed")
+		log.WithError(err).Warn(str)
 		return
 	}
 
-	entry.Debug("gRPC call ok")
+	log.Debug(str)
 }
 
 func logStreamCall(method string, dur time.Duration, err error) {
-	entry := log.WithFields(log.Fields{
-		"method":      method,
-		"duration_ms": dur.Milliseconds(),
-	})
+	str := fmt.Sprintf("method=%s duration_ms=%d", method, dur.Milliseconds())
 
 	if err != nil {
-		entry.WithError(err).Warn("gRPC stream failed")
+		log.WithError(err).Warn(str)
 		return
 	}
 
-	entry.Debug("gRPC stream ok")
+	log.Debug(str)
 }
 
 func sanitizeRequest(req interface{}) (string, bool) {
@@ -116,7 +111,7 @@ func redactSensitiveFields(value interface{}) interface{} {
 		redacted := make(map[string]interface{}, len(v))
 		for key, item := range v {
 			if isSensitiveField(key) {
-				redacted[key] = "[REDACTED]"
+				redacted[key] = "******"
 				continue
 			}
 			redacted[key] = redactSensitiveFields(item)
