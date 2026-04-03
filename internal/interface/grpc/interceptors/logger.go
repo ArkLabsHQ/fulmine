@@ -47,7 +47,7 @@ func streamLogger(
 }
 
 func logUnaryCall(method string, req interface{}, dur time.Duration, err error) {
-	str := fmt.Sprintf("method=%s duration=%dms ", method, dur.Milliseconds())
+	str := fmt.Sprintf("method=%s duration=%dms", method, dur.Milliseconds())
 
 	if log.IsLevelEnabled(log.DebugLevel) {
 		if sanitizedReq, ok := sanitizeRequest(req); ok && sanitizedReq != "{}" {
