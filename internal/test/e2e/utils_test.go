@@ -305,13 +305,13 @@ func faucetOffchain(t *testing.T, client arksdk.ArkClient, amount float64) clien
 	return incomingFunds[0]
 }
 
-func newDelegatorClient(url string) (pb.DelegatorServiceClient, error) {
+func newDelegateClient(url string) (pb.DelegateServiceClient, error) {
 	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
 	conn, err := grpc.NewClient(url, opts)
 	if err != nil {
 		return nil, err
 	}
-	return pb.NewDelegatorServiceClient(conn), nil
+	return pb.NewDelegateServiceClient(conn), nil
 }
 
 func setupArkSDKwithPublicKey(
