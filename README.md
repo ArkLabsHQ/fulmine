@@ -158,7 +158,7 @@ Before using any wallet-dependent features, you need to set up and unlock your w
    ```sh
    curl -X POST http://localhost:7001/api/v1/wallet/create \
         -H "Content-Type: application/json" \
-        -d '{"private_key": "<hex or nsec>", "password": "<strong password>", "server_url": "https://server.example.com"}'
+        -d '{"privateKey": "<hex or nsec>", "password": "<strong password>", "serverUrl": "https://server.example.com"}'
    ```
 
 3. Unlock Wallet
@@ -238,7 +238,7 @@ Fulmine can track off-chain addresses on behalf of external services and deliver
 
 3. Stream Notifications
 
-   Open a server-sent event stream to receive real-time notifications for all subscribed addresses. Each event contains the affected addresses, newly received VTXOs (`new_vtxos`), and spent VTXOs (`spent_vtxos`).
+   Open a server-sent event stream to receive real-time notifications for all subscribed addresses. Each event contains the affected addresses, newly received VTXOs (`newVtxos`), and spent VTXOs (`spentVtxos`).
 
    ```sh
    curl -X GET http://localhost:7001/api/v1/notifications
@@ -254,44 +254,44 @@ Virtual Hash Time-Locked Contracts (VHTLCs) are Arkade-native HTLCs that live of
 
    Computes a VHTLC address from:
    * a preimage hash
-   * sender or receiver pubkeys. The missing key (depending on wether fulmine has to fund or claim the VHTLC) is added by fulmine using one of its internal wallet.
+   * sender or receiver pubkeys. The missing key (depending on whether fulmine has to fund or claim the VHTLC) is added by fulmine using one of its internal wallet.
    * optional locktimes, if not provided fulmine uses the following default values:
-      - `refund_locktime`: 24hrs. This is the offchain (absolute) locktime the sender must wait to refund the VHTLC offchain (can be expressed in blocks only on regtest)
-      - `unilateral_claim_delay`: 8 mins. This is the locktime the receiver has to wait to claim the VHTLC after it's been unrolled onchain
-      - `unilateral_refund_delay`: 16 mins. This is the locktime sender and Boltz have to wait to refund the VHTLC collaboratively after it's been unrolled onchain
-      - `unilateral_refund_without_receiver_delay`: 32 mins. This is the locktime the sender has to wait to refund alone the VHTLC after it's been unrolled onchain
+      - `refundLocktime`: 24hrs. This is the offchain (absolute) locktime the sender must wait to refund the VHTLC offchain (can be expressed in blocks only on regtest)
+      - `unilateralClaimDelay`: 8 mins. This is the locktime the receiver has to wait to claim the VHTLC after it's been unrolled onchain
+      - `unilateralRefundDelay`: 16 mins. This is the locktime sender and Boltz have to wait to refund the VHTLC collaboratively after it's been unrolled onchain
+      - `unilateralRefundWithoutEeceiverDelay`: 32 mins. This is the locktime the sender has to wait to refund alone the VHTLC after it's been unrolled onchain
 
    ```sh
    curl -X POST http://localhost:7001/api/v1/vhtlc \
         -H "Content-Type: application/json" \
         -d '{
-          "preimage_hash": "<hex preimage hash>",
-          "sender_pubkey": "<hex sender pubkey>",
-          "receiver_pubkey": "<hex receiver pubkey>",
-          "refund_locktime": 1024,
-          "unilateral_claim_delay": {"type": "LOCKTIME_TYPE_SECONDS", "value": 2048},
-          "unilateral_refund_delay": {"type": "LOCKTIME_TYPE_SECONDS", "value": 4096},
-          "unilateral_refund_without_receiver_delay": {"type": "LOCKTIME_TYPE_SECONDS", "value": 8192}
+          "preimageHash": "<hex preimage hash>",
+          "senderPubkey": "<hex sender pubkey>",
+          "receiverPubkey": "<hex receiver pubkey>",
+          "refundLocktime": 1024,
+          "unilateralClaimDelay": {"type": "LOCKTIME_TYPE_SECONDS", "value": 2048},
+          "unilateralRefundDelay": {"type": "LOCKTIME_TYPE_SECONDS", "value": 4096},
+          "unilateralRefundWithoutEeceiverDelay": {"type": "LOCKTIME_TYPE_SECONDS", "value": 8192}
         }'
    ```
 
-   Returns: VHTLC `id`, `address`, `claim_pubkey`, `refund_pubkey`, `server_pubkey`, `swap_tree`, and the resolved locktime values.  
-   The `vhtlc_id` is the sha256 hash of preimage hash + sender ec pubkey + receiver ec pubkey.
+   Returns: VHTLC `id`, `address`, `claimPubkey`, `refundPubkey`, `serverPubkey`, `swapTree`, and the resolved locktime values.  
+   The `vhtlcId` is the sha256 hash of preimage hash + sender ec pubkey + receiver ec pubkey.
 
 2. List VHTLCs
 
-   Returns VHTLCs by their  `vhtlc_id`s.
+   Returns VHTLCs by their  `vhtlcId`s.
 
    ```sh
-   curl -X GET "http://localhost:7001/api/v1/vhtlcs?vhtlc_ids=id1,id2"
+   curl -X GET "http://localhost:7001/api/v1/vhtlcs?vhtlcIds=id1,id2"
    ```
 
 3. ListVHTLC
 
-   Returns a VHTLC by its `vhtlc_id`.
+   Returns a VHTLC by its `vhtlcId`.
 
    ```sh
-   curl -X GET "http://localhost:7001/api/v1/vhtlcs?vhtlc_ids=id1,id2"
+   curl -X GET "http://localhost:7001/api/v1/vhtlc?vhtlcId=id1"
    ```
    
 4. Claim VHTLC
@@ -301,10 +301,10 @@ Virtual Hash Time-Locked Contracts (VHTLCs) are Arkade-native HTLCs that live of
    ```sh
    curl -X POST http://localhost:7001/api/v1/vhtlc/claim \
         -H "Content-Type: application/json" \
-        -d '{"vhtlc_id": "<vhtlc id>", "preimage": "<hex preimage>"}'
+        -d '{"vhtlcId": "<vhtlc id>", "preimage": "<hex preimage>"}'
    ```
 
-   Returns: `{ "claim_txid": "<txid>" }`
+   Returns: `{ "claimTxid": "<txid>" }`
 
 5. Settle VHTLC
 
@@ -314,7 +314,7 @@ Virtual Hash Time-Locked Contracts (VHTLCs) are Arkade-native HTLCs that live of
    ```sh
    curl -X POST http://localhost:7001/api/v1/vhtlc/settle \
         -H "Content-Type: application/json" \
-        -d '{"vhtlc_id": "<vhtlc id>", "claim": {"preimage": "<hex preimage>"}}'
+        -d '{"vhtlcId": "<vhtlc id>", "claim": {"preimage": "<hex preimage>"}}'
    ```
 
    Refund path:
@@ -322,18 +322,18 @@ Virtual Hash Time-Locked Contracts (VHTLCs) are Arkade-native HTLCs that live of
    curl -X POST http://localhost:7001/api/v1/vhtlc/settle \
         -H "Content-Type: application/json" \
         -d '{
-          "vhtlc_id": "<vhtlc id>",
+          "vhtlcId": "<vhtlc id>",
           "refund": {
-            "delegate_params": {
-              "signed_intent_proof": "<base64>",
-              "intent_message": "<json string>",
-              "partial_forfeit_tx": "<base64 psbt>"
+            "delegateParams": {
+              "signedIntentProof": "<base64>",
+              "intentMessage": "<json string>",
+              "partialForfeitTx": "<base64 psbt>"
             }
           }
         }'
    ```
 
-   Returns: `{ "commitment_txid": "<txid>" }`
+   Returns: `{ "commitmentTxid": "<txid>" }`
 
 6. Refund VHTLC Without Receiver
 
@@ -342,10 +342,10 @@ Virtual Hash Time-Locked Contracts (VHTLCs) are Arkade-native HTLCs that live of
    ```sh
    curl -X POST http://localhost:7001/api/v1/vhtlc/refundWithoutReceiver \
         -H "Content-Type: application/json" \
-        -d '{"vhtlc_id": "<vhtlc id>"}'
+        -d '{"vhtlcId": "<vhtlc id>"}'
    ```
 
-   Returns: `{ "refund_txid": "<txid>" }`
+   Returns: `{ "refundTxid": "<txid>" }`
 
 ### 🤝 Delegate API
 
@@ -361,11 +361,11 @@ Fulmine can act as a delegate: it monitors VTXO expiry on behalf of clients and 
    curl -X GET http://localhost:7001/api/v1/delegator/info
    ```
 
-   Returns: `{ "pubkey": "<hex>", "fee": "<amount>", "delegator_address": "<ark address>" }`
+   Returns: `{ "pubkey": "<hex>", "fee": "<amount>", "delegatorAddress": "<ark address>" }`
 
 2. Delegate
 
-   Submit a delegation request. The `intent.message` is a stringified JSON describing the VTXOs to refresh. The `intent.proof` is a partially signed PSBT (base64). `forfeit_txs` are partially signed forfeit transactions (base64), one per VTXO input.
+   Submit a delegation request. The `intent.message` is a stringified JSON describing the VTXOs to refresh. The `intent.proof` is a partially signed PSBT (base64). `forfeitTxs` are partially signed forfeit transactions (base64), one per VTXO input.
 
    ```sh
    curl -X POST http://localhost:7001/api/v1/delegate \
@@ -375,8 +375,8 @@ Fulmine can act as a delegate: it monitors VTXO expiry on behalf of clients and 
             "message": "{\"vtxos\": [...]}",
             "proof": "<base64 psbt>"
           },
-          "forfeit_txs": ["<base64 psbt>"],
-          "reject_replace": false
+          "forfeitTxs": ["<base64 psbt>"],
+          "rejectReplace": false
         }'
    ```
 
