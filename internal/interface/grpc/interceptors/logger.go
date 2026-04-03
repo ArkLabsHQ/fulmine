@@ -13,20 +13,14 @@ import (
 )
 
 var sensitiveRequestFields = map[string]struct{}{
-	"macaroon":          {},
-	"password":          {},
-	"currentpassword":   {},
-	"newpassword":       {},
-	"privatekey":        {},
-	"mnemonic":          {},
-	"preimage":          {},
-	"message":           {},
-	"proof":             {},
-	"tx":                {},
-	"signedintentproof": {},
-	"intentmessage":     {},
-	"partialforfeittx":  {},
-	"secret":            {},
+	"macaroon":        {},
+	"password":        {},
+	"currentpassword": {},
+	"newpassword":     {},
+	"privatekey":      {},
+	"mnemonic":        {},
+	"preimage":        {},
+	"secret":          {},
 }
 
 func unaryLogger(
@@ -71,7 +65,7 @@ func logUnaryCall(method string, req interface{}, dur time.Duration, err error) 
 }
 
 func logStreamCall(method string, dur time.Duration, err error) {
-	str := fmt.Sprintf("method=%s duration_ms=%d", method, dur.Milliseconds())
+	str := fmt.Sprintf("method=%s duration=%dms", method, dur.Milliseconds())
 
 	if err != nil {
 		log.WithError(err).Warn(str)
