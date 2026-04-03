@@ -372,6 +372,10 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 		log.WithError(err).Warnf("failed to restore swap history")
 	}
 
+	if s.onUnlock != nil {
+		s.onUnlock()
+	}
+
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: WalletInit, Password: password}
 	}()
