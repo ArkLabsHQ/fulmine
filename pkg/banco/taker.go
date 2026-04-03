@@ -326,15 +326,26 @@ func FulfillOffer(
 		}
 	}
 
-	// Index introspector-signed checkpoints by txid for matching
-	// (arkd may return checkpoints in a different order than fulmine built them)
+	// Index introspector-signed checkpoints by txid for matching.
+	// Only include checkpoints where the introspector actually added a signature
+	// (arkd may return checkpoints in a different order than fulmine built them).
 	introCheckpointsByTxid := make(map[string]string)
 	for _, cpB64 := range introSignedCheckpoints {
 		cp, err := psbt.NewFromRawBytes(strings.NewReader(cpB64), true)
 		if err != nil {
 			continue
 		}
-		introCheckpointsByTxid[cp.UnsignedTx.TxHash().String()] = cpB64
+		// Only consider this checkpoint "intro-signed" if it has tapscript sigs
+		hasSigs := false
+		for _, inp := range cp.Inputs {
+			if len(inp.TaprootScriptSpendSig) > 0 {
+				hasSigs = true
+				break
+			}
+		}
+		if hasSigs {
+			introCheckpointsByTxid[cp.UnsignedTx.TxHash().String()] = cpB64
+		}
 	}
 
 	// Merge sigs and finalize checkpoints.
