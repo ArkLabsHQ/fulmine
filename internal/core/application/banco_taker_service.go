@@ -324,8 +324,9 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 		"swapOutputValue": swapOutputValue,
 	}).Debug("taker: found swap output")
 
-	// Determine the deposit (base) asset from the extension's asset packet.
+	// Determine the deposit (base) asset and amount from the extension's asset packet.
 	depositAsset := "BTC"
+	var depositAssetAmount uint64
 	if assetPacket := ext.GetAssetPacket(); len(assetPacket) > 0 {
 		for _, asst := range assetPacket {
 			for _, out := range asst.Outputs {
@@ -339,6 +340,7 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 						return
 					}
 					depositAsset = asst.AssetId.String()
+					depositAssetAmount = out.Amount
 					break
 				}
 			}
@@ -427,9 +429,20 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 		return
 	}
 
-	// offerPrice = what the maker wants / what the maker deposited (in BTC, not sats)
-	// feedPrice is in BTC (from CoinGecko), so normalize swapOutputValue to BTC
-	offerPrice := float64(offer.WantAmount) / (float64(swapOutputValue) / 1e8)
+	// offerPrice = what the maker wants / what the maker deposited.
+	// For BTC deposits: deposited amount is swapOutputValue (sats).
+	// For asset deposits: deposited amount is the asset amount from the asset packet.
+	var depositAmount float64
+	if depositAsset == "BTC" {
+		depositAmount = float64(swapOutputValue)
+	} else {
+		depositAmount = float64(depositAssetAmount)
+	}
+	if depositAmount <= 0 {
+		log.WithField("txid", txid).Debug("taker: zero deposit amount, skipping")
+		return
+	}
+	offerPrice := float64(offer.WantAmount) / depositAmount
 
 	if pair.InvertPrice {
 		feedPrice = 1.0 / feedPrice
