@@ -50,6 +50,29 @@ func (r *vhtlcRepository) GetAll(ctx context.Context) ([]domain.Vhtlc, error) {
 	return vhtlcList, nil
 }
 
+func (r *vhtlcRepository) GetByIds(ctx context.Context, ids []string) ([]domain.Vhtlc, error) {
+	if len(ids) == 0 {
+		return []domain.Vhtlc{}, nil
+	}
+
+	var rows []vhtlcData
+	err := r.store.Find(&rows, badgerhold.Where("Id").In(badgerhold.Slice(ids)...))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vHTLCs by ids: %w", err)
+	}
+
+	out := make([]domain.Vhtlc, 0, len(rows))
+	for _, row := range rows {
+		v, err := row.toVhtlc()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert vHTLC with id %s: %w", row.Id, err)
+		}
+		out = append(out, v)
+	}
+
+	return out, nil
+}
+
 // Get retrieves a specific VHTLC option by preimage hash
 func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*domain.Vhtlc, error) {
 	var dataOpts vhtlcData

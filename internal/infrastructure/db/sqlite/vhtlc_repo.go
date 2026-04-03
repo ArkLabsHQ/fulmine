@@ -63,6 +63,22 @@ func (r *vhtlcRepository) Get(ctx context.Context, id string) (*domain.Vhtlc, er
 	return &vhtlc, nil
 }
 
+func (r *vhtlcRepository) GetByIds(ctx context.Context, ids []string) ([]domain.Vhtlc, error) {
+	rows, err := r.querier.ListVHTLCsByID(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.Vhtlc, 0, len(rows))
+	for _, row := range rows {
+		vhtlcs, err := toVhtlc(row)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, vhtlcs)
+	}
+	return out, nil
+}
+
 func (r *vhtlcRepository) GetAll(ctx context.Context) ([]domain.Vhtlc, error) {
 	rows, err := r.querier.ListVHTLC(ctx)
 	if err != nil {

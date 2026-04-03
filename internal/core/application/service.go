@@ -955,6 +955,36 @@ func (s *Service) GetSwapVHTLC(
 	return encodedAddr, vhtlcId, vHTLCScript, nil
 }
 
+func (s *Service) ListVHTLCs(
+	ctx context.Context, vhtlcIds []string,
+) ([]clientTypes.Vtxo, []domain.Vhtlc, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil, nil, err
+	}
+
+	// Return empty list if an empty one is provided
+	if len(vhtlcIds) <= 0 {
+		return nil, nil, nil
+	}
+
+	vhtlcList, err := s.dbSvc.VHTLC().GetByIds(ctx, vhtlcIds)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	vhtlcOpts := make([]vhtlc.Opts, 0, len(vhtlcList))
+	for _, v := range vhtlcList {
+		vhtlcOpts = append(vhtlcOpts, v.Opts)
+	}
+
+	vtxos, err := s.swapHandler.GetVHTLCFunds(ctx, vhtlcOpts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return vtxos, vhtlcList, nil
+}
+
 func (s *Service) ListVHTLC(
 	ctx context.Context, vhtlc_id string,
 ) ([]clientTypes.Vtxo, []domain.Vhtlc, error) {

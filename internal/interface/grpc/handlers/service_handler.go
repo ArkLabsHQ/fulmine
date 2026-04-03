@@ -376,6 +376,15 @@ func parseInputOutpoint(input *pb.Input) (*clientTypes.Outpoint, error) {
 	}, nil
 }
 
+func (h *serviceHandler) ListVHTLCs(ctx context.Context, req *pb.ListVHTLCsRequest) (*pb.ListVHTLCsResponse, error) {
+	vtxos, _, err := h.svc.ListVHTLCs(ctx, req.GetVhtlcIds())
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.ListVHTLCsResponse{Vhtlcs: toVtxosProto(vtxos)}, nil
+}
+
 func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest) (*pb.ListVHTLCResponse, error) {
 	vtxos, _, err := h.svc.ListVHTLC(ctx, req.GetVhtlcId())
 	if err != nil {
