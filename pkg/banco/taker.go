@@ -296,18 +296,29 @@ func FulfillOffer(
 		checkpointB64s = append(checkpointB64s, cpB64)
 	}
 
-	introSignedTx, introSignedCheckpoints, err := introClient.SubmitTx(ctx, signedArkTxB64, checkpointB64s)
+	// Step 1: Send to introspector for ark tx signing (with local checkpoints).
+	introSignedTx, _, err := introClient.SubmitTx(ctx, signedArkTxB64, checkpointB64s)
 	if err != nil {
-		return nil, fmt.Errorf("introspector submission failed: %w", err)
+		return nil, fmt.Errorf("introspector submission failed (ark tx): %w", err)
 	}
 
+	// Step 2: Send intro-signed ark tx to arkd to get the canonical checkpoints.
+	// arkd rebuilds checkpoints internally, so its versions are the source of truth.
 	arkTxid, _, serverSignedCheckpoints, err := transportClient.SubmitTx(
-		ctx, introSignedTx, introSignedCheckpoints,
+		ctx, introSignedTx, checkpointB64s,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("ark server submission failed: %w", err)
 	}
 
+	// Step 3: Send the server's checkpoints to the introspector so it signs
+	// the same checkpoint taptree that arkd built.
+	_, introSignedCheckpoints, err := introClient.SubmitTx(ctx, introSignedTx, serverSignedCheckpoints)
+	if err != nil {
+		return nil, fmt.Errorf("introspector submission failed (checkpoints): %w", err)
+	}
+
+	// Step 3: Merge introspector sigs into server checkpoints + taker signs non-swap inputs.
 	finalCheckpoints := make([]string, 0, len(serverSignedCheckpoints))
 	for i, serverCpB64 := range serverSignedCheckpoints {
 		serverCp, err := psbt.NewFromRawBytes(strings.NewReader(serverCpB64), true)
