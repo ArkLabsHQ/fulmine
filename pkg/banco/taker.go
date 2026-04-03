@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/btcsuite/btcd/btcec/v2"
-
 	"github.com/ArkLabsHQ/introspector/pkg/arkade"
 	introclient "github.com/ArkLabsHQ/introspector/pkg/client"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
@@ -208,18 +206,6 @@ func FulfillOffer(
 		return nil, fmt.Errorf("failed to parse swap vtxo txid: %w", err)
 	}
 
-	// For the checkpoint's collaborative closure, use the RAW introspector key
-	// (not the arkade-tweaked one from the fulfill leaf). The introspector signs
-	// checkpoints with its raw key, so the checkpoint leaf must match.
-	checkpointClosure := &script.MultisigClosure{
-		PubKeys: []*btcec.PublicKey{offer.IntrospectorPubkey, cfg.SignerPubKey},
-		Type:    script.MultisigTypeChecksig,
-	}
-	checkpointClosureScript, err := checkpointClosure.Script()
-	if err != nil {
-		return nil, fmt.Errorf("failed to build checkpoint closure script: %w", err)
-	}
-
 	vtxoInputs := make([]offchain.VtxoInput, 0, 1+len(takerVtxos))
 
 	vtxoInputs = append(vtxoInputs, offchain.VtxoInput{
@@ -227,7 +213,7 @@ func FulfillOffer(
 		Amount:   int64(swapVtxo.Amount),
 		Tapscript: &waddrmgr.Tapscript{
 			ControlBlock:   fulfillControlBlock,
-			RevealedScript: checkpointClosureScript,
+			RevealedScript: fulfillMerkleProof.Script,
 		},
 		RevealedTapscripts: swapRevealedTapscripts,
 	})
