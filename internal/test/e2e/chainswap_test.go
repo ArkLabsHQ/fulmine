@@ -116,7 +116,7 @@ func TestChainSwapBTCtoARKWithQuote(t *testing.T) {
 	t.Logf("Created chain swap: %s", swapID)
 
 	// faucet bigger amount so that we can test quote
-	err = faucet(ctx, createResp.LockupAddress, 0.00015500)
+	err = faucet(ctx, createResp.LockupAddress, 0.00155000)
 	require.NoError(t, err)
 
 	waitChainSwapStatus(t, ctx, client, swapID, "claimed", 30*time.Second)
