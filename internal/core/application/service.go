@@ -181,11 +181,13 @@ func newService(
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 	connectionOpts *domain.LnConnectionOpts,
 ) (*Service, error) {
-	verbose := log.IsLevelEnabled(log.DebugLevel)
 	opts := []arksdk.ClientOption{
 		arksdk.WithRefreshDbInterval(time.Duration(refreshDbInterval) * time.Second),
 	}
-	if arkClient, err := arksdk.LoadArkClient(datadir, verbose, opts...); err == nil {
+	if log.IsLevelEnabled(log.DebugLevel) {
+		opts = append(opts, arksdk.WithVerbose())
+	}
+	if arkClient, err := arksdk.LoadArkClient(datadir, opts...); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
 		if err != nil {
 			return nil, err
@@ -221,7 +223,7 @@ func newService(
 		}
 	}
 
-	arkClient, err := arksdk.NewArkClient(datadir, verbose, opts...)
+	arkClient, err := arksdk.NewArkClient(datadir, opts...)
 	if err != nil {
 		// nolint:all
 		settingsRepo.CleanSettings(ctx)

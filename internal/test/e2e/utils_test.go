@@ -350,7 +350,7 @@ func setupArkSDKwithPublicKey(
 	serverUrl := "localhost:7070"
 	password := "pass"
 
-	arkClient, err := arksdk.NewArkClient("", false)
+	arkClient, err := arksdk.NewArkClient("")
 	require.NoError(t, err)
 
 	privkey, err := btcec.NewPrivateKey()
