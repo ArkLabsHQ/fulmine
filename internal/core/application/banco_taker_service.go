@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -192,6 +194,38 @@ func (s *BancoTakerService) getPrice(pair *domain.BancoPair) (float64, error) {
 	}).Debug("taker: price updated")
 
 	return price, nil
+}
+
+// getAssetDecimals returns the decimal precision of an asset by reading the
+// "decimals" metadata entry from the indexer. Returns 0 for BTC or when the
+// metadata is absent. Must be called with s.mu held — the lock is released
+// for the network call, mirroring getPrice.
+func (s *BancoTakerService) getAssetDecimals(ctx context.Context, assetID string) (int, error) {
+	if assetID == "" || assetID == "BTC" {
+		return 0, nil
+	}
+
+	s.mu.Unlock()
+	info, err := s.svc.GetAssetInfo(ctx, assetID)
+	s.mu.Lock()
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch asset info for %s: %w", assetID, err)
+	}
+
+	for _, md := range info.Metadata {
+		if string(md.Key) != "decimals" {
+			continue
+		}
+		n, perr := strconv.Atoi(string(md.Value))
+		if perr != nil {
+			return 0, fmt.Errorf("invalid decimals metadata %q for %s: %w", string(md.Value), assetID, perr)
+		}
+		if n < 0 {
+			return 0, fmt.Errorf("negative decimals %d for %s", n, assetID)
+		}
+		return n, nil
+	}
+	return 0, nil
 }
 
 // monitorStream subscribes to the arkd transaction stream and processes ArkTx events.
@@ -429,7 +463,25 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 		return
 	}
 
-	// offerPrice = BTC per asset unit (in whole BTC, not sats).
+	// The feed price is quoted per *whole* asset unit (display units, i.e.
+	// 10^decimals base units), while offer amounts are in raw base units.
+	// Fetch the non-BTC asset's decimals so we can convert the asset side
+	// to display units before dividing.
+	assetIDForDecimals := wantAssetStr
+	if depositAsset != "BTC" {
+		assetIDForDecimals = depositAsset
+	}
+	assetDecimals, err := s.getAssetDecimals(ctx, assetIDForDecimals)
+	if err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"txid":    txid,
+			"assetId": assetIDForDecimals,
+		}).Warn("taker: failed to fetch asset decimals, skipping offer")
+		return
+	}
+	assetScale := math.Pow10(assetDecimals)
+
+	// offerPrice = BTC per whole asset unit (in whole BTC, not sats).
 	// For BTC deposits (maker deposited BTC, wants asset):
 	//   offerPrice = depositedBTC / wantedAsset
 	// For asset deposits (maker deposited asset, wants BTC):
@@ -440,13 +492,13 @@ func (s *BancoTakerService) processArkTx(ctx context.Context, notification *clie
 			log.WithField("txid", txid).Debug("taker: zero want amount, skipping")
 			return
 		}
-		offerPrice = (float64(swapOutputValue) / 1e8) / float64(offer.WantAmount)
+		offerPrice = (float64(swapOutputValue) / 1e8) / (float64(offer.WantAmount) / assetScale)
 	} else {
 		if depositAssetAmount <= 0 {
 			log.WithField("txid", txid).Debug("taker: zero deposit amount, skipping")
 			return
 		}
-		offerPrice = (float64(offer.WantAmount) / 1e8) / float64(depositAssetAmount)
+		offerPrice = (float64(offer.WantAmount) / 1e8) / (float64(depositAssetAmount) / assetScale)
 	}
 
 	if pair.InvertPrice {
