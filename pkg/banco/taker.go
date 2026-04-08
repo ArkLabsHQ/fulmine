@@ -19,6 +19,7 @@ import (
 	"github.com/arkade-os/arkd/pkg/client-lib/client"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	"github.com/arkade-os/arkd/pkg/client-lib/wallet"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -26,6 +27,12 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcwallet/waddrmgr"
 )
+
+// walletProvider is satisfied by the go-sdk ArkClient concrete type,
+// which exposes the underlying WalletService for VTXO selection.
+type walletProvider interface {
+	Wallet() wallet.WalletService
+}
 
 // FulfillResult contains the result of a successful fulfillment.
 type FulfillResult struct {

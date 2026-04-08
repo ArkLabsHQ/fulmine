@@ -317,9 +317,9 @@ func BancoPairRow(pair domain.BancoPair, assets map[string]string) templ.Compone
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs("/banco/pair/edit?name=" + pair.Pair)
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs("/banco/pair/edit?name=" + url.QueryEscape(pair.Pair))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/banco.templ`, Line: 98, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/banco.templ`, Line: 98, Col: 66}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -351,9 +351,9 @@ func BancoPairRow(pair domain.BancoPair, assets map[string]string) templ.Compone
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var12 string
-		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs("/banco/pair?name=" + pair.Pair)
+		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs("/banco/pair?name=" + url.QueryEscape(pair.Pair))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/banco.templ`, Line: 105, Col: 47}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/banco.templ`, Line: 105, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {

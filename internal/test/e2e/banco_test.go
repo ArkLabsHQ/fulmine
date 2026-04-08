@@ -9,13 +9,14 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/pkg/banco"
-	"github.com/arkade-os/arkd/pkg/ark-lib/asset"
 	introclient "github.com/ArkLabsHQ/introspector/pkg/client"
+	"github.com/arkade-os/arkd/pkg/ark-lib/asset"
 	"github.com/arkade-os/arkd/pkg/client-lib/client"
 	grpcclient "github.com/arkade-os/arkd/pkg/client-lib/client/grpc"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	grpcindexer "github.com/arkade-os/arkd/pkg/client-lib/indexer/grpc"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -91,8 +92,11 @@ func fundFulmineWithAsset(t *testing.T, supply uint64) string {
 
 	// Create a temp client, fund it, issue asset.
 	tempClient, _, _ := setupArkSDKwithPublicKey(t)
-	faucetOffchain(t, tempClient, 0.0005)
+	faucetOffchain(t, tempClient, 0.001)
 	assetID := issueAsset(t, tempClient, supply)
+
+	// Allow the change vtxo from issuance to become spendable.
+	time.Sleep(3 * time.Second)
 
 	// Send asset to fulmine.
 	_, err = tempClient.SendOffChain(ctx, []clientTypes.Receiver{{
@@ -169,10 +173,11 @@ func TestBancoTakerBotAssetToBTC(t *testing.T) {
 		incomingFunds, incomingErr = maker.NotifyIncomingFunds(ctx, offerResult.SwapAddress)
 	}()
 
-	txid, err := banco.FundOffer(ctx, offerResult, 450,
-		[]clientTypes.Asset{{AssetId: assetID, Amount: 500}},
-		transport, maker,
-	)
+	txid, err := maker.SendOffChain(ctx, []clientTypes.Receiver{{
+		To:     offerResult.SwapAddress, // MUST be first — output index 0
+		Amount: 450,
+		Assets: []clientTypes.Asset{{AssetId: assetID, Amount: 500}},
+	}}, arksdk.WithExtension(offerResult.Packet))
 	t.Log(txid)
 	require.NoError(t, err)
 	wg.Wait()
@@ -229,7 +234,10 @@ func TestBancoTakerBotBTCToAsset(t *testing.T) {
 		incomingFunds, incomingErr = maker.NotifyIncomingFunds(ctx, offerResult.SwapAddress)
 	}()
 
-	_, err = banco.FundOffer(ctx, offerResult, 10000, nil, transport, maker)
+	_, err = maker.SendOffChain(ctx, []clientTypes.Receiver{{
+		To:     offerResult.SwapAddress, // MUST be first — output index 0
+		Amount: 10000,
+	}}, arksdk.WithExtension(offerResult.Packet))
 	require.NoError(t, err)
 	wg.Wait()
 	require.NoError(t, incomingErr)
@@ -293,10 +301,11 @@ func TestBancoTakerBotAssetToAsset(t *testing.T) {
 		incomingFunds, incomingErr = maker.NotifyIncomingFunds(ctx, offerResult.SwapAddress)
 	}()
 
-	_, err = banco.FundOffer(ctx, offerResult, 450,
-		[]clientTypes.Asset{{AssetId: assetA, Amount: 500}},
-		transport, maker,
-	)
+	_, err = maker.SendOffChain(ctx, []clientTypes.Receiver{{
+		To:     offerResult.SwapAddress, // MUST be first — output index 0
+		Amount: 450,
+		Assets: []clientTypes.Asset{{AssetId: assetA, Amount: 500}},
+	}}, arksdk.WithExtension(offerResult.Packet))
 	require.NoError(t, err)
 	wg.Wait()
 	require.NoError(t, incomingErr)
