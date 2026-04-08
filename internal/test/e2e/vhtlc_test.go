@@ -834,6 +834,10 @@ func TestSettleVHTLCByDelegateRefundWithOutpoint(t *testing.T) {
 
 	ctx := t.Context()
 
+	// Refill arkd to ensure it has enough funds for the settlement round
+	err = refillArkd(ctx)
+	require.NoError(t, err)
+
 	info, err := fulmineClient.GetInfo(ctx, &pb.GetInfoRequest{})
 	require.NoError(t, err)
 	receiverPubKey := info.Pubkey
