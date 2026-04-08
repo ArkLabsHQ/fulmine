@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/base64"
 	"fmt"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -1453,9 +1454,16 @@ func toPayment(payment domain.Swap) types.Payment {
 }
 
 func toTransfer(tx clientTypes.Transaction) types.Transfer {
-	// amount
-	amount := strconv.FormatUint(tx.Amount, 10)
-	if tx.Type == clientTypes.TxSent {
+	// Legacy rows from a go-sdk bug can hold a uint64 wraparound of a small
+	// negative delta; reinterpret them as the corresponding net receive.
+	txType := tx.Type
+	rawAmount := tx.Amount
+	if txType == clientTypes.TxSent && rawAmount > math.MaxInt64 {
+		rawAmount = ^rawAmount + 1
+		txType = clientTypes.TxReceived
+	}
+	amount := strconv.FormatUint(rawAmount, 10)
+	if txType == clientTypes.TxSent {
 		amount = "-" + amount
 	}
 	// date of creation
