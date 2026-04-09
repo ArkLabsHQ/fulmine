@@ -20,11 +20,11 @@ require (
 	github.com/ArkLabsHQ/introspector/pkg/client v0.0.0-20260326164719-cc96254098bb
 	github.com/a-h/templ v0.3.1001
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260408115656-3ab1c9e46f98
+	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260409081258-41d7735b56d3
 	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260408115656-3ab1c9e46f98
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/go-sdk v0.9.2-0.20260408193542-aea1c47b43e5
+	github.com/arkade-os/go-sdk v0.9.2-0.20260409094135-d21a34a57e64
 	github.com/creack/pty v1.1.18
 	github.com/dgraph-io/badger/v4 v4.8.0
 	github.com/getsentry/sentry-go v0.32.0
@@ -73,8 +73,8 @@ require (
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
-	github.com/arkade-os/arkd/api-spec v0.0.0-20260323091657-eeb0baef6937 // indirect
-	github.com/arkade-os/arkd/pkg/errors v0.0.0-20260303153651-8615412e4dea // indirect
+	github.com/arkade-os/arkd/api-spec v0.0.0-20260409081258-41d7735b56d3 // indirect
+	github.com/arkade-os/arkd/pkg/errors v0.0.0-20260409081258-41d7735b56d3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btclog/v2 v2.0.1-0.20250602222548-9967d19bb084 // indirect
 	github.com/btcsuite/winsvc v1.0.0 // indirect
