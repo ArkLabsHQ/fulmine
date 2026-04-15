@@ -48,6 +48,9 @@ func WhitelistedByMethod() map[string][]bakery.Op {
 		// delegator.proto methods
 		fmt.Sprintf("/%s/GetDelegatorInfo", fulminev1.DelegatorService_ServiceDesc.ServiceName): {{Entity: EntityDelegator, Action: ActionAccess}},
 		fmt.Sprintf("/%s/Delegate", fulminev1.DelegatorService_ServiceDesc.ServiceName):         {{Entity: EntityDelegator, Action: ActionAccess}},
+		// gRPC reflection (for grpcurl / dev tooling)
+		"/grpc.reflection.v1.ServerReflection/ServerReflectionInfo":      {{Entity: EntityService, Action: ActionAccess}},
+		"/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo": {{Entity: EntityService, Action: ActionAccess}},
 	}
 }
 

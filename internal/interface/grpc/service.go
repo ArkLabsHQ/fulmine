@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -125,6 +126,8 @@ func NewService(
 
 	healthHandler := handlers.NewHealthHandler(appSvc)
 	grpchealth.RegisterHealthServer(grpcServer, healthHandler)
+
+	reflection.Register(grpcServer)
 
 	gatewayCreds := insecure.NewCredentials()
 	if !cfg.insecure() {
