@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,11 +20,23 @@ import (
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
+	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/arkade-os/arkd/pkg/ark-lib/offchain"
+	"github.com/arkade-os/arkd/pkg/ark-lib/script"
+	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	"github.com/arkade-os/arkd/pkg/client-lib/client"
 	grpcclient "github.com/arkade-os/arkd/pkg/client-lib/client/grpc"
+	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
+	"github.com/btcsuite/btcd/btcutil/psbt"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/txscript"
+	"github.com/btcsuite/btcd/wire"
+	"github.com/ccoveille/go-safecast"
 	"github.com/creack/pty"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -51,6 +64,21 @@ func newFulmineWalletClient(url string) (pb.WalletServiceClient, error) {
 		return nil, err
 	}
 	return pb.NewWalletServiceClient(conn), nil
+}
+
+func newFulmineOffchainAddress(t *testing.T, client pb.ServiceClient) string {
+	t.Helper()
+
+	resp, err := client.GetAddress(t.Context(), &pb.GetAddressRequest{})
+	require.NoError(t, err)
+
+	addr, err := url.Parse(resp.GetAddress())
+	require.NoError(t, err)
+
+	offchainAddr := addr.Query().Get("ark")
+	require.NotEmpty(t, offchainAddr)
+
+	return offchainAddr
 }
 
 func lndAddInvoice(ctx context.Context, sats int) (string, string, error) {
@@ -322,7 +350,7 @@ func setupArkSDKwithPublicKey(
 	serverUrl := "localhost:7070"
 	password := "pass"
 
-	arkClient, err := arksdk.NewArkClient("", false)
+	arkClient, err := arksdk.NewArkClient("")
 	require.NoError(t, err)
 
 	privkey, err := btcec.NewPrivateKey()
@@ -391,4 +419,411 @@ func requireVtxoHasAsset(t *testing.T, vtxo clientTypes.Vtxo, assetID string, ex
 		}
 	}
 	t.Fatalf("vtxo %s:%d does not contain asset %s", vtxo.Txid, vtxo.VOut, assetID)
+}
+
+type testVHTLC struct {
+	script *vhtlc.VHTLCScript
+	vtxo   *clientTypes.Vtxo
+}
+
+func buildTestVHTLC(
+	t *testing.T,
+	fulmineClient pb.ServiceClient,
+	vhtlcResp *pb.CreateVHTLCResponse,
+	preimageHash string,
+) testVHTLC {
+	t.Helper()
+
+	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlc.Opts{
+		Sender:         mustParseSchnorrPubKey(t, vhtlcResp.GetRefundPubkey()),
+		Receiver:       mustParseSchnorrPubKey(t, vhtlcResp.GetClaimPubkey()),
+		Server:         mustParseSchnorrPubKey(t, vhtlcResp.GetServerPubkey()),
+		PreimageHash:   mustDecodeHex(t, preimageHash),
+		RefundLocktime: arklib.AbsoluteLocktime(vhtlcResp.GetRefundLocktime()),
+		UnilateralClaimDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeSecond,
+			Value: uint32(vhtlcResp.GetUnilateralClaimDelay()),
+		},
+		UnilateralRefundDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeSecond,
+			Value: uint32(vhtlcResp.GetUnilateralRefundDelay()),
+		},
+		UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeSecond,
+			Value: uint32(vhtlcResp.GetUnilateralRefundWithoutReceiverDelay()),
+		},
+	})
+	require.NoError(t, err)
+
+	return testVHTLC{
+		script: vhtlcScript,
+		vtxo:   findUnspentVHTLCVtxo(t, fulmineClient, vhtlcResp.GetId()),
+	}
+}
+
+func findUnspentVHTLCVtxo(
+	t *testing.T,
+	fulmineClient pb.ServiceClient,
+	vhtlcID string,
+) *clientTypes.Vtxo {
+	t.Helper()
+
+	resp, err := fulmineClient.ListVHTLC(t.Context(), &pb.ListVHTLCRequest{VhtlcId: vhtlcID})
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.GetVhtlcs())
+
+	var unspent *pb.Vtxo
+	for _, vtxo := range resp.GetVhtlcs() {
+		if !vtxo.IsSpent {
+			unspent = vtxo
+			break
+		}
+	}
+	require.NotNil(t, unspent, "expected an unspent VTXO at the VHTLC address")
+
+	return &clientTypes.Vtxo{
+		Outpoint: clientTypes.Outpoint{
+			Txid: unspent.Outpoint.GetTxid(),
+			VOut: unspent.Outpoint.GetVout(),
+		},
+		Script:          unspent.Script,
+		Amount:          unspent.Amount,
+		CommitmentTxids: unspent.GetCommitmentTxids(),
+		ExpiresAt:       time.Unix(unspent.ExpiresAt, 0),
+		CreatedAt:       time.Unix(unspent.CreatedAt, 0),
+		Preconfirmed:    unspent.IsPreconfirmed,
+		Swept:           unspent.IsSwept,
+		Unrolled:        unspent.IsUnrolled,
+		Spent:           unspent.IsSpent,
+		SpentBy:         unspent.SpentBy,
+		SettledBy:       unspent.SettledBy,
+		ArkTxid:         unspent.ArkTxid,
+	}
+}
+
+func mustParseSchnorrPubKey(t *testing.T, hexPubKey string) *btcec.PublicKey {
+	t.Helper()
+
+	pubKeyBytes, err := hex.DecodeString(hexPubKey)
+	require.NoError(t, err)
+
+	pubKey, err := schnorr.ParsePubKey(pubKeyBytes)
+	require.NoError(t, err)
+
+	return pubKey
+}
+
+func mustDecodeHex(t *testing.T, value string) []byte {
+	t.Helper()
+
+	decoded, err := hex.DecodeString(value)
+	require.NoError(t, err)
+
+	return decoded
+}
+
+// submitPendingClaimVHTLC submits the claim transaction but intentionally skips
+// FinalizeTx so the VTXO remains in the partially-executed pending state.
+func submitPendingClaimVHTLC(
+	t *testing.T,
+	arkClient arksdk.ArkClient,
+	fulmineClient pb.ServiceClient,
+	vhtlc testVHTLC,
+	preimage []byte,
+) string {
+	t.Helper()
+	ctx := t.Context()
+
+	cfg, err := arkClient.GetConfigData(ctx)
+	require.NoError(t, err)
+
+	vtxoTxHash, err := chainhash.NewHashFromStr(vhtlc.vtxo.Txid)
+	require.NoError(t, err)
+
+	vtxoOutpoint := &wire.OutPoint{
+		Hash:  *vtxoTxHash,
+		Index: vhtlc.vtxo.VOut,
+	}
+
+	destinationAddr := newFulmineOffchainAddress(t, fulmineClient)
+	decodedAddr, err := arklib.DecodeAddressV0(destinationAddr)
+	require.NoError(t, err)
+
+	pkScript, err := script.P2TRScript(decodedAddr.VtxoTapKey)
+	require.NoError(t, err)
+
+	amount, err := safecast.ToInt64(vhtlc.vtxo.Amount)
+	require.NoError(t, err)
+
+	claimTapscript, err := vhtlc.script.ClaimTapscript()
+	require.NoError(t, err)
+
+	tapScript, err := hex.DecodeString(cfg.CheckpointTapscript)
+	require.NoError(t, err)
+
+	arkTx, checkpoints, err := offchain.BuildTxs(
+		[]offchain.VtxoInput{
+			{
+				RevealedTapscripts: vhtlc.script.GetRevealedTapscripts(),
+				Outpoint:           vtxoOutpoint,
+				Amount:             amount,
+				Tapscript:          claimTapscript,
+			},
+		},
+		[]*wire.TxOut{
+			{
+				Value:    amount,
+				PkScript: pkScript,
+			},
+		},
+		tapScript,
+	)
+	require.NoError(t, err)
+
+	signTransaction := func(tx *psbt.Packet) (string, error) {
+		err := txutils.SetArkPsbtField(
+			tx, 0, txutils.ConditionWitnessField, wire.TxWitness{preimage},
+		)
+		require.NoError(t, err)
+
+		encoded, err := tx.B64Encode()
+		require.NoError(t, err)
+
+		resp, err := fulmineClient.SignTransaction(ctx, &pb.SignTransactionRequest{
+			Tx: encoded,
+		})
+		require.NoError(t, err)
+
+		return resp.SignedTx, nil
+	}
+
+	signedArkTx, err := signTransaction(arkTx)
+	require.NoError(t, err)
+
+	checkpointTxs := make([]string, 0, len(checkpoints))
+	for _, ptx := range checkpoints {
+		tx, err := ptx.B64Encode()
+		require.NoError(t, err)
+		checkpointTxs = append(checkpointTxs, tx)
+	}
+
+	arkTxid, finalArkTx, _, err := arkClient.Client().SubmitTx(
+		ctx, signedArkTx, checkpointTxs,
+	)
+	require.NoError(t, err)
+
+	err = verifyFinalArkTx(
+		finalArkTx, cfg.SignerPubKey, getInputTapLeaves(arkTx),
+	)
+	require.NoError(t, err)
+
+	return arkTxid
+}
+
+// submitPendingRefundVHTLCWithoutReceiver submits the refund-without-receiver
+// transaction but intentionally skips FinalizeTx so the VTXO remains pending.
+func submitPendingRefundVHTLCWithoutReceiver(
+	t *testing.T,
+	arkClient arksdk.ArkClient,
+	fulmineClient pb.ServiceClient,
+	vhtlc testVHTLC,
+) string {
+	t.Helper()
+	ctx := t.Context()
+
+	cfg, err := arkClient.GetConfigData(ctx)
+	require.NoError(t, err)
+
+	vtxoTxHash, err := chainhash.NewHashFromStr(vhtlc.vtxo.Txid)
+	require.NoError(t, err)
+
+	vtxoOutpoint := &wire.OutPoint{
+		Hash:  *vtxoTxHash,
+		Index: vhtlc.vtxo.VOut,
+	}
+
+	destinationAddr := newFulmineOffchainAddress(t, fulmineClient)
+	decodedAddr, err := arklib.DecodeAddressV0(destinationAddr)
+	require.NoError(t, err)
+
+	pkScript, err := script.P2TRScript(decodedAddr.VtxoTapKey)
+	require.NoError(t, err)
+
+	amount, err := safecast.ToInt64(vhtlc.vtxo.Amount)
+	require.NoError(t, err)
+
+	refundTapscript, err := vhtlc.script.RefundTapscript(false)
+	require.NoError(t, err)
+
+	tapScript, err := hex.DecodeString(cfg.CheckpointTapscript)
+	require.NoError(t, err)
+
+	arkTx, checkpoints, err := offchain.BuildTxs(
+		[]offchain.VtxoInput{
+			{
+				RevealedTapscripts: vhtlc.script.GetRevealedTapscripts(),
+				Outpoint:           vtxoOutpoint,
+				Amount:             amount,
+				Tapscript:          refundTapscript,
+			},
+		},
+		[]*wire.TxOut{
+			{
+				Value:    amount,
+				PkScript: pkScript,
+			},
+		},
+		tapScript,
+	)
+	require.NoError(t, err)
+
+	encodedArkTx, err := arkTx.B64Encode()
+	require.NoError(t, err)
+
+	resp, err := fulmineClient.SignTransaction(ctx, &pb.SignTransactionRequest{
+		Tx: encodedArkTx,
+	})
+	require.NoError(t, err)
+
+	checkpointTxs := make([]string, 0, len(checkpoints))
+	for _, ptx := range checkpoints {
+		tx, err := ptx.B64Encode()
+		require.NoError(t, err)
+		checkpointTxs = append(checkpointTxs, tx)
+	}
+
+	arkTxid, finalArkTx, _, err := arkClient.Client().SubmitTx(
+		ctx, resp.SignedTx, checkpointTxs,
+	)
+	require.NoError(t, err)
+
+	err = verifyFinalArkTx(
+		finalArkTx, cfg.SignerPubKey, getInputTapLeaves(arkTx),
+	)
+	require.NoError(t, err)
+
+	return arkTxid
+}
+
+func requirePendingVHTLC(
+	t *testing.T,
+	arkClient arksdk.ArkClient,
+	vhtlc testVHTLC,
+) {
+	t.Helper()
+
+	tapKey, _, err := vhtlc.script.TapTree()
+	require.NoError(t, err)
+
+	pkScript, err := script.P2TRScript(tapKey)
+	require.NoError(t, err)
+
+	resp, err := arkClient.Indexer().GetVtxos(
+		t.Context(),
+		indexer.WithScripts([]string{hex.EncodeToString(pkScript)}),
+		indexer.WithPendingOnly(),
+	)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Vtxos)
+
+	for _, pendingVtxo := range resp.Vtxos {
+		if pendingVtxo.Txid == vhtlc.vtxo.Txid && pendingVtxo.VOut == vhtlc.vtxo.VOut {
+			return
+		}
+	}
+
+	t.Fatalf("expected VHTLC %s:%d to be pending", vhtlc.vtxo.Txid, vhtlc.vtxo.VOut)
+}
+
+func verifyFinalArkTx(
+	finalArkTx string, arkSigner *btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf,
+) error {
+	finalArkPtx, err := psbt.NewFromRawBytes(strings.NewReader(finalArkTx), true)
+	if err != nil {
+		return err
+	}
+
+	return verifyInputSignatures(finalArkPtx, arkSigner, expectedTapLeaves)
+}
+
+func getInputTapLeaves(tx *psbt.Packet) map[int]txscript.TapLeaf {
+	tapLeaves := make(map[int]txscript.TapLeaf)
+	for inputIndex, input := range tx.Inputs {
+		if len(input.TaprootLeafScript) <= 0 {
+			continue
+		}
+		tapLeaves[inputIndex] = txscript.NewBaseTapLeaf(input.TaprootLeafScript[0].Script)
+	}
+	return tapLeaves
+}
+
+func verifyInputSignatures(
+	tx *psbt.Packet, pubkey *btcec.PublicKey, tapLeaves map[int]txscript.TapLeaf,
+) error {
+	xOnlyPubkey := schnorr.SerializePubKey(pubkey)
+
+	prevouts := make(map[wire.OutPoint]*wire.TxOut)
+	sigsToVerify := make(map[int]*psbt.TaprootScriptSpendSig)
+
+	for inputIndex, input := range tx.Inputs {
+		// collect previous outputs
+		if input.WitnessUtxo == nil {
+			return fmt.Errorf("input %d has no witness utxo, cannot verify signature", inputIndex)
+		}
+
+		outpoint := tx.UnsignedTx.TxIn[inputIndex].PreviousOutPoint
+		prevouts[outpoint] = input.WitnessUtxo
+
+		tapLeaf, ok := tapLeaves[inputIndex]
+		if !ok {
+			return fmt.Errorf(
+				"input %d has no tapscript leaf, cannot verify signature", inputIndex,
+			)
+		}
+
+		tapLeafHash := tapLeaf.TapHash()
+
+		// check if pubkey has a tapscript sig
+		hasSig := false
+		for _, sig := range input.TaprootScriptSpendSig {
+			if bytes.Equal(sig.XOnlyPubKey, xOnlyPubkey) &&
+				bytes.Equal(sig.LeafHash, tapLeafHash[:]) {
+				hasSig = true
+				sigsToVerify[inputIndex] = sig
+				break
+			}
+		}
+
+		if !hasSig {
+			return fmt.Errorf("input %d has no signature for pubkey %x", inputIndex, xOnlyPubkey)
+		}
+	}
+
+	prevoutFetcher := txscript.NewMultiPrevOutFetcher(prevouts)
+	txSigHashes := txscript.NewTxSigHashes(tx.UnsignedTx, prevoutFetcher)
+
+	for inputIndex, sig := range sigsToVerify {
+		msgHash, err := txscript.CalcTapscriptSignaturehash(
+			txSigHashes,
+			sig.SigHash,
+			tx.UnsignedTx,
+			inputIndex,
+			prevoutFetcher,
+			tapLeaves[inputIndex],
+		)
+		if err != nil {
+			return fmt.Errorf("failed to calculate tapscript signature hash: %w", err)
+		}
+
+		signature, err := schnorr.ParseSignature(sig.Signature)
+		if err != nil {
+			return fmt.Errorf("failed to parse signature: %w", err)
+		}
+
+		if !signature.Verify(msgHash, pubkey) {
+			return fmt.Errorf("input %d: invalid signature", inputIndex)
+		}
+	}
+
+	return nil
 }

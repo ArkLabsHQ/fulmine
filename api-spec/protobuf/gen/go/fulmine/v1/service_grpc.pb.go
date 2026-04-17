@@ -35,6 +35,7 @@ const (
 	Service_RefundVHTLCWithoutReceiver_FullMethodName = "/fulmine.v1.Service/RefundVHTLCWithoutReceiver"
 	Service_SettleVHTLC_FullMethodName                = "/fulmine.v1.Service/SettleVHTLC"
 	Service_ListVHTLC_FullMethodName                  = "/fulmine.v1.Service/ListVHTLC"
+	Service_ListVHTLCs_FullMethodName                 = "/fulmine.v1.Service/ListVHTLCs"
 	Service_GetInvoice_FullMethodName                 = "/fulmine.v1.Service/GetInvoice"
 	Service_PayInvoice_FullMethodName                 = "/fulmine.v1.Service/PayInvoice"
 	Service_IsInvoiceSettled_FullMethodName           = "/fulmine.v1.Service/IsInvoiceSettled"
@@ -80,6 +81,7 @@ type ServiceClient interface {
 	SettleVHTLC(ctx context.Context, in *SettleVHTLCRequest, opts ...grpc.CallOption) (*SettleVHTLCResponse, error)
 	// ListVHTLC = list all vhtlc OR filter by vhtlc_id
 	ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opts ...grpc.CallOption) (*ListVHTLCResponse, error)
+	ListVHTLCs(ctx context.Context, in *ListVHTLCsRequest, opts ...grpc.CallOption) (*ListVHTLCsResponse, error)
 	GetInvoice(ctx context.Context, in *GetInvoiceRequest, opts ...grpc.CallOption) (*GetInvoiceResponse, error)
 	PayInvoice(ctx context.Context, in *PayInvoiceRequest, opts ...grpc.CallOption) (*PayInvoiceResponse, error)
 	IsInvoiceSettled(ctx context.Context, in *IsInvoiceSettledRequest, opts ...grpc.CallOption) (*IsInvoiceSettledResponse, error)
@@ -268,6 +270,16 @@ func (c *serviceClient) ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opt
 	return out, nil
 }
 
+func (c *serviceClient) ListVHTLCs(ctx context.Context, in *ListVHTLCsRequest, opts ...grpc.CallOption) (*ListVHTLCsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListVHTLCsResponse)
+	err := c.cc.Invoke(ctx, Service_ListVHTLCs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *serviceClient) GetInvoice(ctx context.Context, in *GetInvoiceRequest, opts ...grpc.CallOption) (*GetInvoiceResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetInvoiceResponse)
@@ -401,6 +413,7 @@ type ServiceServer interface {
 	SettleVHTLC(context.Context, *SettleVHTLCRequest) (*SettleVHTLCResponse, error)
 	// ListVHTLC = list all vhtlc OR filter by vhtlc_id
 	ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error)
+	ListVHTLCs(context.Context, *ListVHTLCsRequest) (*ListVHTLCsResponse, error)
 	GetInvoice(context.Context, *GetInvoiceRequest) (*GetInvoiceResponse, error)
 	PayInvoice(context.Context, *PayInvoiceRequest) (*PayInvoiceResponse, error)
 	IsInvoiceSettled(context.Context, *IsInvoiceSettledRequest) (*IsInvoiceSettledResponse, error)
@@ -472,6 +485,9 @@ func (UnimplementedServiceServer) SettleVHTLC(context.Context, *SettleVHTLCReque
 }
 func (UnimplementedServiceServer) ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListVHTLC not implemented")
+}
+func (UnimplementedServiceServer) ListVHTLCs(context.Context, *ListVHTLCsRequest) (*ListVHTLCsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListVHTLCs not implemented")
 }
 func (UnimplementedServiceServer) GetInvoice(context.Context, *GetInvoiceRequest) (*GetInvoiceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInvoice not implemented")
@@ -803,6 +819,24 @@ func _Service_ListVHTLC_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_ListVHTLCs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListVHTLCsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).ListVHTLCs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_ListVHTLCs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).ListVHTLCs(ctx, req.(*ListVHTLCsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Service_GetInvoice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetInvoiceRequest)
 	if err := dec(in); err != nil {
@@ -1053,6 +1087,10 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListVHTLC",
 			Handler:    _Service_ListVHTLC_Handler,
+		},
+		{
+			MethodName: "ListVHTLCs",
+			Handler:    _Service_ListVHTLCs_Handler,
 		},
 		{
 			MethodName: "GetInvoice",

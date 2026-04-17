@@ -181,11 +181,13 @@ func newService(
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 	connectionOpts *domain.LnConnectionOpts,
 ) (*Service, error) {
-	verbose := log.IsLevelEnabled(log.DebugLevel)
 	opts := []arksdk.ClientOption{
 		arksdk.WithRefreshDbInterval(time.Duration(refreshDbInterval) * time.Second),
 	}
-	if arkClient, err := arksdk.LoadArkClient(datadir, verbose, opts...); err == nil {
+	if log.IsLevelEnabled(log.DebugLevel) {
+		opts = append(opts, arksdk.WithVerbose())
+	}
+	if arkClient, err := arksdk.LoadArkClient(datadir, opts...); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
 		if err != nil {
 			return nil, err
@@ -221,7 +223,7 @@ func newService(
 		}
 	}
 
-	arkClient, err := arksdk.NewArkClient(datadir, verbose, opts...)
+	arkClient, err := arksdk.NewArkClient(datadir, opts...)
 	if err != nil {
 		// nolint:all
 		settingsRepo.CleanSettings(ctx)
@@ -953,6 +955,36 @@ func (s *Service) GetSwapVHTLC(
 	}()
 
 	return encodedAddr, vhtlcId, vHTLCScript, nil
+}
+
+func (s *Service) ListVHTLCs(
+	ctx context.Context, vhtlcIds []string,
+) ([]clientTypes.Vtxo, []domain.Vhtlc, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil, nil, err
+	}
+
+	// Return empty list if an empty one is provided
+	if len(vhtlcIds) <= 0 {
+		return nil, nil, nil
+	}
+
+	vhtlcList, err := s.dbSvc.VHTLC().GetByIds(ctx, vhtlcIds)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	vhtlcOpts := make([]vhtlc.Opts, 0, len(vhtlcList))
+	for _, v := range vhtlcList {
+		vhtlcOpts = append(vhtlcOpts, v.Opts)
+	}
+
+	vtxos, err := s.swapHandler.GetVHTLCFunds(ctx, vhtlcOpts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return vtxos, vhtlcList, nil
 }
 
 func (s *Service) ListVHTLC(

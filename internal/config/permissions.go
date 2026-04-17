@@ -48,6 +48,9 @@ func WhitelistedByMethod() map[string][]bakery.Op {
 		// delegate.proto methods
 		fmt.Sprintf("/%s/GetDelegateInfo", fulminev1.DelegateService_ServiceDesc.ServiceName): {{Entity: EntityDelegate, Action: ActionAccess}},
 		fmt.Sprintf("/%s/Delegate", fulminev1.DelegateService_ServiceDesc.ServiceName):        {{Entity: EntityDelegate, Action: ActionAccess}},
+		// gRPC reflection (for grpcurl / dev tooling)
+		"/grpc.reflection.v1.ServerReflection/ServerReflectionInfo":      {{Entity: EntityService, Action: ActionAccess}},
+		"/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo": {{Entity: EntityService, Action: ActionAccess}},
 	}
 }
 
@@ -71,6 +74,7 @@ func ProtectedByMethod() map[string][]bakery.Op {
 		fmt.Sprintf("/%s/RefundVHTLCWithoutReceiver", fulminev1.Service_ServiceDesc.ServiceName): {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/SettleVHTLC", fulminev1.Service_ServiceDesc.ServiceName):                {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/ListVHTLC", fulminev1.Service_ServiceDesc.ServiceName):                  {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/ListVHTLCs", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/GetInvoice", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/PayInvoice", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/IsInvoiceSettled", fulminev1.Service_ServiceDesc.ServiceName):           {{Entity: EntityService, Action: ActionAccess}},

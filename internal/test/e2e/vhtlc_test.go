@@ -123,6 +123,9 @@ func TestClaimVHTLCWithOutpoint(t *testing.T) {
 	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
 		PreimageHash:   preimageHash,
 		ReceiverPubkey: info.GetPubkey(),
+		// Keep the collaborative refund-without-receiver path immediately spendable.
+		// The test is about pending finalization, not waiting for refund expiry.
+		RefundLocktime: uint32(1577836800),
 		UnilateralClaimDelay: &pb.RelativeLocktime{
 			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
 			Value: 512,
@@ -220,6 +223,7 @@ func TestClaimVHTLCOldestVtxo(t *testing.T) {
 	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
 		PreimageHash:   preimageHash,
 		ReceiverPubkey: info.GetPubkey(),
+		RefundLocktime: uint32(1577836800),
 		UnilateralClaimDelay: &pb.RelativeLocktime{
 			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
 			Value: 512,
@@ -300,6 +304,7 @@ func TestSettleVHTLCClaimWithOutpoint(t *testing.T) {
 	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
 		PreimageHash:   preimageHash,
 		ReceiverPubkey: info.GetPubkey(),
+		RefundLocktime: uint32(1577836800),
 		UnilateralClaimDelay: &pb.RelativeLocktime{
 			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
 			Value: 512,
@@ -1158,4 +1163,148 @@ func requireVHTLCSpentState(
 	}
 
 	t.Fatalf("vtxo %s:%d not found", expected.Outpoint.GetTxid(), expected.Outpoint.GetVout())
+}
+
+// TestClaimVHTLCPendingFinalization verifies that calling ClaimVHTLC on a VHTLC
+// whose VTXO was already submitted (SubmitTx) but not finalized (FinalizeTx)
+// correctly detects the pending state and completes the finalization.
+func TestClaimVHTLCPendingFinalization(t *testing.T) {
+	ctx := t.Context()
+
+	f, err := newFulmineClient("localhost:7000")
+	require.NoError(t, err)
+
+	arkadeWallet, _, _ := setupArkSDKwithPublicKey(t)
+	_, _, boarding, _, err := arkadeWallet.GetAddresses(ctx)
+	require.NoError(t, err)
+
+	err = faucet(ctx, strings.TrimSpace(boarding[0]), 0.001)
+	require.NoError(t, err)
+	time.Sleep(5 * time.Second)
+	_, err = arkadeWallet.Settle(ctx)
+	require.NoError(t, err)
+
+	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+	require.NoError(t, err)
+
+	// Create a VHTLC (sender = receiver for simplicity)
+	preimage := make([]byte, 32)
+	_, err = rand.Read(preimage)
+	require.NoError(t, err)
+	sha256Hash := sha256.Sum256(preimage)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+
+	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+		PreimageHash:   preimageHash,
+		ReceiverPubkey: info.GetPubkey(),
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 1024,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, vhtlcResp.Address)
+
+	_, err = arkadeWallet.SendOffChain(ctx, []clientTypes.Receiver{
+		{
+			To:     vhtlcResp.Address,
+			Amount: 1000,
+		},
+	})
+	require.NoError(t, err)
+
+	vhtlc := buildTestVHTLC(t, f, vhtlcResp, preimageHash)
+	pendingTxid := submitPendingClaimVHTLC(t, arkadeWallet, f, vhtlc, preimage)
+	require.NotEmpty(t, pendingTxid)
+	requirePendingVHTLC(t, arkadeWallet, vhtlc)
+	// Now call ClaimVHTLC via the normal gRPC path.
+	// The VTXO is spent (SubmitTx marked it) but not finalized.
+	// The pending detection should find it and call FinalizePendingTxs.
+	result, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
+		VhtlcId:  vhtlcResp.Id,
+		Preimage: hex.EncodeToString(preimage),
+	})
+	require.NoError(t, err, "ClaimVHTLC should succeed by finalizing the pending tx")
+	require.NotNil(t, result)
+	require.NotEmpty(t, result.GetRedeemTxid())
+}
+
+// TestRefundVHTLCPendingFinalization verifies that calling RefundVHTLCWithoutReceiver
+// on a VHTLC whose VTXO was already submitted (SubmitTx) but not finalized (FinalizeTx)
+// correctly detects the pending state and completes the finalization.
+func TestRefundVHTLCPendingFinalization(t *testing.T) {
+	ctx := t.Context()
+
+	f, err := newFulmineClient("localhost:7000")
+	require.NoError(t, err)
+
+	arkClient, _, _ := setupArkSDKwithPublicKey(t)
+	_, _, boarding, _, err := arkClient.GetAddresses(ctx)
+	require.NoError(t, err)
+
+	err = faucet(ctx, strings.TrimSpace(boarding[0]), 0.001)
+	require.NoError(t, err)
+	time.Sleep(5 * time.Second)
+	_, err = arkClient.Settle(ctx)
+	require.NoError(t, err)
+
+	preimage := make([]byte, 32)
+	_, err = rand.Read(preimage)
+	require.NoError(t, err)
+	sha256Hash := sha256.Sum256(preimage)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+
+	receiverPrivKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+
+	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+		PreimageHash:   preimageHash,
+		ReceiverPubkey: hex.EncodeToString(receiverPrivKey.PubKey().SerializeCompressed()),
+		RefundLocktime: uint32(1577836800),
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 1024,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, vhtlcResp.Address)
+
+	_, err = arkClient.SendOffChain(ctx, []clientTypes.Receiver{
+		{
+			To:     vhtlcResp.Address,
+			Amount: 1000,
+		},
+	})
+	require.NoError(t, err)
+
+	vhtlc := buildTestVHTLC(t, f, vhtlcResp, preimageHash)
+	pendingTxid := submitPendingRefundVHTLCWithoutReceiver(t, arkClient, f, vhtlc)
+	require.NotEmpty(t, pendingTxid)
+	requirePendingVHTLC(t, arkClient, vhtlc)
+
+	// Now call RefundVHTLCWithoutReceiver via the normal gRPC path.
+	// The VTXO is spent (SubmitTx marked it) but not finalized.
+	// The pending detection should find it and call FinalizePendingTxs.
+	result, err := f.RefundVHTLCWithoutReceiver(ctx, &pb.RefundVHTLCWithoutReceiverRequest{
+		VhtlcId: vhtlcResp.Id,
+	})
+	require.NoError(t, err, "RefundVHTLC should succeed by finalizing the pending tx")
+	require.NotNil(t, result)
+	require.NotEmpty(t, result.GetRedeemTxid())
 }
