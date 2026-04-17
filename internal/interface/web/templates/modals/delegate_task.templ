@@ -79,8 +79,8 @@ templ DelegateTaskDetailBody(task types.DelegateTask) {
 
 			@DelegateTaskKV("Forfeit txs", DelegateTaskCountValue(len(task.Forfeits)), true)
 
-			if task.DelegatorPublicKey != "" {
-				@DelegateTaskKV("Delegator pubkey", DelegateTaskMonoCopy(task.DelegatorPublicKey), true)
+			if task.DelegatePublicKey != "" {
+				@DelegateTaskKV("Delegate pubkey", DelegateTaskMonoCopy(task.DelegatePublicKey), true)
 			}
 
 			if task.CommitmentTxid != "" {

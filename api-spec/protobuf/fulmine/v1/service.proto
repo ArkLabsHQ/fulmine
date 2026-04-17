@@ -170,7 +170,7 @@ service Service {
     };
   };
 
-  // ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.
+  // ListDelegates returns delegate tasks filtered by status, paginated by limit/offset.
   rpc ListDelegates(ListDelegatesRequest) returns (ListDelegatesResponse) {
     option (google.api.http) = {
       get: "/v1/delegates"
@@ -504,7 +504,7 @@ message Delegate {
   DelegateIntent intent = 2;
   repeated DelegateForfeitTx forfeit_txs = 3;
   uint64 fee = 4;
-  string delegator_public_key = 5;
+  string delegate_public_key = 5;
   int64 scheduled_at = 6;
   string status = 7;
   string fail_reason = 8;

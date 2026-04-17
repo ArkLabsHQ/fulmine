@@ -116,7 +116,7 @@ type Service struct {
 
 	stopVtxoEventListener chan struct{}
 
-	// callback functions to stop and start delegator service
+	// callback functions to stop and start delegate service
 	onUnlock func()
 	onLock   func()
 }
@@ -135,7 +135,7 @@ type SwapResponse struct {
 	Invoice    string
 }
 
-type DelegatorConfig struct {
+type DelegateConfig struct {
 	Enabled bool
 	Fee     uint64
 }
@@ -148,8 +148,8 @@ func NewServices(
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 	connectionOpts *domain.LnConnectionOpts,
 	refreshDbInterval int64,
-	delegatorConfig DelegatorConfig,
-) (*Service, *DelegatorService, error) {
+	delegateConfig DelegateConfig,
+) (*Service, *DelegateService, error) {
 	svc, err := newService(
 		buildInfo, datadir, dbSvc, schedulerSvc, refreshDbInterval,
 		esploraUrl, boltzUrl, boltzWSUrl, swapTimeout, connectionOpts,
@@ -158,15 +158,15 @@ func NewServices(
 		return nil, nil, err
 	}
 
-	if delegatorConfig.Enabled {
-		delegatorSvc := newDelegatorService(svc, delegatorConfig.Fee)
+	if delegateConfig.Enabled {
+		delegateSvc := newDelegateService(svc, delegateConfig.Fee)
 		svc.onUnlock = func() {
-			delegatorSvc.start()
+			delegateSvc.start()
 		}
 		svc.onLock = func() {
-			delegatorSvc.Stop()
+			delegateSvc.Stop()
 		}
-		return svc, delegatorSvc, nil
+		return svc, delegateSvc, nil
 	}
 
 	return svc, nil, nil
@@ -1070,9 +1070,9 @@ func (s *Service) SettleVHTLCWithCollaborativeRefundPath(
 ) (string, error) {
 	return s.withVhtlc(ctx, vhtlcId, func(opts vhtlc.Opts) (string, error) {
 
-		delegatorSignerSession := tree.NewTreeSignerSession(s.privateKey)
+		delegateSignerSession := tree.NewTreeSignerSession(s.privateKey)
 		return s.swapHandler.SettleVHTLCWithCollaborativeRefundPath(
-			ctx, opts, partialForfeitTx, intentProof, intentMessage, delegatorSignerSession, outpoint,
+			ctx, opts, partialForfeitTx, intentProof, intentMessage, delegateSignerSession, outpoint,
 		)
 	})
 }
