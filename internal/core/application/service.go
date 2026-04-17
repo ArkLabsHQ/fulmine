@@ -425,6 +425,15 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if err != nil {
 		return err
 	}
+
+	subsHandler, err := newSubscriptionHandler(
+		ctx, s.Indexer(), s.dbSvc.SubscribedScript(), s.handleAddressEventChannel(arkConfig),
+	)
+	if err != nil {
+		return err
+	}
+	s.externalSubscription = subsHandler
+
 	settings, err := s.dbSvc.Settings().GetSettings(ctx)
 	if err != nil {
 		log.WithError(err).Warn("failed to get settings")
@@ -482,12 +491,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 		go s.subscribeForVtxoEvent(ctx, arkConfig)
 
-		// Restore watch of our and tracked addresses.
-		_, offchainAddrses, _, _, err := s.GetAddresses(context.Background())
-		if err != nil {
-			log.WithError(err).Error("failed to get addresses")
-		}
-
 		// Schedule next settlement for the current vtxo set.
 		nextExpiry, err := s.computeNextExpiry(context.Background(), arkConfig)
 		if err != nil {
@@ -509,24 +512,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 					log.WithError(err).Error("failed to schedule next settlement")
 				}
 			}
-		}
-
-		scripts, err := offchainAddressesPkScripts(offchainAddrses)
-		if err != nil {
-			log.WithError(err).Error("failed to decode offchain address")
-		}
-
-		_, err = s.dbSvc.SubscribedScript().Add(context.Background(), scripts)
-		if err != nil {
-			log.Debugf("cannot listen to scripts %+v", err)
-		}
-
-		s.externalSubscription = newSubscriptionHandler(
-			s.Indexer(), s.dbSvc.SubscribedScript(), s.handleAddressEventChannel(arkConfig),
-		)
-
-		if err := s.externalSubscription.start(); err != nil {
-			log.WithError(err).Error("failed to start external subscription")
 		}
 
 		// nolint
