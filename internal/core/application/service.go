@@ -2146,7 +2146,7 @@ func (s *Service) handleAddressEventChannel(
 			SpentVtxos    int
 			CheckpointTxs []string
 		}
-		log.WithField("addresses", logData{
+		log.WithField("event", logData{
 			Txid:          data.Txid,
 			Addresses:     addresses,
 			NewVtxos:      len(data.NewVtxos),
