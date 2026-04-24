@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	log "github.com/sirupsen/logrus"
 )
+
+const logPrefix = "subscription handler:"
 
 type scriptsStore interface {
 	Get(ctx context.Context) ([]string, error)
@@ -29,16 +30,27 @@ type subscriptionHandler struct {
 }
 
 func newSubscriptionHandler(
-	indexerClient indexer.Indexer, scripts scriptsStore, onEvent func(event indexer.ScriptEvent),
-) *subscriptionHandler {
-	return &subscriptionHandler{
+	ctx context.Context, indexerClient indexer.Indexer,
+	store scriptsStore, onEvent func(event indexer.ScriptEvent),
+) (*subscriptionHandler, error) {
+	scripts, err := store.Get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	svc := &subscriptionHandler{
 		indexerClient: indexerClient,
-		scripts:       scripts,
+		scripts:       store,
 		onEvent:       onEvent,
 		mu:            sync.Mutex{},
 		closeFn:       nil,
 		id:            "",
 	}
+	if len(scripts) > 0 {
+		if err := svc.start(scripts); err != nil {
+			return nil, err
+		}
+	}
+	return svc, nil
 }
 
 func (h *subscriptionHandler) subscribe(ctx context.Context, scripts []string) error {
@@ -51,30 +63,16 @@ func (h *subscriptionHandler) subscribe(ctx context.Context, scripts []string) e
 		return nil
 	}
 
-	log.Debugf("added %d scripts to subscription", count)
+	log.Debugf("%s added %d scripts to subscription", logPrefix, count)
 
 	h.mu.Lock()
-	id := h.id
-	h.mu.Unlock()
+	defer h.mu.Unlock()
 
-	if len(id) == 0 {
-		if err := h.start(); err != nil {
-			return err
-		}
-		return nil
+	if len(h.id) == 0 {
+		return h.start(scripts)
 	}
 
-	_, err = h.indexerClient.SubscribeForScripts(ctx, id, scripts)
-	if err != nil {
-		log.WithError(err).Warn("failed to update subscription, retrying...")
-		h.stop()
-		if err := h.start(); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	return nil
+	return h.indexerClient.UpdateSubscription(ctx, h.id, scripts, nil)
 }
 
 func (h *subscriptionHandler) unsubscribe(ctx context.Context, scripts []string) error {
@@ -87,62 +85,26 @@ func (h *subscriptionHandler) unsubscribe(ctx context.Context, scripts []string)
 		return nil
 	}
 
-	log.Debugf("removed %d scripts from subscription", count)
+	log.Debugf("%s removed %d scripts from subscription", logPrefix, count)
 
 	h.mu.Lock()
-	id := h.id
-	h.mu.Unlock()
+	defer h.mu.Unlock()
 
-	if len(id) == 0 {
-		scripts, err := h.scripts.Get(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get scripts: %w", err)
-		}
-		if len(scripts) == 0 {
-			return nil
-		}
-
-		if err := h.start(); err != nil {
-			return err
-		}
+	if len(h.id) == 0 {
 		return nil
 	}
 
-	err = h.indexerClient.UnsubscribeForScripts(ctx, id, scripts)
-	if err != nil {
-		log.WithError(err).Warn("failed to unsubscribe, retrying...")
-		h.stop()
-		if err := h.start(); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	scripts, err = h.scripts.Get(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get scripts: %w", err)
-	}
-
-	if len(scripts) == 0 {
-		h.stop()
-		return nil
-	}
-
-	return nil
+	return h.indexerClient.UpdateSubscription(ctx, h.id, nil, scripts)
 }
 
 func (h *subscriptionHandler) stop() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	if h.cancelRetry != nil {
 		h.cancelRetry()
 		h.cancelRetry = nil
 	}
-
-	h.close()
-}
-
-func (h *subscriptionHandler) close() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
 
 	if h.closeFn != nil {
 		h.closeFn()
@@ -150,137 +112,59 @@ func (h *subscriptionHandler) close() {
 	}
 
 	if len(h.id) != 0 {
-		log.Debugf("stopped subscription %s", h.id)
+		id := h.id
 		h.id = ""
+		log.Debugf("removed subscription %s", id)
 	}
 }
 
-func (h *subscriptionHandler) start() error {
+func (h *subscriptionHandler) start(scripts []string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	h.mu.Lock()
-	h.cancelRetry = cancel
-	h.mu.Unlock()
+	log.Debugf("%s creating subscription...", logPrefix)
 
-	scripts, err := h.scripts.Get(ctx)
+	id, subscriptionChannel, closeFn, err := h.indexerClient.NewSubscription(ctx, scripts)
 	if err != nil {
+		cancel()
 		return err
 	}
 
-	if len(scripts) == 0 {
-		h.stop()
-		log.Debugf("no scripts to subscribe to, skip starting subscription")
-		return nil
-	}
+	h.cancelRetry = cancel
+	h.closeFn = closeFn
+	h.id = id
+	log.Debugf("%s created subscription %s", logPrefix, h.id)
 
 	go func() {
-		onError := func(err error) {
-			h.close()
-			log.WithError(err).Warn("retrying in 2 seconds")
-			time.Sleep(2 * time.Second)
-		}
-
+		waitForReconnection := false
 		for {
 			select {
 			case <-ctx.Done():
-				log.Debugf("context done, stop retrying to subscribe")
 				return
-			default:
-			}
-
-			log.Debugf("creating subscription...")
-
-			if err := h.create(ctx); err != nil {
-				onError(err)
-				continue
-			}
-
-			log.Debugf("created subscription %s", h.id)
-
-			subscriptionChannel, closeFn, err := h.indexerClient.GetSubscription(ctx, h.id)
-			if err != nil {
-				onError(err)
-				continue
-			}
-
-			h.mu.Lock()
-			h.closeFn = closeFn
-			h.mu.Unlock()
-
-			stopped := false
-			waitForReconnection := false
-			for !stopped {
-				select {
-				case <-ctx.Done():
+			case event, ok := <-subscriptionChannel:
+				if !ok {
 					return
-				case event, ok := <-subscriptionChannel:
-					if !ok {
-						onError(fmt.Errorf("subscription channel closed"))
-						stopped = true
-						continue
-					}
-
-					if event.Connection != nil {
-						if event.Connection.State == clientTypes.StreamConnectionStateDisconnected {
-							waitForReconnection = true
-							log.Debug("connection lost, waiting for reconnection...")
-						}
-						if waitForReconnection &&
-							event.Connection.State == clientTypes.StreamConnectionStateReconnected {
-							log.Debug("connection restored, resubscribing...")
-						}
-						if waitForReconnection &&
-							event.Connection.State == clientTypes.StreamConnectionStateReady {
-							if err := h.create(ctx); err != nil {
-								log.WithError(err).Error(
-									"failed to resubscribe after reconnection",
-								)
-								return
-							}
-							log.Debug("restored subscriptions")
-							waitForReconnection = false
-						}
-						continue
-					}
-					if event.Err != nil {
-						onError(event.Err)
-						stopped = true
-						continue
-					}
-
-					log.Debugf(
-						"received transaction event: %s for subscription %s",
-						event.Data.Txid, h.id,
-					)
-					go h.onEvent(event)
 				}
+
+				if event.Connection != nil {
+					if event.Connection.State == clientTypes.StreamConnectionStateDisconnected {
+						waitForReconnection = true
+						log.Debugf("%s connection lost, waiting for reconnection...", logPrefix)
+					}
+					if waitForReconnection &&
+						event.Connection.State == clientTypes.StreamConnectionStateReconnected {
+						log.Debugf("%s connection restored, resubscribing...", logPrefix)
+					}
+					if waitForReconnection &&
+						event.Connection.State == clientTypes.StreamConnectionStateReady {
+						log.Debugf("%s restored subscriptions", logPrefix)
+						waitForReconnection = false
+					}
+					continue
+				}
+				go h.onEvent(event)
 			}
 		}
 	}()
-
-	return nil
-}
-
-func (h *subscriptionHandler) create(ctx context.Context) error {
-	var err error
-
-	scripts, err := h.scripts.Get(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get scripts: %w", err)
-	}
-
-	if len(scripts) == 0 {
-		return fmt.Errorf("no scripts to subscribe to")
-	}
-
-	subscriptionId, err := h.indexerClient.SubscribeForScripts(ctx, "", scripts)
-	if err != nil {
-		return fmt.Errorf("failed to subscribe for scripts: %w", err)
-	}
-
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.id = subscriptionId
 
 	return nil
 }
