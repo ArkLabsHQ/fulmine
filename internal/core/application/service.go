@@ -2106,7 +2106,7 @@ func (s *Service) handleAddressEventChannel(
 
 		data := event.Data
 		if len(data.SpentVtxos) <= 0 && len(data.NewVtxos) <= 0 {
-			log.Warn("%s received unexpected empty event", logPrefix)
+			log.Warnf("%s received unexpected empty event", logPrefix)
 			return
 		}
 
@@ -2152,7 +2152,7 @@ func (s *Service) handleAddressEventChannel(
 			NewVtxos:      len(data.NewVtxos),
 			SpentVtxos:    len(data.SpentVtxos),
 			CheckpointTxs: slices.Collect(maps.Keys(data.CheckpointTxs)),
-		}).Debug("%s received event for address(es)", logPrefix)
+		}).Debugf("%s received event for address(es)", logPrefix)
 
 		go func(evt indexer.ScriptEvent) {
 			select {

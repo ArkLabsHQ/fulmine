@@ -147,15 +147,15 @@ func (h *subscriptionHandler) start(scripts []string) error {
 				if event.Connection != nil {
 					if event.Connection.State == clientTypes.StreamConnectionStateDisconnected {
 						waitForReconnection = true
-						log.Debug("%s connection lost, waiting for reconnection...", logPrefix)
+						log.Debugf("%s connection lost, waiting for reconnection...", logPrefix)
 					}
 					if waitForReconnection &&
 						event.Connection.State == clientTypes.StreamConnectionStateReconnected {
-						log.Debug("%s connection restored, resubscribing...", logPrefix)
+						log.Debugf("%s connection restored, resubscribing...", logPrefix)
 					}
 					if waitForReconnection &&
 						event.Connection.State == clientTypes.StreamConnectionStateReady {
-						log.Debug("%s restored subscriptions", logPrefix)
+						log.Debugf("%s restored subscriptions", logPrefix)
 						waitForReconnection = false
 					}
 					continue
