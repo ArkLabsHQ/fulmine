@@ -120,15 +120,16 @@ func (h *subscriptionHandler) stop() {
 
 func (h *subscriptionHandler) start(scripts []string) error {
 	ctx, cancel := context.WithCancel(context.Background())
-	h.cancelRetry = cancel
 
 	log.Debugf("%s creating subscription...", logPrefix)
 
 	id, subscriptionChannel, closeFn, err := h.indexerClient.NewSubscription(ctx, scripts)
 	if err != nil {
+		cancel()
 		return err
 	}
 
+	h.cancelRetry = cancel
 	h.closeFn = closeFn
 	h.id = id
 	log.Debugf("%s created subscription %s", logPrefix, h.id)
