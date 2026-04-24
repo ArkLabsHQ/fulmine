@@ -62,7 +62,7 @@ func TestDelegate(t *testing.T) {
 
 	signerPubKey := aliceConfig.SignerPubKey
 
-	aliceDelegatorClosure := &script.MultisigClosure{
+	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
 		PubKeys: []*btcec.PublicKey{alicePubKey, delegatePubKey, signerPubKey},
 	}
 
@@ -71,9 +71,9 @@ func TestDelegate(t *testing.T) {
 		Value: 1024,
 	}
 
-	delegatorVtxoScript := script.TapscriptsVtxoScript{
+	delegationVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			aliceDelegatorClosure,
+			collaborativeAliceDelegatorClosure,
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
@@ -86,7 +86,7 @@ func TestDelegate(t *testing.T) {
 		},
 	}
 
-	vtxoTapKey, vtxoTapTree, err := delegatorVtxoScript.TapTree()
+	vtxoTapKey, vtxoTapTree, err := delegationVtxoScript.TapTree()
 	require.NoError(t, err)
 
 	arkAddress := arklib.Address{
@@ -135,7 +135,7 @@ func TestDelegate(t *testing.T) {
 	vtxoHash, err := chainhash.NewHashFromStr(aliceVtxo.Txid)
 	require.NoError(t, err)
 
-	exitScript, err := delegatorVtxoScript.ExitClosures()[0].Script()
+	exitScript, err := delegationVtxoScript.ExitClosures()[0].Script()
 	require.NoError(t, err)
 
 	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -185,7 +185,7 @@ func TestDelegate(t *testing.T) {
 	intentProof.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 	intentProof.Inputs[1].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 
-	scripts, err := delegatorVtxoScript.Encode()
+	scripts, err := delegationVtxoScript.Encode()
 	require.NoError(t, err)
 
 	tapTree := txutils.TapTree(scripts)
@@ -238,7 +238,7 @@ func TestDelegate(t *testing.T) {
 	err = updater.AddInSighashType(txscript.SigHashAnyOneCanPay|txscript.SigHashAll, 0)
 	require.NoError(t, err)
 
-	aliceDelegatorScript, err := aliceDelegatorClosure.Script()
+	aliceDelegatorScript, err := collaborativeAliceDelegatorClosure.Script()
 	require.NoError(t, err)
 
 	aliceDelegatorMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -312,7 +312,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 
 	signerPubKey := aliceConfig.SignerPubKey
 
-	aliceDelegatorClosure := &script.MultisigClosure{
+	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
 		PubKeys: []*btcec.PublicKey{alicePubKey, delegatePubKey, signerPubKey},
 	}
 
@@ -321,9 +321,9 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 		Value: 1024,
 	}
 
-	delegatorVtxoScript := script.TapscriptsVtxoScript{
+	delegationVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			aliceDelegatorClosure,
+			collaborativeAliceDelegatorClosure,
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
@@ -336,7 +336,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 		},
 	}
 
-	vtxoTapKey, vtxoTapTree, err := delegatorVtxoScript.TapTree()
+	vtxoTapKey, vtxoTapTree, err := delegationVtxoScript.TapTree()
 	require.NoError(t, err)
 
 	arkAddress := arklib.Address{
@@ -386,7 +386,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	vtxoHash, err := chainhash.NewHashFromStr(aliceVtxo.Txid)
 	require.NoError(t, err)
 
-	exitScript, err := delegatorVtxoScript.ExitClosures()[0].Script()
+	exitScript, err := delegationVtxoScript.ExitClosures()[0].Script()
 	require.NoError(t, err)
 
 	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -440,7 +440,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	intentProof.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 	intentProof.Inputs[1].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 
-	scripts, err := delegatorVtxoScript.Encode()
+	scripts, err := delegationVtxoScript.Encode()
 	require.NoError(t, err)
 
 	tapTree := txutils.TapTree(scripts)
@@ -493,7 +493,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	err = updater.AddInSighashType(txscript.SigHashAnyOneCanPay|txscript.SigHashAll, 0)
 	require.NoError(t, err)
 
-	aliceDelegatorScript, err := aliceDelegatorClosure.Script()
+	aliceDelegatorScript, err := collaborativeAliceDelegatorClosure.Script()
 	require.NoError(t, err)
 
 	aliceDelegatorMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -569,7 +569,7 @@ func TestMultipleDelegate(t *testing.T) {
 
 	signerPubKey := aliceConfig.SignerPubKey
 
-	aliceDelegatorClosure := &script.MultisigClosure{
+	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
 		PubKeys: []*btcec.PublicKey{alicePubKey, delegatePubKey, signerPubKey},
 	}
 
@@ -578,9 +578,9 @@ func TestMultipleDelegate(t *testing.T) {
 		Value: 1024,
 	}
 
-	delegatorVtxoScript := script.TapscriptsVtxoScript{
+	delegationVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			aliceDelegatorClosure,
+			collaborativeAliceDelegatorClosure,
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
@@ -593,7 +593,7 @@ func TestMultipleDelegate(t *testing.T) {
 		},
 	}
 
-	vtxoTapKey, vtxoTapTree, err := delegatorVtxoScript.TapTree()
+	vtxoTapKey, vtxoTapTree, err := delegationVtxoScript.TapTree()
 	require.NoError(t, err)
 
 	arkAddress := arklib.Address{
@@ -613,7 +613,7 @@ func TestMultipleDelegate(t *testing.T) {
 	alicePkScript, err := aliceArkAddr.GetPkScript()
 	require.NoError(t, err)
 
-	exitScript, err := delegatorVtxoScript.ExitClosures()[0].Script()
+	exitScript, err := delegationVtxoScript.ExitClosures()[0].Script()
 	require.NoError(t, err)
 
 	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -624,12 +624,12 @@ func TestMultipleDelegate(t *testing.T) {
 	sequence, err := arklib.BIP68Sequence(exitLocktime)
 	require.NoError(t, err)
 
-	scripts, err := delegatorVtxoScript.Encode()
+	scripts, err := delegationVtxoScript.Encode()
 	require.NoError(t, err)
 
 	tapTree := txutils.TapTree(scripts)
 
-	aliceDelegatorScript, err := aliceDelegatorClosure.Script()
+	aliceDelegatorScript, err := collaborativeAliceDelegatorClosure.Script()
 	require.NoError(t, err)
 
 	aliceDelegatorMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -836,7 +836,7 @@ func TestDelegateSameInput(t *testing.T) {
 
 	signerPubKey := aliceConfig.SignerPubKey
 
-	aliceDelegatorClosure := &script.MultisigClosure{
+	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
 		PubKeys: []*btcec.PublicKey{alicePubKey, delegatePubKey, signerPubKey},
 	}
 
@@ -845,9 +845,9 @@ func TestDelegateSameInput(t *testing.T) {
 		Value: 1024,
 	}
 
-	delegatorVtxoScript := script.TapscriptsVtxoScript{
+	delegationVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			aliceDelegatorClosure,
+			collaborativeAliceDelegatorClosure,
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
@@ -860,7 +860,7 @@ func TestDelegateSameInput(t *testing.T) {
 		},
 	}
 
-	vtxoTapKey, vtxoTapTree, err := delegatorVtxoScript.TapTree()
+	vtxoTapKey, vtxoTapTree, err := delegationVtxoScript.TapTree()
 	require.NoError(t, err)
 
 	arkAddress := arklib.Address{
@@ -897,7 +897,7 @@ func TestDelegateSameInput(t *testing.T) {
 	vtxoHash, err := chainhash.NewHashFromStr(aliceVtxo.Txid)
 	require.NoError(t, err)
 
-	exitScript, err := delegatorVtxoScript.ExitClosures()[0].Script()
+	exitScript, err := delegationVtxoScript.ExitClosures()[0].Script()
 	require.NoError(t, err)
 
 	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -964,7 +964,7 @@ func TestDelegateSameInput(t *testing.T) {
 		intentProof.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 		intentProof.Inputs[1].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 
-		scripts, err := delegatorVtxoScript.Encode()
+		scripts, err := delegationVtxoScript.Encode()
 		if err != nil {
 			return nil, err
 		}
@@ -1038,7 +1038,7 @@ func TestDelegateSameInput(t *testing.T) {
 			return nil, err
 		}
 
-		aliceDelegatorScript, err := aliceDelegatorClosure.Script()
+		aliceDelegatorScript, err := collaborativeAliceDelegatorClosure.Script()
 		if err != nil {
 			return nil, err
 		}
@@ -1135,7 +1135,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 
 	signerPubKey := aliceConfig.SignerPubKey
 
-	aliceDelegatorClosure := &script.MultisigClosure{
+	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
 		PubKeys: []*btcec.PublicKey{alicePubKey, delegatePubKey, signerPubKey},
 	}
 
@@ -1144,9 +1144,9 @@ func TestDelegateSeveralInputs(t *testing.T) {
 		Value: 1024,
 	}
 
-	delegatorVtxoScript := script.TapscriptsVtxoScript{
+	delegationVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			aliceDelegatorClosure,
+			collaborativeAliceDelegatorClosure,
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
@@ -1159,7 +1159,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 		},
 	}
 
-	vtxoTapKey, vtxoTapTree, err := delegatorVtxoScript.TapTree()
+	vtxoTapKey, vtxoTapTree, err := delegationVtxoScript.TapTree()
 	require.NoError(t, err)
 
 	arkAddress := arklib.Address{
@@ -1180,7 +1180,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	alicePkScript, err := aliceArkAddr.GetPkScript()
 	require.NoError(t, err)
 
-	exitScript, err := delegatorVtxoScript.ExitClosures()[0].Script()
+	exitScript, err := delegationVtxoScript.ExitClosures()[0].Script()
 	require.NoError(t, err)
 
 	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -1191,12 +1191,12 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	sequence, err := arklib.BIP68Sequence(exitLocktime)
 	require.NoError(t, err)
 
-	scripts, err := delegatorVtxoScript.Encode()
+	scripts, err := delegationVtxoScript.Encode()
 	require.NoError(t, err)
 
 	tapTree := txutils.TapTree(scripts)
 
-	aliceDelegatorScript, err := aliceDelegatorClosure.Script()
+	aliceDelegatorScript, err := collaborativeAliceDelegatorClosure.Script()
 	require.NoError(t, err)
 
 	aliceDelegatorMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -1443,7 +1443,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	signerPubKey := aliceConfig.SignerPubKey
 
 	// --- Set up delegation tapscript (same 3-closure structure as TestDelegate) ---
-	aliceDelegatorClosure := &script.MultisigClosure{
+	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
 		PubKeys: []*btcec.PublicKey{alicePubKey, delegatePubKey, signerPubKey},
 	}
 
@@ -1452,9 +1452,9 @@ func TestDelegateWithAssets(t *testing.T) {
 		Value: 1024,
 	}
 
-	delegatorVtxoScript := script.TapscriptsVtxoScript{
+	delegationVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			aliceDelegatorClosure,
+			collaborativeAliceDelegatorClosure,
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
@@ -1467,7 +1467,7 @@ func TestDelegateWithAssets(t *testing.T) {
 		},
 	}
 
-	vtxoTapKey, vtxoTapTree, err := delegatorVtxoScript.TapTree()
+	vtxoTapKey, vtxoTapTree, err := delegationVtxoScript.TapTree()
 	require.NoError(t, err)
 
 	arkAddress := arklib.Address{
@@ -1542,7 +1542,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	vtxoHash, err := chainhash.NewHashFromStr(aliceVtxo.Txid)
 	require.NoError(t, err)
 
-	exitScript, err := delegatorVtxoScript.ExitClosures()[0].Script()
+	exitScript, err := delegationVtxoScript.ExitClosures()[0].Script()
 	require.NoError(t, err)
 
 	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -1617,7 +1617,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	intentProof.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 	intentProof.Inputs[1].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 
-	scripts, err := delegatorVtxoScript.Encode()
+	scripts, err := delegationVtxoScript.Encode()
 	require.NoError(t, err)
 
 	tapTree := txutils.TapTree(scripts)
@@ -1672,7 +1672,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	err = updater.AddInSighashType(txscript.SigHashAnyOneCanPay|txscript.SigHashAll, 0)
 	require.NoError(t, err)
 
-	aliceDelegatorScript, err := aliceDelegatorClosure.Script()
+	aliceDelegatorScript, err := collaborativeAliceDelegatorClosure.Script()
 	require.NoError(t, err)
 
 	aliceDelegatorMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
