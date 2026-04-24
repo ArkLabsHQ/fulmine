@@ -4,6 +4,13 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
 )
 
+func arkTxid(tx types.Transfer) string {
+	if !tx.Explorable {
+		return tx.Txid
+	}
+	return ""
+}
+
 func TxIcon(kind, status string) templ.Component {
 	switch status {
     case "failure":
@@ -83,7 +90,7 @@ templ WaitingTxIcon() {
 	</div>
 }
 
-templ Transfer(tx types.Transfer, explorerUrl string) {
+templ Transfer(tx types.Transfer, explorerUrl, arkExplorerUrl string) {
   <div class="p-3 flex flex-col rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div>
       @HeaderWithAction("Transaction details", ViewTxButtonDot(tx.Txid, explorerUrl))
@@ -92,10 +99,10 @@ templ Transfer(tx types.Transfer, explorerUrl string) {
         <p class="mt-4 capitalize">{tx.Kind}</p>
         <p class="mt-4 text-3xl cryptoAmount" sats={tx.Amount}>{tx.Amount} SATS</p>
         if tx.Kind == "received" {
-          @ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status)
+          @ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status, arkTxid(tx), arkExplorerUrl)
         }
         if tx.Kind == "sent" {
-          @SentTxTable(tx.Amount, tx.CreatedAt, tx.Status)
+          @SentTxTable(tx.Amount, tx.CreatedAt, tx.Status, arkTxid(tx), arkExplorerUrl)
         }
       </div>
     </div>
