@@ -87,8 +87,6 @@ func (s *service) Stop() {
 
 		s.job = nil
 		s.tasks = make([]*heightTask, 0)
-		// Without this
-		// s.scheduler = gocron.NewScheduler(time.UTC)
 	}
 
 	if s.blockCancel != nil {
@@ -171,11 +169,12 @@ func (s *service) ScheduleNextSettlement(at time.Time, settleFunc func()) error 
 			return
 		default:
 		}
-		settleFunc()
 		s.mu.Lock()
-		defer s.mu.Unlock()
 		s.scheduler.Remove(s.job)
 		s.job = nil
+		s.mu.Unlock()
+
+		settleFunc()
 	})
 	if err != nil {
 		cancel()

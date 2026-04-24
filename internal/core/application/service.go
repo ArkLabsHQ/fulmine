@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -748,8 +750,6 @@ func (s *Service) Settle(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	s.schedulerSvc.CancelNextSettlement()
-
 	return commitmentTxid, nil
 }
 
@@ -762,8 +762,6 @@ func (s *Service) SendOnChain(ctx context.Context, addr string, amount uint64) (
 	if err != nil {
 		return "", err
 	}
-
-	s.schedulerSvc.CancelNextSettlement()
 
 	return commitmentTxid, nil
 }
@@ -2102,32 +2100,27 @@ func (s *Service) handleAddressEventChannel(
 			return
 		}
 		if event.Err != nil {
-			log.WithError(event.Err).Error("AddressEvent subscription error")
+			log.WithError(event.Err).Errorf("%s received unexpected error", logPrefix)
 			return
 		}
 
 		data := event.Data
 		if len(data.SpentVtxos) <= 0 && len(data.NewVtxos) <= 0 {
-			log.Warn("Received nil event from event channel")
+			log.Warn("%s received unexpected empty event", logPrefix)
 			return
 		}
-
-		log.Infof(
-			"received address event(%d spent vtxos, %d new vtxos)",
-			len(data.SpentVtxos), len(data.NewVtxos),
-		)
 
 		// convert scripts to addresses
 		addresses := make([]string, 0, len(data.Scripts))
 		for _, script := range data.Scripts {
 			decodedPubKey, err := hex.DecodeString(script)
 			if err != nil {
-				log.WithError(err).Errorf("failed to decode script %s", script)
+				log.WithError(err).Errorf("%s failed to decode script %s", logPrefix, script)
 				continue
 			}
 			vtxoTapPubkey, err := schnorr.ParsePubKey(decodedPubKey[2:])
 			if err != nil {
-				log.WithError(err).Errorf("failed to parse pubkey %s", script)
+				log.WithError(err).Errorf("%s failed to parse pubkey %s", logPrefix, script)
 				continue
 			}
 
@@ -2139,12 +2132,27 @@ func (s *Service) handleAddressEventChannel(
 
 			encodedAddress, err := vtxoAddress.EncodeV0()
 			if err != nil {
-				log.WithError(err).Errorf("failed to encode address %s", script)
+				log.WithError(err).Errorf("%s failed to encode address %s", logPrefix, script)
 				continue
 			}
 			addresses = append(addresses, encodedAddress)
 
 		}
+
+		type logData struct {
+			Txid          string
+			Addresses     []string
+			NewVtxos      int
+			SpentVtxos    int
+			CheckpointTxs []string
+		}
+		log.WithField("addresses", logData{
+			Txid:          data.Txid,
+			Addresses:     addresses,
+			NewVtxos:      len(data.NewVtxos),
+			SpentVtxos:    len(data.SpentVtxos),
+			CheckpointTxs: slices.Collect(maps.Keys(data.CheckpointTxs)),
+		}).Debug("%s received event for address(es)", logPrefix)
 
 		go func(evt indexer.ScriptEvent) {
 			select {
@@ -2155,7 +2163,9 @@ func (s *Service) handleAddressEventChannel(
 				Checkpoints: data.CheckpointTxs,
 				TxData:      indexer.TxData{Tx: data.Tx, Txid: data.Txid},
 			}:
+				log.Debugf("%s forwarded notification", logPrefix)
 			default:
+				log.Warnf("%s failed to forward notification", logPrefix)
 			}
 		}(event)
 	}

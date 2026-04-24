@@ -10,6 +10,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const logPrefix = "subscription handler:"
+
 type scriptsStore interface {
 	Get(ctx context.Context) ([]string, error)
 	Add(ctx context.Context, subscribedScripts []string) (count int, err error)
@@ -61,7 +63,7 @@ func (h *subscriptionHandler) subscribe(ctx context.Context, scripts []string) e
 		return nil
 	}
 
-	log.Debugf("added %d scripts to subscription", count)
+	log.Debugf("%s added %d scripts to subscription", logPrefix, count)
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -83,7 +85,7 @@ func (h *subscriptionHandler) unsubscribe(ctx context.Context, scripts []string)
 		return nil
 	}
 
-	log.Debugf("removed %d scripts from subscription", count)
+	log.Debugf("%s removed %d scripts from subscription", logPrefix, count)
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -120,7 +122,7 @@ func (h *subscriptionHandler) start(scripts []string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	h.cancelRetry = cancel
 
-	log.Debugf("creating subscription...")
+	log.Debugf("%s creating subscription...", logPrefix)
 
 	id, subscriptionChannel, closeFn, err := h.indexerClient.NewSubscription(ctx, scripts)
 	if err != nil {
@@ -129,7 +131,7 @@ func (h *subscriptionHandler) start(scripts []string) error {
 
 	h.closeFn = closeFn
 	h.id = id
-	log.Debugf("created subscription %s", h.id)
+	log.Debugf("%s created subscription %s", logPrefix, h.id)
 
 	go func() {
 		waitForReconnection := false
@@ -145,27 +147,19 @@ func (h *subscriptionHandler) start(scripts []string) error {
 				if event.Connection != nil {
 					if event.Connection.State == clientTypes.StreamConnectionStateDisconnected {
 						waitForReconnection = true
-						log.Debug("connection lost, waiting for reconnection...")
+						log.Debug("%s connection lost, waiting for reconnection...", logPrefix)
 					}
 					if waitForReconnection &&
 						event.Connection.State == clientTypes.StreamConnectionStateReconnected {
-						log.Debug("connection restored, resubscribing...")
+						log.Debug("%s connection restored, resubscribing...", logPrefix)
 					}
 					if waitForReconnection &&
 						event.Connection.State == clientTypes.StreamConnectionStateReady {
-						log.Debug("restored subscriptions")
+						log.Debug("%s restored subscriptions", logPrefix)
 						waitForReconnection = false
 					}
 					continue
 				}
-				if event.Err != nil {
-					log.WithError(err).Warn("received error on subscription stream")
-					continue
-				}
-
-				log.Debugf(
-					"received transaction event: %s for subscription", event.Data.Txid,
-				)
 				go h.onEvent(event)
 			}
 		}
