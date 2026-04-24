@@ -7,10 +7,10 @@ import (
 )
 
 type Config struct {
-	GRPCPort     uint32
-	HTTPPort     uint32
-	DelegatePort uint32
-	WithTLS      bool
+	GRPCPort      uint32
+	HTTPPort      uint32
+	DelegatePort  uint32
+	WithTLS       bool
 }
 
 func (c Config) Validate() error {

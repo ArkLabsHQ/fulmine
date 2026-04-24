@@ -1581,16 +1581,16 @@ func (s *service) getDelegateTaskDetail(c *gin.Context) {
 func toDelegateTask(task domain.DelegateTask) types.DelegateTask {
 	unixTime := task.ScheduledAt.Unix()
 	result := types.DelegateTask{
-		ID:                task.ID,
-		Status:            task.Status.String(),
-		Fee:               strconv.FormatUint(task.Fee, 10),
-		ScheduledAt:       prettyUnixTimestamp(unixTime),
-		ScheduledAtUnix:   unixTime,
-		ScheduledDate:     prettyDay(unixTime),  // Keep for backward compatibility
-		ScheduledHour:     prettyHour(unixTime), // Keep for backward compatibility
-		FailReason:        task.FailReason,
-		CommitmentTxid:    task.CommitmentTxid,
-		DelegatePublicKey: task.DelegatePublicKey,
+		ID:                 task.ID,
+		Status:             task.Status.String(),
+		Fee:                strconv.FormatUint(task.Fee, 10),
+		ScheduledAt:        prettyUnixTimestamp(unixTime),
+		ScheduledAtUnix:    unixTime,
+		ScheduledDate:      prettyDay(unixTime),  // Keep for backward compatibility
+		ScheduledHour:      prettyHour(unixTime), // Keep for backward compatibility
+		FailReason:         task.FailReason,
+		CommitmentTxid:     task.CommitmentTxid,
+		DelegatePublicKey:  task.DelegatePublicKey,
 	}
 
 	// Convert Intent

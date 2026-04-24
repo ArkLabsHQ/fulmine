@@ -32,19 +32,19 @@ import (
 )
 
 type service struct {
-	cfg                Config
-	appSvc             *application.Service
-	delegateSvc        *application.DelegateService
-	httpServer         *http.Server
-	delegateHTTPServer *http.Server
-	grpcServer         *grpc.Server
-	delegateGrpcServer *grpc.Server
-	unlockerSvc        ports.Unlocker
-	macaroonSvc        macaroon.Service
-	appStopCh          chan struct{}
-	feStopCh           chan struct{}
-	otelShutdown       func()
-	pyroscopeShutdown  func()
+	cfg                 Config
+	appSvc              *application.Service
+	delegateSvc         *application.DelegateService
+	httpServer          *http.Server
+	delegateHTTPServer  *http.Server
+	grpcServer          *grpc.Server
+	delegateGrpcServer  *grpc.Server
+	unlockerSvc         ports.Unlocker
+	macaroonSvc         macaroon.Service
+	appStopCh           chan struct{}
+	feStopCh            chan struct{}
+	otelShutdown        func()
+	pyroscopeShutdown   func()
 }
 
 func NewService(
@@ -264,19 +264,19 @@ func NewService(
 	}
 
 	svc := &service{
-		cfg:                cfg,
-		appSvc:             appSvc,
-		delegateSvc:        delegateSvc,
-		httpServer:         httpServer,
-		delegateHTTPServer: delegateHTTPServer,
-		grpcServer:         grpcServer,
-		delegateGrpcServer: delegateGrpcServer,
-		unlockerSvc:        unlockerSvc,
-		macaroonSvc:        macaroonSvc,
-		appStopCh:          appStopCh,
-		feStopCh:           feStopCh,
-		otelShutdown:       otelShutdown,
-		pyroscopeShutdown:  pyroscopeShutdown,
+		cfg:                 cfg,
+		appSvc:              appSvc,
+		delegateSvc:         delegateSvc,
+		httpServer:          httpServer,
+		delegateHTTPServer:  delegateHTTPServer,
+		grpcServer:          grpcServer,
+		delegateGrpcServer:  delegateGrpcServer,
+		unlockerSvc:         unlockerSvc,
+		macaroonSvc:         macaroonSvc,
+		appStopCh:           appStopCh,
+		feStopCh:            feStopCh,
+		otelShutdown:        otelShutdown,
+		pyroscopeShutdown:   pyroscopeShutdown,
 	}
 
 	if macaroonSvc != nil {

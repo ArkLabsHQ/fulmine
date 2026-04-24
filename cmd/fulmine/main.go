@@ -81,10 +81,10 @@ func main() {
 	log.Info("starting fulmine...")
 
 	svcConfig := grpcservice.Config{
-		GRPCPort:     cfg.GRPCPort,
-		HTTPPort:     cfg.HTTPPort,
-		DelegatePort: cfg.DelegatePort,
-		WithTLS:      cfg.WithTLS,
+		GRPCPort:      cfg.GRPCPort,
+		HTTPPort:      cfg.HTTPPort,
+		DelegatePort:  cfg.DelegatePort,
+		WithTLS:       cfg.WithTLS,
 	}
 
 	dbSvc, err := db.NewService(db.ServiceConfig{

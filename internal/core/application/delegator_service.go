@@ -251,11 +251,11 @@ func (s *DelegateService) newDelegateTask(
 			Txid:    proof.UnsignedTx.TxID(),
 			Inputs:  inputs,
 		},
-		ForfeitTxs:        indexedForfeitTxs,
-		Fee:               uint64(feeAmount),
-		DelegatePublicKey: hex.EncodeToString(s.svc.publicKey.SerializeCompressed()),
-		ScheduledAt:       scheduledAt,
-		Status:            domain.DelegateTaskStatusPending,
+		ForfeitTxs:         indexedForfeitTxs,
+		Fee:                uint64(feeAmount),
+		DelegatePublicKey:  hex.EncodeToString(s.svc.publicKey.SerializeCompressed()),
+		ScheduledAt:        scheduledAt,
+		Status:             domain.DelegateTaskStatusPending,
 	}
 
 	// validate delegate fee
