@@ -1,0 +1,1 @@
+ALTER TABLE vhtlc DROP COLUMN tracked;

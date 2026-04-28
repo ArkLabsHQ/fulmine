@@ -116,6 +116,7 @@ type swapData struct {
 
 func toSwapData(swap domain.Swap) swapData {
 	vHTLC := swap.Vhtlc
+	tracked := vHTLC.Tracked
 
 	vhtlcData := vhtlcData{
 		Id:                                   vHTLC.Id,
@@ -127,6 +128,7 @@ func toSwapData(swap domain.Swap) swapData {
 		UnilateralClaimDelay:                 vHTLC.UnilateralClaimDelay,
 		UnilateralRefundDelay:                vHTLC.UnilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: vHTLC.UnilateralRefundWithoutReceiverDelay,
+		Tracked:                              &tracked,
 	}
 
 	return swapData{

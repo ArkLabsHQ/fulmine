@@ -10,7 +10,8 @@ import (
 
 type Vhtlc struct {
 	vhtlc.Opts
-	Id string
+	Id      string
+	Tracked bool
 }
 
 // VHTLCRepository stores the VHTLC options owned by the wallet
@@ -18,6 +19,9 @@ type VHTLCRepository interface {
 	GetAll(ctx context.Context) ([]Vhtlc, error)
 	Get(ctx context.Context, id string) (*Vhtlc, error)
 	GetByIds(ctx context.Context, ids []string) ([]Vhtlc, error)
+	GetByScripts(ctx context.Context, scripts []string) ([]Vhtlc, error)
+	GetScripts(ctx context.Context) ([]string, error)
+	UntrackByScripts(ctx context.Context, scripts []string) error
 	Add(ctx context.Context, vhtlc Vhtlc) error
 	Close()
 }
@@ -27,8 +31,9 @@ func NewVhtlc(opts vhtlc.Opts) Vhtlc {
 	sender := opts.Sender.SerializeCompressed()
 	receiver := opts.Receiver.SerializeCompressed()
 	return Vhtlc{
-		Opts: opts,
-		Id:   GetVhtlcId(preimageHash, sender, receiver),
+		Opts:    opts,
+		Id:      GetVhtlcId(preimageHash, sender, receiver),
+		Tracked: true,
 	}
 }
 

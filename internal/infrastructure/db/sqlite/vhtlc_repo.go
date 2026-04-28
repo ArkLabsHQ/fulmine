@@ -79,6 +79,75 @@ func (r *vhtlcRepository) GetByIds(ctx context.Context, ids []string) ([]domain.
 	return out, nil
 }
 
+func (r *vhtlcRepository) GetByScripts(ctx context.Context, scripts []string) ([]domain.Vhtlc, error) {
+	if len(scripts) == 0 {
+		return nil, nil
+	}
+
+	rows, err := r.querier.ListVHTLC(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	scriptSet := make(map[string]struct{}, len(scripts))
+	for _, script := range scripts {
+		scriptSet[script] = struct{}{}
+	}
+
+	out := make([]domain.Vhtlc, 0, len(scripts))
+	for _, row := range rows {
+		v, err := toVhtlc(row)
+		if err != nil {
+			return nil, err
+		}
+		lockingScript, err := vhtlc.LockingScriptHexFromOpts(v.Opts)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := scriptSet[lockingScript]; ok {
+			out = append(out, v)
+		}
+	}
+
+	return out, nil
+}
+
+func (r *vhtlcRepository) GetScripts(ctx context.Context) ([]string, error) {
+	vhtlcs, err := r.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	scripts := make([]string, 0, len(vhtlcs))
+	for _, v := range vhtlcs {
+		if !v.Tracked {
+			continue
+		}
+		lockingScript, err := vhtlc.LockingScriptHexFromOpts(v.Opts)
+		if err != nil {
+			return nil, err
+		}
+		scripts = append(scripts, lockingScript)
+	}
+
+	return scripts, nil
+}
+
+func (r *vhtlcRepository) UntrackByScripts(ctx context.Context, scripts []string) error {
+	vhtlcs, err := r.GetByScripts(ctx, scripts)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range vhtlcs {
+		if err := r.querier.UntrackVHTLC(ctx, v.Id); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (r *vhtlcRepository) GetAll(ctx context.Context) ([]domain.Vhtlc, error) {
 	rows, err := r.querier.ListVHTLC(ctx)
 	if err != nil {
@@ -157,7 +226,9 @@ func toVhtlc(row queries.Vhtlc) (domain.Vhtlc, error) {
 		PreimageHash:                         preimageHashBytes,
 	}
 
-	return domain.NewVhtlc(opts), nil
+	v := domain.NewVhtlc(opts)
+	v.Tracked = row.Tracked
+	return v, nil
 }
 
 func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
@@ -181,5 +252,6 @@ func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
 		UnilateralRefundDelayValue:               int64(vhtlc.UnilateralRefundDelay.Value),
 		UnilateralRefundWithoutReceiverDelayType: int64(vhtlc.UnilateralRefundWithoutReceiverDelay.Type),
 		UnilateralRefundWithoutReceiverDelayValue: int64(vhtlc.UnilateralRefundWithoutReceiverDelay.Value),
+		Tracked: vhtlc.Tracked,
 	}
 }

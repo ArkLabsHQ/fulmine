@@ -169,6 +169,48 @@
         }
       }
     },
+    "v1Event": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "txid": {
+          "type": "string"
+        },
+        "preimage": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/v1EventType"
+        },
+        "timestampUnix": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "v1EventStreamResponse": {
+      "type": "object",
+      "properties": {
+        "event": {
+          "$ref": "#/definitions/v1Event"
+        }
+      }
+    },
+    "v1EventType": {
+      "type": "string",
+      "enum": [
+        "EVENT_TYPE_UNSPECIFIED",
+        "EVENT_TYPE_VHTLC_CREATED",
+        "EVENT_TYPE_VHTLC_FUNDED",
+        "EVENT_TYPE_VHTLC_CLAIMED",
+        "EVENT_TYPE_VHTLC_REFUNDED",
+        "EVENT_TYPE_VHTLC_SPENT"
+      ],
+      "default": "EVENT_TYPE_UNSPECIFIED",
+      "description": "EventType defines the type of lifecycle event emitted by Fulmine."
+    },
     "v1GetVtxoNotificationsResponse": {
       "type": "object",
       "properties": {

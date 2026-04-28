@@ -73,6 +73,77 @@ func (r *vhtlcRepository) GetByIds(ctx context.Context, ids []string) ([]domain.
 	return out, nil
 }
 
+func (r *vhtlcRepository) GetByScripts(ctx context.Context, scripts []string) ([]domain.Vhtlc, error) {
+	if len(scripts) == 0 {
+		return nil, nil
+	}
+
+	vhtlcs, err := r.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	scriptSet := make(map[string]struct{}, len(scripts))
+	for _, script := range scripts {
+		scriptSet[script] = struct{}{}
+	}
+
+	out := make([]domain.Vhtlc, 0, len(scripts))
+	for _, v := range vhtlcs {
+		lockingScript, err := vhtlc.LockingScriptHexFromOpts(v.Opts)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := scriptSet[lockingScript]; ok {
+			out = append(out, v)
+		}
+	}
+
+	return out, nil
+}
+
+func (r *vhtlcRepository) GetScripts(ctx context.Context) ([]string, error) {
+	vhtlcs, err := r.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	scripts := make([]string, 0, len(vhtlcs))
+	for _, v := range vhtlcs {
+		if !v.Tracked {
+			continue
+		}
+		lockingScript, err := vhtlc.LockingScriptHexFromOpts(v.Opts)
+		if err != nil {
+			return nil, err
+		}
+		scripts = append(scripts, lockingScript)
+	}
+
+	return scripts, nil
+}
+
+func (r *vhtlcRepository) UntrackByScripts(ctx context.Context, scripts []string) error {
+	vhtlcs, err := r.GetByScripts(ctx, scripts)
+	if err != nil {
+		return err
+	}
+
+	tracked := false
+	for _, v := range vhtlcs {
+		var data vhtlcData
+		if err := r.store.Get(v.Id, &data); err != nil {
+			return err
+		}
+		data.Tracked = &tracked
+		if err := r.store.Update(v.Id, data); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Get retrieves a specific VHTLC option by preimage hash
 func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*domain.Vhtlc, error) {
 	var dataOpts vhtlcData
@@ -104,6 +175,7 @@ func (r *vhtlcRepository) Add(ctx context.Context, vhtlc domain.Vhtlc) error {
 		UnilateralClaimDelay:                 vhtlc.UnilateralClaimDelay,
 		UnilateralRefundDelay:                vhtlc.UnilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: vhtlc.UnilateralRefundWithoutReceiverDelay,
+		Tracked:                              &vhtlc.Tracked,
 	}
 
 	if err := r.store.Insert(data.Id, data); err != nil {
@@ -130,6 +202,7 @@ type vhtlcData struct {
 	UnilateralClaimDelay                 arklib.RelativeLocktime
 	UnilateralRefundDelay                arklib.RelativeLocktime
 	UnilateralRefundWithoutReceiverDelay arklib.RelativeLocktime
+	Tracked                              *bool
 }
 
 func (d *vhtlcData) toVhtlc() (domain.Vhtlc, error) {
@@ -175,5 +248,11 @@ func (d *vhtlcData) toVhtlc() (domain.Vhtlc, error) {
 		PreimageHash:                         preimageHashBytes,
 	}
 
-	return domain.NewVhtlc(opts), nil
+	v := domain.NewVhtlc(opts)
+	if d.Tracked != nil {
+		v.Tracked = *d.Tracked
+	} else {
+		v.Tracked = false
+	}
+	return v, nil
 }

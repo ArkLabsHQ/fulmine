@@ -113,3 +113,21 @@ enum TxType {
   TX_TYPE_SENT = 1;
   TX_TYPE_RECEIVED = 2;
 }
+
+// EventType defines the type of lifecycle event emitted by Fulmine.
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_VHTLC_CREATED = 1;
+  EVENT_TYPE_VHTLC_FUNDED = 2;
+  EVENT_TYPE_VHTLC_CLAIMED = 3;
+  EVENT_TYPE_VHTLC_REFUNDED = 4;
+  EVENT_TYPE_VHTLC_SPENT = 5;
+}
+
+message Event {
+  string id = 1;
+  string txid = 2;
+  string preimage = 3;
+  EventType type = 4;
+  int64 timestamp_unix = 5;
+}
