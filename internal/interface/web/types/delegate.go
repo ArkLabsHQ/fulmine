@@ -22,7 +22,7 @@ type DelegateTask struct {
 	ScheduledHour      string                `json:"scheduledHour"`     // Deprecated: use scheduledAtUnix
 	FailReason         string                `json:"failReason,omitempty"`
 	CommitmentTxid     string                `json:"commitmentTxid,omitempty"`
-	DelegatorPublicKey string                `json:"delegatorPublicKey,omitempty"`
+	DelegatePublicKey  string                `json:"delegatePublicKey,omitempty"`
 	Intent             *DelegateTaskIntent   `json:"intent,omitempty"`
 	Forfeits           []DelegateTaskForfeit `json:"forfeits,omitempty"`
 }

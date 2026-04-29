@@ -317,7 +317,7 @@ func toDelegateProto(delegate domain.DelegateTask) *pb.Delegate {
 		Intent:             intent,
 		ForfeitTxs:         forfeitTxs,
 		Fee:                delegate.Fee,
-		DelegatorPublicKey: delegate.DelegatorPublicKey,
+		DelegatePublicKey:  delegate.DelegatePublicKey,
 		ScheduledAt:        delegate.ScheduledAt.Unix(),
 		Status:             delegate.Status.String(),
 		FailReason:         delegate.FailReason,

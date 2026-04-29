@@ -1485,20 +1485,20 @@ func toTransfer(tx clientTypes.Transaction) types.Transfer {
 	}
 }
 
-func (s *service) delegator(c *gin.Context) {
+func (s *service) delegate(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
 	}
-	bodyContent := pages.DelegatorBodyContent()
+	bodyContent := pages.DelegateBodyContent()
 	s.pageViewHandler(bodyContent, c)
 }
 
-func (s *service) delegatorActive(c *gin.Context) {
+func (s *service) delegateActive(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
 	}
 	active := c.Param("active")
-	bodyContent := pages.DelegatorPartialContent(active)
+	bodyContent := pages.DelegatePartialContent(active)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -1544,7 +1544,7 @@ func (s *service) getDelegateTasks(c *gin.Context) {
 		return
 	}
 
-	bodyContent := pages.DelegatorTasksListContent(parsedTasks, statusStr, nextOffset, loadMore)
+	bodyContent := pages.DelegateTasksListContent(parsedTasks, statusStr, nextOffset, loadMore)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -1590,7 +1590,7 @@ func toDelegateTask(task domain.DelegateTask) types.DelegateTask {
 		ScheduledHour:      prettyHour(unixTime), // Keep for backward compatibility
 		FailReason:         task.FailReason,
 		CommitmentTxid:     task.CommitmentTxid,
-		DelegatorPublicKey: task.DelegatorPublicKey,
+		DelegatePublicKey:  task.DelegatePublicKey,
 	}
 
 	// Convert Intent
