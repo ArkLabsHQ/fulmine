@@ -820,13 +820,7 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 	_, offchain, boarding, _, err := senderArkClient.GetAddresses(ctx)
 	require.NoError(t, err)
 
-	err = faucet(ctx, strings.TrimSpace(boarding[0]), 0.001)
-	require.NoError(t, err)
-
-	time.Sleep(5 * time.Second)
-
-	_, err = senderArkClient.Settle(ctx)
-	require.NoError(t, err)
+	faucetAndSettle(t, ctx, senderArkClient, boarding[0], 0.001)
 
 	preimage := make([]byte, 32)
 	_, err = rand.Read(preimage)
@@ -973,13 +967,7 @@ func TestSettleVHTLCByDelegateRefundWithOutpoint(t *testing.T) {
 	_, offchain, boarding, _, err := senderArkClient.GetAddresses(ctx)
 	require.NoError(t, err)
 
-	err = faucet(ctx, strings.TrimSpace(boarding[0]), 0.001)
-	require.NoError(t, err)
-
-	time.Sleep(5 * time.Second)
-
-	_, err = senderArkClient.Settle(ctx)
-	require.NoError(t, err)
+	faucetAndSettle(t, ctx, senderArkClient, strings.TrimSpace(boarding[0]), 0.001)
 
 	preimage := make([]byte, 32)
 	_, err = rand.Read(preimage)
@@ -1399,11 +1387,7 @@ func TestClaimVHTLCPendingFinalization(t *testing.T) {
 	_, _, boarding, _, err := arkadeWallet.GetAddresses(ctx)
 	require.NoError(t, err)
 
-	err = faucet(ctx, strings.TrimSpace(boarding[0]), 0.001)
-	require.NoError(t, err)
-	time.Sleep(5 * time.Second)
-	_, err = arkadeWallet.Settle(ctx)
-	require.NoError(t, err)
+	faucetAndSettle(t, ctx, arkadeWallet, boarding[0], 0.001)
 
 	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
 	require.NoError(t, err)
@@ -1471,11 +1455,7 @@ func TestRefundVHTLCPendingFinalization(t *testing.T) {
 	_, _, boarding, _, err := arkClient.GetAddresses(ctx)
 	require.NoError(t, err)
 
-	err = faucet(ctx, strings.TrimSpace(boarding[0]), 0.001)
-	require.NoError(t, err)
-	time.Sleep(5 * time.Second)
-	_, err = arkClient.Settle(ctx)
-	require.NoError(t, err)
+	faucetAndSettle(t, ctx, arkClient, boarding[0], 0.001)
 
 	preimage := make([]byte, 32)
 	_, err = rand.Read(preimage)

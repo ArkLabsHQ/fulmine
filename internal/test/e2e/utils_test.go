@@ -869,3 +869,35 @@ func verifyInputSignatures(
 
 	return nil
 }
+
+func faucetAndSettle(t *testing.T, ctx context.Context, c arksdk.ArkClient, address string, amount float64){
+	t.Helper()
+
+	err := faucet(ctx, strings.TrimSpace(address), amount)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		_, err := c.Settle(ctx)
+		return err == nil
+	}, 30*time.Second, 1*time.Second, "settle never succeeded")
+	return
+}
+
+// utils_test.go — for non-test setup (used in refillFulmine / TestMain)
+func waitForSettle(ctx context.Context, settle func(context.Context) error) error {
+	deadline := time.Now().Add(30 * time.Second)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		if err := settle(ctx); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(1 * time.Second):
+		}
+	}
+	return fmt.Errorf("settle never succeeded within 30s: last err: %w", lastErr)
+}
