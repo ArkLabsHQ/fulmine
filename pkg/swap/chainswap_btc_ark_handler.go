@@ -9,6 +9,7 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -46,6 +47,7 @@ func (b *btcToArkHandler) HandleSwapCreated(ctx context.Context, update boltz.Sw
 }
 
 func (b *btcToArkHandler) HandleLockupFailed(ctx context.Context, update boltz.SwapUpdate) error {
+	spew.Dump(update)
 	return b.handleBtcToArkFailure(ctx, update, getQuote)
 }
 
