@@ -26,8 +26,9 @@ INSERT INTO vhtlc (
     id, preimage_hash, sender, receiver, server, refund_locktime,
     unilateral_claim_delay_type, unilateral_claim_delay_value,
     unilateral_refund_delay_type, unilateral_refund_delay_value,
-    unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    unilateral_refund_without_receiver_delay_type, unilateral_refund_without_receiver_delay_value,
+    tracked
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetVHTLC :one
 SELECT * FROM vhtlc WHERE id = ?;
@@ -38,6 +39,11 @@ SELECT * FROM vhtlc;
 -- name: ListVHTLCsByID :many
 SELECT * FROM vhtlc
 WHERE id IN (sqlc.slice('ids'));
+
+-- name: UntrackVHTLC :exec
+UPDATE vhtlc
+SET tracked = FALSE
+WHERE id = ?;
 
 -- VtxoRollover queries
 -- name: UpsertVtxoRollover :exec

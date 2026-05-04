@@ -42,6 +42,9 @@ service NotificationService {
   // Notifies about events related to wallet transactions.
   rpc RoundNotifications(RoundNotificationsRequest) returns (stream RoundNotificationsResponse);
 
+  // EventStream streams VHTLC lifecycle events in real-time.
+  rpc EventStream(EventStreamRequest) returns (stream EventStreamResponse);
+
   //***************//
   //   WEBHOOKS    //
   //***************//
@@ -78,6 +81,11 @@ message RoundNotificationsResponse{
   string txhex = 2;
   string txid = 3;
   BlockDetails block_details = 4;
+}
+
+message EventStreamRequest {}
+message EventStreamResponse {
+  Event event = 1;
 }
 
 message AddWebhookRequest {

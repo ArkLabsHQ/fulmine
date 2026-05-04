@@ -99,6 +99,135 @@ func TestVHTLC(t *testing.T) {
 	require.NotEmpty(t, redeemTxid.GetRedeemTxid())
 }
 
+func TestVHTLCEventStream(t *testing.T) {
+	type terminalAction struct {
+		name          string
+		expectedEvent pb.EventType
+		run           func(context.Context, *testing.T, pb.ServiceClient, *pb.CreateVHTLCResponse, []byte) string
+	}
+
+	actions := []terminalAction{
+		{
+			name:          "claim",
+			expectedEvent: pb.EventType_EVENT_TYPE_VHTLC_CLAIMED,
+			run: func(ctx context.Context, t *testing.T, f pb.ServiceClient, v *pb.CreateVHTLCResponse, preimage []byte) string {
+				t.Helper()
+				resp, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
+					VhtlcId:  v.GetId(),
+					Preimage: hex.EncodeToString(preimage),
+				})
+				require.NoError(t, err)
+				require.NotEmpty(t, resp.GetRedeemTxid())
+				return resp.GetRedeemTxid()
+			},
+		},
+		{
+			name:          "refund",
+			expectedEvent: pb.EventType_EVENT_TYPE_VHTLC_REFUNDED,
+			run: func(ctx context.Context, t *testing.T, f pb.ServiceClient, v *pb.CreateVHTLCResponse, preimage []byte) string {
+				t.Helper()
+				resp, err := f.SettleVHTLC(ctx, &pb.SettleVHTLCRequest{
+					VhtlcId: v.GetId(),
+					SettlementType: &pb.SettleVHTLCRequest_Refund{
+						Refund: &pb.RefundPath{},
+					},
+				})
+				require.NoError(t, err)
+				require.NotEmpty(t, resp.GetTxid())
+				return resp.GetTxid()
+			},
+		},
+		{
+			name:          "settle_claim",
+			expectedEvent: pb.EventType_EVENT_TYPE_VHTLC_CLAIMED,
+			run: func(ctx context.Context, t *testing.T, f pb.ServiceClient, v *pb.CreateVHTLCResponse, preimage []byte) string {
+				t.Helper()
+				resp, err := f.SettleVHTLC(ctx, &pb.SettleVHTLCRequest{
+					VhtlcId: v.GetId(),
+					SettlementType: &pb.SettleVHTLCRequest_Claim{
+						Claim: &pb.ClaimPath{
+							Preimage: hex.EncodeToString(preimage),
+						},
+					},
+				})
+				require.NoError(t, err)
+				require.NotEmpty(t, resp.GetTxid())
+				return resp.GetTxid()
+			},
+		},
+		{
+			name:          "refund_without_receiver",
+			expectedEvent: pb.EventType_EVENT_TYPE_VHTLC_REFUNDED,
+			run: func(ctx context.Context, t *testing.T, f pb.ServiceClient, v *pb.CreateVHTLCResponse, preimage []byte) string {
+				t.Helper()
+				resp, err := f.RefundVHTLCWithoutReceiver(ctx, &pb.RefundVHTLCWithoutReceiverRequest{
+					VhtlcId: v.GetId(),
+				})
+				require.NoError(t, err)
+				require.NotEmpty(t, resp.GetRedeemTxid())
+				return resp.GetRedeemTxid()
+			},
+		},
+		{
+			name:          "manual_refund_without_receiver",
+			expectedEvent: pb.EventType_EVENT_TYPE_VHTLC_REFUNDED,
+			run: func(ctx context.Context, t *testing.T, f pb.ServiceClient, v *pb.CreateVHTLCResponse, preimage []byte) string {
+				t.Helper()
+				arkClient, _, _ := setupArkSDKwithPublicKey(t)
+				sha256Hash := sha256.Sum256(preimage)
+				preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+				vhtlc := buildTestVHTLC(t, f, v, preimageHash)
+				return submitManualRefundVHTLCWithoutReceiver(t, arkClient, f, vhtlc)
+			},
+		},
+	}
+
+	for _, action := range actions {
+		t.Run(action.name, func(t *testing.T) {
+			ctx := t.Context()
+
+			f, err := newFulmineClient(clientFulmineURL)
+			require.NoError(t, err)
+
+			notificationClient, err := newFulmineNotificationClient(clientFulmineURL)
+			require.NoError(t, err)
+
+			stream, err := notificationClient.EventStream(ctx, &pb.EventStreamRequest{})
+			require.NoError(t, err)
+
+			vhtlcResp, preimage := createAndFundVHTLC(
+				t, ctx, f, action.expectedEvent == pb.EventType_EVENT_TYPE_VHTLC_CLAIMED,
+			)
+
+			createdEvent := waitForVhtlcEvent(t, stream, 30*time.Second, func(event *pb.Event) bool {
+				return event.GetId() == vhtlcResp.GetId() &&
+					event.GetType() == pb.EventType_EVENT_TYPE_VHTLC_CREATED
+			})
+			require.Empty(t, createdEvent.GetTxid())
+
+			fundedEvent := waitForVhtlcEvent(t, stream, 30*time.Second, func(event *pb.Event) bool {
+				return event.GetId() == vhtlcResp.GetId() &&
+					event.GetType() == pb.EventType_EVENT_TYPE_VHTLC_FUNDED
+			})
+			require.NotEmpty(t, fundedEvent.GetTxid())
+
+			txid := action.run(ctx, t, f, vhtlcResp, preimage)
+
+			terminalEvent := waitForVhtlcEvent(t, stream, 30*time.Second, func(event *pb.Event) bool {
+				return event.GetId() == vhtlcResp.GetId() &&
+					event.GetType() == action.expectedEvent
+			})
+			require.NotEmpty(t, terminalEvent.GetTxid())
+			require.Equal(t, txid, terminalEvent.GetTxid())
+			if action.expectedEvent == pb.EventType_EVENT_TYPE_VHTLC_CLAIMED {
+				require.Equal(t, hex.EncodeToString(preimage), terminalEvent.GetPreimage())
+			} else {
+				require.Empty(t, terminalEvent.GetPreimage())
+			}
+		})
+	}
+}
+
 // TestClaimVHTLCWithOutpoint funds the same VHTLC address twice with different
 // amounts, then claims only the second VTXO by specifying its outpoint. It
 // verifies that the targeted VTXO is claimed and the first remains untouched.
@@ -1151,6 +1280,98 @@ func requireVHTLCSpentState(
 	}
 
 	t.Fatalf("vtxo %s:%d not found", expected.Outpoint.GetTxid(), expected.Outpoint.GetVout())
+}
+
+func createAndFundVHTLC(
+	t *testing.T,
+	ctx context.Context,
+	f pb.ServiceClient,
+	claimable bool,
+) (*pb.CreateVHTLCResponse, []byte) {
+	t.Helper()
+
+	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+	require.NoError(t, err)
+	require.NotEmpty(t, info)
+
+	preimage := make([]byte, 32)
+	_, err = rand.Read(preimage)
+	require.NoError(t, err)
+	sha256Hash := sha256.Sum256(preimage)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+
+	req := &pb.CreateVHTLCRequest{
+		PreimageHash:   preimageHash,
+		RefundLocktime: uint32(1577836800),
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+	}
+
+	if claimable {
+		req.ReceiverPubkey = info.GetPubkey()
+	} else {
+		receiverPrivKey, err := btcec.NewPrivateKey()
+		require.NoError(t, err)
+		req.ReceiverPubkey = hex.EncodeToString(receiverPrivKey.PubKey().SerializeCompressed())
+	}
+
+	vhtlcResp, err := f.CreateVHTLC(ctx, req)
+	require.NoError(t, err)
+	require.NotEmpty(t, vhtlcResp.GetId())
+	require.NotEmpty(t, vhtlcResp.GetAddress())
+
+	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlcResp.GetAddress(),
+		Amount:  1000,
+	})
+	require.NoError(t, err)
+
+	return vhtlcResp, preimage
+}
+
+func waitForVhtlcEvent(
+	t *testing.T,
+	stream pb.NotificationService_EventStreamClient,
+	timeout time.Duration,
+	match func(event *pb.Event) bool,
+) *pb.Event {
+	t.Helper()
+
+	deadline := time.After(timeout)
+	for {
+		eventCh := make(chan *pb.EventStreamResponse, 1)
+		errCh := make(chan error, 1)
+		go func() {
+			resp, err := stream.Recv()
+			if err != nil {
+				errCh <- err
+				return
+			}
+			eventCh <- resp
+		}()
+
+		select {
+		case <-deadline:
+			t.Fatalf("timed out waiting for vhtlc event")
+		case err := <-errCh:
+			require.NoError(t, err)
+		case resp := <-eventCh:
+			event := resp.GetEvent()
+			if event != nil && match(event) {
+				return event
+			}
+		}
+	}
 }
 
 // TestClaimVHTLCPendingFinalization verifies that calling ClaimVHTLC on a VHTLC

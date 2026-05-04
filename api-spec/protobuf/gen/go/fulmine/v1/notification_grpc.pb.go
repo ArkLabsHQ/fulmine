@@ -23,6 +23,7 @@ const (
 	NotificationService_UnsubscribeForAddresses_FullMethodName = "/fulmine.v1.NotificationService/UnsubscribeForAddresses"
 	NotificationService_GetVtxoNotifications_FullMethodName    = "/fulmine.v1.NotificationService/GetVtxoNotifications"
 	NotificationService_RoundNotifications_FullMethodName      = "/fulmine.v1.NotificationService/RoundNotifications"
+	NotificationService_EventStream_FullMethodName             = "/fulmine.v1.NotificationService/EventStream"
 	NotificationService_AddWebhook_FullMethodName              = "/fulmine.v1.NotificationService/AddWebhook"
 	NotificationService_RemoveWebhook_FullMethodName           = "/fulmine.v1.NotificationService/RemoveWebhook"
 	NotificationService_ListWebhooks_FullMethodName            = "/fulmine.v1.NotificationService/ListWebhooks"
@@ -45,6 +46,8 @@ type NotificationServiceClient interface {
 	GetVtxoNotifications(ctx context.Context, in *GetVtxoNotificationsRequest, opts ...grpc.CallOption) (NotificationService_GetVtxoNotificationsClient, error)
 	// Notifies about events related to wallet transactions.
 	RoundNotifications(ctx context.Context, in *RoundNotificationsRequest, opts ...grpc.CallOption) (NotificationService_RoundNotificationsClient, error)
+	// EventStream streams VHTLC lifecycle events in real-time.
+	EventStream(ctx context.Context, in *EventStreamRequest, opts ...grpc.CallOption) (NotificationService_EventStreamClient, error)
 	// Adds a webhook registered for some kind of event.
 	AddWebhook(ctx context.Context, in *AddWebhookRequest, opts ...grpc.CallOption) (*AddWebhookResponse, error)
 	// Removes some previously added webhook.
@@ -147,6 +150,39 @@ func (x *notificationServiceRoundNotificationsClient) Recv() (*RoundNotification
 	return m, nil
 }
 
+func (c *notificationServiceClient) EventStream(ctx context.Context, in *EventStreamRequest, opts ...grpc.CallOption) (NotificationService_EventStreamClient, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &NotificationService_ServiceDesc.Streams[2], NotificationService_EventStream_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &notificationServiceEventStreamClient{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type NotificationService_EventStreamClient interface {
+	Recv() (*EventStreamResponse, error)
+	grpc.ClientStream
+}
+
+type notificationServiceEventStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *notificationServiceEventStreamClient) Recv() (*EventStreamResponse, error) {
+	m := new(EventStreamResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *notificationServiceClient) AddWebhook(ctx context.Context, in *AddWebhookRequest, opts ...grpc.CallOption) (*AddWebhookResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AddWebhookResponse)
@@ -194,6 +230,8 @@ type NotificationServiceServer interface {
 	GetVtxoNotifications(*GetVtxoNotificationsRequest, NotificationService_GetVtxoNotificationsServer) error
 	// Notifies about events related to wallet transactions.
 	RoundNotifications(*RoundNotificationsRequest, NotificationService_RoundNotificationsServer) error
+	// EventStream streams VHTLC lifecycle events in real-time.
+	EventStream(*EventStreamRequest, NotificationService_EventStreamServer) error
 	// Adds a webhook registered for some kind of event.
 	AddWebhook(context.Context, *AddWebhookRequest) (*AddWebhookResponse, error)
 	// Removes some previously added webhook.
@@ -217,6 +255,9 @@ func (UnimplementedNotificationServiceServer) GetVtxoNotifications(*GetVtxoNotif
 }
 func (UnimplementedNotificationServiceServer) RoundNotifications(*RoundNotificationsRequest, NotificationService_RoundNotificationsServer) error {
 	return status.Errorf(codes.Unimplemented, "method RoundNotifications not implemented")
+}
+func (UnimplementedNotificationServiceServer) EventStream(*EventStreamRequest, NotificationService_EventStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method EventStream not implemented")
 }
 func (UnimplementedNotificationServiceServer) AddWebhook(context.Context, *AddWebhookRequest) (*AddWebhookResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddWebhook not implemented")
@@ -317,6 +358,27 @@ func (x *notificationServiceRoundNotificationsServer) Send(m *RoundNotifications
 	return x.ServerStream.SendMsg(m)
 }
 
+func _NotificationService_EventStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(EventStreamRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(NotificationServiceServer).EventStream(m, &notificationServiceEventStreamServer{ServerStream: stream})
+}
+
+type NotificationService_EventStreamServer interface {
+	Send(*EventStreamResponse) error
+	grpc.ServerStream
+}
+
+type notificationServiceEventStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *notificationServiceEventStreamServer) Send(m *EventStreamResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 func _NotificationService_AddWebhook_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AddWebhookRequest)
 	if err := dec(in); err != nil {
@@ -408,6 +470,11 @@ var NotificationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "RoundNotifications",
 			Handler:       _NotificationService_RoundNotifications_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "EventStream",
+			Handler:       _NotificationService_EventStream_Handler,
 			ServerStreams: true,
 		},
 	},

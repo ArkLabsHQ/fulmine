@@ -110,11 +110,13 @@ type Service struct {
 	syncCh        chan types.SyncEvent
 
 	externalSubscription *subscriptionHandler
+	vhtlcSubscription    *subscriptionHandler
 
 	walletUpdates chan WalletUpdate
 
 	// Notification channels
 	notifications chan Notification
+	events        chan VhtlcEvent
 
 	stopVtxoEventListener chan struct{}
 
@@ -203,6 +205,7 @@ func newService(
 			publicKey:             nil,
 			isInitialized:         true,
 			notifications:         make(chan Notification),
+			events:                make(chan VhtlcEvent, 64),
 			stopVtxoEventListener: make(chan struct{}),
 			esploraUrl:            data.ExplorerURL,
 			boltzUrl:              boltzUrl,
@@ -246,6 +249,7 @@ func newService(
 		dbSvc:                 dbSvc,
 		schedulerSvc:          schedulerSvc,
 		notifications:         make(chan Notification),
+		events:                make(chan VhtlcEvent, 64),
 		stopVtxoEventListener: make(chan struct{}),
 		esploraUrl:            esploraUrl,
 		boltzUrl:              boltzUrl,
@@ -378,6 +382,9 @@ func (s *Service) LockNode(ctx context.Context) error {
 	if s.externalSubscription != nil {
 		s.externalSubscription.stop()
 	}
+	if s.vhtlcSubscription != nil {
+		s.vhtlcSubscription.stop()
+	}
 
 	// close boarding event listener
 	s.stopVtxoEventListener <- struct{}{}
@@ -435,6 +442,17 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 	s.externalSubscription = subsHandler
+
+	handler, err := newSubscriptionHandler(
+		ctx,
+		s.Indexer(),
+		vhtlcSubscriptionStore{repo: s.dbSvc.VHTLC()},
+		s.handleVhtlcScriptEvent,
+	)
+	if err != nil {
+		return err
+	}
+	s.vhtlcSubscription = handler
 
 	settings, err := s.dbSvc.Settings().GetSettings(ctx)
 	if err != nil {
@@ -935,6 +953,23 @@ func (s *Service) GetSwapVHTLC(
 		}
 
 		log.Debugf("added new vhtlc %s", vhtlcId)
+
+		if s.vhtlcSubscription != nil {
+			scripts, err := offchainAddressesPkScripts([]string{encodedAddr})
+			if err != nil {
+				log.WithError(err).Warn("failed to derive vhtlc locking script")
+			} else if err := s.vhtlcSubscription.subscribe(context.Background(), scripts); err != nil {
+				log.WithError(err).Warn("failed to subscribe vhtlc scripts")
+			} else {
+				log.Debugf("subscribed %d scripts for vhtlc %s", len(scripts), vhtlcId)
+			}
+		}
+
+		s.emitEvent(VhtlcEvent{
+			ID:        vhtlcId,
+			Type:      EventTypeVhtlcCreated,
+			Timestamp: time.Now(),
+		})
 	}()
 
 	return encodedAddr, vhtlcId, vHTLCScript, nil
@@ -1230,6 +1265,10 @@ func (s *Service) UnsubscribeForAddresses(ctx context.Context, addresses []strin
 
 func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification {
 	return s.notifications
+}
+
+func (s *Service) GetEvents(ctx context.Context) <-chan VhtlcEvent {
+	return s.events
 }
 
 func (s *Service) IsLocked(ctx context.Context) bool {

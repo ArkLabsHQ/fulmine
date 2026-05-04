@@ -127,6 +127,7 @@ func testVHTLCRepository(t *testing.T, svc ports.RepoManager) {
 		testAddVHTLC(t, svc.VHTLC())
 		testGetAllVHTLC(t, svc.VHTLC())
 		testGetVHTLCsById(t, svc.VHTLC())
+		testVHTLCTrackedScripts(t, svc.VHTLC())
 	})
 }
 
@@ -315,6 +316,34 @@ func testGetVHTLCsById(t *testing.T, repo domain.VHTLCRepository) {
 		require.NoError(t, err)
 		require.Len(t, vhtlcList, 2)
 		require.Subset(t, []domain.Vhtlc{testVHTLC, secondVHTLC}, vhtlcList)
+	})
+}
+
+func testVHTLCTrackedScripts(t *testing.T, repo domain.VHTLCRepository) {
+	t.Run("tracked vHTLC scripts", func(t *testing.T) {
+		record := makeVHTLC()
+		script, err := vhtlc.LockingScriptHexFromOpts(record.Opts)
+		require.NoError(t, err)
+
+		err = repo.Add(ctx, record)
+		require.NoError(t, err)
+
+		scripts, err := repo.GetScripts(ctx)
+		require.NoError(t, err)
+		require.Contains(t, scripts, script)
+
+		err = repo.UntrackByScripts(ctx, []string{script})
+		require.NoError(t, err)
+
+		scripts, err = repo.GetScripts(ctx)
+		require.NoError(t, err)
+		require.NotContains(t, scripts, script)
+
+		vhtlcs, err := repo.GetByScripts(ctx, []string{script})
+		require.NoError(t, err)
+		require.Len(t, vhtlcs, 1)
+		require.Equal(t, record.Id, vhtlcs[0].Id)
+		require.False(t, vhtlcs[0].Tracked)
 	})
 }
 

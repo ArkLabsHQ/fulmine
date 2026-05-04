@@ -16,15 +16,23 @@ type notificationHandler struct {
 	svc *application.Service
 
 	notificationListenerHandler *listenerHanlder[*pb.GetVtxoNotificationsResponse]
+	eventsListenerHandler       *listenerHanlder[*pb.EventStreamResponse]
 	stopCh                      <-chan struct{}
 }
 
 func NewNotificationHandler(
 	appSvc *application.Service, stopCh <-chan struct{},
 ) pb.NotificationServiceServer {
-	handler := newListenerHandler[*pb.GetVtxoNotificationsResponse]()
-	svc := &notificationHandler{appSvc, handler, stopCh}
+	notificationsHandler := newListenerHandler[*pb.GetVtxoNotificationsResponse]()
+	eventsHandler := newListenerHandler[*pb.EventStreamResponse]()
+	svc := &notificationHandler{
+		svc:                         appSvc,
+		notificationListenerHandler: notificationsHandler,
+		eventsListenerHandler:       eventsHandler,
+		stopCh:                      stopCh,
+	}
 	go svc.listenToNotifications()
+	go svc.listenToEvents()
 	return svc
 }
 
@@ -87,6 +95,33 @@ func (h *notificationHandler) RoundNotifications(
 	return fmt.Errorf("not implemented")
 }
 
+func (h *notificationHandler) EventStream(
+	_ *pb.EventStreamRequest, stream pb.NotificationService_EventStreamServer,
+) error {
+	listener := &listener[*pb.EventStreamResponse]{
+		id: uuid.NewString(),
+		ch: make(chan *pb.EventStreamResponse),
+	}
+
+	h.eventsListenerHandler.pushListener(listener)
+	defer h.eventsListenerHandler.removeListener(listener.id)
+
+	for {
+		select {
+		case <-stream.Context().Done():
+			close(listener.ch)
+			return nil
+		case ev, ok := <-listener.ch:
+			if !ok {
+				return nil
+			}
+			if err := stream.Send(ev); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 func (h *notificationHandler) AddWebhook(
 	ctx context.Context, req *pb.AddWebhookRequest,
 ) (*pb.AddWebhookResponse, error) {
@@ -118,6 +153,24 @@ func (h *notificationHandler) listenToNotifications() {
 			}
 		case <-h.stopCh:
 			h.notificationListenerHandler.stop()
+			return
+		}
+	}
+}
+
+func (h *notificationHandler) listenToEvents() {
+	for {
+		select {
+		case event := <-h.svc.GetEvents(context.Background()):
+			for _, l := range h.eventsListenerHandler.listeners {
+				go func(l *listener[*pb.EventStreamResponse]) {
+					l.ch <- &pb.EventStreamResponse{
+						Event: toVhtlcEventProto(event),
+					}
+				}(l)
+			}
+		case <-h.stopCh:
+			h.eventsListenerHandler.stop()
 			return
 		}
 	}

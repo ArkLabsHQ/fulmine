@@ -66,6 +66,15 @@ func newFulmineWalletClient(url string) (pb.WalletServiceClient, error) {
 	return pb.NewWalletServiceClient(conn), nil
 }
 
+func newFulmineNotificationClient(url string) (pb.NotificationServiceClient, error) {
+	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
+	conn, err := grpc.NewClient(url, opts)
+	if err != nil {
+		return nil, err
+	}
+	return pb.NewNotificationServiceClient(conn), nil
+}
+
 func newFulmineOffchainAddress(t *testing.T, client pb.ServiceClient) string {
 	t.Helper()
 
@@ -628,6 +637,25 @@ func submitPendingRefundVHTLCWithoutReceiver(
 	fulmineClient pb.ServiceClient,
 	vhtlc testVHTLC,
 ) string {
+	return submitRefundVHTLCWithoutReceiver(t, arkClient, fulmineClient, vhtlc, false)
+}
+
+func submitManualRefundVHTLCWithoutReceiver(
+	t *testing.T,
+	arkClient arksdk.ArkClient,
+	fulmineClient pb.ServiceClient,
+	vhtlc testVHTLC,
+) string {
+	return submitRefundVHTLCWithoutReceiver(t, arkClient, fulmineClient, vhtlc, true)
+}
+
+func submitRefundVHTLCWithoutReceiver(
+	t *testing.T,
+	arkClient arksdk.ArkClient,
+	fulmineClient pb.ServiceClient,
+	vhtlc testVHTLC,
+	finalize bool,
+) string {
 	t.Helper()
 	ctx := t.Context()
 
@@ -692,7 +720,7 @@ func submitPendingRefundVHTLCWithoutReceiver(
 		checkpointTxs = append(checkpointTxs, tx)
 	}
 
-	arkTxid, finalArkTx, _, err := arkClient.Client().SubmitTx(
+	arkTxid, finalArkTx, signedCheckpointTxs, err := arkClient.Client().SubmitTx(
 		ctx, resp.SignedTx, checkpointTxs,
 	)
 	require.NoError(t, err)
@@ -701,6 +729,20 @@ func submitPendingRefundVHTLCWithoutReceiver(
 		finalArkTx, cfg.SignerPubKey, getInputTapLeaves(arkTx),
 	)
 	require.NoError(t, err)
+
+	if finalize {
+		finalCheckpoints := make([]string, 0, len(signedCheckpointTxs))
+		for _, checkpoint := range signedCheckpointTxs {
+			resp, err := fulmineClient.SignTransaction(ctx, &pb.SignTransactionRequest{
+				Tx: checkpoint,
+			})
+			require.NoError(t, err)
+			finalCheckpoints = append(finalCheckpoints, resp.GetSignedTx())
+		}
+
+		err = arkClient.Client().FinalizeTx(ctx, arkTxid, finalCheckpoints)
+		require.NoError(t, err)
+	}
 
 	return arkTxid
 }

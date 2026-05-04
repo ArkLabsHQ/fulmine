@@ -256,6 +256,32 @@ func toNotificationProto(n application.Notification) *pb.Notification {
 	return notification
 }
 
+func toVhtlcEventProto(e application.VhtlcEvent) *pb.Event {
+	var eventType pb.EventType
+	switch e.Type {
+	case application.EventTypeVhtlcCreated:
+		eventType = pb.EventType_EVENT_TYPE_VHTLC_CREATED
+	case application.EventTypeVhtlcFunded:
+		eventType = pb.EventType_EVENT_TYPE_VHTLC_FUNDED
+	case application.EventTypeVhtlcClaimed:
+		eventType = pb.EventType_EVENT_TYPE_VHTLC_CLAIMED
+	case application.EventTypeVhtlcRefunded:
+		eventType = pb.EventType_EVENT_TYPE_VHTLC_REFUNDED
+	case application.EventTypeVhtlcSpent:
+		eventType = pb.EventType_EVENT_TYPE_VHTLC_SPENT
+	default:
+		eventType = pb.EventType_EVENT_TYPE_UNSPECIFIED
+	}
+
+	return &pb.Event{
+		Id:            e.ID,
+		Txid:          e.Txid,
+		Preimage:      e.Preimage,
+		Type:          eventType,
+		TimestampUnix: e.Timestamp.Unix(),
+	}
+}
+
 // Todo: Verify that the script is not Taproot Script
 func toVtxosProto(vtxos []clientTypes.Vtxo) []*pb.Vtxo {
 	list := make([]*pb.Vtxo, 0, len(vtxos))

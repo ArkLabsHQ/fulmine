@@ -90,6 +90,7 @@ type Vhtlc struct {
 	UnilateralRefundDelayValue                int64
 	UnilateralRefundWithoutReceiverDelayType  int64
 	UnilateralRefundWithoutReceiverDelayValue int64
+	Tracked                                   bool
 }
 
 type VtxoRollover struct {

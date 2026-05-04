@@ -18,6 +18,26 @@ type scriptsStore interface {
 	Delete(ctx context.Context, subscribedScripts []string) (count int, err error)
 }
 
+type vhtlcSubscriptionStore struct {
+	repo domainVhtlcScriptRepository
+}
+
+type domainVhtlcScriptRepository interface {
+	GetScripts(ctx context.Context) ([]string, error)
+}
+
+func (s vhtlcSubscriptionStore) Get(ctx context.Context) ([]string, error) {
+	return s.repo.GetScripts(ctx)
+}
+
+func (s vhtlcSubscriptionStore) Add(ctx context.Context, scripts []string) (int, error) {
+	return len(scripts), nil
+}
+
+func (s vhtlcSubscriptionStore) Delete(ctx context.Context, scripts []string) (int, error) {
+	return len(scripts), nil
+}
+
 type subscriptionHandler struct {
 	indexerClient indexer.Indexer
 	scripts       scriptsStore
