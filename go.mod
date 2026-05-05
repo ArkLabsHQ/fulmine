@@ -22,7 +22,7 @@ require (
 	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260505125614-2444c6136222
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/go-sdk v0.9.2-0.20260424102609-2d035b640596
+	github.com/arkade-os/go-sdk v0.9.2-0.20260505163415-c8dbceda7c5e
 	github.com/ccoveille/go-safecast v1.6.1
 	github.com/creack/pty v1.1.24
 	github.com/dgraph-io/badger/v4 v4.8.0
@@ -289,5 +289,3 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/arkade-os/go-sdk => github.com/sekulicd/go-sdk v0.0.0-20260505132225-890fe7ca9613
