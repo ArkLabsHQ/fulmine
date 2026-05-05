@@ -224,8 +224,6 @@ func newService(
 			syncLock:              &sync.RWMutex{},
 		}
 
-		svc.sanitize(context.Background())
-
 		return svc, nil
 	} else if !strings.Contains(err.Error(), "not initialized") {
 		return nil, err
@@ -536,6 +534,8 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		)
 
 		go s.recoverChainSwaps(context.Background(), arkConfig)
+
+		s.sanitize(context.Background())
 	}()
 
 	// This go routine takes care of establishing the LN connection, if configured.
