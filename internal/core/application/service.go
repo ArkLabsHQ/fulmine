@@ -224,6 +224,8 @@ func newService(
 			syncLock:              &sync.RWMutex{},
 		}
 
+		svc.sanitize(context.Background())
+
 		return svc, nil
 	} else if !strings.Contains(err.Error(), "not initialized") {
 		return nil, err
@@ -2471,6 +2473,62 @@ func (s *Service) resumeChainSwapMonitoring(
 		UnilateralRefundCB: unilateralRefund,
 	})
 	return err
+}
+
+// sanitize removes stale boarding UTXOs from the local DB that no longer
+// exist on-chain.
+func (s *Service) sanitize(ctx context.Context) {
+	_, _, boardingAddrs, _, err := s.GetAddresses(ctx)
+	if err != nil {
+		log.WithError(err).Warn("sanitize: failed to get boarding addresses")
+		return
+	}
+
+	utxoStore := s.Store().UtxoStore()
+	spendable, _, err := utxoStore.GetAllUtxos(ctx)
+	if err != nil {
+		log.WithError(err).Warn("sanitize: failed to get stored utxos")
+		return
+	}
+	if len(spendable) == 0 {
+		return
+	}
+
+	// Collect all on-chain UTXOs across all boarding addresses.
+	onchainUtxos := make(map[string]struct{})
+	for _, addr := range boardingAddrs {
+		explorerUtxos, err := s.Explorer().GetUtxos(addr)
+		if err != nil {
+			log.WithError(err).Warnf("sanitize: failed to get utxos for %s", addr)
+			continue
+		}
+		for _, u := range explorerUtxos {
+			key := fmt.Sprintf("%s:%d", u.Txid, u.Vout)
+			onchainUtxos[key] = struct{}{}
+		}
+	}
+
+	// Find stored UTXOs that are not on-chain and delete them.
+	staleOutpoints := make([]clientTypes.Outpoint, 0)
+	for _, utxo := range spendable {
+		key := fmt.Sprintf("%s:%d", utxo.Txid, utxo.VOut)
+		if _, exists := onchainUtxos[key]; !exists {
+			staleOutpoints = append(staleOutpoints, utxo.Outpoint)
+		}
+	}
+
+	if len(staleOutpoints) == 0 {
+		return
+	}
+
+	count, err := utxoStore.DeleteUtxos(ctx, staleOutpoints)
+	if err != nil {
+		log.WithError(err).Warn("sanitize: failed to delete stale utxos")
+		return
+	}
+	if count > 0 {
+		log.Infof("sanitize: deleted %d stale boarding utxo(s)", count)
+	}
 }
 
 func convertSwapStatus(swapStatus string) domain.SwapStatus {

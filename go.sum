@@ -35,6 +35,8 @@ github.com/arkade-os/arkd/api-spec v0.0.0-20260323091657-eeb0baef6937 h1:010LTrh
 github.com/arkade-os/arkd/api-spec v0.0.0-20260323091657-eeb0baef6937/go.mod h1:2+6ix1UGGE22Q/rbab1dycFPPKiTyq0gldKVqVfFPWs=
 github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260429091057-9246f043c4c8 h1:xSPC2XjahDKKMgY1b+Fe3zs16eTkP6BDV6yAKHyjvdc=
 github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260429091057-9246f043c4c8/go.mod h1:gYJkHBV9B9OkSgANCvyST24HTlZ0tSmr1mZSsj+jGAc=
+github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260505125614-2444c6136222 h1:VsKIkuJcixp0bDg5d5t0qnXeBDrrumRGpalRISkibzA=
+github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260505125614-2444c6136222/go.mod h1:gSMZ490WXBijQBWUdbaxMKUl7l5sUH0xarOFn6UFqQw=
 github.com/arkade-os/arkd/pkg/errors v0.0.0-20260303153651-8615412e4dea h1:x9ZwZL+F2b9E0uBZYBVjCLGtlqIE4zahDOY4C89h3X4=
 github.com/arkade-os/arkd/pkg/errors v0.0.0-20260303153651-8615412e4dea/go.mod h1:NYGE+baj57ynbXNwjISJddMDpMqAWOX27dV22xqFm2A=
 github.com/arkade-os/arkd/pkg/kvdb v0.7.0 h1:+XN0FeUEilKLuNHarP/mpwsCWla2iAHc6z9H0rsh+HY=
@@ -594,10 +596,8 @@ github.com/sagikazarmark/locafero v0.6.0/go.mod h1:77OmuIc6VTraTXKXIs/uvUxKGUXjE
 github.com/sagikazarmark/slog-shim v0.1.0 h1:diDBnUNK9N/354PgrxMywXnAwEr1QZcOr6gto+ugjYE=
 github.com/sagikazarmark/slog-shim v0.1.0/go.mod h1:SrcSrq8aKtyuqEI1uvTDTK1arOWRIczQRv+GVI1AkeQ=
 github.com/satori/go.uuid v1.2.0/go.mod h1:dA0hQrYB0VpLJoorglMZABFdXlWrHn1NEOzdhQKdks0=
-github.com/sekulicd/ark/pkg/client-lib v0.0.0-20260505092304-dd2e929a0da3 h1:Li77qdW8Wy4TTZF90KKOmUwN9eV3DJWZ0xtWf8YqcPY=
-github.com/sekulicd/ark/pkg/client-lib v0.0.0-20260505092304-dd2e929a0da3/go.mod h1:gSMZ490WXBijQBWUdbaxMKUl7l5sUH0xarOFn6UFqQw=
-github.com/sekulicd/go-sdk v0.0.0-20260505094258-abcdbc459d5c h1:l76ZrJxHwshBLvf2OZFzxa0fDHcL3TrrQ7A0I8lyd+s=
-github.com/sekulicd/go-sdk v0.0.0-20260505094258-abcdbc459d5c/go.mod h1:fcylF76RcPT2qWEHN+Gy+PAxdiIieY2TVu5e+rhWjUQ=
+github.com/sekulicd/go-sdk v0.0.0-20260505132225-890fe7ca9613 h1:Fu1dEnCYE2o+UDwLfnXPy2SrpFvIh388/twpOQQW6qc=
+github.com/sekulicd/go-sdk v0.0.0-20260505132225-890fe7ca9613/go.mod h1:+CwEu9Q0iFatIFGckkpmGDaqp0V7i4QTbQQ8MLb/svU=
 github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24/go.mod h1:M+9NzErvs504Cn4c5DxATwIqPbtswREoFCre64PpcG4=
 github.com/shopspring/decimal v1.2.0 h1:abSATXmQEYyShuxI4/vyW3tV1MrKAJzCZ/0zLUXYbsQ=
 github.com/shopspring/decimal v1.2.0/go.mod h1:DKyhrW/HYNuLGql+MJL6WCR6knT2jwCFRcu2hWCYk4o=
