@@ -19,7 +19,7 @@ require (
 	github.com/a-h/templ v0.3.1001
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260429091057-9246f043c4c8
-	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260505125614-2444c6136222
+	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260505174928-834f8ef00eb0
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
 	github.com/arkade-os/go-sdk v0.9.2-0.20260505163415-c8dbceda7c5e

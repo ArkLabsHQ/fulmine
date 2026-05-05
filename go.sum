@@ -35,8 +35,8 @@ github.com/arkade-os/arkd/api-spec v0.0.0-20260323091657-eeb0baef6937 h1:010LTrh
 github.com/arkade-os/arkd/api-spec v0.0.0-20260323091657-eeb0baef6937/go.mod h1:2+6ix1UGGE22Q/rbab1dycFPPKiTyq0gldKVqVfFPWs=
 github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260429091057-9246f043c4c8 h1:xSPC2XjahDKKMgY1b+Fe3zs16eTkP6BDV6yAKHyjvdc=
 github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260429091057-9246f043c4c8/go.mod h1:gYJkHBV9B9OkSgANCvyST24HTlZ0tSmr1mZSsj+jGAc=
-github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260505125614-2444c6136222 h1:VsKIkuJcixp0bDg5d5t0qnXeBDrrumRGpalRISkibzA=
-github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260505125614-2444c6136222/go.mod h1:gSMZ490WXBijQBWUdbaxMKUl7l5sUH0xarOFn6UFqQw=
+github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260505174928-834f8ef00eb0 h1:URRJFftGNSpFZYjsUMig2KNbeAJEezRvPFfsKedtVCI=
+github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260505174928-834f8ef00eb0/go.mod h1:gSMZ490WXBijQBWUdbaxMKUl7l5sUH0xarOFn6UFqQw=
 github.com/arkade-os/arkd/pkg/errors v0.0.0-20260303153651-8615412e4dea h1:x9ZwZL+F2b9E0uBZYBVjCLGtlqIE4zahDOY4C89h3X4=
 github.com/arkade-os/arkd/pkg/errors v0.0.0-20260303153651-8615412e4dea/go.mod h1:NYGE+baj57ynbXNwjISJddMDpMqAWOX27dV22xqFm2A=
 github.com/arkade-os/arkd/pkg/kvdb v0.7.0 h1:+XN0FeUEilKLuNHarP/mpwsCWla2iAHc6z9H0rsh+HY=
