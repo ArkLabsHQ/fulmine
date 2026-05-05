@@ -29,6 +29,8 @@ import (
 	grpcclient "github.com/arkade-os/arkd/pkg/client-lib/client/grpc"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	singlekeywallet "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey"
+	inmemorystore "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey/store/inmemory"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -350,7 +352,12 @@ func setupArkSDKwithPublicKey(
 	serverUrl := "localhost:7070"
 	password := "pass"
 
-	arkClient, err := arksdk.NewArkClient("")
+	walletStore, err := inmemorystore.NewWalletStore()
+	require.NoError(t, err)
+	singleKeyWallet, err := singlekeywallet.NewBitcoinWallet(walletStore)
+	require.NoError(t, err)
+
+	arkClient, err := arksdk.NewArkClient("", arksdk.WithWallet(singleKeyWallet))
 	require.NoError(t, err)
 
 	privkey, err := btcec.NewPrivateKey()
@@ -828,7 +835,7 @@ func verifyInputSignatures(
 	return nil
 }
 
-func faucetAndSettle(t *testing.T, ctx context.Context, c arksdk.ArkClient, address string, amount float64){
+func faucetAndSettle(t *testing.T, ctx context.Context, c arksdk.ArkClient, address string, amount float64) {
 	t.Helper()
 
 	err := faucet(ctx, strings.TrimSpace(address), amount)

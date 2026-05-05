@@ -29,6 +29,8 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	singlekeywallet "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey"
+	filestore "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey/store/file"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -183,8 +185,18 @@ func newService(
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 	connectionOpts *domain.LnConnectionOpts,
 ) (*Service, error) {
+	walletStore, err := filestore.NewWalletStore(datadir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize wallet store: %w", err)
+	}
+	singleKeyWallet, err := singlekeywallet.NewBitcoinWallet(walletStore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize wallet: %w", err)
+	}
+
 	opts := []arksdk.ClientOption{
 		arksdk.WithRefreshDbInterval(time.Duration(refreshDbInterval) * time.Second),
+		arksdk.WithWallet(singleKeyWallet),
 	}
 	if log.IsLevelEnabled(log.DebugLevel) {
 		opts = append(opts, arksdk.WithVerbose())
@@ -522,6 +534,8 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		)
 
 		go s.recoverChainSwaps(context.Background(), arkConfig)
+
+		s.sanitize(context.Background())
 	}()
 
 	// This go routine takes care of establishing the LN connection, if configured.
@@ -2459,6 +2473,60 @@ func (s *Service) resumeChainSwapMonitoring(
 		UnilateralRefundCB: unilateralRefund,
 	})
 	return err
+}
+
+// sanitize removes stale boarding UTXOs from the local DB that no longer
+// exist on-chain.
+func (s *Service) sanitize(ctx context.Context) {
+	boardingAddr, err := s.NewBoardingAddress(ctx)
+	if err != nil {
+		log.WithError(err).Warn("sanitize: failed to get boarding addresses")
+		return
+	}
+
+	utxoStore := s.Store().UtxoStore()
+	spendable, _, err := utxoStore.GetAllUtxos(ctx)
+	if err != nil {
+		log.WithError(err).Warn("sanitize: failed to get stored utxos")
+		return
+	}
+	if len(spendable) == 0 {
+		return
+	}
+
+	// Collect all on-chain UTXOs across all boarding addresses.
+	onchainUtxos := make(map[string]struct{})
+	explorerUtxos, err := s.Explorer().GetUtxos(boardingAddr)
+	if err != nil {
+		log.WithError(err).Warnf("sanitize: failed to get utxos for %s", boardingAddr)
+		return
+	}
+	for _, u := range explorerUtxos {
+		key := fmt.Sprintf("%s:%d", u.Txid, u.Vout)
+		onchainUtxos[key] = struct{}{}
+	}
+
+	// Find stored UTXOs that are not on-chain and delete them.
+	staleOutpoints := make([]clientTypes.Outpoint, 0)
+	for _, utxo := range spendable {
+		key := fmt.Sprintf("%s:%d", utxo.Txid, utxo.VOut)
+		if _, exists := onchainUtxos[key]; !exists {
+			staleOutpoints = append(staleOutpoints, utxo.Outpoint)
+		}
+	}
+
+	if len(staleOutpoints) == 0 {
+		return
+	}
+
+	count, err := utxoStore.DeleteUtxos(ctx, staleOutpoints)
+	if err != nil {
+		log.WithError(err).Warn("sanitize: failed to delete stale utxos")
+		return
+	}
+	if count > 0 {
+		log.Infof("sanitize: deleted %d stale boarding utxo(s)", count)
+	}
 }
 
 func convertSwapStatus(swapStatus string) domain.SwapStatus {
