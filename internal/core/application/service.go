@@ -29,6 +29,8 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	singlekeywallet "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey"
+	filestore "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey/store/file"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -183,8 +185,18 @@ func newService(
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 	connectionOpts *domain.LnConnectionOpts,
 ) (*Service, error) {
+	walletStore, err := filestore.NewWalletStore(datadir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize wallet store: %w", err)
+	}
+	singleKeyWallet, err := singlekeywallet.NewBitcoinWallet(walletStore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize wallet: %w", err)
+	}
+
 	opts := []arksdk.ClientOption{
 		arksdk.WithRefreshDbInterval(time.Duration(refreshDbInterval) * time.Second),
+		arksdk.WithWallet(singleKeyWallet),
 	}
 	if log.IsLevelEnabled(log.DebugLevel) {
 		opts = append(opts, arksdk.WithVerbose())

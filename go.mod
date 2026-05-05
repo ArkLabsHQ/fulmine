@@ -18,8 +18,8 @@ require (
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-20260116135645-5d6845a62019
 	github.com/a-h/templ v0.3.1001
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260424100525-a2d86c81759d
-	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260424100525-a2d86c81759d
+	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260429091057-9246f043c4c8
+	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260429091057-9246f043c4c8
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
 	github.com/arkade-os/go-sdk v0.9.2-0.20260424102609-2d035b640596
@@ -160,7 +160,6 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20220101234140-673ab2c3ae75 // indirect
-	github.com/vulpemventures/go-bip32 v0.0.0-20200624192635-867c159da4d7 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
@@ -290,3 +289,7 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/arkade-os/go-sdk => github.com/sekulicd/go-sdk v0.0.0-20260505094258-abcdbc459d5c
+
+replace github.com/arkade-os/arkd/pkg/client-lib => github.com/sekulicd/ark/pkg/client-lib v0.0.0-20260505092304-dd2e929a0da3
