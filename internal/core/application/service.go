@@ -2478,7 +2478,7 @@ func (s *Service) resumeChainSwapMonitoring(
 // sanitize removes stale boarding UTXOs from the local DB that no longer
 // exist on-chain.
 func (s *Service) sanitize(ctx context.Context) {
-	_, _, boardingAddrs, _, err := s.GetAddresses(ctx)
+	boardingAddr, err := s.NewBoardingAddress(ctx)
 	if err != nil {
 		log.WithError(err).Warn("sanitize: failed to get boarding addresses")
 		return
@@ -2496,16 +2496,14 @@ func (s *Service) sanitize(ctx context.Context) {
 
 	// Collect all on-chain UTXOs across all boarding addresses.
 	onchainUtxos := make(map[string]struct{})
-	for _, addr := range boardingAddrs {
-		explorerUtxos, err := s.Explorer().GetUtxos(addr)
-		if err != nil {
-			log.WithError(err).Warnf("sanitize: failed to get utxos for %s", addr)
-			continue
-		}
-		for _, u := range explorerUtxos {
-			key := fmt.Sprintf("%s:%d", u.Txid, u.Vout)
-			onchainUtxos[key] = struct{}{}
-		}
+	explorerUtxos, err := s.Explorer().GetUtxos(boardingAddr)
+	if err != nil {
+		log.WithError(err).Warnf("sanitize: failed to get utxos for %s", boardingAddr)
+		return
+	}
+	for _, u := range explorerUtxos {
+		key := fmt.Sprintf("%s:%d", u.Txid, u.Vout)
+		onchainUtxos[key] = struct{}{}
 	}
 
 	// Find stored UTXOs that are not on-chain and delete them.
