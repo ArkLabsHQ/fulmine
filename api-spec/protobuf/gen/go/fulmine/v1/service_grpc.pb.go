@@ -39,6 +39,7 @@ const (
 	Service_GetInvoice_FullMethodName                 = "/fulmine.v1.Service/GetInvoice"
 	Service_PayInvoice_FullMethodName                 = "/fulmine.v1.Service/PayInvoice"
 	Service_IsInvoiceSettled_FullMethodName           = "/fulmine.v1.Service/IsInvoiceSettled"
+	Service_GetVHTLCTransaction_FullMethodName        = "/fulmine.v1.Service/GetVHTLCTransaction"
 	Service_GetVirtualTxs_FullMethodName              = "/fulmine.v1.Service/GetVirtualTxs"
 	Service_GetVtxos_FullMethodName                   = "/fulmine.v1.Service/GetVtxos"
 	Service_NextSettlement_FullMethodName             = "/fulmine.v1.Service/NextSettlement"
@@ -85,6 +86,9 @@ type ServiceClient interface {
 	GetInvoice(ctx context.Context, in *GetInvoiceRequest, opts ...grpc.CallOption) (*GetInvoiceResponse, error)
 	PayInvoice(ctx context.Context, in *PayInvoiceRequest, opts ...grpc.CallOption) (*PayInvoiceResponse, error)
 	IsInvoiceSettled(ctx context.Context, in *IsInvoiceSettledRequest, opts ...grpc.CallOption) (*IsInvoiceSettledResponse, error)
+	// GetVHTLCTransaction returns the fully signed ark transaction for a VHTLC,
+	// whether the VHTLC is spent by a finalized or pending tx.
+	GetVHTLCTransaction(ctx context.Context, in *GetVHTLCTransactionRequest, opts ...grpc.CallOption) (*GetVHTLCTransactionResponse, error)
 	// GetVirtualTxs returns the virtual transactions in hex format for the specified txids.
 	GetVirtualTxs(ctx context.Context, in *GetVirtualTxsRequest, opts ...grpc.CallOption) (*GetVirtualTxsResponse, error)
 	// GetVtxos returns VTXOs filtered by the specified filter type.
@@ -310,6 +314,16 @@ func (c *serviceClient) IsInvoiceSettled(ctx context.Context, in *IsInvoiceSettl
 	return out, nil
 }
 
+func (c *serviceClient) GetVHTLCTransaction(ctx context.Context, in *GetVHTLCTransactionRequest, opts ...grpc.CallOption) (*GetVHTLCTransactionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetVHTLCTransactionResponse)
+	err := c.cc.Invoke(ctx, Service_GetVHTLCTransaction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *serviceClient) GetVirtualTxs(ctx context.Context, in *GetVirtualTxsRequest, opts ...grpc.CallOption) (*GetVirtualTxsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetVirtualTxsResponse)
@@ -417,6 +431,9 @@ type ServiceServer interface {
 	GetInvoice(context.Context, *GetInvoiceRequest) (*GetInvoiceResponse, error)
 	PayInvoice(context.Context, *PayInvoiceRequest) (*PayInvoiceResponse, error)
 	IsInvoiceSettled(context.Context, *IsInvoiceSettledRequest) (*IsInvoiceSettledResponse, error)
+	// GetVHTLCTransaction returns the fully signed ark transaction for a VHTLC,
+	// whether the VHTLC is spent by a finalized or pending tx.
+	GetVHTLCTransaction(context.Context, *GetVHTLCTransactionRequest) (*GetVHTLCTransactionResponse, error)
 	// GetVirtualTxs returns the virtual transactions in hex format for the specified txids.
 	GetVirtualTxs(context.Context, *GetVirtualTxsRequest) (*GetVirtualTxsResponse, error)
 	// GetVtxos returns VTXOs filtered by the specified filter type.
@@ -497,6 +514,9 @@ func (UnimplementedServiceServer) PayInvoice(context.Context, *PayInvoiceRequest
 }
 func (UnimplementedServiceServer) IsInvoiceSettled(context.Context, *IsInvoiceSettledRequest) (*IsInvoiceSettledResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method IsInvoiceSettled not implemented")
+}
+func (UnimplementedServiceServer) GetVHTLCTransaction(context.Context, *GetVHTLCTransactionRequest) (*GetVHTLCTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetVHTLCTransaction not implemented")
 }
 func (UnimplementedServiceServer) GetVirtualTxs(context.Context, *GetVirtualTxsRequest) (*GetVirtualTxsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetVirtualTxs not implemented")
@@ -891,6 +911,24 @@ func _Service_IsInvoiceSettled_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_GetVHTLCTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetVHTLCTransactionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).GetVHTLCTransaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_GetVHTLCTransaction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).GetVHTLCTransaction(ctx, req.(*GetVHTLCTransactionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Service_GetVirtualTxs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetVirtualTxsRequest)
 	if err := dec(in); err != nil {
@@ -1103,6 +1141,10 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "IsInvoiceSettled",
 			Handler:    _Service_IsInvoiceSettled_Handler,
+		},
+		{
+			MethodName: "GetVHTLCTransaction",
+			Handler:    _Service_GetVHTLCTransaction_Handler,
 		},
 		{
 			MethodName: "GetVirtualTxs",

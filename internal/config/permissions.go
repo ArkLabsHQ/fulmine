@@ -78,6 +78,7 @@ func ProtectedByMethod() map[string][]bakery.Op {
 		fmt.Sprintf("/%s/GetInvoice", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/PayInvoice", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/IsInvoiceSettled", fulminev1.Service_ServiceDesc.ServiceName):           {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/GetVHTLCTransaction", fulminev1.Service_ServiceDesc.ServiceName):         {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/GetVirtualTxs", fulminev1.Service_ServiceDesc.ServiceName):              {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/GetVtxos", fulminev1.Service_ServiceDesc.ServiceName):                   {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/NextSettlement", fulminev1.Service_ServiceDesc.ServiceName):             {{Entity: EntityService, Action: ActionAccess}},

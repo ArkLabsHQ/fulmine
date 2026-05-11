@@ -130,6 +130,13 @@ service Service {
       get: "/v1/invoice/status"
     };
   }
+  // GetVHTLCTransaction returns the fully signed ark transaction for a VHTLC,
+  // whether the VHTLC is spent by a finalized or pending tx.
+  rpc GetVHTLCTransaction(GetVHTLCTransactionRequest) returns (GetVHTLCTransactionResponse) {
+    option (google.api.http) = {
+      get: "/v1/vhtlc/tx/{vhtlc_id}"
+    };
+  };
   // GetVirtualTxs returns the virtual transactions in hex format for the specified txids.
   rpc GetVirtualTxs(GetVirtualTxsRequest) returns (GetVirtualTxsResponse) {
     option (google.api.http) = {
@@ -401,6 +408,19 @@ message RelativeLocktime {
 
 message Tapscripts {
   repeated string scripts = 1;
+}
+
+message GetVHTLCTransactionRequest {
+  string vhtlc_id = 1;
+  // Optional outpoint to target a specific VTXO when multiple VTXOs exist at the same VHTLC address.
+  Input outpoint = 2;
+}
+
+message GetVHTLCTransactionResponse {
+  // The fully signed ark transaction in hex format.
+  string tx = 1;
+  // Whether the transaction is from a pending intent (true) or a finalized round (false).
+  bool pending = 2;
 }
 
 message GetVirtualTxsRequest {

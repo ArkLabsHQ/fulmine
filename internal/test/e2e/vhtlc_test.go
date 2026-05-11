@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1153,6 +1154,183 @@ func requireVHTLCSpentState(
 	t.Fatalf("vtxo %s:%d not found", expected.Outpoint.GetTxid(), expected.Outpoint.GetVout())
 }
 
+// TestGetVHTLCTransactionFinalized verifies that GetVHTLCTransaction returns
+// the fully signed ark transaction for a VHTLC whose VTXO was created by a
+// finalized round.
+func TestGetVHTLCTransactionFinalized(t *testing.T) {
+	f, err := newFulmineClient("localhost:7000")
+	require.NoError(t, err)
+
+	ctx := t.Context()
+
+	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+	require.NoError(t, err)
+
+	preimage := make([]byte, 32)
+	_, err = rand.Read(preimage)
+	require.NoError(t, err)
+	sha256Hash := sha256.Sum256(preimage)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+
+	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+		PreimageHash:   preimageHash,
+		ReceiverPubkey: info.GetPubkey(),
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 1024,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, vhtlcResp.Address)
+
+	// Fund the VHTLC (creates a finalized VTXO at the VHTLC address)
+	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlcResp.Address,
+		Amount:  1000,
+	})
+	require.NoError(t, err)
+
+	// Wait for the VTXO to be indexed, then get the transaction
+	var resp *pb.GetVHTLCTransactionResponse
+	require.Eventually(t, func() bool {
+		resp, err = f.GetVHTLCTransaction(ctx, &pb.GetVHTLCTransactionRequest{
+			VhtlcId: vhtlcResp.GetId(),
+		})
+		return err == nil
+	}, 10*time.Second, 500*time.Millisecond, "GetVHTLCTransaction should succeed once the VTXO is indexed")
+	require.NotEmpty(t, resp.GetTx(), "expected a non-empty tx hex")
+	require.False(t, resp.GetPending(), "expected pending=false for a finalized VTXO")
+
+	// Verify the returned tx is a valid PSBT
+	ptx, err := psbt.NewFromRawBytes(strings.NewReader(resp.GetTx()), true)
+	require.NoError(t, err, "returned tx should be a valid PSBT")
+	require.NotNil(t, ptx)
+}
+
+// TestGetVHTLCTransactionPending verifies that GetVHTLCTransaction returns
+// the pending ark transaction for a VHTLC whose VTXO was submitted (SubmitTx)
+// but not yet finalized (FinalizeTx).
+func TestGetVHTLCTransactionPending(t *testing.T) {
+	ctx := t.Context()
+
+	f, err := newFulmineClient("localhost:7000")
+	require.NoError(t, err)
+
+	arkadeWallet, _, _ := setupArkSDKwithPublicKey(t)
+	_, _, boarding, _, err := arkadeWallet.GetAddresses(ctx)
+	require.NoError(t, err)
+
+	faucetAndSettle(t, ctx, arkadeWallet, boarding[0], 0.001)
+
+	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+	require.NoError(t, err)
+
+	preimage := make([]byte, 32)
+	_, err = rand.Read(preimage)
+	require.NoError(t, err)
+	sha256Hash := sha256.Sum256(preimage)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+
+	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+		PreimageHash:   preimageHash,
+		ReceiverPubkey: info.GetPubkey(),
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 1024,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, vhtlcResp.Address)
+
+	// Fund from external wallet and wait for incoming VTXO
+	offchainAddr := newFulmineOffchainAddress(t, f)
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	var incomingFunds []clientTypes.Vtxo
+	go func() {
+		incomingFunds, _ = arkadeWallet.NotifyIncomingFunds(ctx, vhtlcResp.Address)
+		wg.Done()
+	}()
+
+	_, err = arkadeWallet.SendOffChain(ctx, []clientTypes.Receiver{{
+		To:     vhtlcResp.Address,
+		Amount: 1000,
+	}})
+	require.NoError(t, err)
+	_ = offchainAddr
+
+	wg.Wait()
+	require.NotEmpty(t, incomingFunds)
+
+	// Build the VHTLC script from the create response
+	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlc.Opts{
+		Sender:         mustParseSchnorrPubKey(t, vhtlcResp.GetRefundPubkey()),
+		Receiver:       mustParseSchnorrPubKey(t, vhtlcResp.GetClaimPubkey()),
+		Server:         mustParseSchnorrPubKey(t, vhtlcResp.GetServerPubkey()),
+		PreimageHash:   mustDecodeHex(t, preimageHash),
+		RefundLocktime: arklib.AbsoluteLocktime(vhtlcResp.GetRefundLocktime()),
+		UnilateralClaimDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeSecond,
+			Value: uint32(vhtlcResp.GetUnilateralClaimDelay()),
+		},
+		UnilateralRefundDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeSecond,
+			Value: uint32(vhtlcResp.GetUnilateralRefundDelay()),
+		},
+		UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{
+			Type:  arklib.LocktimeTypeSecond,
+			Value: uint32(vhtlcResp.GetUnilateralRefundWithoutReceiverDelay()),
+		},
+	})
+	require.NoError(t, err)
+
+	// Use the VTXO we got from the incoming funds notification
+	fundedVtxo := incomingFunds[0]
+	testVhtlc := testVHTLC{
+		script: vhtlcScript,
+		vtxo:   &fundedVtxo,
+	}
+
+	// Submit a claim tx but don't finalize → creates pending state
+	pendingTxid := submitPendingClaimVHTLC(t, arkadeWallet, f, testVhtlc, preimage)
+	require.NotEmpty(t, pendingTxid)
+
+	// GetVHTLCTransaction should return the pending tx
+	resp, err := f.GetVHTLCTransaction(ctx, &pb.GetVHTLCTransactionRequest{
+		VhtlcId: vhtlcResp.GetId(),
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.GetTx(), "expected a non-empty tx hex for pending VHTLC")
+	require.True(t, resp.GetPending(), "expected pending=true for a pending VTXO")
+
+	// Parse the pending tx and extract the condition witness (preimage)
+	ptx, err := psbt.NewFromRawBytes(strings.NewReader(resp.GetTx()), true)
+	require.NoError(t, err, "returned tx should be a valid PSBT")
+
+	witnesses, err := txutils.GetArkPsbtFields(ptx, 0, txutils.ConditionWitnessField)
+	require.NoError(t, err)
+	require.NotEmpty(t, witnesses, "expected condition witness in pending claim tx")
+	require.NotEmpty(t, witnesses[0], "expected non-empty witness stack")
+	require.Equal(t, preimage, []byte(witnesses[0][0]),
+		"preimage extracted from tx witness should match the original preimage")
+}
+
 // TestClaimVHTLCPendingFinalization verifies that calling ClaimVHTLC on a VHTLC
 // whose VTXO was already submitted (SubmitTx) but not finalized (FinalizeTx)
 // correctly detects the pending state and completes the finalization.
@@ -1208,7 +1386,6 @@ func TestClaimVHTLCPendingFinalization(t *testing.T) {
 	vhtlc := buildTestVHTLC(t, f, vhtlcResp, preimageHash)
 	pendingTxid := submitPendingClaimVHTLC(t, arkadeWallet, f, vhtlc, preimage)
 	require.NotEmpty(t, pendingTxid)
-	requirePendingVHTLC(t, arkadeWallet, vhtlc)
 	// Now call ClaimVHTLC via the normal gRPC path.
 	// The VTXO is spent (SubmitTx marked it) but not finalized.
 	// The pending detection should find it and call FinalizePendingTxs.

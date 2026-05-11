@@ -754,6 +754,50 @@
         ]
       }
     },
+    "/v1/vhtlc/tx/{vhtlcId}": {
+      "get": {
+        "summary": "GetVHTLCTransaction returns the fully signed ark transaction for a VHTLC,\nwhether the VHTLC is spent by a finalized or pending tx.",
+        "operationId": "Service_GetVHTLCTransaction",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetVHTLCTransactionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vhtlcId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "outpoint.txid",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "outpoint.vout",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/vhtlcs": {
       "get": {
         "operationId": "Service_ListVHTLCs",
@@ -1307,6 +1351,19 @@
             "type": "object",
             "$ref": "#/definitions/v1TransactionInfo"
           }
+        }
+      }
+    },
+    "v1GetVHTLCTransactionResponse": {
+      "type": "object",
+      "properties": {
+        "tx": {
+          "type": "string",
+          "description": "The fully signed ark transaction in hex format."
+        },
+        "pending": {
+          "type": "boolean",
+          "description": "Whether the transaction is from a pending intent (true) or a finalized round (false)."
         }
       }
     },
