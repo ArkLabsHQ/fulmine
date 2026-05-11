@@ -180,12 +180,12 @@ func (h *SwapHandler) GetVHTLCSpendingTx(
 		return tx, true, nil
 	}
 
-	txs, err := h.arkClient.Indexer().GetVirtualTxs(ctx, []string{vtxo.Txid})
+	txs, err := h.arkClient.Indexer().GetVirtualTxs(ctx, []string{vtxo.ArkTxid})
 	if err != nil {
 		return "", false, fmt.Errorf("failed to get virtual tx: %w", err)
 	}
 	if len(txs.Txs) == 0 {
-		return "", false, fmt.Errorf("no virtual tx found for txid %s", vtxo.Txid)
+		return "", false, fmt.Errorf("no virtual tx found for txid %s", vtxo.ArkTxid)
 	}
 
 	return txs.Txs[0], false, nil
