@@ -364,7 +364,7 @@ message GetVHTLCSpendingTxRequest {
 }
 
 message GetVHTLCSpendingTxResponse {
-  // The fully signed ark transaction in hex format.
+  // The fully signed ark psbt.
   string tx = 1;
 }
 

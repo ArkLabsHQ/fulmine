@@ -2204,7 +2204,7 @@ type GetVHTLCSpendingTxResponse struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// The fully signed ark transaction in hex format.
+	// The fully signed ark psbt.
 	Tx string `protobuf:"bytes,1,opt,name=tx,proto3" json:"tx,omitempty"`
 }
 

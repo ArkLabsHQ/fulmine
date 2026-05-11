@@ -1346,7 +1346,7 @@
       "properties": {
         "tx": {
           "type": "string",
-          "description": "The fully signed ark transaction in hex format."
+          "description": "The fully signed ark psbt."
         }
       }
     },
