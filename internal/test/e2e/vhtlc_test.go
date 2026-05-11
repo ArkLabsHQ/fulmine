@@ -1154,10 +1154,9 @@ func requireVHTLCSpentState(
 	t.Fatalf("vtxo %s:%d not found", expected.Outpoint.GetTxid(), expected.Outpoint.GetVout())
 }
 
-// TestGetVHTLCTransactionFinalized verifies that GetVHTLCTransaction returns
-// the fully signed ark transaction for a VHTLC whose VTXO was created by a
-// finalized round.
-func TestGetVHTLCTransactionFinalized(t *testing.T) {
+// TestGetVHTLCSpendingTxFinalized verifies that GetVHTLCSpendingTx returns the fully signed ark
+// transaction for a VHTLC that was claimed as expected.
+func TestGetVHTLCSpendingTxFinalized(t *testing.T) {
 	f, err := newFulmineClient("localhost:7000")
 	require.NoError(t, err)
 
@@ -1198,27 +1197,38 @@ func TestGetVHTLCTransactionFinalized(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Wait for the VTXO to be indexed, then get the transaction
-	var resp *pb.GetVHTLCTransactionResponse
-	require.Eventually(t, func() bool {
-		resp, err = f.GetVHTLCTransaction(ctx, &pb.GetVHTLCTransactionRequest{
-			VhtlcId: vhtlcResp.GetId(),
-		})
-		return err == nil
-	}, 10*time.Second, 500*time.Millisecond, "GetVHTLCTransaction should succeed once the VTXO is indexed")
-	require.NotEmpty(t, resp.GetTx(), "expected a non-empty tx hex")
-	require.False(t, resp.GetPending(), "expected pending=false for a finalized VTXO")
+	claimResp, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
+		VhtlcId:  vhtlcResp.GetId(),
+		Preimage: hex.EncodeToString(preimage),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, claimResp)
+	require.NotEmpty(t, claimResp.GetRedeemTxid())
+
+	resp, err := f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{
+		VhtlcId: vhtlcResp.GetId(),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotEmpty(t, resp.GetTx())
 
 	// Verify the returned tx is a valid PSBT
 	ptx, err := psbt.NewFromRawBytes(strings.NewReader(resp.GetTx()), true)
-	require.NoError(t, err, "returned tx should be a valid PSBT")
+	require.NoError(t, err)
 	require.NotNil(t, ptx)
+	require.Equal(t, claimResp.GetRedeemTxid(), ptx.UnsignedTx.TxID())
+
+	// Assert the preimage is there
+	witnesses, err := txutils.GetArkPsbtFields(ptx, 0, txutils.ConditionWitnessField)
+	require.NoError(t, err)
+	require.NotEmpty(t, witnesses)
+	require.NotEmpty(t, witnesses[0])
+	require.Equal(t, preimage, []byte(witnesses[0][0]))
 }
 
-// TestGetVHTLCTransactionPending verifies that GetVHTLCTransaction returns
-// the pending ark transaction for a VHTLC whose VTXO was submitted (SubmitTx)
-// but not yet finalized (FinalizeTx).
-func TestGetVHTLCTransactionPending(t *testing.T) {
+// TestGetVHTLCSpendingTxPending verifies that GetVHTLCSpendingTx returns the fully signed ark
+// transaction for a VHTLC spent by a pending tx (only SubmitTx was called)
+func TestGetVHTLCSpendingTxPending(t *testing.T) {
 	ctx := t.Context()
 
 	f, err := newFulmineClient("localhost:7000")
@@ -1312,23 +1322,24 @@ func TestGetVHTLCTransactionPending(t *testing.T) {
 	require.NotEmpty(t, pendingTxid)
 
 	// GetVHTLCTransaction should return the pending tx
-	resp, err := f.GetVHTLCTransaction(ctx, &pb.GetVHTLCTransactionRequest{
+	resp, err := f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{
 		VhtlcId: vhtlcResp.GetId(),
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, resp.GetTx(), "expected a non-empty tx hex for pending VHTLC")
-	require.True(t, resp.GetPending(), "expected pending=true for a pending VTXO")
+	require.NotEmpty(t, resp.GetTx())
 
 	// Parse the pending tx and extract the condition witness (preimage)
 	ptx, err := psbt.NewFromRawBytes(strings.NewReader(resp.GetTx()), true)
-	require.NoError(t, err, "returned tx should be a valid PSBT")
+	require.NoError(t, err)
+	require.NotNil(t, ptx)
+	require.Equal(t, pendingTxid, ptx.UnsignedTx.TxID())
 
+	// Assert the preimage is there
 	witnesses, err := txutils.GetArkPsbtFields(ptx, 0, txutils.ConditionWitnessField)
 	require.NoError(t, err)
-	require.NotEmpty(t, witnesses, "expected condition witness in pending claim tx")
-	require.NotEmpty(t, witnesses[0], "expected non-empty witness stack")
-	require.Equal(t, preimage, []byte(witnesses[0][0]),
-		"preimage extracted from tx witness should match the original preimage")
+	require.NotEmpty(t, witnesses)
+	require.NotEmpty(t, witnesses[0])
+	require.Equal(t, preimage, []byte(witnesses[0][0]))
 }
 
 // TestClaimVHTLCPendingFinalization verifies that calling ClaimVHTLC on a VHTLC

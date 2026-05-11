@@ -695,19 +695,20 @@ func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, 
 	return resp.Txs, nil
 }
 
-func (s *Service) GetVHTLCTransaction(
-	ctx context.Context, vhtlcId string, outpoint *clientTypes.Outpoint,
-) (string, bool, error) {
+func (s *Service) GetVHTLCSpendingTx(
+	ctx context.Context, vhtlcId string,
+) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", false, err
+		return "", err
 	}
 
 	vhtlcRecord, err := s.dbSvc.VHTLC().Get(ctx, vhtlcId)
 	if err != nil {
-		return "", false, fmt.Errorf("failed to get VHTLC %s: %w", vhtlcId, err)
+		return "", fmt.Errorf("failed to get VHTLC %s: %w", vhtlcId, err)
 	}
 
-	return s.swapHandler.GetVHTLCTransaction(ctx, vhtlcRecord.Opts, outpoint)
+	tx, _, err := s.swapHandler.GetVHTLCSpendingTx(ctx, vhtlcRecord.Opts, nil)
+	return tx, err
 }
 
 func (s *Service) GetDelegateTasks(

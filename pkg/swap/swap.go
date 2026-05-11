@@ -159,7 +159,7 @@ func (h *SwapHandler) GetVHTLCFunds(
 	return h.getVHTLCFunds(ctx, vHTLCs)
 }
 
-func (h *SwapHandler) GetVHTLCTransaction(
+func (h *SwapHandler) GetVHTLCSpendingTx(
 	ctx context.Context, vhtlcOpts vhtlc.Opts, outpoint *clientTypes.Outpoint,
 ) (string, bool, error) {
 	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
