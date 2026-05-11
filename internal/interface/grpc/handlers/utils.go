@@ -241,8 +241,8 @@ func toNotificationProto(n application.Notification) *pb.Notification {
 		Addresses:  n.Addrs,
 		NewVtxos:   toVtxosProto(n.NewVtxos),
 		SpentVtxos: toVtxosProto(n.SpentVtxos),
-		Txid:       n.TxData.Txid,
-		Tx:         n.TxData.Tx,
+		Txid:       n.Txid,
+		Tx:         n.Tx,
 	}
 	if len(n.Checkpoints) > 0 {
 		notification.Checkpoints = make(map[string]*pb.TxData, len(n.Checkpoints))
