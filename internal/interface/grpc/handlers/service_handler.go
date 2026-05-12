@@ -376,6 +376,22 @@ func parseInputOutpoint(input *pb.Input) (*clientTypes.Outpoint, error) {
 	}, nil
 }
 
+func (h *serviceHandler) GetVHTLCSpendingTx(
+	ctx context.Context, req *pb.GetVHTLCSpendingTxRequest,
+) (*pb.GetVHTLCSpendingTxResponse, error) {
+	vhtlcId := req.GetVhtlcId()
+	if vhtlcId == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
+	}
+
+	tx, err := h.svc.GetVHTLCSpendingTx(ctx, vhtlcId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetVHTLCSpendingTxResponse{Tx: tx}, nil
+}
+
 func (h *serviceHandler) ListVHTLCs(ctx context.Context, req *pb.ListVHTLCsRequest) (*pb.ListVHTLCsResponse, error) {
 	vtxos, _, err := h.svc.ListVHTLCs(ctx, req.GetVhtlcIds())
 	if err != nil {
