@@ -8,11 +8,14 @@ replace github.com/ArkLabsHQ/fulmine/pkg/boltz => ./pkg/boltz
 
 replace github.com/ArkLabsHQ/fulmine/pkg/swap => ./pkg/swap
 
+replace github.com/ArkLabsHQ/fulmine/api-spec => ./api-spec
+
 replace google.golang.org/protobuf => github.com/lightninglabs/protobuf-go-hex-display v1.30.0-hex-display
 
 replace github.com/ltcsuite/ltcd => github.com/ltcsuite/ltcd v0.23.5
 
 require (
+	github.com/ArkLabsHQ/fulmine/api-spec v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/swap v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-20260116135645-5d6845a62019
@@ -34,7 +37,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/grafana/pyroscope-go v1.2.7
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0
 	github.com/johnbellone/grpc-middleware-sentry v0.4.0
 	github.com/nbd-wtf/go-nostr v0.40.1
 	github.com/nbd-wtf/ln-decodepay v1.13.0
@@ -54,8 +57,7 @@ require (
 	go.opentelemetry.io/otel/sdk/log v0.14.0
 	go.opentelemetry.io/otel/sdk/metric v1.43.0
 	golang.org/x/net v0.52.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9
-	google.golang.org/grpc v1.80.0
+	google.golang.org/grpc v1.81.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/macaroon-bakery.v2 v2.3.0
 	gopkg.in/macaroon.v2 v2.1.0
@@ -181,11 +183,12 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/mod v0.33.0 // indirect
+	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
-	golang.org/x/tools v0.42.0 // indirect
+	golang.org/x/tools v0.43.0 // indirect
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260511170946-3700d4141b60 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	lukechampine.com/blake3 v1.4.1 // indirect
@@ -284,8 +287,8 @@ require (
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/term v0.41.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260401024825-9d38bb4040a9 // indirect
+	golang.org/x/text v0.36.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260504160031-60b97b32f348 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
