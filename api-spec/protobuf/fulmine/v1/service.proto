@@ -108,6 +108,18 @@ service Service {
       get: "/v1/vhtlc"
     };
   };
+  rpc ListVHTLCs(ListVHTLCsRequest) returns (ListVHTLCsResponse) {
+    option (google.api.http) = {
+      get: "/v1/vhtlcs"
+    };
+  };
+  // GetVHTLCSpendingTx returns the fully signed ark transaction for a spent VHTLC,
+  // whether the VHTLC is spent by a finalized or pending tx.
+  rpc GetVHTLCSpendingTx(GetVHTLCSpendingTxRequest) returns (GetVHTLCSpendingTxResponse) {
+    option (google.api.http) = {
+      get: "/v1/vhtlc/spendTx/{vhtlc_id}"
+    };
+  };
   rpc GetInvoice(GetInvoiceRequest) returns (GetInvoiceResponse) {
     option (google.api.http) = {
       post: "/v1/invoice"
@@ -338,6 +350,22 @@ message ListVHTLCRequest {
 }
 message ListVHTLCResponse {
   repeated Vtxo vhtlcs = 1;
+}
+
+message ListVHTLCsRequest {
+  repeated string vhtlc_ids = 1;
+}
+message ListVHTLCsResponse {
+  repeated Vtxo vhtlcs = 1;
+}
+
+message GetVHTLCSpendingTxRequest {
+  string vhtlc_id = 1;
+}
+
+message GetVHTLCSpendingTxResponse {
+  // The fully signed ark psbt.
+  string tx = 1;
 }
 
 message GetInvoiceRequest {

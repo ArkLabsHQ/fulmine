@@ -126,6 +126,7 @@ func testVHTLCRepository(t *testing.T, svc ports.RepoManager) {
 	t.Run("vHTLC repository", func(t *testing.T) {
 		testAddVHTLC(t, svc.VHTLC())
 		testGetAllVHTLC(t, svc.VHTLC())
+		testGetVHTLCsById(t, svc.VHTLC())
 	})
 }
 
@@ -280,6 +281,37 @@ func testGetAllVHTLC(t *testing.T, repo domain.VHTLCRepository) {
 
 		// Get all vHTLCs
 		vhtlcList, err := repo.GetAll(ctx)
+		require.NoError(t, err)
+		require.Len(t, vhtlcList, 2)
+		require.Subset(t, []domain.Vhtlc{testVHTLC, secondVHTLC}, vhtlcList)
+	})
+}
+
+func testGetVHTLCsById(t *testing.T, repo domain.VHTLCRepository) {
+	t.Run("get vHTLCs by ids", func(t *testing.T) {
+		vHTLC, err := repo.GetByIds(ctx, nil)
+		require.NoError(t, err)
+		require.Len(t, vHTLC, 0)
+
+		vHTLC, err = repo.GetByIds(ctx, []string{"nonexisting1", "nonexisting2"})
+		require.NoError(t, err)
+		require.Len(t, vHTLC, 0)
+
+		// Add another vHTLC
+		secondVHTLC := makeVHTLC()
+		err = repo.Add(ctx, secondVHTLC)
+		require.NoError(t, err)
+
+		thirdVHTLC := makeVHTLC()
+		err = repo.Add(ctx, thirdVHTLC)
+		require.NoError(t, err)
+
+		// Get all vHTLCs
+		vhtlcList, err := repo.GetByIds(ctx, []string{testVHTLC.Id})
+		require.NoError(t, err)
+		require.Len(t, vhtlcList, 1)
+
+		vhtlcList, err = repo.GetByIds(ctx, []string{testVHTLC.Id, secondVHTLC.Id})
 		require.NoError(t, err)
 		require.Len(t, vhtlcList, 2)
 		require.Subset(t, []domain.Vhtlc{testVHTLC, secondVHTLC}, vhtlcList)

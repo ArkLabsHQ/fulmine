@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v6
         with:
-          go-version: ">=1.26.1"
+          go-version: ">=1.26.2"
       - uses: actions/checkout@v4
       
       - run: go get -v -t -d ./...
@@ -32,3 +32,12 @@ jobs:
 
       - name: Run integration tests
         run: make integrationtest
+
+      - name: Docker logs
+        if: failure()
+        continue-on-error: true
+        run: |
+          docker image ls -a
+          docker ps -a
+          docker compose -f test.docker-compose.yml ps
+          docker compose -f test.docker-compose.yml logs --no-color --timestamps boltz fulmine boltz-fulmine mock-boltz

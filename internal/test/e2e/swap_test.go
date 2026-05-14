@@ -1,11 +1,19 @@
 package e2e_test
 
 import (
+	"encoding/hex"
 	"sync"
 	"testing"
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
+	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
+	"github.com/ArkLabsHQ/fulmine/pkg/swap"
+	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/lightningnetwork/lnd/input"
 	"github.com/stretchr/testify/require"
 )
 
@@ -358,6 +366,82 @@ func (e *errs) add(err error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.errs = append(e.errs, err)
+}
+
+func TestSubmarineSwapUnderfundedCooperativeRefund(t *testing.T) {
+	ctx := t.Context()
+
+	arkClient, arkPubKey, _ := setupArkSDKwithPublicKey(t)
+	faucetOffchain(t, arkClient, 0.001)
+
+	cfg, err := arkClient.GetConfigData(ctx)
+	require.NoError(t, err)
+
+	handlerKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+
+	boltzApi := &boltz.Api{URL: "http://localhost:9001", WSURL: "ws://localhost:9004"}
+
+	invoice, rHash, err := lndAddInvoice(ctx, 5000)
+	require.NoError(t, err)
+	require.NotEmpty(t, invoice)
+
+	preimageHash := input.Ripemd160H(mustDecodeHex(t, rHash))
+
+	createResp, err := boltzApi.CreateSwap(boltz.CreateSwapRequest{
+		From:            boltz.CurrencyArk,
+		To:              boltz.CurrencyBtc,
+		Invoice:         invoice,
+		RefundPublicKey: hex.EncodeToString(arkPubKey.SerializeCompressed()),
+		PaymentTimeout:  120,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, createResp.Address)
+	require.Greater(t, createResp.ExpectedAmount, uint64(100))
+
+	receiverPubBytes, err := hex.DecodeString(createResp.ClaimPublicKey)
+	require.NoError(t, err)
+	receiverPub, err := btcec.ParsePubKey(receiverPubBytes)
+	require.NoError(t, err)
+
+	opts := vhtlc.Opts{
+		Sender:                               arkPubKey,
+		Receiver:                             receiverPub,
+		Server:                               cfg.SignerPubKey,
+		PreimageHash:                         preimageHash,
+		RefundLocktime:                       arklib.AbsoluteLocktime(createResp.TimeoutBlockHeights.RefundLocktime),
+		UnilateralClaimDelay:                 boltzLocktime(createResp.TimeoutBlockHeights.UnilateralClaim),
+		UnilateralRefundDelay:                boltzLocktime(createResp.TimeoutBlockHeights.UnilateralRefund),
+		UnilateralRefundWithoutReceiverDelay: boltzLocktime(createResp.TimeoutBlockHeights.UnilateralRefundWithoutReceiver),
+	}
+	script, err := vhtlc.NewVHTLCScriptFromOpts(opts)
+	require.NoError(t, err)
+	addr, err := script.Address(cfg.Network.Addr)
+	require.NoError(t, err)
+	require.Equal(t, createResp.Address, addr, "locally derived VHTLC address must match Boltz's")
+
+	short := createResp.ExpectedAmount - 100
+	_, err = arkClient.SendOffChain(ctx, []clientTypes.Receiver{
+		{To: createResp.Address, Amount: short},
+	})
+	require.NoError(t, err)
+
+	// Give Boltz time to observe the underfunded lockup tx and mark the swap
+	// as failed before we ask it to co-sign the refund.
+	time.Sleep(5 * time.Second)
+
+	handler, err := swap.NewSwapHandler(arkClient, boltzApi, "", handlerKey, 120)
+	require.NoError(t, err)
+
+	_, err = handler.RefundSwap(ctx, swap.SwapTypeSubmarine, createResp.Id, true, opts, nil)
+	require.NoError(t, err, "cooperative refund of an underfunded submarine swap should succeed")
+}
+
+func boltzLocktime(value uint32) arklib.RelativeLocktime {
+	if value >= 512 {
+		return arklib.RelativeLocktime{Type: arklib.LocktimeTypeSecond, Value: value}
+	}
+	return arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: value}
 }
 
 // TODO: add tests for increase inbound/outbound

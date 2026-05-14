@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -27,6 +29,8 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	singlekeywallet "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey"
+	filestore "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey/store/file"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -181,11 +185,23 @@ func newService(
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 	connectionOpts *domain.LnConnectionOpts,
 ) (*Service, error) {
-	verbose := log.IsLevelEnabled(log.DebugLevel)
+	walletStore, err := filestore.NewWalletStore(datadir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize wallet store: %w", err)
+	}
+	singleKeyWallet, err := singlekeywallet.NewBitcoinWallet(walletStore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize wallet: %w", err)
+	}
+
 	opts := []arksdk.ClientOption{
 		arksdk.WithRefreshDbInterval(time.Duration(refreshDbInterval) * time.Second),
+		arksdk.WithWallet(singleKeyWallet),
 	}
-	if arkClient, err := arksdk.LoadArkClient(datadir, verbose, opts...); err == nil {
+	if log.IsLevelEnabled(log.DebugLevel) {
+		opts = append(opts, arksdk.WithVerbose())
+	}
+	if arkClient, err := arksdk.LoadArkClient(datadir, opts...); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
 		if err != nil {
 			return nil, err
@@ -221,7 +237,7 @@ func newService(
 		}
 	}
 
-	arkClient, err := arksdk.NewArkClient(datadir, verbose, opts...)
+	arkClient, err := arksdk.NewArkClient(datadir, opts...)
 	if err != nil {
 		// nolint:all
 		settingsRepo.CleanSettings(ctx)
@@ -423,6 +439,15 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if err != nil {
 		return err
 	}
+
+	subsHandler, err := newSubscriptionHandler(
+		ctx, s.Indexer(), s.dbSvc.SubscribedScript(), s.handleAddressEventChannel(arkConfig),
+	)
+	if err != nil {
+		return err
+	}
+	s.externalSubscription = subsHandler
+
 	settings, err := s.dbSvc.Settings().GetSettings(ctx)
 	if err != nil {
 		log.WithError(err).Warn("failed to get settings")
@@ -480,12 +505,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 		go s.subscribeForVtxoEvent(ctx, arkConfig)
 
-		// Restore watch of our and tracked addresses.
-		_, offchainAddrses, _, _, err := s.GetAddresses(context.Background())
-		if err != nil {
-			log.WithError(err).Error("failed to get addresses")
-		}
-
 		// Schedule next settlement for the current vtxo set.
 		nextExpiry, err := s.computeNextExpiry(context.Background(), arkConfig)
 		if err != nil {
@@ -509,30 +528,14 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			}
 		}
 
-		scripts, err := offchainAddressesPkScripts(offchainAddrses)
-		if err != nil {
-			log.WithError(err).Error("failed to decode offchain address")
-		}
-
-		_, err = s.dbSvc.SubscribedScript().Add(context.Background(), scripts)
-		if err != nil {
-			log.Debugf("cannot listen to scripts %+v", err)
-		}
-
-		s.externalSubscription = newSubscriptionHandler(
-			s.Indexer(), s.dbSvc.SubscribedScript(), s.handleAddressEventChannel(arkConfig),
-		)
-
-		if err := s.externalSubscription.start(); err != nil {
-			log.WithError(err).Error("failed to start external subscription")
-		}
-
 		// nolint
 		s.swapHandler, _ = swap.NewSwapHandler(
 			s.ArkClient, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
 		)
 
 		go s.recoverChainSwaps(context.Background(), arkConfig)
+
+		s.sanitize(context.Background())
 	}()
 
 	// This go routine takes care of establishing the LN connection, if configured.
@@ -692,6 +695,22 @@ func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, 
 	return resp.Txs, nil
 }
 
+func (s *Service) GetVHTLCSpendingTx(
+	ctx context.Context, vhtlcId string,
+) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	vhtlcRecord, err := s.dbSvc.VHTLC().Get(ctx, vhtlcId)
+	if err != nil {
+		return "", fmt.Errorf("failed to get VHTLC %s: %w", vhtlcId, err)
+	}
+
+	tx, _, err := s.swapHandler.GetVHTLCSpendingTx(ctx, vhtlcRecord.Opts, nil)
+	return tx, err
+}
+
 func (s *Service) GetDelegateTasks(
 	ctx context.Context, status domain.DelegateTaskStatus, limit, offset int,
 ) ([]domain.DelegateTask, error) {
@@ -761,8 +780,6 @@ func (s *Service) Settle(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	s.schedulerSvc.CancelNextSettlement()
-
 	return commitmentTxid, nil
 }
 
@@ -775,8 +792,6 @@ func (s *Service) SendOnChain(ctx context.Context, addr string, amount uint64) (
 	if err != nil {
 		return "", err
 	}
-
-	s.schedulerSvc.CancelNextSettlement()
 
 	return commitmentTxid, nil
 }
@@ -953,6 +968,36 @@ func (s *Service) GetSwapVHTLC(
 	}()
 
 	return encodedAddr, vhtlcId, vHTLCScript, nil
+}
+
+func (s *Service) ListVHTLCs(
+	ctx context.Context, vhtlcIds []string,
+) ([]clientTypes.Vtxo, []domain.Vhtlc, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return nil, nil, err
+	}
+
+	// Return empty list if an empty one is provided
+	if len(vhtlcIds) <= 0 {
+		return nil, nil, nil
+	}
+
+	vhtlcList, err := s.dbSvc.VHTLC().GetByIds(ctx, vhtlcIds)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	vhtlcOpts := make([]vhtlc.Opts, 0, len(vhtlcList))
+	for _, v := range vhtlcList {
+		vhtlcOpts = append(vhtlcOpts, v.Opts)
+	}
+
+	vtxos, err := s.swapHandler.GetVHTLCFunds(ctx, vhtlcOpts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return vtxos, vhtlcList, nil
 }
 
 func (s *Service) ListVHTLC(
@@ -2085,32 +2130,27 @@ func (s *Service) handleAddressEventChannel(
 			return
 		}
 		if event.Err != nil {
-			log.WithError(event.Err).Error("AddressEvent subscription error")
+			log.WithError(event.Err).Errorf("%s received unexpected error", logPrefix)
 			return
 		}
 
 		data := event.Data
 		if len(data.SpentVtxos) <= 0 && len(data.NewVtxos) <= 0 {
-			log.Warn("Received nil event from event channel")
+			log.Warnf("%s received unexpected empty event", logPrefix)
 			return
 		}
-
-		log.Infof(
-			"received address event(%d spent vtxos, %d new vtxos)",
-			len(data.SpentVtxos), len(data.NewVtxos),
-		)
 
 		// convert scripts to addresses
 		addresses := make([]string, 0, len(data.Scripts))
 		for _, script := range data.Scripts {
 			decodedPubKey, err := hex.DecodeString(script)
 			if err != nil {
-				log.WithError(err).Errorf("failed to decode script %s", script)
+				log.WithError(err).Errorf("%s failed to decode script %s", logPrefix, script)
 				continue
 			}
 			vtxoTapPubkey, err := schnorr.ParsePubKey(decodedPubKey[2:])
 			if err != nil {
-				log.WithError(err).Errorf("failed to parse pubkey %s", script)
+				log.WithError(err).Errorf("%s failed to parse pubkey %s", logPrefix, script)
 				continue
 			}
 
@@ -2122,12 +2162,27 @@ func (s *Service) handleAddressEventChannel(
 
 			encodedAddress, err := vtxoAddress.EncodeV0()
 			if err != nil {
-				log.WithError(err).Errorf("failed to encode address %s", script)
+				log.WithError(err).Errorf("%s failed to encode address %s", logPrefix, script)
 				continue
 			}
 			addresses = append(addresses, encodedAddress)
 
 		}
+
+		type logData struct {
+			Txid          string
+			Addresses     []string
+			NewVtxos      int
+			SpentVtxos    int
+			CheckpointTxs []string
+		}
+		log.WithField("event", logData{
+			Txid:          data.Txid,
+			Addresses:     addresses,
+			NewVtxos:      len(data.NewVtxos),
+			SpentVtxos:    len(data.SpentVtxos),
+			CheckpointTxs: slices.Collect(maps.Keys(data.CheckpointTxs)),
+		}).Debugf("%s received event for address(es)", logPrefix)
 
 		go func(evt indexer.ScriptEvent) {
 			select {
@@ -2138,7 +2193,9 @@ func (s *Service) handleAddressEventChannel(
 				Checkpoints: data.CheckpointTxs,
 				TxData:      indexer.TxData{Tx: data.Tx, Txid: data.Txid},
 			}:
+				log.Debugf("%s forwarded notification", logPrefix)
 			default:
+				log.Warnf("%s failed to forward notification", logPrefix)
 			}
 		}(event)
 	}
@@ -2432,6 +2489,60 @@ func (s *Service) resumeChainSwapMonitoring(
 		UnilateralRefundCB: unilateralRefund,
 	})
 	return err
+}
+
+// sanitize removes stale boarding UTXOs from the local DB that no longer
+// exist on-chain.
+func (s *Service) sanitize(ctx context.Context) {
+	boardingAddr, err := s.NewBoardingAddress(ctx)
+	if err != nil {
+		log.WithError(err).Warn("sanitize: failed to get boarding addresses")
+		return
+	}
+
+	utxoStore := s.Store().UtxoStore()
+	spendable, _, err := utxoStore.GetAllUtxos(ctx)
+	if err != nil {
+		log.WithError(err).Warn("sanitize: failed to get stored utxos")
+		return
+	}
+	if len(spendable) == 0 {
+		return
+	}
+
+	// Collect all on-chain UTXOs across all boarding addresses.
+	onchainUtxos := make(map[string]struct{})
+	explorerUtxos, err := s.Explorer().GetUtxos(boardingAddr)
+	if err != nil {
+		log.WithError(err).Warnf("sanitize: failed to get utxos for %s", boardingAddr)
+		return
+	}
+	for _, u := range explorerUtxos {
+		key := fmt.Sprintf("%s:%d", u.Txid, u.Vout)
+		onchainUtxos[key] = struct{}{}
+	}
+
+	// Find stored UTXOs that are not on-chain and delete them.
+	staleOutpoints := make([]clientTypes.Outpoint, 0)
+	for _, utxo := range spendable {
+		key := fmt.Sprintf("%s:%d", utxo.Txid, utxo.VOut)
+		if _, exists := onchainUtxos[key]; !exists {
+			staleOutpoints = append(staleOutpoints, utxo.Outpoint)
+		}
+	}
+
+	if len(staleOutpoints) == 0 {
+		return
+	}
+
+	count, err := utxoStore.DeleteUtxos(ctx, staleOutpoints)
+	if err != nil {
+		log.WithError(err).Warn("sanitize: failed to delete stale utxos")
+		return
+	}
+	if count > 0 {
+		log.Infof("sanitize: deleted %d stale boarding utxo(s)", count)
+	}
 }
 
 func convertSwapStatus(swapStatus string) domain.SwapStatus {
