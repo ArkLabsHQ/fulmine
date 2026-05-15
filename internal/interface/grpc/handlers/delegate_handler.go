@@ -13,29 +13,30 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type delegatorHandler struct {
-	svc *application.DelegatorService
+type delegateHandler struct {
+	svc *application.DelegateService
 }
 
-func NewDelegatorHandler(svc *application.DelegatorService) pb.DelegatorServiceServer {
-	return &delegatorHandler{svc}
+func NewDelegateHandler(svc *application.DelegateService) pb.DelegateServiceServer {
+	return &delegateHandler{svc}
 }
 
-func (h *delegatorHandler) GetDelegatorInfo(
-	ctx context.Context, req *pb.GetDelegatorInfoRequest,
-) (*pb.GetDelegatorInfoResponse, error) {
-	info, err := h.svc.GetDelegatorInfo(ctx)
+func (h *delegateHandler) GetDelegateInfo(
+	ctx context.Context, req *pb.GetDelegateInfoRequest,
+) (*pb.GetDelegateInfoResponse, error) {
+	info, err := h.svc.GetInfo(ctx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &pb.GetDelegatorInfoResponse{
-		Pubkey:           info.DelegatorPublicKey,
+	return &pb.GetDelegateInfoResponse{
+		Pubkey:           info.PubKey,
 		Fee:              strconv.FormatUint(info.Fee, 10), // TODO: use CEL?
-		DelegatorAddress: info.DelegatorAddress,
+		DelegatorAddress: info.Address,
+		DelegateAddress:  info.Address,
 	}, nil
 }
 
-func (h *delegatorHandler) Delegate(
+func (h *delegateHandler) Delegate(
 	ctx context.Context, req *pb.DelegateRequest,
 ) (*pb.DelegateResponse, error) {
 	delegateIntent := req.GetIntent()

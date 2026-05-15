@@ -29,12 +29,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type DelegatorService struct {
+type DelegateService struct {
 	svc *Service
 	fee uint64
 
-	cachedDelegatorAddress *arklib.Address
-	delegatorAddrMtx       sync.Mutex
+	cachedDelegateAddress *arklib.Address
+	delegateAddrMtx       sync.Mutex
 
 	intentsMtx        sync.Mutex
 	registeredIntents map[string]registeredIntent // intent hash -> task id
@@ -48,23 +48,23 @@ type DelegatorService struct {
 }
 
 type DelegateInfo struct {
-	DelegatorPublicKey string
-	Fee                uint64
-	DelegatorAddress   string
+	PubKey  string
+	Fee     uint64
+	Address string
 }
 
-func newDelegatorService(svc *Service, fee uint64) *DelegatorService {
-	return &DelegatorService{
+func newDelegateService(svc *Service, fee uint64) *DelegateService {
+	return &DelegateService{
 		svc:               svc,
 		fee:               fee,
 		registeredIntents: make(map[string]registeredIntent),
-		delegatorAddrMtx:  sync.Mutex{},
+		delegateAddrMtx:   sync.Mutex{},
 		intentsMtx:        sync.Mutex{},
 		delegateMtx:       sync.Mutex{},
 	}
 }
 
-func (s *DelegatorService) start() {
+func (s *DelegateService) start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.ctx = ctx
 	s.cancelFunc = cancel
@@ -76,20 +76,20 @@ func (s *DelegatorService) start() {
 	go s.monitorVtxosSpent(s.ctx)
 }
 
-func (s *DelegatorService) Stop() {
+func (s *DelegateService) Stop() {
 	if s.cancelFunc != nil {
 		s.cancelFunc()
 		s.cancelFunc = nil
 	}
 }
 
-// GetDelegatorInfo returns the data needed to create the intent & forfeit tx for a delegate task.
-func (s *DelegatorService) GetDelegatorInfo(ctx context.Context) (*DelegateInfo, error) {
+// GetInfo returns the data needed to create the intent & forfeit tx for a delegate task.
+func (s *DelegateService) GetInfo(ctx context.Context) (*DelegateInfo, error) {
 	if s.svc.publicKey == nil {
 		return nil, fmt.Errorf("service not ready")
 	}
 
-	offchainAddr, err := s.getDelegatorAddress(ctx)
+	offchainAddr, err := s.getDelegateAddress(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -100,14 +100,14 @@ func (s *DelegatorService) GetDelegatorInfo(ctx context.Context) (*DelegateInfo,
 	}
 
 	return &DelegateInfo{
-		DelegatorPublicKey: hex.EncodeToString(s.svc.publicKey.SerializeCompressed()),
-		Fee:                s.fee,
-		DelegatorAddress:   encodedAddr,
+		PubKey:  hex.EncodeToString(s.svc.publicKey.SerializeCompressed()),
+		Fee:     s.fee,
+		Address: encodedAddr,
 	}, nil
 }
 
 // Delegate creates a delegate task, then schedules it for execution if valid
-func (s *DelegatorService) Delegate(
+func (s *DelegateService) Delegate(
 	ctx context.Context,
 	intentMessage intent.RegisterMessage, intentProof intent.Proof, forfeitTxs []*psbt.Packet,
 	allowReplace bool,
@@ -172,7 +172,7 @@ func (s *DelegatorService) Delegate(
 	return nil
 }
 
-func (s *DelegatorService) newDelegateTask(
+func (s *DelegateService) newDelegateTask(
 	ctx context.Context,
 	message intent.RegisterMessage, proof intent.Proof, forfeitTxs []*psbt.Packet,
 ) (*domain.DelegateTask, error) {
@@ -195,12 +195,12 @@ func (s *DelegatorService) newDelegateTask(
 		return nil, fmt.Errorf("failed to encode intent proof: %w", err)
 	}
 
-	delegatorAddr, err := s.getDelegatorAddress(ctx)
+	delegateAddr, err := s.getDelegateAddress(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	delegatorAddrScript, err := delegatorAddr.GetPkScript()
+	delegateAddrScript, err := delegateAddr.GetPkScript()
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func (s *DelegatorService) newDelegateTask(
 
 	// search for the fee output in intent proof
 	for _, output := range proof.UnsignedTx.TxOut {
-		if bytes.Equal(output.PkScript, delegatorAddrScript) {
+		if bytes.Equal(output.PkScript, delegateAddrScript) {
 			feeAmount = output.Value
 			break
 		}
@@ -251,17 +251,17 @@ func (s *DelegatorService) newDelegateTask(
 			Txid:    proof.UnsignedTx.TxID(),
 			Inputs:  inputs,
 		},
-		ForfeitTxs:         indexedForfeitTxs,
-		Fee:                uint64(feeAmount),
-		DelegatorPublicKey: hex.EncodeToString(s.svc.publicKey.SerializeCompressed()),
-		ScheduledAt:        scheduledAt,
-		Status:             domain.DelegateTaskStatusPending,
+		ForfeitTxs:        indexedForfeitTxs,
+		Fee:               uint64(feeAmount),
+		DelegatePublicKey: hex.EncodeToString(s.svc.publicKey.SerializeCompressed()),
+		ScheduledAt:       scheduledAt,
+		Status:            domain.DelegateTaskStatusPending,
 	}
 
-	// validate delegator fee
+	// validate delegate fee
 	if task.Fee < s.fee {
 		return nil, fmt.Errorf(
-			"delegator fee is less than the required fee (expected at least %d, got %d)",
+			"delegate fee is less than the required fee (expected at least %d, got %d)",
 			s.fee, task.Fee,
 		)
 	}
@@ -306,14 +306,14 @@ func (s *DelegatorService) newDelegateTask(
 	return task, nil
 }
 
-func (s *DelegatorService) getDelegatorAddress(ctx context.Context) (*arklib.Address, error) {
-	s.delegatorAddrMtx.Lock()
-	if s.cachedDelegatorAddress != nil {
-		addr := s.cachedDelegatorAddress
-		s.delegatorAddrMtx.Unlock()
+func (s *DelegateService) getDelegateAddress(ctx context.Context) (*arklib.Address, error) {
+	s.delegateAddrMtx.Lock()
+	if s.cachedDelegateAddress != nil {
+		addr := s.cachedDelegateAddress
+		s.delegateAddrMtx.Unlock()
 		return addr, nil
 	}
-	s.delegatorAddrMtx.Unlock()
+	s.delegateAddrMtx.Unlock()
 
 	if err := s.svc.isInitializedAndUnlocked(ctx); err != nil {
 		return nil, err
@@ -329,21 +329,21 @@ func (s *DelegatorService) getDelegatorAddress(ctx context.Context) (*arklib.Add
 		return nil, err
 	}
 
-	s.delegatorAddrMtx.Lock()
+	s.delegateAddrMtx.Lock()
 	// Double-check: another goroutine might have set it while we were fetching
-	if s.cachedDelegatorAddress == nil {
-		s.cachedDelegatorAddress = decodedAddr
+	if s.cachedDelegateAddress == nil {
+		s.cachedDelegateAddress = decodedAddr
 	} else {
 		// Use the cached value if it was set by another goroutine
-		decodedAddr = s.cachedDelegatorAddress
+		decodedAddr = s.cachedDelegateAddress
 	}
-	s.delegatorAddrMtx.Unlock()
+	s.delegateAddrMtx.Unlock()
 
 	return decodedAddr, nil
 }
 
 // restorePendingTasks restores all pending tasks from DB and schedules them for execution.
-func (s *DelegatorService) restorePendingTasks() error {
+func (s *DelegateService) restorePendingTasks() error {
 	pendingTasks, err := s.svc.dbSvc.Delegate().GetAllPending(s.ctx)
 	if err != nil {
 		return err
@@ -370,7 +370,7 @@ func (s *DelegatorService) restorePendingTasks() error {
 	return nil
 }
 
-func (s *DelegatorService) registerDelegate(id string) error {
+func (s *DelegateService) registerDelegate(id string) error {
 	repo := s.svc.dbSvc.Delegate()
 	s.delegateMtx.Lock()
 	task, err := repo.GetByID(s.ctx, id)
@@ -407,7 +407,7 @@ func (s *DelegatorService) registerDelegate(id string) error {
 
 // listenBatchStartedEvents check all BatchStartedEvent sent by Ark server and join batch if any
 // include on of the delegated intent.
-func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
+func (s *DelegateService) listenBatchStartedEvents(ctx context.Context) {
 	log.Debug("listening for batch events")
 	var eventsCh <-chan client.BatchEventChannel
 	var stop func()
@@ -455,16 +455,16 @@ func (s *DelegatorService) listenBatchStartedEvents(ctx context.Context) {
 				continue
 			}
 
-			go s.runDelegatorBatch(ctx, batchExpiry, selectedTasks)
+			go s.runDelegateBatch(ctx, batchExpiry, selectedTasks)
 			log.Infof("batch started, selected %d delegate tasks", len(selectedTasks))
 		}
 	}
 }
 
-func (s *DelegatorService) runDelegatorBatch(
+func (s *DelegateService) runDelegateBatch(
 	ctx context.Context, batchExpiry arklib.RelativeLocktime, selectedTasks []registeredIntent,
 ) {
-	commitmentTxId, err := s.joinDelegatorBatch(ctx, batchExpiry, selectedTasks)
+	commitmentTxId, err := s.joinDelegateBatch(ctx, batchExpiry, selectedTasks)
 	if err != nil {
 		log.WithError(err).Warnf("failed to join batch")
 		return
@@ -479,11 +479,11 @@ func (s *DelegatorService) runDelegatorBatch(
 	}).Infof("batch %s completed", commitmentTxId)
 }
 
-// joinDelegatorBatch is launched after the BatchStartedEvent is received and is reponsible to sign
+// joinDelegateBatch is launched after the BatchStartedEvent is received and is reponsible to sign
 // vtxo tree and submit forfeits txs.
-func (s *DelegatorService) joinDelegatorBatch(
+func (s *DelegateService) joinDelegateBatch(
 	ctx context.Context,
-	batchExpiry arklib.RelativeLocktime, selectedDelegatorTasks []registeredIntent,
+	batchExpiry arklib.RelativeLocktime, selectedDelegateTasks []registeredIntent,
 ) (string, error) {
 	flatVtxoTree := make([]tree.TxTreeNode, 0)
 	flatConnectorTree := make([]tree.TxTreeNode, 0)
@@ -491,11 +491,11 @@ func (s *DelegatorService) joinDelegatorBatch(
 
 	signerSession := tree.NewTreeSignerSession(s.svc.privateKey)
 
-	topics := make([]string, 0, len(selectedDelegatorTasks)*2+1)
+	topics := make([]string, 0, len(selectedDelegateTasks)*2+1)
 	topics = append(topics, hex.EncodeToString(s.svc.publicKey.SerializeCompressed()))
 
 	// confirm registrations and compute topics
-	for _, selectedTask := range selectedDelegatorTasks {
+	for _, selectedTask := range selectedDelegateTasks {
 		if err := s.svc.Client().ConfirmRegistration(ctx, selectedTask.intentID); err != nil {
 			log.WithError(err).Warnf(
 				"failed to confirm registration for intent %s", selectedTask.intentID,
@@ -524,7 +524,7 @@ func (s *DelegatorService) joinDelegatorBatch(
 		return "", fmt.Errorf("failed to get config data: %w", err)
 	}
 
-	handler := &delegatorBatchSessionHandler{
+	handler := &delegateBatchSessionHandler{
 		musig2BatchSessionHandler: musig2BatchSessionHandler{
 			SignerSession:   signerSession,
 			TransportClient: s.svc.Client(),
@@ -535,8 +535,8 @@ func (s *DelegatorService) joinDelegatorBatch(
 				Locktime: batchExpiry,
 			},
 		},
-		delegator:     s,
-		selectedTasks: selectedDelegatorTasks,
+		delegate:      s,
+		selectedTasks: selectedDelegateTasks,
 	}
 
 	for {
@@ -611,7 +611,7 @@ func (s *DelegatorService) joinDelegatorBatch(
 	}
 }
 
-func (s *DelegatorService) monitorVtxosSpent(ctx context.Context) {
+func (s *DelegateService) monitorVtxosSpent(ctx context.Context) {
 	const tickerInterval = 5 * time.Second
 	log.Debug("monitoring delegated spent vtxos")
 
@@ -700,7 +700,7 @@ func (s *DelegatorService) monitorVtxosSpent(ctx context.Context) {
 }
 
 func validateForfeits(
-	delegatorPublicKey *btcec.PublicKey, cfg *clientTypes.Config, forfeitTxs []*psbt.Packet,
+	delegatePubkey *btcec.PublicKey, cfg *clientTypes.Config, forfeitTxs []*psbt.Packet,
 ) error {
 	// TODO validate intent fee
 
@@ -773,7 +773,7 @@ func validateForfeits(
 			)
 		}
 
-		delegatorXonlyKey := schnorr.SerializePubKey(delegatorPublicKey)
+		delegateXOnlyKey := schnorr.SerializePubKey(delegatePubkey)
 		expectedSigHashType := txscript.SigHashAnyOneCanPay | txscript.SigHashAll
 
 		prevoutMap := make(map[wire.OutPoint]*wire.TxOut)
@@ -809,17 +809,17 @@ func validateForfeits(
 			)
 		}
 
-		delegatorFound := false
+		delegateFound := false
 		for _, pubkey := range pubkeys {
 			xonlyKey := schnorr.SerializePubKey(pubkey)
-			if bytes.Equal(xonlyKey, delegatorXonlyKey) {
-				delegatorFound = true
+			if bytes.Equal(xonlyKey, delegateXOnlyKey) {
+				delegateFound = true
 				break
 			}
 		}
-		if !delegatorFound {
+		if !delegateFound {
 			return fmt.Errorf(
-				"forfeit tx input: delegator public key not found in taproot leaf script",
+				"forfeit tx input: delegate public key not found in taproot leaf script",
 			)
 		}
 

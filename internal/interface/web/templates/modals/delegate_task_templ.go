@@ -435,8 +435,8 @@ func DelegateTaskDetailBody(task types.DelegateTask) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if task.DelegatorPublicKey != "" {
-			templ_7745c5c3_Err = DelegateTaskKV("Delegator pubkey", DelegateTaskMonoCopy(task.DelegatorPublicKey), true).Render(ctx, templ_7745c5c3_Buffer)
+		if task.DelegatePublicKey != "" {
+			templ_7745c5c3_Err = DelegateTaskKV("Delegate pubkey", DelegateTaskMonoCopy(task.DelegatePublicKey), true).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

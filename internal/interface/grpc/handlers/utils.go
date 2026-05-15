@@ -313,15 +313,15 @@ func toDelegateProto(delegate domain.DelegateTask) *pb.Delegate {
 	}
 
 	return &pb.Delegate{
-		Id:                 delegate.ID,
-		Intent:             intent,
-		ForfeitTxs:         forfeitTxs,
-		Fee:                delegate.Fee,
-		DelegatorPublicKey: delegate.DelegatorPublicKey,
-		ScheduledAt:        delegate.ScheduledAt.Unix(),
-		Status:             delegate.Status.String(),
-		FailReason:         delegate.FailReason,
-		CommitmentTxid:     delegate.CommitmentTxid,
+		Id:                delegate.ID,
+		Intent:            intent,
+		ForfeitTxs:        forfeitTxs,
+		Fee:               delegate.Fee,
+		DelegatePublicKey: delegate.DelegatePublicKey,
+		ScheduledAt:       delegate.ScheduledAt.Unix(),
+		Status:            delegate.Status.String(),
+		FailReason:        delegate.FailReason,
+		CommitmentTxid:    delegate.CommitmentTxid,
 	}
 }
 

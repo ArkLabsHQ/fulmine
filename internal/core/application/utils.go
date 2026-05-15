@@ -106,7 +106,7 @@ func extractConnector(connectorTx *psbt.Packet) (*wire.TxOut, *wire.OutPoint, er
 	return nil, nil, fmt.Errorf("connector output not found")
 }
 
-// a wrapper around delegator task id
+// a wrapper around delegate task id
 type registeredIntent struct {
 	taskID   string
 	intentID string
