@@ -29,8 +29,8 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
-	singlekeywallet "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey"
-	filestore "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey/store/file"
+	singlekeywallet "github.com/arkade-os/arkd/pkg/client-lib/identity/singlekey"
+	filestore "github.com/arkade-os/arkd/pkg/client-lib/identity/singlekey/store/file"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -90,7 +90,7 @@ type WalletUpdate struct {
 type Service struct {
 	BuildInfo BuildInfo
 
-	arksdk.ArkClient
+	arksdk.Wallet
 	dbSvc        ports.RepoManager
 	schedulerSvc ports.SchedulerService
 	lnSvc        ports.LnService
@@ -185,23 +185,23 @@ func newService(
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 	connectionOpts *domain.LnConnectionOpts,
 ) (*Service, error) {
-	walletStore, err := filestore.NewWalletStore(datadir)
+	walletStore, err := filestore.NewStore(datadir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize wallet store: %w", err)
 	}
-	singleKeyWallet, err := singlekeywallet.NewBitcoinWallet(walletStore)
+	singleKeyWallet, err := singlekeywallet.NewIdentity(walletStore)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize wallet: %w", err)
 	}
 
-	opts := []arksdk.ClientOption{
+	opts := []arksdk.WalletOption{
 		arksdk.WithRefreshDbInterval(time.Duration(refreshDbInterval) * time.Second),
-		arksdk.WithWallet(singleKeyWallet),
+		arksdk.WithIdentity(singleKeyWallet),
 	}
 	if log.IsLevelEnabled(log.DebugLevel) {
 		opts = append(opts, arksdk.WithVerbose())
 	}
-	if arkClient, err := arksdk.LoadArkClient(datadir, opts...); err == nil {
+	if arkClient, err := arksdk.LoadWallet(datadir, opts...); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
 		if err != nil {
 			return nil, err
@@ -209,7 +209,7 @@ func newService(
 
 		svc := &Service{
 			BuildInfo:             buildInfo,
-			ArkClient:             arkClient,
+			Wallet:                arkClient,
 			dbSvc:                 dbSvc,
 			schedulerSvc:          schedulerSvc,
 			publicKey:             nil,
@@ -237,7 +237,7 @@ func newService(
 		}
 	}
 
-	arkClient, err := arksdk.NewArkClient(datadir, opts...)
+	arkClient, err := arksdk.NewWallet(datadir, opts...)
 	if err != nil {
 		// nolint:all
 		settingsRepo.CleanSettings(ctx)
@@ -254,7 +254,7 @@ func newService(
 
 	svc := &Service{
 		BuildInfo:             buildInfo,
-		ArkClient:             arkClient,
+		Wallet:                arkClient,
 		dbSvc:                 dbSvc,
 		schedulerSvc:          schedulerSvc,
 		notifications:         make(chan Notification),
@@ -413,7 +413,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if !s.isInitialized {
 		return fmt.Errorf("service not initialized")
 	}
-	if !s.ArkClient.IsLocked(ctx) {
+	if !s.Wallet.IsLocked(ctx) {
 		return nil
 	}
 
@@ -423,7 +423,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	wg.Go(func() {
 		s.syncLock.Lock()
 		defer s.syncLock.Unlock()
-		ev := <-s.ArkClient.IsSynced(context.Background())
+		ev := <-s.Wallet.IsSynced(context.Background())
 		s.syncEvent = &ev
 		s.syncCh <- ev
 	})
@@ -516,7 +516,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			// The next settlement will be scheduled by subscribeForVtxoEvent in this case
 			if nextExpiry.Before(time.Now()) {
 				log.Debug("detected expired vtxos, joining a batch to renew them...")
-				if _, err := s.ArkClient.Settle(ctx); err != nil {
+				if _, err := s.Wallet.Settle(ctx); err != nil {
 					log.WithError(err).Error("failed to renew expired vtxos")
 				}
 			} else {
@@ -530,7 +530,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 		// nolint
 		s.swapHandler, _ = swap.NewSwapHandler(
-			s.ArkClient, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
+			s.Wallet, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
 		)
 
 		go s.recoverChainSwaps(context.Background(), arkConfig)
@@ -775,7 +775,7 @@ func (s *Service) Settle(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	commitmentTxid, err := s.ArkClient.Settle(ctx)
+	commitmentTxid, err := s.Wallet.Settle(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -874,6 +874,14 @@ func (s *Service) IsPreConfiguredLN() bool {
 	return lnOpts != nil && lnOpts.LnDatadir != ""
 }
 
+// NonInteractiveClaimParams carries the data needed to enable a non-interactive
+// solver claim closure on a VHTLC.
+type NonInteractiveClaimParams struct {
+	ReceiverPkScript   []byte
+	IntrospectorPubKey *btcec.PublicKey
+	ExtraPacket        []byte // hex-decoded [type_byte] || [body]; may be nil
+}
+
 func (s *Service) GetSwapVHTLC(
 	ctx context.Context,
 	receiverPubkey, senderPubkey *btcec.PublicKey,
@@ -882,6 +890,7 @@ func (s *Service) GetSwapVHTLC(
 	unilateralClaimDelayParam *arklib.RelativeLocktime,
 	unilateralRefundDelayParam *arklib.RelativeLocktime,
 	unilateralRefundWithoutReceiverDelayParam *arklib.RelativeLocktime,
+	nonInteractive *NonInteractiveClaimParams,
 ) (string, string, *vhtlc.VHTLCScript, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", "", nil, err
@@ -948,6 +957,14 @@ func (s *Service) GetSwapVHTLC(
 		UnilateralRefundDelay:                unilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
 	}
+	var extraPacket []byte
+	if nonInteractive != nil {
+		opts.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
+			ReceiverPkScript:   nonInteractive.ReceiverPkScript,
+			IntrospectorPubKey: nonInteractive.IntrospectorPubKey,
+		}
+		extraPacket = nonInteractive.ExtraPacket
+	}
 	vHTLCScript, err := vhtlc.NewVHTLCScriptFromOpts(opts)
 	if err != nil {
 		return "", "", nil, err
@@ -958,16 +975,55 @@ func (s *Service) GetSwapVHTLC(
 		return "", "", nil, err
 	}
 
-	go func() {
-		if err := s.dbSvc.VHTLC().Add(context.Background(), domain.NewVhtlc(opts)); err != nil {
-			log.WithError(err).Error("failed to add vhtlc")
-			return
-		}
-
-		log.Debugf("added new vhtlc %s", vhtlcId)
-	}()
+	if err := s.dbSvc.VHTLC().Add(ctx, domain.NewVhtlc(opts, extraPacket)); err != nil {
+		return "", "", nil, fmt.Errorf("failed to add vhtlc: %w", err)
+	}
+	log.Debugf("added new vhtlc %s", vhtlcId)
 
 	return encodedAddr, vhtlcId, vHTLCScript, nil
+}
+
+// SendOffChain sends to the given receivers off-chain. If any receiver address
+// matches a persisted VHTLC that has a non-interactive claim extra packet,
+// fulmine auto-attaches the packet as an Ark extension so a solver bot can
+// pick it up from the funding tx and claim on the receiver's behalf.
+func (s *Service) SendOffChain(
+	ctx context.Context, receivers []clientTypes.Receiver,
+) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	cfg, err := s.GetConfigData(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	vhtlcs, err := s.dbSvc.VHTLC().GetAll(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	receiverAddrs := make([]string, 0, len(receivers))
+	for _, r := range receivers {
+		receiverAddrs = append(receiverAddrs, r.To)
+	}
+	// we may need to include extension with extra packet to the offchain tx,
+	// plus per-output tap tree so a non-interactive solver can decode the VHTLC.
+	extraPkts, tapTrees, err := findExtraPacketsForReceivers(receiverAddrs, vhtlcs, cfg.Network.Addr)
+	if err != nil {
+		return "", err
+	}
+	log.Debugf("SendOffChain: %d extra packets / %d tap trees to attach", len(extraPkts), len(tapTrees))
+
+	var opts []arksdk.SendOffChainOption
+	if len(extraPkts) > 0 {
+		opts = append(opts, arksdk.WithExtension(extraPkts...))
+	}
+	if len(tapTrees) > 0 {
+		opts = append(opts, arksdk.WithOutputTaprootTree(tapTrees))
+	}
+	return s.Wallet.SendOffChain(ctx, receivers, opts...)
 }
 
 func (s *Service) ListVHTLCs(
@@ -1135,7 +1191,7 @@ func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (s
 			return nil
 		}
 
-		vHTLC := domain.NewVhtlc(*swapData.Opts)
+		vHTLC := domain.NewVhtlc(*swapData.Opts, nil)
 
 		_, err := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
 			Id:         swapData.Id,
@@ -1203,7 +1259,7 @@ func (s *Service) IncreaseOutboundCapacity(
 	}
 
 	swapStatus := domain.SwapStatus(swapDetails.Status)
-	vHTLC := domain.NewVhtlc(*swapDetails.Opts)
+	vHTLC := domain.NewVhtlc(*swapDetails.Opts, nil)
 
 	go func() {
 		_, dbErr := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
@@ -1263,11 +1319,11 @@ func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification 
 }
 
 func (s *Service) IsLocked(ctx context.Context) bool {
-	if s.ArkClient == nil {
+	if s.Wallet == nil {
 		return true
 	}
 
-	return s.ArkClient.IsLocked(ctx)
+	return s.Wallet.IsLocked(ctx)
 }
 
 func (s *Service) GetInvoice(ctx context.Context, amount uint64) (*SwapResponse, error) {
@@ -1280,7 +1336,7 @@ func (s *Service) GetInvoice(ctx context.Context, amount uint64) (*SwapResponse,
 			return nil
 		}
 
-		vHTLC := domain.NewVhtlc(*swapData.Opts)
+		vHTLC := domain.NewVhtlc(*swapData.Opts, nil)
 
 		count, err := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
 			Id:         swapData.Id,
@@ -1329,7 +1385,7 @@ func (s *Service) PayInvoice(ctx context.Context, invoice string) (*SwapResponse
 	}
 
 	swapStatus := domain.SwapStatus(swapDetails.Status)
-	vHTLC := domain.NewVhtlc(*swapDetails.Opts)
+	vHTLC := domain.NewVhtlc(*swapDetails.Opts, nil)
 
 	go func() {
 		count, err := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
@@ -1393,7 +1449,7 @@ func (s *Service) PayOffer(ctx context.Context, offer string) (*SwapResponse, er
 	}
 
 	swapStatus := domain.SwapStatus(swapDetails.Status)
-	vHTLC := domain.NewVhtlc(*swapDetails.Opts)
+	vHTLC := domain.NewVhtlc(*swapDetails.Opts, nil)
 
 	go func() {
 		count, err := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
@@ -1929,7 +1985,7 @@ func (s *Service) restoreSwapHistory(ctx context.Context) error {
 			To:          record.To,
 			From:        record.From,
 			Type:        domain.SwapPayment,
-			Vhtlc:       domain.NewVhtlc(vhtlcScript.Opts()),
+			Vhtlc:       domain.NewVhtlc(vhtlcScript.Opts(), nil),
 			FundingTxId: fundingTxid,
 			RedeemTxId:  redeemTxid,
 		}
@@ -2512,7 +2568,7 @@ func (s *Service) sanitize(ctx context.Context) {
 
 	// Collect all on-chain UTXOs across all boarding addresses.
 	onchainUtxos := make(map[string]struct{})
-	explorerUtxos, err := s.Explorer().GetUtxos(boardingAddr)
+	explorerUtxos, err := s.Explorer().GetUtxos([]string{boardingAddr})
 	if err != nil {
 		log.WithError(err).Warnf("sanitize: failed to get utxos for %s", boardingAddr)
 		return

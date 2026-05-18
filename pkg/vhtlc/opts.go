@@ -17,6 +17,10 @@ type Opts struct {
 	UnilateralClaimDelay                 arklib.RelativeLocktime
 	UnilateralRefundDelay                arklib.RelativeLocktime
 	UnilateralRefundWithoutReceiverDelay arklib.RelativeLocktime
+
+	// NonInteractiveClaim, when non-nil, enables a covenant claim closure
+	// that a solver bot can satisfy unilaterally with the preimage.
+	NonInteractiveClaim *NonInteractiveClaimOpts
 }
 
 func (o Opts) validate() error {
@@ -51,6 +55,12 @@ func (o Opts) validate() error {
 
 	if err := validateTimelock(o.UnilateralRefundWithoutReceiverDelay); err != nil {
 		return fmt.Errorf("invalid unilateral refund without receiver delay: %w", err)
+	}
+
+	if o.NonInteractiveClaim != nil {
+		if err := o.NonInteractiveClaim.validate(); err != nil {
+			return err
+		}
 	}
 
 	return nil

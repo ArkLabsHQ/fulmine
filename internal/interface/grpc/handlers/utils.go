@@ -177,6 +177,64 @@ func parseTransaction(tx string) (string, error) {
 	return tx, nil
 }
 
+func parseNonInteractiveClaim(
+	nic *pb.NonInteractiveClaim, networkHRP string,
+) (*application.NonInteractiveClaimParams, error) {
+	if nic == nil {
+		return nil, nil // non interactive claim path is optional
+	}
+	if nic.GetClaimReceiverAddress() == "" {
+		return nil, fmt.Errorf("claim_receiver_address is required")
+	}
+	addr, err := arklib.DecodeAddressV0(nic.GetClaimReceiverAddress())
+	if err != nil {
+		return nil, fmt.Errorf("invalid claim_receiver_address: %w", err)
+	}
+	if addr.HRP != networkHRP {
+		return nil, fmt.Errorf(
+			"claim_receiver_address network %q does not match configured network %q",
+			addr.HRP, networkHRP,
+		)
+	}
+	pkScript, err := addr.GetPkScript()
+	if err != nil {
+		return nil, fmt.Errorf("derive pkScript from claim_receiver_address: %w", err)
+	}
+
+	pubHex := nic.GetIntrospectorPubkey()
+	if pubHex == "" {
+		return nil, fmt.Errorf("introspector_pubkey is required")
+	}
+	pubBytes, err := hex.DecodeString(pubHex)
+	if err != nil {
+		return nil, fmt.Errorf("invalid introspector_pubkey hex: %w", err)
+	}
+	pub, err := btcec.ParsePubKey(pubBytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse introspector_pubkey: %w", err)
+	}
+
+	var extraPacket []byte
+	if raw := nic.GetExtraPacket(); raw != "" {
+		extraPacket, err = hex.DecodeString(raw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid extra_packet hex: %w", err)
+		}
+		if len(extraPacket) < 2 {
+			return nil, fmt.Errorf(
+				"extra_packet too short: need [type byte] + body, got %d bytes",
+				len(extraPacket),
+			)
+		}
+	}
+
+	return &application.NonInteractiveClaimParams{
+		ReceiverPkScript:   pkScript,
+		IntrospectorPubKey: pub,
+		ExtraPacket:        extraPacket,
+	}, nil
+}
+
 func toNetworkProto(net string) pb.GetInfoResponse_Network {
 	switch net {
 	case "regtest":

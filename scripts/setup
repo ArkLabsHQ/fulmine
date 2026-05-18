@@ -58,6 +58,24 @@ retry() {
     return "$status"
 }
 
+# wait_for_onboard polls the /onboard endpoint until it returns a non-null
+# address, working around the "service is syncing" window right after unlock.
+# Echoes the address on success.
+wait_for_onboard() {
+    local url="$1"
+    local response addr
+    for _ in {1..30}; do
+        response=$(curl -s -X POST "$url/onboard" -H 'Content-Type: application/json')
+        addr=$(echo "$response" | jq -r '.address // empty')
+        if [ -n "$addr" ] && [ "$addr" != "null" ]; then
+            echo "$addr"
+            return 0
+        fi
+        sleep 2
+    done
+    return 1
+}
+
 echo "starting bitcoin stack..."
 if ! run_quiet $compose down -v; then
     exit "  ❌ failed to tear down existing stack (status=$status) (err=$err)"
@@ -83,7 +101,15 @@ if ! run_quiet $compose up -d arkd; then
 else
     echo "  ✅ stack started"
 fi
-sleep 5
+
+# Wait for arkd's admin REST listener to come up (longer than a fixed sleep
+# would reliably wait — arkd-wallet sync can take ~10-15s on a fresh stack).
+for _ in {1..30}; do
+    if docker exec arkd wget -q -O- http://127.0.0.1:7071/v1/admin/wallet/seed >/dev/null 2>&1; then
+        break
+    fi
+    sleep 2
+done
 
 echo "provisioning Arkade server..."
 err=$($arkd wallet create --password $password)
@@ -118,6 +144,29 @@ for i in {1..21}; do
 done
 echo "  ✅ funded onchain with $funded_count BTC"
 
+echo "setting up Bancod stack..."
+if ! run_quiet $compose up -d introspector bancod; then
+    exit "  ❌ failed to start stack (status=$status) (err=$err)"
+else
+    echo "  ✅ stack started"
+fi
+
+# Wait for bancod's HTTP listener and the preimage plugin to be running.
+bancod_ready=0
+for _ in {1..30}; do
+    response=$(curl -s http://127.0.0.1:7271/v1/plugins)
+    if [ -n "$response" ] && [ "$(echo "$response" | jq -r '.preimage.running // false')" = "true" ]; then
+        bancod_ready=1
+        break
+    fi
+    sleep 2
+done
+if [ $bancod_ready -ne 1 ]; then
+    exit "  ❌ bancod preimage plugin did not become ready (last response: $response)"
+else
+    echo "  ✅ bancod ready (preimage plugin running)"
+fi
+
 echo "setting up Boltz stack..."
 if ! run_quiet $compose up -d boltz mock-boltz; then
     exit "  ❌ failed to start stack (status=$status) (err=$err)"
@@ -150,8 +199,8 @@ else
 fi
 sleep 1
 
-addr=$(curl -s -X POST $fulmineBoltzUrl/onboard -H 'Content-Type: application/json' | jq -r .address)
-if [ $? -ne 0 ]; then
+addr=$(wait_for_onboard $fulmineBoltzUrl)
+if [ $? -ne 0 ] || [ -z "$addr" ]; then
     exit "  ❌ failed to get boarding address (status=$status) (err=$err)"
 fi
 err=$(nigiri faucet $addr 0.001)
@@ -314,8 +363,8 @@ else
 fi
 sleep 1
 
-addr=$(curl -s -X POST $fulmineUrl/onboard -H 'Content-Type: application/json' | jq -r .address)
-if [ $? -ne 0 ]; then
+addr=$(wait_for_onboard $fulmineUrl)
+if [ $? -ne 0 ] || [ -z "$addr" ]; then
     exit "  ❌ failed to get boarding address (status=$status) (err=$err)"
 fi
 sleep 5
@@ -352,8 +401,8 @@ else
 fi
 sleep 1
 
-addr=$(curl -s -X POST $fulmineMockUrl/onboard -H 'Content-Type: application/json' | jq -r .address)
-if [ $? -ne 0 ]; then
+addr=$(wait_for_onboard $fulmineMockUrl)
+if [ $? -ne 0 ] || [ -z "$addr" ]; then
     exit "  ❌ failed to get mocked Fulmine boarding address (status=$status) (err=$err)"
 fi
 sleep 5

@@ -37,7 +37,7 @@ import (
 var ErrorNoVtxosFound = fmt.Errorf("no vtxos found for the given vhtlc opts")
 
 type SwapHandler struct {
-	arkClient      arksdk.ArkClient
+	arkClient      arksdk.Wallet
 	boltzSvc       *boltz.Api
 	explorerClient ExplorerClient
 	privateKey     *btcec.PrivateKey
@@ -68,7 +68,7 @@ type Swap struct {
 }
 
 func NewSwapHandler(
-	arkClient arksdk.ArkClient,
+	arkClient arksdk.Wallet,
 	boltzSvc *boltz.Api,
 	esploraURL string,
 	privateKey *btcec.PrivateKey,
@@ -533,6 +533,13 @@ func (h *SwapHandler) RefundSwap(
 
 		for i := range signedRefundPsbt.Inputs {
 			boltzIn := boltzSignedRefundPtx.Inputs[i]
+			// Boltz may legitimately omit a partial sig for inputs it
+			// can't (or won't) co-sign — e.g. underfunded swaps that
+			// only return sigs for a subset of inputs. Skip those
+			// rather than indexing into an empty slice and panicking.
+			if len(boltzIn.TaprootScriptSpendSig) == 0 {
+				continue
+			}
 			partialSig := boltzIn.TaprootScriptSpendSig[0]
 			signedRefundPsbt.Inputs[i].TaprootScriptSpendSig =
 				append(signedRefundPsbt.Inputs[i].TaprootScriptSpendSig, partialSig)

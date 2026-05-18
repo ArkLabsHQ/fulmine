@@ -38,7 +38,7 @@ type batchSessionArgs struct {
 
 type batchSessionHandler struct {
 	musig2BatchSessionHandler
-	arkClient arksdk.ArkClient
+	arkClient arksdk.Wallet
 
 	intentId       string
 	vtxos          []clientTypes.VtxoWithTapTree
@@ -51,8 +51,8 @@ type batchSessionHandler struct {
 }
 
 func newBatchSessionHandler(
-	arkClient arksdk.ArkClient,
-	transportClient client.TransportClient,
+	arkClient arksdk.Wallet,
+	transportClient client.Client,
 	intentId string,
 	vtxos []clientTypes.VtxoWithTapTree,
 	receivers []clientTypes.Receiver,
@@ -247,7 +247,7 @@ type claimBatchSessionHandler struct {
 }
 
 func newClaimBatchSessionHandler(
-	arkClient arksdk.ArkClient,
+	arkClient arksdk.Wallet,
 	intentId string,
 	vtxos []clientTypes.VtxoWithTapTree,
 	receivers []clientTypes.Receiver,
@@ -307,8 +307,8 @@ type refundBatchSessionHandler struct {
 }
 
 func newRefundBatchSessionHandler(
-	arkClient arksdk.ArkClient,
-	transportClient client.TransportClient,
+	arkClient arksdk.Wallet,
+	transportClient client.Client,
 	intentId string,
 	vtxos []clientTypes.VtxoWithTapTree,
 	receivers []clientTypes.Receiver,
@@ -369,8 +369,8 @@ type collabRefundBatchSessionHandler struct {
 }
 
 func newCollabRefundBatchSessionHandler(
-	arkClient arksdk.ArkClient,
-	transportClient client.TransportClient,
+	arkClient arksdk.Wallet,
+	transportClient client.Client,
 	intentId string,
 	vtxos []clientTypes.VtxoWithTapTree,
 	receivers []clientTypes.Receiver,
