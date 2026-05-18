@@ -358,6 +358,75 @@ func TestGetVhtlcScript(t *testing.T) {
 	require.Equal(t, hex.EncodeToString(unilateralRefundWithoutReceiverScript), hex.EncodeToString(recoveredUnilateralRefundWithoutReceiverScript))
 }
 
+func TestNonInteractiveClaim_TaptreeIncludesExtraClosure(t *testing.T) {
+	sender := generatePrivateKey(t)
+	receiver := generatePrivateKey(t)
+	server := generatePrivateKey(t)
+	intro := generatePrivateKey(t)
+	preimage := generatePreimage(t)
+	preimageHash := calculatePreimageHash(preimage)
+
+	// Build a 34-byte P2TR pkScript for the receiver (OP_1 OP_DATA_32 xonly).
+	xonly := schnorr.SerializePubKey(receiver.PubKey())
+	receiverPkScript := append([]byte{0x51, 0x20}, xonly...)
+
+	baseOpts := vhtlc.Opts{
+		Sender:       sender.PubKey(),
+		Receiver:     receiver.PubKey(),
+		Server:       server.PubKey(),
+		PreimageHash: preimageHash,
+		RefundLocktime: arklib.AbsoluteLocktime(
+			time.Now().Add(time.Hour).Unix(),
+		),
+		UnilateralClaimDelay: arklib.RelativeLocktime{
+			Type: arklib.LocktimeTypeBlock, Value: 100,
+		},
+		UnilateralRefundDelay: arklib.RelativeLocktime{
+			Type: arklib.LocktimeTypeBlock, Value: 200,
+		},
+		UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{
+			Type: arklib.LocktimeTypeBlock, Value: 300,
+		},
+	}
+
+	without, err := vhtlc.NewVHTLCScriptFromOpts(baseOpts)
+	require.NoError(t, err)
+	require.Len(t, without.Closures, 6)
+	require.Nil(t, without.NonInteractiveClaimClosure)
+
+	withNic := baseOpts
+	withNic.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
+		ReceiverPkScript:   receiverPkScript,
+		IntrospectorPubKey: intro.PubKey(),
+	}
+	with, err := vhtlc.NewVHTLCScriptFromOpts(withNic)
+	require.NoError(t, err)
+	require.Len(t, with.Closures, 7)
+	require.NotNil(t, with.NonInteractiveClaimClosure)
+	require.Len(t, with.NonInteractiveClaimClosure.PubKeys, 2)
+
+	// First pubkey is the server; second is the introspector tweaked key.
+	require.Equal(t,
+		schnorr.SerializePubKey(server.PubKey()),
+		schnorr.SerializePubKey(with.NonInteractiveClaimClosure.PubKeys[0]),
+	)
+	require.NotEqual(t,
+		schnorr.SerializePubKey(intro.PubKey()),
+		schnorr.SerializePubKey(with.NonInteractiveClaimClosure.PubKeys[1]),
+		"second pubkey should be tweaked, not the raw introspector key",
+	)
+
+	// Address must differ because the taptree differs.
+	addrWithout, err := without.Address("ark")
+	require.NoError(t, err)
+	addrWith, err := with.Address("ark")
+	require.NoError(t, err)
+	require.NotEqual(t, addrWithout, addrWith)
+
+	// Revealed tapscripts include 7 scripts when non-interactive claim is set.
+	require.Len(t, with.GetRevealedTapscripts(), 7)
+}
+
 // Helper function to generate a random private key
 func generatePrivateKey(t *testing.T) *btcec.PrivateKey {
 	t.Helper()

@@ -445,6 +445,19 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
 	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
 
+	cfg, err := h.svc.GetConfigData(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// nonInteractive is nil if not set
+	// GetSwapVHTLC handles nil value and won't add the extra tapscript
+	nonInteractive, err := parseNonInteractiveClaim(
+		req.GetNonInteractiveClaim(), cfg.Network.Addr,
+	)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	addr, vhtlc_id, vhtlcScript, err := h.svc.GetSwapVHTLC(
 		ctx,
 		receiverPubkey,
@@ -454,6 +467,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		unilateralClaimDelay,
 		unilateralRefundDelay,
 		unilateralRefundWithoutReceiverDelay,
+		nonInteractive,
 	)
 	if err != nil {
 		return nil, err
