@@ -22,8 +22,12 @@ github.com/arkade-os/arkd/api-spec v0.0.0-20260323091657-eeb0baef6937 h1:010LTrh
 github.com/arkade-os/arkd/api-spec v0.0.0-20260323091657-eeb0baef6937/go.mod h1:2+6ix1UGGE22Q/rbab1dycFPPKiTyq0gldKVqVfFPWs=
 github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260429091057-9246f043c4c8 h1:xSPC2XjahDKKMgY1b+Fe3zs16eTkP6BDV6yAKHyjvdc=
 github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260429091057-9246f043c4c8/go.mod h1:gYJkHBV9B9OkSgANCvyST24HTlZ0tSmr1mZSsj+jGAc=
+github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260514151440-4ecc7753e264 h1:v1J2rD3N86gJbxkRDnHvUDwxXan4EVA5aAREhu8uTU4=
+github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260514151440-4ecc7753e264/go.mod h1:gSMZ490WXBijQBWUdbaxMKUl7l5sUH0xarOFn6UFqQw=
 github.com/arkade-os/arkd/pkg/errors v0.0.0-20260303153651-8615412e4dea h1:x9ZwZL+F2b9E0uBZYBVjCLGtlqIE4zahDOY4C89h3X4=
 github.com/arkade-os/arkd/pkg/errors v0.0.0-20260303153651-8615412e4dea/go.mod h1:NYGE+baj57ynbXNwjISJddMDpMqAWOX27dV22xqFm2A=
+github.com/arkade-os/go-sdk v0.9.2-0.20260514163636-f28dda8725d5 h1:Hv9CoL5ngXtO31iTeZ33YSlMCdhI0bAqvNsSyPQBZR4=
+github.com/arkade-os/go-sdk v0.9.2-0.20260514163636-f28dda8725d5/go.mod h1:UaXw77Hw8UXgX8/SfkHzxTpznfUF7oCaYpQgwxbSEog=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=

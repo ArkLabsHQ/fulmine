@@ -417,6 +417,10 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return nil
 	}
 
+	if err := s.Unlock(ctx, password); err != nil {
+		return err
+	}
+
 	s.syncCh = make(chan types.SyncEvent, 1)
 
 	wg := &sync.WaitGroup{}
@@ -427,10 +431,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		s.syncEvent = &ev
 		s.syncCh <- ev
 	})
-
-	if err := s.Unlock(ctx, password); err != nil {
-		return err
-	}
 
 	s.schedulerSvc.Start()
 	log.Info("scheduler started")

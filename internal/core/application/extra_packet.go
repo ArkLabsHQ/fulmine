@@ -30,7 +30,7 @@ func findExtraPacketsForReceivers(
 	var pkts []extension.Packet
 	tapTrees := make(map[string][]byte)
 	for _, v := range vhtlcs {
-		if len(v.ExtraPacket) < 2 {
+		if len(v.ExtraPacket) == 0 {
 			continue
 		}
 		s, err := vhtlc.NewVHTLCScriptFromOpts(v.Opts)

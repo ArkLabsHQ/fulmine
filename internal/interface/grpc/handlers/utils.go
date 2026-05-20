@@ -220,12 +220,6 @@ func parseNonInteractiveClaim(
 		if err != nil {
 			return nil, fmt.Errorf("invalid extra_packet hex: %w", err)
 		}
-		if len(extraPacket) < 2 {
-			return nil, fmt.Errorf(
-				"extra_packet too short: need [type byte] + body, got %d bytes",
-				len(extraPacket),
-			)
-		}
 	}
 
 	return &application.NonInteractiveClaimParams{

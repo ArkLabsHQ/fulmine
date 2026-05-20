@@ -33,6 +33,9 @@ type VHTLCScript struct {
 	UnilateralRefundWithoutReceiverClosure *script.CSVMultisigClosure
 	// NonInteractiveClaimClosure is optional. nil means the tapscript is not added to the taptree.
 	NonInteractiveClaimClosure *script.ConditionMultisigClosure
+	// NonInteractiveClaim is the original opts used to build the closure.
+	// Preserved so Opts() can fully reconstruct the inputs that built this script.
+	NonInteractiveClaim *NonInteractiveClaimOpts
 
 	preimageConditionScript []byte
 }
@@ -92,6 +95,7 @@ func NewVHTLCScriptFromOpts(opts Opts) (*VHTLCScript, error) {
 		UnilateralRefundClosure:                unilateralRefundClosure,
 		UnilateralRefundWithoutReceiverClosure: unilateralRefundWithoutReceiverClosure,
 		NonInteractiveClaimClosure:             nonInteractiveClaim,
+		NonInteractiveClaim:                    opts.NonInteractiveClaim,
 		preimageConditionScript:                preimageCondition,
 	}, nil
 }
@@ -309,5 +313,6 @@ func (v *VHTLCScript) Opts() Opts {
 		UnilateralClaimDelay:                 v.UnilateralClaimClosure.Locktime,
 		UnilateralRefundDelay:                v.UnilateralRefundClosure.Locktime,
 		UnilateralRefundWithoutReceiverDelay: v.UnilateralRefundWithoutReceiverClosure.Locktime,
+		NonInteractiveClaim:                  v.NonInteractiveClaim,
 	}
 }

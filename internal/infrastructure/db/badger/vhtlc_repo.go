@@ -189,8 +189,21 @@ func (d *vhtlcData) toVhtlc() (domain.Vhtlc, error) {
 		PreimageHash:                         preimageHashBytes,
 	}
 
+	hasPkScript := d.NonInteractiveReceiverPkScript != ""
+	hasPubKey := d.NonInteractiveIntrospectorPubKey != ""
+	if hasPkScript != hasPubKey {
+		return domain.Vhtlc{}, fmt.Errorf(
+			"inconsistent non-interactive data: both receiver pkScript and introspector pubkey must be set together",
+		)
+	}
+	if !hasPkScript && d.NonInteractiveExtraPacket != "" {
+		return domain.Vhtlc{}, fmt.Errorf(
+			"orphan non-interactive extra packet without claim fields",
+		)
+	}
+
 	var extraPacket []byte
-	if d.NonInteractiveReceiverPkScript != "" && d.NonInteractiveIntrospectorPubKey != "" {
+	if hasPkScript && hasPubKey {
 		pkScript, err := hex.DecodeString(d.NonInteractiveReceiverPkScript)
 		if err != nil {
 			return domain.Vhtlc{}, fmt.Errorf(

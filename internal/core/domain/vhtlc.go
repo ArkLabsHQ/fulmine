@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -32,7 +33,7 @@ func NewVhtlc(opts vhtlc.Opts, extraPacket []byte) Vhtlc {
 	return Vhtlc{
 		Opts:        opts,
 		Id:          GetVhtlcId(preimageHash, sender, receiver),
-		ExtraPacket: extraPacket,
+		ExtraPacket: bytes.Clone(extraPacket),
 	}
 }
 

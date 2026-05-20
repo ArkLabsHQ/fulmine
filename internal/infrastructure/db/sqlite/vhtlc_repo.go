@@ -157,9 +157,22 @@ func toVhtlc(row queries.Vhtlc) (domain.Vhtlc, error) {
 		PreimageHash:                         preimageHashBytes,
 	}
 
+	hasPkScript := row.NonInteractiveReceiverPkscript.Valid
+	hasPubKey := row.NonInteractiveIntrospectorPubkey.Valid
+	if hasPkScript != hasPubKey {
+		return domain.Vhtlc{}, fmt.Errorf(
+			"inconsistent non-interactive data: both receiver pkScript and introspector pubkey must be set together",
+		)
+	}
+	hasExtraPacket := row.NonInteractiveExtraPacket.Valid && row.NonInteractiveExtraPacket.String != ""
+	if !hasPkScript && hasExtraPacket {
+		return domain.Vhtlc{}, fmt.Errorf(
+			"orphan non-interactive extra packet without claim fields",
+		)
+	}
+
 	var extraPacket []byte
-	if row.NonInteractiveReceiverPkscript.Valid &&
-		row.NonInteractiveIntrospectorPubkey.Valid {
+	if hasPkScript && hasPubKey {
 		pkScript, err := hex.DecodeString(row.NonInteractiveReceiverPkscript.String)
 		if err != nil {
 			return domain.Vhtlc{}, fmt.Errorf(
@@ -182,7 +195,7 @@ func toVhtlc(row queries.Vhtlc) (domain.Vhtlc, error) {
 			ReceiverPkScript:   pkScript,
 			IntrospectorPubKey: pub,
 		}
-		if row.NonInteractiveExtraPacket.Valid && row.NonInteractiveExtraPacket.String != "" {
+		if hasExtraPacket {
 			extraPacket, err = hex.DecodeString(row.NonInteractiveExtraPacket.String)
 			if err != nil {
 				return domain.Vhtlc{}, fmt.Errorf(
