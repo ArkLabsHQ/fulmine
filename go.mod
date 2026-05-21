@@ -1,6 +1,6 @@
 module github.com/ArkLabsHQ/fulmine
 
-go 1.26.2
+go 1.26.3
 
 replace github.com/ArkLabsHQ/fulmine/pkg/vhtlc => ./pkg/vhtlc
 
@@ -21,12 +21,12 @@ require (
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-20260116135645-5d6845a62019
 	github.com/a-h/templ v0.3.1001
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260429091057-9246f043c4c8
-	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260514151440-4ecc7753e264
+	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260521091238-ae820b3a4d71
+	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260521091238-ae820b3a4d71
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
 	github.com/arkade-os/bancod v0.0.1-rc.5
-	github.com/arkade-os/go-sdk v0.9.2-0.20260518112312-588477f9d618
+	github.com/arkade-os/go-sdk v0.9.2-0.20260521111646-163178c642ed
 	github.com/ccoveille/go-safecast v1.6.1
 	github.com/creack/pty v1.1.24
 	github.com/dgraph-io/badger/v4 v4.8.0
@@ -77,8 +77,8 @@ require (
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
-	github.com/arkade-os/arkd/api-spec v0.0.0-20260420150126-77b6c3aba563 // indirect
-	github.com/arkade-os/arkd/pkg/errors v0.0.0-20260420150126-77b6c3aba563 // indirect
+	github.com/arkade-os/arkd/api-spec v0.0.0-20260521091238-ae820b3a4d71 // indirect
+	github.com/arkade-os/arkd/pkg/errors v0.0.0-20260521091238-ae820b3a4d71 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btclog/v2 v2.0.1-0.20250602222548-9967d19bb084 // indirect
 	github.com/btcsuite/winsvc v1.0.0 // indirect
