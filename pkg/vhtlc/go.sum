@@ -17,8 +17,8 @@ github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da h1:KjTM2ks9d14ZYCvmH
 github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da/go.mod h1:eHEWzANqSiWQsof+nXEI9bUVUyV6F53Fp89EuCh2EAA=
 github.com/aead/siphash v1.0.1 h1:FwHfE/T45KPKYuuSAKyyvE+oPWcaQ+CUmFW0bPlM+kg=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
-github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260415135455-65edd1660714 h1:yii4qQVMnA1qVe1TmhVK+kcWDOn1H9Oo/KppBtvAwTU=
-github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260415135455-65edd1660714/go.mod h1:gYJkHBV9B9OkSgANCvyST24HTlZ0tSmr1mZSsj+jGAc=
+github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260521091238-ae820b3a4d71 h1:8ZJO9h0CqeeH1bcwFzGfRoyQm4ZYe5VAGGirYsrQ0x4=
+github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260521091238-ae820b3a4d71/go.mod h1:K6iTg8IW2eXQbkadTKlCCZtEzTbvI4G3OmIb2wW6c7E=
 github.com/arkade-os/arkd/pkg/errors v0.0.0-20260303153651-8615412e4dea h1:x9ZwZL+F2b9E0uBZYBVjCLGtlqIE4zahDOY4C89h3X4=
 github.com/arkade-os/arkd/pkg/errors v0.0.0-20260303153651-8615412e4dea/go.mod h1:NYGE+baj57ynbXNwjISJddMDpMqAWOX27dV22xqFm2A=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=

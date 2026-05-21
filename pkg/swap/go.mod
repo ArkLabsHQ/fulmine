@@ -1,6 +1,6 @@
 module github.com/ArkLabsHQ/fulmine/pkg/swap
 
-go 1.26.2
+go 1.26.3
 
 require (
 	github.com/nbd-wtf/ln-decodepay v1.13.0
@@ -10,9 +10,9 @@ require (
 require (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-20260116135645-5d6845a62019
-	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260429091057-9246f043c4c8
-	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260514151440-4ecc7753e264
-	github.com/arkade-os/go-sdk v0.9.2-0.20260514163636-f28dda8725d5
+	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260521091238-ae820b3a4d71
+	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260521091238-ae820b3a4d71
+	github.com/arkade-os/go-sdk v0.9.2-0.20260521111646-163178c642ed
 	github.com/ccoveille/go-safecast v1.6.1
 )
 
@@ -21,8 +21,8 @@ require (
 	github.com/ArkLabsHQ/introspector/pkg/arkade v0.0.0-20260501150319-697f94f40245 // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
-	github.com/arkade-os/arkd/api-spec v0.0.0-20260323091657-eeb0baef6937 // indirect
-	github.com/arkade-os/arkd/pkg/errors v0.0.0-20260303153651-8615412e4dea // indirect
+	github.com/arkade-os/arkd/api-spec v0.0.0-20260521091238-ae820b3a4d71 // indirect
+	github.com/arkade-os/arkd/pkg/errors v0.0.0-20260521091238-ae820b3a4d71 // indirect
 	github.com/btcsuite/btclog/v2 v2.0.1-0.20250602222548-9967d19bb084 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
