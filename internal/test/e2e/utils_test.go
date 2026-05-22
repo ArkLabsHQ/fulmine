@@ -384,10 +384,30 @@ func setupArkSDKwithPublicKey(
 		t.Fatalf("timed out waiting for ark client sync: %v", syncCtx.Err())
 	}
 
+	_, err = arkClient.NewOffchainAddress(t.Context())
+	require.NoError(t, err)
+
+	_, err = arkClient.NewBoardingAddress(t.Context())
+	require.NoError(t, err)
+
 	grpcClient, err := grpcclient.NewClient(serverUrl)
 	require.NoError(t, err)
 
 	return arkClient, privkey.PubKey(), grpcClient
+}
+
+// signCustomScriptTx signs a PSBT through the underlying identity, bypassing
+// the wallet's contract-gated SignTransaction. The new go-sdk wallet only
+// signs inputs whose script is registered in its contract manager
+// (ContractTypeDefault, ContractTypeBoarding). Custom delegator/VHTLC scripts
+// are never registered, so wallet.SignTransaction returns the PSBT unchanged.
+// The singlekey identity used in tests ignores the keys map and signs every
+// input with TaprootLeafScript referencing its key — the map entry below just
+// satisfies the identity's len(keys) > 0 guard.
+func signCustomScriptTx(
+	ctx context.Context, client arksdk.Wallet, tx string,
+) (string, error) {
+	return client.Identity().SignTransaction(ctx, tx, map[string]string{"_": "m"})
 }
 
 // issueAsset issues a new asset with the given supply and returns the asset ID string.

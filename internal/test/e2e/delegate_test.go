@@ -196,7 +196,7 @@ func TestDelegate(t *testing.T) {
 	unsignedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
+	signedIntentProof, err := signCustomScriptTx(ctx, alice, unsignedIntentProof)
 	require.NoError(t, err)
 
 	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
@@ -257,7 +257,7 @@ func TestDelegate(t *testing.T) {
 	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 	require.NoError(t, err)
 
-	signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
+	signedPartialForfeitTx, err := signCustomScriptTx(ctx, alice, b64partialForfeitTx)
 	require.NoError(t, err)
 
 	_, err = delegateClient.Delegate(ctx, &pb.DelegateRequest{
@@ -451,7 +451,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	unsignedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
+	signedIntentProof, err := signCustomScriptTx(ctx, alice, unsignedIntentProof)
 	require.NoError(t, err)
 
 	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
@@ -512,7 +512,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 	require.NoError(t, err)
 
-	signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
+	signedPartialForfeitTx, err := signCustomScriptTx(ctx, alice, b64partialForfeitTx)
 	require.NoError(t, err)
 
 	_, err = delegateClient.Delegate(ctx, &pb.DelegateRequest{
@@ -732,7 +732,7 @@ func TestMultipleDelegate(t *testing.T) {
 		unsignedIntentProof, err := intentProof.B64Encode()
 		require.NoError(t, err)
 
-		signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
+		signedIntentProof, err := signCustomScriptTx(ctx, alice, unsignedIntentProof)
 		require.NoError(t, err)
 
 		signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
@@ -771,7 +771,7 @@ func TestMultipleDelegate(t *testing.T) {
 		b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 		require.NoError(t, err)
 
-		signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
+		signedPartialForfeitTx, err := signCustomScriptTx(ctx, alice, b64partialForfeitTx)
 		require.NoError(t, err)
 
 		delegateRequests = append(delegateRequests, &pb.DelegateRequest{
@@ -981,7 +981,7 @@ func TestDelegateSameInput(t *testing.T) {
 			return nil, err
 		}
 
-		signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
+		signedIntentProof, err := signCustomScriptTx(ctx, alice, unsignedIntentProof)
 		if err != nil {
 			return nil, err
 		}
@@ -1063,7 +1063,7 @@ func TestDelegateSameInput(t *testing.T) {
 			return nil, err
 		}
 
-		signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
+		signedPartialForfeitTx, err := signCustomScriptTx(ctx, alice, b64partialForfeitTx)
 		if err != nil {
 			return nil, err
 		}
@@ -1325,7 +1325,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	unsignedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
+	signedIntentProof, err := signCustomScriptTx(ctx, alice, unsignedIntentProof)
 	require.NoError(t, err)
 
 	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
@@ -1372,7 +1372,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 		b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 		require.NoError(t, err)
 
-		signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
+		signedPartialForfeitTx, err := signCustomScriptTx(ctx, alice, b64partialForfeitTx)
 		require.NoError(t, err)
 
 		forfeits = append(forfeits, signedPartialForfeitTx)
@@ -1628,7 +1628,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	unsignedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
+	signedIntentProof, err := signCustomScriptTx(ctx, alice, unsignedIntentProof)
 	require.NoError(t, err)
 
 	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
@@ -1691,7 +1691,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 	require.NoError(t, err)
 
-	signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
+	signedPartialForfeitTx, err := signCustomScriptTx(ctx, alice, b64partialForfeitTx)
 	require.NoError(t, err)
 
 	// --- Delegate ---

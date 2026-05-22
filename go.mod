@@ -26,7 +26,7 @@ require (
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
 	github.com/arkade-os/bancod v0.0.1-rc.5
-	github.com/arkade-os/go-sdk v0.9.2-0.20260521111646-163178c642ed
+	github.com/arkade-os/go-sdk v0.9.2-0.20260522084618-14a38c275411
 	github.com/ccoveille/go-safecast v1.6.1
 	github.com/creack/pty v1.1.24
 	github.com/dgraph-io/badger/v4 v4.8.0

@@ -12,7 +12,7 @@ require (
 	github.com/ArkLabsHQ/fulmine/pkg/vhtlc v0.0.0-20260116135645-5d6845a62019
 	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260521091238-ae820b3a4d71
 	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260521091238-ae820b3a4d71
-	github.com/arkade-os/go-sdk v0.9.2-0.20260521111646-163178c642ed
+	github.com/arkade-os/go-sdk v0.9.2-0.20260522084618-14a38c275411
 	github.com/ccoveille/go-safecast v1.6.1
 )
 

@@ -27,11 +27,12 @@ import (
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
-	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
-	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	singlekeywallet "github.com/arkade-os/arkd/pkg/client-lib/identity/singlekey"
 	filestore "github.com/arkade-os/arkd/pkg/client-lib/identity/singlekey/store/file"
+	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
+	"github.com/arkade-os/go-sdk/contract/handlers"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -197,6 +198,9 @@ func newService(
 	opts := []arksdk.WalletOption{
 		arksdk.WithRefreshDbInterval(time.Duration(refreshDbInterval) * time.Second),
 		arksdk.WithIdentity(singleKeyWallet),
+		arksdk.WithContractHandlers(map[types.ContractType]handlers.Handler{
+			swap.VHTLCContractType: swap.NewVHTLCHandler(),
+		}),
 	}
 	if log.IsLevelEnabled(log.DebugLevel) {
 		opts = append(opts, arksdk.WithVerbose())
@@ -978,9 +982,38 @@ func (s *Service) GetSwapVHTLC(
 	if err := s.dbSvc.VHTLC().Add(ctx, domain.NewVhtlc(opts, extraPacket)); err != nil {
 		return "", "", nil, fmt.Errorf("failed to add vhtlc: %w", err)
 	}
+
+	if err := s.registerVHTLCContract(ctx, opts); err != nil {
+		return "", "", nil, fmt.Errorf("failed to register vhtlc contract: %w", err)
+	}
+
 	log.Debugf("added new vhtlc %s", vhtlcId)
 
 	return encodedAddr, vhtlcId, vHTLCScript, nil
+}
+
+// registerVHTLCContract mirrors a freshly-created VHTLC into the go-sdk
+// contract store so that wallet.SignTransaction can resolve the script and
+// route signing through the wallet identity.
+func (s *Service) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) error {
+	cfg, err := s.Wallet.GetConfigData(ctx)
+	if err != nil {
+		return fmt.Errorf("get config data: %w", err)
+	}
+	ownerKeyRef, err := s.Wallet.Identity().GetKey(ctx, "")
+	if err != nil {
+		return fmt.Errorf("get owner key: %w", err)
+	}
+	contract, err := swap.NewVHTLCContract(opts, *ownerKeyRef, cfg.Network)
+	if err != nil {
+		return fmt.Errorf("build vhtlc contract: %w", err)
+	}
+	// Single-key identity always derives at index 0; HD wallets will need a
+	// real index once fulmine adopts them.
+	if err := s.Wallet.Store().ContractStore().AddContract(ctx, *contract, 0); err != nil {
+		return fmt.Errorf("persist vhtlc contract: %w", err)
+	}
+	return nil
 }
 
 // SendOffChain sends to the given receivers off-chain. If any receiver address
