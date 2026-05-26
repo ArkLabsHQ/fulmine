@@ -979,12 +979,12 @@ func (s *Service) GetSwapVHTLC(
 		return "", "", nil, err
 	}
 
-	if err := s.dbSvc.VHTLC().Add(ctx, domain.NewVhtlc(opts, extraPacket)); err != nil {
-		return "", "", nil, fmt.Errorf("failed to add vhtlc: %w", err)
-	}
-
 	if err := s.registerVHTLCContract(ctx, opts); err != nil {
 		return "", "", nil, fmt.Errorf("failed to register vhtlc contract: %w", err)
+	}
+
+	if err := s.dbSvc.VHTLC().Add(ctx, domain.NewVhtlc(opts, extraPacket)); err != nil {
+		return "", "", nil, fmt.Errorf("failed to add vhtlc: %w", err)
 	}
 
 	log.Debugf("added new vhtlc %s", vhtlcId)

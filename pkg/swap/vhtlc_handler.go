@@ -214,7 +214,11 @@ func optsFromContract(c types.Contract) (vhtlc.Opts, error) {
 	if err != nil {
 		return vhtlc.Opts{}, err
 	}
-	preimageHash, err := hex.DecodeString(c.Params[paramPreimageHsh])
+	preimageHashHex, err := requireParam(c, paramPreimageHsh)
+	if err != nil {
+		return vhtlc.Opts{}, err
+	}
+	preimageHash, err := hex.DecodeString(preimageHashHex)
 	if err != nil {
 		return vhtlc.Opts{}, fmt.Errorf(
 			"vhtlc contract %s: invalid preimage hash hex: %w", c.Script, err,
