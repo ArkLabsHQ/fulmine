@@ -324,16 +324,19 @@ func (h *SwapHandler) ClaimVHTLC(
 			return "", err
 		}
 
-		// Claim flows only spend VHTLC vtxos + synthetic checkpoint VTXOs,
-		// so wallet.SignTransaction has nothing to add — and would in fact
-		// double-sign VHTLC inputs once the VHTLCHandler is registered,
-		// because identity.SignTransaction appends signatures without
-		// deduplicating leaves we already signed locally. Sign locally only.
+		// VHTLC leaves are unknown to the go-sdk's contract manager and
+		// therefore unsigned by arkClient.SignTransaction — sign them
+		// locally. See signLocalTapscriptInputs for the full rationale.
 		if err := signLocalTapscriptInputs(tx, h.privateKey); err != nil {
 			return "", err
 		}
 
-		return tx.B64Encode()
+		encoded, err := tx.B64Encode()
+		if err != nil {
+			return "", err
+		}
+
+		return h.arkClient.SignTransaction(ctx, encoded)
 	}
 
 	signedArkTx, err := signTransaction(arkTx)
@@ -483,14 +486,17 @@ func (h *SwapHandler) RefundSwap(
 	}
 
 	signTransaction := func(tx *psbt.Packet) (string, error) {
-		// Same rationale as ClaimVHTLC: refund flows only spend VHTLC vtxos
-		// + synthetic checkpoint VTXOs, so the SDK's contract-manager-gated
-		// signing has nothing to add and would in fact duplicate signatures
-		// for the VHTLC input. Sign locally only.
+		// VHTLC leaves are unknown to the go-sdk's contract manager and
+		// therefore unsigned by arkClient.SignTransaction — sign them
+		// locally. See signLocalTapscriptInputs for the full rationale.
 		if err := signLocalTapscriptInputs(tx, h.privateKey); err != nil {
 			return "", err
 		}
-		return tx.B64Encode()
+		encoded, err := tx.B64Encode()
+		if err != nil {
+			return "", err
+		}
+		return h.arkClient.SignTransaction(ctx, encoded)
 	}
 
 	// user signing

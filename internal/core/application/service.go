@@ -996,7 +996,7 @@ func (s *Service) GetSwapVHTLC(
 // contract store so that wallet.SignTransaction can resolve the script and
 // route signing through the wallet identity.
 func (s *Service) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) error {
-	cfg, err := s.Wallet.GetConfigData(ctx)
+	cfg, err := s.GetConfigData(ctx)
 	if err != nil {
 		return fmt.Errorf("get config data: %w", err)
 	}
