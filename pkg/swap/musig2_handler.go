@@ -17,7 +17,7 @@ import (
 type musig2BatchSessionHandler struct {
 	SweepClosure    script.CSVMultisigClosure
 	SignerSession   tree.SignerSession
-	TransportClient client.TransportClient
+	TransportClient client.Client
 }
 
 func (h *musig2BatchSessionHandler) OnTreeSigningStarted(

@@ -37,7 +37,7 @@ import (
 var ErrorNoVtxosFound = fmt.Errorf("no vtxos found for the given vhtlc opts")
 
 type SwapHandler struct {
-	arkClient      arksdk.ArkClient
+	arkClient      arksdk.Wallet
 	boltzSvc       *boltz.Api
 	explorerClient ExplorerClient
 	privateKey     *btcec.PrivateKey
@@ -68,7 +68,7 @@ type Swap struct {
 }
 
 func NewSwapHandler(
-	arkClient arksdk.ArkClient,
+	arkClient arksdk.Wallet,
 	boltzSvc *boltz.Api,
 	esploraURL string,
 	privateKey *btcec.PrivateKey,
@@ -324,6 +324,13 @@ func (h *SwapHandler) ClaimVHTLC(
 			return "", err
 		}
 
+		// VHTLC leaves are unknown to the go-sdk's contract manager and
+		// therefore unsigned by arkClient.SignTransaction — sign them
+		// locally. See signLocalTapscriptInputs for the full rationale.
+		if err := signLocalTapscriptInputs(tx, h.privateKey); err != nil {
+			return "", err
+		}
+
 		encoded, err := tx.B64Encode()
 		if err != nil {
 			return "", err
@@ -479,6 +486,12 @@ func (h *SwapHandler) RefundSwap(
 	}
 
 	signTransaction := func(tx *psbt.Packet) (string, error) {
+		// VHTLC leaves are unknown to the go-sdk's contract manager and
+		// therefore unsigned by arkClient.SignTransaction — sign them
+		// locally. See signLocalTapscriptInputs for the full rationale.
+		if err := signLocalTapscriptInputs(tx, h.privateKey); err != nil {
+			return "", err
+		}
 		encoded, err := tx.B64Encode()
 		if err != nil {
 			return "", err
@@ -533,6 +546,13 @@ func (h *SwapHandler) RefundSwap(
 
 		for i := range signedRefundPsbt.Inputs {
 			boltzIn := boltzSignedRefundPtx.Inputs[i]
+			// Boltz may legitimately omit a partial sig for inputs it
+			// can't (or won't) co-sign — e.g. underfunded swaps that
+			// only return sigs for a subset of inputs. Skip those
+			// rather than indexing into an empty slice and panicking.
+			if len(boltzIn.TaprootScriptSpendSig) == 0 {
+				continue
+			}
 			partialSig := boltzIn.TaprootScriptSpendSig[0]
 			signedRefundPsbt.Inputs[i].TaprootScriptSpendSig =
 				append(signedRefundPsbt.Inputs[i].TaprootScriptSpendSig, partialSig)

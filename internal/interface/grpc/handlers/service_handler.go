@@ -224,7 +224,9 @@ func (h *serviceHandler) SignTransaction(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	signedTx, err := h.svc.SignTransaction(ctx, tx)
+	// Route through identity to sign checkpoint tap leaves not registered
+	// in the contract store (required for Boltz cooperative refund).
+	signedTx, err := h.svc.Identity().SignTransaction(ctx, tx, map[string]string{"_": "m"})
 	if err != nil {
 		return nil, err
 	}
@@ -445,6 +447,25 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
 	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
 
+	// nonInteractive is nil if not set
+	// GetSwapVHTLC handles nil value and won't add the extra tapscript
+	var nonInteractive *application.NonInteractiveClaimParams
+	if req.GetNonInteractiveClaim() != nil {
+		cfg, err := h.svc.GetConfigData(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if cfg == nil || cfg.Network.Addr == "" {
+			return nil, status.Error(codes.Internal, "missing network config")
+		}
+		nonInteractive, err = parseNonInteractiveClaim(
+			req.GetNonInteractiveClaim(), cfg.Network.Addr,
+		)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+	}
+
 	addr, vhtlc_id, vhtlcScript, err := h.svc.GetSwapVHTLC(
 		ctx,
 		receiverPubkey,
@@ -454,6 +475,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		unilateralClaimDelay,
 		unilateralRefundDelay,
 		unilateralRefundWithoutReceiverDelay,
+		nonInteractive,
 	)
 	if err != nil {
 		return nil, err

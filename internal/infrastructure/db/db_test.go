@@ -13,6 +13,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/google/uuid"
@@ -127,6 +128,45 @@ func testVHTLCRepository(t *testing.T, svc ports.RepoManager) {
 		testAddVHTLC(t, svc.VHTLC())
 		testGetAllVHTLC(t, svc.VHTLC())
 		testGetVHTLCsById(t, svc.VHTLC())
+		testAddNonInteractiveVHTLC(t, svc.VHTLC())
+	})
+}
+
+func testAddNonInteractiveVHTLC(t *testing.T, repo domain.VHTLCRepository) {
+	t.Run("non-interactive claim round-trip", func(t *testing.T) {
+		v := makeVHTLC()
+		introKey, err := btcec.NewPrivateKey()
+		require.NoError(t, err)
+		recvKey, err := btcec.NewPrivateKey()
+		require.NoError(t, err)
+
+		xonly := schnorr.SerializePubKey(recvKey.PubKey())
+		pkScript := append([]byte{0x51, 0x20}, xonly...)
+		v.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
+			ReceiverPkScript:   pkScript,
+			IntrospectorPubKey: introKey.PubKey(),
+		}
+		v.ExtraPacket = []byte{0x04, 0xde, 0xad, 0xbe, 0xef}
+		// Refresh id since opts changed.
+		v.Id = domain.GetVhtlcId(
+			v.PreimageHash,
+			v.Sender.SerializeCompressed(),
+			v.Receiver.SerializeCompressed(),
+		)
+
+		err = repo.Add(ctx, v)
+		require.NoError(t, err)
+
+		got, err := repo.Get(ctx, v.Id)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.NotNil(t, got.NonInteractiveClaim)
+		require.Equal(t, v.NonInteractiveClaim.ReceiverPkScript, got.NonInteractiveClaim.ReceiverPkScript)
+		require.Equal(t,
+			v.NonInteractiveClaim.IntrospectorPubKey.SerializeCompressed(),
+			got.NonInteractiveClaim.IntrospectorPubKey.SerializeCompressed(),
+		)
+		require.Equal(t, v.ExtraPacket, got.ExtraPacket)
 	})
 }
 
@@ -1199,7 +1239,7 @@ func makeVHTLC() domain.Vhtlc {
 		},
 	}
 
-	return domain.NewVhtlc(opts)
+	return domain.NewVhtlc(opts, nil)
 }
 
 func makeSwap() domain.Swap {

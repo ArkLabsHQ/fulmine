@@ -157,7 +157,55 @@ func toVhtlc(row queries.Vhtlc) (domain.Vhtlc, error) {
 		PreimageHash:                         preimageHashBytes,
 	}
 
-	return domain.NewVhtlc(opts), nil
+	hasPkScript := row.NonInteractiveReceiverPkscript.Valid
+	hasPubKey := row.NonInteractiveIntrospectorPubkey.Valid
+	if hasPkScript != hasPubKey {
+		return domain.Vhtlc{}, fmt.Errorf(
+			"inconsistent non-interactive data: both receiver pkScript and introspector pubkey must be set together",
+		)
+	}
+	hasExtraPacket := row.NonInteractiveExtraPacket.Valid && row.NonInteractiveExtraPacket.String != ""
+	if !hasPkScript && hasExtraPacket {
+		return domain.Vhtlc{}, fmt.Errorf(
+			"orphan non-interactive extra packet without claim fields",
+		)
+	}
+
+	var extraPacket []byte
+	if hasPkScript && hasPubKey {
+		pkScript, err := hex.DecodeString(row.NonInteractiveReceiverPkscript.String)
+		if err != nil {
+			return domain.Vhtlc{}, fmt.Errorf(
+				"decode non-interactive receiver pkScript: %w", err,
+			)
+		}
+		pubBytes, err := hex.DecodeString(row.NonInteractiveIntrospectorPubkey.String)
+		if err != nil {
+			return domain.Vhtlc{}, fmt.Errorf(
+				"decode non-interactive introspector pubkey: %w", err,
+			)
+		}
+		pub, err := btcec.ParsePubKey(pubBytes)
+		if err != nil {
+			return domain.Vhtlc{}, fmt.Errorf(
+				"parse non-interactive introspector pubkey: %w", err,
+			)
+		}
+		opts.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
+			ReceiverPkScript:   pkScript,
+			IntrospectorPubKey: pub,
+		}
+		if hasExtraPacket {
+			extraPacket, err = hex.DecodeString(row.NonInteractiveExtraPacket.String)
+			if err != nil {
+				return domain.Vhtlc{}, fmt.Errorf(
+					"decode non-interactive extra packet: %w", err,
+				)
+			}
+		}
+	}
+
+	return domain.NewVhtlc(opts, extraPacket), nil
 }
 
 func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
@@ -168,7 +216,7 @@ func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
 
 	vhtlcId := domain.GetVhtlcId(preimageHash, sender, receiver)
 
-	return queries.InsertVHTLCParams{
+	params := queries.InsertVHTLCParams{
 		ID:                                       vhtlcId,
 		PreimageHash:                             hex.EncodeToString(preimageHash),
 		Sender:                                   hex.EncodeToString(sender),
@@ -182,4 +230,23 @@ func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
 		UnilateralRefundWithoutReceiverDelayType: int64(vhtlc.UnilateralRefundWithoutReceiverDelay.Type),
 		UnilateralRefundWithoutReceiverDelayValue: int64(vhtlc.UnilateralRefundWithoutReceiverDelay.Value),
 	}
+	if vhtlc.NonInteractiveClaim != nil {
+		params.NonInteractiveReceiverPkscript = sql.NullString{
+			String: hex.EncodeToString(vhtlc.NonInteractiveClaim.ReceiverPkScript),
+			Valid:  true,
+		}
+		params.NonInteractiveIntrospectorPubkey = sql.NullString{
+			String: hex.EncodeToString(
+				vhtlc.NonInteractiveClaim.IntrospectorPubKey.SerializeCompressed(),
+			),
+			Valid: true,
+		}
+		if len(vhtlc.ExtraPacket) > 0 {
+			params.NonInteractiveExtraPacket = sql.NullString{
+				String: hex.EncodeToString(vhtlc.ExtraPacket),
+				Valid:  true,
+			}
+		}
+	}
+	return params
 }

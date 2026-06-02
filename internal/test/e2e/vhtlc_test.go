@@ -976,7 +976,7 @@ func TestSettleVHTLCByDelegateRefundWithOutpoint(t *testing.T) {
 func buildDelegateIntentProof(
 	t *testing.T,
 	ctx context.Context,
-	senderArkClient arksdk.ArkClient,
+	senderArkClient arksdk.Wallet,
 	intentMessage string,
 	vtxoToDelegate *pb.Vtxo,
 	vhtlcAddress string,
@@ -1049,7 +1049,7 @@ func buildDelegateIntentProof(
 func buildDelegatePartialForfeit(
 	t *testing.T,
 	ctx context.Context,
-	senderArkClient arksdk.ArkClient,
+	senderArkClient arksdk.Wallet,
 	vhtlcVtxo *pb.Vtxo,
 	vhtlcAddress string,
 	vhtlcScript *vhtlc.VHTLCScript,

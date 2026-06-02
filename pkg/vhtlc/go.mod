@@ -1,11 +1,12 @@
 module github.com/ArkLabsHQ/fulmine/pkg/vhtlc
 
-go 1.26.2
+go 1.26.3
 
 require (
-	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260415135455-65edd1660714
+	github.com/ArkLabsHQ/introspector/pkg/arkade v0.0.0-20260501150319-697f94f40245
+	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260521091238-ae820b3a4d71
 	github.com/btcsuite/btcd v0.24.3-0.20250318170759-4f4ea81776d6
-	github.com/btcsuite/btcd/btcec/v2 v2.3.4
+	github.com/btcsuite/btcd/btcec/v2 v2.3.5
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
 	github.com/btcsuite/btcwallet v0.16.14
 	github.com/lightningnetwork/lnd v0.19.1-beta
@@ -15,6 +16,7 @@ require (
 require (
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/aead/siphash v1.0.1 // indirect
+	github.com/arkade-os/arkd/pkg/errors v0.0.0-20260303153651-8615412e4dea // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.5 // indirect
 	github.com/btcsuite/btcd/btcutil/psbt v1.1.9 // indirect
 	github.com/btcsuite/btclog v0.0.0-20241003133417-09c4e92e319c // indirect
@@ -30,7 +32,7 @@ require (
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/decred/dcrd/crypto/blake256 v1.1.0 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/decred/dcrd/lru v1.1.3 // indirect
 	github.com/docker/cli v27.1.1+incompatible // indirect
 	github.com/fergusstrange/embedded-postgres v1.28.0 // indirect
@@ -69,6 +71,7 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20220101234140-673ab2c3ae75 // indirect
 	github.com/xiang90/probing v0.0.0-20221125231312-a49e3df8f510 // indirect
@@ -93,6 +96,7 @@ require (
 	golang.org/x/tools v0.41.0 // indirect
 	google.golang.org/genproto v0.0.0-20240812133136-8ffd90a71988 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260128011058-8636f8732409 // indirect
+	google.golang.org/grpc v1.79.3 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect

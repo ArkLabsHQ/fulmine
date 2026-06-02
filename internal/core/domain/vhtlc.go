@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -11,6 +12,9 @@ import (
 type Vhtlc struct {
 	vhtlc.Opts
 	Id string
+	// ExtraPacket contains the encrypted preimage in case of non interactive claim enabled. 
+	
+	ExtraPacket []byte
 }
 
 // VHTLCRepository stores the VHTLC options owned by the wallet
@@ -22,13 +26,14 @@ type VHTLCRepository interface {
 	Close()
 }
 
-func NewVhtlc(opts vhtlc.Opts) Vhtlc {
+func NewVhtlc(opts vhtlc.Opts, extraPacket []byte) Vhtlc {
 	preimageHash := opts.PreimageHash
 	sender := opts.Sender.SerializeCompressed()
 	receiver := opts.Receiver.SerializeCompressed()
 	return Vhtlc{
-		Opts: opts,
-		Id:   GetVhtlcId(preimageHash, sender, receiver),
+		Opts:        opts,
+		Id:          GetVhtlcId(preimageHash, sender, receiver),
+		ExtraPacket: bytes.Clone(extraPacket),
 	}
 }
 

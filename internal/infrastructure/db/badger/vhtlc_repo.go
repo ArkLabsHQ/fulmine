@@ -105,6 +105,17 @@ func (r *vhtlcRepository) Add(ctx context.Context, vhtlc domain.Vhtlc) error {
 		UnilateralRefundDelay:                vhtlc.UnilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: vhtlc.UnilateralRefundWithoutReceiverDelay,
 	}
+	if vhtlc.NonInteractiveClaim != nil {
+		data.NonInteractiveReceiverPkScript = hex.EncodeToString(
+			vhtlc.NonInteractiveClaim.ReceiverPkScript,
+		)
+		data.NonInteractiveIntrospectorPubKey = hex.EncodeToString(
+			vhtlc.NonInteractiveClaim.IntrospectorPubKey.SerializeCompressed(),
+		)
+		if len(vhtlc.ExtraPacket) > 0 {
+			data.NonInteractiveExtraPacket = hex.EncodeToString(vhtlc.ExtraPacket)
+		}
+	}
 
 	if err := r.store.Insert(data.Id, data); err != nil {
 		if errors.Is(err, badgerhold.ErrKeyExists) {
@@ -130,6 +141,9 @@ type vhtlcData struct {
 	UnilateralClaimDelay                 arklib.RelativeLocktime
 	UnilateralRefundDelay                arklib.RelativeLocktime
 	UnilateralRefundWithoutReceiverDelay arklib.RelativeLocktime
+	NonInteractiveReceiverPkScript       string
+	NonInteractiveIntrospectorPubKey     string
+	NonInteractiveExtraPacket            string
 }
 
 func (d *vhtlcData) toVhtlc() (domain.Vhtlc, error) {
@@ -175,5 +189,52 @@ func (d *vhtlcData) toVhtlc() (domain.Vhtlc, error) {
 		PreimageHash:                         preimageHashBytes,
 	}
 
-	return domain.NewVhtlc(opts), nil
+	hasPkScript := d.NonInteractiveReceiverPkScript != ""
+	hasPubKey := d.NonInteractiveIntrospectorPubKey != ""
+	if hasPkScript != hasPubKey {
+		return domain.Vhtlc{}, fmt.Errorf(
+			"inconsistent non-interactive data: both receiver pkScript and introspector pubkey must be set together",
+		)
+	}
+	if !hasPkScript && d.NonInteractiveExtraPacket != "" {
+		return domain.Vhtlc{}, fmt.Errorf(
+			"orphan non-interactive extra packet without claim fields",
+		)
+	}
+
+	var extraPacket []byte
+	if hasPkScript && hasPubKey {
+		pkScript, err := hex.DecodeString(d.NonInteractiveReceiverPkScript)
+		if err != nil {
+			return domain.Vhtlc{}, fmt.Errorf(
+				"decode non-interactive receiver pkScript: %w", err,
+			)
+		}
+		pubBytes, err := hex.DecodeString(d.NonInteractiveIntrospectorPubKey)
+		if err != nil {
+			return domain.Vhtlc{}, fmt.Errorf(
+				"decode non-interactive introspector pubkey: %w", err,
+			)
+		}
+		pub, err := btcec.ParsePubKey(pubBytes)
+		if err != nil {
+			return domain.Vhtlc{}, fmt.Errorf(
+				"parse non-interactive introspector pubkey: %w", err,
+			)
+		}
+		opts.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
+			ReceiverPkScript:   pkScript,
+			IntrospectorPubKey: pub,
+		}
+		if d.NonInteractiveExtraPacket != "" {
+			extraPacket, err = hex.DecodeString(d.NonInteractiveExtraPacket)
+			if err != nil {
+				return domain.Vhtlc{}, fmt.Errorf(
+					"decode non-interactive extra packet: %w", err,
+				)
+			}
+		}
+	}
+
+	return domain.NewVhtlc(opts, extraPacket), nil
 }

@@ -33,6 +33,95 @@ func checkpointExitScript(cfg clientTypes.Config) []byte {
 	return buf
 }
 
+// signLocalTapscriptInputs produces a tapscript-spend Schnorr signature for
+// every PSBT input whose revealed leaf closure references privKey's pubkey,
+// appending each result to the input's TaprootScriptSpendSig.
+func signLocalTapscriptInputs(tx *psbt.Packet, privKey *btcec.PrivateKey) error {
+	xOnlyPub := schnorr.SerializePubKey(privKey.PubKey())
+
+	prevouts := make(map[wire.OutPoint]*wire.TxOut, len(tx.Inputs))
+	for i := range tx.Inputs {
+		if tx.Inputs[i].WitnessUtxo == nil {
+			return fmt.Errorf("input %d: missing witness utxo", i)
+		}
+		prevouts[tx.UnsignedTx.TxIn[i].PreviousOutPoint] = tx.Inputs[i].WitnessUtxo
+	}
+	fetcher := txscript.NewMultiPrevOutFetcher(prevouts)
+	sighashes := txscript.NewTxSigHashes(tx.UnsignedTx, fetcher)
+
+	for inputIndex := range tx.Inputs {
+		input := tx.Inputs[inputIndex]
+		for _, leaf := range input.TaprootLeafScript {
+			closure, err := script.DecodeClosure(leaf.Script)
+			if err != nil {
+				continue
+			}
+
+			var pubkeys []*btcec.PublicKey
+			switch c := closure.(type) {
+			case *script.MultisigClosure:
+				pubkeys = c.PubKeys
+			case *script.CSVMultisigClosure:
+				pubkeys = c.PubKeys
+			case *script.CLTVMultisigClosure:
+				pubkeys = c.PubKeys
+			case *script.ConditionMultisigClosure:
+				pubkeys = c.PubKeys
+			default:
+				continue
+			}
+
+			shouldSign := false
+			for _, k := range pubkeys {
+				if bytes.Equal(schnorr.SerializePubKey(k), xOnlyPub) {
+					shouldSign = true
+					break
+				}
+			}
+			if !shouldSign {
+				continue
+			}
+
+			tapLeaf := txscript.NewBaseTapLeaf(leaf.Script)
+			leafHash := tapLeaf.TapHash()
+
+			alreadySigned := false
+			for _, sig := range tx.Inputs[inputIndex].TaprootScriptSpendSig {
+				if bytes.Equal(sig.XOnlyPubKey, xOnlyPub) &&
+					bytes.Equal(sig.LeafHash, leafHash[:]) {
+					alreadySigned = true
+					break
+				}
+			}
+			if alreadySigned {
+				continue
+			}
+
+			sighashPreimage, err := txscript.CalcTapscriptSignaturehash(
+				sighashes, input.SighashType, tx.UnsignedTx, inputIndex, fetcher, tapLeaf,
+			)
+			if err != nil {
+				return fmt.Errorf("input %d: calc tapscript sighash: %w", inputIndex, err)
+			}
+			sig, err := schnorr.Sign(privKey, sighashPreimage)
+			if err != nil {
+				return fmt.Errorf("input %d: sign tapscript: %w", inputIndex, err)
+			}
+
+			tx.Inputs[inputIndex].TaprootScriptSpendSig = append(
+				tx.Inputs[inputIndex].TaprootScriptSpendSig,
+				&psbt.TaprootScriptSpendSig{
+					XOnlyPubKey: xOnlyPub,
+					LeafHash:    leafHash.CloneBytes(),
+					Signature:   sig.Serialize(),
+					SigHash:     input.SighashType,
+				},
+			)
+		}
+	}
+	return nil
+}
+
 type pendingTxIntentInput struct {
 	Vtxo             clientTypes.VtxoWithTapTree
 	Closure          script.Closure

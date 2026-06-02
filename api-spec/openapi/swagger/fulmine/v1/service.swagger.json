@@ -1112,6 +1112,10 @@
         "unilateralRefundWithoutReceiverDelay": {
           "$ref": "#/definitions/v1RelativeLocktime",
           "title": "Optional unilateral refund without receiver delay (relative timelock)"
+        },
+        "nonInteractiveClaim": {
+          "$ref": "#/definitions/v1NonInteractiveClaim",
+          "title": "Optional non-interactive claim config"
         }
       }
     },
@@ -1447,6 +1451,24 @@
         "nextSettlementAt": {
           "type": "string",
           "format": "int64"
+        }
+      }
+    },
+    "v1NonInteractiveClaim": {
+      "type": "object",
+      "properties": {
+        "claimReceiverAddress": {
+          "type": "string",
+          "title": "fulmine will use it to compute the ArkadeScript (ark address)"
+        },
+        "introspectorPubkey": {
+          "type": "string",
+          "title": "tweaked by ArkadeScript (33 bytes compressed public key)"
+        },
+        "extraPacket": {
+          "type": "string",
+          "description": "hex encoded",
+          "title": "solver may require extra packet to be set when the VHTLC is funded\nif set, the funding tx should include an extension output with the extra_packet"
         }
       }
     },

@@ -7,3 +7,5 @@ Dockerfile
 .vscode
 storage
 docs
+internal/interface/web/node_modules
+internal/interface/web/.parcel-cache

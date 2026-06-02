@@ -31,6 +31,11 @@ type VHTLCScript struct {
 	UnilateralClaimClosure                 *script.ConditionCSVMultisigClosure
 	UnilateralRefundClosure                *script.CSVMultisigClosure
 	UnilateralRefundWithoutReceiverClosure *script.CSVMultisigClosure
+	// NonInteractiveClaimClosure is optional. nil means the tapscript is not added to the taptree.
+	NonInteractiveClaimClosure *script.ConditionMultisigClosure
+	// NonInteractiveClaim is the original opts used to build the closure.
+	// Preserved so Opts() can fully reconstruct the inputs that built this script.
+	NonInteractiveClaim *NonInteractiveClaimOpts
 
 	preimageConditionScript []byte
 }
@@ -54,18 +59,31 @@ func NewVHTLCScriptFromOpts(opts Opts) (*VHTLCScript, error) {
 	unilateralRefundClosure := opts.unilateralRefundClosure()
 	unilateralRefundWithoutReceiverClosure := opts.unilateralRefundWithoutReceiverClosure()
 
+	closures := []script.Closure{
+		// Collaborative paths
+		claimClosure,
+		refundClosure,
+		refundWithoutReceiverClosure,
+		// Exit paths
+		unilateralClaimClosure,
+		unilateralRefundClosure,
+		unilateralRefundWithoutReceiverClosure,
+	}
+
+	var nonInteractiveClaim *script.ConditionMultisigClosure
+	if opts.NonInteractiveClaim != nil {
+		nonInteractiveClaim, err = nonInteractiveClaimClosure(
+			preimageCondition, *opts.NonInteractiveClaim, opts.Server,
+		)
+		if err != nil {
+			return nil, err
+		}
+		closures = append(closures, nonInteractiveClaim)
+	}
+
 	return &VHTLCScript{
 		TapscriptsVtxoScript: script.TapscriptsVtxoScript{
-			Closures: []script.Closure{
-				// Collaborative paths
-				claimClosure,
-				refundClosure,
-				refundWithoutReceiverClosure,
-				// Exit paths
-				unilateralClaimClosure,
-				unilateralRefundClosure,
-				unilateralRefundWithoutReceiverClosure,
-			},
+			Closures: closures,
 		},
 		Sender:                                 opts.Sender,
 		Receiver:                               opts.Receiver,
@@ -76,6 +94,8 @@ func NewVHTLCScriptFromOpts(opts Opts) (*VHTLCScript, error) {
 		UnilateralClaimClosure:                 unilateralClaimClosure,
 		UnilateralRefundClosure:                unilateralRefundClosure,
 		UnilateralRefundWithoutReceiverClosure: unilateralRefundWithoutReceiverClosure,
+		NonInteractiveClaimClosure:             nonInteractiveClaim,
+		NonInteractiveClaim:                    opts.NonInteractiveClaim,
 		preimageConditionScript:                preimageCondition,
 	}, nil
 }
@@ -182,16 +202,20 @@ func NewVhtlcScript(
 // GetRevealedTapscripts returns all available scripts as hex-encoded strings
 func (v *VHTLCScript) GetRevealedTapscripts() []string {
 	var scripts []string
-	for _, closure := range []script.Closure{
+	closures := []script.Closure{
 		v.ClaimClosure,
 		v.RefundClosure,
 		v.RefundWithoutReceiverClosure,
 		v.UnilateralClaimClosure,
 		v.UnilateralRefundClosure,
 		v.UnilateralRefundWithoutReceiverClosure,
-	} {
-		if script, err := closure.Script(); err == nil {
-			scripts = append(scripts, hex.EncodeToString(script))
+	}
+	if v.NonInteractiveClaimClosure != nil {
+		closures = append(closures, v.NonInteractiveClaimClosure)
+	}
+	for _, closure := range closures {
+		if s, err := closure.Script(); err == nil {
+			scripts = append(scripts, hex.EncodeToString(s))
 		}
 	}
 	return scripts
@@ -289,5 +313,6 @@ func (v *VHTLCScript) Opts() Opts {
 		UnilateralClaimDelay:                 v.UnilateralClaimClosure.Locktime,
 		UnilateralRefundDelay:                v.UnilateralRefundClosure.Locktime,
 		UnilateralRefundWithoutReceiverDelay: v.UnilateralRefundWithoutReceiverClosure.Locktime,
+		NonInteractiveClaim:                  v.NonInteractiveClaim,
 	}
 }
