@@ -224,6 +224,10 @@ func newService(
 			syncLock:              &sync.RWMutex{},
 		}
 
+		if err := svc.RefreshServerConfig(context.Background()); err != nil {
+			return nil, err
+		}
+
 		return svc, nil
 	} else if !strings.Contains(err.Error(), "not initialized") {
 		return nil, err
@@ -293,6 +297,44 @@ func (s *Service) GetSyncedUpdate() <-chan types.SyncEvent {
 
 func (s *Service) GetWalletUpdates() <-chan WalletUpdate {
 	return s.walletUpdates
+}
+
+// RefreshServerConfig fetches the current server info and updates the
+// persisted config for fields that may change after initial setup
+// (forfeit address, forfeit pubkey, checkpoint tapscript).
+func (s *Service) RefreshServerConfig(ctx context.Context) error {
+	if !s.isInitialized {
+		return fmt.Errorf("service not initialized")
+	}
+
+	currentCfg, err := s.GetConfigData(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read current config: %w", err)
+	}
+
+	info, err := s.Client().GetInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get server info: %w", err)
+	}
+
+	forfeitPubkeyBuf, err := hex.DecodeString(info.ForfeitPubKey)
+	if err != nil {
+		return fmt.Errorf("failed to decode forfeit pubkey: %w", err)
+	}
+	forfeitPubkey, err := btcec.ParsePubKey(forfeitPubkeyBuf)
+	if err != nil {
+		return fmt.Errorf("failed to parse forfeit pubkey: %w", err)
+	}
+
+	currentCfg.ForfeitAddress = info.ForfeitAddress
+	currentCfg.ForfeitPubKey = forfeitPubkey
+	currentCfg.CheckpointTapscript = info.CheckpointTapscript
+
+	if err := s.GetConfigStore().AddData(ctx, *currentCfg); err != nil {
+		return fmt.Errorf("failed to persist updated config: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Service) SetupFromMnemonic(
