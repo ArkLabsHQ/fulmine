@@ -326,6 +326,13 @@ func (s *Service) RefreshServerConfig(ctx context.Context) error {
 		return fmt.Errorf("failed to parse forfeit pubkey: %w", err)
 	}
 
+	// Nothing to do if nothing changed server-side
+	if info.ForfeitAddress == currentCfg.ForfeitAddress &&
+		forfeitPubkey.IsEqual(currentCfg.ForfeitPubKey) &&
+		info.CheckpointTapscript == currentCfg.CheckpointTapscript {
+		return nil
+	}
+
 	currentCfg.ForfeitAddress = info.ForfeitAddress
 	currentCfg.ForfeitPubKey = forfeitPubkey
 	currentCfg.CheckpointTapscript = info.CheckpointTapscript
