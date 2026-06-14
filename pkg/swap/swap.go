@@ -24,6 +24,7 @@ import (
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
@@ -353,14 +354,15 @@ func (h *SwapHandler) ClaimVHTLC(
 		return "", err
 	}
 
+	signers := h.config.AllSigners()
 	if err := verifyFinalArkTx(
-		finalArkTx, h.config.SignerPubKey, getInputTapLeaves(arkTx),
+		finalArkTx, signers, getInputTapLeaves(arkTx),
 	); err != nil {
 		return "", err
 	}
 
 	finalCheckpoints, err := verifyAndSignCheckpoints(
-		signedCheckpoints, checkpoints, h.config.SignerPubKey, signTransaction,
+		signedCheckpoints, checkpoints, signers, signTransaction,
 	)
 	if err != nil {
 		return "", err
@@ -506,12 +508,19 @@ func (h *SwapHandler) RefundSwap(
 		return "", fmt.Errorf("failed to decode checkpoint tx signed by us: %s", err)
 	}
 
-	pubKeysToVerify := []*btcec.PublicKey{vhtlcOpts.Sender, vhtlcOpts.Server}
+	xonlyStr := func(key *btcec.PublicKey) string {
+		return hex.EncodeToString(schnorr.SerializePubKey(key))
+	}
+
+	pubKeysToVerify := map[string]*btcec.PublicKey{
+		xonlyStr(vhtlcOpts.Sender): vhtlcOpts.Sender,
+		xonlyStr(vhtlcOpts.Server): vhtlcOpts.Server,
+	}
 	checkpointsList := append([]*psbt.Packet{}, signedCheckpointPsbt)
 
 	// if withReceiver is enabled, boltz should sign the transactions
 	if withReceiver {
-		pubKeysToVerify = append(pubKeysToVerify, vhtlcOpts.Receiver)
+		pubKeysToVerify[xonlyStr(vhtlcOpts.Receiver)] = vhtlcOpts.Receiver
 
 		// Determine which refund function to use based on swap type
 		var refundFunc func(string, boltz.RefundSwapRequest) (*boltz.RefundSwapResponse, error)

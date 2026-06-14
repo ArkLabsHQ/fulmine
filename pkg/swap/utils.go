@@ -166,12 +166,15 @@ func extractTaprootLeaf(
 // verifyInputSignatures checks that all inputs have a signature for the given pubkey
 // and the signature is correct for the given tapscript leaf
 func verifyInputSignatures(
-	tx *psbt.Packet, pubkey *btcec.PublicKey, tapLeaves map[int]txscript.TapLeaf,
+	tx *psbt.Packet, signers map[string]*btcec.PublicKey, tapLeaves map[int]txscript.TapLeaf,
 ) error {
-	xOnlyPubkey := schnorr.SerializePubKey(pubkey)
-
 	prevouts := make(map[wire.OutPoint]*wire.TxOut)
-	sigsToVerify := make(map[int]*psbt.TaprootScriptSpendSig)
+
+	type sigData struct {
+		sig       *psbt.TaprootScriptSpendSig
+		signerKey *btcec.PublicKey
+	}
+	sigsToVerify := make(map[int]sigData)
 
 	for inputIndex, input := range tx.Inputs {
 		// collect previous outputs
@@ -194,26 +197,27 @@ func verifyInputSignatures(
 		// check if pubkey has a tapscript sig
 		hasSig := false
 		for _, sig := range input.TaprootScriptSpendSig {
-			if bytes.Equal(sig.XOnlyPubKey, xOnlyPubkey) &&
+			pubkey, ok := signers[hex.EncodeToString(sig.XOnlyPubKey)]
+			if ok &&
 				bytes.Equal(sig.LeafHash, tapLeafHash[:]) {
 				hasSig = true
-				sigsToVerify[inputIndex] = sig
+				sigsToVerify[inputIndex] = sigData{sig, pubkey}
 				break
 			}
 		}
 
 		if !hasSig {
-			return fmt.Errorf("input %d has no signature for pubkey %x", inputIndex, xOnlyPubkey)
+			return fmt.Errorf("signer signature not found for input %d", inputIndex)
 		}
 	}
 
 	prevoutFetcher := txscript.NewMultiPrevOutFetcher(prevouts)
 	txSigHashes := txscript.NewTxSigHashes(tx.UnsignedTx, prevoutFetcher)
 
-	for inputIndex, sig := range sigsToVerify {
+	for inputIndex, data := range sigsToVerify {
 		msgHash, err := txscript.CalcTapscriptSignaturehash(
 			txSigHashes,
-			sig.SigHash,
+			data.sig.SigHash,
 			tx.UnsignedTx,
 			inputIndex,
 			prevoutFetcher,
@@ -223,12 +227,12 @@ func verifyInputSignatures(
 			return fmt.Errorf("failed to calculate tapscript signature hash: %w", err)
 		}
 
-		signature, err := schnorr.ParseSignature(sig.Signature)
+		signature, err := schnorr.ParseSignature(data.sig.Signature)
 		if err != nil {
 			return fmt.Errorf("failed to parse signature: %w", err)
 		}
 
-		if !signature.Verify(msgHash, pubkey) {
+		if !signature.Verify(msgHash, data.signerKey) {
 			return fmt.Errorf("input %d: invalid signature", inputIndex)
 		}
 	}
@@ -251,7 +255,7 @@ func getInputTapLeaves(tx *psbt.Packet) map[int]txscript.TapLeaf {
 
 func verifyAndSignCheckpoints(
 	signedCheckpoints []string, myCheckpoints []*psbt.Packet,
-	arkSigner *btcec.PublicKey, sign func(tx *psbt.Packet) (string, error),
+	signers map[string]*btcec.PublicKey, sign func(tx *psbt.Packet) (string, error),
 ) ([]string, error) {
 	finalCheckpoints := make([]string, 0, len(signedCheckpoints))
 	for _, checkpoint := range signedCheckpoints {
@@ -274,7 +278,7 @@ func verifyAndSignCheckpoints(
 
 		// verify the server has signed the checkpoint tx
 		if err := verifyInputSignatures(
-			signedCheckpointPtx, arkSigner, getInputTapLeaves(myCheckpointTx),
+			signedCheckpointPtx, signers, getInputTapLeaves(myCheckpointTx),
 		); err != nil {
 			return nil, err
 		}
@@ -291,15 +295,15 @@ func verifyAndSignCheckpoints(
 }
 
 func verifyFinalArkTx(
-	finalArkTx string, arkSigner *btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf,
+	tx string, signers map[string]*btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf,
 ) error {
-	finalArkPtx, err := psbt.NewFromRawBytes(strings.NewReader(finalArkTx), true)
+	ptx, err := psbt.NewFromRawBytes(strings.NewReader(tx), true)
 	if err != nil {
 		return err
 	}
 
 	// verify that the ark signer has signed the ark tx
-	return verifyInputSignatures(finalArkPtx, arkSigner, expectedTapLeaves)
+	return verifyInputSignatures(ptx, signers, expectedTapLeaves)
 }
 
 func offchainAddressPkScript(addr string) (string, error) {
@@ -344,14 +348,14 @@ func combineTapscripts(signedPackets []*psbt.Packet) (*psbt.Packet, error) {
 }
 
 func verifySignatures(
-	signedCheckpointTxs []*psbt.Packet, pubkeys []*btcec.PublicKey,
+	signedCheckpointTxs []*psbt.Packet, signers map[string]*btcec.PublicKey,
 	expectedTapLeaves map[int]txscript.TapLeaf,
 ) error {
 	for _, signedCheckpointTx := range signedCheckpointTxs {
-		for _, signer := range pubkeys {
+		for range signers {
 			// verify that the ark signer has signed the ark tx
 			if err := verifyInputSignatures(
-				signedCheckpointTx, signer, expectedTapLeaves,
+				signedCheckpointTx, signers, expectedTapLeaves,
 			); err != nil {
 				return err
 			}

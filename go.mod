@@ -22,10 +22,10 @@ require (
 	github.com/a-h/templ v0.3.1001
 	github.com/angelofallars/htmx-go v0.5.0
 	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260429091057-9246f043c4c8
-	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260613225846-c468a6c9dfca
+	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260614110002-3af2443c8025
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/go-sdk v0.9.2-0.20260614004240-09766c00e324
+	github.com/arkade-os/go-sdk v0.9.2-0.20260614110218-c919e7e3e9e2
 	github.com/ccoveille/go-safecast v1.6.1
 	github.com/creack/pty v1.1.24
 	github.com/dgraph-io/badger/v4 v4.8.0
