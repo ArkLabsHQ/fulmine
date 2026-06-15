@@ -74,16 +74,23 @@ func testScheduler(t *testing.T, newScheduler func() ports.SchedulerService) {
 		svc.Start()
 		defer svc.Stop()
 
-		executed := false
+		done := make(chan bool, 1)
 		settleFunc := func() {
-			executed = true
+			done <- true
 		}
 
-		// Try to schedule in the past
+		// A settlement whose time is already in the past must be executed
+		// immediately (the vtxos are at/over their expiry), not dropped.
 		pastTime := time.Now().Add(-1 * time.Hour)
 		err := svc.ScheduleNextSettlement(pastTime, settleFunc)
-		require.Error(t, err)
-		require.False(t, executed)
+		require.NoError(t, err)
+
+		select {
+		case <-done:
+			// settled immediately as expected
+		case <-time.After(1 * time.Second):
+			require.Fail(t, "past-due settlement did not execute immediately")
+		}
 	})
 
 	t.Run("schedule settlement for now", func(t *testing.T) {
