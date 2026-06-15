@@ -383,7 +383,7 @@ func setupArkSDKwithPublicKey(
 		t.Fatalf("timed out waiting for ark client sync: %v", syncCtx.Err())
 	}
 
-	grpcClient, err := grpcclient.NewClient(serverUrl)
+	grpcClient, err := grpcclient.NewClient(serverUrl, "")
 	require.NoError(t, err)
 
 	return arkClient, privkey.PubKey(), grpcClient
