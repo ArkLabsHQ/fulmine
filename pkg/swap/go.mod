@@ -2,8 +2,6 @@ module github.com/ArkLabsHQ/fulmine/pkg/swap
 
 go 1.26.2
 
-replace github.com/arkade-os/go-sdk => ../../../go-sdk
-
 require (
 	github.com/nbd-wtf/ln-decodepay v1.13.0
 	github.com/sirupsen/logrus v1.9.4
