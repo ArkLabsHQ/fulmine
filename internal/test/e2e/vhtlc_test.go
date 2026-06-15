@@ -691,6 +691,8 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 
 	_, offchain, boarding, _, err := senderArkClient.GetAddresses(ctx)
 	require.NoError(t, err)
+	require.NotEmpty(t, offchain)
+	require.NotEmpty(t, boarding)
 
 	faucetAndSettle(t, ctx, senderArkClient, boarding[0], 0.001)
 
