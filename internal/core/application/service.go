@@ -557,7 +557,13 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		// Resume pending swap refunds.
 		go s.resumePendingSwapRefunds(ctx)
 
-		go s.subscribeForVtxoEvent(ctx, arkConfig)
+		// Detach from the request-scoped ctx: this listener lives for the whole
+		// unlocked session (stopped via stopVtxoEventListener), and it makes
+		// long-lived sdk calls (ListVtxos/Settle) on every refresh. If it kept
+		// the UnlockNode ctx, that ctx being canceled after unlock returns would
+		// make every refresh fail with "context canceled" and silently stop
+		// rescheduling settlements.
+		go s.subscribeForVtxoEvent(context.Background(), arkConfig)
 
 		// Schedule next settlement for the current vtxo set. Subsequent updates
 		// are handled by subscribeForVtxoEvent and its periodic safety check.
@@ -2123,10 +2129,18 @@ func (s *Service) renewExpiredVtxos(ctx context.Context, data *clientTypes.Confi
 	}
 
 	go func() {
-		defer s.renewing.Store(false)
-
 		log.Debug("detected expired vtxos, joining a batch to renew them...")
-		if _, err := s.ArkClient.Settle(ctx); err != nil {
+		// Use the guarded Settle so we never settle while the node is locked
+		// (the renewal can be detected just before a Lock and run afterwards).
+		_, err := s.Settle(ctx)
+
+		// Release the single-flight guard before recomputing: if more vtxos
+		// expired while we were settling (e.g. a capped batch left some behind),
+		// the follow-up refresh can renew them right away instead of waiting for
+		// the periodic safety ticker.
+		s.renewing.Store(false)
+
+		if err != nil {
 			log.WithError(err).Error("failed to renew expired vtxos")
 			return
 		}
@@ -2161,10 +2175,10 @@ func (s *Service) scheduleNextSettlement(at time.Time, data *clientTypes.Config)
 	nextSettlement := s.schedulerSvc.WhenNextSettlement()
 
 	// Checking if "at" is after now is a safe guard against buggish time values.
-	if !nextSettlement.IsZero() && at.After(now) && at.After(s.schedulerSvc.WhenNextSettlement()) {
+	if !nextSettlement.IsZero() && at.After(now) && at.After(nextSettlement) {
 		log.Debugf(
 			"scheduling next settlement at %s skipped - one already set at %s",
-			at.Format(time.RFC3339), s.schedulerSvc.WhenNextSettlement().Format(time.RFC3339),
+			at.Format(time.RFC3339), nextSettlement.Format(time.RFC3339),
 		)
 		return nil
 	}

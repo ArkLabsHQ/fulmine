@@ -135,6 +135,8 @@ func (f *fakeArkClient) GetVtxoEventChannel(_ context.Context) <-chan types.Vtxo
 	return f.eventCh
 }
 
+func (f *fakeArkClient) IsLocked(_ context.Context) bool { return false }
+
 func (f *fakeArkClient) Settle(_ context.Context, _ ...arksdk.BatchSessionOption) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -166,6 +168,10 @@ func newTestService(t *testing.T, fake *fakeArkClient) (*Service, func(types.Vtx
 		ArkClient:             fake,
 		schedulerSvc:          sched,
 		stopVtxoEventListener: make(chan struct{}),
+		// Mark the service initialized/unlocked/synced so the guarded Settle
+		// (isInitializedAndUnlocked) used by the renewal path is allowed to run.
+		isInitialized: true,
+		syncEvent:     &types.SyncEvent{},
 	}
 
 	// SessionDuration is tiny so the 2-session safety offset doesn't push
