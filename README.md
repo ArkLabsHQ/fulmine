@@ -282,10 +282,11 @@ Before using any wallet-dependent feature, you need to set up and unlock your wa
 
 4. Lock Wallet
 
+   Locks the wallet. Takes no parameters.
+
    ```sh
    curl -X POST http://localhost:7001/api/v1/wallet/lock \
-        -H "Content-Type: application/json" \
-        -d '{"password": "<strong password>"}'
+        -H "Content-Type: application/json"
    ```
 
 5. Get Wallet Status
