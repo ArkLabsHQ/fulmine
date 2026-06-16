@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
@@ -119,6 +120,10 @@ type Service struct {
 	notifications chan Notification
 
 	stopVtxoEventListener chan struct{}
+
+	// renewing is a single-flight guard so that, while we are settling to renew
+	// already-expired vtxos, concurrent vtxo events don't pile up extra settles.
+	renewing atomic.Bool
 
 	// callback functions to stop and start delegate service
 	onUnlock func()
@@ -552,29 +557,18 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		// Resume pending swap refunds.
 		go s.resumePendingSwapRefunds(ctx)
 
-		go s.subscribeForVtxoEvent(ctx, arkConfig)
+		// Detach from the request-scoped ctx: this listener lives for the whole
+		// unlocked session (stopped via stopVtxoEventListener), and it makes
+		// long-lived sdk calls (ListVtxos/Settle) on every refresh. If it kept
+		// the UnlockNode ctx, that ctx being canceled after unlock returns would
+		// make every refresh fail with "context canceled" and silently stop
+		// rescheduling settlements.
+		go s.subscribeForVtxoEvent(context.Background(), arkConfig)
 
-		// Schedule next settlement for the current vtxo set.
-		nextExpiry, err := s.computeNextExpiry(context.Background(), arkConfig)
-		if err != nil {
-			log.WithError(err).Error("failed to compute next expiry")
-		}
-
-		if nextExpiry != nil {
-			// If the next expiry is in the past, we settle immediately because some vtxos expired.
-			// The next settlement will be scheduled by subscribeForVtxoEvent in this case
-			if nextExpiry.Before(time.Now()) {
-				log.Debug("detected expired vtxos, joining a batch to renew them...")
-				if _, err := s.ArkClient.Settle(ctx); err != nil {
-					log.WithError(err).Error("failed to renew expired vtxos")
-				}
-			} else {
-				// Otherwise, let's schedule the very first next settlement, the future ones will
-				// be handled by subscribeForVtxoEvent
-				if err := s.scheduleNextSettlement(*nextExpiry, arkConfig); err != nil {
-					log.WithError(err).Error("failed to schedule next settlement")
-				}
-			}
+		// Schedule next settlement for the current vtxo set. Subsequent updates
+		// are handled by subscribeForVtxoEvent and its periodic safety check.
+		if err := s.refreshSettlementSchedule(context.Background(), arkConfig); err != nil {
+			log.WithError(err).Error("failed to schedule next settlement")
 		}
 
 		// nolint
@@ -2099,10 +2093,76 @@ func (s *Service) computeNextExpiry(
 	return expiry, nil
 }
 
+// refreshSettlementSchedule recomputes the next settlement time from the full
+// current vtxo set and (re)schedules it. If some vtxos are already expired it
+// settles immediately to renew them. It must be used instead of scheduling off
+// the delta of a single event, so that vtxos already held by the wallet (e.g.
+// left over by a previous batch) cannot expire unnoticed behind a later
+// scheduled settlement.
+func (s *Service) refreshSettlementSchedule(ctx context.Context, data *clientTypes.Config) error {
+	nextExpiry, err := s.computeNextExpiry(ctx, data)
+	if err != nil {
+		return err
+	}
+	if nextExpiry == nil {
+		return nil
+	}
+
+	// If the next expiry is in the past, settle immediately because some vtxos
+	// expired. The renewal runs in the background (single-flighted) so it does
+	// not block the caller (e.g. the vtxo event loop); the resulting vtxo events
+	// will reschedule the next settlement.
+	if nextExpiry.Before(time.Now()) {
+		s.renewExpiredVtxos(ctx, data)
+		return nil
+	}
+
+	return s.scheduleNextSettlement(*nextExpiry, data)
+}
+
+// renewExpiredVtxos settles in the background to renew already-expired vtxos.
+// It is single-flighted: if a renewal is already running, the call is a no-op,
+// so a burst of vtxo events cannot pile up redundant settlements.
+func (s *Service) renewExpiredVtxos(ctx context.Context, data *clientTypes.Config) {
+	if !s.renewing.CompareAndSwap(false, true) {
+		return
+	}
+
+	go func() {
+		log.Debug("detected expired vtxos, joining a batch to renew them...")
+		// Use the guarded Settle so we never settle while the node is locked
+		// (the renewal can be detected just before a Lock and run afterwards).
+		_, err := s.Settle(ctx)
+
+		// Release the single-flight guard before recomputing: if more vtxos
+		// expired while we were settling (e.g. a capped batch left some behind),
+		// the follow-up refresh can renew them right away instead of waiting for
+		// the periodic safety ticker.
+		s.renewing.Store(false)
+
+		if err != nil {
+			log.WithError(err).Error("failed to renew expired vtxos")
+			return
+		}
+
+		// Recompute from the full set in case more vtxos are still near expiry.
+		if err := s.refreshSettlementSchedule(ctx, data); err != nil {
+			log.WithError(err).Error("failed to reschedule after renewing expired vtxos")
+		}
+	}()
+}
+
 func (s *Service) scheduleNextSettlement(at time.Time, data *clientTypes.Config) error {
 	task := func() {
 		if _, err := s.Settle(context.Background()); err != nil {
 			log.WithError(err).Warn("failed to renew vtxos")
+		}
+		// Recompute the next settlement from the full vtxo set after settling.
+		// This way any near-expiry vtxo that was not part of the batch is not
+		// left stranded, and a failed settle is retried instead of silently
+		// stopping the auto-settlement loop.
+		if err := s.refreshSettlementSchedule(context.Background(), data); err != nil {
+			log.WithError(err).Error("failed to reschedule settlement after renewing vtxos")
 		}
 	}
 
@@ -2115,10 +2175,10 @@ func (s *Service) scheduleNextSettlement(at time.Time, data *clientTypes.Config)
 	nextSettlement := s.schedulerSvc.WhenNextSettlement()
 
 	// Checking if "at" is after now is a safe guard against buggish time values.
-	if !nextSettlement.IsZero() && at.After(now) && at.After(s.schedulerSvc.WhenNextSettlement()) {
+	if !nextSettlement.IsZero() && at.After(now) && at.After(nextSettlement) {
 		log.Debugf(
 			"scheduling next settlement at %s skipped - one already set at %s",
-			at.Format(time.RFC3339), s.schedulerSvc.WhenNextSettlement().Format(time.RFC3339),
+			at.Format(time.RFC3339), nextSettlement.Format(time.RFC3339),
 		)
 		return nil
 	}
@@ -2130,42 +2190,49 @@ func (s *Service) scheduleNextSettlement(at time.Time, data *clientTypes.Config)
 	return nil
 }
 
-// subscribeForBoardingEvent aims to update the scheduled settlement
-// by checking for spent and new vtxos on the given boarding address
+// vtxoExpiryCheckInterval is how often the vtxo event listener recomputes the
+// next settlement from the full vtxo set, as a safety net in case a vtxo event
+// is missed (the sdk drops events when its buffer is congested).
+const vtxoExpiryCheckInterval = 10 * time.Minute
+
+// subscribeForVtxoEvent keeps the scheduled settlement in sync with the wallet's
+// vtxo set: whenever vtxos are added or spent, and periodically as a safety net,
+// it recomputes the earliest expiry across all spendable vtxos and reschedules
+// the next settlement (settling immediately if anything already expired).
 func (s *Service) subscribeForVtxoEvent(ctx context.Context, cfg *clientTypes.Config) {
 	eventsCh := s.GetVtxoEventChannel(ctx)
+
+	ticker := time.NewTicker(vtxoExpiryCheckInterval)
+	defer ticker.Stop()
+
+	refresh := func() {
+		if err := s.refreshSettlementSchedule(ctx, cfg); err != nil {
+			// Do not stop the listener on error: a transient failure must not
+			// permanently disable auto-settlement. The next event or tick retries.
+			log.WithError(err).Error("failed to refresh settlement schedule")
+		}
+	}
 
 	for {
 		select {
 		case <-s.stopVtxoEventListener:
 			return
+		case <-ticker.C:
+			refresh()
 		case event, ok := <-eventsCh:
 			if !ok {
 				return
 			}
 
-			vtxos := event.Vtxos
-			// If no vtxos were added skip checking for scheduling the next settlement
-			if event.Type != types.VtxosAdded || len(vtxos) == 0 {
+			// Only adding or spending vtxos can change the earliest expiry.
+			if event.Type != types.VtxosAdded && event.Type != types.VtxosSpent {
+				continue
+			}
+			if len(event.Vtxos) == 0 {
 				continue
 			}
 
-			nextScheduledSettlement := s.WhenNextSettlement(ctx)
-			needSchedule := false
-			for _, vtxo := range vtxos {
-				if nextScheduledSettlement.IsZero() ||
-					vtxo.ExpiresAt.Before(nextScheduledSettlement) {
-					nextScheduledSettlement = vtxo.ExpiresAt
-					needSchedule = true
-				}
-			}
-
-			if needSchedule {
-				if err := s.scheduleNextSettlement(nextScheduledSettlement, cfg); err != nil {
-					log.WithError(err).Error("failed to schedule next settlement")
-					return
-				}
-			}
+			refresh()
 		}
 	}
 }
