@@ -1,4 +1,4 @@
-.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-mutinynet run-2 run-cln test test-vhtlc vet proto proto-lint up-test-env setup-arkd down-test-env
+.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-mutinynet run-2 test test-vhtlc vet proto proto-lint regtest-build regtest-up regtest-down regtest-logs
 
 GOLANGCI_LINT ?= $(shell \
 	echo "docker run --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v2.9.0 golangci-lint"; \
@@ -83,24 +83,27 @@ proto-lint:
 	@echo "Linting protos..."
 	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace bufbuild/buf lint --exclude-path ./api-spec/protobuf/cln
 
-pull-test-env:
-	@echo "Updating test env images..."
-	@docker compose -f test.docker-compose.yml pull
+## regtest-build: build the Fulmine-under-test image consumed by the stack
+regtest-build:
+	@echo "Building Fulmine image (under test)..."
+	@docker build -t fulmine:e2e .
 
-build-test-env: pull-test-env
-	@echo "Building test environment..."
-	@docker compose -f test.docker-compose.yml build --no-cache
+## regtest-up: build the image and start the arkade-regtest stack
+regtest-up: regtest-build
+	@echo "Starting arkade-regtest stack..."
+	@git submodule update --init regtest
+	@node regtest/regtest.mjs start --profile boltz,delegate
 
-## setup-arkd: sets up the ARK server
-setup-test-env:
-	@bash ./scripts/setup
+## regtest-down: stop and remove the arkade-regtest stack + volumes
+regtest-down:
+	@echo "Stopping arkade-regtest stack..."
+	@node regtest/regtest.mjs clean || true
 
-## down-test-env: stops test environment
-down-test-env:
-	@echo "Stopping test environment..."
-	@docker compose -f test.docker-compose.yml down -v
+## regtest-logs: tail arkade-regtest stack logs
+regtest-logs:
+	@node regtest/regtest.mjs logs || docker compose -p arkade-regtest logs -f
 
-## integrationtest: runs e2e tests
+## integrationtest: runs e2e tests (requires the arkade-regtest stack: make regtest-up)
 integrationtest:
 	@echo "Running e2e tests..."
 	@go test -v -count=1 -timeout=20m -race -p=1 ./internal/test/e2e/...

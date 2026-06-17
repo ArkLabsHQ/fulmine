@@ -11,33 +11,32 @@ jobs:
     name: integration tests
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
       - uses: actions/setup-go@v6
         with:
           go-version: ">=1.26.2"
-      - uses: actions/checkout@v4
-      
-      - run: go get -v -t -d ./...
-      
-      - name: Run Nigiri
-        uses: vulpemventures/nigiri-github-action@v1
+      - uses: actions/setup-node@v4
         with:
-          use_liquid: false
-          use_ln: true
+          node-version: "20"
 
-      - name: Build test environment
-        run: make build-test-env
+      - run: go get -v -t -d ./...
 
-      - name: Setup test environment
-        run: make setup-test-env
+      - name: Build Fulmine image (under test)
+        run: docker build -t fulmine:e2e .
+
+      - name: Start regtest infrastructure
+        run: node regtest/regtest.mjs start --profile boltz,delegate
 
       - name: Run integration tests
         run: make integrationtest
 
-      - name: Docker logs
+      - name: Stack logs
         if: failure()
         continue-on-error: true
-        run: |
-          docker image ls -a
-          docker ps -a
-          docker compose -f test.docker-compose.yml ps
-          docker compose -f test.docker-compose.yml logs --no-color --timestamps boltz fulmine boltz-fulmine mock-boltz
+        run: node regtest/regtest.mjs logs || docker ps -a
+
+      - name: Tear down
+        if: always()
+        run: node regtest/regtest.mjs clean || true
