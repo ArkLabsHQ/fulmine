@@ -194,7 +194,7 @@ func NewService(
 		return nil, err
 	}
 
-	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled, arkServer)
+	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled, arkServer, unlockerSvc)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", feHandler)

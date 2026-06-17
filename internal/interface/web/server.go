@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/a-h/templ"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/render"
@@ -52,6 +53,7 @@ type service struct {
 	svc       *application.Service
 	stopCh    chan struct{}
 	arkServer string
+	unlocker  ports.Unlocker
 }
 
 func NewService(
@@ -59,6 +61,7 @@ func NewService(
 	stopCh chan struct{},
 	sentryEnabled bool,
 	arkServer string,
+	unlocker ports.Unlocker,
 ) *service {
 	// Create a new Fiber server.
 	gin.SetMode(gin.ReleaseMode)
@@ -73,6 +76,7 @@ func NewService(
 		svc:       appSvc,
 		stopCh:    stopCh,
 		arkServer: arkServer,
+		unlocker:  unlocker,
 	}
 
 	// Configure Sentry for Gin (includes built-in panic recovery)
