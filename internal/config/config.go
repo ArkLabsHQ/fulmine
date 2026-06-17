@@ -9,12 +9,10 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	envunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/env"
 	fileunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/file"
 	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
-	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/spf13/viper"
 )
 
@@ -50,8 +48,6 @@ type Config struct {
 	OtelPushInterval int64
 	PyroscopeURL     string
 
-	LnConnectionOpts *domain.LnConnectionOpts
-
 	unlocker    ports.Unlocker
 	macaroonSvc macaroon.Service
 }
@@ -72,10 +68,6 @@ var (
 	OtelCollectorURL      = "OTEL_COLLECTOR_URL"
 	OtelPushInterval      = "OTEL_PUSH_INTERVAL"
 	PyroscopeURL          = "PYROSCOPE_URL"
-	LndUrl                = "LND_URL"
-	ClnUrl                = "CLN_URL"
-	ClnDatadir            = "CLN_DATADIR"
-	LndDatadir            = "LND_DATADIR"
 	SwapTimeout           = "SWAP_TIMEOUT"
 	SchedulerPollInterval = "SCHEDULER_POLL_INTERVAL"
 	ProfilingEnabled      = "PROFILING_ENABLED"
@@ -102,10 +94,6 @@ var (
 		badgerDb: {},
 	}
 	defaultNoMacaroons           = false
-	defaultLndUrl                = ""
-	defaultClnUrl                = ""
-	defaultClnDatadir            = ""
-	defaultLndDatadir            = ""
 	defaultSwapTimeout           = 15  // In seconds
 	defaultSchedulerPollInterval = 600 // 10 minutes
 	defaultProfilingEnabled      = false
@@ -130,10 +118,6 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(DisableTelemetry, defaultDisableTelemetry)
 	viper.SetDefault(DbType, dbType)
 	viper.SetDefault(NoMacaroons, defaultNoMacaroons)
-	viper.SetDefault(LndUrl, defaultLndUrl)
-	viper.SetDefault(ClnUrl, defaultClnUrl)
-	viper.SetDefault(ClnDatadir, defaultClnDatadir)
-	viper.SetDefault(LndDatadir, defaultLndDatadir)
 	viper.SetDefault(SwapTimeout, defaultSwapTimeout)
 	viper.SetDefault(SchedulerPollInterval, defaultSchedulerPollInterval)
 	viper.SetDefault(ProfilingEnabled, defaultProfilingEnabled)
@@ -151,16 +135,6 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("unsupported db type: %s", viper.GetString(DbType))
 	}
 
-	lndUrl := viper.GetString(LndUrl)
-	clnUrl := viper.GetString(ClnUrl)
-
-	lndDatadir := cleanAndExpandPath(viper.GetString(LndDatadir))
-	clnDatadir := cleanAndExpandPath(viper.GetString(ClnDatadir))
-
-	lnConnectionOpts, err := deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir)
-	if err != nil {
-		return nil, fmt.Errorf("error deriving lightning connection config: %w", err)
-	}
 	if viper.GetInt64(SchedulerPollInterval) < 1 {
 		return nil, fmt.Errorf("scheduler poll interval must be at least 1 second")
 	}
@@ -196,8 +170,6 @@ func LoadConfig() (*Config, error) {
 		DelegatePort:          viper.GetUint32(DelegatePort),
 		DelegateFee:           viper.GetUint64(DelegateFee),
 		DelegateEnabled:       viper.GetBool(DelegateEnabled),
-
-		LnConnectionOpts: lnConnectionOpts,
 	}
 
 	if err := config.initUnlockerService(); err != nil {
@@ -339,84 +311,4 @@ func appDatadir(appName string, roaming bool) string {
 	return "."
 }
 
-func cleanAndExpandPath(path string) string {
-	if path == "" {
-		return path
-	}
 
-	// Expand initial ~ to OS specific home directory.
-	if strings.HasPrefix(path, "~") {
-		var homeDir string
-		u, err := user.Current()
-		if err == nil {
-			homeDir = u.HomeDir
-		} else {
-			homeDir = os.Getenv("HOME")
-		}
-
-		path = strings.Replace(path, "~", homeDir, 1)
-	}
-
-	// NOTE: The os.ExpandEnv doesn't work with Windows-style %VARIABLE%,
-	// but the variables can still be expanded via POSIX-style $VARIABLE.
-	return filepath.Clean(os.ExpandEnv(path))
-}
-
-func deriveLnConfig(lndUrl, clnUrl, lndDatadir, clnDatadir string) (*domain.LnConnectionOpts, error) {
-	if lndUrl == "" && clnUrl == "" {
-		return nil, nil
-	}
-
-	if lndUrl != "" && clnUrl != "" {
-		return nil, fmt.Errorf("cannot set both LND and CLN URLs at the same time")
-	}
-
-	if lndDatadir != "" && clnDatadir != "" {
-		return nil, fmt.Errorf("cannot set both LND and CLN datadirs at the same time")
-	}
-
-	if lndUrl != "" {
-		if strings.HasPrefix(lndUrl, "lndconnect://") {
-			return &domain.LnConnectionOpts{
-				LnUrl:          lndUrl,
-				ConnectionType: domain.LND_CONNECTION,
-			}, nil
-		}
-
-		if lndDatadir == "" {
-			return nil, fmt.Errorf("LND URL provided without LND datadir")
-		}
-
-		validatedUrl, err := utils.ValidateURL(lndUrl)
-		if err != nil {
-			return nil, fmt.Errorf("invalid LND URL: %v", err)
-		}
-		return &domain.LnConnectionOpts{
-			LnUrl:          validatedUrl,
-			LnDatadir:      lndDatadir,
-			ConnectionType: domain.LND_CONNECTION,
-		}, nil
-	}
-
-	if strings.HasPrefix(clnUrl, "clnconnect://") {
-		return &domain.LnConnectionOpts{
-			LnUrl:          clnUrl,
-			ConnectionType: domain.CLN_CONNECTION,
-		}, nil
-	}
-
-	if clnDatadir == "" {
-		return nil, fmt.Errorf("CLN URL provided without CLN datadir")
-	}
-
-	validatedUrl, err := utils.ValidateURL(clnUrl)
-	if err != nil {
-		return nil, fmt.Errorf("invalid CLN URL: %v", err)
-	}
-
-	return &domain.LnConnectionOpts{
-		LnUrl:          validatedUrl,
-		LnDatadir:      clnDatadir,
-		ConnectionType: domain.CLN_CONNECTION,
-	}, nil
-}

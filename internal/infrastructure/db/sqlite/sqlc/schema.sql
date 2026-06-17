@@ -21,10 +21,7 @@ CREATE TABLE IF NOT EXISTS settings (
     currency TEXT NOT NULL,
     event_server TEXT NOT NULL,
     full_node TEXT NOT NULL,
-    ln_url TEXT,
-    unit TEXT NOT NULL,
-    ln_datadir TEXT,
-    ln_type INTEGER CHECK(ln_type IN(0,1, 2))
+    unit TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS swap (

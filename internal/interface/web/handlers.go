@@ -629,139 +629,9 @@ func (s *service) settings(c *gin.Context) {
 
 	active := c.Param("active")
 	bodyContent := pages.SettingsBodyContent(
-		active, *settings, s.svc.GetLnConnectUrl(), s.svc.IsConnectedLN(), s.svc.IsPreConfiguredLN(), s.svc.IsLocked(c), s.svc.BuildInfo.Version,
+		active, *settings, s.svc.IsLocked(c), s.svc.BuildInfo.Version,
 	)
 	s.pageViewHandler(bodyContent, c)
-}
-
-func (s *service) swap(c *gin.Context) {
-	if s.redirectedBecauseWalletIsLocked(c) {
-		return
-	}
-	spendableBalance, err := s.getSpendableBalance(c)
-	if err != nil {
-		// nolint:all
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-
-	balance := s.getNodeBalance(c)
-
-	bodyContent := pages.SwapBodyContent(spendableBalance, balance, s.svc.IsConnectedLN())
-	s.pageViewHandler(bodyContent, c)
-}
-
-func (s *service) swapActive(c *gin.Context) {
-	active := c.Param("active")
-	nodeBalance := s.getNodeBalance(c)
-
-	var balance string
-	if active == "inbound" {
-		balance = nodeBalance
-	} else {
-		spendableBalance, err := s.getSpendableBalance(c)
-		if err != nil {
-			// nolint:all
-			c.AbortWithError(http.StatusInternalServerError, err)
-			return
-		}
-		balance = spendableBalance
-	}
-	bodyContent := pages.SwapPartialContent(active, balance)
-	partialViewHandler(bodyContent, c)
-}
-
-func (s *service) swapConfirm(c *gin.Context) {
-	if s.redirectedBecauseWalletIsLocked(c) {
-		return
-	}
-
-	data, err := s.svc.GetConfigData(c)
-	if err != nil {
-		// nolint:all
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-
-	kind := c.PostForm("kind")
-	sats := c.PostForm("sats")
-	explorerUrl := getExplorerUrl(data.Network.Name)
-
-	satsUint64, err := strconv.ParseUint(sats, 10, 64)
-	if err != nil {
-		toast := components.Toast("Invalid amount", true)
-		toastHandler(toast, c)
-		return
-	}
-
-	txid := ""
-
-	if kind == "inbound" {
-		txid, err = s.svc.IncreaseInboundCapacity(c, satsUint64)
-		if err != nil {
-			toast := components.Toast(err.Error(), true)
-			toastHandler(toast, c)
-			return
-		}
-	} else {
-		swapResponse, err := s.svc.IncreaseOutboundCapacity(c, satsUint64)
-		txid = swapResponse.TxId
-
-		if err != nil {
-			toast := components.Toast(err.Error(), true)
-			toastHandler(toast, c)
-			return
-		}
-
-		if swapResponse.SwapStatus == domain.SwapFailed {
-			bodyContent := pages.SwapFailureContent(kind, sats)
-			partialViewHandler(bodyContent, c)
-			return
-		}
-
-		if len(txid) == 0 {
-			bodyContent := pages.SwapPendingContent(kind, sats)
-			partialViewHandler(bodyContent, c)
-			return
-		}
-	}
-
-	bodyContent := pages.SwapSuccessContent(kind, sats, txid, explorerUrl)
-	partialViewHandler(bodyContent, c)
-}
-
-func (s *service) swapPreview(c *gin.Context) {
-	if s.redirectedBecauseWalletIsLocked(c) {
-		return
-	}
-
-	config, err := s.svc.GetConfigData(c)
-	if err != nil {
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
-	}
-
-	kind := c.PostForm("kind")
-
-	sats, err := strconv.Atoi(c.PostForm("sats"))
-	if err != nil {
-		toast := components.Toast("Invalid amount", true)
-		toastHandler(toast, c)
-		return
-	}
-
-	feeAmount := 0 // TODO
-	total := sats + feeAmount
-
-	if config.VtxoMaxAmount != -1 && int64(total) > config.VtxoMaxAmount {
-		toast := components.Toast("Amount too high", true)
-		toastHandler(toast, c)
-		return
-	}
-
-	bodyContent := pages.SwapPreviewContent(kind, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total))
-	partialViewHandler(bodyContent, c)
 }
 
 func (s *service) getTransfer(
@@ -970,17 +840,6 @@ func (s *service) getSpendableBalance(c *gin.Context) (string, error) {
 		return "", err
 	}
 	return strconv.FormatUint(balance, 10), nil
-}
-
-func (s *service) getNodeBalance(c *gin.Context) string {
-	if s.svc.IsConnectedLN() {
-		balance, err := s.svc.GetBalanceLN(c)
-		if err == nil {
-			balance = balance / 1000 // convert to sats
-			return strconv.FormatUint(balance, 10)
-		}
-	}
-	return "0"
 }
 
 func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction, err error) {
@@ -1224,11 +1083,6 @@ func (s *service) claimTx(c *gin.Context) {
 	partialViewHandler(partial, c)
 }
 
-func (s *service) lnConnectInfoModal(c *gin.Context) {
-	info := modals.LnConnectInfo()
-	modalHandler(info, c)
-}
-
 func (s *service) getHero(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
@@ -1259,67 +1113,6 @@ func (s *service) getHero(c *gin.Context) {
 
 	partialContent := components.Hero(spendableBalance, isOnline)
 	partialViewHandler(partialContent, c)
-}
-
-func (s *service) swapHistory(c *gin.Context) {
-	if s.redirectedBecauseWalletIsLocked(c) {
-		return
-	}
-	bodyContent := pages.SwapHistoryBodyContent()
-	s.pageViewHandler(bodyContent, c)
-}
-
-func (s *service) getSwaps(c *gin.Context) {
-	if s.redirectedBecauseWalletIsLocked(c) {
-		return
-	}
-
-	swapHistory, err := s.svc.GetSwapHistory(c)
-	if err != nil {
-		toast := components.Toast("Unable to get swaps list", true)
-		toastHandler(toast, c)
-		return
-	}
-
-	parsedSwapHistory := make([]types.Swap, len(swapHistory))
-
-	for i, swap := range swapHistory {
-		parsedSwapHistory[i] = toSwap(swap)
-	}
-
-	lastId := c.Param("lastId")
-	loadMore := false
-	txsPerPage := 10
-
-	if lastId != "0" {
-		for i, swap := range parsedSwapHistory {
-			if swap.Id == lastId {
-				firstIndex := i + 1
-				if firstIndex+txsPerPage > len(parsedSwapHistory) {
-					parsedSwapHistory = parsedSwapHistory[i+1:]
-				} else {
-					parsedSwapHistory = parsedSwapHistory[i+1 : i+1+txsPerPage]
-					loadMore = true
-				}
-				break
-			}
-		}
-	}
-
-	if len(parsedSwapHistory) > txsPerPage {
-		parsedSwapHistory = parsedSwapHistory[:txsPerPage]
-		loadMore = true
-	}
-
-	// return empty component if there are no more swaps
-	if len(parsedSwapHistory) == 0 && lastId != "0" {
-		bodyContent := templ.Component(nil)
-		partialViewHandler(bodyContent, c)
-		return
-	}
-
-	bodyContent := pages.SwapHistoryListContent(parsedSwapHistory, loadMore)
-	partialViewHandler(bodyContent, c)
 }
 
 // RemoveFind drops the first element in slice for which match(v) is true.

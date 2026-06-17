@@ -95,27 +95,6 @@ func (s *service) updateSettingsApi(c *gin.Context) {
 
 }
 
-func (s *service) connectLNDApi(c *gin.Context) {
-	url := c.PostForm("lnurl")
-
-	if s.svc.IsPreConfiguredLN() {
-		url = ""
-	}
-
-	err := s.svc.ConnectLN(c.Request.Context(), url)
-	if err != nil {
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
-	}
-	reload(c)
-}
-
-func (s *service) disconnectLNDApi(c *gin.Context) {
-	s.svc.DisconnectLN()
-	reload(c)
-}
-
 func (s *service) forgotApi(c *gin.Context) {
 	if err := s.svc.ResetWallet(c); err != nil {
 		toast := components.Toast("Unable to delete previous wallet", true)
@@ -175,15 +154,6 @@ func (s *service) validateOfferApi(c *gin.Context) {
 			"valid": false,
 			"error": "invalid offer",
 		}
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-func (s *service) validateLnUrlApi(c *gin.Context) {
-	url := c.PostForm("lnurl")
-	valid := utils.IsValidLnUrl(url)
-	data := gin.H{
-		"valid": valid,
 	}
 	c.JSON(http.StatusOK, data)
 }

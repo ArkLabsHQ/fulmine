@@ -82,9 +82,6 @@ func (s *settingsRepository) UpdateSettings(
 	if len(newSettings.Unit) > 0 {
 		settings.Unit = newSettings.Unit
 	}
-	if newSettings.LnConnectionOpts != nil {
-		settings.LnConnectionOpts = newSettings.LnConnectionOpts
-	}
 
 	return s.updateSettings(ctx, *settings)
 }

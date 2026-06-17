@@ -199,5 +199,4 @@ Complete list of configuration options:
 
 - **API Spec**: See `api-spec/protobuf/` for proto definitions
 - **Integration Tests**: Examples in `internal/test/e2e/`
-- **Swap Documentation**: See `docs/swaps.regtest.md`
 - **Security Policy**: See `SECURITY.md` for vulnerability disclosure
