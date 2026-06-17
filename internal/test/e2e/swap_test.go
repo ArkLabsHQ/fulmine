@@ -19,7 +19,7 @@ import (
 
 func TestSubmarineSwap(t *testing.T) {
 	invoiceAmount := 5000
-	client, err := newFulmineClient("localhost:7000")
+	client, err := newFulmineClient(clientFulmineURL)
 	require.NoError(t, err)
 	require.NotNil(t, client)
 
@@ -47,6 +47,8 @@ func TestSubmarineSwap(t *testing.T) {
 	})
 
 	t.Run("bolt12", func(t *testing.T) {
+		t.Skip("BOLT12 offers need a CLN backend; arkade-regtest ships LND only. " +
+			"Re-enable once a CLN node (or a BOLT12-capable offer source) is available in the stack.")
 		invoice, _, err := clnAddOffer(t.Context(), invoiceAmount*1000)
 		require.NoError(t, err)
 		require.NotEmpty(t, invoice)
@@ -102,7 +104,7 @@ func TestSubmarineSwap(t *testing.T) {
 
 func TestReverseSwap(t *testing.T) {
 	invoiceAmount := 4000
-	client, err := newFulmineClient("localhost:7000")
+	client, err := newFulmineClient(clientFulmineURL)
 	require.NoError(t, err)
 	require.NotNil(t, client)
 
@@ -133,7 +135,7 @@ func TestReverseSwap(t *testing.T) {
 
 func TestCircularSwap(t *testing.T) {
 	invoiceAmount := 3000
-	client, err := newFulmineClient("localhost:7000")
+	client, err := newFulmineClient(clientFulmineURL)
 	require.NoError(t, err)
 	require.NotNil(t, client)
 
@@ -172,7 +174,7 @@ func TestConcurrentSwaps(t *testing.T) {
 			}
 			go func() {
 				defer wg.Done()
-				client, err := newFulmineClient("localhost:7000")
+				client, err := newFulmineClient(clientFulmineURL)
 				if err != nil {
 					errs.add(err)
 					return
@@ -184,7 +186,7 @@ func TestConcurrentSwaps(t *testing.T) {
 			}()
 			go func() {
 				defer wg.Done()
-				client, err := newFulmineClient("localhost:7000")
+				client, err := newFulmineClient(clientFulmineURL)
 				if err != nil {
 					errs.add(err)
 					return
@@ -215,7 +217,7 @@ func TestConcurrentSwaps(t *testing.T) {
 			}
 			go func() {
 				defer wg.Done()
-				client, err := newFulmineClient("localhost:7000")
+				client, err := newFulmineClient(clientFulmineURL)
 				if err != nil {
 					errs.add(err)
 					return
@@ -227,7 +229,7 @@ func TestConcurrentSwaps(t *testing.T) {
 			}()
 			go func() {
 				defer wg.Done()
-				client, err := newFulmineClient("localhost:7000")
+				client, err := newFulmineClient(clientFulmineURL)
 				if err != nil {
 					errs.add(err)
 					return
@@ -265,7 +267,7 @@ func TestConcurrentSwaps(t *testing.T) {
 			}
 			go func() {
 				defer wg.Done()
-				client, err := newFulmineClient("localhost:7000")
+				client, err := newFulmineClient(clientFulmineURL)
 				if err != nil {
 					errs.add(err)
 					return
@@ -282,7 +284,7 @@ func TestConcurrentSwaps(t *testing.T) {
 			}()
 			go func() {
 				defer wg.Done()
-				client, err := newFulmineClient("localhost:7000")
+				client, err := newFulmineClient(clientFulmineURL)
 				if err != nil {
 					errs.add(err)
 					return
@@ -321,7 +323,7 @@ func TestConcurrentSwaps(t *testing.T) {
 			}
 			go func() {
 				defer wg.Done()
-				client, err := newFulmineClient("localhost:7000")
+				client, err := newFulmineClient(clientFulmineURL)
 				if err != nil {
 					errs.add(err)
 					return
@@ -333,7 +335,7 @@ func TestConcurrentSwaps(t *testing.T) {
 			}()
 			go func() {
 				defer wg.Done()
-				client, err := newFulmineClient("localhost:7000")
+				client, err := newFulmineClient(clientFulmineURL)
 				if err != nil {
 					errs.add(err)
 					return

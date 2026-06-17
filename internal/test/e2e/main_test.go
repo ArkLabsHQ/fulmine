@@ -15,9 +15,11 @@ import (
 )
 
 const (
-	clientFulmineURL = "localhost:7000"
-	boltzFulmineURL  = "localhost:7002"
-	mockFulmineURL   = "localhost:7100"
+	// arkade-regtest exposes boltz-fulmine's main gRPC on host 7004 and the
+	// dedicated fulmine-delegator's main gRPC on host 7010. The delegator stands
+	// in for the old in-repo "mock" Fulmine as the swap counterparty.
+	clientFulmineURL    = "localhost:7004"
+	delegatorFulmineURL = "localhost:7010"
 )
 
 func TestMain(m *testing.M) {
@@ -31,12 +33,8 @@ func TestMain(m *testing.M) {
 		log.Fatalf("❌ failed to refill Fulmine used by Client: %s", err)
 	}
 
-	if err := refillFulmine(ctx, boltzFulmineURL); err != nil {
-		log.Fatalf("❌ failed to refill Fulmine used by Boltz: %s", err)
-	}
-
-	if err := refillFulmine(ctx, mockFulmineURL); err != nil {
-		log.Fatalf("❌ failed to refill Fulmine mock: %s", err)
+	if err := refillFulmine(ctx, delegatorFulmineURL); err != nil {
+		log.Fatalf("❌ failed to refill Fulmine delegator: %s", err)
 	}
 
 	os.Exit(m.Run())

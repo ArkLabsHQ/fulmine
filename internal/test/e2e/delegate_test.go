@@ -34,7 +34,7 @@ func TestDelegate(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegateClient, err := newDelegateClient("localhost:7004")
+	delegateClient, err := newDelegateClient("localhost:7012")
 	require.NoError(t, err)
 	require.NotNil(t, delegateClient)
 
@@ -284,7 +284,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegateClient, err := newDelegateClient("localhost:7004")
+	delegateClient, err := newDelegateClient("localhost:7012")
 	require.NoError(t, err)
 	require.NotNil(t, delegateClient)
 
@@ -541,7 +541,7 @@ func TestMultipleDelegate(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegateClient, err := newDelegateClient("localhost:7004")
+	delegateClient, err := newDelegateClient("localhost:7012")
 	require.NoError(t, err)
 	require.NotNil(t, delegateClient)
 
@@ -808,7 +808,7 @@ func TestDelegateSameInput(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegateClient, err := newDelegateClient("localhost:7004")
+	delegateClient, err := newDelegateClient("localhost:7012")
 	require.NoError(t, err)
 	require.NotNil(t, delegateClient)
 
@@ -1107,7 +1107,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegateClient, err := newDelegateClient("localhost:7004")
+	delegateClient, err := newDelegateClient("localhost:7012")
 	require.NoError(t, err)
 	require.NotNil(t, delegateClient)
 
@@ -1414,7 +1414,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegateClient, err := newDelegateClient("localhost:7004")
+	delegateClient, err := newDelegateClient("localhost:7012")
 	require.NoError(t, err)
 	require.NotNil(t, delegateClient)
 

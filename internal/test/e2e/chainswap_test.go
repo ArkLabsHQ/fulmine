@@ -153,7 +153,7 @@ func TestChainSwapMockArkToBTCScriptPathClaim(t *testing.T) {
 	mockReset(t)
 	mockSetConfig(t, map[string]any{"claimMode": "fail", "refundMode": "success"})
 
-	client, err := newFulmineClient(mockFulmineURL)
+	client, err := newFulmineClient(delegatorFulmineURL)
 	require.NoError(t, err)
 
 	btcAddress := nigiriGetNewAddress(t, ctx)
@@ -215,7 +215,7 @@ func TestChainSwapMockArkToBTCCooperativeRefund(t *testing.T) {
 	mockReset(t)
 	mockSetConfig(t, map[string]any{"refundMode": "success"})
 
-	client, err := newFulmineClient(mockFulmineURL)
+	client, err := newFulmineClient(delegatorFulmineURL)
 	require.NoError(t, err)
 
 	btcAddress := nigiriGetNewAddress(t, ctx)
@@ -260,7 +260,7 @@ func TestChainSwapMockArkToBTCUnilateralRefund(t *testing.T) {
 		"refundMode": "fail",
 	})
 
-	client, err := newFulmineClient(mockFulmineURL)
+	client, err := newFulmineClient(delegatorFulmineURL)
 	require.NoError(t, err)
 
 	chainMedianTime := regtestMedianTime(t, ctx)
@@ -305,7 +305,7 @@ func TestChainSwapMockBTCToARKUnilateralRefund(t *testing.T) {
 		"btcLockupTimeoutBlocks": timeoutHeight,
 	})
 
-	client, err := newFulmineClient(mockFulmineURL)
+	client, err := newFulmineClient(delegatorFulmineURL)
 	require.NoError(t, err)
 
 	createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
@@ -340,7 +340,7 @@ func TestChainSwapMockRefundChainSwapRPC(t *testing.T) {
 		mockReset(t)
 		mockSetConfig(t, map[string]any{"refundMode": "success"})
 
-		client, err := newFulmineClient(mockFulmineURL)
+		client, err := newFulmineClient(delegatorFulmineURL)
 		require.NoError(t, err)
 
 		btcAddress := nigiriGetNewAddress(t, ctx)
@@ -381,7 +381,7 @@ func TestChainSwapMockRefundChainSwapRPC(t *testing.T) {
 			"btcLockupTimeoutBlocks": timeoutHeight,
 		})
 
-		client, err := newFulmineClient(mockFulmineURL)
+		client, err := newFulmineClient(delegatorFulmineURL)
 		require.NoError(t, err)
 
 		createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
@@ -433,7 +433,7 @@ func TestChainSwapRecovery(t *testing.T) {
 		require.NotEmpty(t, swapID)
 
 		time.Sleep(3 * time.Second)
-		restartDockerComposeServices(t, ctx, "fulmine")
+		restartDockerComposeServices(t, ctx, "boltz-fulmine")
 		time.Sleep(3 * time.Second)
 		err = unlockAndSettle(clientFulmineURL, fulminePass)
 		require.NoError(t, err)
@@ -452,7 +452,7 @@ func TestChainSwapRecovery(t *testing.T) {
 		mockReset(t)
 		mockSetConfig(t, map[string]any{"refundMode": "success"})
 
-		client, err := newFulmineClient(mockFulmineURL)
+		client, err := newFulmineClient(delegatorFulmineURL)
 		require.NoError(t, err)
 
 		btcAddress := nigiriGetNewAddress(t, ctx)
@@ -467,9 +467,9 @@ func TestChainSwapRecovery(t *testing.T) {
 		require.NotEmpty(t, swapID)
 
 		time.Sleep(3 * time.Second)
-		restartDockerComposeServices(t, ctx, "fulmine-mock")
+		restartDockerComposeServices(t, ctx, "fulmine-delegator")
 		time.Sleep(3 * time.Second)
-		err = unlockAndSettle(mockFulmineURL, fulminePass)
+		err = unlockAndSettle(delegatorFulmineURL, fulminePass)
 		require.NoError(t, err)
 
 		time.Sleep(3 * time.Second)
@@ -496,7 +496,7 @@ func TestChainSwapRecovery(t *testing.T) {
 			"btcLockupTimeoutBlocks": timeoutHeight,
 		})
 
-		client, err := newFulmineClient(mockFulmineURL)
+		client, err := newFulmineClient(delegatorFulmineURL)
 		require.NoError(t, err)
 
 		createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
@@ -515,9 +515,9 @@ func TestChainSwapRecovery(t *testing.T) {
 		mockPushEventWithTx(t, swapID, "transaction.confirmed", userLockTxID, userLockTxHex)
 
 		time.Sleep(3 * time.Second)
-		restartDockerComposeServices(t, ctx, "fulmine-mock")
+		restartDockerComposeServices(t, ctx, "fulmine-delegator")
 		time.Sleep(3 * time.Second)
-		err = unlockAndSettle(mockFulmineURL, fulminePass)
+		err = unlockAndSettle(delegatorFulmineURL, fulminePass)
 		require.NoError(t, err)
 
 		time.Sleep(1 * time.Second)
