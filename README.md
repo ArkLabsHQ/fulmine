@@ -259,7 +259,7 @@ Virtual Hash Time-Locked Contracts (VHTLCs) are Arkade-native HTLCs that live of
       - `refundLocktime`: 24hrs. This is the offchain (absolute) locktime the sender must wait to refund the VHTLC offchain (can be expressed in blocks only on regtest)
       - `unilateralClaimDelay`: 8 mins. This is the locktime the receiver has to wait to claim the VHTLC after it's been unrolled onchain
       - `unilateralRefundDelay`: 16 mins. This is the locktime sender and Boltz have to wait to refund the VHTLC collaboratively after it's been unrolled onchain
-      - `unilateralRefundWithoutEeceiverDelay`: 32 mins. This is the locktime the sender has to wait to refund alone the VHTLC after it's been unrolled onchain
+      - `unilateralRefundWithoutReceiverDelay`: 32 mins. This is the locktime the sender has to wait to refund alone the VHTLC after it's been unrolled onchain
 
    ```sh
    curl -X POST http://localhost:7001/api/v1/vhtlc \
@@ -271,7 +271,7 @@ Virtual Hash Time-Locked Contracts (VHTLCs) are Arkade-native HTLCs that live of
           "refundLocktime": 1024,
           "unilateralClaimDelay": {"type": "LOCKTIME_TYPE_SECONDS", "value": 2048},
           "unilateralRefundDelay": {"type": "LOCKTIME_TYPE_SECONDS", "value": 4096},
-          "unilateralRefundWithoutEeceiverDelay": {"type": "LOCKTIME_TYPE_SECONDS", "value": 8192}
+          "unilateralRefundWithoutReceiverDelay": {"type": "LOCKTIME_TYPE_SECONDS", "value": 8192}
         }'
    ```
 
