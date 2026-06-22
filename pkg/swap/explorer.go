@@ -89,8 +89,12 @@ func (e explorerClient) GetFeeRate() (float64, error) {
 	// nolint:all
 	defer resp.Body.Close()
 
+	// Some Esplora-compatible backends (e.g. the mempool.space image arkade-regtest
+	// ships) don't implement /fee-estimates and answer 404. Fall back to the same
+	// default this function already returns for empty/missing data rather than
+	// failing the whole swap on an unavailable fee endpoint.
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("failed to get fee rate: %s", resp.Status)
+		return 1, nil
 	}
 
 	var response map[string]float64
