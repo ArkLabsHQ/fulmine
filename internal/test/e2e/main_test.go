@@ -83,9 +83,21 @@ func refillFulmine(ctx context.Context, url string) error {
 		return err
 	}
 
-	balance, err := f.GetBalance(ctx, &pb.GetBalanceRequest{})
-	if err != nil {
-		return err
+	// The user Fulmine is created + funded by the harness immediately before the
+	// suite; on a slow/contended CI start it can still be initialising, so wait
+	// for it to start answering rather than hard-failing the whole run on the
+	// first call ("service not initialized").
+	var balance *pb.GetBalanceResponse
+	deadline := time.Now().Add(90 * time.Second)
+	for {
+		balance, err = f.GetBalance(ctx, &pb.GetBalanceRequest{})
+		if err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("fulmine %s not ready: %w", url, err)
+		}
+		time.Sleep(2 * time.Second)
 	}
 	if int(balance.GetAmount()) >= balanceThreshold {
 		return nil
