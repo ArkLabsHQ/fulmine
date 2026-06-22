@@ -410,9 +410,11 @@ func refundChainSwapRPCWithRetry(
 
 	for time.Now().Before(deadline) {
 		// Bound each call so a flaky explorer/arkd makes the refund retry instead
-		// of blocking on the (large) test context for minutes. Generous, since the
-		// explorer can be slow (not hung) while the stack is under load.
-		callCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		// of blocking on the (large) test context for minutes. The refund chains
+		// several individually-bounded calls (explorer 10s each + arkd boarding
+		// address), so under a starved stack the *cumulative* time, not any single
+		// hang, is what overruns; fail fast and retry rather than widen the bound.
+		callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		resp, err := client.RefundChainSwap(callCtx, &pb.RefundChainSwapRequest{Id: swapID})
 		cancel()
 		if err == nil {
