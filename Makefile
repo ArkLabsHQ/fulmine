@@ -95,13 +95,11 @@ regtest-up: regtest-build
 	@node regtest/regtest.mjs start --profile boltz,delegate
 	@$(MAKE) regtest-user-up
 
-## regtest-user-up: start the dedicated swap-user Fulmine on the stack network
+## regtest-user-up: start + initialise the dedicated swap-user Fulmine
 regtest-user-up:
 	@echo "Starting user Fulmine (fulmine-user)..."
 	@docker compose -f regtest-user.compose.yml up -d
-	@echo "Waiting for fulmine-user gRPC on :7020..."
-	@for i in $$(seq 1 60); do bash -c 'exec 3<>/dev/tcp/localhost/7020' >/dev/null 2>&1 && break; sleep 1; done
-	@sleep 3
+	@node regtest-user-setup.mjs
 
 ## regtest-down: stop and remove the arkade-regtest stack + volumes + user Fulmine
 regtest-down:
