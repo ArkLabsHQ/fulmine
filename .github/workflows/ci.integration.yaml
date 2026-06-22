@@ -27,6 +27,7 @@ jobs:
       # mempool, fulcrum, nbxplorer, golang/alpine, ...) aren't subject to the
       # anonymous rate limit that intermittently fails the run on shared runners.
       - name: Log in to Docker Hub
+        continue-on-error: true # don't fail the run if the secrets aren't set
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
