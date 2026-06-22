@@ -72,7 +72,9 @@ func TestChainSwapBTCtoARK(t *testing.T) {
 	swapID := createResp.GetId()
 	t.Logf("Created chain swap: %s", swapID)
 
-	err = faucet(ctx, createResp.LockupAddress, 0.00003000)
+	// Fund the lockup with the exact amount Boltz quotes (swap amount + its
+	// fee); a hardcoded under-payment leaves the swap stuck "pending".
+	err = faucet(ctx, createResp.LockupAddress, float64(createResp.GetExpectedAmount())/1e8)
 	require.NoError(t, err)
 
 	// Boltz rescans the Ark chain on an interval (rescanInterval=30 in the
