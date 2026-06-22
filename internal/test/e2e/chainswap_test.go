@@ -125,6 +125,10 @@ func TestChainSwapBTCtoARKWithQuote(t *testing.T) {
 
 var ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 
+// cltvRequiredRE pulls the required block height out of a BTC→ARK unilateral
+// refund "CLTV timeout not yet reached: ... required N" error.
+var cltvRequiredRE = regexp.MustCompile(`required (\d+)`)
+
 func stripANSI(s string) string {
 	return ansiRE.ReplaceAllString(s, "")
 }
@@ -155,7 +159,7 @@ func TestChainSwapArkToBTCCooperativeRefund(t *testing.T) {
 	require.NotEmpty(t, swapID)
 
 	// ARK→BTC refund is cooperative (Boltz co-signs) and ends in "refunded".
-	refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 20*time.Second)
+	refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 90*time.Second)
 	require.Equal(t, "refund initiated", refundResp.GetMessage())
 
 	waitChainSwapStatus(t, ctx, client, swapID, "refunded", 40*time.Second)
@@ -192,7 +196,7 @@ func TestChainSwapBTCToARKUnilateralRefund(t *testing.T) {
 	// has passed, so mine past the lockup timeout height first.
 	mineRegtestBlocksToHeight(t, ctx, int(createResp.GetTimeoutBlockHeight())+1)
 
-	refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 20*time.Second)
+	refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 90*time.Second)
 	require.Equal(t, "refund initiated", refundResp.GetMessage())
 
 	waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 60*time.Second)
@@ -219,7 +223,7 @@ func TestChainSwapRefundChainSwapRPC(t *testing.T) {
 		require.NotEmpty(t, swapID)
 
 		// ARK→BTC refund is cooperative (Boltz co-signs) and ends in "refunded".
-		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 20*time.Second)
+		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 90*time.Second)
 		require.Equal(t, "refund initiated", refundResp.GetMessage())
 
 		waitChainSwapStatus(t, ctx, client, swapID, "refunded", 40*time.Second)
@@ -251,7 +255,7 @@ func TestChainSwapRefundChainSwapRPC(t *testing.T) {
 		// BTC→ARK refund is unilateral; mine past the BTC CLTV timeout first.
 		mineRegtestBlocksToHeight(t, ctx, int(createResp.GetTimeoutBlockHeight())+1)
 
-		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 20*time.Second)
+		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 90*time.Second)
 		require.Equal(t, "refund initiated", refundResp.GetMessage())
 
 		waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 60*time.Second)
@@ -318,7 +322,7 @@ func TestChainSwapRecovery(t *testing.T) {
 		require.NoError(t, err)
 
 		// ARK→BTC refund is cooperative (Boltz co-signs) and ends in "refunded".
-		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 20*time.Second)
+		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 90*time.Second)
 		require.Equal(t, "refund initiated", refundResp.GetMessage())
 
 		waitChainSwapStatus(t, ctx, client, swapID, "refunded", 40*time.Second)
@@ -356,7 +360,7 @@ func TestChainSwapRecovery(t *testing.T) {
 		// BTC→ARK refund is unilateral; mine past the BTC CLTV timeout first.
 		mineRegtestBlocksToHeight(t, ctx, int(createResp.GetTimeoutBlockHeight())+1)
 
-		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 20*time.Second)
+		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 90*time.Second)
 		require.Equal(t, "refund initiated", refundResp.GetMessage())
 
 		waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 60*time.Second)
@@ -421,6 +425,20 @@ func refundChainSwapRPCWithRetry(
 		if strings.Contains(err.Error(), "no vtxos found for vhtlc") {
 			lastErr = err
 			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		// BTC→ARK unilateral refund can only spend once the BTC CLTV timeout is
+		// reached. CreateChainSwap under-reports that height, but the error names
+		// the required one ("required 362"), so mine to it and retry.
+		if strings.Contains(err.Error(), "CLTV timeout not yet reached") {
+			if m := cltvRequiredRE.FindStringSubmatch(err.Error()); m != nil {
+				var required int
+				if _, scanErr := fmt.Sscanf(m[1], "%d", &required); scanErr == nil {
+					mineRegtestBlocksToHeight(t, ctx, required+1)
+				}
+			}
+			lastErr = err
+			time.Sleep(1 * time.Second)
 			continue
 		}
 
