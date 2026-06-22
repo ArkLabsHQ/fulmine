@@ -13,12 +13,18 @@ const ARK_SERVER = 'http://arkd:7070';
 const PASSWORD = 'password';
 const NOTE_AMOUNT = '100000000'; // 1 BTC, matching the stack's other wallets
 const HEADERS = { 'Content-Type': 'application/json' };
+const FETCH_TIMEOUT_MS = 15_000;
+const PROC_TIMEOUT_MS = 30_000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// fetch with an abort timeout so a stalled daemon can't hang the whole setup.
+const fetchT = (url, opts = {}) =>
+  fetch(url, { ...opts, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+
 async function status() {
   try {
-    const r = await fetch(`${BASE}/api/v1/wallet/status`);
+    const r = await fetchT(`${BASE}/api/v1/wallet/status`);
     return r.ok ? await r.json() : {};
   } catch {
     return {};
@@ -41,11 +47,11 @@ async function main() {
   }
 
   await waitFor('fulmine-user service', async () =>
-    fetch(`${BASE}/api/v1/wallet/status`).then((r) => r.ok).catch(() => false),
+    fetchT(`${BASE}/api/v1/wallet/status`).then((r) => r.ok).catch(() => false),
   );
 
   console.log('Creating fulmine-user wallet...');
-  const seedResp = await fetch(`${BASE}/api/v1/wallet/genseed`);
+  const seedResp = await fetchT(`${BASE}/api/v1/wallet/genseed`);
   if (!seedResp.ok) {
     console.error(`fulmine-user genseed failed: HTTP ${seedResp.status} ${await seedResp.text()}`);
     process.exit(1);
@@ -57,7 +63,7 @@ async function main() {
     process.exit(1);
   }
 
-  const created = await fetch(`${BASE}/api/v1/wallet/create`, {
+  const created = await fetchT(`${BASE}/api/v1/wallet/create`, {
     method: 'POST',
     headers: HEADERS,
     body: JSON.stringify({ private_key: privateKey, password: PASSWORD, server_url: ARK_SERVER }),
@@ -66,7 +72,7 @@ async function main() {
     console.error(`fulmine-user wallet create failed: HTTP ${created.status} ${await created.text()}`);
     process.exit(1);
   }
-  const unlocked = await fetch(`${BASE}/api/v1/wallet/unlock`, {
+  const unlocked = await fetchT(`${BASE}/api/v1/wallet/unlock`, {
     method: 'POST',
     headers: HEADERS,
     body: JSON.stringify({ password: PASSWORD }),
@@ -84,12 +90,13 @@ async function main() {
   console.log(`Funding fulmine-user via a credit note (${NOTE_AMOUNT} sats)...`);
   const note = execFileSync('docker', ['exec', 'arkd', 'arkd', 'note', '--amount', NOTE_AMOUNT], {
     encoding: 'utf8',
+    timeout: PROC_TIMEOUT_MS,
   }).trim();
   if (!note) {
     console.error('fulmine-user: failed to create credit note');
     process.exit(1);
   }
-  const redeem = await fetch(`${BASE}/api/v1/note/redeem`, {
+  const redeem = await fetchT(`${BASE}/api/v1/note/redeem`, {
     method: 'POST',
     headers: HEADERS,
     body: JSON.stringify({ note }),
@@ -99,7 +106,7 @@ async function main() {
     process.exit(1);
   }
 
-  execFileSync('node', ['regtest/regtest.mjs', 'mine', '3'], { stdio: 'inherit' });
+  execFileSync('node', ['regtest/regtest.mjs', 'mine', '3'], { stdio: 'inherit', timeout: PROC_TIMEOUT_MS });
   await sleep(3000);
   console.log('fulmine-user wallet setup completed');
 }
