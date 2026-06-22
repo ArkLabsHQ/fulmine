@@ -3,6 +3,7 @@ package e2e_test
 import (
 	"context"
 	"encoding/hex"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -176,44 +177,45 @@ func TestConcurrentSwaps(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		t.Run("distinct submarine swaps", func(t *testing.T) {
 			invoiceAmount := 2000
-			invoice1, _, err := lndAddInvoice(t.Context(), invoiceAmount)
-			require.NoError(t, err)
-			require.NotEmpty(t, invoice1)
-			invoice2, _, err := lndAddInvoice(t.Context(), invoiceAmount)
-			require.NoError(t, err)
-			require.NotEmpty(t, invoice2)
+
+			// Two truly-concurrent submarine swaps can hit Boltz's serializable
+			// Postgres and abort one ("could not serialize access"); that abort can
+			// orphan its vHTLC, so reusing the same invoice then fails "already
+			// exists". Retry the swap with a fresh invoice (fresh vHTLC) — a
+			// transient-concurrency recovery, not a logic change.
+			paySubmarine := func() error {
+				client, err := newFulmineClient(clientFulmineURL)
+				if err != nil {
+					return err
+				}
+				var lastErr error
+				for attempt := 0; attempt < 5; attempt++ {
+					invoice, _, err := lndAddInvoice(t.Context(), invoiceAmount)
+					if err != nil {
+						return err
+					}
+					if _, lastErr = client.PayInvoice(swapCtx(t), &pb.PayInvoiceRequest{
+						Invoice: invoice,
+					}); lastErr == nil {
+						return nil
+					}
+					if msg := lastErr.Error(); !strings.Contains(msg, "could not serialize access") &&
+						!strings.Contains(msg, "already exists") {
+						return lastErr
+					}
+					time.Sleep(time.Duration(attempt+1) * 400 * time.Millisecond)
+				}
+				return lastErr
+			}
 
 			wg := &sync.WaitGroup{}
 			wg.Add(2)
-
 			errs := errs{
 				mu:   &sync.Mutex{},
 				errs: make([]error, 0, 2),
 			}
-			go func() {
-				defer wg.Done()
-				client, err := newFulmineClient(clientFulmineURL)
-				if err != nil {
-					errs.add(err)
-					return
-				}
-				_, err = client.PayInvoice(swapCtx(t), &pb.PayInvoiceRequest{
-					Invoice: invoice1,
-				})
-				errs.add(err)
-			}()
-			go func() {
-				defer wg.Done()
-				client, err := newFulmineClient(clientFulmineURL)
-				if err != nil {
-					errs.add(err)
-					return
-				}
-				_, err = client.PayInvoice(swapCtx(t), &pb.PayInvoiceRequest{
-					Invoice: invoice2,
-				})
-				errs.add(err)
-			}()
+			go func() { defer wg.Done(); errs.add(paySubmarine()) }()
+			go func() { defer wg.Done(); errs.add(paySubmarine()) }()
 			wg.Wait()
 
 			require.Len(t, errs.errs, 2)

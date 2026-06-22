@@ -178,24 +178,11 @@ func sendGetRequest[T any](boltz *Api, endpoint string) (*T, error) {
 }
 
 func sendPostRequest[T any](boltz *Api, endpoint string, requestBody any) (*T, error) {
-	url := boltz.URL + "/v2" + endpoint
+	ctx, cancel := withTimeoutCtx()
+	defer cancel()
 
-	// Boltz runs its Postgres in serializable isolation; under concurrency a write
-	// can be aborted with "could not serialize access due to read/write
-	// dependencies among transactions". That transaction did not commit, so the
-	// request is safe to retry with a short backoff.
-	var resp *T
-	var err error
-	for attempt := 0; attempt < 5; attempt++ {
-		ctx, cancel := withTimeoutCtx()
-		resp, err = callApi[T](ctx, &boltz.Client, http.MethodPost, url, requestBody)
-		cancel()
-		if err == nil || !strings.Contains(err.Error(), "could not serialize access") {
-			return resp, err
-		}
-		time.Sleep(time.Duration(attempt+1) * 200 * time.Millisecond)
-	}
-	return resp, err
+	url := boltz.URL + "/v2" + endpoint
+	return callApi[T](ctx, &boltz.Client, http.MethodPost, url, requestBody)
 }
 
 func callApi[T any](ctx context.Context, c *http.Client, method, url string, reqBody any) (*T, error) {
