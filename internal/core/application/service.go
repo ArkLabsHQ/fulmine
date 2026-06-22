@@ -1729,6 +1729,8 @@ func (s *Service) RefundChainSwap(ctx context.Context, id string) error {
 		return fmt.Errorf("failed to get chain swap: %w", err)
 	}
 
+	log.Infof("RefundChainSwap %s dispatch: From=%q To=%q status=%d", id, chainSwap.From, chainSwap.To, chainSwap.Status)
+
 	if chainSwap.From == boltz.CurrencyBtc && chainSwap.To == boltz.CurrencyArk {
 		log.Infof("BTC→ARK refund requested for swap %s", id)
 

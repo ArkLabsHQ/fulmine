@@ -102,6 +102,14 @@ jobs:
             docker logs "$c" 2>&1 | tail -n 600 || echo "(no container $c)"
             echo "::endgroup::"
           done
+          # Dedicated, UNtailed refund-dispatch capture: only ~6 refunds run, so
+          # these lines can't be drowned out (unlike the broad trace below, which
+          # tail truncates to the last tests). Shows the From/To the dispatch sees.
+          echo "::group::fulmine-user refund dispatch"
+          docker logs fulmine-user 2>&1 \
+            | grep -iE "RefundChainSwap .* dispatch|refund requested for swap|Initiating ARK.{0,3}BTC cooperative" \
+            || echo "(no dispatch lines)"
+          echo "::endgroup::"
           # Position-independent chain-swap trace for the user Fulmine: tail -n
           # truncates the dispatch logs that fire early in each test, so grep the
           # full log for the refund/chain-swap path instead.
