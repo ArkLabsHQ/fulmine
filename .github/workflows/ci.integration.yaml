@@ -89,6 +89,15 @@ jobs:
           echo "::error::fulmine-user failed to initialise after 3 attempts"
           exit 1
 
+      - name: Follow user-Fulmine logs to a file
+        run: |
+          # docker logs only shows the LATEST container instance, and fulmine-user
+          # restarts during recovery tests — so the refund dispatch from earlier
+          # tests is lost. Follow to a file from the start (survives restarts, no
+          # tail) so the dispatch trace is complete on failure.
+          nohup docker logs -f fulmine-user > "$RUNNER_TEMP/fulmine-user.log" 2>&1 &
+          echo "following fulmine-user logs to $RUNNER_TEMP/fulmine-user.log"
+
       - name: Run integration tests
         run: make integrationtest
 
@@ -102,13 +111,11 @@ jobs:
             docker logs "$c" 2>&1 | tail -n 600 || echo "(no container $c)"
             echo "::endgroup::"
           done
-          # Dedicated, UNtailed refund-dispatch capture: only ~6 refunds run, so
-          # these lines can't be drowned out (unlike the broad trace below, which
-          # tail truncates to the last tests). Shows the From/To the dispatch sees.
-          echo "::group::fulmine-user refund dispatch"
-          docker logs fulmine-user 2>&1 \
-            | grep -iE "RefundChainSwap .* dispatch|refund requested for swap|Initiating ARK.{0,3}BTC cooperative" \
-            || echo "(no dispatch lines)"
+          # Refund-dispatch trace from the FOLLOWED log file (survives fulmine-user
+          # restarts, unlike `docker logs` which only shows the latest instance).
+          echo "::group::fulmine-user refund dispatch (full, followed)"
+          grep -iE "RefundChainSwap .* dispatch|refund requested for swap|Initiating ARK.{0,3}BTC cooperative|Starting BTC|CLTV timeout|failed to fetch lockup|no vtxos found|refunded" \
+            "$RUNNER_TEMP/fulmine-user.log" 2>/dev/null | head -80 || echo "(no dispatch lines)"
           echo "::endgroup::"
           # Position-independent chain-swap trace for the user Fulmine: tail -n
           # truncates the dispatch logs that fire early in each test, so grep the
