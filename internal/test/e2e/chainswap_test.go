@@ -109,8 +109,9 @@ func TestChainSwapBTCtoARKWithQuote(t *testing.T) {
 	swapID := createResp.GetId()
 	t.Logf("Created chain swap: %s", swapID)
 
-	// faucet bigger amount so that we can test quote
-	err = faucet(ctx, createResp.LockupAddress, 0.00015500)
+	// Live Boltz rejects an over-funded lockup ("locked X is more than expected Y"
+	// -> transaction.lockupFailed), so fund exactly what it quotes.
+	err = faucet(ctx, createResp.LockupAddress, float64(createResp.GetExpectedAmount())/1e8)
 	require.NoError(t, err)
 
 	waitChainSwapStatus(t, ctx, client, swapID, "claimed", 90*time.Second)
