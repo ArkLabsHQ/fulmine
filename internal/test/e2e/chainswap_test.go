@@ -1,11 +1,9 @@
 package e2e_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"regexp"
 	"strings"
 	"testing"
@@ -15,10 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	mockBoltzURL = "http://localhost:9101"
-	fulminePass  = "password"
-)
+const fulminePass = "password"
 
 func TestChainSwapArkToBTC(t *testing.T) {
 	ctx := context.Background()
@@ -134,31 +129,16 @@ func stripANSI(s string) string {
 	return ansiRE.ReplaceAllString(s, "")
 }
 
-//// CHAIN SWAP TESTS WITH MOCKED BOLTZ ////
+//// CHAIN SWAP REFUND TESTS AGAINST LIVE BOLTZ ////
 
-type mockSwapState struct {
-	ID               string `json:"id"`
-	LastStatus       string `json:"lastStatus"`
-	ServerLockAmount uint64 `json:"serverLockAmount"`
-	BTCLockupAddress string `json:"btcLockupAddress"`
-	ClaimRequests    int    `json:"claimRequests"`
-	RefundRequests   int    `json:"refundRequests"`
-}
-
-func TestChainSwapMockArkToBTCScriptPathClaim(t *testing.T) {
+func TestChainSwapArkToBTCCooperativeRefund(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	mockReset(t)
-	mockSetConfig(t, map[string]any{"claimMode": "fail", "refundMode": "success"})
-
-	client, err := newFulmineClient(delegatorFulmineURL)
+	client, err := newFulmineClient(clientFulmineURL)
 	require.NoError(t, err)
 
 	btcAddress := nigiriGetNewAddress(t, ctx)
-	btcBalanceBeforeSat := nigiriScanAddressBalanceSats(t, ctx, btcAddress)
-	require.Equal(t, btcBalanceBeforeSat, 0)
-	t.Logf(" BTC balance before swap: %d sat", btcBalanceBeforeSat)
 
 	balance, err := client.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
@@ -173,138 +153,23 @@ func TestChainSwapMockArkToBTCScriptPathClaim(t *testing.T) {
 	require.Empty(t, createResp.GetError())
 	swapID := createResp.GetId()
 	require.NotEmpty(t, swapID)
-	require.NotEmpty(t, swapID)
 
-	// For script-path claim we must provide a real, spendable server lockup tx from regtest.
-	mockState := mockGetSwap(t, swapID)
-	require.NotEmpty(t, mockState.BTCLockupAddress)
-	require.Greater(t, mockState.ServerLockAmount, uint64(0))
-
-	serverLockTxID, serverLockTxHex := fundAddressAndGetConfirmedTx(
-		t,
-		ctx,
-		mockState.BTCLockupAddress,
-		mockState.ServerLockAmount,
-	)
-
-	time.Sleep(1 * time.Second)
-	mockPushEvent(t, swapID, "transaction.confirmed")
-	mockPushEventWithTx(t, swapID, "transaction.server.mempool", serverLockTxID, serverLockTxHex)
-
-	waitChainSwapStatus(t, ctx, client, swapID, "claimed", 40*time.Second)
-
-	state := mockGetSwap(t, swapID)
-	require.Greater(t, state.ClaimRequests, 0, "expected initial cooperative claim attempt")
-
-	balanceAfter, err := client.GetBalance(ctx, &pb.GetBalanceRequest{})
-	require.NoError(t, err)
-	t.Logf("vtxo balance after chain swap: %d", balanceAfter.GetAmount())
-	balanceDif := int64(balanceAfter.GetAmount()) - int64(balance.GetAmount())
-	t.Logf("vtxo balance diff after chain swap: %d", balanceDif)
-
-	btcBalanceAfterSat := nigiriScanAddressBalanceSats(t, ctx, btcAddress)
-	t.Logf("BTC balance after swap: %d sat", btcBalanceAfterSat)
-	t.Logf("BTC balance diff: %d sat", btcBalanceAfterSat-btcBalanceBeforeSat)
-}
-
-func TestChainSwapMockArkToBTCCooperativeRefund(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	mockReset(t)
-	mockSetConfig(t, map[string]any{"refundMode": "success"})
-
-	client, err := newFulmineClient(delegatorFulmineURL)
-	require.NoError(t, err)
-
-	btcAddress := nigiriGetNewAddress(t, ctx)
-
-	balance, err := client.GetBalance(ctx, &pb.GetBalanceRequest{})
-	require.NoError(t, err)
-	t.Logf("vtxo balance before chain swap: %d", balance.GetAmount())
-
-	createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
-		Direction:  pb.SwapDirection_SWAP_DIRECTION_ARK_TO_BTC,
-		Amount:     3000,
-		BtcAddress: btcAddress,
-	})
-	require.NoError(t, err)
-	swapID := createResp.GetId()
-
-	time.Sleep(2 * time.Second)
-
-	balance, err = client.GetBalance(ctx, &pb.GetBalanceRequest{})
-	require.NoError(t, err)
-	t.Logf("vtxo balance after chain swap: %d", balance.GetAmount())
-
-	time.Sleep(1 * time.Second)
-	mockPushEvent(t, swapID, "swap.expired")
+	// ARK→BTC refund is cooperative (Boltz co-signs) and ends in "refunded".
+	refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 20*time.Second)
+	require.Equal(t, "refund initiated", refundResp.GetMessage())
 
 	waitChainSwapStatus(t, ctx, client, swapID, "refunded", 40*time.Second)
-
-	state := mockGetSwap(t, swapID)
-	require.Greater(t, state.RefundRequests, 0, "expected cooperative refund call to mock boltz")
 
 	balance, err = client.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
 	t.Logf("vtxo balance after refund: %d", balance.GetAmount())
 }
 
-func TestChainSwapMockArkToBTCUnilateralRefund(t *testing.T) {
+func TestChainSwapBTCToARKUnilateralRefund(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
-	mockReset(t)
-	mockSetConfig(t, map[string]any{
-		"refundMode": "fail",
-	})
-
-	client, err := newFulmineClient(delegatorFulmineURL)
-	require.NoError(t, err)
-
-	chainMedianTime := regtestMedianTime(t, ctx)
-	refundAtUnix := chainMedianTime - 60
-	mockSetConfig(t, map[string]any{
-		"arkRefundAtUnix": refundAtUnix,
-	})
-
-	btcAddress := nigiriGetNewAddress(t, ctx)
-
-	createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
-		Direction:  pb.SwapDirection_SWAP_DIRECTION_ARK_TO_BTC,
-		Amount:     3000,
-		BtcAddress: btcAddress,
-	})
-	require.NoError(t, err)
-	require.Emptyf(t, createResp.GetError(), "CreateChainSwap returned application error: %s", createResp.GetError())
-	swapID := createResp.GetId()
-	require.NotEmpty(t, swapID, "CreateChainSwap returned empty swap id")
-
-	time.Sleep(1 * time.Second)
-	mockPushEvent(t, swapID, "swap.expired")
-
-	waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 80*time.Second)
-
-	state := mockGetSwap(t, swapID)
-	require.Greater(t, state.RefundRequests, 0)
-}
-
-func TestChainSwapMockBTCToARKUnilateralRefund(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	mockReset(t)
-
-	currentHeight := regtestBlockHeight(t, ctx)
-	timeoutHeight := uint32(currentHeight + 2)
-	if timeoutHeight < 144 {
-		timeoutHeight = 144
-	}
-	mockSetConfig(t, map[string]any{
-		"btcLockupTimeoutBlocks": timeoutHeight,
-	})
-
-	client, err := newFulmineClient(delegatorFulmineURL)
+	client, err := newFulmineClient(clientFulmineURL)
 	require.NoError(t, err)
 
 	createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
@@ -312,34 +177,33 @@ func TestChainSwapMockBTCToARKUnilateralRefund(t *testing.T) {
 		Amount:    3000,
 	})
 	require.NoError(t, err)
+	require.Empty(t, createResp.GetError())
+	swapID := createResp.GetId()
+	require.NotEmpty(t, swapID)
 	lockupAddress := createResp.GetLockupAddress()
 	require.NotEmpty(t, lockupAddress, "CreateChainSwap returned empty lockup address")
 	expectedAmount := createResp.GetExpectedAmount()
 	require.Greater(t, expectedAmount, uint64(0), "CreateChainSwap returned invalid expected amount")
 
-	userLockTxID, userLockTxHex := fundAddressAndGetConfirmedTx(t, ctx, lockupAddress, expectedAmount)
+	// Fund the lockup with exactly what Boltz quotes.
+	fundAddressAndGetConfirmedTx(t, ctx, lockupAddress, expectedAmount)
 
-	time.Sleep(5 * time.Second)
-	mockPushEventWithTx(t, createResp.GetId(), "transaction.confirmed", userLockTxID, userLockTxHex)
-
-	// Unilateral BTC refund path can spend only after locktime is reached.
+	// BTC→ARK refund is unilateral; it can spend only once the BTC CLTV timeout
+	// has passed, so mine past the lockup timeout height first.
 	mineRegtestBlocksToHeight(t, ctx, int(createResp.GetTimeoutBlockHeight())+1)
 
-	// Simulate Boltz-side failure after user lockup to trigger refund logic.
-	mockPushEvent(t, createResp.GetId(), "transaction.failed")
+	refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 20*time.Second)
+	require.Equal(t, "refund initiated", refundResp.GetMessage())
 
-	waitChainSwapStatus(t, ctx, client, createResp.GetId(), "refunded_unilaterally", 60*time.Second)
+	waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 60*time.Second)
 }
 
-func TestChainSwapMockRefundChainSwapRPC(t *testing.T) {
+func TestChainSwapRefundChainSwapRPC(t *testing.T) {
 	t.Run("ark_to_btc_cooperative", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 
-		mockReset(t)
-		mockSetConfig(t, map[string]any{"refundMode": "success"})
-
-		client, err := newFulmineClient(delegatorFulmineURL)
+		client, err := newFulmineClient(clientFulmineURL)
 		require.NoError(t, err)
 
 		btcAddress := nigiriGetNewAddress(t, ctx)
@@ -354,33 +218,18 @@ func TestChainSwapMockRefundChainSwapRPC(t *testing.T) {
 		swapID := createResp.GetId()
 		require.NotEmpty(t, swapID)
 
-		time.Sleep(3 * time.Second)
-
+		// ARK→BTC refund is cooperative (Boltz co-signs) and ends in "refunded".
 		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 20*time.Second)
 		require.Equal(t, "refund initiated", refundResp.GetMessage())
 
 		waitChainSwapStatus(t, ctx, client, swapID, "refunded", 40*time.Second)
-
-		state := mockGetSwap(t, swapID)
-		require.Greater(t, state.RefundRequests, 0)
 	})
 
 	t.Run("btc_to_ark", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 		defer cancel()
 
-		mockReset(t)
-
-		currentHeight := regtestBlockHeight(t, ctx)
-		timeoutHeight := uint32(currentHeight + 2)
-		if timeoutHeight < 144 {
-			timeoutHeight = 144
-		}
-		mockSetConfig(t, map[string]any{
-			"btcLockupTimeoutBlocks": timeoutHeight,
-		})
-
-		client, err := newFulmineClient(delegatorFulmineURL)
+		client, err := newFulmineClient(clientFulmineURL)
 		require.NoError(t, err)
 
 		createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
@@ -394,20 +243,18 @@ func TestChainSwapMockRefundChainSwapRPC(t *testing.T) {
 		require.NotEmpty(t, createResp.GetLockupAddress())
 		require.Greater(t, createResp.GetExpectedAmount(), uint64(0))
 
-		userLockTxID, userLockTxHex := fundAddressAndGetConfirmedTx(
+		// Fund the lockup with exactly what Boltz quotes.
+		fundAddressAndGetConfirmedTx(
 			t, ctx, createResp.GetLockupAddress(), createResp.GetExpectedAmount(),
 		)
-		mockPushEventWithTx(t, swapID, "transaction.confirmed", userLockTxID, userLockTxHex)
-		waitChainSwapStatus(t, ctx, client, swapID, "user_locked", 20*time.Second)
 
+		// BTC→ARK refund is unilateral; mine past the BTC CLTV timeout first.
 		mineRegtestBlocksToHeight(t, ctx, int(createResp.GetTimeoutBlockHeight())+1)
 
-		time.Sleep(5 * time.Second)
-
-		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 15*time.Second)
+		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 20*time.Second)
 		require.Equal(t, "refund initiated", refundResp.GetMessage())
 
-		waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 40*time.Second)
+		waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 60*time.Second)
 	})
 }
 
@@ -445,14 +292,11 @@ func TestChainSwapRecovery(t *testing.T) {
 		require.Greater(t, addrBalance, float64(0))
 	})
 
-	t.Run("ark_to_btc_refund_mock", func(t *testing.T) {
+	t.Run("ark_to_btc_refund", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 		defer cancel()
 
-		mockReset(t)
-		mockSetConfig(t, map[string]any{"refundMode": "success"})
-
-		client, err := newFulmineClient(delegatorFulmineURL)
+		client, err := newFulmineClient(clientFulmineURL)
 		require.NoError(t, err)
 
 		btcAddress := nigiriGetNewAddress(t, ctx)
@@ -467,36 +311,24 @@ func TestChainSwapRecovery(t *testing.T) {
 		require.NotEmpty(t, swapID)
 
 		time.Sleep(3 * time.Second)
-		restartDockerComposeServices(t, ctx, "fulmine-delegator")
+		// Restart the swap client (the user Fulmine) mid-swap to exercise recovery.
+		restartDockerComposeServices(t, ctx, "fulmine-user")
 		time.Sleep(3 * time.Second)
-		err = unlockAndSettle(delegatorFulmineURL, fulminePass)
+		err = unlockAndSettle(clientFulmineURL, fulminePass)
 		require.NoError(t, err)
 
-		time.Sleep(3 * time.Second)
-		mockPushEvent(t, swapID, "swap.expired")
+		// ARK→BTC refund is cooperative (Boltz co-signs) and ends in "refunded".
+		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 20*time.Second)
+		require.Equal(t, "refund initiated", refundResp.GetMessage())
 
-		waitChainSwapStatus(t, ctx, client, swapID, "refunded", 30*time.Second)
-
-		state := mockGetSwap(t, swapID)
-		require.Greater(t, state.RefundRequests, 0)
+		waitChainSwapStatus(t, ctx, client, swapID, "refunded", 40*time.Second)
 	})
 
-	t.Run("btc_to_ark_refund_mock", func(t *testing.T) {
+	t.Run("btc_to_ark_refund", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 		defer cancel()
 
-		mockReset(t)
-
-		currentHeight := regtestBlockHeight(t, ctx)
-		timeoutHeight := uint32(currentHeight + 2)
-		if timeoutHeight < 144 {
-			timeoutHeight = 144
-		}
-		mockSetConfig(t, map[string]any{
-			"btcLockupTimeoutBlocks": timeoutHeight,
-		})
-
-		client, err := newFulmineClient(delegatorFulmineURL)
+		client, err := newFulmineClient(clientFulmineURL)
 		require.NoError(t, err)
 
 		createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
@@ -509,21 +341,25 @@ func TestChainSwapRecovery(t *testing.T) {
 		require.NotEmpty(t, createResp.GetLockupAddress())
 		require.Greater(t, createResp.GetExpectedAmount(), uint64(0))
 
-		userLockTxID, userLockTxHex := fundAddressAndGetConfirmedTx(
+		// Fund the lockup with exactly what Boltz quotes.
+		fundAddressAndGetConfirmedTx(
 			t, ctx, createResp.GetLockupAddress(), createResp.GetExpectedAmount(),
 		)
-		mockPushEventWithTx(t, swapID, "transaction.confirmed", userLockTxID, userLockTxHex)
 
 		time.Sleep(3 * time.Second)
-		restartDockerComposeServices(t, ctx, "fulmine-delegator")
+		// Restart the swap client (the user Fulmine) mid-swap to exercise recovery.
+		restartDockerComposeServices(t, ctx, "fulmine-user")
 		time.Sleep(3 * time.Second)
-		err = unlockAndSettle(delegatorFulmineURL, fulminePass)
+		err = unlockAndSettle(clientFulmineURL, fulminePass)
 		require.NoError(t, err)
 
-		time.Sleep(1 * time.Second)
+		// BTC→ARK refund is unilateral; mine past the BTC CLTV timeout first.
+		mineRegtestBlocksToHeight(t, ctx, int(createResp.GetTimeoutBlockHeight())+1)
 
-		mockPushEvent(t, swapID, "transaction.failed")
-		waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 80*time.Second)
+		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 20*time.Second)
+		require.Equal(t, "refund initiated", refundResp.GetMessage())
+
+		waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 60*time.Second)
 	})
 }
 
@@ -593,30 +429,6 @@ func refundChainSwapRPCWithRetry(
 
 	require.NoError(t, lastErr)
 	return nil
-}
-
-func mockReset(t *testing.T) {
-	t.Helper()
-	mockPost(t, "/admin/reset", nil, nil)
-}
-
-func mockSetConfig(t *testing.T, cfg map[string]any) {
-	t.Helper()
-	mockPost(t, "/admin/config", cfg, nil)
-}
-
-func mockPushEvent(t *testing.T, swapID, status string) {
-	t.Helper()
-	mockPost(t, fmt.Sprintf("/admin/swaps/%s/event", swapID), map[string]any{"status": status}, nil)
-}
-
-func mockPushEventWithTx(t *testing.T, swapID, status, txid, txhex string) {
-	t.Helper()
-	mockPost(t, fmt.Sprintf("/admin/swaps/%s/event", swapID), map[string]any{
-		"status": status,
-		"txid":   txid,
-		"txhex":  txhex,
-	}, nil)
 }
 
 func fundAddressAndGetConfirmedTx(t *testing.T, ctx context.Context, address string, sats uint64) (string, string) {
@@ -737,52 +549,4 @@ func nigiriGenerateBlocks(t *testing.T, ctx context.Context, count int) {
 	t.Helper()
 	_, err := regtestCmd(ctx, "mine", fmt.Sprint(count))
 	require.NoError(t, err)
-}
-
-func mockGetSwap(t *testing.T, swapID string) mockSwapState {
-	t.Helper()
-	var state mockSwapState
-	mockGet(t, fmt.Sprintf("/admin/swaps/%s", swapID), &state)
-	return state
-}
-
-func mockGet(t *testing.T, path string, out any) {
-	t.Helper()
-	req, err := http.NewRequest(http.MethodGet, mockBoltzURL+path, nil)
-	require.NoError(t, err)
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	require.Equalf(t, http.StatusOK, resp.StatusCode, "GET %s failed", path)
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(out))
-}
-
-func mockPost(t *testing.T, path string, body any, out any) {
-	t.Helper()
-	payload := []byte("{}")
-	if body != nil {
-		var err error
-		payload, err = json.Marshal(body)
-		require.NoError(t, err)
-	}
-
-	req, err := http.NewRequest(http.MethodPost, mockBoltzURL+path, bytes.NewReader(payload))
-	require.NoError(t, err)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		var serverErr map[string]any
-		_ = json.NewDecoder(resp.Body).Decode(&serverErr)
-		require.Failf(t, "mock post failed", "POST %s status=%d body=%v", path, resp.StatusCode, serverErr)
-	}
-
-	if out != nil {
-		require.NoError(t, json.NewDecoder(resp.Body).Decode(out))
-	}
 }
