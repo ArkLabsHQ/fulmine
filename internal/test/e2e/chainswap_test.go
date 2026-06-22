@@ -44,16 +44,12 @@ func TestChainSwapArkToBTC(t *testing.T) {
 
 	mineRegtestBlocks(t, ctx, 20)
 
-	time.Sleep(5 * time.Second)
+	// Boltz rescans the Ark chain on an interval (rescanInterval=30 in the
+	// regtest boltz config), so allow well over one rescan cycle for the claim.
+	waitChainSwapStatus(t, ctx, client, swapID, "claimed", 90*time.Second)
 
 	addrBalance = nigiriScanAddressBalanceBTC(t, ctx, btcAddress)
 	require.Greater(t, addrBalance, float64(0))
-
-	swaps, err := client.ListChainSwaps(ctx, &pb.ListChainSwapsRequest{
-		SwapIds: []string{swapID},
-	})
-	require.NoError(t, err)
-	require.Equal(t, "claimed", swaps.GetSwaps()[0].GetStatus())
 }
 
 func TestChainSwapBTCtoARK(t *testing.T) {
@@ -79,13 +75,9 @@ func TestChainSwapBTCtoARK(t *testing.T) {
 	err = faucet(ctx, createResp.LockupAddress, 0.00003000)
 	require.NoError(t, err)
 
-	time.Sleep(5 * time.Second)
-
-	swaps, err := client.ListChainSwaps(ctx, &pb.ListChainSwapsRequest{
-		SwapIds: []string{swapID},
-	})
-	require.NoError(t, err)
-	require.Equal(t, "claimed", swaps.GetSwaps()[0].GetStatus())
+	// Boltz rescans the Ark chain on an interval (rescanInterval=30 in the
+	// regtest boltz config), so allow well over one rescan cycle for the claim.
+	waitChainSwapStatus(t, ctx, client, swapID, "claimed", 90*time.Second)
 
 	endBalance, err := client.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
@@ -119,7 +111,7 @@ func TestChainSwapBTCtoARKWithQuote(t *testing.T) {
 	err = faucet(ctx, createResp.LockupAddress, 0.00015500)
 	require.NoError(t, err)
 
-	waitChainSwapStatus(t, ctx, client, swapID, "claimed", 30*time.Second)
+	waitChainSwapStatus(t, ctx, client, swapID, "claimed", 90*time.Second)
 
 	endBalance, err := client.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
@@ -439,7 +431,7 @@ func TestChainSwapRecovery(t *testing.T) {
 		require.NoError(t, err)
 
 		mineRegtestBlocks(t, ctx, 20)
-		waitChainSwapStatus(t, ctx, client, swapID, "claimed", 30*time.Second)
+		waitChainSwapStatus(t, ctx, client, swapID, "claimed", 90*time.Second)
 
 		addrBalance := nigiriScanAddressBalanceBTC(t, ctx, btcAddress)
 		require.Greater(t, addrBalance, float64(0))
@@ -670,7 +662,7 @@ type nigiriBlockchainInfo struct {
 
 func nigiriGetNewAddress(t *testing.T, ctx context.Context) string {
 	t.Helper()
-	out, err := runCommand(ctx, "nigiri rpc getnewaddress")
+	out, err := regtestCmd(ctx, "rpc", "getnewaddress")
 	require.NoError(t, err)
 	address := strings.TrimSpace(out)
 	require.NotEmpty(t, address)
@@ -679,7 +671,7 @@ func nigiriGetNewAddress(t *testing.T, ctx context.Context) string {
 
 func nigiriScanAddressBalanceBTC(t *testing.T, ctx context.Context, addr string) float64 {
 	t.Helper()
-	out, err := runCommand(ctx, fmt.Sprintf("nigiri rpc scantxoutset start '[\"addr(%s)\"]'", addr))
+	out, err := regtestCmd(ctx, "rpc", "scantxoutset", "start", fmt.Sprintf(`["addr(%s)"]`, addr))
 	require.NoError(t, err)
 
 	var raw struct {
@@ -696,7 +688,7 @@ func nigiriScanAddressBalanceSats(t *testing.T, ctx context.Context, addr string
 
 func nigiriSendToAddress(t *testing.T, ctx context.Context, address, amountBtc string) string {
 	t.Helper()
-	out, err := runCommand(ctx, fmt.Sprintf("nigiri rpc sendtoaddress %s %s", address, amountBtc))
+	out, err := regtestCmd(ctx, "rpc", "sendtoaddress", address, amountBtc)
 	require.NoError(t, err)
 	txid := strings.TrimSpace(out)
 	require.NotEmpty(t, txid)
@@ -705,7 +697,7 @@ func nigiriSendToAddress(t *testing.T, ctx context.Context, address, amountBtc s
 
 func nigiriGetRawTransaction(t *testing.T, ctx context.Context, txid string) string {
 	t.Helper()
-	out, err := runCommand(ctx, fmt.Sprintf("nigiri rpc getrawtransaction %s", txid))
+	out, err := regtestCmd(ctx, "rpc", "getrawtransaction", txid)
 	require.NoError(t, err)
 	txhex := strings.TrimSpace(out)
 	require.NotEmpty(t, txhex)
@@ -714,7 +706,7 @@ func nigiriGetRawTransaction(t *testing.T, ctx context.Context, txid string) str
 
 func nigiriGetBlockchainInfo(t *testing.T, ctx context.Context) nigiriBlockchainInfo {
 	t.Helper()
-	out, err := runCommand(ctx, "nigiri rpc getblockchaininfo")
+	out, err := regtestCmd(ctx, "rpc", "getblockchaininfo")
 	require.NoError(t, err)
 
 	var info nigiriBlockchainInfo
@@ -724,7 +716,7 @@ func nigiriGetBlockchainInfo(t *testing.T, ctx context.Context) nigiriBlockchain
 
 func nigiriGetBlockCount(t *testing.T, ctx context.Context) int {
 	t.Helper()
-	out, err := runCommand(ctx, "nigiri rpc getblockcount")
+	out, err := regtestCmd(ctx, "rpc", "getblockcount")
 	require.NoError(t, err)
 
 	var height int
@@ -735,8 +727,7 @@ func nigiriGetBlockCount(t *testing.T, ctx context.Context) int {
 
 func nigiriGenerateBlocks(t *testing.T, ctx context.Context, count int) {
 	t.Helper()
-	address := nigiriGetNewAddress(t, ctx)
-	_, err := runCommand(ctx, fmt.Sprintf("nigiri rpc generatetoaddress %d %s", count, address))
+	_, err := regtestCmd(ctx, "mine", fmt.Sprint(count))
 	require.NoError(t, err)
 }
 
