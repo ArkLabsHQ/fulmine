@@ -1,6 +1,7 @@
 package e2e_test
 
 import (
+	"context"
 	"encoding/hex"
 	"sync"
 	"testing"
@@ -16,6 +17,23 @@ import (
 	"github.com/lightningnetwork/lnd/input"
 	"github.com/stretchr/testify/require"
 )
+
+// swapTimeout bounds how long a single swap call may block. A submarine/reverse
+// swap that never settles (e.g. Boltz can't route the Lightning payment) would
+// otherwise hang on the Boltz websocket wait until the whole `go test -timeout`
+// budget is spent, starving every later test in the binary. Bounding each call
+// turns "hang the suite" into "fail this one test fast".
+const swapTimeout = 2 * time.Minute
+
+// swapCtx returns a child of the test context bounded by swapTimeout. The cancel
+// runs at test cleanup. Safe to call from spawned goroutines that are joined
+// before the test returns (e.g. the concurrent swap tests): t.Cleanup is
+// mutex-guarded.
+func swapCtx(t *testing.T) context.Context {
+	ctx, cancel := context.WithTimeout(t.Context(), swapTimeout)
+	t.Cleanup(cancel)
+	return ctx
+}
 
 func TestSubmarineSwap(t *testing.T) {
 	invoiceAmount := 5000
@@ -33,7 +51,7 @@ func TestSubmarineSwap(t *testing.T) {
 		require.NotNil(t, balance)
 		require.Greater(t, int(balance.GetAmount()), invoiceAmount)
 
-		_, err = client.PayInvoice(t.Context(), &pb.PayInvoiceRequest{
+		_, err = client.PayInvoice(swapCtx(t), &pb.PayInvoiceRequest{
 			Invoice: invoice,
 		})
 		require.NoError(t, err)
@@ -58,7 +76,7 @@ func TestSubmarineSwap(t *testing.T) {
 		require.NotNil(t, balance)
 		require.Greater(t, int(balance.GetAmount()), invoiceAmount)
 
-		_, err = client.PayInvoice(t.Context(), &pb.PayInvoiceRequest{
+		_, err = client.PayInvoice(swapCtx(t), &pb.PayInvoiceRequest{
 			Invoice: invoice,
 		})
 		require.NoError(t, err)
@@ -85,7 +103,7 @@ func TestSubmarineSwap(t *testing.T) {
 		require.NotNil(t, balance)
 		require.Greater(t, int(balance.GetAmount()), 5000)
 
-		_, err = client.PayInvoice(t.Context(), &pb.PayInvoiceRequest{
+		_, err = client.PayInvoice(swapCtx(t), &pb.PayInvoiceRequest{
 			Invoice: invoice,
 		})
 		require.NoError(t, err)
@@ -121,7 +139,7 @@ func TestReverseSwap(t *testing.T) {
 		require.NotNil(t, invoice)
 		require.NotEmpty(t, invoice.GetInvoice())
 
-		err = lndPayInvoice(t.Context(), invoice.GetInvoice())
+		err = lndPayInvoice(swapCtx(t), invoice.GetInvoice())
 		require.NoError(t, err)
 
 		balanceAfter, err := client.GetBalance(t.Context(), &pb.GetBalanceRequest{})
@@ -146,7 +164,7 @@ func TestCircularSwap(t *testing.T) {
 	require.NotNil(t, invoice)
 	require.NotEmpty(t, invoice.GetInvoice())
 
-	resp, err := client.PayInvoice(t.Context(), &pb.PayInvoiceRequest{
+	resp, err := client.PayInvoice(swapCtx(t), &pb.PayInvoiceRequest{
 		Invoice: invoice.GetInvoice(),
 	})
 	require.NoError(t, err)
@@ -179,7 +197,7 @@ func TestConcurrentSwaps(t *testing.T) {
 					errs.add(err)
 					return
 				}
-				_, err = client.PayInvoice(t.Context(), &pb.PayInvoiceRequest{
+				_, err = client.PayInvoice(swapCtx(t), &pb.PayInvoiceRequest{
 					Invoice: invoice1,
 				})
 				errs.add(err)
@@ -191,7 +209,7 @@ func TestConcurrentSwaps(t *testing.T) {
 					errs.add(err)
 					return
 				}
-				_, err = client.PayInvoice(t.Context(), &pb.PayInvoiceRequest{
+				_, err = client.PayInvoice(swapCtx(t), &pb.PayInvoiceRequest{
 					Invoice: invoice2,
 				})
 				errs.add(err)
@@ -222,7 +240,7 @@ func TestConcurrentSwaps(t *testing.T) {
 					errs.add(err)
 					return
 				}
-				_, err = client.PayInvoice(t.Context(), &pb.PayInvoiceRequest{
+				_, err = client.PayInvoice(swapCtx(t), &pb.PayInvoiceRequest{
 					Invoice: invoice,
 				})
 				errs.add(err)
@@ -241,7 +259,7 @@ func TestConcurrentSwaps(t *testing.T) {
 					errs.add(err)
 					return
 				}
-				err = lndPayInvoice(t.Context(), invoice.GetInvoice())
+				err = lndPayInvoice(swapCtx(t), invoice.GetInvoice())
 				errs.add(err)
 			}()
 			wg.Wait()
@@ -279,7 +297,7 @@ func TestConcurrentSwaps(t *testing.T) {
 					errs.add(err)
 					return
 				}
-				err = lndPayInvoice(t.Context(), invoice.GetInvoice())
+				err = lndPayInvoice(swapCtx(t), invoice.GetInvoice())
 				errs.add(err)
 			}()
 			go func() {
@@ -296,7 +314,7 @@ func TestConcurrentSwaps(t *testing.T) {
 					errs.add(err)
 					return
 				}
-				err = lndPayInvoice(t.Context(), invoice.GetInvoice())
+				err = lndPayInvoice(swapCtx(t), invoice.GetInvoice())
 				errs.add(err)
 			}()
 			wg.Wait()
@@ -328,7 +346,7 @@ func TestConcurrentSwaps(t *testing.T) {
 					errs.add(err)
 					return
 				}
-				_, err = client.PayInvoice(t.Context(), &pb.PayInvoiceRequest{
+				_, err = client.PayInvoice(swapCtx(t), &pb.PayInvoiceRequest{
 					Invoice: invoice,
 				})
 				errs.add(err)
@@ -340,7 +358,7 @@ func TestConcurrentSwaps(t *testing.T) {
 					errs.add(err)
 					return
 				}
-				_, err = client.PayInvoice(t.Context(), &pb.PayInvoiceRequest{
+				_, err = client.PayInvoice(swapCtx(t), &pb.PayInvoiceRequest{
 					Invoice: invoice,
 				})
 				errs.add(err)
