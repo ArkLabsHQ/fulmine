@@ -169,38 +169,16 @@ func TestChainSwapArkToBTCCooperativeRefund(t *testing.T) {
 	t.Logf("vtxo balance after refund: %d", balance.GetAmount())
 }
 
-func TestChainSwapBTCToARKUnilateralRefund(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
-	defer cancel()
-
-	client, err := newFulmineClient(clientFulmineURL)
-	require.NoError(t, err)
-
-	createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
-		Direction: pb.SwapDirection_SWAP_DIRECTION_BTC_TO_ARK,
-		Amount:    3000,
-	})
-	require.NoError(t, err)
-	require.Empty(t, createResp.GetError())
-	swapID := createResp.GetId()
-	require.NotEmpty(t, swapID)
-	lockupAddress := createResp.GetLockupAddress()
-	require.NotEmpty(t, lockupAddress, "CreateChainSwap returned empty lockup address")
-	expectedAmount := createResp.GetExpectedAmount()
-	require.Greater(t, expectedAmount, uint64(0), "CreateChainSwap returned invalid expected amount")
-
-	// Fund the lockup with exactly what Boltz quotes.
-	fundAddressAndGetConfirmedTx(t, ctx, lockupAddress, expectedAmount)
-
-	// BTC→ARK refund is unilateral; it can spend only once the BTC CLTV timeout
-	// has passed, so mine past the lockup timeout height first.
-	mineRegtestBlocksToHeight(t, ctx, int(createResp.GetTimeoutBlockHeight())+1)
-
-	refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 90*time.Second)
-	require.Equal(t, "refund initiated", refundResp.GetMessage())
-
-	waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 60*time.Second)
-}
+// NOTE: BTC→ARK *unilateral refund* is intentionally not e2e-tested against live
+// Boltz. The unilateral refund only applies when the user's BTC lockup is never
+// claimed — but with a cooperating Boltz the swap always completes: fulmine
+// auto-claims the ARK VHTLC (revealing the preimage), Boltz then claims the BTC
+// lockup, and a later refund fails `bad-txns-inputs-missingorspent` because the
+// lockup is already spent (verified end-to-end: the swap's claim_tx_id is set).
+// This is the same class as the removed ARK→BTC unilateral-refund tests — there
+// is no way to force Boltz to refuse to claim. The BTC-refund code path itself
+// is exercised by pkg/swap unit tests; only the live happy-path + cooperative
+// refunds are covered here.
 
 func TestChainSwapRefundChainSwapRPC(t *testing.T) {
 	t.Run("ark_to_btc_cooperative", func(t *testing.T) {
@@ -227,38 +205,6 @@ func TestChainSwapRefundChainSwapRPC(t *testing.T) {
 		require.Equal(t, "refund initiated", refundResp.GetMessage())
 
 		waitChainSwapStatus(t, ctx, client, swapID, "refunded", 40*time.Second)
-	})
-
-	t.Run("btc_to_ark", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
-		defer cancel()
-
-		client, err := newFulmineClient(clientFulmineURL)
-		require.NoError(t, err)
-
-		createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
-			Direction: pb.SwapDirection_SWAP_DIRECTION_BTC_TO_ARK,
-			Amount:    3000,
-		})
-		require.NoError(t, err)
-		require.Empty(t, createResp.GetError())
-		swapID := createResp.GetId()
-		require.NotEmpty(t, swapID)
-		require.NotEmpty(t, createResp.GetLockupAddress())
-		require.Greater(t, createResp.GetExpectedAmount(), uint64(0))
-
-		// Fund the lockup with exactly what Boltz quotes.
-		fundAddressAndGetConfirmedTx(
-			t, ctx, createResp.GetLockupAddress(), createResp.GetExpectedAmount(),
-		)
-
-		// BTC→ARK refund is unilateral; mine past the BTC CLTV timeout first.
-		mineRegtestBlocksToHeight(t, ctx, int(createResp.GetTimeoutBlockHeight())+1)
-
-		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 90*time.Second)
-		require.Equal(t, "refund initiated", refundResp.GetMessage())
-
-		waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 60*time.Second)
 	})
 }
 
@@ -326,44 +272,6 @@ func TestChainSwapRecovery(t *testing.T) {
 		require.Equal(t, "refund initiated", refundResp.GetMessage())
 
 		waitChainSwapStatus(t, ctx, client, swapID, "refunded", 40*time.Second)
-	})
-
-	t.Run("btc_to_ark_refund", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
-		defer cancel()
-
-		client, err := newFulmineClient(clientFulmineURL)
-		require.NoError(t, err)
-
-		createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
-			Direction: pb.SwapDirection_SWAP_DIRECTION_BTC_TO_ARK,
-			Amount:    3000,
-		})
-		require.NoError(t, err)
-		swapID := createResp.GetId()
-		require.NotEmpty(t, swapID)
-		require.NotEmpty(t, createResp.GetLockupAddress())
-		require.Greater(t, createResp.GetExpectedAmount(), uint64(0))
-
-		// Fund the lockup with exactly what Boltz quotes.
-		fundAddressAndGetConfirmedTx(
-			t, ctx, createResp.GetLockupAddress(), createResp.GetExpectedAmount(),
-		)
-
-		time.Sleep(3 * time.Second)
-		// Restart the swap client (the user Fulmine) mid-swap to exercise recovery.
-		restartDockerComposeServices(t, ctx, "fulmine-user")
-		time.Sleep(3 * time.Second)
-		err = unlockAndSettle(clientFulmineURL, fulminePass)
-		require.NoError(t, err)
-
-		// BTC→ARK refund is unilateral; mine past the BTC CLTV timeout first.
-		mineRegtestBlocksToHeight(t, ctx, int(createResp.GetTimeoutBlockHeight())+1)
-
-		refundResp := refundChainSwapRPCWithRetry(t, ctx, client, swapID, 90*time.Second)
-		require.Equal(t, "refund initiated", refundResp.GetMessage())
-
-		waitChainSwapStatus(t, ctx, client, swapID, "refunded_unilaterally", 60*time.Second)
 	})
 }
 
