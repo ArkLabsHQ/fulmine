@@ -68,7 +68,26 @@ jobs:
           echo "::warning::arkd did not stabilise within ~4min; proceeding anyway"
 
       - name: Start user Fulmine
-        run: make regtest-user-up
+        run: |
+          # The user-Fulmine setup can race a not-yet-fully-ready arkd and leave
+          # the wallet uninitialised, which then fatals TestMain with a confusing
+          # "service not initialized". Verify it actually initialised and retry
+          # the setup (fresh container) if not, failing loudly if it never does.
+          for attempt in 1 2 3; do
+            make regtest-user-up || true
+            for i in $(seq 1 30); do
+              if curl -fsS http://localhost:7021/api/v1/wallet/status 2>/dev/null \
+                  | grep -qE '"initialized": ?true'; then
+                echo "fulmine-user initialised (attempt $attempt)"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "::warning::fulmine-user not initialised after attempt $attempt; recreating + retrying"
+            docker rm -f fulmine-user || true
+          done
+          echo "::error::fulmine-user failed to initialise after 3 attempts"
+          exit 1
 
       - name: Run integration tests
         run: make integrationtest

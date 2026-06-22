@@ -52,16 +52,24 @@ async function main() {
     process.exit(1);
   }
 
-  await fetch(`${BASE}/api/v1/wallet/create`, {
+  const created = await fetch(`${BASE}/api/v1/wallet/create`, {
     method: 'POST',
     headers: HEADERS,
     body: JSON.stringify({ private_key: privateKey, password: PASSWORD, server_url: ARK_SERVER }),
   });
-  await fetch(`${BASE}/api/v1/wallet/unlock`, {
+  if (!created.ok) {
+    console.error(`fulmine-user wallet create failed: HTTP ${created.status} ${await created.text()}`);
+    process.exit(1);
+  }
+  const unlocked = await fetch(`${BASE}/api/v1/wallet/unlock`, {
     method: 'POST',
     headers: HEADERS,
     body: JSON.stringify({ password: PASSWORD }),
   });
+  if (!unlocked.ok) {
+    console.error(`fulmine-user wallet unlock failed: HTTP ${unlocked.status} ${await unlocked.text()}`);
+    process.exit(1);
+  }
 
   await waitFor('fulmine-user wallet ready', async () => {
     const s = await status();
@@ -91,4 +99,7 @@ async function main() {
   console.log('fulmine-user wallet setup completed');
 }
 
-main();
+main().catch((e) => {
+  console.error('fulmine-user setup failed:', e);
+  process.exit(1);
+});
