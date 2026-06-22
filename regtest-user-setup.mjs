@@ -45,7 +45,12 @@ async function main() {
   );
 
   console.log('Creating fulmine-user wallet...');
-  const seed = await fetch(`${BASE}/api/v1/wallet/genseed`).then((r) => r.json());
+  const seedResp = await fetch(`${BASE}/api/v1/wallet/genseed`);
+  if (!seedResp.ok) {
+    console.error(`fulmine-user genseed failed: HTTP ${seedResp.status} ${await seedResp.text()}`);
+    process.exit(1);
+  }
+  const seed = await seedResp.json();
   const privateKey = seed && seed.nsec;
   if (!privateKey) {
     console.error('fulmine-user: failed to generate seed');

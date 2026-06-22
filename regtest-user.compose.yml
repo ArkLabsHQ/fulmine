@@ -28,8 +28,10 @@ services:
       - FULMINE_UNLOCKER_PASSWORD=password
       - FULMINE_DELEGATE_ENABLED=true
     ports:
-      - "7020:7000" # gRPC  (clientFulmineURL)
-      - "7021:7001" # REST/admin
+      # Bind to loopback only: with FULMINE_NO_MACAROONS the endpoints are
+      # unauthenticated, and the e2e suite reaches them via localhost anyway.
+      - "127.0.0.1:7020:7000" # gRPC  (clientFulmineURL)
+      - "127.0.0.1:7021:7001" # REST/admin
     networks:
       - default
 

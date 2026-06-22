@@ -251,7 +251,10 @@ func unlockAndSettle(addr string, pass string) error {
 		return fmt.Errorf("settle %s: %w", addr, err)
 	}
 
-	return nil
+	// Reached only if Settle kept returning a transient syncing/connection error
+	// for the whole window (the tolerated no-funds/not-confirmed cases return nil
+	// above). A persistent failure here is real, so surface it rather than mask it.
+	return fmt.Errorf("settle %s: timed out after 60s (last error: %w)", addr, err)
 }
 
 func generateNote(t *testing.T, amount uint64) string {
