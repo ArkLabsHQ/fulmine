@@ -1,0 +1,41 @@
+# Dedicated "user" Fulmine for the e2e suite.
+#
+# arkade-regtest's boltz-fulmine is Boltz's OWN Ark wallet (Boltz's config has
+# `[ark] host = "boltz-fulmine"`), so it can't double as the swap counterparty's
+# user wallet — when the test client and Boltz share one instance, Boltz locks
+# the swap's Ark VHTLC but the "user" never claims it and the swap sits in
+# "pending". The pre-arkade-regtest stack had a separate `fulmine` user service;
+# this overlay restores that as another instance of THIS repo's image
+# (fulmine:e2e), attached to the running arkade-regtest network.
+#
+# Brought up by `make regtest-up` / the integration CI after the stack starts,
+# and torn down by `make regtest-down`.
+services:
+  fulmine-user:
+    image: fulmine:e2e
+    container_name: fulmine-user
+    restart: unless-stopped
+    environment:
+      - FULMINE_ARK_SERVER=http://arkd:7070
+      - FULMINE_ESPLORA_URL=http://mempool_web/api
+      - FULMINE_BOLTZ_URL=http://boltz:9001
+      - FULMINE_BOLTZ_WS_URL=ws://boltz:9004
+      - FULMINE_NO_MACAROONS=true
+      - FULMINE_DISABLE_TELEMETRY=true
+      - FULMINE_SWAP_TIMEOUT=120
+      - FULMINE_SCHEDULER_POLL_INTERVAL=10
+      - FULMINE_UNLOCKER_TYPE=env
+      - FULMINE_UNLOCKER_PASSWORD=password
+      - FULMINE_DELEGATE_ENABLED=true
+    ports:
+      - "7020:7000" # gRPC  (clientFulmineURL)
+      - "7021:7001" # REST/admin
+    networks:
+      - default
+
+# Join the stack's network (compose project name=arkade-regtest -> *_default) so
+# fulmine-user resolves arkd/boltz/mempool_web by service name.
+networks:
+  default:
+    name: arkade-regtest_default
+    external: true

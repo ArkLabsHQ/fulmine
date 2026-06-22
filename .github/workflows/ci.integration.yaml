@@ -29,6 +29,9 @@ jobs:
       - name: Start regtest infrastructure
         run: node regtest/regtest.mjs start --profile boltz,delegate
 
+      - name: Start user Fulmine
+        run: make regtest-user-up
+
       - name: Run integration tests
         run: make integrationtest
 
@@ -37,7 +40,7 @@ jobs:
         continue-on-error: true
         run: |
           docker ps -a
-          for c in boltz boltz-fulmine boltz-lnd fulmine-delegator arkd arkd-wallet lnd bitcoin; do
+          for c in fulmine-user boltz boltz-fulmine boltz-lnd fulmine-delegator arkd arkd-wallet lnd bitcoin; do
             echo "::group::docker logs $c"
             docker logs "$c" 2>&1 | tail -n 600 || echo "(no container $c)"
             echo "::endgroup::"
@@ -45,4 +48,6 @@ jobs:
 
       - name: Tear down
         if: always()
-        run: node regtest/regtest.mjs clean || true
+        run: |
+          docker rm -f fulmine-user || true
+          node regtest/regtest.mjs clean || true

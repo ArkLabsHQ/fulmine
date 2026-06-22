@@ -428,7 +428,8 @@ func TestChainSwapRecovery(t *testing.T) {
 		require.NotEmpty(t, swapID)
 
 		time.Sleep(3 * time.Second)
-		restartDockerComposeServices(t, ctx, "boltz-fulmine")
+		// Restart the swap client (the user Fulmine) mid-swap to exercise recovery.
+		restartDockerComposeServices(t, ctx, "fulmine-user")
 		time.Sleep(3 * time.Second)
 		err = unlockAndSettle(clientFulmineURL, fulminePass)
 		require.NoError(t, err)

@@ -15,10 +15,11 @@ import (
 )
 
 const (
-	// arkade-regtest exposes boltz-fulmine's main gRPC on host 7004 and the
-	// dedicated fulmine-delegator's main gRPC on host 7010. The delegator stands
-	// in for the old in-repo "mock" Fulmine as the swap counterparty.
-	clientFulmineURL    = "localhost:7004"
+	// The swap client is a dedicated "user" Fulmine (regtest-user.compose.yml,
+	// host gRPC 7020) that runs THIS repo's image but is separate from
+	// boltz-fulmine, which is Boltz's own Ark wallet. fulmine-delegator's gRPC is
+	// on host 7010 and stands in for the old in-repo "mock" Fulmine counterparty.
+	clientFulmineURL    = "localhost:7020"
 	delegatorFulmineURL = "localhost:7010"
 )
 
