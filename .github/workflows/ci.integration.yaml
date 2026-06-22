@@ -89,15 +89,6 @@ jobs:
           echo "::error::fulmine-user failed to initialise after 3 attempts"
           exit 1
 
-      - name: Follow user-Fulmine logs to a file
-        run: |
-          # docker logs only shows the LATEST container instance, and fulmine-user
-          # restarts during recovery tests — so the refund dispatch from earlier
-          # tests is lost. Follow to a file from the start (survives restarts, no
-          # tail) so the dispatch trace is complete on failure.
-          nohup docker logs -f fulmine-user > "$RUNNER_TEMP/fulmine-user.log" 2>&1 &
-          echo "following fulmine-user logs to $RUNNER_TEMP/fulmine-user.log"
-
       - name: Run integration tests
         run: make integrationtest
 
@@ -111,20 +102,6 @@ jobs:
             docker logs "$c" 2>&1 | tail -n 600 || echo "(no container $c)"
             echo "::endgroup::"
           done
-          # Refund-dispatch trace from the FOLLOWED log file (survives fulmine-user
-          # restarts, unlike `docker logs` which only shows the latest instance).
-          echo "::group::fulmine-user refund dispatch (full, followed)"
-          grep -iE "RefundChainSwap .* dispatch|refund requested for swap|Initiating ARK.{0,3}BTC cooperative|Starting BTC|CLTV timeout|failed to fetch lockup|no vtxos found|refunded" \
-            "$RUNNER_TEMP/fulmine-user.log" 2>/dev/null | head -80 || echo "(no dispatch lines)"
-          echo "::endgroup::"
-          # Position-independent chain-swap trace for the user Fulmine: tail -n
-          # truncates the dispatch logs that fire early in each test, so grep the
-          # full log for the refund/chain-swap path instead.
-          echo "::group::fulmine-user chain-swap trace"
-          docker logs fulmine-user 2>&1 \
-            | grep -iE "chain swap|refund|BTC.{0,3}ARK|ARK.{0,3}BTC|lockup|CLTV|refunded|vhtlc" \
-            | tail -n 400 || echo "(no chain-swap lines)"
-          echo "::endgroup::"
 
       - name: Tear down
         if: always()
