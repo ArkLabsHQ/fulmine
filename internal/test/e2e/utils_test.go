@@ -323,7 +323,16 @@ func setupArkSDKwithPublicKey(
 
 	privkeyHex := hex.EncodeToString(privkey.Serialize())
 
-	err = arkClient.Init(t.Context(), serverUrl, privkeyHex, password)
+	// The SDK's default regtest explorer is http://127.0.0.1:3000 (nigiri's
+	// root-served esplora). In arkade-regtest, host :3000 is the mempool web UI
+	// (nginx serving HTML) and the Esplora-compatible REST API lives under /api
+	// (same as arkd/fulmine's FULMINE_ESPLORA_URL=http://mempool_web/api). Point
+	// the SDK there, otherwise sync hits the HTML SPA and fails decoding it as
+	// JSON ("invalid character '<'").
+	err = arkClient.Init(
+		t.Context(), serverUrl, privkeyHex, password,
+		arksdk.WithExplorerURL("http://localhost:3000/api"),
+	)
 	require.NoError(t, err)
 
 	err = arkClient.Unlock(t.Context(), password)
