@@ -49,6 +49,24 @@ jobs:
           echo "::error::regtest stack failed to start after 3 attempts"
           exit 1
 
+      - name: Wait for the stack to settle
+        run: |
+          # The 17-container startup burst briefly overwhelms Docker's embedded
+          # DNS (arkd <-> arkd-wallet "server misbehaving"), which flaps arkd and
+          # leaves the user wallet uninitialised. Wait for arkd's gRPC to be
+          # *stably* reachable before initialising the user Fulmine + running tests.
+          streak=0
+          for i in $(seq 1 80); do
+            if bash -c 'exec 3<>/dev/tcp/localhost/7070' 2>/dev/null; then
+              streak=$((streak + 1))
+              if [ "$streak" -ge 6 ]; then echo "arkd stable"; exit 0; fi
+            else
+              streak=0
+            fi
+            sleep 3
+          done
+          echo "::warning::arkd did not stabilise within ~4min; proceeding anyway"
+
       - name: Start user Fulmine
         run: make regtest-user-up
 
