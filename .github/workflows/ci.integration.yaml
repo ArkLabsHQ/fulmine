@@ -83,6 +83,14 @@ jobs:
             docker logs "$c" 2>&1 | tail -n 600 || echo "(no container $c)"
             echo "::endgroup::"
           done
+          # Position-independent chain-swap trace for the user Fulmine: tail -n
+          # truncates the dispatch logs that fire early in each test, so grep the
+          # full log for the refund/chain-swap path instead.
+          echo "::group::fulmine-user chain-swap trace"
+          docker logs fulmine-user 2>&1 \
+            | grep -iE "chain swap|refund|BTC.{0,3}ARK|ARK.{0,3}BTC|lockup|CLTV|refunded|vhtlc" \
+            | tail -n 400 || echo "(no chain-swap lines)"
+          echo "::endgroup::"
 
       - name: Tear down
         if: always()
