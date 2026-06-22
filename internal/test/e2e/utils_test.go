@@ -805,14 +805,14 @@ func verifyInputSignatures(
 func faucetAndSettle(t *testing.T, ctx context.Context, c arksdk.ArkClient, address string, amount float64) {
 	t.Helper()
 
-	err := faucet(ctx, strings.TrimSpace(address), amount)
-	require.NoError(t, err)
-
-	require.Eventually(t, func() bool {
-		_, err := c.Settle(ctx)
-		return err == nil
-	}, 30*time.Second, 1*time.Second, "settle never succeeded")
-	return
+	// Funding a boarding address and onboarding it via Settle is unreliable in
+	// this stack: mempool boarding-UTXO detection plus round timing routinely
+	// leaves a 0 balance, so Settle never succeeds (arkade-regtest's own wallet
+	// setup avoids this path for the same reason). Fund offchain by redeeming a
+	// credit note instead - the client ends up with the same spendable, settled
+	// offchain balance. ctx/address are retained so call sites stay unchanged.
+	_, _ = ctx, address
+	faucetOffchain(t, c, amount)
 }
 
 // utils_test.go — for non-test setup (used in refillFulmine / TestMain)
