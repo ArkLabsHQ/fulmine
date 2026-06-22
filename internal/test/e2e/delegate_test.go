@@ -524,14 +524,21 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	time.Sleep(5 * time.Second)
-	mineRegtestBlocks(t, ctx, 1)
-	time.Sleep(5 * time.Second)
-
-	balance, err := alice.Balance(t.Context())
-	require.NoError(t, err)
-	require.Len(t, balance.OnchainBalance.LockedAmount, 1)
-	require.Equal(t, int(aliceVtxo.Amount), int(balance.OnchainBalance.LockedAmount[0].Amount))
+	// The collaborative exit broadcasts a unilateral exit tx; alice's VTXO only
+	// shows as a locked onchain amount once that tx confirms. Poll (mining each
+	// round) instead of a fixed sleep, which is racy under load.
+	deadline := time.Now().Add(90 * time.Second)
+	for time.Now().Before(deadline) {
+		mineRegtestBlocks(t, ctx, 1)
+		balance, err := alice.Balance(t.Context())
+		require.NoError(t, err)
+		if len(balance.OnchainBalance.LockedAmount) == 1 {
+			require.Equal(t, int(aliceVtxo.Amount), int(balance.OnchainBalance.LockedAmount[0].Amount))
+			return
+		}
+		time.Sleep(3 * time.Second)
+	}
+	t.Fatal("alice's exited VTXO did not become a locked onchain amount within 90s")
 }
 
 // TestMultipleDelegate delegate the renewal of multiple vtxos at once using different intents.

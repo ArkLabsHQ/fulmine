@@ -733,10 +733,20 @@ func TestSettleVHTLCByDelegateRefund(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	vhtlcs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcAddrInfo.GetId()})
-	require.NoError(t, err)
-
-	vhtlcVtxo := vhtlcs.GetVhtlcs()[0]
+	// The VHTLC vtxo is indexed asynchronously after SendOffChain; poll until it
+	// is listable instead of racing the indexer (which panics on an empty list).
+	var vhtlcVtxo *pb.Vtxo
+	vhtlcDeadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(vhtlcDeadline) {
+		vhtlcs, listErr := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcAddrInfo.GetId()})
+		require.NoError(t, listErr)
+		if len(vhtlcs.GetVhtlcs()) > 0 {
+			vhtlcVtxo = vhtlcs.GetVhtlcs()[0]
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+	require.NotNil(t, vhtlcVtxo, "VHTLC vtxo not listable within 30s after SendOffChain")
 
 	senderBalance, err = senderArkClient.Balance(ctx)
 	require.NoError(t, err)
@@ -1207,9 +1217,13 @@ func TestGetVHTLCSpendingTxFinalized(t *testing.T) {
 	require.NotNil(t, claimResp)
 	require.NotEmpty(t, claimResp.GetRedeemTxid())
 
-	resp, err := f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{
-		VhtlcId: vhtlcResp.GetId(),
-	})
+	// The spending tx is registered asynchronously after ClaimVHTLC; poll for it.
+	resp, err := f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{VhtlcId: vhtlcResp.GetId()})
+	spendingDeadline := time.Now().Add(30 * time.Second)
+	for (err != nil || resp.GetTx() == "") && time.Now().Before(spendingDeadline) {
+		time.Sleep(1 * time.Second)
+		resp, err = f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{VhtlcId: vhtlcResp.GetId()})
+	}
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.NotEmpty(t, resp.GetTx())
