@@ -409,9 +409,21 @@ func refundChainSwapRPCWithRetry(
 	var lastErr error
 
 	for time.Now().Before(deadline) {
-		resp, err := client.RefundChainSwap(ctx, &pb.RefundChainSwapRequest{Id: swapID})
+		// Bound each call so a flaky explorer/arkd makes the refund fail fast and
+		// retry instead of blocking on the (large) test context for minutes.
+		callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		resp, err := client.RefundChainSwap(callCtx, &pb.RefundChainSwapRequest{Id: swapID})
+		cancel()
 		if err == nil {
 			return resp
+		}
+
+		// Transient per-call deadline (flaky explorer/arkd); just retry.
+		if strings.Contains(err.Error(), "context deadline exceeded") ||
+			strings.Contains(err.Error(), "DeadlineExceeded") {
+			lastErr = err
+			time.Sleep(500 * time.Millisecond)
+			continue
 		}
 
 		// Esplora can lag a bit in regtest; retry while lockup tx is not yet indexed.
