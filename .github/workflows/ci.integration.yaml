@@ -27,7 +27,17 @@ jobs:
         run: docker build -t fulmine:e2e .
 
       - name: Start regtest infrastructure
-        run: node regtest/regtest.mjs start --profile boltz,delegate
+        run: |
+          for attempt in 1 2 3; do
+            if node regtest/regtest.mjs start --profile boltz,delegate; then
+              exit 0
+            fi
+            echo "::warning::regtest stack start attempt $attempt failed (often a transient Docker Hub image pull); cleaning up and retrying..."
+            node regtest/regtest.mjs clean || true
+            sleep 15
+          done
+          echo "::error::regtest stack failed to start after 3 attempts"
+          exit 1
 
       - name: Start user Fulmine
         run: make regtest-user-up
