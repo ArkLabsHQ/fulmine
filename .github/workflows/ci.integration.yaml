@@ -35,7 +35,13 @@ jobs:
       - name: Stack logs
         if: failure()
         continue-on-error: true
-        run: node regtest/regtest.mjs logs || docker ps -a
+        run: |
+          docker ps -a
+          for c in boltz boltz-fulmine boltz-lnd fulmine-delegator arkd arkd-wallet lnd bitcoin; do
+            echo "::group::docker logs $c"
+            docker logs "$c" 2>&1 | tail -n 600 || echo "(no container $c)"
+            echo "::endgroup::"
+          done
 
       - name: Tear down
         if: always()
