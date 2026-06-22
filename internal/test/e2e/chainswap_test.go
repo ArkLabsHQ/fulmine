@@ -48,8 +48,12 @@ func TestChainSwapArkToBTC(t *testing.T) {
 	// regtest boltz config), so allow well over one rescan cycle for the claim.
 	waitChainSwapStatus(t, ctx, client, swapID, "claimed", 90*time.Second)
 
-	addrBalance = nigiriScanAddressBalanceBTC(t, ctx, btcAddress)
-	require.Greater(t, addrBalance, float64(0))
+	// Boltz's BTC payout needs a confirmation before scantxoutset (which scans
+	// the confirmed UTXO set) sees it, so mine and re-scan until it lands.
+	require.Eventually(t, func() bool {
+		mineRegtestBlocks(t, ctx, 1)
+		return nigiriScanAddressBalanceBTC(t, ctx, btcAddress) > 0
+	}, 30*time.Second, 2*time.Second, "claimed BTC never confirmed at the destination address")
 }
 
 func TestChainSwapBTCtoARK(t *testing.T) {
