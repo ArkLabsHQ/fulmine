@@ -176,9 +176,10 @@ func TestChainSwapArkToBTCCooperativeRefund(t *testing.T) {
 // lockup, and a later refund fails `bad-txns-inputs-missingorspent` because the
 // lockup is already spent (verified end-to-end: the swap's claim_tx_id is set).
 // This is the same class as the removed ARK→BTC unilateral-refund tests — there
-// is no way to force Boltz to refuse to claim. The BTC-refund code path itself
-// is exercised by pkg/swap unit tests; only the live happy-path + cooperative
-// refunds are covered here.
+// is no way to force Boltz to refuse to claim. The unilateral BTC-refund code
+// path is consequently not covered by any test today; restoring it as a
+// pkg/swap unit test (with a faked Boltz client) is left as follow-up. Only the
+// live happy-path + cooperative refunds are covered here.
 
 func TestChainSwapRefundChainSwapRPC(t *testing.T) {
 	t.Run("ark_to_btc_cooperative", func(t *testing.T) {

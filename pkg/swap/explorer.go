@@ -95,6 +95,9 @@ func (e explorerClient) GetFeeRate() (float64, error) {
 	// failing the whole swap on an unavailable fee endpoint. Other non-200s are
 	// real backend failures and must not silently force a low fee rate.
 	if resp.StatusCode == http.StatusNotFound {
+		// Drain the body so the keep-alive connection can be reused — the regtest
+		// backend 404s every /fee-estimates call, once per swap.
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return 1, nil
 	}
 	if resp.StatusCode != http.StatusOK {

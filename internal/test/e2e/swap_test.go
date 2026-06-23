@@ -188,13 +188,19 @@ func TestConcurrentSwaps(t *testing.T) {
 				if err != nil {
 					return err
 				}
+				// One 2-minute budget for the whole retry sequence (not per attempt),
+				// so a hung PayInvoice can't stretch this to 5×2min. The retry absorbs
+				// Boltz's serializable-isolation aborts under concurrency; it trades the
+				// strict "both concurrent swaps succeed" guarantee for "both succeed
+				// within a few serialized retries".
+				ctx := swapCtx(t)
 				var lastErr error
 				for attempt := 0; attempt < 5; attempt++ {
 					invoice, _, err := lndAddInvoice(t.Context(), invoiceAmount)
 					if err != nil {
 						return err
 					}
-					if _, lastErr = client.PayInvoice(swapCtx(t), &pb.PayInvoiceRequest{
+					if _, lastErr = client.PayInvoice(ctx, &pb.PayInvoiceRequest{
 						Invoice: invoice,
 					}); lastErr == nil {
 						return nil
