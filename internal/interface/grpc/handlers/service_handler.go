@@ -659,7 +659,7 @@ func (h *serviceHandler) CreateChainSwap(
 			Status:             chainSwapStatusToString(chainSwap.Status),
 			LockupAddress:      chainSwap.UserBtcLockupAddress,
 			ExpectedAmount:     chainSwap.Amount,
-			TimeoutBlockHeight: 0,
+			TimeoutBlockHeight: uint64(chainSwap.TimeoutBlockHeight()),
 			Preimage:           chainSwap.ClaimPreimage,
 		}, nil
 
