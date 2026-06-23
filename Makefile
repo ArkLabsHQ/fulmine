@@ -66,7 +66,11 @@ run-mutinynet: clean build-static-assets
 test:
 	@echo "Running all tests..."
 	@go test -v -race --count=1 $(shell go list ./... | grep -v *internal/test/e2e*)
-	@find ./pkg -name go.mod -execdir go test -v ./... \;
+	@for gomod in $$(find ./pkg -name go.mod); do \
+		moddir=$$(dirname $$gomod); \
+		echo "Testing module $$moddir..."; \
+		(cd $$moddir && go test -v ./...) || exit 1; \
+	done
 
 ## vet: code analysis
 vet:
