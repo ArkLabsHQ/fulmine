@@ -148,10 +148,12 @@ templ ReceivedTxTable(sats, date, status, arkTxid, arkExplorerUrl string) {
     @statusLine(status)
     if arkTxid != "" {
       @tableLine("Tx ID", truncateTxid(arkTxid))
-      <div class="flex justify-between mb-2">
-        <p class="text-white/50 uppercase">explorer</p>
-        <a href={templ.SafeURL(arkExplorerUrl + "/tx/" + arkTxid)} target="_blank" rel="noopener noreferrer" class="text-blue hover:underline">View</a>
-      </div>
+      if arkExplorerUrl != "" {
+        <div class="flex justify-between mb-2">
+          <p class="text-white/50 uppercase">explorer</p>
+          <a href={templ.SafeURL(arkExplorerUrl + "/tx/" + arkTxid)} target="_blank" rel="noopener noreferrer" class="text-blue hover:underline">View</a>
+        </div>
+      }
     }
     <hr class="text-white/20 mb-2" />
     @tableLine("total", sats, "cryptoAmount")
@@ -172,10 +174,12 @@ templ SentTxTable(sats, date, status, arkTxid, arkExplorerUrl string) {
     @statusLine(status)
     if arkTxid != "" {
       @tableLine("Tx ID", truncateTxid(arkTxid))
-      <div class="flex justify-between mb-2">
-        <p class="text-white/50 uppercase">explorer</p>
-        <a href={templ.SafeURL(arkExplorerUrl + "/tx/" + arkTxid)} target="_blank" rel="noopener noreferrer" class="text-blue hover:underline">View</a>
-      </div>
+      if arkExplorerUrl != "" {
+        <div class="flex justify-between mb-2">
+          <p class="text-white/50 uppercase">explorer</p>
+          <a href={templ.SafeURL(arkExplorerUrl + "/tx/" + arkTxid)} target="_blank" rel="noopener noreferrer" class="text-blue hover:underline">View</a>
+        </div>
+      }
     }
     <hr class="text-white/20 mb-2" />
     @tableLine("total", sats, "cryptoAmount")
