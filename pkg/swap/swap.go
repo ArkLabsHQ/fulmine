@@ -39,7 +39,7 @@ var ErrorNoVtxosFound = fmt.Errorf("no vtxos found for the given vhtlc opts")
 
 type SwapHandler struct {
 	arkClient      arksdk.ArkClient
-	boltzSvc       *boltz.Api
+	boltzSvc       BoltzClient
 	explorerClient ExplorerClient
 	privateKey     *btcec.PrivateKey
 	publicKey      *btcec.PublicKey
@@ -70,7 +70,7 @@ type Swap struct {
 
 func NewSwapHandler(
 	arkClient arksdk.ArkClient,
-	boltzSvc *boltz.Api,
+	boltzSvc BoltzClient,
 	esploraURL string,
 	privateKey *btcec.PrivateKey,
 	timeout uint32,
