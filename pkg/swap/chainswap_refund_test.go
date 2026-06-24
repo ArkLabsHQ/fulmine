@@ -28,11 +28,13 @@ type refundMockExplorer struct {
 	height        uint32
 	txErr         error
 	broadcastTxid string
+	broadcastTx   *wire.MsgTx // captured so tests can assert the refund tx's fields
 }
 
 func (m *refundMockExplorer) GetTransaction(string) (string, error)  { return m.txHex, m.txErr }
 func (m *refundMockExplorer) GetCurrentBlockHeight() (uint32, error) { return m.height, nil }
-func (m *refundMockExplorer) BroadcastTransaction(*wire.MsgTx) (string, error) {
+func (m *refundMockExplorer) BroadcastTransaction(tx *wire.MsgTx) (string, error) {
+	m.broadcastTx = tx
 	return m.broadcastTxid, nil
 }
 func (m *refundMockExplorer) GetFeeRate() (float64, error) { return 1, nil }
@@ -183,18 +185,28 @@ func TestRefundBtcToArkSwapBroadcastsPastGate(t *testing.T) {
 	boardingAddr, err := btcutil.NewAddressTaproot(schnorr.SerializePubKey(destKey.PubKey()), &chaincfg.RegressionNetParams)
 	require.NoError(t, err)
 
+	exp := &refundMockExplorer{
+		txHex:         lockupHex,
+		height:        timeout, // gate opens: currentHeight >= timeout
+		broadcastTxid: "refund-broadcast-txid",
+	}
 	h := &SwapHandler{
-		explorerClient: &refundMockExplorer{
-			txHex:         lockupHex,
-			height:        timeout, // gate opens: currentHeight >= timeout
-			broadcastTxid: "refund-broadcast-txid",
-		},
-		arkClient:  &refundMockArkClient{boardingAddr: boardingAddr.String()},
-		privateKey: userKey,
-		config:     clientTypes.Config{Network: arklib.BitcoinRegTest},
+		explorerClient: exp,
+		arkClient:      &refundMockArkClient{boardingAddr: boardingAddr.String()},
+		privateKey:     userKey,
+		config:         clientTypes.Config{Network: arklib.BitcoinRegTest},
 	}
 
 	txid, err := h.RefundBtcToArkSwap(context.Background(), "swap", 1000, lockupTxid, respJSON)
 	require.NoError(t, err)
 	require.Equal(t, "refund-broadcast-txid", txid)
+
+	// Pin the consensus-critical fields of the broadcast refund tx. Without these
+	// the test would stay green even if the CLTV locktime, the non-final input
+	// sequence, or the taproot witness were dropped — each unspendable on a real
+	// node, but invisible to a mock that only hands back a canned txid.
+	require.NotNil(t, exp.broadcastTx)
+	require.Equal(t, uint32(timeout), exp.broadcastTx.LockTime, "refund tx must carry the CLTV locktime")
+	require.Equal(t, wire.MaxTxInSequenceNum-1, exp.broadcastTx.TxIn[0].Sequence, "input must be non-final for CLTV")
+	require.Len(t, exp.broadcastTx.TxIn[0].Witness, 3, "tapscript refund witness: [signature, refundScript, controlBlock]")
 }
