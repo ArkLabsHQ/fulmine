@@ -7,12 +7,14 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
-	"github.com/arkade-os/go-sdk/types"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil/psbt"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/nbd-wtf/go-nostr/nip19"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -188,11 +190,11 @@ func toNetworkProto(net string) pb.GetInfoResponse_Network {
 	}
 }
 
-func toTxTypeProto(txType types.TxType) pb.TxType {
+func toTxTypeProto(txType clientTypes.TxType) pb.TxType {
 	switch txType {
-	case types.TxSent:
+	case clientTypes.TxSent:
 		return pb.TxType_TX_TYPE_SENT
-	case types.TxReceived:
+	case clientTypes.TxReceived:
 		return pb.TxType_TX_TYPE_RECEIVED
 	default:
 		return pb.TxType_TX_TYPE_UNSPECIFIED
@@ -255,7 +257,7 @@ func toNotificationProto(n application.Notification) *pb.Notification {
 }
 
 // Todo: Verify that the script is not Taproot Script
-func toVtxosProto(vtxos []types.Vtxo) []*pb.Vtxo {
+func toVtxosProto(vtxos []clientTypes.Vtxo) []*pb.Vtxo {
 	list := make([]*pb.Vtxo, 0, len(vtxos))
 	for _, vtxo := range vtxos {
 		list = append(list, &pb.Vtxo{
@@ -277,9 +279,56 @@ func toVtxosProto(vtxos []types.Vtxo) []*pb.Vtxo {
 	return list
 }
 
-func toInputProto(outpoint types.Outpoint) *pb.Input {
+func toInputProto(outpoint clientTypes.Outpoint) *pb.Input {
 	return &pb.Input{
 		Txid: outpoint.Txid,
 		Vout: outpoint.VOut,
 	}
+}
+
+func toProtoInput(outpoint wire.OutPoint) *pb.Input {
+	return &pb.Input{
+		Txid: outpoint.Hash.String(),
+		Vout: outpoint.Index,
+	}
+}
+
+func toDelegateProto(delegate domain.DelegateTask) *pb.Delegate {
+	intent := &pb.DelegateIntent{
+		Txid:    delegate.Intent.Txid,
+		Message: delegate.Intent.Message,
+		Proof:   delegate.Intent.Proof,
+		Inputs:  make([]*pb.Input, 0, len(delegate.Intent.Inputs)),
+	}
+	for _, input := range delegate.Intent.Inputs {
+		intent.Inputs = append(intent.Inputs, toProtoInput(input))
+	}
+
+	forfeitTxs := make([]*pb.DelegateForfeitTx, 0, len(delegate.ForfeitTxs))
+	for outpoint, forfeitTx := range delegate.ForfeitTxs {
+		forfeitTxs = append(forfeitTxs, &pb.DelegateForfeitTx{
+			Input:     toProtoInput(outpoint),
+			ForfeitTx: forfeitTx,
+		})
+	}
+
+	return &pb.Delegate{
+		Id:                delegate.ID,
+		Intent:            intent,
+		ForfeitTxs:        forfeitTxs,
+		Fee:               delegate.Fee,
+		DelegatePublicKey: delegate.DelegatePublicKey,
+		ScheduledAt:       delegate.ScheduledAt.Unix(),
+		Status:            delegate.Status.String(),
+		FailReason:        delegate.FailReason,
+		CommitmentTxid:    delegate.CommitmentTxid,
+	}
+}
+
+func toDelegatesProto(delegates []domain.DelegateTask) []*pb.Delegate {
+	list := make([]*pb.Delegate, 0, len(delegates))
+	for _, delegate := range delegates {
+		list = append(list, toDelegateProto(delegate))
+	}
+	return list
 }

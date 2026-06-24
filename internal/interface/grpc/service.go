@@ -6,43 +6,58 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
+	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
+	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/telemetry"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/grpc/handlers"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/grpc/interceptors"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web"
 	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	grpchealth "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type service struct {
-	cfg         Config
-	appSvc      *application.Service
-	httpServer  *http.Server
-	grpcServer  *grpc.Server
-	unlockerSvc ports.Unlocker
-	macaroonSvc macaroon.Service
-	appStopCh   chan struct{}
-	feStopCh    chan struct{}
+	cfg                Config
+	appSvc             *application.Service
+	delegateSvc        *application.DelegateService
+	httpServer         *http.Server
+	delegateHTTPServer *http.Server
+	grpcServer         *grpc.Server
+	delegateGrpcServer *grpc.Server
+	unlockerSvc        ports.Unlocker
+	macaroonSvc        macaroon.Service
+	appStopCh          chan struct{}
+	feStopCh           chan struct{}
+	otelShutdown       func()
+	pyroscopeShutdown  func()
 }
 
 func NewService(
 	cfg Config,
 	appSvc *application.Service,
+	delegateSvc *application.DelegateService,
 	unlockerSvc ports.Unlocker,
 	sentryEnabled bool,
 	macaroonSvc macaroon.Service,
 	arkServer string,
+	otelCollectorEndpoint string,
+	otelPushInterval int64,
+	pyroscopeServerURL string,
 ) (*service, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %s", err)
@@ -57,6 +72,38 @@ func NewService(
 		interceptors.UnaryInterceptor(sentryEnabled),
 		interceptors.StreamInterceptor(sentryEnabled),
 	}
+
+	// Initialize OTel and Pyroscope telemetry
+	var otelShutdown, pyroscopeShutdown func()
+
+	if otelCollectorEndpoint != "" {
+		log.AddHook(telemetry.NewOTelHook())
+
+		pushInterval := time.Duration(otelPushInterval) * time.Second
+		shutdown, err := telemetry.InitOtelSDK(
+			context.Background(),
+			otelCollectorEndpoint,
+			pushInterval,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize otel sdk: %s", err)
+		}
+		otelShutdown = shutdown
+
+		otelHandler := otelgrpc.NewServerHandler(
+			otelgrpc.WithTracerProvider(otel.GetTracerProvider()),
+		)
+		grpcConfig = append(grpcConfig, grpc.StatsHandler(otelHandler))
+
+		if pyroscopeServerURL != "" {
+			shutdown, err := telemetry.InitPyroscope(pyroscopeServerURL)
+			if err != nil {
+				return nil, fmt.Errorf("failed to initialize pyroscope: %s", err)
+			}
+			pyroscopeShutdown = shutdown
+		}
+	}
+
 	if cfg.WithTLS {
 		return nil, fmt.Errorf("tls termination not supported yet")
 	}
@@ -80,6 +127,8 @@ func NewService(
 	healthHandler := handlers.NewHealthHandler(appSvc)
 	grpchealth.RegisterHealthServer(grpcServer, healthHandler)
 
+	reflection.Register(grpcServer)
+
 	gatewayCreds := insecure.NewCredentials()
 	if !cfg.insecure() {
 		gatewayCreds = credentials.NewTLS(&tls.Config{
@@ -87,9 +136,7 @@ func NewService(
 		})
 	}
 	gatewayOpts := grpc.WithTransportCredentials(gatewayCreds)
-	conn, err := grpc.NewClient(
-		cfg.gatewayAddress(), gatewayOpts,
-	)
+	conn, err := grpc.NewClient(cfg.gatewayAddress(), gatewayOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -137,19 +184,13 @@ func NewService(
 		}
 	})
 	ctx := context.Background()
-	if err := pb.RegisterServiceHandler(
-		ctx, gwmux, conn,
-	); err != nil {
+	if err := pb.RegisterServiceHandler(ctx, gwmux, conn); err != nil {
 		return nil, err
 	}
-	if err := pb.RegisterWalletServiceHandler(
-		ctx, gwmux, conn,
-	); err != nil {
+	if err := pb.RegisterWalletServiceHandler(ctx, gwmux, conn); err != nil {
 		return nil, err
 	}
-	if err := pb.RegisterNotificationServiceHandler(
-		ctx, gwmux, conn,
-	); err != nil {
+	if err := pb.RegisterNotificationServiceHandler(ctx, gwmux, conn); err != nil {
 		return nil, err
 	}
 
@@ -171,15 +212,71 @@ func NewService(
 		TLSConfig: cfg.tlsConfig(),
 	}
 
+	// Setup server for the delegate if enabled
+	var delegateHTTPServer *http.Server
+	var delegateGrpcServer *grpc.Server
+	if delegateSvc != nil {
+		grpcConfig := []grpc.ServerOption{
+			interceptors.UnaryInterceptor(false), interceptors.StreamInterceptor(false),
+		}
+		delegateGrpcServer = grpc.NewServer(grpcConfig...)
+		delegateHandler := handlers.NewDelegateHandler(delegateSvc)
+		pb.RegisterDelegateServiceServer(delegateGrpcServer, delegateHandler)
+
+		conn, err := grpc.NewClient(cfg.delegateGatewayAddress(), gatewayOpts)
+		if err != nil {
+			return nil, err
+		}
+		delegateGwmux := runtime.NewServeMux(
+			runtime.WithIncomingHeaderMatcher(authHeaderMatcher),
+			runtime.WithMarshalerOption("application/json+pretty", &runtime.JSONPb{
+				MarshalOptions: protojson.MarshalOptions{
+					Indent:    "  ",
+					Multiline: true,
+				},
+				UnmarshalOptions: protojson.UnmarshalOptions{
+					DiscardUnknown: true,
+				},
+			}),
+		)
+
+		if err := pb.RegisterDelegateServiceHandler(ctx, delegateGwmux, conn); err != nil {
+			return nil, err
+		}
+
+		grpcGateway := http.Handler(delegateGwmux)
+
+		handler := router(delegateGrpcServer, grpcGateway)
+		mux := http.NewServeMux()
+
+		mux.Handle("/", handler)
+
+		httpServerHandler := http.Handler(mux)
+		if cfg.insecure() {
+			httpServerHandler = h2c.NewHandler(httpServerHandler, &http2.Server{})
+		}
+
+		delegateHTTPServer = &http.Server{
+			Addr:      cfg.delegateAddress(),
+			Handler:   httpServerHandler,
+			TLSConfig: cfg.tlsConfig(),
+		}
+	}
+
 	svc := &service{
-		cfg,
-		appSvc,
-		httpServer,
-		grpcServer,
-		unlockerSvc,
-		macaroonSvc,
-		appStopCh,
-		feStopCh,
+		cfg:                cfg,
+		appSvc:             appSvc,
+		delegateSvc:        delegateSvc,
+		httpServer:         httpServer,
+		delegateHTTPServer: delegateHTTPServer,
+		grpcServer:         grpcServer,
+		delegateGrpcServer: delegateGrpcServer,
+		unlockerSvc:        unlockerSvc,
+		macaroonSvc:        macaroonSvc,
+		appStopCh:          appStopCh,
+		feStopCh:           feStopCh,
+		otelShutdown:       otelShutdown,
+		pyroscopeShutdown:  pyroscopeShutdown,
 	}
 
 	if macaroonSvc != nil {
@@ -206,6 +303,17 @@ func (s *service) Start() error {
 		go s.httpServer.ListenAndServeTLS("", "")
 	}
 	log.Infof("started HTTP server at %s", s.cfg.httpAddress())
+
+	if s.delegateGrpcServer != nil {
+		if s.cfg.insecure() {
+			// nolint:all
+			go s.delegateHTTPServer.ListenAndServe()
+		} else {
+			// nolint:all
+			go s.delegateHTTPServer.ListenAndServeTLS("", "")
+		}
+		log.Infof("started Delegate server at %s", s.cfg.delegateAddress())
+	}
 
 	if s.unlockerSvc != nil {
 		if err := s.autoUnlock(); err != nil {
@@ -243,10 +351,28 @@ func (s *service) Stop() {
 	s.feStopCh <- struct{}{}
 
 	s.grpcServer.GracefulStop()
-	log.Info("stopped grpc server")
+	log.Info("stopped GRPC server")
+
 	// nolint:all
 	s.httpServer.Shutdown(context.Background())
-	log.Info("stopped http server")
+	log.Info("stopped HTTP server")
+
+	if s.delegateGrpcServer != nil {
+		s.delegateSvc.Stop()
+
+		s.delegateGrpcServer.Stop()
+
+		// nolint:all
+		s.delegateHTTPServer.Shutdown(context.Background())
+		log.Info("stopped Delegate server")
+	}
+
+	if s.pyroscopeShutdown != nil {
+		s.pyroscopeShutdown()
+	}
+	if s.otelShutdown != nil {
+		s.otelShutdown()
+	}
 }
 
 func (s *service) listenToWalletUpdates() {
@@ -266,4 +392,36 @@ func (s *service) listenToWalletUpdates() {
 			}
 		}
 	}
+}
+
+func router(
+	grpcServer *grpc.Server, grpcGateway http.Handler,
+) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if isOptionRequest(r) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+			return
+		}
+
+		if isHttpRequest(r) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+
+			grpcGateway.ServeHTTP(w, r)
+			return
+		}
+		grpcServer.ServeHTTP(w, r)
+	})
+}
+
+func isOptionRequest(req *http.Request) bool {
+	return req.Method == http.MethodOptions
+}
+
+func isHttpRequest(req *http.Request) bool {
+	return req.Method == http.MethodGet ||
+		strings.Contains(req.Header.Get("Content-Type"), "application/json")
 }

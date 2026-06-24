@@ -2,24 +2,48 @@ package application
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"strings"
 
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
-	"github.com/arkade-os/go-sdk/types"
+	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
+	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
+	"github.com/arkade-os/arkd/pkg/client-lib/client"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
-	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
-	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
+	log "github.com/sirupsen/logrus"
 )
 
-func checkpointExitScript(cfg *types.Config) []byte {
-	buf, _ := hex.DecodeString(cfg.CheckpointTapscript)
-	return buf
+func offchainAddressesPkScripts(addresses []string) ([]string, error) {
+	scripts := make([]string, 0, len(addresses))
+	for _, addr := range addresses {
+		decodedAddress, err := arklib.DecodeAddressV0(addr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode address %s: %w", addr, err)
+		}
+
+		p2trScript, err := txscript.PayToTaprootScript(decodedAddress.VtxoTapKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse address to p2tr script: %w", err)
+		}
+
+		scripts = append(scripts, hex.EncodeToString(p2trScript))
+	}
+	return scripts, nil
+}
+
+func parseLocktime(locktime uint32) arklib.RelativeLocktime {
+	if locktime >= 512 {
+		return arklib.RelativeLocktime{Type: arklib.LocktimeTypeSecond, Value: locktime}
+	}
+
+	return arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: locktime}
 }
 
 func parsePubkey(pubkey string) (*btcec.PublicKey, error) {
@@ -40,217 +64,84 @@ func parsePubkey(pubkey string) (*btcec.PublicKey, error) {
 	return pk, nil
 }
 
-// verifyInputSignatures checks that all inputs have a signature for the given pubkey
-// and the signature is correct for the given tapscript leaf
-func verifyInputSignatures(tx *psbt.Packet, pubkey *btcec.PublicKey, tapLeaves map[int]txscript.TapLeaf) error {
-	xOnlyPubkey := schnorr.SerializePubKey(pubkey)
-
-	prevouts := make(map[wire.OutPoint]*wire.TxOut)
-	sigsToVerify := make(map[int]*psbt.TaprootScriptSpendSig)
-
-	for inputIndex, input := range tx.Inputs {
-		// collect previous outputs
-		if input.WitnessUtxo == nil {
-			return fmt.Errorf("input %d has no witness utxo, cannot verify signature", inputIndex)
-		}
-
-		outpoint := tx.UnsignedTx.TxIn[inputIndex].PreviousOutPoint
-		prevouts[outpoint] = input.WitnessUtxo
-
-		tapLeaf, ok := tapLeaves[inputIndex]
-		if !ok {
-			return fmt.Errorf("input %d has no tapscript leaf, cannot verify signature", inputIndex)
-		}
-
-		tapLeafHash := tapLeaf.TapHash()
-
-		// check if pubkey has a tapscript sig
-		hasSig := false
-		for _, sig := range input.TaprootScriptSpendSig {
-			if bytes.Equal(sig.XOnlyPubKey, xOnlyPubkey) && bytes.Equal(sig.LeafHash, tapLeafHash[:]) {
-				hasSig = true
-				sigsToVerify[inputIndex] = sig
-				break
-			}
-		}
-
-		if !hasSig {
-			return fmt.Errorf("input %d has no signature for pubkey %x", inputIndex, xOnlyPubkey)
-		}
+func signVtxoTree(
+	event client.TreeSignatureEvent, txTree *tree.TxTree,
+) error {
+	if event.BatchIndex != 0 {
+		return fmt.Errorf("batch index %d is not 0", event.BatchIndex)
 	}
 
-	prevoutFetcher := txscript.NewMultiPrevOutFetcher(prevouts)
-	txSigHashes := txscript.NewTxSigHashes(tx.UnsignedTx, prevoutFetcher)
-
-	for inputIndex, sig := range sigsToVerify {
-		msgHash, err := txscript.CalcTapscriptSignaturehash(
-			txSigHashes,
-			sig.SigHash,
-			tx.UnsignedTx,
-			inputIndex,
-			prevoutFetcher,
-			tapLeaves[inputIndex],
-		)
-		if err != nil {
-			return fmt.Errorf("failed to calculate tapscript signature hash: %w", err)
-		}
-
-		signature, err := schnorr.ParseSignature(sig.Signature)
-		if err != nil {
-			return fmt.Errorf("failed to parse signature: %w", err)
-		}
-
-		if !signature.Verify(msgHash, pubkey) {
-			return fmt.Errorf("input %d: invalid signature", inputIndex)
-		}
+	decodedSig, err := hex.DecodeString(event.Signature)
+	if err != nil {
+		return fmt.Errorf("failed to decode signature: %s", err)
 	}
 
-	return nil
+	sig, err := schnorr.ParseSignature(decodedSig)
+	if err != nil {
+		return fmt.Errorf("failed to parse signature: %s", err)
+	}
+
+	return txTree.Apply(func(g *tree.TxTree) (bool, error) {
+		if g.Root.UnsignedTx.TxID() != event.Txid {
+			return true, nil
+		}
+
+		g.Root.Inputs[0].TaprootKeySpendSig = sig.Serialize()
+		return false, nil
+	})
 }
 
-// GetInputTapLeaves returns a map of input index to tapscript leaf
-// if the input has no tapscript leaf, it is not included in the map
-func getInputTapLeaves(tx *psbt.Packet) map[int]txscript.TapLeaf {
-	tapLeaves := make(map[int]txscript.TapLeaf)
-	for inputIndex, input := range tx.Inputs {
-		if input.TaprootLeafScript == nil {
+func extractConnector(connectorTx *psbt.Packet) (*wire.TxOut, *wire.OutPoint, error) {
+	for outIndex, output := range connectorTx.UnsignedTx.TxOut {
+		if bytes.Equal(txutils.ANCHOR_PKSCRIPT, output.PkScript) {
 			continue
 		}
-		tapLeaves[inputIndex] = txscript.NewBaseTapLeaf(input.TaprootLeafScript[0].Script)
+
+		return output, &wire.OutPoint{
+			Hash:  connectorTx.UnsignedTx.TxHash(),
+			Index: uint32(outIndex),
+		}, nil
 	}
-	return tapLeaves
+
+	return nil, nil, fmt.Errorf("connector output not found")
 }
 
-func verifyAndSignCheckpoints(
-	signedCheckpoints []string, myCheckpoints []*psbt.Packet,
-	arkSigner *btcec.PublicKey, sign func(tx *psbt.Packet) (string, error),
-) ([]string, error) {
-	finalCheckpoints := make([]string, 0, len(signedCheckpoints))
-	for _, checkpoint := range signedCheckpoints {
-		signedCheckpointPtx, err := psbt.NewFromRawBytes(strings.NewReader(checkpoint), true)
-		if err != nil {
-			return nil, err
-		}
-
-		// search for the checkpoint tx we initially created
-		var myCheckpointTx *psbt.Packet
-		for _, chk := range myCheckpoints {
-			if chk.UnsignedTx.TxID() == signedCheckpointPtx.UnsignedTx.TxID() {
-				myCheckpointTx = chk
-				break
-			}
-		}
-		if myCheckpointTx == nil {
-			return nil, fmt.Errorf("checkpoint tx not found")
-		}
-
-		// verify the server has signed the checkpoint tx
-		err = verifyInputSignatures(signedCheckpointPtx, arkSigner, getInputTapLeaves(myCheckpointTx))
-		if err != nil {
-			return nil, err
-		}
-
-		finalCheckpoint, err := sign(signedCheckpointPtx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to sign checkpoint transaction: %w", err)
-		}
-
-		finalCheckpoints = append(finalCheckpoints, finalCheckpoint)
-	}
-
-	return finalCheckpoints, nil
+// a wrapper around delegate task id
+type registeredIntent struct {
+	taskID   string
+	intentID string
+	inputs   []wire.OutPoint
 }
 
-func combineSignedCheckpointsTxs(signedCheckpoints []*psbt.Packet) (*psbt.Packet, error) {
-	finalCheckpoint := signedCheckpoints[0]
-
-	for i := range finalCheckpoint.Inputs {
-		scriptSigs := make([]*psbt.TaprootScriptSpendSig, 0, len(signedCheckpoints))
-		for _, signedCheckpointPsbt := range signedCheckpoints {
-			boltzIn := signedCheckpointPsbt.Inputs[i]
-			partialSig := boltzIn.TaprootScriptSpendSig[0]
-			scriptSigs = append(scriptSigs, partialSig)
-		}
-		finalCheckpoint.Inputs[i].TaprootScriptSpendSig = scriptSigs
-	}
-	return finalCheckpoint, nil
+func (i registeredIntent) intentIDHash() string {
+	buf := sha256.Sum256([]byte(i.intentID))
+	return hex.EncodeToString(buf[:])
 }
 
-func verifyFinalArkTx(
-	finalArkTx string, arkSigner *btcec.PublicKey, expectedTapLeaves map[int]txscript.TapLeaf,
-) error {
-	finalArkPtx, err := psbt.NewFromRawBytes(strings.NewReader(finalArkTx), true)
-	if err != nil {
-		return err
+func getSpentVtxosFromTransactionEvent(event client.TransactionEvent) []wire.OutPoint {
+	spentVtxos := make([]clientTypes.Vtxo, 0)
+
+	if event.CommitmentTx != nil {
+		spentVtxos = append(spentVtxos, event.CommitmentTx.SpentVtxos...)
 	}
 
-	// verify that the ark signer has signed the ark tx
-	err = verifyInputSignatures(finalArkPtx, arkSigner, expectedTapLeaves)
-	if err != nil {
-		return err
+	if event.ArkTx != nil {
+		spentVtxos = append(spentVtxos, event.ArkTx.SpentVtxos...)
 	}
 
-	return nil
-}
-
-func offchainAddressesPkScripts(addresses []string) ([]string, error) {
-	scripts := make([]string, 0, len(addresses))
-	for _, addr := range addresses {
-		decodedAddress, err := arklib.DecodeAddressV0(addr)
+	outpoints := make([]wire.OutPoint, 0, len(spentVtxos))
+	for _, vtxo := range spentVtxos {
+		hash, err := chainhash.NewHashFromStr(vtxo.Txid)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode address %s: %w", addr, err)
+			log.WithError(err).Warnf("failed to parse vtxo txid %s", vtxo.Txid)
+			continue
 		}
 
-		p2trScript, err := txscript.PayToTaprootScript(decodedAddress.VtxoTapKey)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse address to p2tr script: %w", err)
-		}
-
-		scripts = append(scripts, hex.EncodeToString(p2trScript))
-	}
-	return scripts, nil
-}
-
-func onchainAddressesPkScripts(addresses []string, network arklib.Network) ([]string, error) {
-	scripts := make([]string, 0, len(addresses))
-	for _, addr := range addresses {
-		btcAddress, err := btcutil.DecodeAddress(addr, toBitcoinNetwork(network))
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode address %s: %w", addr, err)
-		}
-
-		script, err := txscript.PayToAddrScript(btcAddress)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse address to p2tr script: %w", err)
-		}
-		scripts = append(scripts, hex.EncodeToString(script))
-	}
-	return scripts, nil
-}
-
-func toBitcoinNetwork(net arklib.Network) *chaincfg.Params {
-	switch net.Name {
-	case arklib.Bitcoin.Name:
-		return &chaincfg.MainNetParams
-	case arklib.BitcoinTestNet.Name:
-		return &chaincfg.TestNet3Params
-	//case arklib.BitcoinTestNet4.Name: //TODO uncomment once supported
-	//	return chaincfg.TestNet4Params
-	case arklib.BitcoinSigNet.Name:
-		return &chaincfg.SigNetParams
-	case arklib.BitcoinMutinyNet.Name:
-		return &arklib.MutinyNetSigNetParams
-	case arklib.BitcoinRegTest.Name:
-		return &chaincfg.RegressionNetParams
-	default:
-		return &chaincfg.MainNetParams
-	}
-}
-
-func deriveTimelock(timelock uint32) arklib.RelativeLocktime {
-	if timelock >= 512 {
-		return arklib.RelativeLocktime{Type: arklib.LocktimeTypeSecond, Value: timelock}
+		outpoints = append(outpoints, wire.OutPoint{
+			Hash:  *hash,
+			Index: vtxo.VOut,
+		})
 	}
 
-	return arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: timelock}
+	return outpoints
 }

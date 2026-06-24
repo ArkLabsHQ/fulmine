@@ -87,8 +87,6 @@ func (s *service) Stop() {
 
 		s.job = nil
 		s.tasks = make([]*heightTask, 0)
-		// Without this
-		// s.scheduler = gocron.NewScheduler(time.UTC)
 	}
 
 	if s.blockCancel != nil {
@@ -97,7 +95,7 @@ func (s *service) Stop() {
 	}
 }
 
-func (s *service) ScheduleRefundAtHeight(target uint32, refund func()) error {
+func (s *service) ScheduleTaskAtHeight(target uint32, task func()) error {
 	if target <= 0 {
 		return fmt.Errorf("invalid height: %d", target)
 	}
@@ -107,24 +105,24 @@ func (s *service) ScheduleRefundAtHeight(target uint32, refund func()) error {
 		return fmt.Errorf("failed to get current block height: %w", err)
 	}
 	if uint32(currentHeight) >= target {
-		go refund()
+		go task()
 		return nil
 	}
-	tsk := &heightTask{target: target, fn: refund}
+	tsk := &heightTask{target: target, fn: task}
 	s.mu.Lock()
 	s.tasks = append(s.tasks, tsk)
 	s.mu.Unlock()
 	return nil
 }
 
-func (s *service) ScheduleRefundAtTime(at time.Time, refund func()) error {
+func (s *service) ScheduleTaskAtTime(at time.Time, task func()) error {
 	if at.IsZero() {
 		return fmt.Errorf("invalid schedule time")
 	}
 
 	delay := time.Until(at)
 	if delay <= 0 {
-		go refund()
+		go task()
 		return nil
 	}
 
@@ -132,7 +130,7 @@ func (s *service) ScheduleRefundAtTime(at time.Time, refund func()) error {
 	defer s.mu.Unlock()
 
 	_, err := s.scheduler.Every(delay).WaitForSchedule().LimitRunsTo(1).Do(func() {
-		refund()
+		task()
 		s.mu.Lock()
 		defer s.mu.Unlock()
 	})
@@ -150,19 +148,19 @@ func (s *service) ScheduleNextSettlement(at time.Time, settleFunc func()) error 
 	}
 
 	delay := time.Until(at)
-	if delay < 0 {
-		return fmt.Errorf("cannot schedule task in the past")
-	}
 
 	s.CancelNextSettlement()
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if delay == 0 {
-		settleFunc()
+	// If the requested time is already due (the vtxos are at/over their expiry),
+	// settle immediately instead of dropping the request. Run async so callers
+	// holding their own locks (e.g. the vtxo event listener) don't deadlock.
+	if delay <= 0 {
+		go settleFunc()
 		return nil
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	job, err := s.scheduler.Every(delay).WaitForSchedule().LimitRunsTo(1).Do(func() {
@@ -171,11 +169,12 @@ func (s *service) ScheduleNextSettlement(at time.Time, settleFunc func()) error 
 			return
 		default:
 		}
-		settleFunc()
 		s.mu.Lock()
-		defer s.mu.Unlock()
 		s.scheduler.Remove(s.job)
 		s.job = nil
+		s.mu.Unlock()
+
+		settleFunc()
 	})
 	if err != nil {
 		cancel()

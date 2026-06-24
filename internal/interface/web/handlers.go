@@ -21,7 +21,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
-	sdktypes "github.com/arkade-os/go-sdk/types"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	qrcode "github.com/skip2/go-qrcode"
@@ -473,11 +473,11 @@ func (s *service) sendConfirm(c *gin.Context) {
 		return
 	}
 
-	receivers := []sdktypes.Receiver{{To: address, Amount: value}}
+	receivers := []clientTypes.Receiver{{To: address, Amount: value}}
 
 	if utils.IsValidArkAddress(address) {
 		for range 3 {
-			txId, err = s.svc.SendOffChain(c, false, receivers)
+			txId, err = s.svc.SendOffChain(c, receivers)
 			if err != nil {
 				if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
 					continue
@@ -500,7 +500,7 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsValidBtcAddress(address) {
-		txId, err = s.svc.CollaborativeExit(c, address, value, false)
+		txId, err = s.svc.CollaborativeExit(c, address, value)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
@@ -764,7 +764,9 @@ func (s *service) swapPreview(c *gin.Context) {
 	partialViewHandler(bodyContent, c)
 }
 
-func (s *service) getTransfer(c *gin.Context, transfer types.Transfer, explorerUrl string) templ.Component {
+func (s *service) getTransfer(
+	c *gin.Context, transfer types.Transfer, explorerUrl string,
+) templ.Component {
 	if transfer.Status == "pending" {
 		var nextSettlementStr string
 		nextSettlement := s.svc.WhenNextSettlement(c)
@@ -1005,9 +1007,11 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		transformedSwap := toSwap(swap)
 
 		if transformedSwap.Kind == "submarine" {
-			updatedTransfers, sendTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return swap.FundingTxId != "" && swap.FundingTxId == t.ArkTxid
-			})
+			updatedTransfers, sendTransfer, ok := RemoveFind(
+				transferTxns, func(t clientTypes.Transaction) bool {
+					return swap.FundingTxId != "" && swap.FundingTxId == t.ArkTxid
+				},
+			)
 
 			if ok {
 				transferTxns = updatedTransfers
@@ -1015,9 +1019,11 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 				transformedSwap.VHTLCTransfer = &modifiedSendTransfer
 			}
 
-			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return swap.RedeemTxId != "" && swap.RedeemTxId == t.ArkTxid
-			})
+			updatedTransfers, receiveTransfer, ok := RemoveFind(
+				transferTxns, func(t clientTypes.Transaction) bool {
+					return swap.RedeemTxId != "" && swap.RedeemTxId == t.ArkTxid
+				},
+			)
 			if ok {
 				transferTxns = updatedTransfers
 				modifiedReceiveTransfer := toTransfer(receiveTransfer)
@@ -1025,9 +1031,11 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 			}
 
 		} else {
-			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return swap.RedeemTxId != "" && swap.RedeemTxId == t.ArkTxid
-			})
+			updatedTransfers, receiveTransfer, ok := RemoveFind(
+				transferTxns, func(t clientTypes.Transaction) bool {
+					return swap.RedeemTxId != "" && swap.RedeemTxId == t.ArkTxid
+				},
+			)
 
 			if ok {
 				transferTxns = updatedTransfers
@@ -1051,9 +1059,11 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		transformedPayment := toPayment(p)
 
 		if transformedPayment.Kind == "send" {
-			updatedTransfers, sendTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return p.FundingTxId != "" && p.FundingTxId == t.ArkTxid
-			})
+			updatedTransfers, sendTransfer, ok := RemoveFind(
+				transferTxns, func(t clientTypes.Transaction) bool {
+					return p.FundingTxId != "" && p.FundingTxId == t.ArkTxid
+				},
+			)
 
 			if ok {
 				transferTxns = updatedTransfers
@@ -1061,9 +1071,11 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 				transformedPayment.PaymentTransfer = &modifiedSendTransfer
 			}
 
-			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return p.RedeemTxId != "" && p.RedeemTxId == t.ArkTxid
-			})
+			updatedTransfers, receiveTransfer, ok := RemoveFind(
+				transferTxns, func(t clientTypes.Transaction) bool {
+					return p.RedeemTxId != "" && p.RedeemTxId == t.ArkTxid
+				},
+			)
 
 			if ok {
 				transferTxns = updatedTransfers
@@ -1071,9 +1083,11 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 				transformedPayment.ReclaimTransfer = &modifiedReceiveTransfer
 			}
 		} else {
-			updatedTransfers, receiveTransfer, ok := RemoveFind(transferTxns, func(t sdktypes.Transaction) bool {
-				return p.RedeemTxId != "" && p.RedeemTxId == t.ArkTxid
-			})
+			updatedTransfers, receiveTransfer, ok := RemoveFind(
+				transferTxns, func(t clientTypes.Transaction) bool {
+					return p.RedeemTxId != "" && p.RedeemTxId == t.ArkTxid
+				},
+			)
 
 			if ok {
 				transferTxns = updatedTransfers
@@ -1438,34 +1452,25 @@ func toPayment(payment domain.Swap) types.Payment {
 
 }
 
-func toTransfer(tx sdktypes.Transaction) types.Transfer {
+func toTransfer(tx clientTypes.Transaction) types.Transfer {
 	// amount
 	amount := strconv.FormatUint(tx.Amount, 10)
-	if tx.Type == sdktypes.TxSent {
+	if tx.Type == clientTypes.TxSent {
 		amount = "-" + amount
 	}
 	// date of creation
 	dateCreated := tx.CreatedAt.Unix()
 	// status of tx
-	status := "pending"
-	if tx.Settled {
-		status = "success"
+	status := "success"
+	if tx.BoardingTxid != "" && tx.SettledBy == "" {
+		status = "pending"
 	}
 	if tx.CreatedAt.IsZero() {
 		status = "unconfirmed"
 		dateCreated = 0
 	}
 	// get one txid to identify tx
-	txid := tx.CommitmentTxid
-	explorable := true
-	if len(txid) == 0 {
-		txid = tx.ArkTxid
-		explorable = false
-	}
-	if len(txid) == 0 {
-		txid = tx.BoardingTxid
-		explorable = true
-	}
+	explorable := tx.ArkTxid == ""
 
 	return types.Transfer{
 		Amount:     amount,
@@ -1474,8 +1479,144 @@ func toTransfer(tx sdktypes.Transaction) types.Transfer {
 		Explorable: explorable,
 		Hour:       prettyHour(dateCreated),
 		Kind:       strings.ToLower(string(tx.Type)),
-		Txid:       txid,
+		Txid:       tx.TransactionKey.String(),
 		Status:     status,
 		UnixDate:   dateCreated,
 	}
+}
+
+func (s *service) delegate(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	bodyContent := pages.DelegateBodyContent()
+	s.pageViewHandler(bodyContent, c)
+}
+
+func (s *service) delegateActive(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	active := c.Param("active")
+	bodyContent := pages.DelegatePartialContent(active)
+	partialViewHandler(bodyContent, c)
+}
+
+func (s *service) getDelegateTasks(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	statusStr := c.Param("status")
+	offsetStr := c.Param("offset")
+
+	status, err := domain.DelegateTaskStatusFromString(statusStr)
+	if err != nil {
+		toast := components.Toast("Invalid status", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
+
+	limit := 20
+	tasks, err := s.svc.GetDelegateTasks(c, status, limit, offset)
+	if err != nil {
+		toast := components.Toast("Unable to get delegate tasks", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	parsedTasks := make([]types.DelegateTask, len(tasks))
+	for i, task := range tasks {
+		parsedTasks[i] = toDelegateTask(task)
+	}
+
+	loadMore := len(tasks) == limit
+	nextOffset := offset + len(tasks)
+
+	if len(parsedTasks) == 0 && offset > 0 {
+		bodyContent := templ.Component(nil)
+		partialViewHandler(bodyContent, c)
+		return
+	}
+
+	bodyContent := pages.DelegateTasksListContent(parsedTasks, statusStr, nextOffset, loadMore)
+	partialViewHandler(bodyContent, c)
+}
+
+func (s *service) getDelegateTaskDetail(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	taskID := c.Param("id")
+	if taskID == "" {
+		toast := components.Toast("Task ID is required", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	task, err := s.svc.GetDelegateTaskByID(c, taskID)
+	if err != nil {
+		toast := components.Toast("Unable to get task details", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	if task == nil {
+		toast := components.Toast("Task not found", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	parsedTask := toDelegateTask(*task)
+	modal := modals.DelegateTaskDetail(parsedTask)
+	modalHandler(modal, c)
+}
+
+func toDelegateTask(task domain.DelegateTask) types.DelegateTask {
+	unixTime := task.ScheduledAt.Unix()
+	result := types.DelegateTask{
+		ID:                task.ID,
+		Status:            task.Status.String(),
+		Fee:               strconv.FormatUint(task.Fee, 10),
+		ScheduledAt:       prettyUnixTimestamp(unixTime),
+		ScheduledAtUnix:   unixTime,
+		ScheduledDate:     prettyDay(unixTime),  // Keep for backward compatibility
+		ScheduledHour:     prettyHour(unixTime), // Keep for backward compatibility
+		FailReason:        task.FailReason,
+		CommitmentTxid:    task.CommitmentTxid,
+		DelegatePublicKey: task.DelegatePublicKey,
+	}
+
+	// Convert Intent
+	if task.Intent.Txid != "" || task.Intent.Message != "" || task.Intent.Proof != "" || len(task.Intent.Inputs) > 0 {
+		intent := &types.DelegateTaskIntent{
+			Txid:    task.Intent.Txid,
+			Message: task.Intent.Message,
+			Proof:   task.Intent.Proof,
+			Inputs:  make([]string, len(task.Intent.Inputs)),
+		}
+		for i, input := range task.Intent.Inputs {
+			intent.Inputs[i] = fmt.Sprintf("%s:%d", input.Hash.String(), input.Index)
+		}
+		result.Intent = intent
+	}
+
+	// Convert ForfeitTxs
+	if len(task.ForfeitTxs) > 0 {
+		result.Forfeits = make([]types.DelegateTaskForfeit, 0, len(task.ForfeitTxs))
+		for outpoint, txid := range task.ForfeitTxs {
+			result.Forfeits = append(result.Forfeits, types.DelegateTaskForfeit{
+				Outpoint: fmt.Sprintf("%s:%d", outpoint.Hash.String(), outpoint.Index),
+				Txid:     txid,
+			})
+		}
+	}
+
+	return result
 }

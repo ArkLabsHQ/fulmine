@@ -11,6 +11,7 @@ const (
 	EntityWallet       = "wallet"
 	EntityService      = "service"
 	EntityNotification = "notification"
+	EntityDelegate     = "delegate"
 
 	ActionAccess = "access"
 
@@ -44,6 +45,12 @@ func WhitelistedByMethod() map[string][]bakery.Op {
 		fmt.Sprintf("/%s/RestoreWallet", fulminev1.WalletService_ServiceDesc.ServiceName):  {{Entity: EntityWallet, Action: ActionAccess}},
 		fmt.Sprintf("/%s/Status", fulminev1.WalletService_ServiceDesc.ServiceName):         {{Entity: EntityWallet, Action: ActionAccess}},
 		fmt.Sprintf("/%s/Auth", fulminev1.WalletService_ServiceDesc.ServiceName):           {{Entity: EntityWallet, Action: ActionAccess}},
+		// delegate.proto methods
+		fmt.Sprintf("/%s/GetDelegateInfo", fulminev1.DelegateService_ServiceDesc.ServiceName): {{Entity: EntityDelegate, Action: ActionAccess}},
+		fmt.Sprintf("/%s/Delegate", fulminev1.DelegateService_ServiceDesc.ServiceName):        {{Entity: EntityDelegate, Action: ActionAccess}},
+		// gRPC reflection (for grpcurl / dev tooling)
+		"/grpc.reflection.v1.ServerReflection/ServerReflectionInfo":      {{Entity: EntityService, Action: ActionAccess}},
+		"/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo": {{Entity: EntityService, Action: ActionAccess}},
 	}
 }
 
@@ -65,15 +72,21 @@ func ProtectedByMethod() map[string][]bakery.Op {
 		fmt.Sprintf("/%s/CreateVHTLC", fulminev1.Service_ServiceDesc.ServiceName):                {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/ClaimVHTLC", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/RefundVHTLCWithoutReceiver", fulminev1.Service_ServiceDesc.ServiceName): {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/SettleVHTLC", fulminev1.Service_ServiceDesc.ServiceName):                {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/ListVHTLC", fulminev1.Service_ServiceDesc.ServiceName):                  {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/ListVHTLCs", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/GetVHTLCSpendingTx", fulminev1.Service_ServiceDesc.ServiceName):         {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/GetInvoice", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/PayInvoice", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/IsInvoiceSettled", fulminev1.Service_ServiceDesc.ServiceName):           {{Entity: EntityService, Action: ActionAccess}},
-		fmt.Sprintf("/%s/GetDelegatePublicKey", fulminev1.Service_ServiceDesc.ServiceName):       {{Entity: EntityService, Action: ActionAccess}},
-		fmt.Sprintf("/%s/WatchAddressForRollover", fulminev1.Service_ServiceDesc.ServiceName):    {{Entity: EntityService, Action: ActionAccess}},
-		fmt.Sprintf("/%s/UnwatchAddress", fulminev1.Service_ServiceDesc.ServiceName):             {{Entity: EntityService, Action: ActionAccess}},
-		fmt.Sprintf("/%s/ListWatchedAddresses", fulminev1.Service_ServiceDesc.ServiceName):       {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/GetVirtualTxs", fulminev1.Service_ServiceDesc.ServiceName):              {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/GetVtxos", fulminev1.Service_ServiceDesc.ServiceName):                   {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/NextSettlement", fulminev1.Service_ServiceDesc.ServiceName):             {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/CreateChainSwap", fulminev1.Service_ServiceDesc.ServiceName):            {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/GetChainSwap", fulminev1.Service_ServiceDesc.ServiceName):               {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/ListChainSwaps", fulminev1.Service_ServiceDesc.ServiceName):             {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/RefundChainSwap", fulminev1.Service_ServiceDesc.ServiceName):            {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/ListDelegates", fulminev1.Service_ServiceDesc.ServiceName):              {{Entity: EntityService, Action: ActionAccess}},
 		// Notification.proto methods
 		fmt.Sprintf("/%s/SubscribeForAddresses", fulminev1.NotificationService_ServiceDesc.ServiceName):   {{Entity: EntityNotification, Action: ActionAccess}},
 		fmt.Sprintf("/%s/UnsubscribeForAddresses", fulminev1.NotificationService_ServiceDesc.ServiceName): {{Entity: EntityNotification, Action: ActionAccess}},

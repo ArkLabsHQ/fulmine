@@ -106,6 +106,10 @@ func NewService(
 	svc.GET("/txs/:lastId", svc.getTxs)
 	svc.GET("/unlock", svc.unlock)
 	svc.GET("/welcome", svc.welcome)
+	svc.GET("/delegate", svc.delegate)
+	svc.GET("/delegate/:active", svc.delegateActive)
+	svc.GET("/delegate/tasks/:status/:offset", svc.getDelegateTasks)
+	svc.GET("/delegate/task/:id", svc.getDelegateTaskDetail)
 
 	svc.GET("/modal/feeinfo", svc.feeInfoModal)
 	svc.GET("/modal/lnconnectinfo", svc.lnConnectInfoModal)

@@ -7,9 +7,10 @@ import (
 )
 
 type Config struct {
-	GRPCPort uint32
-	HTTPPort uint32
-	WithTLS  bool
+	GRPCPort     uint32
+	HTTPPort     uint32
+	DelegatePort uint32
+	WithTLS      bool
 }
 
 func (c Config) Validate() error {
@@ -26,6 +27,15 @@ func (c Config) Validate() error {
 	}
 	// nolint:all
 	lis.Close()
+
+	if c.DelegatePort > 0 {
+		lis, err = net.Listen("tcp", c.delegateAddress())
+		if err != nil {
+			return fmt.Errorf("invalid delegate port: %s", err)
+		}
+		// nolint:all
+		lis.Close()
+	}
 
 	if c.WithTLS {
 		return fmt.Errorf("tls termination not supported yet")
@@ -46,7 +56,15 @@ func (c Config) httpAddress() string {
 }
 
 func (c Config) gatewayAddress() string {
-	return fmt.Sprintf("localhost:%d", c.GRPCPort)
+	return fmt.Sprintf("127.0.0.1:%d", c.GRPCPort)
+}
+
+func (c Config) delegateGatewayAddress() string {
+	return fmt.Sprintf("127.0.0.1:%d", c.DelegatePort)
+}
+
+func (c Config) delegateAddress() string {
+	return fmt.Sprintf(":%d", c.DelegatePort)
 }
 
 func (c Config) tlsConfig() *tls.Config {

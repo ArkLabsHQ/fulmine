@@ -1,0 +1,63 @@
+package pages
+
+import (
+	"fmt"
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
+)
+
+templ DelegateTab(kind string, active bool) {
+	<div
+		id={kind}
+		class={"flex", "rounded-lg", templ.KV("bg-white", active), templ.KV("text-black", active)}
+		hx-get={"/delegate/" + kind}
+		hx-target="#delegatePartial">
+		<p class="px-3 py-2.5 flex items-center gap-2 mx-auto cursor-pointer">
+			{kind}
+		</p>
+	</div>
+}
+
+templ DelegateTabs(active string) {
+	<div class="grid grid-cols-4 gap-2 mt-10 mb-8 text-sm text-white/80 font-semibold">
+		@DelegateTab("pending", active == "pending")
+		@DelegateTab("completed", active == "completed")
+		@DelegateTab("failed", active == "failed")
+		@DelegateTab("cancelled", active == "cancelled")
+	</div>
+}
+
+templ DelegatePartialContent(active string) {
+	<div id="delegatePartial">
+		@DelegateTabs(active)
+		<div hx-get={"/delegate/tasks/" + active + "/0"} hx-trigger="load" />
+	</div>
+}
+
+templ DelegateBodyContent() {
+	@components.DesktopHeader()
+	<div id="delegateBody">
+		<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+			<div>
+				@components.Header("Delegate Dashboard")
+				@DelegatePartialContent("pending")
+			</div>
+		</div>
+	</div>
+}
+
+templ DelegateTasksListContent(tasks []types.DelegateTask, status string, offset int, loadMore bool) {
+	if len(tasks) == 0 {
+		@components.HistoryEmpty()
+	} else {
+		for _, task := range tasks {
+			<hr class="border border-1 border-white/10 w-full"/>
+			@components.DelegateTaskHistoryLine(task)
+		}
+		if loadMore {
+			<div class="flex justify-center" hx-get={"/delegate/tasks/" + status + "/" + fmt.Sprintf("%d", offset)} hx-swap="outerHTML">
+				<p class="cursor-pointer p-3 text-semibold text-sm text-white/50 hover:text-white/80">Load more</p>
+			</div>
+		}
+	}
+}

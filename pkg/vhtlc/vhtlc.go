@@ -9,138 +9,15 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcwallet/waddrmgr"
+	"github.com/lightningnetwork/lnd/input"
 )
 
 const (
 	hash160Len              = 20
+	sha256Len               = 32
 	minSecondsTimelock      = 512
 	secondsTimelockMultiple = 512
 )
-
-type Opts struct {
-	Sender                               *btcec.PublicKey
-	Receiver                             *btcec.PublicKey
-	Server                               *btcec.PublicKey
-	PreimageHash                         []byte
-	RefundLocktime                       arklib.AbsoluteLocktime
-	UnilateralClaimDelay                 arklib.RelativeLocktime
-	UnilateralRefundDelay                arklib.RelativeLocktime
-	UnilateralRefundWithoutReceiverDelay arklib.RelativeLocktime
-}
-
-func (o Opts) validate() error {
-	if o.Sender == nil || o.Receiver == nil || o.Server == nil {
-		return fmt.Errorf("sender, receiver, and server are required")
-	}
-
-	if len(o.PreimageHash) != hash160Len {
-		return fmt.Errorf("preimage hash must be %d bytes", hash160Len)
-	}
-
-	if o.RefundLocktime == 0 {
-		return fmt.Errorf("refund locktime must be greater than 0")
-	}
-
-	if o.UnilateralClaimDelay.Value == 0 {
-		return fmt.Errorf("unilateral claim delay must be greater than 0")
-	}
-
-	if o.UnilateralRefundDelay.Value == 0 {
-		return fmt.Errorf("unilateral refund delay must be greater than 0")
-	}
-
-	if o.UnilateralRefundWithoutReceiverDelay.Value == 0 {
-		return fmt.Errorf("unilateral refund without receiver delay must be greater than 0")
-	}
-
-	// Validate seconds timelock values
-	if err := validateSecondsTimelock(o.UnilateralClaimDelay); err != nil {
-		return fmt.Errorf("unilateral claim delay: %w", err)
-	}
-
-	if err := validateSecondsTimelock(o.UnilateralRefundDelay); err != nil {
-		return fmt.Errorf("unilateral refund delay: %w", err)
-	}
-
-	if err := validateSecondsTimelock(o.UnilateralRefundWithoutReceiverDelay); err != nil {
-		return fmt.Errorf("unilateral refund without receiver delay: %w", err)
-	}
-
-	return nil
-}
-
-// validateSecondsTimelock validates that seconds timelock values meet the requirements
-func validateSecondsTimelock(locktime arklib.RelativeLocktime) error {
-	if locktime.Type == arklib.LocktimeTypeSecond {
-		if locktime.Value < minSecondsTimelock {
-			return fmt.Errorf("seconds timelock must be greater or equal to %d", minSecondsTimelock)
-		}
-		if locktime.Value%secondsTimelockMultiple != 0 {
-			return fmt.Errorf("seconds timelock must be multiple of %d", secondsTimelockMultiple)
-		}
-	}
-	return nil
-}
-
-func (o Opts) claimClosure(preimageCondition []byte) *script.ConditionMultisigClosure {
-	return &script.ConditionMultisigClosure{
-		Condition: preimageCondition,
-		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*btcec.PublicKey{o.Receiver, o.Server},
-		},
-	}
-}
-
-// refundClosure = (Sender + Receiver + Server)
-func (o Opts) refundClosure() *script.MultisigClosure {
-	return &script.MultisigClosure{
-		PubKeys: []*btcec.PublicKey{o.Sender, o.Receiver, o.Server},
-	}
-}
-
-// RefundWithoutReceiver = (Sender + Server) at RefundDelay
-func (o Opts) refundWithoutReceiverClosure() *script.CLTVMultisigClosure {
-	return &script.CLTVMultisigClosure{
-		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*btcec.PublicKey{o.Sender, o.Server},
-		},
-		Locktime: o.RefundLocktime,
-	}
-}
-
-// unilateralClaimClosure = (Receiver + Preimage) at UnilateralClaimDelay
-func (o Opts) unilateralClaimClosure(preimageCondition []byte) *script.ConditionCSVMultisigClosure {
-	// TODO: update deps and add condition
-	return &script.ConditionCSVMultisigClosure{
-		CSVMultisigClosure: script.CSVMultisigClosure{
-			MultisigClosure: script.MultisigClosure{
-				PubKeys: []*btcec.PublicKey{o.Receiver},
-			},
-			Locktime: o.UnilateralClaimDelay,
-		},
-		Condition: preimageCondition,
-	}
-}
-
-// unilateralRefundClosure = (Sender + Receiver) at UnilateralRefundDelay
-func (o Opts) unilateralRefundClosure() *script.CSVMultisigClosure {
-	return &script.CSVMultisigClosure{
-		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*btcec.PublicKey{o.Sender, o.Receiver},
-		},
-		Locktime: o.UnilateralRefundDelay,
-	}
-}
-
-// unilateralRefundWithoutReceiverClosure = (Sender) at UnilateralRefundWithoutReceiverDelay
-func (o Opts) unilateralRefundWithoutReceiverClosure() *script.CSVMultisigClosure {
-	return &script.CSVMultisigClosure{
-		MultisigClosure: script.MultisigClosure{
-			PubKeys: []*btcec.PublicKey{o.Sender},
-		},
-		Locktime: o.UnilateralRefundWithoutReceiverDelay,
-	}
-}
 
 type VHTLCScript struct {
 	script.TapscriptsVtxoScript
@@ -158,8 +35,8 @@ type VHTLCScript struct {
 	preimageConditionScript []byte
 }
 
-// NewVHTLCScript creates a VHTLC VtxoScript from the given options.
-func NewVHTLCScript(opts Opts) (*VHTLCScript, error) {
+// NewVHTLCScriptFromOpts creates a VHTLC VtxoScript from the given options.
+func NewVHTLCScriptFromOpts(opts Opts) (*VHTLCScript, error) {
 	if err := opts.validate(); err != nil {
 		return nil, err
 	}
@@ -203,12 +80,103 @@ func NewVHTLCScript(opts Opts) (*VHTLCScript, error) {
 	}, nil
 }
 
-func makePreimageConditionScript(preimageHash []byte) ([]byte, error) {
-	return txscript.NewScriptBuilder().
-		AddOp(txscript.OP_HASH160).
-		AddData(preimageHash).
-		AddOp(txscript.OP_EQUAL).
-		Script()
+func NewVhtlcScript(
+	preimageHash, claimLeaf, refundLeaf, refundWithoutReceiverLeaf, unilateralClaimLeaf,
+	unilateralRefundLeaf, unilateralRefundWithoutReceiverLeaf string,
+) (*VHTLCScript, error) {
+	// Preimage hash
+	decodedPreimageHash, err := hex.DecodeString(preimageHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode preimage hash: %w", err)
+	}
+	// If the sha256 hash is provided, convert it to hash160
+	if len(decodedPreimageHash) == sha256Len {
+		decodedPreimageHash = input.Ripemd160H(decodedPreimageHash)
+	}
+	if len(decodedPreimageHash) != hash160Len {
+		return nil, fmt.Errorf(
+			"invalid preimage hash length: expected %d, got %d",
+			hash160Len, len(decodedPreimageHash),
+		)
+	}
+	preimageCondition, err := makePreimageConditionScript(decodedPreimageHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build condition script: %w", err)
+	}
+
+	// Claim path
+	claimClosure, err := parseClaimClosure(claimLeaf)
+	if err != nil {
+		return nil, err
+	}
+
+	// Refund path
+	refundClosure, err := parseRefundClosure(refundLeaf)
+	if err != nil {
+		return nil, err
+	}
+
+	// Refund without receiver path
+	refundWithoutReceiverClosure, err := parseRefundWithoutReceiverClosure(refundWithoutReceiverLeaf)
+	if err != nil {
+		return nil, err
+	}
+
+	// Claim exit path
+	unilateralClaimClosure, err := parseUnilateralClaimClosure(unilateralClaimLeaf)
+	if err != nil {
+		return nil, err
+	}
+
+	// Refund exit path
+	unilateralRefundClosure, err := parseUnilateralRefundClosure(unilateralRefundLeaf)
+	if err != nil {
+		return nil, err
+	}
+
+	// Refund without receiver exit path
+	unilateralRefundWithoutReceiverClosure, err := parseUnilateralRefundWithoutReceiverClosure(
+		unilateralRefundWithoutReceiverLeaf,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract keys from closures
+	receiver := unilateralClaimClosure.PubKeys[0]
+	sender := unilateralRefundWithoutReceiverClosure.PubKeys[0]
+	var server *btcec.PublicKey
+	for _, pk := range claimClosure.PubKeys {
+		if pk.IsEqual(receiver) {
+			continue
+		}
+		server = pk
+	}
+
+	return &VHTLCScript{
+		TapscriptsVtxoScript: script.TapscriptsVtxoScript{
+			Closures: []script.Closure{
+				// Collaborative paths
+				claimClosure,
+				refundClosure,
+				refundWithoutReceiverClosure,
+				// Exit paths
+				unilateralClaimClosure,
+				unilateralRefundClosure,
+				unilateralRefundWithoutReceiverClosure,
+			},
+		},
+		Sender:                                 sender,
+		Receiver:                               receiver,
+		Server:                                 server,
+		ClaimClosure:                           claimClosure,
+		RefundClosure:                          refundClosure,
+		RefundWithoutReceiverClosure:           refundWithoutReceiverClosure,
+		UnilateralClaimClosure:                 unilateralClaimClosure,
+		UnilateralRefundClosure:                unilateralRefundClosure,
+		UnilateralRefundWithoutReceiverClosure: unilateralRefundWithoutReceiverClosure,
+		preimageConditionScript:                preimageCondition,
+	}, nil
 }
 
 // GetRevealedTapscripts returns all available scripts as hex-encoded strings
@@ -229,7 +197,7 @@ func (v *VHTLCScript) GetRevealedTapscripts() []string {
 	return scripts
 }
 
-func (v *VHTLCScript) Address(hrp string, serverPubkey *btcec.PublicKey) (string, error) {
+func (v *VHTLCScript) Address(hrp string) (string, error) {
 	tapKey, _, err := v.TapTree()
 	if err != nil {
 		return "", err
@@ -237,7 +205,7 @@ func (v *VHTLCScript) Address(hrp string, serverPubkey *btcec.PublicKey) (string
 
 	addr := &arklib.Address{
 		HRP:        hrp,
-		Signer:     serverPubkey,
+		Signer:     v.Server,
 		VtxoTapKey: tapKey,
 	}
 
@@ -309,4 +277,17 @@ func (v *VHTLCScript) RefundTapscript(withReceiver bool) (*waddrmgr.Tapscript, e
 		RevealedScript: refundLeafProof.Script,
 		ControlBlock:   ctrlBlock,
 	}, nil
+}
+
+func (v *VHTLCScript) Opts() Opts {
+	return Opts{
+		Sender:                               v.Sender,
+		Receiver:                             v.Receiver,
+		Server:                               v.Server,
+		PreimageHash:                         v.preimageConditionScript[2 : 2+hash160Len],
+		RefundLocktime:                       v.RefundWithoutReceiverClosure.Locktime,
+		UnilateralClaimDelay:                 v.UnilateralClaimClosure.Locktime,
+		UnilateralRefundDelay:                v.UnilateralRefundClosure.Locktime,
+		UnilateralRefundWithoutReceiverDelay: v.UnilateralRefundWithoutReceiverClosure.Locktime,
+	}
 }

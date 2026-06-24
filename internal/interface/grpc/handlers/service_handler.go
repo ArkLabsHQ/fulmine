@@ -3,14 +3,18 @@ package handlers
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/utils"
-	"github.com/arkade-os/go-sdk/types"
+	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
+	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	"github.com/btcsuite/btcd/btcutil/psbt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -133,7 +137,7 @@ func (h *serviceHandler) GetTransactionHistory(
 			ArkTxid:        tx.ArkTxid,
 			BoardingTxid:   tx.BoardingTxid,
 			Type:           toTxTypeProto(tx.Type),
-			Settled:        tx.Settled,
+			SettledBy:      tx.SettledBy,
 		})
 	}
 
@@ -176,10 +180,10 @@ func (h *serviceHandler) SendOffChain(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	receivers := []types.Receiver{{To: address, Amount: amount}}
+	receivers := []clientTypes.Receiver{{To: address, Amount: amount}}
 	var arkTxid string
 	for range 3 {
-		arkTxid, err = h.svc.SendOffChain(ctx, false, receivers)
+		arkTxid, err = h.svc.SendOffChain(ctx, receivers)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
 				continue
@@ -227,7 +231,9 @@ func (h *serviceHandler) SignTransaction(
 	return &pb.SignTransactionResponse{SignedTx: signedTx}, nil
 }
 
-func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCRequest) (*pb.ClaimVHTLCResponse, error) {
+func (h *serviceHandler) ClaimVHTLC(
+	ctx context.Context, req *pb.ClaimVHTLCRequest,
+) (*pb.ClaimVHTLCResponse, error) {
 	preimage := req.GetPreimage()
 	if len(preimage) <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "missing preimage")
@@ -243,7 +249,12 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
 	}
 
-	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes, vhtlcId)
+	outpoint, err := parseInputOutpoint(req.GetOutpoint())
+	if err != nil {
+		return nil, err
+	}
+
+	redeemTxid, err := h.svc.ClaimVHTLC(ctx, preimageBytes, vhtlcId, outpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -251,20 +262,143 @@ func (h *serviceHandler) ClaimVHTLC(ctx context.Context, req *pb.ClaimVHTLCReque
 	return &pb.ClaimVHTLCResponse{RedeemTxid: redeemTxid}, nil
 }
 
-func (h *serviceHandler) RefundVHTLCWithoutReceiver(ctx context.Context, req *pb.RefundVHTLCWithoutReceiverRequest) (*pb.RefundVHTLCWithoutReceiverResponse, error) {
+func (h *serviceHandler) RefundVHTLCWithoutReceiver(
+	ctx context.Context, req *pb.RefundVHTLCWithoutReceiverRequest,
+) (*pb.RefundVHTLCWithoutReceiverResponse, error) {
 	vhtlcId := req.GetVhtlcId()
 	if vhtlcId == "" {
 		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
 	}
+	outpoint, err := parseInputOutpoint(req.GetOutpoint())
+	if err != nil {
+		return nil, err
+	}
 	withReceiver := true
 	withoutReceiver := !withReceiver
 
-	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", vhtlcId, withoutReceiver)
+	redeemTxid, err := h.svc.RefundVHTLC(ctx, "", vhtlcId, withoutReceiver, outpoint)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.RefundVHTLCWithoutReceiverResponse{RedeemTxid: redeemTxid}, nil
+}
+
+func (h *serviceHandler) SettleVHTLC(
+	ctx context.Context, req *pb.SettleVHTLCRequest,
+) (*pb.SettleVHTLCResponse, error) {
+	vhtlcId := req.GetVhtlcId()
+	if vhtlcId == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
+	}
+	outpoint, err := parseInputOutpoint(req.GetOutpoint())
+	if err != nil {
+		return nil, err
+	}
+
+	var txid string
+
+	switch settlement := req.GetSettlementType().(type) {
+	case *pb.SettleVHTLCRequest_Claim:
+		preimage := settlement.Claim.GetPreimage()
+		if len(preimage) == 0 {
+			return nil, status.Error(codes.InvalidArgument, "missing preimage")
+		}
+
+		preimageBytes, err := hex.DecodeString(preimage)
+		if err != nil {
+			return nil, status.Error(
+				codes.InvalidArgument, fmt.Sprintf("invalid preimage: %v", err),
+			)
+		}
+
+		txid, err = h.svc.SettleVHTLCWithClaimPath(ctx, vhtlcId, preimageBytes, outpoint)
+		if err != nil {
+			return nil, err
+		}
+	case *pb.SettleVHTLCRequest_Refund:
+		refund := settlement.Refund
+
+		if params := refund.GetDelegateParams(); params != nil {
+			message := params.GetIntentMessage()
+			proof := params.GetSignedIntentProof()
+			forfeitTx := params.GetPartialForfeitTx()
+
+			var buf intent.RegisterMessage
+			if err := buf.Decode(params.GetIntentMessage()); err != nil {
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
+			if _, err := psbt.NewFromRawBytes(strings.NewReader(proof), true); err != nil {
+				return nil, status.Error(
+					codes.InvalidArgument, fmt.Sprintf("invalid signed intent proof: %v", err),
+				)
+			}
+			if _, err := psbt.NewFromRawBytes(strings.NewReader(forfeitTx), true); err != nil {
+				return nil, status.Error(
+					codes.InvalidArgument, fmt.Sprintf("invalid forfeit tx: %v", err),
+				)
+			}
+
+			txid, err = h.svc.SettleVHTLCWithCollaborativeRefundPath(
+				ctx, vhtlcId, proof, message, forfeitTx, outpoint,
+			)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			txid, err = h.svc.SettleVHTLCWithRefundPath(ctx, vhtlcId, outpoint)
+			if err != nil {
+				return nil, err
+			}
+		}
+	default:
+		return nil, status.Error(codes.InvalidArgument, "unknown settlement_type")
+	}
+
+	return &pb.SettleVHTLCResponse{Txid: txid}, nil
+}
+
+func parseInputOutpoint(input *pb.Input) (*clientTypes.Outpoint, error) {
+	if input == nil {
+		return nil, nil
+	}
+
+	txid := input.GetTxid()
+	if txid == "" {
+		return nil, status.Error(
+			codes.InvalidArgument, "outpoint txid is required when outpoint is provided",
+		)
+	}
+
+	return &clientTypes.Outpoint{
+		Txid: txid,
+		VOut: input.GetVout(),
+	}, nil
+}
+
+func (h *serviceHandler) GetVHTLCSpendingTx(
+	ctx context.Context, req *pb.GetVHTLCSpendingTxRequest,
+) (*pb.GetVHTLCSpendingTxResponse, error) {
+	vhtlcId := req.GetVhtlcId()
+	if vhtlcId == "" {
+		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
+	}
+
+	tx, err := h.svc.GetVHTLCSpendingTx(ctx, vhtlcId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetVHTLCSpendingTxResponse{Tx: tx}, nil
+}
+
+func (h *serviceHandler) ListVHTLCs(ctx context.Context, req *pb.ListVHTLCsRequest) (*pb.ListVHTLCsResponse, error) {
+	vtxos, _, err := h.svc.ListVHTLCs(ctx, req.GetVhtlcIds())
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.ListVHTLCsResponse{Vhtlcs: toVtxosProto(vtxos)}, nil
 }
 
 func (h *serviceHandler) ListVHTLC(ctx context.Context, req *pb.ListVHTLCRequest) (*pb.ListVHTLCResponse, error) {
@@ -311,7 +445,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
 	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
 
-	addr, vhtlc_id, vhtlcScript, _, err := h.svc.GetVHTLC(
+	addr, vhtlc_id, vhtlcScript, err := h.svc.GetSwapVHTLC(
 		ctx,
 		receiverPubkey,
 		senderPubkey,
@@ -401,70 +535,6 @@ func (h *serviceHandler) IsInvoiceSettled(
 	return &pb.IsInvoiceSettledResponse{Settled: settled}, nil
 }
 
-func (h *serviceHandler) GetDelegatePublicKey(
-	ctx context.Context, req *pb.GetDelegatePublicKeyRequest,
-) (*pb.GetDelegatePublicKeyResponse, error) {
-	pubKey, err := h.svc.GetDelegatePublicKey(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get delegate public key: %v", err)
-	}
-
-	return &pb.GetDelegatePublicKeyResponse{
-		PublicKey: pubKey,
-	}, nil
-}
-
-func (h *serviceHandler) WatchAddressForRollover(
-	ctx context.Context,
-	req *pb.WatchAddressForRolloverRequest,
-) (*pb.WatchAddressForRolloverResponse, error) {
-	err := h.svc.WatchAddressForRollover(
-		ctx, req.RolloverAddress.Address,
-		req.RolloverAddress.DestinationAddress,
-		req.RolloverAddress.TaprootTree.Scripts,
-	)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to watch address: %v", err)
-	}
-
-	return &pb.WatchAddressForRolloverResponse{}, nil
-}
-
-func (h *serviceHandler) UnwatchAddress(
-	ctx context.Context, req *pb.UnwatchAddressRequest,
-) (*pb.UnwatchAddressResponse, error) {
-	err := h.svc.UnwatchAddress(ctx, req.Address)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to unwatch address: %v", err)
-	}
-
-	return &pb.UnwatchAddressResponse{}, nil
-}
-
-func (h *serviceHandler) ListWatchedAddresses(
-	ctx context.Context, req *pb.ListWatchedAddressesRequest,
-) (*pb.ListWatchedAddressesResponse, error) {
-	targets, err := h.svc.ListWatchedAddresses(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list watched addresses: %v", err)
-	}
-
-	rolloverAddresses := make([]*pb.RolloverAddress, 0, len(targets))
-	for _, target := range targets {
-		rolloverAddresses = append(rolloverAddresses, &pb.RolloverAddress{
-			Address: target.Address,
-			TaprootTree: &pb.Tapscripts{
-				Scripts: target.TaprootTree,
-			},
-			DestinationAddress: target.DestinationAddress,
-		})
-	}
-
-	return &pb.ListWatchedAddressesResponse{
-		Addresses: rolloverAddresses,
-	}, nil
-}
-
 func (h *serviceHandler) GetVirtualTxs(
 	ctx context.Context, req *pb.GetVirtualTxsRequest,
 ) (*pb.GetVirtualTxsResponse, error) {
@@ -492,5 +562,222 @@ func (h *serviceHandler) GetVirtualTxs(
 
 	return &pb.GetVirtualTxsResponse{
 		Txs: txs,
+	}, nil
+}
+
+func (h *serviceHandler) GetVtxos(ctx context.Context, req *pb.GetVtxosRequest) (*pb.GetVtxosResponse, error) {
+	var filterType string
+
+	switch filter := req.GetFilter().(type) {
+	case *pb.GetVtxosRequest_SpendableOnly:
+		if !filter.SpendableOnly {
+			return nil, status.Errorf(codes.InvalidArgument, "spendable only cannot be false")
+		}
+		filterType = "spendable"
+	case *pb.GetVtxosRequest_SpentOnly:
+		if !filter.SpentOnly {
+			return nil, status.Errorf(codes.InvalidArgument, "spent only cannot be false")
+		}
+		filterType = "spent"
+	case *pb.GetVtxosRequest_RecoverableOnly:
+		if !filter.RecoverableOnly {
+			return nil, status.Errorf(codes.InvalidArgument, "recoverable only cannot be false")
+		}
+		filterType = "recoverable"
+	case nil:
+		filterType = "all"
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "unknown filter type: %T", filter)
+	}
+
+	vtxos, err := h.svc.GetVtxos(ctx, filterType)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetVtxosResponse{
+		Vtxos: toVtxosProto(vtxos),
+	}, nil
+}
+
+func (h *serviceHandler) NextSettlement(
+	ctx context.Context, req *pb.NextSettlementRequest,
+) (*pb.NextSettlementResponse, error) {
+	nextSettlementUnix := int64(0)
+	nextSettlement := h.svc.WhenNextSettlement(ctx)
+	if !nextSettlement.IsZero() {
+		nextSettlementUnix = nextSettlement.Unix()
+	}
+
+	return &pb.NextSettlementResponse{
+		NextSettlementAt: nextSettlementUnix,
+	}, nil
+}
+
+// Chain Swap gRPC handlers
+
+func (h *serviceHandler) CreateChainSwap(
+	ctx context.Context,
+	req *pb.CreateChainSwapRequest,
+) (*pb.CreateChainSwapResponse, error) {
+	if req.Direction == pb.SwapDirection_SWAP_DIRECTION_UNSPECIFIED {
+		return nil, status.Error(codes.InvalidArgument, "direction must be specified")
+	}
+	if req.Amount == 0 {
+		return nil, status.Error(codes.InvalidArgument, "amount must be greater than zero")
+	}
+
+	switch req.Direction {
+	case pb.SwapDirection_SWAP_DIRECTION_ARK_TO_BTC:
+		if req.BtcAddress == "" {
+			return nil, status.Error(codes.InvalidArgument, "btc_address is required for Ark→BTC swap")
+		}
+
+		chainSwap, err := h.svc.CreateChainSwapArkToBtc(ctx, req.Amount, req.BtcAddress)
+		if err != nil {
+			return &pb.CreateChainSwapResponse{
+				Error: err.Error(),
+			}, nil
+		}
+
+		return &pb.CreateChainSwapResponse{
+			Id:             chainSwap.Id,
+			Status:         chainSwapStatusToString(chainSwap.Status),
+			UserLockupTxid: chainSwap.UserLockupTxId,
+			ExpectedAmount: chainSwap.Amount,
+			Preimage:       chainSwap.ClaimPreimage,
+		}, nil
+
+	case pb.SwapDirection_SWAP_DIRECTION_BTC_TO_ARK:
+		chainSwap, err := h.svc.CreateBtcToArkChainSwap(ctx, req.Amount)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+
+		return &pb.CreateChainSwapResponse{
+			Id:                 chainSwap.Id,
+			Status:             chainSwapStatusToString(chainSwap.Status),
+			LockupAddress:      chainSwap.UserBtcLockupAddress,
+			ExpectedAmount:     chainSwap.Amount,
+			TimeoutBlockHeight: 0,
+			Preimage:           chainSwap.ClaimPreimage,
+		}, nil
+
+	default:
+		return nil, status.Error(codes.InvalidArgument, "invalid direction")
+	}
+}
+
+func (h *serviceHandler) ListChainSwaps(
+	ctx context.Context,
+	req *pb.ListChainSwapsRequest,
+) (*pb.ListChainSwapsResponse, error) {
+	swapIDs := req.GetSwapIds()
+
+	chainSwaps, err := h.svc.ListChainSwaps(ctx, swapIDs)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	swaps := make([]*pb.ChainSwapResponse, 0, len(chainSwaps))
+	for i := range chainSwaps {
+		swaps = append(swaps, toChainSwapProto(&chainSwaps[i]))
+	}
+
+	return &pb.ListChainSwapsResponse{Swaps: swaps}, nil
+}
+
+func (h *serviceHandler) RefundChainSwap(
+	ctx context.Context,
+	req *pb.RefundChainSwapRequest,
+) (*pb.RefundChainSwapResponse, error) {
+	if req.Id == "" {
+		return nil, status.Error(codes.InvalidArgument, "swap id is required")
+	}
+
+	if err := h.svc.RefundChainSwap(ctx, req.Id); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &pb.RefundChainSwapResponse{
+		Message: "refund initiated",
+	}, nil
+}
+
+func toChainSwapProto(cs *domain.ChainSwap) *pb.ChainSwapResponse {
+	return &pb.ChainSwapResponse{
+		Id:               cs.Id,
+		From:             string(cs.From),
+		To:               string(cs.To),
+		Amount:           cs.Amount,
+		Status:           chainSwapStatusToString(cs.Status),
+		Preimage:         cs.ClaimPreimage,
+		UserLockupTxid:   cs.UserLockupTxId,
+		ServerLockupTxid: cs.ServerLockupTxId,
+		ClaimTxid:        cs.ClaimTxId,
+		RefundTxid:       cs.RefundTxId,
+		BtcAddress:       cs.UserBtcLockupAddress,
+		Timestamp:        cs.CreatedAt,
+		ErrorMessage:     cs.ErrorMessage,
+	}
+}
+
+func chainSwapStatusToString(status domain.ChainSwapStatus) string {
+	switch status {
+	case domain.ChainSwapPending:
+		return "pending"
+	case domain.ChainSwapUserLocked:
+		return "user_locked"
+	case domain.ChainSwapServerLocked:
+		return "server_locked"
+	case domain.ChainSwapClaimed:
+		return "claimed"
+	case domain.ChainSwapUserLockedFailed:
+		return "user_locked_failed"
+	case domain.ChainSwapFailed:
+		return "failed"
+	case domain.ChainSwapRefundFailed:
+		return "refund_failed"
+	case domain.ChainSwapRefunded:
+		return "refunded"
+	case domain.ChainSwapRefundedUnilaterally:
+		return "refunded_unilaterally"
+	default:
+		return "unknown"
+	}
+}
+
+func (h *serviceHandler) ListDelegates(
+	ctx context.Context, req *pb.ListDelegatesRequest,
+) (*pb.ListDelegatesResponse, error) {
+	statusStr := req.GetStatus()
+	if statusStr == "" {
+		return nil, status.Error(codes.InvalidArgument, "status is required")
+	}
+
+	delegateStatus, err := domain.DelegateTaskStatusFromString(statusStr)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	limit := int(req.GetLimit())
+	if limit <= 0 {
+		limit = 100 // Default limit
+	}
+	if limit > 1000 {
+		limit = 1000 // Max limit
+	}
+	offset := int(req.GetOffset())
+	if offset < 0 {
+		offset = 0
+	}
+
+	delegates, err := h.svc.GetDelegateTasks(ctx, delegateStatus, limit, offset)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &pb.ListDelegatesResponse{
+		Delegates: toDelegatesProto(delegates),
 	}, nil
 }

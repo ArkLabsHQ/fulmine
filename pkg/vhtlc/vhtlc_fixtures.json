@@ -195,7 +195,7 @@
               "type": "blocks",
               "value": 144
           },
-          "error": "unilateral claim delay must be greater than 0"
+          "error": "must be greater than 0"
       },
       {
           "description": "Invalid refund locktime (zero)",
@@ -216,7 +216,7 @@
               "type": "blocks",
               "value": 144
           },
-          "error": "refund locktime must be greater than 0"
+          "error": "must be greater than 0"
       },
       {
         "description": "Invalid seconds timelock (not multiple of 512)",
@@ -237,7 +237,7 @@
             "type": "seconds",
             "value": 1536
         },
-        "error": "seconds timelock must be multiple of 512"
+        "error": "must be a multiple of 512"
     },
     {
       "description": "Invalid seconds timelock (less than 512)",
@@ -258,7 +258,7 @@
           "type": "seconds",
           "value": 1536
       },
-      "error": "seconds timelock must be greater or equal to 512"
+      "error": "must be at least 512"
     }
   ]
 }
