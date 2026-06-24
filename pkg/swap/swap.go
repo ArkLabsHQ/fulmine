@@ -24,6 +24,7 @@ import (
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
@@ -159,6 +160,73 @@ func (h *SwapHandler) GetVHTLCFunds(
 	return h.getVHTLCFunds(ctx, vHTLCs)
 }
 
+func (h *SwapHandler) GetVHTLCSpendingTx(
+	ctx context.Context, vhtlcOpts vhtlc.Opts, outpoint *clientTypes.Outpoint,
+) (string, bool, error) {
+	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to create VHTLC script: %w", err)
+	}
+
+	vtxo, pending, err := h.selectClaimableVTXO(ctx, vhtlcScript, outpoint)
+	if err != nil {
+		return "", false, err
+	}
+
+	if pending {
+		tx, err := h.getPendingVHTLCTx(ctx, *vtxo, vhtlcScript)
+		if err != nil {
+			return "", false, fmt.Errorf("failed to get pending tx: %w", err)
+		}
+		return tx, true, nil
+	}
+
+	txs, err := h.arkClient.Indexer().GetVirtualTxs(ctx, []string{vtxo.ArkTxid})
+	if err != nil {
+		return "", false, fmt.Errorf("failed to get virtual tx: %w", err)
+	}
+	if len(txs.Txs) == 0 {
+		return "", false, fmt.Errorf("no virtual tx found for txid %s", vtxo.ArkTxid)
+	}
+
+	return txs.Txs[0], false, nil
+}
+
+// getPendingVHTLCTx retrieves the pending tx for a VTXO without finalizing it.
+func (h *SwapHandler) getPendingVHTLCTx(
+	ctx context.Context, vtxo clientTypes.Vtxo, vhtlcScript *vhtlc.VHTLCScript,
+) (string, error) {
+	inputs := []pendingTxIntentInput{{
+		Vtxo: clientTypes.VtxoWithTapTree{
+			Vtxo:       vtxo,
+			Tapscripts: vhtlcScript.GetRevealedTapscripts(),
+		},
+		Closure:  vhtlcScript.RefundWithoutReceiverClosure,
+		Sequence: wire.MaxTxInSequenceNum - 1,
+	}}
+
+	proof, message, err := getPendingTxIntent(inputs, uint32(vhtlcScript.RefundWithoutReceiverClosure.Locktime))
+	if err != nil {
+		return "", err
+	}
+
+	signedProof, err := h.arkClient.SignTransaction(ctx, proof)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign pending tx proof: %w", err)
+	}
+
+	pendingTxs, err := h.arkClient.Client().GetPendingTx(ctx, signedProof, message)
+	if err != nil {
+		return "", err
+	}
+
+	if len(pendingTxs) == 0 {
+		return "", fmt.Errorf("no pending txs found")
+	}
+
+	return pendingTxs[0].FinalArkTx, nil
+}
+
 func (h *SwapHandler) ClaimVHTLC(
 	ctx context.Context, preimage []byte, vhtlcOpts vhtlc.Opts, outpoint *clientTypes.Outpoint,
 ) (string, error) {
@@ -286,14 +354,15 @@ func (h *SwapHandler) ClaimVHTLC(
 		return "", err
 	}
 
+	signers := h.config.AllSigners()
 	if err := verifyFinalArkTx(
-		finalArkTx, h.config.SignerPubKey, getInputTapLeaves(arkTx),
+		finalArkTx, signers, getInputTapLeaves(arkTx),
 	); err != nil {
 		return "", err
 	}
 
 	finalCheckpoints, err := verifyAndSignCheckpoints(
-		signedCheckpoints, checkpoints, h.config.SignerPubKey, signTransaction,
+		signedCheckpoints, checkpoints, signers, signTransaction,
 	)
 	if err != nil {
 		return "", err
@@ -439,12 +508,19 @@ func (h *SwapHandler) RefundSwap(
 		return "", fmt.Errorf("failed to decode checkpoint tx signed by us: %s", err)
 	}
 
-	pubKeysToVerify := []*btcec.PublicKey{vhtlcOpts.Sender, vhtlcOpts.Server}
+	xonlyStr := func(key *btcec.PublicKey) string {
+		return hex.EncodeToString(schnorr.SerializePubKey(key))
+	}
+
+	pubKeysToVerify := map[string]*btcec.PublicKey{
+		xonlyStr(vhtlcOpts.Sender): vhtlcOpts.Sender,
+		xonlyStr(vhtlcOpts.Server): vhtlcOpts.Server,
+	}
 	checkpointsList := append([]*psbt.Packet{}, signedCheckpointPsbt)
 
 	// if withReceiver is enabled, boltz should sign the transactions
 	if withReceiver {
-		pubKeysToVerify = append(pubKeysToVerify, vhtlcOpts.Receiver)
+		pubKeysToVerify[xonlyStr(vhtlcOpts.Receiver)] = vhtlcOpts.Receiver
 
 		// Determine which refund function to use based on swap type
 		var refundFunc func(string, boltz.RefundSwapRequest) (*boltz.RefundSwapResponse, error)

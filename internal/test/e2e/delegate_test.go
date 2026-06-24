@@ -34,20 +34,20 @@ func TestDelegate(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7004")
+	delegateClient, err := newDelegateClient("localhost:7004")
 	require.NoError(t, err)
-	require.NotNil(t, delegatorClient)
+	require.NotNil(t, delegateClient)
 
-	delegateInfo, err := delegatorClient.GetDelegatorInfo(ctx, &pb.GetDelegatorInfoRequest{})
+	delegateInfo, err := delegateClient.GetDelegateInfo(ctx, &pb.GetDelegateInfoRequest{})
 	require.NoError(t, err)
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
 
-	delegatorPubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
+	delegatePubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
 	require.NoError(t, err)
-	delegatorPubKey, err := btcec.ParsePubKey(delegatorPubKeyBytes)
+	delegatePubKey, err := btcec.ParsePubKey(delegatePubKeyBytes)
 	require.NoError(t, err)
-	require.NotNil(t, delegatorPubKey)
+	require.NotNil(t, delegatePubKey)
 
 	_, aliceAddr, _, _, err := alice.GetAddresses(ctx)
 	require.NoError(t, err)
@@ -62,8 +62,8 @@ func TestDelegate(t *testing.T) {
 
 	signerPubKey := aliceConfig.SignerPubKey
 
-	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
-		PubKeys: []*btcec.PublicKey{alicePubKey, delegatorPubKey, signerPubKey},
+	aliceDelegatorClosure := &script.MultisigClosure{
+		PubKeys: []*btcec.PublicKey{alicePubKey, delegatePubKey, signerPubKey},
 	}
 
 	exitLocktime := arklib.RelativeLocktime{
@@ -71,9 +71,9 @@ func TestDelegate(t *testing.T) {
 		Value: 1024,
 	}
 
-	delegationVtxoScript := script.TapscriptsVtxoScript{
+	delegatorVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			collaborativeAliceDelegatorClosure,
+			aliceDelegatorClosure,
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
@@ -86,7 +86,7 @@ func TestDelegate(t *testing.T) {
 		},
 	}
 
-	vtxoTapKey, vtxoTapTree, err := delegationVtxoScript.TapTree()
+	vtxoTapKey, vtxoTapTree, err := delegatorVtxoScript.TapTree()
 	require.NoError(t, err)
 
 	arkAddress := arklib.Address{
@@ -135,7 +135,7 @@ func TestDelegate(t *testing.T) {
 	vtxoHash, err := chainhash.NewHashFromStr(aliceVtxo.Txid)
 	require.NoError(t, err)
 
-	exitScript, err := delegationVtxoScript.ExitClosures()[0].Script()
+	exitScript, err := delegatorVtxoScript.ExitClosures()[0].Script()
 	require.NoError(t, err)
 
 	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -146,7 +146,7 @@ func TestDelegate(t *testing.T) {
 	sequence, err := arklib.BIP68Sequence(exitLocktime)
 	require.NoError(t, err)
 
-	delegatePkScript, err := arkAddress.GetPkScript()
+	delegatorPkScript, err := arkAddress.GetPkScript()
 	require.NoError(t, err)
 
 	alicePkScript, err := aliceArkAddr.GetPkScript()
@@ -163,7 +163,7 @@ func TestDelegate(t *testing.T) {
 				Sequence: sequence,
 				WitnessUtxo: &wire.TxOut{
 					Value:    int64(aliceVtxo.Amount),
-					PkScript: delegatePkScript,
+					PkScript: delegatorPkScript,
 				},
 			},
 		},
@@ -185,7 +185,7 @@ func TestDelegate(t *testing.T) {
 	intentProof.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 	intentProof.Inputs[1].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 
-	scripts, err := delegationVtxoScript.Encode()
+	scripts, err := delegatorVtxoScript.Encode()
 	require.NoError(t, err)
 
 	tapTree := txutils.TapTree(scripts)
@@ -221,7 +221,7 @@ func TestDelegate(t *testing.T) {
 		[]uint32{wire.MaxTxInSequenceNum},
 		[]*wire.TxOut{{
 			Value:    int64(aliceVtxo.Amount),
-			PkScript: delegatePkScript,
+			PkScript: delegatorPkScript,
 		}},
 		&wire.TxOut{
 			Value:    int64(aliceVtxo.Amount + connectorAmount),
@@ -238,7 +238,7 @@ func TestDelegate(t *testing.T) {
 	err = updater.AddInSighashType(txscript.SigHashAnyOneCanPay|txscript.SigHashAll, 0)
 	require.NoError(t, err)
 
-	aliceDelegatorScript, err := collaborativeAliceDelegatorClosure.Script()
+	aliceDelegatorScript, err := aliceDelegatorClosure.Script()
 	require.NoError(t, err)
 
 	aliceDelegatorMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -260,7 +260,7 @@ func TestDelegate(t *testing.T) {
 	signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
 	require.NoError(t, err)
 
-	_, err = delegatorClient.Delegate(ctx, &pb.DelegateRequest{
+	_, err = delegateClient.Delegate(ctx, &pb.DelegateRequest{
 		Intent: &pb.Intent{
 			Message: encodedIntentMessage,
 			Proof:   encodedIntentProof,
@@ -284,20 +284,20 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7004")
+	delegateClient, err := newDelegateClient("localhost:7004")
 	require.NoError(t, err)
-	require.NotNil(t, delegatorClient)
+	require.NotNil(t, delegateClient)
 
-	delegateInfo, err := delegatorClient.GetDelegatorInfo(ctx, &pb.GetDelegatorInfoRequest{})
+	delegateInfo, err := delegateClient.GetDelegateInfo(ctx, &pb.GetDelegateInfoRequest{})
 	require.NoError(t, err)
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
 
-	delegatorPubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
+	delegatePubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
 	require.NoError(t, err)
-	delegatorPubKey, err := btcec.ParsePubKey(delegatorPubKeyBytes)
+	delegatePubKey, err := btcec.ParsePubKey(delegatePubKeyBytes)
 	require.NoError(t, err)
-	require.NotNil(t, delegatorPubKey)
+	require.NotNil(t, delegatePubKey)
 
 	_, aliceAddr, boardingAddr, _, err := alice.GetAddresses(ctx)
 	require.NoError(t, err)
@@ -312,8 +312,8 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 
 	signerPubKey := aliceConfig.SignerPubKey
 
-	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
-		PubKeys: []*btcec.PublicKey{alicePubKey, delegatorPubKey, signerPubKey},
+	aliceDelegatorClosure := &script.MultisigClosure{
+		PubKeys: []*btcec.PublicKey{alicePubKey, delegatePubKey, signerPubKey},
 	}
 
 	exitLocktime := arklib.RelativeLocktime{
@@ -321,9 +321,9 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 		Value: 1024,
 	}
 
-	delegationVtxoScript := script.TapscriptsVtxoScript{
+	delegatorVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			collaborativeAliceDelegatorClosure,
+			aliceDelegatorClosure,
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
@@ -336,7 +336,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 		},
 	}
 
-	vtxoTapKey, vtxoTapTree, err := delegationVtxoScript.TapTree()
+	vtxoTapKey, vtxoTapTree, err := delegatorVtxoScript.TapTree()
 	require.NoError(t, err)
 
 	arkAddress := arklib.Address{
@@ -386,7 +386,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	vtxoHash, err := chainhash.NewHashFromStr(aliceVtxo.Txid)
 	require.NoError(t, err)
 
-	exitScript, err := delegationVtxoScript.ExitClosures()[0].Script()
+	exitScript, err := delegatorVtxoScript.ExitClosures()[0].Script()
 	require.NoError(t, err)
 
 	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -397,7 +397,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	sequence, err := arklib.BIP68Sequence(exitLocktime)
 	require.NoError(t, err)
 
-	delegatePkScript, err := arkAddress.GetPkScript()
+	delegatorPkScript, err := arkAddress.GetPkScript()
 	require.NoError(t, err)
 
 	boardingAddress, err := btcutil.DecodeAddress(boardingAddr[0], &chaincfg.RegressionNetParams)
@@ -418,7 +418,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 				Sequence: sequence,
 				WitnessUtxo: &wire.TxOut{
 					Value:    int64(aliceVtxo.Amount),
-					PkScript: delegatePkScript,
+					PkScript: delegatorPkScript,
 				},
 			},
 		},
@@ -440,7 +440,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	intentProof.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 	intentProof.Inputs[1].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 
-	scripts, err := delegationVtxoScript.Encode()
+	scripts, err := delegatorVtxoScript.Encode()
 	require.NoError(t, err)
 
 	tapTree := txutils.TapTree(scripts)
@@ -476,7 +476,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 		[]uint32{wire.MaxTxInSequenceNum},
 		[]*wire.TxOut{{
 			Value:    int64(aliceVtxo.Amount),
-			PkScript: delegatePkScript,
+			PkScript: delegatorPkScript,
 		}},
 		&wire.TxOut{
 			Value:    int64(aliceVtxo.Amount + connectorAmount),
@@ -493,7 +493,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	err = updater.AddInSighashType(txscript.SigHashAnyOneCanPay|txscript.SigHashAll, 0)
 	require.NoError(t, err)
 
-	aliceDelegatorScript, err := collaborativeAliceDelegatorClosure.Script()
+	aliceDelegatorScript, err := aliceDelegatorClosure.Script()
 	require.NoError(t, err)
 
 	aliceDelegatorMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -515,7 +515,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
 	require.NoError(t, err)
 
-	_, err = delegatorClient.Delegate(ctx, &pb.DelegateRequest{
+	_, err = delegateClient.Delegate(ctx, &pb.DelegateRequest{
 		Intent: &pb.Intent{
 			Message: encodedIntentMessage,
 			Proof:   encodedIntentProof,
@@ -541,20 +541,20 @@ func TestMultipleDelegate(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7004")
+	delegateClient, err := newDelegateClient("localhost:7004")
 	require.NoError(t, err)
-	require.NotNil(t, delegatorClient)
+	require.NotNil(t, delegateClient)
 
-	delegateInfo, err := delegatorClient.GetDelegatorInfo(ctx, &pb.GetDelegatorInfoRequest{})
+	delegateInfo, err := delegateClient.GetDelegateInfo(ctx, &pb.GetDelegateInfoRequest{})
 	require.NoError(t, err)
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
 
-	delegatorPubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
+	delegatePubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
 	require.NoError(t, err)
-	delegatorPubKey, err := btcec.ParsePubKey(delegatorPubKeyBytes)
+	delegatePubKey, err := btcec.ParsePubKey(delegatePubKeyBytes)
 	require.NoError(t, err)
-	require.NotNil(t, delegatorPubKey)
+	require.NotNil(t, delegatePubKey)
 
 	_, aliceAddr, _, _, err := alice.GetAddresses(ctx)
 	require.NoError(t, err)
@@ -569,8 +569,8 @@ func TestMultipleDelegate(t *testing.T) {
 
 	signerPubKey := aliceConfig.SignerPubKey
 
-	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
-		PubKeys: []*btcec.PublicKey{alicePubKey, delegatorPubKey, signerPubKey},
+	aliceDelegatorClosure := &script.MultisigClosure{
+		PubKeys: []*btcec.PublicKey{alicePubKey, delegatePubKey, signerPubKey},
 	}
 
 	exitLocktime := arklib.RelativeLocktime{
@@ -578,9 +578,9 @@ func TestMultipleDelegate(t *testing.T) {
 		Value: 1024,
 	}
 
-	delegationVtxoScript := script.TapscriptsVtxoScript{
+	delegatorVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			collaborativeAliceDelegatorClosure,
+			aliceDelegatorClosure,
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
@@ -593,7 +593,7 @@ func TestMultipleDelegate(t *testing.T) {
 		},
 	}
 
-	vtxoTapKey, vtxoTapTree, err := delegationVtxoScript.TapTree()
+	vtxoTapKey, vtxoTapTree, err := delegatorVtxoScript.TapTree()
 	require.NoError(t, err)
 
 	arkAddress := arklib.Address{
@@ -607,13 +607,13 @@ func TestMultipleDelegate(t *testing.T) {
 
 	faucetOffchain(t, alice, 0.0021) // 10 * 0.00021
 
-	delegatePkScript, err := arkAddress.GetPkScript()
+	delegatorPkScript, err := arkAddress.GetPkScript()
 	require.NoError(t, err)
 
 	alicePkScript, err := aliceArkAddr.GetPkScript()
 	require.NoError(t, err)
 
-	exitScript, err := delegationVtxoScript.ExitClosures()[0].Script()
+	exitScript, err := delegatorVtxoScript.ExitClosures()[0].Script()
 	require.NoError(t, err)
 
 	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -624,12 +624,12 @@ func TestMultipleDelegate(t *testing.T) {
 	sequence, err := arklib.BIP68Sequence(exitLocktime)
 	require.NoError(t, err)
 
-	scripts, err := delegationVtxoScript.Encode()
+	scripts, err := delegatorVtxoScript.Encode()
 	require.NoError(t, err)
 
 	tapTree := txutils.TapTree(scripts)
 
-	aliceDelegatorScript, err := collaborativeAliceDelegatorClosure.Script()
+	aliceDelegatorScript, err := aliceDelegatorClosure.Script()
 	require.NoError(t, err)
 
 	aliceDelegatorMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -704,7 +704,7 @@ func TestMultipleDelegate(t *testing.T) {
 					Sequence: sequence,
 					WitnessUtxo: &wire.TxOut{
 						Value:    int64(aliceVtxo.Amount),
-						PkScript: delegatePkScript,
+						PkScript: delegatorPkScript,
 					},
 				},
 			},
@@ -749,7 +749,7 @@ func TestMultipleDelegate(t *testing.T) {
 			[]uint32{wire.MaxTxInSequenceNum},
 			[]*wire.TxOut{{
 				Value:    int64(aliceVtxo.Amount),
-				PkScript: delegatePkScript,
+				PkScript: delegatorPkScript,
 			}},
 			&wire.TxOut{
 				Value:    int64(aliceVtxo.Amount + connectorAmount),
@@ -784,7 +784,7 @@ func TestMultipleDelegate(t *testing.T) {
 	}
 
 	for i, req := range delegateRequests {
-		_, err = delegatorClient.Delegate(ctx, req)
+		_, err = delegateClient.Delegate(ctx, req)
 		require.NoError(t, err, "failed to delegate vtxo %d", i+1)
 	}
 
@@ -801,27 +801,27 @@ func TestMultipleDelegate(t *testing.T) {
 }
 
 // TestDelegateSameInput tests the case where a delegate task with the same input is already pending.
-// The delegator should cancel the old task and process the new one instead of returning an error.
+// The delegate should cancel the old task and process the new one instead of returning an error.
 func TestDelegateSameInput(t *testing.T) {
 	ctx := t.Context()
 	alice, alicePubKey, grpcClient := setupArkSDKwithPublicKey(t)
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7004")
+	delegateClient, err := newDelegateClient("localhost:7004")
 	require.NoError(t, err)
-	require.NotNil(t, delegatorClient)
+	require.NotNil(t, delegateClient)
 
-	delegateInfo, err := delegatorClient.GetDelegatorInfo(ctx, &pb.GetDelegatorInfoRequest{})
+	delegateInfo, err := delegateClient.GetDelegateInfo(ctx, &pb.GetDelegateInfoRequest{})
 	require.NoError(t, err)
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
 
-	delegatorPubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
+	delegatePubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
 	require.NoError(t, err)
-	delegatorPubKey, err := btcec.ParsePubKey(delegatorPubKeyBytes)
+	delegatePubKey, err := btcec.ParsePubKey(delegatePubKeyBytes)
 	require.NoError(t, err)
-	require.NotNil(t, delegatorPubKey)
+	require.NotNil(t, delegatePubKey)
 
 	_, aliceAddr, _, _, err := alice.GetAddresses(ctx)
 	require.NoError(t, err)
@@ -836,8 +836,8 @@ func TestDelegateSameInput(t *testing.T) {
 
 	signerPubKey := aliceConfig.SignerPubKey
 
-	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
-		PubKeys: []*btcec.PublicKey{alicePubKey, delegatorPubKey, signerPubKey},
+	aliceDelegatorClosure := &script.MultisigClosure{
+		PubKeys: []*btcec.PublicKey{alicePubKey, delegatePubKey, signerPubKey},
 	}
 
 	exitLocktime := arklib.RelativeLocktime{
@@ -845,9 +845,9 @@ func TestDelegateSameInput(t *testing.T) {
 		Value: 1024,
 	}
 
-	delegationVtxoScript := script.TapscriptsVtxoScript{
+	delegatorVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			collaborativeAliceDelegatorClosure,
+			aliceDelegatorClosure,
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
@@ -860,7 +860,7 @@ func TestDelegateSameInput(t *testing.T) {
 		},
 	}
 
-	vtxoTapKey, vtxoTapTree, err := delegationVtxoScript.TapTree()
+	vtxoTapKey, vtxoTapTree, err := delegatorVtxoScript.TapTree()
 	require.NoError(t, err)
 
 	arkAddress := arklib.Address{
@@ -897,7 +897,7 @@ func TestDelegateSameInput(t *testing.T) {
 	vtxoHash, err := chainhash.NewHashFromStr(aliceVtxo.Txid)
 	require.NoError(t, err)
 
-	exitScript, err := delegationVtxoScript.ExitClosures()[0].Script()
+	exitScript, err := delegatorVtxoScript.ExitClosures()[0].Script()
 	require.NoError(t, err)
 
 	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -908,7 +908,7 @@ func TestDelegateSameInput(t *testing.T) {
 	sequence, err := arklib.BIP68Sequence(exitLocktime)
 	require.NoError(t, err)
 
-	delegatePkScript, err := arkAddress.GetPkScript()
+	delegatorPkScript, err := arkAddress.GetPkScript()
 	require.NoError(t, err)
 
 	alicePkScript, err := aliceArkAddr.GetPkScript()
@@ -940,7 +940,7 @@ func TestDelegateSameInput(t *testing.T) {
 					Sequence: sequence,
 					WitnessUtxo: &wire.TxOut{
 						Value:    int64(aliceVtxo.Amount),
-						PkScript: delegatePkScript,
+						PkScript: delegatorPkScript,
 					},
 				},
 			},
@@ -964,7 +964,7 @@ func TestDelegateSameInput(t *testing.T) {
 		intentProof.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 		intentProof.Inputs[1].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 
-		scripts, err := delegationVtxoScript.Encode()
+		scripts, err := delegatorVtxoScript.Encode()
 		if err != nil {
 			return nil, err
 		}
@@ -1016,7 +1016,7 @@ func TestDelegateSameInput(t *testing.T) {
 			[]uint32{wire.MaxTxInSequenceNum},
 			[]*wire.TxOut{{
 				Value:    int64(aliceVtxo.Amount),
-				PkScript: delegatePkScript,
+				PkScript: delegatorPkScript,
 			}},
 			&wire.TxOut{
 				Value:    int64(aliceVtxo.Amount + connectorAmount),
@@ -1038,7 +1038,7 @@ func TestDelegateSameInput(t *testing.T) {
 			return nil, err
 		}
 
-		aliceDelegatorScript, err := collaborativeAliceDelegatorClosure.Script()
+		aliceDelegatorScript, err := aliceDelegatorClosure.Script()
 		if err != nil {
 			return nil, err
 		}
@@ -1080,14 +1080,14 @@ func TestDelegateSameInput(t *testing.T) {
 	firstRequest, err := createDelegateRequest()
 	require.NoError(t, err)
 
-	_, err = delegatorClient.Delegate(ctx, firstRequest)
+	_, err = delegateClient.Delegate(ctx, firstRequest)
 	require.NoError(t, err)
 
 	secondRequest, err := createDelegateRequest()
 	require.NoError(t, err)
 
 	// the second delegation should succeed - it will cancel the old task and process the new one
-	_, err = delegatorClient.Delegate(ctx, secondRequest)
+	_, err = delegateClient.Delegate(ctx, secondRequest)
 	require.NoError(t, err)
 
 	time.Sleep(30 * time.Second)
@@ -1107,20 +1107,20 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7004")
+	delegateClient, err := newDelegateClient("localhost:7004")
 	require.NoError(t, err)
-	require.NotNil(t, delegatorClient)
+	require.NotNil(t, delegateClient)
 
-	delegateInfo, err := delegatorClient.GetDelegatorInfo(ctx, &pb.GetDelegatorInfoRequest{})
+	delegateInfo, err := delegateClient.GetDelegateInfo(ctx, &pb.GetDelegateInfoRequest{})
 	require.NoError(t, err)
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
 
-	delegatorPubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
+	delegatePubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
 	require.NoError(t, err)
-	delegatorPubKey, err := btcec.ParsePubKey(delegatorPubKeyBytes)
+	delegatePubKey, err := btcec.ParsePubKey(delegatePubKeyBytes)
 	require.NoError(t, err)
-	require.NotNil(t, delegatorPubKey)
+	require.NotNil(t, delegatePubKey)
 
 	_, aliceAddr, _, _, err := alice.GetAddresses(ctx)
 	require.NoError(t, err)
@@ -1135,8 +1135,8 @@ func TestDelegateSeveralInputs(t *testing.T) {
 
 	signerPubKey := aliceConfig.SignerPubKey
 
-	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
-		PubKeys: []*btcec.PublicKey{alicePubKey, delegatorPubKey, signerPubKey},
+	aliceDelegatorClosure := &script.MultisigClosure{
+		PubKeys: []*btcec.PublicKey{alicePubKey, delegatePubKey, signerPubKey},
 	}
 
 	exitLocktime := arklib.RelativeLocktime{
@@ -1144,9 +1144,9 @@ func TestDelegateSeveralInputs(t *testing.T) {
 		Value: 1024,
 	}
 
-	delegationVtxoScript := script.TapscriptsVtxoScript{
+	delegatorVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			collaborativeAliceDelegatorClosure,
+			aliceDelegatorClosure,
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
@@ -1159,7 +1159,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 		},
 	}
 
-	vtxoTapKey, vtxoTapTree, err := delegationVtxoScript.TapTree()
+	vtxoTapKey, vtxoTapTree, err := delegatorVtxoScript.TapTree()
 	require.NoError(t, err)
 
 	arkAddress := arklib.Address{
@@ -1174,13 +1174,13 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	const numVtxos = 5
 	faucetOffchain(t, alice, 0.00105) // 5 * 0.00021
 
-	delegatePkScript, err := arkAddress.GetPkScript()
+	delegatorPkScript, err := arkAddress.GetPkScript()
 	require.NoError(t, err)
 
 	alicePkScript, err := aliceArkAddr.GetPkScript()
 	require.NoError(t, err)
 
-	exitScript, err := delegationVtxoScript.ExitClosures()[0].Script()
+	exitScript, err := delegatorVtxoScript.ExitClosures()[0].Script()
 	require.NoError(t, err)
 
 	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -1191,12 +1191,12 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	sequence, err := arklib.BIP68Sequence(exitLocktime)
 	require.NoError(t, err)
 
-	scripts, err := delegationVtxoScript.Encode()
+	scripts, err := delegatorVtxoScript.Encode()
 	require.NoError(t, err)
 
 	tapTree := txutils.TapTree(scripts)
 
-	aliceDelegatorScript, err := collaborativeAliceDelegatorClosure.Script()
+	aliceDelegatorScript, err := aliceDelegatorClosure.Script()
 	require.NoError(t, err)
 
 	aliceDelegatorMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -1260,7 +1260,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 			Sequence: sequence,
 			WitnessUtxo: &wire.TxOut{
 				Value:    int64(aliceVtxo.Amount),
-				PkScript: delegatePkScript,
+				PkScript: delegatorPkScript,
 			},
 		})
 		totalAmount += int64(aliceVtxo.Amount)
@@ -1278,9 +1278,9 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	encodedIntentMessage, err := intentMessage.Encode()
 	require.NoError(t, err)
 
-	delegatorAddr, err := arklib.DecodeAddressV0(delegateInfo.GetDelegatorAddress())
+	delegateAddr, err := arklib.DecodeAddressV0(delegateInfo.GetDelegateAddress())
 	require.NoError(t, err)
-	delegatorPkScript, err := delegatorAddr.GetPkScript()
+	delegatePkScript, err := delegateAddr.GetPkScript()
 	require.NoError(t, err)
 
 	requiredFee, err := strconv.ParseUint(delegateInfo.GetFee(), 10, 64)
@@ -1299,7 +1299,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	if requiredFee > 0 {
 		intentOutputs = append(intentOutputs, &wire.TxOut{
 			Value:    int64(requiredFee),
-			PkScript: delegatorPkScript,
+			PkScript: delegatePkScript,
 		})
 	}
 
@@ -1350,7 +1350,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 			[]uint32{wire.MaxTxInSequenceNum},
 			[]*wire.TxOut{{
 				Value:    int64(aliceVtxo.Amount),
-				PkScript: delegatePkScript,
+				PkScript: delegatorPkScript,
 			}},
 			&wire.TxOut{
 				Value:    int64(aliceVtxo.Amount + connectorAmount),
@@ -1378,7 +1378,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 		forfeits = append(forfeits, signedPartialForfeitTx)
 	}
 
-	_, err = delegatorClient.Delegate(ctx, &pb.DelegateRequest{
+	_, err = delegateClient.Delegate(ctx, &pb.DelegateRequest{
 		Intent: &pb.Intent{
 			Message: encodedIntentMessage,
 			Proof:   encodedIntentProof,
@@ -1406,7 +1406,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 
 // TestDelegateWithAssets tests delegation of an asset VTXO.
 // It issues an asset, sends it to a delegation address, delegates via the
-// delegator service, waits for the round to complete, and asserts that the
+// delegate service, waits for the round to complete, and asserts that the
 // refreshed VTXO carries the correct asset balance.
 func TestDelegateWithAssets(t *testing.T) {
 	ctx := t.Context()
@@ -1414,20 +1414,20 @@ func TestDelegateWithAssets(t *testing.T) {
 	defer alice.Stop()
 	defer grpcClient.Close()
 
-	delegatorClient, err := newDelegatorClient("localhost:7004")
+	delegateClient, err := newDelegateClient("localhost:7004")
 	require.NoError(t, err)
-	require.NotNil(t, delegatorClient)
+	require.NotNil(t, delegateClient)
 
-	delegateInfo, err := delegatorClient.GetDelegatorInfo(ctx, &pb.GetDelegatorInfoRequest{})
+	delegateInfo, err := delegateClient.GetDelegateInfo(ctx, &pb.GetDelegateInfoRequest{})
 	require.NoError(t, err)
 	require.NotEmpty(t, delegateInfo.GetPubkey())
 	require.NotEmpty(t, delegateInfo.GetFee())
 
-	delegatorPubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
+	delegatePubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
 	require.NoError(t, err)
-	delegatorPubKey, err := btcec.ParsePubKey(delegatorPubKeyBytes)
+	delegatePubKey, err := btcec.ParsePubKey(delegatePubKeyBytes)
 	require.NoError(t, err)
-	require.NotNil(t, delegatorPubKey)
+	require.NotNil(t, delegatePubKey)
 
 	aliceAddr, err := alice.NewOffchainAddress(ctx)
 	require.NoError(t, err)
@@ -1443,8 +1443,8 @@ func TestDelegateWithAssets(t *testing.T) {
 	signerPubKey := aliceConfig.SignerPubKey
 
 	// --- Set up delegation tapscript (same 3-closure structure as TestDelegate) ---
-	collaborativeAliceDelegatorClosure := &script.MultisigClosure{
-		PubKeys: []*btcec.PublicKey{alicePubKey, delegatorPubKey, signerPubKey},
+	aliceDelegatorClosure := &script.MultisigClosure{
+		PubKeys: []*btcec.PublicKey{alicePubKey, delegatePubKey, signerPubKey},
 	}
 
 	exitLocktime := arklib.RelativeLocktime{
@@ -1452,9 +1452,9 @@ func TestDelegateWithAssets(t *testing.T) {
 		Value: 1024,
 	}
 
-	delegationVtxoScript := script.TapscriptsVtxoScript{
+	delegatorVtxoScript := script.TapscriptsVtxoScript{
 		Closures: []script.Closure{
-			collaborativeAliceDelegatorClosure,
+			aliceDelegatorClosure,
 			&script.MultisigClosure{
 				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
 			},
@@ -1467,7 +1467,7 @@ func TestDelegateWithAssets(t *testing.T) {
 		},
 	}
 
-	vtxoTapKey, vtxoTapTree, err := delegationVtxoScript.TapTree()
+	vtxoTapKey, vtxoTapTree, err := delegatorVtxoScript.TapTree()
 	require.NoError(t, err)
 
 	arkAddress := arklib.Address{
@@ -1542,7 +1542,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	vtxoHash, err := chainhash.NewHashFromStr(aliceVtxo.Txid)
 	require.NoError(t, err)
 
-	exitScript, err := delegationVtxoScript.ExitClosures()[0].Script()
+	exitScript, err := delegatorVtxoScript.ExitClosures()[0].Script()
 	require.NoError(t, err)
 
 	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -1553,7 +1553,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	sequence, err := arklib.BIP68Sequence(exitLocktime)
 	require.NoError(t, err)
 
-	delegatePkScript, err := arkAddress.GetPkScript()
+	delegatorPkScript, err := arkAddress.GetPkScript()
 	require.NoError(t, err)
 
 	alicePkScript, err := aliceArkAddr.GetPkScript()
@@ -1594,7 +1594,7 @@ func TestDelegateWithAssets(t *testing.T) {
 				Sequence: sequence,
 				WitnessUtxo: &wire.TxOut{
 					Value:    int64(aliceVtxo.Amount),
-					PkScript: delegatePkScript,
+					PkScript: delegatorPkScript,
 				},
 			},
 		},
@@ -1617,7 +1617,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	intentProof.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 	intentProof.Inputs[1].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
 
-	scripts, err := delegationVtxoScript.Encode()
+	scripts, err := delegatorVtxoScript.Encode()
 	require.NoError(t, err)
 
 	tapTree := txutils.TapTree(scripts)
@@ -1655,7 +1655,7 @@ func TestDelegateWithAssets(t *testing.T) {
 		[]uint32{wire.MaxTxInSequenceNum},
 		[]*wire.TxOut{{
 			Value:    int64(aliceVtxo.Amount),
-			PkScript: delegatePkScript,
+			PkScript: delegatorPkScript,
 		}},
 		&wire.TxOut{
 			Value:    int64(aliceVtxo.Amount + connectorAmount),
@@ -1672,7 +1672,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	err = updater.AddInSighashType(txscript.SigHashAnyOneCanPay|txscript.SigHashAll, 0)
 	require.NoError(t, err)
 
-	aliceDelegatorScript, err := collaborativeAliceDelegatorClosure.Script()
+	aliceDelegatorScript, err := aliceDelegatorClosure.Script()
 	require.NoError(t, err)
 
 	aliceDelegatorMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
@@ -1695,7 +1695,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	require.NoError(t, err)
 
 	// --- Delegate ---
-	_, err = delegatorClient.Delegate(ctx, &pb.DelegateRequest{
+	_, err = delegateClient.Delegate(ctx, &pb.DelegateRequest{
 		Intent: &pb.Intent{
 			Message: encodedIntentMessage,
 			Proof:   encodedIntentProof,
@@ -1704,7 +1704,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Wait for the delegator to process the round.
+	// Wait for the delegate to process the round.
 	time.Sleep(30 * time.Second)
 
 	// --- Verify the refreshed VTXO ---

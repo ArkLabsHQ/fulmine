@@ -113,6 +113,13 @@ service Service {
       get: "/v1/vhtlcs"
     };
   };
+  // GetVHTLCSpendingTx returns the fully signed ark transaction for a spent VHTLC,
+  // whether the VHTLC is spent by a finalized or pending tx.
+  rpc GetVHTLCSpendingTx(GetVHTLCSpendingTxRequest) returns (GetVHTLCSpendingTxResponse) {
+    option (google.api.http) = {
+      get: "/v1/vhtlc/spendTx/{vhtlc_id}"
+    };
+  };
   rpc GetInvoice(GetInvoiceRequest) returns (GetInvoiceResponse) {
     option (google.api.http) = {
       post: "/v1/invoice"
@@ -170,7 +177,7 @@ service Service {
     };
   };
 
-  // ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.
+  // ListDelegates returns delegate tasks filtered by status, paginated by limit/offset.
   rpc ListDelegates(ListDelegatesRequest) returns (ListDelegatesResponse) {
     option (google.api.http) = {
       get: "/v1/delegates"
@@ -352,6 +359,15 @@ message ListVHTLCsResponse {
   repeated Vtxo vhtlcs = 1;
 }
 
+message GetVHTLCSpendingTxRequest {
+  string vhtlc_id = 1;
+}
+
+message GetVHTLCSpendingTxResponse {
+  // The fully signed ark psbt.
+  string tx = 1;
+}
+
 message GetInvoiceRequest {
   uint64 amount = 1;
 }
@@ -504,7 +520,7 @@ message Delegate {
   DelegateIntent intent = 2;
   repeated DelegateForfeitTx forfeit_txs = 3;
   uint64 fee = 4;
-  string delegator_public_key = 5;
+  string delegate_public_key = 5;
   int64 scheduled_at = 6;
   string status = 7;
   string fail_reason = 8;

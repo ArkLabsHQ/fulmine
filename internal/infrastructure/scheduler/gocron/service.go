@@ -148,19 +148,19 @@ func (s *service) ScheduleNextSettlement(at time.Time, settleFunc func()) error 
 	}
 
 	delay := time.Until(at)
-	if delay < 0 {
-		return fmt.Errorf("cannot schedule task in the past")
-	}
 
 	s.CancelNextSettlement()
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if delay == 0 {
-		settleFunc()
+	// If the requested time is already due (the vtxos are at/over their expiry),
+	// settle immediately instead of dropping the request. Run async so callers
+	// holding their own locks (e.g. the vtxo event listener) don't deadlock.
+	if delay <= 0 {
+		go settleFunc()
 		return nil
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	job, err := s.scheduler.Every(delay).WaitForSchedule().LimitRunsTo(1).Do(func() {

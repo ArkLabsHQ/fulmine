@@ -171,7 +171,7 @@
     },
     "/v1/delegates": {
       "get": {
-        "summary": "ListDelegates returns delegator tasks filtered by status, paginated by limit/offset.",
+        "summary": "ListDelegates returns delegate tasks filtered by status, paginated by limit/offset.",
         "operationId": "Service_ListDelegates",
         "responses": {
           "200": {
@@ -754,6 +754,37 @@
         ]
       }
     },
+    "/v1/vhtlc/spendTx/{vhtlcId}": {
+      "get": {
+        "summary": "GetVHTLCSpendingTx returns the fully signed ark transaction for a spent VHTLC,\nwhether the VHTLC is spent by a finalized or pending tx.",
+        "operationId": "Service_GetVHTLCSpendingTx",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetVHTLCSpendingTxResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vhtlcId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
     "/v1/vhtlcs": {
       "get": {
         "operationId": "Service_ListVHTLCs",
@@ -1143,7 +1174,7 @@
           "type": "string",
           "format": "uint64"
         },
-        "delegatorPublicKey": {
+        "delegatePublicKey": {
           "type": "string"
         },
         "scheduledAt": {
@@ -1307,6 +1338,15 @@
             "type": "object",
             "$ref": "#/definitions/v1TransactionInfo"
           }
+        }
+      }
+    },
+    "v1GetVHTLCSpendingTxResponse": {
+      "type": "object",
+      "properties": {
+        "tx": {
+          "type": "string",
+          "description": "The fully signed ark psbt."
         }
       }
     },

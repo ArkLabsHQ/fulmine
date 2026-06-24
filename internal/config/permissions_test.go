@@ -40,11 +40,11 @@ func TestWhitelistedMethods(t *testing.T) {
 	for _, m := range fulminev1.WalletService_ServiceDesc.Methods {
 		allMethods = append(allMethods, fmt.Sprintf("/%s/%s", fulminev1.WalletService_ServiceDesc.ServiceName, m.MethodName))
 	}
-	// DelegatorService methods
-	for _, m := range fulminev1.DelegatorService_ServiceDesc.Methods {
-		allMethods = append(allMethods, fmt.Sprintf("/%s/%s", fulminev1.DelegatorService_ServiceDesc.ServiceName, m.MethodName))
+	// DelegateService methods
+	for _, m := range fulminev1.DelegateService_ServiceDesc.Methods {
+		allMethods = append(allMethods, fmt.Sprintf("/%s/%s", fulminev1.DelegateService_ServiceDesc.ServiceName, m.MethodName))
 	}
-	
+
 	perms := config.WhitelistedByMethod()
 	for _, method := range allMethods {
 		_, ok := perms[method]

@@ -6,47 +6,47 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
 )
 
-templ DelegatorTab(kind string, active bool) {
+templ DelegateTab(kind string, active bool) {
 	<div
 		id={kind}
 		class={"flex", "rounded-lg", templ.KV("bg-white", active), templ.KV("text-black", active)}
-		hx-get={"/delegator/" + kind}
-		hx-target="#delegatorPartial">
+		hx-get={"/delegate/" + kind}
+		hx-target="#delegatePartial">
 		<p class="px-3 py-2.5 flex items-center gap-2 mx-auto cursor-pointer">
 			{kind}
 		</p>
 	</div>
 }
 
-templ DelegatorTabs(active string) {
+templ DelegateTabs(active string) {
 	<div class="grid grid-cols-4 gap-2 mt-10 mb-8 text-sm text-white/80 font-semibold">
-		@DelegatorTab("pending", active == "pending")
-		@DelegatorTab("completed", active == "completed")
-		@DelegatorTab("failed", active == "failed")
-		@DelegatorTab("cancelled", active == "cancelled")
+		@DelegateTab("pending", active == "pending")
+		@DelegateTab("completed", active == "completed")
+		@DelegateTab("failed", active == "failed")
+		@DelegateTab("cancelled", active == "cancelled")
 	</div>
 }
 
-templ DelegatorPartialContent(active string) {
-	<div id="delegatorPartial">
-		@DelegatorTabs(active)
+templ DelegatePartialContent(active string) {
+	<div id="delegatePartial">
+		@DelegateTabs(active)
 		<div hx-get={"/delegate/tasks/" + active + "/0"} hx-trigger="load" />
 	</div>
 }
 
-templ DelegatorBodyContent() {
+templ DelegateBodyContent() {
 	@components.DesktopHeader()
-	<div id="delegatorBody">
+	<div id="delegateBody">
 		<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 			<div>
-				@components.Header("Delegator Dashboard")
-				@DelegatorPartialContent("pending")
+				@components.Header("Delegate Dashboard")
+				@DelegatePartialContent("pending")
 			</div>
 		</div>
 	</div>
 }
 
-templ DelegatorTasksListContent(tasks []types.DelegateTask, status string, offset int, loadMore bool) {
+templ DelegateTasksListContent(tasks []types.DelegateTask, status string, offset int, loadMore bool) {
 	if len(tasks) == 0 {
 		@components.HistoryEmpty()
 	} else {

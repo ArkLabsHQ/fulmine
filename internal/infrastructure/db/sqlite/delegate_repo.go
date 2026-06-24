@@ -37,7 +37,7 @@ func (r *delegateRepository) Add(ctx context.Context, task domain.DelegateTask) 
 			IntentMessage:      task.Intent.Message,
 			IntentProof:        task.Intent.Proof,
 			Fee:                int64(task.Fee),
-			DelegatorPublicKey: task.DelegatorPublicKey,
+			DelegatorPublicKey: task.DelegatePublicKey,
 			ScheduledAt:        task.ScheduledAt.Unix(),
 			Status:             int64(task.Status),
 		}); err != nil {
@@ -101,15 +101,15 @@ func (r *delegateRepository) GetByID(ctx context.Context, id string) (*domain.De
 	}
 
 	return &domain.DelegateTask{
-		ID:                 firstRow.ID,
-		Intent:             intent,
-		ForfeitTxs:         forfeitTxs,
-		Fee:                uint64(firstRow.Fee),
-		DelegatorPublicKey: firstRow.DelegatorPublicKey,
-		ScheduledAt:        time.Unix(firstRow.ScheduledAt, 0),
-		Status:             domain.DelegateTaskStatus(firstRow.Status),
-		FailReason:         firstRow.FailReason.String,
-		CommitmentTxid:     firstRow.CommitmentTxid.String,
+		ID:                firstRow.ID,
+		Intent:            intent,
+		ForfeitTxs:        forfeitTxs,
+		Fee:               uint64(firstRow.Fee),
+		DelegatePublicKey: firstRow.DelegatorPublicKey,
+		ScheduledAt:       time.Unix(firstRow.ScheduledAt, 0),
+		Status:            domain.DelegateTaskStatus(firstRow.Status),
+		FailReason:        firstRow.FailReason.String,
+		CommitmentTxid:    firstRow.CommitmentTxid.String,
 	}, nil
 }
 
@@ -196,15 +196,15 @@ func (r *delegateRepository) GetAll(ctx context.Context, status domain.DelegateT
 			}
 
 			task = &domain.DelegateTask{
-				ID:                 row.ID,
-				Intent:             intent,
-				ForfeitTxs:         forfeitTxs,
-				Fee:                uint64(row.Fee),
-				DelegatorPublicKey: row.DelegatorPublicKey,
-				ScheduledAt:        time.Unix(row.ScheduledAt, 0),
-				Status:             domain.DelegateTaskStatus(row.Status),
-				FailReason:         row.FailReason.String,
-				CommitmentTxid:     row.CommitmentTxid.String,
+				ID:                row.ID,
+				Intent:            intent,
+				ForfeitTxs:        forfeitTxs,
+				Fee:               uint64(row.Fee),
+				DelegatePublicKey: row.DelegatorPublicKey,
+				ScheduledAt:       time.Unix(row.ScheduledAt, 0),
+				Status:            domain.DelegateTaskStatus(row.Status),
+				FailReason:        row.FailReason.String,
+				CommitmentTxid:    row.CommitmentTxid.String,
 			}
 			taskMap[row.ID] = task
 			taskOrder = append(taskOrder, row.ID)

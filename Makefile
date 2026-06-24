@@ -27,7 +27,7 @@ build-all: build-static-assets
 ## build-templates: build html templates for embedded frontend
 build-templates:
 	@echo "Building templates..."
-	@go run github.com/a-h/templ/cmd/templ@latest generate		
+	@go run github.com/a-h/templ/cmd/templ@v0.3.1001 generate
 
 ## clean: cleans the binary
 clean:

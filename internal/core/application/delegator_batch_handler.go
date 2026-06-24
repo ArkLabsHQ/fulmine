@@ -17,16 +17,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Batch session handler of the delegator service
-type delegatorBatchSessionHandler struct {
+// Batch session handler of the delegate service
+type delegateBatchSessionHandler struct {
 	musig2BatchSessionHandler
-	delegator     *DelegatorService
+	delegate      *DelegateService
 	selectedTasks []registeredIntent
 }
 
-// BatchStarted event doesn't have to be handled by the delegator session
+// BatchStarted event doesn't have to be handled by the delegate session
 // it is handled before creating the handler in a dedicated goroutine.
-func (h *delegatorBatchSessionHandler) OnBatchStarted(
+func (h *delegateBatchSessionHandler) OnBatchStarted(
 	context.Context, client.BatchStartedEvent,
 ) (bool, error) {
 	return true, nil
@@ -34,27 +34,27 @@ func (h *delegatorBatchSessionHandler) OnBatchStarted(
 
 // OnBatchFinalized mark the delegates as done and delete the intent from the registered
 // intents map
-func (h *delegatorBatchSessionHandler) OnBatchFinalized(
+func (h *delegateBatchSessionHandler) OnBatchFinalized(
 	ctx context.Context, event client.BatchFinalizedEvent,
 ) error {
-	repo := h.delegator.svc.dbSvc.Delegate()
+	repo := h.delegate.svc.dbSvc.Delegate()
 	taskIds := make([]string, 0, len(h.selectedTasks))
 	for _, selectedTask := range h.selectedTasks {
 		taskIds = append(taskIds, selectedTask.taskID)
-		h.delegator.intentsMtx.Lock()
-		delete(h.delegator.registeredIntents, selectedTask.intentIDHash())
-		h.delegator.intentsMtx.Unlock()
+		h.delegate.intentsMtx.Lock()
+		delete(h.delegate.registeredIntents, selectedTask.intentIDHash())
+		h.delegate.intentsMtx.Unlock()
 	}
 
 	return repo.CompleteTasks(ctx, event.Txid, taskIds...)
 }
 
 // OnBatchFailed re-register the delegates that failed to join the batch
-func (h *delegatorBatchSessionHandler) OnBatchFailed(
+func (h *delegateBatchSessionHandler) OnBatchFailed(
 	context.Context, client.BatchFailedEvent,
 ) error {
 	for _, selectedTask := range h.selectedTasks {
-		if err := h.delegator.registerDelegate(selectedTask.taskID); err != nil {
+		if err := h.delegate.registerDelegate(selectedTask.taskID); err != nil {
 			log.WithError(err).Warnf("failed to re-register delegate %s", selectedTask.taskID)
 			continue
 		}
@@ -64,7 +64,7 @@ func (h *delegatorBatchSessionHandler) OnBatchFailed(
 }
 
 // OnBatchFinalization submit the delegated forfeit transactions to arkd
-func (h *delegatorBatchSessionHandler) OnBatchFinalization(
+func (h *delegateBatchSessionHandler) OnBatchFinalization(
 	ctx context.Context, event client.BatchFinalizationEvent, vtxoTree, connectorTree *tree.TxTree,
 ) error {
 	selectedTasksIds := make([]string, 0, len(h.selectedTasks))
@@ -81,7 +81,7 @@ func (h *delegatorBatchSessionHandler) OnBatchFinalization(
 	return nil
 }
 
-func (h *delegatorBatchSessionHandler) submitForfeitTxs(
+func (h *delegateBatchSessionHandler) submitForfeitTxs(
 	ctx context.Context, connectorsLeaves []*psbt.Packet, selectedTasksIds []string,
 ) error {
 	if len(connectorsLeaves) == 0 {
@@ -91,7 +91,7 @@ func (h *delegatorBatchSessionHandler) submitForfeitTxs(
 		return nil
 	}
 
-	repo := h.delegator.svc.dbSvc.Delegate()
+	repo := h.delegate.svc.dbSvc.Delegate()
 	forfeitTxs := make([]*psbt.Packet, 0)
 
 	for _, selectedTaskId := range selectedTasksIds {
@@ -109,7 +109,7 @@ func (h *delegatorBatchSessionHandler) submitForfeitTxs(
 			}
 		}
 
-		vtxos, err := h.delegator.svc.Indexer().GetVtxos(ctx, indexer.WithOutpoints(outpoints))
+		vtxos, err := h.delegate.svc.Indexer().GetVtxos(ctx, indexer.WithOutpoints(outpoints))
 		if err != nil {
 			log.WithError(err).Warnf("failed to get vtxos for task %s", selectedTaskId)
 			continue
@@ -170,7 +170,7 @@ func (h *delegatorBatchSessionHandler) submitForfeitTxs(
 			return fmt.Errorf("failed to encode forfeit tx: %w", err)
 		}
 
-		signedForfeitTx, err := h.delegator.svc.SignTransaction(ctx, encodedForfeitTx)
+		signedForfeitTx, err := h.delegate.svc.SignTransaction(ctx, encodedForfeitTx)
 		if err != nil {
 			return fmt.Errorf("failed to sign forfeit: %w", err)
 		}
@@ -178,7 +178,7 @@ func (h *delegatorBatchSessionHandler) submitForfeitTxs(
 		signedForfeitTxs = append(signedForfeitTxs, signedForfeitTx)
 	}
 
-	return h.delegator.svc.Client().SubmitSignedForfeitTxs(ctx, signedForfeitTxs, "")
+	return h.delegate.svc.Client().SubmitSignedForfeitTxs(ctx, signedForfeitTxs, "")
 }
 
 // musig2BatchSessionHandler implements the Musig2 methods

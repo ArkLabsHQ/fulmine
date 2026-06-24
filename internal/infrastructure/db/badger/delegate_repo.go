@@ -37,7 +37,6 @@ func NewDelegateRepository(
 	return &delegateRepository{store}, nil
 }
 
-
 func (r *delegateRepository) Add(ctx context.Context, task domain.DelegateTask) error {
 	data := toDelegateTaskData(task)
 
@@ -153,7 +152,7 @@ func (r *delegateRepository) GetPendingTaskIDsByInputs(ctx context.Context, inpu
 	for _, data := range allTasks {
 		var opJSONs []outpointJSON
 		if err := json.Unmarshal([]byte(data.InputJSON), &opJSONs); err != nil {
-			continue 
+			continue
 		}
 
 		hasOverlap := false
@@ -222,7 +221,7 @@ func (r *delegateRepository) GetAll(ctx context.Context, status domain.DelegateT
 
 func (r *delegateRepository) CancelTasks(ctx context.Context, ids ...string) error {
 	if len(ids) == 0 {
-		return nil 
+		return nil
 	}
 
 	for _, id := range ids {
@@ -283,7 +282,7 @@ func (r *delegateRepository) CompleteTasks(ctx context.Context, commitmentTxid s
 
 		if updateErr != nil {
 			return fmt.Errorf("failed to mark task %s as done: %w", id, updateErr)
-		}	
+		}
 	}
 
 	return nil
@@ -340,7 +339,7 @@ type delegateTaskDTO struct {
 	InputJSON         string
 	ForfeitTxsJSON    string // JSON map of outpoint -> forfeit_tx
 	Fee               uint64
-	DelegatorPublicKey string
+	DelegatePublicKey string
 	ScheduledAt       int64
 	Status            domain.DelegateTaskStatus
 	FailReason        string
@@ -410,7 +409,7 @@ func (d *delegateTaskDTO) toDelegateTask() (*domain.DelegateTask, error) {
 		Intent:            intent,
 		ForfeitTxs:        forfeitTxs,
 		Fee:               d.Fee,
-		DelegatorPublicKey: d.DelegatorPublicKey,
+		DelegatePublicKey: d.DelegatePublicKey,
 		ScheduledAt:       time.Unix(d.ScheduledAt, 0),
 		Status:            d.Status,
 		FailReason:        d.FailReason,
@@ -443,7 +442,7 @@ func toDelegateTaskData(task domain.DelegateTask) delegateTaskDTO {
 		InputJSON:         string(inputJSON),
 		ForfeitTxsJSON:    string(forfeitTxsJSONBytes),
 		Fee:               task.Fee,
-		DelegatorPublicKey: task.DelegatorPublicKey,
+		DelegatePublicKey: task.DelegatePublicKey,
 		ScheduledAt:       task.ScheduledAt.Unix(),
 		Status:            task.Status,
 		FailReason:        task.FailReason,

@@ -29,6 +29,8 @@ import (
 	grpcclient "github.com/arkade-os/arkd/pkg/client-lib/client/grpc"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	singlekeywallet "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey"
+	inmemorystore "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey/store/inmemory"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -342,13 +344,13 @@ func faucetOffchain(t *testing.T, client arksdk.ArkClient, amount float64) clien
 	return incomingFunds[0]
 }
 
-func newDelegatorClient(url string) (pb.DelegatorServiceClient, error) {
+func newDelegateClient(url string) (pb.DelegateServiceClient, error) {
 	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
 	conn, err := grpc.NewClient(url, opts)
 	if err != nil {
 		return nil, err
 	}
-	return pb.NewDelegatorServiceClient(conn), nil
+	return pb.NewDelegateServiceClient(conn), nil
 }
 
 func setupArkSDKwithPublicKey(
@@ -359,7 +361,12 @@ func setupArkSDKwithPublicKey(
 	serverUrl := "localhost:7070"
 	password := "pass"
 
-	arkClient, err := arksdk.NewArkClient("")
+	walletStore, err := inmemorystore.NewWalletStore()
+	require.NoError(t, err)
+	singleKeyWallet, err := singlekeywallet.NewBitcoinWallet(walletStore)
+	require.NoError(t, err)
+
+	arkClient, err := arksdk.NewArkClient("", arksdk.WithWallet(singleKeyWallet))
 	require.NoError(t, err)
 
 	privkey, err := btcec.NewPrivateKey()
@@ -385,7 +392,7 @@ func setupArkSDKwithPublicKey(
 		t.Fatalf("timed out waiting for ark client sync: %v", syncCtx.Err())
 	}
 
-	grpcClient, err := grpcclient.NewClient(serverUrl)
+	grpcClient, err := grpcclient.NewClient(serverUrl, "")
 	require.NoError(t, err)
 
 	return arkClient, privkey.PubKey(), grpcClient
@@ -870,7 +877,7 @@ func verifyInputSignatures(
 	return nil
 }
 
-func faucetAndSettle(t *testing.T, ctx context.Context, c arksdk.ArkClient, address string, amount float64){
+func faucetAndSettle(t *testing.T, ctx context.Context, c arksdk.ArkClient, address string, amount float64) {
 	t.Helper()
 
 	err := faucet(ctx, strings.TrimSpace(address), amount)
