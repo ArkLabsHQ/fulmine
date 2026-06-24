@@ -13,6 +13,7 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
@@ -122,4 +123,69 @@ func TestClaimBtcLockupFallsBackToScriptPath(t *testing.T) {
 	require.NoError(t, err)
 	// the script-path broadcast txid — proves the fallback ran, not the cooperative path.
 	require.Equal(t, "script-path-claim-txid", txid)
+}
+
+// makeTestPSBT builds a minimal valid base64 PSBT (one input, one output, no
+// signatures) — enough for collaborativeRefund to decode a "counterparty-signed"
+// response without any real signing.
+func makeTestPSBT(t *testing.T) string {
+	t.Helper()
+	tx := wire.NewMsgTx(2)
+	tx.AddTxIn(wire.NewTxIn(wire.NewOutPoint(&chainhash.Hash{}, 0), nil, nil))
+	tx.AddTxOut(wire.NewTxOut(1000, []byte{txscript.OP_TRUE}))
+	p, err := psbt.NewFromUnsignedTx(tx)
+	require.NoError(t, err)
+	b64, err := p.B64Encode()
+	require.NoError(t, err)
+	return b64
+}
+
+// TestCollaborativeRefundPropagatesCounterpartyFailure pins @sekulicd's
+// submarine/reverse failure path: when the counterparty's collaborative-refund
+// call (RefundSubmarine / RefundChainSwap) errors, collaborativeRefund must
+// surface that error rather than swallow it — otherwise the refund silently
+// stalls. A cooperative live Boltz never returns this, so only a fake
+// counterparty exercises it.
+func TestCollaborativeRefundPropagatesCounterpartyFailure(t *testing.T) {
+	h := &SwapHandler{}
+	boltzErr := errors.New("boltz refused the collaborative refund")
+
+	refundFunc := func(string, boltz.RefundSwapRequest) (*boltz.RefundSwapResponse, error) {
+		return nil, boltzErr
+	}
+
+	_, _, err := h.collaborativeRefund(refundFunc, "swap-1", "refundtx", "checkpointtx")
+	require.ErrorIs(t, err, boltzErr)
+}
+
+// TestCollaborativeRefundParsesCounterpartyPSBTs verifies the cooperative path:
+// the refund request carries the unsigned txs, and the counterparty-signed
+// refund + checkpoint PSBTs are decoded and returned.
+func TestCollaborativeRefundParsesCounterpartyPSBTs(t *testing.T) {
+	h := &SwapHandler{}
+	refundPSBT := makeTestPSBT(t)
+	checkpointPSBT := makeTestPSBT(t)
+
+	refundFunc := func(_ string, req boltz.RefundSwapRequest) (*boltz.RefundSwapResponse, error) {
+		require.Equal(t, "refundtx", req.Transaction)
+		require.Equal(t, "checkpointtx", req.Checkpoint)
+		return &boltz.RefundSwapResponse{Transaction: refundPSBT, Checkpoint: checkpointPSBT}, nil
+	}
+
+	refundPtx, checkpointPtx, err := h.collaborativeRefund(refundFunc, "swap-1", "refundtx", "checkpointtx")
+	require.NoError(t, err)
+	require.NotNil(t, refundPtx)
+	require.NotNil(t, checkpointPtx)
+}
+
+// TestCollaborativeRefundRejectsMalformedResponse guards against a misbehaving
+// counterparty: a non-PSBT response is rejected, not treated as a valid refund.
+func TestCollaborativeRefundRejectsMalformedResponse(t *testing.T) {
+	h := &SwapHandler{}
+	refundFunc := func(string, boltz.RefundSwapRequest) (*boltz.RefundSwapResponse, error) {
+		return &boltz.RefundSwapResponse{Transaction: "not-a-psbt", Checkpoint: makeTestPSBT(t)}, nil
+	}
+
+	_, _, err := h.collaborativeRefund(refundFunc, "swap-1", "refundtx", "checkpointtx")
+	require.Error(t, err)
 }
