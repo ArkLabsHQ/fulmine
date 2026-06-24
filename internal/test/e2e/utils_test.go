@@ -347,8 +347,8 @@ func setupArkSDKwithPublicKey(
 
 	privkeyHex := hex.EncodeToString(privkey.Serialize())
 
-	// The SDK's default regtest explorer is http://127.0.0.1:3000 (nigiri's
-	// root-served esplora). In arkade-regtest, host :3000 is the mempool web UI
+	// The SDK defaults its regtest explorer to a root-served Esplora at
+	// http://127.0.0.1:3000. In arkade-regtest, host :3000 is the mempool web UI
 	// (nginx serving HTML) and the Esplora-compatible REST API lives under /api
 	// (same as arkd/fulmine's FULMINE_ESPLORA_URL=http://mempool_web/api). Point
 	// the SDK there, otherwise sync hits the HTML SPA and fails decoding it as

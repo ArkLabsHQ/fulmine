@@ -21,8 +21,8 @@ func TestChainSwapArkToBTC(t *testing.T) {
 	client, err := newFulmineClient(clientFulmineURL)
 	require.NoError(t, err)
 
-	btcAddress := nigiriGetNewAddress(t, ctx)
-	addrBalance := nigiriScanAddressBalanceBTC(t, ctx, btcAddress)
+	btcAddress := btcGetNewAddress(t, ctx)
+	addrBalance := btcScanAddressBalanceBTC(t, ctx, btcAddress)
 	require.Equal(t, addrBalance, float64(0))
 
 	// Step 1: Create Ark→BTC chain swap
@@ -47,7 +47,7 @@ func TestChainSwapArkToBTC(t *testing.T) {
 	// the confirmed UTXO set) sees it, so mine and re-scan until it lands.
 	require.Eventually(t, func() bool {
 		mineRegtestBlocks(t, ctx, 1)
-		return nigiriScanAddressBalanceBTC(t, ctx, btcAddress) > 0
+		return btcScanAddressBalanceBTC(t, ctx, btcAddress) > 0
 	}, 30*time.Second, 2*time.Second, "claimed BTC never confirmed at the destination address")
 }
 
@@ -142,7 +142,7 @@ func TestChainSwapArkToBTCCooperativeRefund(t *testing.T) {
 	client, err := newFulmineClient(clientFulmineURL)
 	require.NoError(t, err)
 
-	btcAddress := nigiriGetNewAddress(t, ctx)
+	btcAddress := btcGetNewAddress(t, ctx)
 
 	balance, err := client.GetBalance(ctx, &pb.GetBalanceRequest{})
 	require.NoError(t, err)
@@ -346,7 +346,7 @@ func TestChainSwapArkToBTCUnilateralRefund(t *testing.T) {
 	require.NoError(t, err)
 	defer startBoltzAndWait(t)
 
-	btcAddress := nigiriGetNewAddress(t, ctx)
+	btcAddress := btcGetNewAddress(t, ctx)
 	createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
 		Direction:  pb.SwapDirection_SWAP_DIRECTION_ARK_TO_BTC,
 		Amount:     3000,
@@ -437,7 +437,7 @@ func TestChainSwapRefundChainSwapRPC(t *testing.T) {
 		client, err := newFulmineClient(clientFulmineURL)
 		require.NoError(t, err)
 
-		btcAddress := nigiriGetNewAddress(t, ctx)
+		btcAddress := btcGetNewAddress(t, ctx)
 
 		createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
 			Direction:  pb.SwapDirection_SWAP_DIRECTION_ARK_TO_BTC,
@@ -465,7 +465,7 @@ func TestChainSwapRecovery(t *testing.T) {
 		client, err := newFulmineClient(clientFulmineURL)
 		require.NoError(t, err)
 
-		btcAddress := nigiriGetNewAddress(t, ctx)
+		btcAddress := btcGetNewAddress(t, ctx)
 
 		createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
 			Direction:  pb.SwapDirection_SWAP_DIRECTION_ARK_TO_BTC,
@@ -487,7 +487,7 @@ func TestChainSwapRecovery(t *testing.T) {
 		mineRegtestBlocks(t, ctx, 20)
 		waitChainSwapStatus(t, ctx, client, swapID, "claimed", 90*time.Second)
 
-		addrBalance := nigiriScanAddressBalanceBTC(t, ctx, btcAddress)
+		addrBalance := btcScanAddressBalanceBTC(t, ctx, btcAddress)
 		require.Greater(t, addrBalance, float64(0))
 	})
 
@@ -498,7 +498,7 @@ func TestChainSwapRecovery(t *testing.T) {
 		client, err := newFulmineClient(clientFulmineURL)
 		require.NoError(t, err)
 
-		btcAddress := nigiriGetNewAddress(t, ctx)
+		btcAddress := btcGetNewAddress(t, ctx)
 
 		createResp, err := client.CreateChainSwap(ctx, &pb.CreateChainSwapRequest{
 			Direction:  pb.SwapDirection_SWAP_DIRECTION_ARK_TO_BTC,
@@ -625,16 +625,16 @@ func fundAddressAndGetConfirmedTx(t *testing.T, ctx context.Context, address str
 	t.Helper()
 	amountBtc := fmt.Sprintf("%d.%08d", sats/100000000, sats%100000000)
 
-	txid := nigiriSendToAddress(t, ctx, address, amountBtc)
+	txid := btcSendToAddress(t, ctx, address, amountBtc)
 	mineRegtestBlocks(t, ctx, 10)
-	txhex := nigiriGetRawTransaction(t, ctx, txid)
+	txhex := btcGetRawTransaction(t, ctx, txid)
 
 	return txid, txhex
 }
 
 func regtestMedianTime(t *testing.T, ctx context.Context) int64 {
 	t.Helper()
-	info := nigiriGetBlockchainInfo(t, ctx)
+	info := btcGetBlockchainInfo(t, ctx)
 
 	if info.MedianTime > 0 {
 		return info.MedianTime
@@ -645,7 +645,7 @@ func regtestMedianTime(t *testing.T, ctx context.Context) int64 {
 
 func regtestBlockHeight(t *testing.T, ctx context.Context) int {
 	t.Helper()
-	return nigiriGetBlockCount(t, ctx)
+	return btcGetBlockCount(t, ctx)
 }
 
 func mineRegtestBlocks(t *testing.T, ctx context.Context, count int) {
@@ -653,7 +653,7 @@ func mineRegtestBlocks(t *testing.T, ctx context.Context, count int) {
 	if count <= 0 {
 		return
 	}
-	nigiriGenerateBlocks(t, ctx, count)
+	btcGenerateBlocks(t, ctx, count)
 }
 
 func mineRegtestBlocksToHeight(t *testing.T, ctx context.Context, target int) {
@@ -665,12 +665,12 @@ func mineRegtestBlocksToHeight(t *testing.T, ctx context.Context, target int) {
 	mineRegtestBlocks(t, ctx, target-current)
 }
 
-type nigiriBlockchainInfo struct {
+type btcBlockchainInfo struct {
 	MedianTime int64 `json:"mediantime"`
 	Time       int64 `json:"time"`
 }
 
-func nigiriGetNewAddress(t *testing.T, ctx context.Context) string {
+func btcGetNewAddress(t *testing.T, ctx context.Context) string {
 	t.Helper()
 	out, err := regtestCmd(ctx, "rpc", "getnewaddress")
 	require.NoError(t, err)
@@ -679,7 +679,7 @@ func nigiriGetNewAddress(t *testing.T, ctx context.Context) string {
 	return address
 }
 
-func nigiriScanAddressBalanceBTC(t *testing.T, ctx context.Context, addr string) float64 {
+func btcScanAddressBalanceBTC(t *testing.T, ctx context.Context, addr string) float64 {
 	t.Helper()
 	out, err := regtestCmd(ctx, "rpc", "scantxoutset", "start", fmt.Sprintf(`["addr(%s)"]`, addr))
 	require.NoError(t, err)
@@ -691,12 +691,12 @@ func nigiriScanAddressBalanceBTC(t *testing.T, ctx context.Context, addr string)
 	return raw.TotalAmount
 }
 
-func nigiriScanAddressBalanceSats(t *testing.T, ctx context.Context, addr string) int {
+func btcScanAddressBalanceSats(t *testing.T, ctx context.Context, addr string) int {
 	t.Helper()
-	return int(nigiriScanAddressBalanceBTC(t, ctx, addr) * 100_000_000)
+	return int(btcScanAddressBalanceBTC(t, ctx, addr) * 100_000_000)
 }
 
-func nigiriSendToAddress(t *testing.T, ctx context.Context, address, amountBtc string) string {
+func btcSendToAddress(t *testing.T, ctx context.Context, address, amountBtc string) string {
 	t.Helper()
 	out, err := regtestCmd(ctx, "rpc", "sendtoaddress", address, amountBtc)
 	require.NoError(t, err)
@@ -705,7 +705,7 @@ func nigiriSendToAddress(t *testing.T, ctx context.Context, address, amountBtc s
 	return txid
 }
 
-func nigiriGetRawTransaction(t *testing.T, ctx context.Context, txid string) string {
+func btcGetRawTransaction(t *testing.T, ctx context.Context, txid string) string {
 	t.Helper()
 	out, err := regtestCmd(ctx, "rpc", "getrawtransaction", txid)
 	require.NoError(t, err)
@@ -714,17 +714,17 @@ func nigiriGetRawTransaction(t *testing.T, ctx context.Context, txid string) str
 	return txhex
 }
 
-func nigiriGetBlockchainInfo(t *testing.T, ctx context.Context) nigiriBlockchainInfo {
+func btcGetBlockchainInfo(t *testing.T, ctx context.Context) btcBlockchainInfo {
 	t.Helper()
 	out, err := regtestCmd(ctx, "rpc", "getblockchaininfo")
 	require.NoError(t, err)
 
-	var info nigiriBlockchainInfo
+	var info btcBlockchainInfo
 	require.NoError(t, json.Unmarshal([]byte(stripANSI(out)), &info))
 	return info
 }
 
-func nigiriGetBlockCount(t *testing.T, ctx context.Context) int {
+func btcGetBlockCount(t *testing.T, ctx context.Context) int {
 	t.Helper()
 	out, err := regtestCmd(ctx, "rpc", "getblockcount")
 	require.NoError(t, err)
@@ -735,7 +735,7 @@ func nigiriGetBlockCount(t *testing.T, ctx context.Context) int {
 	return height
 }
 
-func nigiriGenerateBlocks(t *testing.T, ctx context.Context, count int) {
+func btcGenerateBlocks(t *testing.T, ctx context.Context, count int) {
 	t.Helper()
 	_, err := regtestCmd(ctx, "mine", fmt.Sprint(count))
 	require.NoError(t, err)
