@@ -358,7 +358,7 @@ func (q *Queries) GetPendingTaskIDsByInputs(ctx context.Context, outpoints []str
 }
 
 const getSettings = `-- name: GetSettings :one
-SELECT id, api_root, server_url, esplora_url, currency, event_server, full_node, ln_url, unit, ln_datadir, ln_type FROM settings WHERE id = 1
+SELECT id, api_root, server_url, esplora_url, currency, event_server, full_node, unit FROM settings WHERE id = 1
 `
 
 func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
@@ -372,10 +372,7 @@ func (q *Queries) GetSettings(ctx context.Context) (Setting, error) {
 		&i.Currency,
 		&i.EventServer,
 		&i.FullNode,
-		&i.LnUrl,
 		&i.Unit,
-		&i.LnDatadir,
-		&i.LnType,
 	)
 	return i, err
 }
@@ -1125,8 +1122,8 @@ func (q *Queries) UpdateSwap(ctx context.Context, arg UpdateSwapParams) error {
 }
 
 const upsertSettings = `-- name: UpsertSettings :exec
-INSERT INTO settings (id, api_root, server_url, esplora_url, currency, event_server, full_node, unit, ln_url, ln_datadir, ln_type)
-VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO settings (id, api_root, server_url, esplora_url, currency, event_server, full_node, unit)
+VALUES (1, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     api_root = excluded.api_root,
     server_url = excluded.server_url,
@@ -1134,10 +1131,7 @@ ON CONFLICT(id) DO UPDATE SET
     currency = excluded.currency,
     event_server = excluded.event_server,
     full_node = excluded.full_node,
-    unit = excluded.unit,
-    ln_url = excluded.ln_url,
-    ln_datadir = excluded.ln_datadir,
-    ln_type = excluded.ln_type
+    unit = excluded.unit
 `
 
 type UpsertSettingsParams struct {
@@ -1148,9 +1142,6 @@ type UpsertSettingsParams struct {
 	EventServer string
 	FullNode    string
 	Unit        string
-	LnUrl       sql.NullString
-	LnDatadir   sql.NullString
-	LnType      sql.NullInt64
 }
 
 // Settings queries
@@ -1163,9 +1154,6 @@ func (q *Queries) UpsertSettings(ctx context.Context, arg UpsertSettingsParams) 
 		arg.EventServer,
 		arg.FullNode,
 		arg.Unit,
-		arg.LnUrl,
-		arg.LnDatadir,
-		arg.LnType,
 	)
 	return err
 }

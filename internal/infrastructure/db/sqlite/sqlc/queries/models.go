@@ -53,10 +53,7 @@ type Setting struct {
 	Currency    string
 	EventServer string
 	FullNode    string
-	LnUrl       sql.NullString
 	Unit        string
-	LnDatadir   sql.NullString
-	LnType      sql.NullInt64
 }
 
 type SubscribedScript struct {

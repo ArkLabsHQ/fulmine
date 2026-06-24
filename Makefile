@@ -85,7 +85,7 @@ proto: proto-lint
 ## proto-lint: lint protos
 proto-lint:
 	@echo "Linting protos..."
-	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace bufbuild/buf lint --exclude-path ./api-spec/protobuf/cln
+	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace bufbuild/buf lint
 
 ## regtest-build: build the Fulmine-under-test image consumed by the stack
 regtest-build:

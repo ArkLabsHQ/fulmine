@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -19,8 +18,6 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
-	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/cln"
-	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/lnd"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
@@ -94,7 +91,6 @@ type Service struct {
 	arksdk.ArkClient
 	dbSvc        ports.RepoManager
 	schedulerSvc ports.SchedulerService
-	lnSvc        ports.LnService
 	boltzSvc     *boltz.Api
 	swapHandler  *swap.SwapHandler
 
@@ -157,13 +153,12 @@ func NewServices(
 	dbSvc ports.RepoManager,
 	schedulerSvc ports.SchedulerService,
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
-	connectionOpts *domain.LnConnectionOpts,
 	refreshDbInterval int64,
 	delegateConfig DelegateConfig,
 ) (*Service, *DelegateService, error) {
 	svc, err := newService(
 		buildInfo, datadir, dbSvc, schedulerSvc, refreshDbInterval,
-		esploraUrl, boltzUrl, boltzWSUrl, swapTimeout, connectionOpts,
+		esploraUrl, boltzUrl, boltzWSUrl, swapTimeout,
 	)
 	if err != nil {
 		return nil, nil, err
@@ -190,7 +185,6 @@ func newService(
 	schedulerSvc ports.SchedulerService,
 	refreshDbInterval int64,
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
-	connectionOpts *domain.LnConnectionOpts,
 ) (*Service, error) {
 	walletStore, err := filestore.NewWalletStore(datadir)
 	if err != nil {
@@ -254,14 +248,6 @@ func newService(
 		// nolint:all
 		settingsRepo.CleanSettings(ctx)
 		return nil, err
-	}
-
-	if connectionOpts != nil {
-		if err := dbSvc.Settings().UpdateSettings(ctx, domain.Settings{
-			LnConnectionOpts: connectionOpts,
-		}); err != nil {
-			return nil, err
-		}
 	}
 
 	svc := &Service{
@@ -520,12 +506,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 	s.vhtlcSubscription = handler
 
-	settings, err := s.dbSvc.Settings().GetSettings(ctx)
-	if err != nil {
-		log.WithError(err).Warn("failed to get settings")
-		return err
-	}
-
 	// This go routine takes care of scheduling the next settlement and restore the watch
 	// for the subscribed addresses.
 	// All operations that require the sdk client to be synced must stay here.
@@ -597,17 +577,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		go s.recoverChainSwaps(context.Background(), arkConfig)
 
 		s.sanitize(context.Background())
-	}()
-
-	// This go routine takes care of establishing the LN connection, if configured.
-	// TODO: Improve by handling the error instead of just logging it.
-	go func() {
-		if settings.LnConnectionOpts != nil {
-			log.Debug("connecting to LN node...")
-			if err = s.connectLN(ctx, settings.LnConnectionOpts); err != nil {
-				log.WithError(err).Error("failed to connect to LN node")
-			}
-		}
 	}()
 
 	url := s.boltzUrl
@@ -861,80 +830,6 @@ func (s *Service) WhenNextSettlement(ctx context.Context) time.Time {
 	return s.schedulerSvc.WhenNextSettlement()
 }
 
-func (s *Service) ConnectLN(ctx context.Context, lnUrl string) error {
-	if len(lnUrl) == 0 {
-		settings, err := s.dbSvc.Settings().GetSettings(ctx)
-		if err != nil {
-			log.WithError(err).Warn("failed to get settings")
-			return err
-		}
-
-		if settings.LnConnectionOpts == nil {
-			return fmt.Errorf("no LN connection options found, please provide a valid LN Connect URL")
-		}
-
-		return s.connectLN(ctx, settings.LnConnectionOpts)
-	}
-
-	if s.IsPreConfiguredLN() {
-		return fmt.Errorf("cannot change LN URL, it is already pre-configured")
-	}
-
-	lnConnectionType := domain.CLN_CONNECTION
-	if strings.Contains(lnUrl, "lndconnect:") {
-		lnConnectionType = domain.LND_CONNECTION
-	}
-
-	lnConnctionOpts := &domain.LnConnectionOpts{
-		LnUrl:          lnUrl,
-		LnDatadir:      "",
-		ConnectionType: lnConnectionType,
-	}
-
-	err := s.connectLN(ctx, lnConnctionOpts)
-	if err != nil {
-		return fmt.Errorf("failed to connect to LN node: %w", err)
-	}
-
-	err = s.dbSvc.Settings().UpdateSettings(ctx, domain.Settings{
-		LnConnectionOpts: lnConnctionOpts,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to update LN connection options: %w", err)
-	}
-
-	return nil
-}
-
-func (s *Service) DisconnectLN() {
-	s.lnSvc.Disconnect()
-}
-
-func (s *Service) IsConnectedLN() bool {
-	if s.lnSvc == nil {
-		return false
-	}
-	return s.lnSvc.IsConnected()
-}
-
-func (s *Service) GetLnConnectUrl() string {
-	if s.lnSvc == nil {
-		return ""
-	}
-	return s.lnSvc.GetLnConnectUrl()
-}
-
-func (s *Service) IsPreConfiguredLN() bool {
-	settings, err := s.dbSvc.Settings().GetSettings(context.Background())
-	if err != nil {
-		return false
-	}
-
-	lnOpts := settings.LnConnectionOpts
-
-	return lnOpts != nil && lnOpts.LnDatadir != ""
-}
-
 func (s *Service) GetSwapVHTLC(
 	ctx context.Context,
 	receiverPubkey, senderPubkey *btcec.PublicKey,
@@ -1166,148 +1061,6 @@ func (s *Service) SettleVHTLCWithCollaborativeRefundPath(
 			ctx, opts, partialForfeitTx, intentProof, intentMessage, delegateSignerSession, outpoint,
 		)
 	})
-}
-
-func (s *Service) IsInvoiceSettled(ctx context.Context, invoice string) (bool, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return false, err
-	}
-
-	if !s.lnSvc.IsConnected() {
-		return false, fmt.Errorf("not connected to LN")
-	}
-
-	return s.lnSvc.IsInvoiceSettled(ctx, invoice)
-}
-
-func (s *Service) GetBalanceLN(ctx context.Context) (balance uint64, err error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return 0, err
-	}
-
-	if !s.lnSvc.IsConnected() {
-		return 0, fmt.Errorf("not connected to LN")
-	}
-
-	return s.lnSvc.GetBalance(ctx)
-}
-
-// ln -> ark (reverse submarine swap)
-func (s *Service) IncreaseInboundCapacity(ctx context.Context, amount uint64) (string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
-	}
-
-	preimage := make([]byte, 32)
-	if _, err := rand.Read(preimage); err != nil {
-		return "", fmt.Errorf("failed to generate preimage: %w", err)
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	postProcess := func(swapData swap.Swap) error {
-		defer wg.Done()
-
-		if swapData.Status != swap.SwapSuccess {
-			return nil
-		}
-
-		vHTLC := domain.NewVhtlc(*swapData.Opts)
-
-		_, err := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
-			Id:         swapData.Id,
-			Type:       domain.SwapRegular,
-			Amount:     swapData.Amount,
-			From:       boltz.CurrencyBtc,
-			To:         boltz.CurrencyArk,
-			Vhtlc:      vHTLC,
-			Timestamp:  swapData.Timestamp,
-			RedeemTxId: swapData.RedeemTxid,
-			Status:     domain.SwapStatus(swapData.Status),
-		}})
-
-		return err
-
-	}
-
-	swapDetails, err := s.swapHandler.GetInvoice(ctx, amount, postProcess)
-	if err != nil {
-		return "", fmt.Errorf("failed to create reverse swap: %v", err)
-	}
-
-	// Pay the invoice to reveal the preimage
-	if _, err := s.payInvoiceLN(ctx, swapDetails.Invoice); err != nil {
-		return "", fmt.Errorf("failed to pay invoice: %v", err)
-	}
-
-	wg.Wait()
-	swap, err := s.dbSvc.Swap().Get(ctx, swapDetails.Id)
-	if err != nil {
-		return "", err
-	}
-
-	return swap.RedeemTxId, err
-}
-
-// ark -> ln (submarine swap)
-func (s *Service) IncreaseOutboundCapacity(
-	ctx context.Context, amount uint64,
-) (SwapResponse, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return SwapResponse{}, err
-	}
-
-	unilateralRefund := func(swapData swap.Swap) error {
-		err := s.scheduleSwapRefund(swapData.Id, *swapData.Opts)
-		return err
-	}
-
-	// Get invoice from the connected LN service
-	invoice, preimageHashStr, err := s.getInvoiceLN(ctx, amount, "increase outbound capacity", "")
-	if err != nil {
-		return SwapResponse{}, fmt.Errorf("failed to create invoice: %w", err)
-	}
-
-	_, err = hex.DecodeString(preimageHashStr)
-	if err != nil {
-		return SwapResponse{}, fmt.Errorf("failed to decode preimage hash: %v", err)
-	}
-
-	swapDetails, err := s.swapHandler.PayInvoice(ctx, invoice, unilateralRefund)
-
-	if err != nil {
-		return SwapResponse{}, err
-	}
-
-	swapStatus := domain.SwapStatus(swapDetails.Status)
-	vHTLC := domain.NewVhtlc(*swapDetails.Opts)
-
-	go func() {
-		_, dbErr := s.dbSvc.Swap().Add(context.Background(), []domain.Swap{{
-			Id:          swapDetails.Id,
-			Type:        domain.SwapRegular,
-			Amount:      swapDetails.Amount,
-			From:        boltz.CurrencyArk,
-			Timestamp:   swapDetails.Timestamp,
-			To:          boltz.CurrencyBtc,
-			Vhtlc:       vHTLC,
-			FundingTxId: swapDetails.TxId,
-			Status:      swapStatus,
-		}})
-
-		if dbErr != nil {
-			log.WithError(dbErr).Error("failed to add swap to db")
-			return
-		}
-
-	}()
-
-	return SwapResponse{
-		TxId:       swapDetails.TxId,
-		SwapStatus: swapStatus,
-		Invoice:    swapDetails.Invoice,
-	}, err
 }
 
 func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string) error {
@@ -2354,48 +2107,6 @@ func (s *Service) handleAddressEventChannel(
 			}
 		}(event)
 	}
-}
-
-func (s *Service) connectLN(ctx context.Context, lnOpts *domain.LnConnectionOpts) error {
-	data, err := s.GetConfigData(ctx)
-	if err != nil {
-		return err
-	}
-
-	connectionOpts := lnOpts
-	if connectionOpts.ConnectionType == domain.CLN_CONNECTION {
-		s.lnSvc = cln.NewService()
-	} else {
-		s.lnSvc = lnd.NewService()
-	}
-
-	return s.lnSvc.Connect(ctx, connectionOpts, data.Network.Name)
-}
-
-func (s *Service) getInvoiceLN(
-	ctx context.Context, amount uint64, memo, preimage string,
-) (string, string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", "", err
-	}
-
-	if !s.lnSvc.IsConnected() {
-		return "", "", fmt.Errorf("not connected to LN")
-	}
-
-	return s.lnSvc.GetInvoice(ctx, amount, memo, preimage)
-}
-
-func (s *Service) payInvoiceLN(ctx context.Context, invoice string) (string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
-	}
-
-	if !s.lnSvc.IsConnected() {
-		return "", fmt.Errorf("not connected to LN")
-	}
-
-	return s.lnSvc.PayInvoice(ctx, invoice)
 }
 
 func (s *Service) scheduleSwapRefund(swapId string, opts vhtlc.Opts) (err error) {

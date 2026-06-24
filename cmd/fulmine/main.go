@@ -107,7 +107,7 @@ func main() {
 	appSvc, delegateSvc, err := application.NewServices(
 		buildInfo, cfg.Datadir, dbSvc, schedulerSvc,
 		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout,
-		cfg.LnConnectionOpts, cfg.RefreshDbInterval,
+		cfg.RefreshDbInterval,
 		application.DelegateConfig{
 			Enabled: cfg.DelegateEnabled,
 			Fee:     cfg.DelegateFee,
