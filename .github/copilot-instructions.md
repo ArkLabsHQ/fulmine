@@ -64,7 +64,7 @@ The project follows a clean architecture pattern:
 ### Protocol Buffers
 
 - **Generate stubs**: `make proto` - Uses Docker to run buf generate
-- **Lint protos**: `make proto-lint` - Validates proto files (excludes cln directory)
+- **Lint protos**: `make proto-lint` - Validates proto files
 - **Location**: All proto files are in `api-spec/protobuf/`
 
 ## Code Conventions
