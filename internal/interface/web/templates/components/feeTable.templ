@@ -182,14 +182,6 @@ templ SentTxTable(sats, date, status, arkTxid, arkExplorerUrl string) {
   </div>
 }
 
-templ SwapTxTable(sats, feeAmount, total string) {
-  <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
-    @arkFeeLine(feeAmount)
-    <hr class="text-white/20 mb-2" />
-    @tableLine("total", total, "cryptoAmount")
-  </div>
-}
-
 templ SwappedTxTable(sats, date, status string) {
   <div class="border border-white/20 p-4 w-full max-w-[360px] mt-4 rounded-lg">
     @tableLine("date", date)

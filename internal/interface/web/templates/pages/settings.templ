@@ -29,10 +29,6 @@ templ Status(ok bool, goodLabel, badLabel string, pointer bool) {
   </div>
 }
 
-templ StatusNode(connected bool) {
-  @Status(connected, "Connected", "Disconnected", false)
-}
-
 templ StatusLock(locked bool) {
   @Status(!locked, "Unlocked", "Locked", true)
 }
@@ -47,30 +43,26 @@ templ SettingsTabs(active string) {
   <div class="flex gap-2 mb-8 text-sm text-white/80 font-semibold">
     @SettingsTab("General", "/settings/general", active == "general")
     <!-- @SettingsTab("Server", "/settings/server", active == "server") // TODO: reactivate this -->
-    @SettingsTab("Lightning", "/settings/lightning", active == "lightning")
   </div>
 }
 
-templ SettingsBodyContent(active string, settings domain.Settings, lnUrl string, nodeStatus, isPreconfigured, locked bool, version string) {
+templ SettingsBodyContent(active string, settings domain.Settings, locked bool, version string) {
   @components.DesktopHeader()
 	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div>
 	    @components.Header("Settings")
       @SettingsTabs(active)
       if active == "general" {
-        @SettingsGeneralContent(settings, nodeStatus, locked, version)
+        @SettingsGeneralContent(settings, locked, version)
       }
       if active == "server" {
         @SettingsServerContent(settings)
-      }
-      if active == "lightning" {
-        @SettingsLightningContent(lnUrl, nodeStatus, isPreconfigured)
       }
     </div>
   </div>
 }
 
-templ SettingsGeneralContent(settings domain.Settings, nodeStatus, locked bool, version string) {
+templ SettingsGeneralContent(settings domain.Settings, locked bool, version string) {
   <form hx-post="/helpers/settings" hx-trigger="change">
     @Separator("Details")
     @components.Label("Version")
@@ -125,76 +117,3 @@ templ SettingsServerContent(settings domain.Settings) {
   </form>
 }
 
-templ SettingsLightningContent(lnUrl string, nodeStatus bool, isPreconfigured bool) {
-  <form >
-    @Separator("Status")
-    @StatusNode(nodeStatus)
-    @Hr()
-    @Separator("Connect")
-    if isPreconfigured {
-      <p>You are using a preconfigured Lightning node</p>
-      @components.Label("URL")
-      @components.InputFake(lnUrl)
-      if nodeStatus {
-        <button class="bg-red/10 text-red font-semibold rounded-lg mt-8" hx-post="/helpers/node/disconnect">
-          Disconnect
-        </button>
-      } else {
-        @Hr()
-        @components.LnConnectButtons("lnurlpre", isPreconfigured)
-      }
-        
-    } else {
-      <p>Enter details manually or scan to connect</p>
-      @components.Label("URL")
-      if nodeStatus {
-        @components.InputFake(lnUrl)
-        <button class="bg-red/10 text-red font-semibold rounded-lg mt-8" hx-post="/helpers/node/disconnect">
-          Disconnect
-        </button>
-      } else {
-        @components.InputWithPaste("lnurl", "", lnUrl)
-        @Hr()
-        <div class="flex items-start gap-4 max-w-96">
-          <p class="mt-1">@components.InfoLightIcon()</p>
-          <div>
-            <p class="mb-2">Connect to you own LN node to rebalance your channels with low fees and faster settlements</p>
-            <p>How to connect? <a hx-get="/modal/lnconnectinfo" hx-target="#modal" class="visible">View guide</a></p>
-          </div>
-        </div>
-        @Hr()
-        @components.LnConnectButtons("lnurl", isPreconfigured)
-      }
-    }
-
-  </form>
-  <script>
-    const input = document.querySelector('#lnurl')
-    const button = document.querySelector('[name="connect"]')
-		const validateLnUrl = () => {
-      if (input.value.length == 0) return
-		  const data = new FormData()
-		  data.set('lnurl', input.value)
-		  fetch('/helpers/lnurl/validate', {
-		  	method: 'POST',
-        body: data,
-		  }).then((res) => {
-		  	if (res.ok) {
-		  		res.json().then(({ valid }) => {
-		  			if (valid) {
-		  				button.disabled = false
-		  				button.innerText = 'Connect'
-		  			} else {
-		  				button.disabled = true
-		  				button.innerText = 'Invalid URL'
-		  			}
-		  		})
-		  	}
-		  })
-		}
-    if (input && button) {
-			validateLnUrl()
-		  input.addEventListener('input', validateLnUrl)
-		}
-  </script>
-}
