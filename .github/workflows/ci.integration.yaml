@@ -11,33 +11,100 @@ jobs:
     name: integration tests
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
       - uses: actions/setup-go@v6
         with:
           go-version: ">=1.26.2"
-      - uses: actions/checkout@v4
-      
-      - run: go get -v -t -d ./...
-      
-      - name: Run Nigiri
-        uses: vulpemventures/nigiri-github-action@v1
+      - uses: actions/setup-node@v4
         with:
-          use_liquid: false
-          use_ln: true
+          node-version: "20"
 
-      - name: Build test environment
-        run: make build-test-env
+      - run: go get -v -t -d ./...
 
-      - name: Setup test environment
-        run: make setup-test-env
+      # Authenticate to Docker Hub so the many image pulls (arkd, boltz, lnd,
+      # mempool, fulcrum, nbxplorer, golang/alpine, ...) aren't subject to the
+      # anonymous rate limit that intermittently fails the run on shared runners.
+      - name: Log in to Docker Hub
+        continue-on-error: true # don't fail the run if the secrets aren't set
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Fulmine image (under test)
+        run: docker build -t fulmine:e2e .
+
+      - name: Start regtest infrastructure
+        run: |
+          for attempt in 1 2 3; do
+            if node regtest/regtest.mjs start --profile boltz,delegate; then
+              exit 0
+            fi
+            echo "::warning::regtest stack start attempt $attempt failed (often a transient Docker Hub image pull); cleaning up and retrying..."
+            node regtest/regtest.mjs clean || true
+            sleep 15
+          done
+          echo "::error::regtest stack failed to start after 3 attempts"
+          exit 1
+
+      - name: Wait for the stack to settle
+        run: |
+          # The 17-container startup burst briefly overwhelms Docker's embedded
+          # DNS (arkd <-> arkd-wallet "server misbehaving"), which flaps arkd and
+          # leaves the user wallet uninitialised. Wait for arkd's gRPC to be
+          # *stably* reachable before initialising the user Fulmine + running tests.
+          streak=0
+          for i in $(seq 1 80); do
+            if bash -c 'exec 3<>/dev/tcp/localhost/7070' 2>/dev/null; then
+              streak=$((streak + 1))
+              if [ "$streak" -ge 6 ]; then echo "arkd stable"; exit 0; fi
+            else
+              streak=0
+            fi
+            sleep 3
+          done
+          echo "::warning::arkd did not stabilise within ~4min; proceeding anyway"
+
+      - name: Start user Fulmine
+        run: |
+          # The user-Fulmine setup can race a not-yet-fully-ready arkd and leave
+          # the wallet uninitialised, which then fatals TestMain with a confusing
+          # "service not initialized". Verify it actually initialised and retry
+          # the setup (fresh container) if not, failing loudly if it never does.
+          for attempt in 1 2 3; do
+            make regtest-user-up || true
+            for i in $(seq 1 30); do
+              if curl -fsS http://localhost:7021/api/v1/wallet/status 2>/dev/null \
+                  | grep -qE '"initialized": ?true'; then
+                echo "fulmine-user initialised (attempt $attempt)"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "::warning::fulmine-user not initialised after attempt $attempt; recreating + retrying"
+            docker rm -f fulmine-user || true
+          done
+          echo "::error::fulmine-user failed to initialise after 3 attempts"
+          exit 1
 
       - name: Run integration tests
         run: make integrationtest
 
-      - name: Docker logs
+      - name: Stack logs
         if: failure()
         continue-on-error: true
         run: |
-          docker image ls -a
           docker ps -a
-          docker compose -f test.docker-compose.yml ps
-          docker compose -f test.docker-compose.yml logs --no-color --timestamps boltz fulmine boltz-fulmine mock-boltz
+          for c in fulmine-user boltz boltz-fulmine boltz-lnd fulmine-delegator arkd arkd-wallet lnd bitcoin; do
+            echo "::group::docker logs $c"
+            docker logs "$c" 2>&1 | tail -n 600 || echo "(no container $c)"
+            echo "::endgroup::"
+          done
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker rm -f fulmine-user || true
+          node regtest/regtest.mjs clean || true

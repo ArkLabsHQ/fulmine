@@ -15,9 +15,12 @@ import (
 )
 
 const (
-	clientFulmineURL = "localhost:7000"
-	boltzFulmineURL  = "localhost:7002"
-	mockFulmineURL   = "localhost:7100"
+	// The swap client is a dedicated "user" Fulmine (regtest-user.compose.yml,
+	// host gRPC 7020) that runs THIS repo's image but is separate from
+	// boltz-fulmine, which is Boltz's own Ark wallet. fulmine-delegator's gRPC is
+	// on host 7010 and stands in for the old in-repo "mock" Fulmine counterparty.
+	clientFulmineURL    = "localhost:7020"
+	delegatorFulmineURL = "localhost:7010"
 )
 
 func TestMain(m *testing.M) {
@@ -31,12 +34,8 @@ func TestMain(m *testing.M) {
 		log.Fatalf("❌ failed to refill Fulmine used by Client: %s", err)
 	}
 
-	if err := refillFulmine(ctx, boltzFulmineURL); err != nil {
-		log.Fatalf("❌ failed to refill Fulmine used by Boltz: %s", err)
-	}
-
-	if err := refillFulmine(ctx, mockFulmineURL); err != nil {
-		log.Fatalf("❌ failed to refill Fulmine mock: %s", err)
+	if err := refillFulmine(ctx, delegatorFulmineURL); err != nil {
+		log.Fatalf("❌ failed to refill Fulmine delegator: %s", err)
 	}
 
 	os.Exit(m.Run())
@@ -84,9 +83,21 @@ func refillFulmine(ctx context.Context, url string) error {
 		return err
 	}
 
-	balance, err := f.GetBalance(ctx, &pb.GetBalanceRequest{})
-	if err != nil {
-		return err
+	// The user Fulmine is created + funded by the harness immediately before the
+	// suite; on a slow/contended CI start it can still be initialising, so wait
+	// for it to start answering rather than hard-failing the whole run on the
+	// first call ("service not initialized").
+	var balance *pb.GetBalanceResponse
+	deadline := time.Now().Add(90 * time.Second)
+	for {
+		balance, err = f.GetBalance(ctx, &pb.GetBalanceRequest{})
+		if err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("fulmine %s not ready: %w", url, err)
+		}
+		time.Sleep(2 * time.Second)
 	}
 	if int(balance.GetAmount()) >= balanceThreshold {
 		return nil
