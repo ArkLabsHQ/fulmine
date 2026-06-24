@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 )
@@ -120,6 +121,25 @@ func (cs *ChainSwap) RefundFailed(errorMsg string) {
 func (cs *ChainSwap) UserLockFailed(errorMsg string) {
 	cs.Status = ChainSwapUserLockedFailed
 	cs.ErrorMessage = errorMsg
+}
+
+// TimeoutBlockHeight returns the absolute block height of the BTC lockup's CLTV
+// timeout — the height at which a unilateral on-chain refund of the user's BTC
+// lockup becomes spendable — derived from the stored Boltz creation response.
+// Returns 0 when it cannot be determined (no stored response, malformed JSON, or
+// a direction without a user BTC lockup).
+func (cs ChainSwap) TimeoutBlockHeight() uint32 {
+	if cs.BoltzCreateResponseJSON == "" {
+		return 0
+	}
+	var resp boltz.CreateChainSwapResponse
+	if err := json.Unmarshal([]byte(cs.BoltzCreateResponseJSON), &resp); err != nil {
+		return 0
+	}
+	if resp.LockupDetails.TimeoutBlockHeight < 0 {
+		return 0
+	}
+	return uint32(resp.LockupDetails.TimeoutBlockHeight)
 }
 
 // ChainSwapRepository stores chain swaps initiated by the wallet

@@ -1,4 +1,4 @@
-.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-mutinynet run-2 run-cln test test-vhtlc vet proto proto-lint up-test-env setup-arkd down-test-env
+.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-mutinynet run-2 test test-vhtlc vet proto proto-lint regtest-build regtest-up regtest-user-up regtest-down regtest-logs
 
 GOLANGCI_LINT ?= $(shell \
 	echo "docker run --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v2.9.0 golangci-lint"; \
@@ -66,7 +66,11 @@ run-mutinynet: clean build-static-assets
 test:
 	@echo "Running all tests..."
 	@go test -v -race --count=1 $(shell go list ./... | grep -v *internal/test/e2e*)
-	@find ./pkg -name go.mod -execdir go test -v ./... \;
+	@for gomod in $$(find ./pkg -name go.mod); do \
+		moddir=$$(dirname $$gomod); \
+		echo "Testing module $$moddir..."; \
+		(cd $$moddir && go test -v ./...) || exit 1; \
+	done
 
 ## vet: code analysis
 vet:
@@ -83,24 +87,35 @@ proto-lint:
 	@echo "Linting protos..."
 	@docker run --rm --volume "$(shell pwd):/workspace" --workdir /workspace bufbuild/buf lint --exclude-path ./api-spec/protobuf/cln
 
-pull-test-env:
-	@echo "Updating test env images..."
-	@docker compose -f test.docker-compose.yml pull
+## regtest-build: build the Fulmine-under-test image consumed by the stack
+regtest-build:
+	@echo "Building Fulmine image (under test)..."
+	@docker build -t fulmine:e2e .
 
-build-test-env: pull-test-env
-	@echo "Building test environment..."
-	@docker compose -f test.docker-compose.yml build --no-cache
+## regtest-up: build the image and start the arkade-regtest stack + user Fulmine
+regtest-up: regtest-build
+	@echo "Starting arkade-regtest stack..."
+	@git submodule update --init regtest
+	@node regtest/regtest.mjs start --profile boltz,delegate
+	@$(MAKE) regtest-user-up
 
-## setup-arkd: sets up the ARK server
-setup-test-env:
-	@bash ./scripts/setup
+## regtest-user-up: start + initialise the dedicated swap-user Fulmine
+regtest-user-up:
+	@echo "Starting user Fulmine (fulmine-user)..."
+	@docker compose -f regtest-user.compose.yml up -d
+	@node regtest-user-setup.mjs
 
-## down-test-env: stops test environment
-down-test-env:
-	@echo "Stopping test environment..."
-	@docker compose -f test.docker-compose.yml down -v
+## regtest-down: stop and remove the arkade-regtest stack + volumes + user Fulmine
+regtest-down:
+	@echo "Stopping arkade-regtest stack..."
+	@docker rm -f fulmine-user >/dev/null 2>&1 || true
+	@node regtest/regtest.mjs clean || true
 
-## integrationtest: runs e2e tests
+## regtest-logs: tail arkade-regtest stack logs
+regtest-logs:
+	@node regtest/regtest.mjs logs || docker compose -p arkade-regtest logs -f
+
+## integrationtest: runs e2e tests (requires the arkade-regtest stack: make regtest-up)
 integrationtest:
 	@echo "Running e2e tests..."
 	@go test -v -count=1 -timeout=20m -race -p=1 ./internal/test/e2e/...
