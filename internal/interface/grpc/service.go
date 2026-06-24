@@ -115,7 +115,7 @@ func NewService(
 
 	grpcServer := grpc.NewServer(grpcConfig...)
 
-	walletHandler := handlers.NewWalletHandler(appSvc)
+	walletHandler := handlers.NewWalletHandler(appSvc, unlockerSvc)
 	pb.RegisterWalletServiceServer(grpcServer, walletHandler)
 
 	serviceHandler := handlers.NewServiceHandler(appSvc)

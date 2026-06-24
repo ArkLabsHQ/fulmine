@@ -6,17 +6,20 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
+	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/utils"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type walletHandler struct {
-	svc *application.Service
+	svc      *application.Service
+	unlocker ports.Unlocker
 }
 
-func NewWalletHandler(appSvc *application.Service) pb.WalletServiceServer {
-	return &walletHandler{svc: appSvc}
+func NewWalletHandler(appSvc *application.Service, unlocker ports.Unlocker) pb.WalletServiceServer {
+	return &walletHandler{svc: appSvc, unlocker: unlocker}
 }
 
 func (h *walletHandler) GenSeed(
@@ -39,9 +42,18 @@ func (h *walletHandler) CreateWallet(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	password, err := parsePassword(req.GetPassword())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+	var password string
+	if autoPassword, ok := h.autoUnlockPassword(ctx); ok && !h.svc.IsInitialized() {
+		// An unlocker is configured: create the wallet with its password so the
+		// daemon can auto-unlock afterwards. The unlocker password is
+		// authoritative, so any submitted value is ignored (mirrors the web
+		// onboarding flow).
+		password = autoPassword
+	} else {
+		password, err = parsePassword(req.GetPassword())
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
 	}
 	privateKey, err := parsePrivateKey(req.GetPrivateKey())
 	if err != nil {
@@ -52,6 +64,22 @@ func (h *walletHandler) CreateWallet(
 	}
 
 	return &pb.CreateWalletResponse{}, nil
+}
+
+// autoUnlockPassword returns the password from the configured unlocker (env or
+// file based) and whether one is configured, so CreateWallet can create the
+// wallet with the same password the daemon uses to auto-unlock — matching the
+// web onboarding flow.
+func (h *walletHandler) autoUnlockPassword(ctx context.Context) (string, bool) {
+	if h.unlocker == nil {
+		return "", false
+	}
+	password, err := h.unlocker.GetPassword(ctx)
+	if err != nil {
+		log.WithError(err).Warn("failed to get password from unlocker")
+		return "", false
+	}
+	return password, true
 }
 
 // Unlock tries to unlock the HD Wallet using the given password.
