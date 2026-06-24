@@ -29,10 +29,6 @@ func redirect(path string, c *gin.Context) {
 	c.Status(303)
 }
 
-func reload(c *gin.Context) {
-	c.Header("HX-Refresh", "true")
-}
-
 func toastHandler(t templ.Component, c *gin.Context) {
 	if !htmx.IsHTMX(c.Request) {
 		// nolint:all

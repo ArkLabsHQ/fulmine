@@ -11,17 +11,6 @@ func IsValidURL(str string) bool {
 	return err == nil
 }
 
-func IsValidLnUrl(str string) bool {
-	u, err := url.Parse(str)
-	if err != nil {
-		return false
-	}
-	if u.Scheme == "lndconnect" || u.Scheme == "clnconnect" {
-		return true
-	}
-	return false
-}
-
 func ValidateURL(s string) (string, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {

@@ -29,11 +29,6 @@ var (
 		EventServer: "eventserver",
 		FullNode:    "fullnode",
 		Unit:        "unit",
-		LnConnectionOpts: &domain.LnConnectionOpts{
-			LnDatadir:      "lnd_dir",
-			ConnectionType: domain.LND_CONNECTION,
-			LnUrl:          "lnd",
-		},
 	}
 
 	testDelegateTask = func() domain.DelegateTask {
@@ -181,15 +176,8 @@ func testAddSettings(t *testing.T, repo domain.SettingsRepository) {
 
 func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 	t.Run("update settings", func(t *testing.T) {
-		newConnectionOpts := domain.LnConnectionOpts{
-			LnDatadir:      "cln_dir",
-			ConnectionType: domain.CLN_CONNECTION,
-			LnUrl:          "cln",
-		}
-
 		newSettings := domain.Settings{
-			ApiRoot:          "updated apiroot",
-			LnConnectionOpts: &newConnectionOpts,
+			ApiRoot: "updated apiroot",
 		}
 
 		err := repo.UpdateSettings(ctx, newSettings)
@@ -200,7 +188,6 @@ func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
 
 		expectedSettings := testSettings
 		expectedSettings.ApiRoot = newSettings.ApiRoot
-		expectedSettings.LnConnectionOpts = &newConnectionOpts
 
 		err = repo.UpdateSettings(ctx, newSettings)
 		require.NoError(t, err)

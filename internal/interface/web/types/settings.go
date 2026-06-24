@@ -6,6 +6,5 @@ type Settings struct {
 	Currency    string `json:"currency"`
 	EventServer string `json:"eventserver"`
 	FullNode    string `json:"fullnode"`
-	LnUrl       string `json:"lnurl"`
 	Unit        string `json:"unit"`
 }
