@@ -650,6 +650,14 @@ func (s *service) autoUnlockPassword(ctx context.Context) (string, bool) {
 		log.WithError(err).Warn("failed to get password from unlocker")
 		return "", false
 	}
+	if password == "" {
+		// The file-based unlocker can return an empty password when its file is
+		// empty or whitespace-only. Treat that as "no unlocker password" so the
+		// password prompt + validation still apply instead of creating the
+		// wallet with an empty password.
+		log.Warn("unlocker returned an empty password; falling back to the standard password flow")
+		return "", false
+	}
 	return password, true
 }
 
