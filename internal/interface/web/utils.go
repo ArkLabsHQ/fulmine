@@ -27,7 +27,7 @@ func getExplorerUrl(network string) string {
 func getArkExplorerUrl(network string) string {
 	switch network {
 	case "bitcoin":
-		return "https://explorer.arkade.sh"
+		return "https://arkade.space"
 	case "signet":
 		return "https://explorer.signet.arkade.sh"
 	case "mutinynet":
