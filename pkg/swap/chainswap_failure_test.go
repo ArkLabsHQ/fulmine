@@ -37,6 +37,8 @@ func (f *fakeBoltz) SubmitChainSwapClaim(string, boltz.ChainSwapClaimRequest) (*
 // "broadcast", returning a known txid so the test can assert which path landed.
 type claimMockExplorer struct {
 	broadcastTxid string
+	broadcastErr  error
+	broadcastTx   *wire.MsgTx // captured so tests can assert the claim tx's witness
 }
 
 func (m *claimMockExplorer) GetFeeRate() (float64, error)           { return 1, nil }
@@ -45,8 +47,9 @@ func (m *claimMockExplorer) GetTransaction(string) (string, error)  { return "",
 func (m *claimMockExplorer) GetTransactionStatus(string) (*TransactionStatus, error) {
 	return nil, nil
 }
-func (m *claimMockExplorer) BroadcastTransaction(*wire.MsgTx) (string, error) {
-	return m.broadcastTxid, nil
+func (m *claimMockExplorer) BroadcastTransaction(tx *wire.MsgTx) (string, error) {
+	m.broadcastTx = tx
+	return m.broadcastTxid, m.broadcastErr
 }
 
 // buildSwapTreeFixture synthesizes a Boltz swap tree plus a server lockup tx
@@ -109,9 +112,10 @@ func TestClaimBtcLockupFallsBackToScriptPath(t *testing.T) {
 	serverKey, claimKey, tree, serverLockupHex, btcAddress := buildSwapTreeFixture(t)
 	preimage := bytes.Repeat([]byte{0x01}, 32)
 
+	exp := &claimMockExplorer{broadcastTxid: "script-path-claim-txid"}
 	h := &arkToBtcHandler{swapHandler: &SwapHandler{
 		boltzSvc:       &fakeBoltz{submitErr: errors.New("boltz refused the cooperative claim")},
-		explorerClient: &claimMockExplorer{broadcastTxid: "script-path-claim-txid"},
+		explorerClient: exp,
 		config:         clientTypes.Config{Network: arklib.BitcoinRegTest, Dust: 546},
 	}}
 
@@ -123,6 +127,37 @@ func TestClaimBtcLockupFallsBackToScriptPath(t *testing.T) {
 	require.NoError(t, err)
 	// the script-path broadcast txid — proves the fallback ran, not the cooperative path.
 	require.Equal(t, "script-path-claim-txid", txid)
+
+	// Pin the script-path witness shape: [signature, preimage, claimScript,
+	// controlBlock]. Without this the test stays green even if the preimage were
+	// dropped — a claim with no preimage is unspendable, but invisible to a mock
+	// that discards the tx.
+	require.NotNil(t, exp.broadcastTx)
+	require.Len(t, exp.broadcastTx.TxIn[0].Witness, 4)
+	require.Equal(t, preimage, exp.broadcastTx.TxIn[0].Witness[1], "preimage must be the 2nd witness element")
+}
+
+// TestClaimBtcLockupReturnsErrorWhenBothPathsFail pins the actual disaster case:
+// when the cooperative claim fails AND the script-path broadcast also fails, the
+// user cannot recover the BTC at all, so claimBtcLockup must surface that error
+// rather than swallow it. The script-path broadcast failure is what's returned.
+func TestClaimBtcLockupReturnsErrorWhenBothPathsFail(t *testing.T) {
+	serverKey, claimKey, tree, serverLockupHex, btcAddress := buildSwapTreeFixture(t)
+	preimage := bytes.Repeat([]byte{0x01}, 32)
+	broadcastErr := errors.New("mempool rejected the script-path claim")
+
+	h := &arkToBtcHandler{swapHandler: &SwapHandler{
+		boltzSvc:       &fakeBoltz{submitErr: errors.New("boltz refused the cooperative claim")},
+		explorerClient: &claimMockExplorer{broadcastErr: broadcastErr},
+		config:         clientTypes.Config{Network: arklib.BitcoinRegTest, Dust: 546},
+	}}
+
+	_, err := h.claimBtcLockup(
+		context.Background(), "swap-1", preimage, claimKey, btcAddress,
+		&chaincfg.RegressionNetParams, tree, serverKey.PubKey(), serverLockupHex,
+	)
+
+	require.ErrorIs(t, err, broadcastErr)
 }
 
 // makeTestPSBT builds a minimal valid base64 PSBT (one input, one output, no
@@ -179,13 +214,27 @@ func TestCollaborativeRefundParsesCounterpartyPSBTs(t *testing.T) {
 }
 
 // TestCollaborativeRefundRejectsMalformedResponse guards against a misbehaving
-// counterparty: a non-PSBT response is rejected, not treated as a valid refund.
+// counterparty: the refund and checkpoint PSBTs are decoded separately, so both
+// decode branches are pinned by the distinct error each must surface (a bare
+// require.Error couldn't tell which tx failed to decode, and left the checkpoint
+// branch — a real fund-safety concern if a checkpoint silently fails to parse —
+// uncovered).
 func TestCollaborativeRefundRejectsMalformedResponse(t *testing.T) {
 	h := &SwapHandler{}
-	refundFunc := func(string, boltz.RefundSwapRequest) (*boltz.RefundSwapResponse, error) {
-		return &boltz.RefundSwapResponse{Transaction: "not-a-psbt", Checkpoint: makeTestPSBT(t)}, nil
-	}
 
-	_, _, err := h.collaborativeRefund(refundFunc, "swap-1", "refundtx", "checkpointtx")
-	require.Error(t, err)
+	t.Run("malformed refund tx", func(t *testing.T) {
+		refundFunc := func(string, boltz.RefundSwapRequest) (*boltz.RefundSwapResponse, error) {
+			return &boltz.RefundSwapResponse{Transaction: "not-a-psbt", Checkpoint: makeTestPSBT(t)}, nil
+		}
+		_, _, err := h.collaborativeRefund(refundFunc, "swap-1", "refundtx", "checkpointtx")
+		require.ErrorContains(t, err, "refund tx")
+	})
+
+	t.Run("malformed checkpoint tx", func(t *testing.T) {
+		refundFunc := func(string, boltz.RefundSwapRequest) (*boltz.RefundSwapResponse, error) {
+			return &boltz.RefundSwapResponse{Transaction: makeTestPSBT(t), Checkpoint: "not-a-psbt"}, nil
+		}
+		_, _, err := h.collaborativeRefund(refundFunc, "swap-1", "refundtx", "checkpointtx")
+		require.ErrorContains(t, err, "checkpoint tx")
+	})
 }
