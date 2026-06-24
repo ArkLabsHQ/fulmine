@@ -41,15 +41,6 @@ func (s *settingsRepository) AddSettings(ctx context.Context, settings domain.Se
 		return fmt.Errorf("settings already exist")
 	}
 
-	lnType := sql.NullInt64{Valid: false}
-	lnDatadir := sql.NullString{Valid: false}
-	lnUrl := sql.NullString{Valid: false}
-	if settings.LnConnectionOpts != nil {
-		lnType = sql.NullInt64{Int64: int64(settings.LnConnectionOpts.ConnectionType), Valid: true}
-		lnDatadir = sql.NullString{String: settings.LnConnectionOpts.LnDatadir, Valid: true}
-		lnUrl = sql.NullString{String: settings.LnConnectionOpts.LnUrl, Valid: true}
-	}
-
 	return s.querier.UpsertSettings(ctx, queries.UpsertSettingsParams{
 		ApiRoot:     settings.ApiRoot,
 		ServerUrl:   settings.ServerUrl,
@@ -58,9 +49,6 @@ func (s *settingsRepository) AddSettings(ctx context.Context, settings domain.Se
 		EventServer: settings.EventServer,
 		FullNode:    settings.FullNode,
 		Unit:        settings.Unit,
-		LnUrl:       lnUrl,
-		LnDatadir:   lnDatadir,
-		LnType:      lnType,
 	})
 }
 
@@ -97,12 +85,6 @@ func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain
 		existing.EsploraUrl = sql.NullString{String: settings.EsploraUrl, Valid: true}
 	}
 
-	if settings.LnConnectionOpts != nil {
-		existing.LnType = sql.NullInt64{Int64: int64(settings.LnConnectionOpts.ConnectionType), Valid: true}
-		existing.LnDatadir = sql.NullString{String: settings.LnConnectionOpts.LnDatadir, Valid: true}
-		existing.LnUrl = sql.NullString{String: settings.LnConnectionOpts.LnUrl, Valid: true}
-	}
-
 	return s.querier.UpsertSettings(ctx, queries.UpsertSettingsParams{
 		ApiRoot:     existing.ApiRoot,
 		ServerUrl:   existing.ServerUrl,
@@ -111,9 +93,6 @@ func (s *settingsRepository) UpdateSettings(ctx context.Context, settings domain
 		EventServer: existing.EventServer,
 		FullNode:    existing.FullNode,
 		Unit:        existing.Unit,
-		LnUrl:       existing.LnUrl,
-		LnDatadir:   existing.LnDatadir,
-		LnType:      existing.LnType,
 	})
 }
 
@@ -123,25 +102,14 @@ func (s *settingsRepository) GetSettings(ctx context.Context) (*domain.Settings,
 		return nil, err
 	}
 
-	var lnConnectionOpts *domain.LnConnectionOpts
-
-	if row.LnType.Valid {
-		lnConnectionOpts = &domain.LnConnectionOpts{
-			ConnectionType: domain.ConnectionType(row.LnType.Int64),
-			LnDatadir:      row.LnDatadir.String,
-			LnUrl:          row.LnUrl.String,
-		}
-	}
-
 	return &domain.Settings{
-		ApiRoot:          row.ApiRoot,
-		ServerUrl:        row.ServerUrl,
-		Currency:         row.Currency,
-		EventServer:      row.EventServer,
-		FullNode:         row.FullNode,
-		Unit:             row.Unit,
-		EsploraUrl:       row.EsploraUrl.String,
-		LnConnectionOpts: lnConnectionOpts,
+		ApiRoot:     row.ApiRoot,
+		ServerUrl:   row.ServerUrl,
+		Currency:    row.Currency,
+		EventServer: row.EventServer,
+		FullNode:    row.FullNode,
+		Unit:        row.Unit,
+		EsploraUrl:  row.EsploraUrl.String,
 	}, nil
 }
 

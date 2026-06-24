@@ -519,22 +519,6 @@ func (h *serviceHandler) PayInvoice(
 	return nil, status.Error(codes.InvalidArgument, "invoice string is neither valid BOLT11 nor BOLT12 offer")
 }
 
-func (h *serviceHandler) IsInvoiceSettled(
-	ctx context.Context, req *pb.IsInvoiceSettledRequest,
-) (*pb.IsInvoiceSettledResponse, error) {
-	invoice, err := parseInvoice(req.GetInvoice())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-
-	settled, err := h.svc.IsInvoiceSettled(ctx, invoice)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pb.IsInvoiceSettledResponse{Settled: settled}, nil
-}
-
 func (h *serviceHandler) GetVirtualTxs(
 	ctx context.Context, req *pb.GetVirtualTxsRequest,
 ) (*pb.GetVirtualTxsResponse, error) {

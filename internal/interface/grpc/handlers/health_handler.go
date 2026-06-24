@@ -13,7 +13,6 @@ import (
 
 const (
 	serviceFulmine = "fulmine"
-	serviceLN      = "ln"
 )
 
 // https://github.com/grpc/grpc/blob/master/doc/health-checking.md
@@ -31,9 +30,6 @@ func (h *healthHandler) List(
 	statuses := make(map[string]*grpchealth.HealthCheckResponse)
 	statuses[serviceFulmine] = &grpchealth.HealthCheckResponse{
 		Status: h.getFulmineStatus(ctx),
-	}
-	statuses[serviceLN] = &grpchealth.HealthCheckResponse{
-		Status: h.getLNStatus(),
 	}
 
 	return &grpchealth.HealthListResponse{
@@ -67,8 +63,6 @@ func (h *healthHandler) getServiceStatus(
 	switch serviceName {
 	case serviceFulmine:
 		status.Status = h.getFulmineStatus(ctx)
-	case serviceLN:
-		status.Status = h.getLNStatus()
 	}
 	return status
 }
@@ -88,16 +82,9 @@ func (h *healthHandler) getFulmineStatus(ctx context.Context) grpchealth.HealthC
 	return grpchealth.HealthCheckResponse_NOT_SERVING
 }
 
-func (h *healthHandler) getLNStatus() grpchealth.HealthCheckResponse_ServingStatus {
-	if h.svc.IsConnectedLN() {
-		return grpchealth.HealthCheckResponse_SERVING
-	}
-	return grpchealth.HealthCheckResponse_NOT_SERVING
-}
-
 func validateServiceName(requested string) error {
 	switch requested {
-	case serviceFulmine, serviceLN:
+	case serviceFulmine:
 		return nil
 	case "":
 		return fmt.Errorf("missing service name")
