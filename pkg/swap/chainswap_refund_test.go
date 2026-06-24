@@ -10,6 +10,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
@@ -23,19 +24,21 @@ import (
 // Only GetTransaction and GetCurrentBlockHeight are reached before the CLTV
 // gate; the rest are unreached stubs.
 type refundMockExplorer struct {
-	txHex  string
-	height uint32
-	txErr  error
+	txHex         string
+	height        uint32
+	txErr         error
+	broadcastTxid string
 }
 
 func (m *refundMockExplorer) GetTransaction(string) (string, error)  { return m.txHex, m.txErr }
 func (m *refundMockExplorer) GetCurrentBlockHeight() (uint32, error) { return m.height, nil }
 func (m *refundMockExplorer) BroadcastTransaction(*wire.MsgTx) (string, error) {
-	return "", nil
+	return m.broadcastTxid, nil
 }
 func (m *refundMockExplorer) GetFeeRate() (float64, error) { return 1, nil }
 func (m *refundMockExplorer) GetTransactionStatus(string) (*TransactionStatus, error) {
-	return nil, nil
+	// confirmed, so RefundBtcToArkSwap's post-broadcast wait loop exits at once.
+	return &TransactionStatus{Confirmed: true}, nil
 }
 
 // buildLockupFixture synthesizes a regtest taproot lockup output and the Boltz
@@ -64,13 +67,20 @@ func buildLockupFixture(t *testing.T, timeout int64) (lockupTxHex, swapRespJSON 
 	var buf bytes.Buffer
 	require.NoError(t, lockupTx.Serialize(&buf))
 
+	serverKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+
 	resp := boltz.CreateChainSwapResponse{
 		LockupDetails: boltz.SwapLeg{
-			LockupAddress: addr.String(),
+			LockupAddress:   addr.String(),
+			ServerPublicKey: hex.EncodeToString(serverKey.PubKey().SerializeCompressed()),
 			SwapTree: &boltz.SwapTree{
-				RefundLeaf: boltz.SwapTreeLeaf{
-					Output: buildRefundLeafScript(t, testRefundXOnlyPubKey(t), timeout),
-				},
+				// A distinct claim leaf so the swap tree is a real 2-leaf merkle
+				// tree — createControlBlockFromSwapTree uses it as the refund
+				// path's sibling hash. Its content is irrelevant (only hashed);
+				// timeout+1 just keeps it distinct from the refund leaf.
+				ClaimLeaf:  boltz.SwapTreeLeaf{Version: 0xc0, Output: buildRefundLeafScript(t, testRefundXOnlyPubKey(t), timeout+1)},
+				RefundLeaf: boltz.SwapTreeLeaf{Version: 0xc0, Output: buildRefundLeafScript(t, testRefundXOnlyPubKey(t), timeout)},
 			},
 		},
 	}
@@ -125,4 +135,66 @@ func TestRefundBtcToArkSwapGuards(t *testing.T) {
 
 		require.ErrorContains(t, err, "CLTV timeout not yet reached")
 	})
+}
+
+// refundMockArkClient is a fake arksdk.ArkClient for the post-gate refund flow.
+// It embeds the interface (so any unexpected call panics) and overrides the two
+// ArkClient calls RefundBtcToArkSwap makes: NewBoardingAddress (the destination
+// for the reclaimed BTC) and Settle (boarding that BTC as a VTXO).
+type refundMockArkClient struct {
+	arksdk.ArkClient
+	boardingAddr string
+}
+
+func (m *refundMockArkClient) NewBoardingAddress(context.Context) (string, error) {
+	return m.boardingAddr, nil
+}
+
+func (m *refundMockArkClient) Settle(context.Context, ...arksdk.BatchSessionOption) (string, error) {
+	return "settle-txid", nil
+}
+
+// TestRefundBtcToArkSwapBroadcastsPastGate covers the fund-recovery payoff once
+// the CLTV gate opens: RefundBtcToArkSwap must construct the refund tx, sign the
+// taproot refund leaf, and broadcast it to move the locked BTC to the user's
+// boarding address. The cooperative e2e never reaches a unilateral refund, so
+// this drives it with synthesized swap crypto + a mocked explorer/ArkClient. It
+// asserts the broadcast txid is returned (the funds left the lockup), proving
+// the whole build->sign->broadcast path ran, not just that the gate opened.
+func TestRefundBtcToArkSwapBroadcastsPastGate(t *testing.T) {
+	const timeout = 800_000
+	lockupHex, respJSON := buildLockupFixture(t, timeout)
+
+	// constructClaimTransaction hex-decodes the lockup txid into the claim tx's
+	// input outpoint, and the taproot prevout fetcher matches on it, so derive the
+	// real txid from the fixture rather than passing a placeholder.
+	raw, err := hex.DecodeString(lockupHex)
+	require.NoError(t, err)
+	var lockupTx wire.MsgTx
+	require.NoError(t, lockupTx.Deserialize(bytes.NewReader(raw)))
+	lockupTxid := lockupTx.TxHash().String()
+
+	userKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+
+	// a valid regtest taproot address for the refund destination
+	destKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+	boardingAddr, err := btcutil.NewAddressTaproot(schnorr.SerializePubKey(destKey.PubKey()), &chaincfg.RegressionNetParams)
+	require.NoError(t, err)
+
+	h := &SwapHandler{
+		explorerClient: &refundMockExplorer{
+			txHex:         lockupHex,
+			height:        timeout, // gate opens: currentHeight >= timeout
+			broadcastTxid: "refund-broadcast-txid",
+		},
+		arkClient:  &refundMockArkClient{boardingAddr: boardingAddr.String()},
+		privateKey: userKey,
+		config:     clientTypes.Config{Network: arklib.BitcoinRegTest},
+	}
+
+	txid, err := h.RefundBtcToArkSwap(context.Background(), "swap", 1000, lockupTxid, respJSON)
+	require.NoError(t, err)
+	require.Equal(t, "refund-broadcast-txid", txid)
 }
