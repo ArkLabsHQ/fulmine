@@ -1,4 +1,4 @@
-.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-mutinynet run-2 test test-vhtlc vet proto proto-lint regtest-build regtest-up regtest-user-up regtest-down regtest-logs
+.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-mutinynet run-2 test test-vhtlc vet proto proto-lint regtest-build regtest-up regtest-user-up regtest-down regtest-logs web-e2e
 
 GOLANGCI_LINT ?= $(shell \
 	echo "docker run --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v2.9.0 golangci-lint"; \
@@ -119,6 +119,11 @@ regtest-logs:
 integrationtest:
 	@echo "Running e2e tests..."
 	@go test -v -count=1 -timeout=20m -race -p=1 ./internal/test/e2e/...
+
+## web-e2e: run the Playwright web-UI e2e suite (requires the stack: make regtest-up)
+web-e2e:
+	@echo "Running web UI e2e tests..."
+	@cd web-e2e && npm install --no-audit --no-fund && npx playwright install --with-deps chromium && npx playwright test
 
 # --- SQLite and SQLC commands ---
 
