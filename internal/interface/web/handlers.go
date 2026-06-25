@@ -194,6 +194,7 @@ func (s *service) initialize(c *gin.Context) {
 		log.WithError(err).Warn("failed to initialize")
 		errorContent := components.Error("Server initialization failed", "Please try again")
 		partialViewHandler(errorContent, c)
+		return
 	}
 
 	redirect("/done", c)
