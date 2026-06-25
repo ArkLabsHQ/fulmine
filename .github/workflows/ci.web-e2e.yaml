@@ -65,6 +65,17 @@ jobs:
       - name: Run web e2e tests
         run: make web-e2e
 
+      # Always upload the captured UI screenshots (05-screenshots.spec) so a human
+      # can eyeball the styling each run — the one thing the assertions can't cover.
+      - name: Upload UI screenshots
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-ui-screenshots
+          path: web-e2e/screenshots/
+          retention-days: 14
+
       - name: Stack logs
         if: failure()
         continue-on-error: true
