@@ -32,8 +32,22 @@ test.describe.serial('wallet init', () => {
     await expect(page.getByRole('heading', { name: 'New wallet' })).toBeVisible();
     await page.getByRole('button', { name: 'Continue' }).click();
 
+    // The env unlocker usually auto-fills the password step so the flow lands
+    // straight on "Choose Server", but that races — when the Create-password
+    // form shows instead, fill it and continue. (The daemon's unlocker password
+    // is authoritative, so the value only needs to satisfy the form's own match
+    // check; the wallet is still created with the unlocker password.)
+    const createPassword = page.getByRole('heading', { name: 'Create password' });
+    const chooseServer = page.getByRole('heading', { name: 'Choose Server' });
+    await expect(createPassword.or(chooseServer)).toBeVisible();
+    if (await createPassword.isVisible()) {
+      await page.locator('input[name="password"]').fill('password');
+      await page.locator('input[name="pconfirm"]').fill('password');
+      await page.getByRole('button', { name: 'Continue' }).click();
+    }
+
     // "Choose Server" — pre-filled from the FULMINE_ARK_SERVER env value.
-    await expect(page.getByRole('heading', { name: 'Choose Server' })).toBeVisible();
+    await expect(chooseServer).toBeVisible();
     await page.getByRole('button', { name: 'Create wallet' }).click();
     await expect(page).toHaveURL(/\/done$/);
 
