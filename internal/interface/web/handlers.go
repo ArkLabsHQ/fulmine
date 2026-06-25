@@ -681,7 +681,7 @@ func (s *service) settings(c *gin.Context) {
 }
 
 func (s *service) getTransfer(
-	c *gin.Context, transfer types.Transfer, explorerUrl string,
+	c *gin.Context, transfer types.Transfer, explorerUrl, arkExplorerUrl string,
 ) templ.Component {
 	if transfer.Status == "pending" {
 		var nextSettlementStr string
@@ -703,9 +703,9 @@ func (s *service) getTransfer(
 			nextSettlementStr = prettyUnixTimestamp(nextSettlement.Unix())
 		}
 
-		return pages.TransferTxPendingContent(transfer, explorerUrl, nextSettlementStr)
+		return pages.TransferTxPendingContent(transfer, explorerUrl, arkExplorerUrl, nextSettlementStr)
 	} else {
-		return pages.TransferTxBodyContent(transfer, explorerUrl)
+		return pages.TransferTxBodyContent(transfer, explorerUrl, arkExplorerUrl)
 	}
 }
 
@@ -755,6 +755,7 @@ func (s *service) getTx(c *gin.Context) {
 		return
 	}
 	explorerUrl := getExplorerUrl(data.Network.Name)
+	arkExplorerUrl := getArkExplorerUrl(data.Network.Name)
 
 	txid := c.Param("txid")
 	var tx types.Transaction
@@ -768,13 +769,13 @@ func (s *service) getTx(c *gin.Context) {
 			swapTx := transaction.Swap
 
 			if swapTx.VHTLCTransfer != nil && swapTx.VHTLCTransfer.Txid == txid {
-				bodyContent := s.getTransfer(c, *swapTx.VHTLCTransfer, explorerUrl)
+				bodyContent := s.getTransfer(c, *swapTx.VHTLCTransfer, explorerUrl, arkExplorerUrl)
 				s.pageViewHandler(bodyContent, c)
 				return
 			}
 
 			if swapTx.RedeemTransfer != nil && swapTx.RedeemTransfer.Txid == txid {
-				bodyContent := s.getTransfer(c, *swapTx.RedeemTransfer, explorerUrl)
+				bodyContent := s.getTransfer(c, *swapTx.RedeemTransfer, explorerUrl, arkExplorerUrl)
 				s.pageViewHandler(bodyContent, c)
 				return
 			}
@@ -784,13 +785,13 @@ func (s *service) getTx(c *gin.Context) {
 			paymentTx := transaction.Payment
 
 			if paymentTx.PaymentTransfer != nil && paymentTx.PaymentTransfer.Txid == txid {
-				bodyContent := s.getTransfer(c, *paymentTx.PaymentTransfer, explorerUrl)
+				bodyContent := s.getTransfer(c, *paymentTx.PaymentTransfer, explorerUrl, arkExplorerUrl)
 				s.pageViewHandler(bodyContent, c)
 				return
 			}
 
 			if paymentTx.ReclaimTransfer != nil && paymentTx.ReclaimTransfer.Txid == txid {
-				bodyContent := s.getTransfer(c, *paymentTx.ReclaimTransfer, explorerUrl)
+				bodyContent := s.getTransfer(c, *paymentTx.ReclaimTransfer, explorerUrl, arkExplorerUrl)
 				s.pageViewHandler(bodyContent, c)
 				return
 			}
@@ -802,7 +803,7 @@ func (s *service) getTx(c *gin.Context) {
 	if len(tx.Id) == 0 {
 		bodyContent = pages.TxNotFoundContent()
 	} else if tx.Kind == "transfer" {
-		bodyContent = s.getTransfer(c, *tx.Transfer, explorerUrl)
+		bodyContent = s.getTransfer(c, *tx.Transfer, explorerUrl, arkExplorerUrl)
 	} else if tx.Kind == "payment" {
 		bodyContent = s.getPayment(c, *tx.Payment)
 	} else {
@@ -1125,7 +1126,7 @@ func (s *service) claimTx(c *gin.Context) {
 
 	tx.Status = "success"
 
-	partial := components.Transfer(tx, getExplorerUrl(data.Network.Name))
+	partial := components.Transfer(tx, getExplorerUrl(data.Network.Name), getArkExplorerUrl(data.Network.Name))
 	partialViewHandler(partial, c)
 }
 
@@ -1137,13 +1138,13 @@ func (s *service) getHero(c *gin.Context) {
 	isSynced, err := s.svc.IsSynced()
 	if err != nil {
 		// TODO: Render error
-		partialContent := components.Hero("ERROR", false)
+		partialContent := components.Hero("ERROR", false, s.delegateEnabled)
 		partialViewHandler(partialContent, c)
 		return
 	}
 	if !isSynced {
 		// TODO: Render placeholder
-		partialContent := components.Hero("PLACEHOLDER", false)
+		partialContent := components.Hero("PLACEHOLDER", false, s.delegateEnabled)
 		partialViewHandler(partialContent, c)
 		return
 	}
@@ -1157,7 +1158,7 @@ func (s *service) getHero(c *gin.Context) {
 		log.WithError(err).Warn("failed to get spendable balance")
 	}
 
-	partialContent := components.Hero(spendableBalance, isOnline)
+	partialContent := components.Hero(spendableBalance, isOnline, s.delegateEnabled)
 	partialViewHandler(partialContent, c)
 }
 

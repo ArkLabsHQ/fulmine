@@ -12,6 +12,13 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
 )
 
+func arkTxid(tx types.Transfer) string {
+	if !tx.Explorable {
+		return tx.Txid
+	}
+	return ""
+}
+
 func TxIcon(kind, status string) templ.Component {
 	switch status {
 	case "failure":
@@ -207,7 +214,7 @@ func WaitingTxIcon() templ.Component {
 	})
 }
 
-func Transfer(tx types.Transfer, explorerUrl string) templ.Component {
+func Transfer(tx types.Transfer, explorerUrl, arkExplorerUrl string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -251,7 +258,7 @@ func Transfer(tx types.Transfer, explorerUrl string) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(tx.Kind)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/tx.templ`, Line: 92, Col: 43}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/tx.templ`, Line: 99, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -264,7 +271,7 @@ func Transfer(tx types.Transfer, explorerUrl string) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(tx.Amount)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/tx.templ`, Line: 93, Col: 61}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/tx.templ`, Line: 100, Col: 61}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -277,7 +284,7 @@ func Transfer(tx types.Transfer, explorerUrl string) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(tx.Amount)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/tx.templ`, Line: 93, Col: 73}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/components/tx.templ`, Line: 100, Col: 73}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -288,13 +295,13 @@ func Transfer(tx types.Transfer, explorerUrl string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if tx.Kind == "received" {
-			templ_7745c5c3_Err = ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = ReceivedTxTable(tx.Amount, tx.CreatedAt, tx.Status, arkTxid(tx), arkExplorerUrl).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if tx.Kind == "sent" {
-			templ_7745c5c3_Err = SentTxTable(tx.Amount, tx.CreatedAt, tx.Status).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = SentTxTable(tx.Amount, tx.CreatedAt, tx.Status, arkTxid(tx), arkExplorerUrl).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

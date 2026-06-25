@@ -65,7 +65,7 @@ Alternatively, you can download the latest release from the [releases page](http
 
 ### 🔧 Environment Variables
 
-All settings are read from environment variables prefixed with `FULMINE_`. The most common ones are listed below; for the complete and authoritative list, see [`internal/config/config.go`](internal/config/config.go).
+All settings are read from environment variables prefixed with `FULMINE_`. The most common ones are listed below; for the complete auto-generated list see [`docs/environment.md`](docs/environment.md), or the source of truth, [`internal/config/config.go`](internal/config/config.go).
 
 #### Core
 
@@ -103,10 +103,6 @@ All settings are read from environment variables prefixed with `FULMINE_`. The m
 | `FULMINE_BOLTZ_URL` | URL of a custom Boltz backend for swaps | Not set |
 | `FULMINE_BOLTZ_WS_URL` | URL of a custom Boltz WebSocket backend for swap events | Not set |
 | `FULMINE_SWAP_TIMEOUT` | Swap timeout, in seconds | `15` |
-| `FULMINE_LND_URL` | LND node URL (`lndconnect://...`, or `host:port` with `FULMINE_LND_DATADIR`). Mutually exclusive with CLN | Not set |
-| `FULMINE_LND_DATADIR` | LND data directory (to read TLS cert and macaroon) | Not set |
-| `FULMINE_CLN_URL` | CLN node URL (`clnconnect://...`, or `host:port` with `FULMINE_CLN_DATADIR`). Mutually exclusive with LND | Not set |
-| `FULMINE_CLN_DATADIR` | CLN data directory | Not set |
 
 #### Advanced
 
