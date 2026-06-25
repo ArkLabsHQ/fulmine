@@ -170,10 +170,10 @@ templ SendPreviewContent(address, sats, feeAmount, total string, isBtc bool) {
 					</div>
 	    	</div>
 	    	if isBtc {
-	    		<div class="hideOnRequest flex flex-col gap-2 mt-4">
-	    			<label class="flex items-center gap-2"><input type="radio" name="method" value="exit" checked/><span>Exit on-chain</span></label>
-	    			<label class="flex items-center gap-2"><input type="radio" name="method" value="swap"/><span>Swap to BTC</span></label>
-	    		</div>
+	    		<div class="hideOnRequest flex gap-2 mt-4 w-11/12 max-w-[600px] mx-auto">
+					  <label class="flex-1"><input type="radio" name="method" value="exit" checked class="peer sr-only"/><div class="cursor-pointer text-center text-white/50 border border-white/10 rounded-lg px-3 py-2 peer-checked:border-orange peer-checked:text-orange peer-checked:bg-orange/10">Exit on-chain</div></label>
+					  <label class="flex-1"><input type="radio" name="method" value="swap" class="peer sr-only"/><div class="cursor-pointer text-center text-white/50 border border-white/10 rounded-lg px-3 py-2 peer-checked:border-orange peer-checked:text-orange peer-checked:bg-orange/10">Swap to BTC</div></label>
+					</div>
 	    	}
 	    	@components.ActionButtons("Confirm")
 	    </div>

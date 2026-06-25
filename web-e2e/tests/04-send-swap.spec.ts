@@ -29,7 +29,7 @@ test.describe.serial('funded swap send', () => {
 
     // The BTC preview shows the Exit/Swap radios; choose Swap to BTC.
     await expect(page.getByText('Swap to BTC')).toBeVisible();
-    await page.locator('input[name="method"][value="swap"]').check();
+    await page.getByText('Swap to BTC').click();
     await page.getByRole('button', { name: 'Confirm' }).click();
 
     // CreateChainSwapArkToBtc settles asynchronously, so the handler redirects to
