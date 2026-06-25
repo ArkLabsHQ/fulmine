@@ -21,32 +21,33 @@ const (
 	badgerDb = "badger"
 )
 
+//go:generate go run ../../tools/gen-env-doc/main.go
 type Config struct {
-	Datadir               string
-	DbType                string
-	GRPCPort              uint32
-	HTTPPort              uint32
-	WithTLS               bool
-	LogLevel              uint32
-	ArkServer             string
-	EsploraURL            string
-	BoltzURL              string
-	BoltzWSURL            string
-	SchedulerPollInterval int64
-	ProfilingEnabled      bool
-	RefreshDbInterval     int64
-	DelegatePort          uint32
-	DelegateFee           uint64
-	DelegateEnabled       bool
+	Datadir               string `mapstructure:"DATADIR" envInfo:"Data directory for Fulmine state (defaults to an OS-specific app data dir)"`
+	DbType                string `mapstructure:"DB_TYPE" envDefault:"sqlite" envInfo:"Database backend: sqlite or badger"`
+	GRPCPort              uint32 `mapstructure:"GRPC_PORT" envDefault:"7000" envInfo:"gRPC server port"`
+	HTTPPort              uint32 `mapstructure:"HTTP_PORT" envDefault:"7001" envInfo:"HTTP server port"`
+	WithTLS               bool   `mapstructure:"WITH_TLS" envDefault:"false" envInfo:"Enable TLS on the server"`
+	LogLevel              uint32 `mapstructure:"LOG_LEVEL" envDefault:"4" envInfo:"Log verbosity (higher = more verbose)"`
+	ArkServer             string `mapstructure:"ARK_SERVER" envInfo:"Ark server address (e.g., arkd:7070)"`
+	EsploraURL            string `mapstructure:"ESPLORA_URL" envInfo:"Esplora base URL (e.g., http://chopsticks:3000)"`
+	BoltzURL              string `mapstructure:"BOLTZ_URL" envInfo:"Boltz HTTP endpoint (e.g., http://boltz:9001)"`
+	BoltzWSURL            string `mapstructure:"BOLTZ_WS_URL" envInfo:"Boltz WebSocket endpoint (e.g., ws://boltz:9002)"`
+	SchedulerPollInterval int64  `mapstructure:"SCHEDULER_POLL_INTERVAL" envDefault:"600" envInfo:"Scheduler polling interval in seconds"`
+	ProfilingEnabled      bool   `mapstructure:"PROFILING_ENABLED" envDefault:"false" envInfo:"Enable profiling endpoints"`
+	RefreshDbInterval     int64  `mapstructure:"REFRESH_DB_INTERVAL" envDefault:"60" envInfo:"Interval in seconds to refresh the database with latest blockchain data"`
+	DelegatePort          uint32 `mapstructure:"DELEGATE_PORT" envDefault:"7002" envInfo:"Delegate server port"`
+	DelegateFee           uint64 `mapstructure:"DELEGATE_FEE" envDefault:"0" envInfo:"Fee the delegate charges, in satoshis"`
+	DelegateEnabled       bool   `mapstructure:"DELEGATE_ENABLED" envDefault:"false" envInfo:"Run the delegate server"`
 
-	UnlockerType     string
-	UnlockerFilePath string
-	UnlockerPassword string
-	DisableTelemetry bool
-	SwapTimeout      uint32
-	OtelCollectorURL string
-	OtelPushInterval int64
-	PyroscopeURL     string
+	UnlockerType     string `mapstructure:"UNLOCKER_TYPE" envInfo:"Unlocker type: file or env"`
+	UnlockerFilePath string `mapstructure:"UNLOCKER_FILE_PATH" envInfo:"Path to the unlocker password file (file unlocker)"`
+	UnlockerPassword string `mapstructure:"UNLOCKER_PASSWORD" envInfo:"Unlocker password (env unlocker)"`
+	DisableTelemetry bool   `mapstructure:"DISABLE_TELEMETRY" envDefault:"false" envInfo:"Disable telemetry"`
+	SwapTimeout      uint32 `mapstructure:"SWAP_TIMEOUT" envDefault:"15" envInfo:"Swap timeout in seconds"`
+	OtelCollectorURL string `mapstructure:"OTEL_COLLECTOR_URL" envInfo:"OpenTelemetry collector URL; enables OTel export when set"`
+	OtelPushInterval int64  `mapstructure:"OTEL_PUSH_INTERVAL" envDefault:"10" envInfo:"OpenTelemetry metrics push interval in seconds"`
+	PyroscopeURL     string `mapstructure:"PYROSCOPE_URL" envInfo:"Pyroscope server URL for continuous profiling when set"`
 
 	unlocker    ports.Unlocker
 	macaroonSvc macaroon.Service
@@ -310,5 +311,3 @@ func appDatadir(appName string, roaming bool) string {
 	// Fall back to the current directory if all else fails.
 	return "."
 }
-
-
