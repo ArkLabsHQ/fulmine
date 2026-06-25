@@ -84,7 +84,7 @@ func ResolveLightningAddressOrLnurl(client *http.Client, input string, amountSat
 		return "", fmt.Errorf("failed to reach the Lightning endpoint: %w", err)
 	}
 	if strings.EqualFold(meta.Status, "ERROR") {
-		return "", fmt.Errorf("Lightning endpoint error: %s", meta.Reason)
+		return "", fmt.Errorf("lightning endpoint error: %s", meta.Reason)
 	}
 	if !strings.EqualFold(meta.Tag, "payRequest") {
 		return "", fmt.Errorf("not a Lightning pay endpoint")
@@ -116,7 +116,7 @@ func ResolveLightningAddressOrLnurl(client *http.Client, input string, amountSat
 		return "", fmt.Errorf("failed to fetch the invoice: %w", err)
 	}
 	if strings.EqualFold(inv.Status, "ERROR") {
-		return "", fmt.Errorf("Lightning endpoint error: %s", inv.Reason)
+		return "", fmt.Errorf("lightning endpoint error: %s", inv.Reason)
 	}
 	if inv.Pr == "" {
 		return "", fmt.Errorf("the Lightning endpoint returned no invoice")
