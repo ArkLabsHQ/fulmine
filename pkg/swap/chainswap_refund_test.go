@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
@@ -136,6 +137,15 @@ func TestRefundBtcToArkSwapGuards(t *testing.T) {
 			RefundBtcToArkSwap(ctx, "swap", 1000, "lockuptxid", respJSON)
 
 		require.ErrorContains(t, err, "CLTV timeout not yet reached")
+	})
+
+	t.Run("propagates an explorer GetTransaction error", func(t *testing.T) {
+		// the lockup tx fetch is the first explorer call; a failure there must
+		// surface rather than be swallowed into an empty lockup tx.
+		exp := &refundMockExplorer{txErr: errors.New("explorer unreachable")}
+		_, err := newRefundTestHandler(exp).
+			RefundBtcToArkSwap(ctx, "swap", 1000, "lockuptxid", "{}")
+		require.ErrorContains(t, err, "failed to fetch lockup transaction")
 	})
 }
 

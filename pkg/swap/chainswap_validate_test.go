@@ -122,4 +122,20 @@ func TestValidateRefundLeafScript(t *testing.T) {
 		_, err = ValidateRefundLeafScript(hex.EncodeToString(append(valid, 0xde, 0xad)))
 		require.Error(t, err)
 	})
+
+	t.Run("rejects a timeout push longer than 4 bytes", func(t *testing.T) {
+		// The parser bounds the timeout push at 1-4 bytes (a uint32 height never
+		// needs more). Feed a 5-byte push to pin the upper bound — the leaf is 41
+		// bytes, clearing the 38-byte floor, so the push-length check is what
+		// rejects it, not the length guard.
+		pubKey := testRefundXOnlyPubKey(t)
+		var b []byte
+		b = append(b, 0x20)
+		b = append(b, pubKey[:]...)
+		b = append(b, txscript.OP_CHECKSIGVERIFY)
+		b = append(b, 0x05, 0x01, 0x02, 0x03, 0x04, 0x05) // 5-byte timeout push (> 4)
+		b = append(b, txscript.OP_CHECKLOCKTIMEVERIFY)
+		_, err := ValidateRefundLeafScript(hex.EncodeToString(b))
+		require.ErrorContains(t, err, "push length")
+	})
 }
