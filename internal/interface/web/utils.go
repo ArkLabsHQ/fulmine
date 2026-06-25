@@ -31,7 +31,7 @@ func getArkExplorerUrl(network string) string {
 	case "signet":
 		return "https://explorer.signet.arkade.sh"
 	case "mutinynet":
-		return "https://mutinynet.signet.arkade.sh"
+		return "https://explorer.mutinynet.arkade.sh"
 	default:
 		return "http://localhost:7080"
 	}
