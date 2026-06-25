@@ -127,6 +127,7 @@ func NewService(
 	svc.POST("/note/confirm", svc.noteConfirm)
 	svc.POST("/receive/preview", svc.receiveQrCode)
 	svc.POST("/receive/success", svc.receiveSuccess)
+	svc.POST("/receive/swap", svc.receiveSwap)
 	svc.POST("/send/preview", svc.sendPreview)
 	svc.POST("/send/confirm", svc.sendConfirm)
 

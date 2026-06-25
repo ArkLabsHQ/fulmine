@@ -313,6 +313,33 @@ func (s *service) receiveQrCode(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
+func (s *service) receiveSwap(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	sats, err := strconv.ParseUint(c.PostForm("sats"), 10, 0)
+	if err != nil || sats == 0 {
+		toast := components.Toast("enter an amount to swap", true)
+		toastHandler(toast, c)
+		return
+	}
+	chainSwap, err := s.svc.CreateBtcToArkChainSwap(c, sats)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+	png, err := qrcode.Encode(chainSwap.UserBtcLockupAddress, qrcode.Medium, 256)
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	encoded := base64.StdEncoding.EncodeToString(png)
+	bodyContent := pages.ReceiveSwapContent(chainSwap.UserBtcLockupAddress, fmt.Sprintf("%d", sats), encoded)
+	s.pageViewHandler(bodyContent, c)
+}
+
 func (s *service) receiveSuccess(c *gin.Context) {
 	bip21 := c.PostForm(("bip21"))
 
