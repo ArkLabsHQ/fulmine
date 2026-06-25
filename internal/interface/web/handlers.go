@@ -465,7 +465,7 @@ func (s *service) sendPreview(c *gin.Context) {
 		return
 	}
 
-	bodyContent := pages.SendPreviewContent(addr, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total))
+	bodyContent := pages.SendPreviewContent(addr, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total), utils.IsValidBtcAddress(addr))
 	partialViewHandler(bodyContent, c)
 }
 
@@ -512,6 +512,16 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsValidBtcAddress(address) {
+		if c.PostForm("method") == "swap" {
+			if _, err := s.svc.CreateChainSwapArkToBtc(c, value, address); err != nil {
+				toast := components.Toast(err.Error(), true)
+				toastHandler(toast, c)
+				return
+			}
+			// the chain swap settles asynchronously; it shows up in tx history.
+			redirect("/", c)
+			return
+		}
 		txId, err = s.svc.CollaborativeExit(c, address, value)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)

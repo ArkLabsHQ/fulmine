@@ -145,7 +145,7 @@ templ SendBodyContent(currentBalance string) {
 	</script>
 }
 
-templ SendPreviewContent(address, sats, feeAmount, total string) {
+templ SendPreviewContent(address, sats, feeAmount, total string, isBtc bool) {
 	<div id="sendBody">
 	  <form hx-post="/send/confirm" hx-target="#sendBody" hx-target="outerHTML">
 		  <input type="hidden" name="address" value={address}>
@@ -169,6 +169,12 @@ templ SendPreviewContent(address, sats, feeAmount, total string) {
 					  @components.SendTxTable(sats, feeAmount, total)
 					</div>
 	    	</div>
+	    	if isBtc {
+	    		<div class="hideOnRequest flex flex-col gap-2 mt-4">
+	    			<label class="flex items-center gap-2"><input type="radio" name="method" value="exit" checked/><span>Exit on-chain</span></label>
+	    			<label class="flex items-center gap-2"><input type="radio" name="method" value="swap"/><span>Swap to BTC</span></label>
+	    		</div>
+	    	}
 	    	@components.ActionButtons("Confirm")
 	    </div>
 	  </form>
