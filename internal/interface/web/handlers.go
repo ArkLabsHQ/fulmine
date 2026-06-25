@@ -389,6 +389,7 @@ func (s *service) sendPreview(c *gin.Context) {
 
 		bodyContent := pages.NotePreviewContent(dest, strconv.Itoa(sats))
 		partialViewHandler(bodyContent, c)
+		return
 	}
 
 	if utils.IsBip21(dest) {
