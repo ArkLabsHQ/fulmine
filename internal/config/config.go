@@ -21,6 +21,7 @@ const (
 	badgerDb = "badger"
 )
 
+//go:generate go run ../../tools/gen-env-doc/main.go
 type Config struct {
 	Datadir               string `mapstructure:"DATADIR" envInfo:"Data directory for Fulmine state (defaults to an OS-specific app data dir)"`
 	DbType                string `mapstructure:"DB_TYPE" envDefault:"sqlite" envInfo:"Database backend: sqlite or badger"`

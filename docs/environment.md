@@ -29,7 +29,3 @@ Generated from `config Structure`. **Do not edit manually.**
 | `FULMINE_OTEL_PUSH_INTERVAL` | `10` | `int64` | OpenTelemetry metrics push interval in seconds |
 | `FULMINE_PYROSCOPE_URL` | `` | `string` | Pyroscope server URL for continuous profiling when set |
 | `FULMINE_NO_MACAROONS` | `false` | `bool` | Disable macaroons |
-| `FULMINE_LND_URL` | `` | `string` | LND connection URL (lndconnect:// or http://host:port) |
-| `FULMINE_CLN_URL` | `` | `string` | CLN connection URL (clnconnect:// or http://host:port) |
-| `FULMINE_CLN_DATADIR` | `` | `string` | CLN data directory (required if not using clnconnect://) |
-| `FULMINE_LND_DATADIR` | `` | `string` | LND data directory (required if not using lndconnect://) |
