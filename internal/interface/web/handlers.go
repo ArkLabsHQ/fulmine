@@ -455,6 +455,10 @@ func (s *service) sendPreview(c *gin.Context) {
 
 	}
 
+	if utils.IsLnAddressOrLnurl(dest) {
+		addr = dest
+	}
+
 	if len(addr) == 0 {
 		toast := components.Toast("Invalid address", true)
 		toastHandler(toast, c)
@@ -518,6 +522,28 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	if utils.IsValidInvoice(address) {
 		resp, err := s.svc.PayInvoice(c, address)
+		if err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+		txId = resp.TxId
+
+		if resp.SwapStatus == domain.SwapFailed {
+			bodyContent := pages.SendFailureContent(address, sats)
+			partialViewHandler(bodyContent, c)
+			return
+		}
+	}
+
+	if utils.IsLnAddressOrLnurl(address) {
+		invoice, err := utils.ResolveLightningAddressOrLnurl(nil, address, value)
+		if err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+		resp, err := s.svc.PayInvoice(c, invoice)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)
