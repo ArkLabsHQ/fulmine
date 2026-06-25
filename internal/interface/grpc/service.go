@@ -115,7 +115,7 @@ func NewService(
 
 	grpcServer := grpc.NewServer(grpcConfig...)
 
-	walletHandler := handlers.NewWalletHandler(appSvc)
+	walletHandler := handlers.NewWalletHandler(appSvc, unlockerSvc)
 	pb.RegisterWalletServiceServer(grpcServer, walletHandler)
 
 	serviceHandler := handlers.NewServiceHandler(appSvc)
@@ -194,7 +194,7 @@ func NewService(
 		return nil, err
 	}
 
-	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled, arkServer, delegateSvc != nil)
+	feHandler := web.NewService(appSvc, feStopCh, sentryEnabled, arkServer, unlockerSvc, delegateSvc != nil)
 
 	mux := http.NewServeMux()
 	mux.Handle("/", feHandler)

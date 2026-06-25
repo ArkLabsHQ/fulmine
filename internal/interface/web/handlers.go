@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -171,15 +172,22 @@ func (s *service) initialize(c *gin.Context) {
 	}
 
 	password := c.PostForm("password")
-	if password == "" {
-		toast := components.Toast("Password can't be empty", true)
-		toastHandler(toast, c)
-		return
-	}
-	if err := utils.IsValidPassword(password); err != nil {
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
+	if autoPassword, ok := s.autoUnlockPassword(c); ok && !s.svc.IsInitialized() {
+		// An unlocker is configured: the wallet must be created with its password
+		// so the daemon can auto-unlock afterwards. The unlocker password is
+		// authoritative, so any submitted value is ignored.
+		password = autoPassword
+	} else {
+		if password == "" {
+			toast := components.Toast("Password can't be empty", true)
+			toastHandler(toast, c)
+			return
+		}
+		if err := utils.IsValidPassword(password); err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
 	}
 
 	if err := s.svc.Setup(c, serverUrl, password, privateKey); err != nil {
@@ -611,8 +619,46 @@ func (s *service) setPrivateKey(c *gin.Context) {
 		}
 		privateKey = seed
 	}
+
+	// When an unlocker is configured (e.g. FULMINE_UNLOCKER_PASSWORD) and the
+	// wallet isn't initialized yet, the wallet must be created with the unlocker
+	// password so it can auto-unlock afterwards. Asking for a password here would
+	// be redundant (and a footgun), so skip straight to the server URL step.
+	if _, ok := s.autoUnlockPassword(c); ok && !s.svc.IsInitialized() {
+		serverUrl := c.PostForm("urlOnQuery")
+		if serverUrl == "" {
+			serverUrl = s.arkServer
+		}
+		bodyContent := pages.ServerUrlBodyContent(serverUrl, privateKey, "")
+		partialViewHandler(bodyContent, c)
+		return
+	}
+
 	bodyContent := pages.SetPasswordContent(privateKey)
 	partialViewHandler(bodyContent, c)
+}
+
+// autoUnlockPassword returns the password from the configured unlocker (env or
+// file based) and whether one is configured. It lets the onboarding flow create
+// the wallet with the same password the daemon uses to auto-unlock.
+func (s *service) autoUnlockPassword(ctx context.Context) (string, bool) {
+	if s.unlocker == nil {
+		return "", false
+	}
+	password, err := s.unlocker.GetPassword(ctx)
+	if err != nil {
+		log.WithError(err).Warn("failed to get password from unlocker")
+		return "", false
+	}
+	if password == "" {
+		// The file-based unlocker can return an empty password when its file is
+		// empty or whitespace-only. Treat that as "no unlocker password" so the
+		// password prompt + validation still apply instead of creating the
+		// wallet with an empty password.
+		log.Warn("unlocker returned an empty password; falling back to the standard password flow")
+		return "", false
+	}
+	return password, true
 }
 
 func (s *service) settings(c *gin.Context) {
