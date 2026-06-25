@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -82,6 +83,50 @@ func TestResolveLightningAddressOrLnurl(t *testing.T) {
 		_, err := ResolveLightningAddressOrLnurl(errSrv.Client(), encodeLnurl(t, errSrv.URL+"/pay"), 1000)
 		require.ErrorContains(t, err, "unknown user")
 	})
+
+	t.Run("rejects amount below the recipient minimum", func(t *testing.T) {
+		// srv advertises minSendable 1000 msat (1 sat); 0 sats is below it.
+		_, err := ResolveLightningAddressOrLnurl(srv.Client(), lnurl, 0)
+		require.ErrorContains(t, err, "minimum")
+	})
+
+	t.Run("rejects a cross-host callback (LUD-06 same-host rule)", func(t *testing.T) {
+		xMux := http.NewServeMux()
+		xMux.HandleFunc("/pay", func(w http.ResponseWriter, _ *http.Request) {
+			fmt.Fprint(w, `{"tag":"payRequest","callback":"https://example.com/cb","minSendable":1000,"maxSendable":100000000}`)
+		})
+		xSrv := httptest.NewTLSServer(xMux)
+		defer xSrv.Close()
+		_, err := ResolveLightningAddressOrLnurl(xSrv.Client(), encodeLnurl(t, xSrv.URL+"/pay"), 1000)
+		require.ErrorContains(t, err, "callback host")
+	})
+
+	t.Run("rejects a missing invoice in the callback response", func(t *testing.T) {
+		emptyMux := http.NewServeMux()
+		var emptyURL string
+		emptyMux.HandleFunc("/pay", func(w http.ResponseWriter, _ *http.Request) {
+			fmt.Fprintf(w, `{"tag":"payRequest","callback":%q,"minSendable":1000,"maxSendable":100000000}`, emptyURL+"/cb")
+		})
+		emptyMux.HandleFunc("/cb", func(w http.ResponseWriter, _ *http.Request) {
+			fmt.Fprint(w, `{"status":"OK"}`) // no pr field
+		})
+		emptySrv := httptest.NewTLSServer(emptyMux)
+		defer emptySrv.Close()
+		emptyURL = emptySrv.URL
+		_, err := ResolveLightningAddressOrLnurl(emptySrv.Client(), encodeLnurl(t, emptySrv.URL+"/pay"), 1000)
+		require.ErrorContains(t, err, "no invoice")
+	})
+
+	t.Run("rejects a malformed pay-request body", func(t *testing.T) {
+		badMux := http.NewServeMux()
+		badMux.HandleFunc("/pay", func(w http.ResponseWriter, _ *http.Request) {
+			fmt.Fprint(w, `<html>definitely not json</html>`)
+		})
+		badSrv := httptest.NewTLSServer(badMux)
+		defer badSrv.Close()
+		_, err := ResolveLightningAddressOrLnurl(badSrv.Client(), encodeLnurl(t, badSrv.URL+"/pay"), 1000)
+		require.ErrorContains(t, err, "failed to reach")
+	})
 }
 
 func TestResolveRejectsSSRFTargets(t *testing.T) {
@@ -94,5 +139,48 @@ func TestResolveRejectsSSRFTargets(t *testing.T) {
 	t.Run("rejects non-https endpoints", func(t *testing.T) {
 		_, err := ResolveLightningAddressOrLnurl(nil, encodeLnurl(t, "http://example.com/pay"), 1000)
 		require.ErrorContains(t, err, "https")
+	})
+}
+
+func TestIsBlockedIP(t *testing.T) {
+	blocked := []string{
+		"127.0.0.1", "::1", // loopback
+		"10.0.0.1", "192.168.1.1", "172.16.0.1", "fc00::1", // private
+		"169.254.0.1", "fe80::1", // link-local
+		"0.0.0.0", "::", // unspecified
+		"224.0.0.1", "ff02::1", // multicast
+		"100.64.0.1", "100.127.255.255", // CGNAT 100.64.0.0/10
+	}
+	for _, s := range blocked {
+		require.True(t, isBlockedIP(net.ParseIP(s)), s)
+	}
+	public := []string{
+		"8.8.8.8", "1.1.1.1", "203.0.113.10", "2606:4700:4700::1111",
+		"100.63.255.255", "100.128.0.0", // just outside the CGNAT range
+	}
+	for _, s := range public {
+		require.False(t, isBlockedIP(net.ParseIP(s)), s)
+	}
+}
+
+func TestLnurlPayURL(t *testing.T) {
+	t.Run("lightning address maps to the LUD-16 well-known URL", func(t *testing.T) {
+		u, err := lnurlPayURL("Alice@Example.com")
+		require.NoError(t, err)
+		require.Equal(t, "https://example.com/.well-known/lnurlp/alice", u)
+	})
+	t.Run("strips a lightning: prefix", func(t *testing.T) {
+		u, err := lnurlPayURL("lightning:bob@example.com")
+		require.NoError(t, err)
+		require.Equal(t, "https://example.com/.well-known/lnurlp/bob", u)
+	})
+	t.Run("decodes an LNURL to its target URL", func(t *testing.T) {
+		u, err := lnurlPayURL(encodeLnurl(t, "https://example.com/pay"))
+		require.NoError(t, err)
+		require.Equal(t, "https://example.com/pay", u)
+	})
+	t.Run("rejects a non-address, non-LNURL input", func(t *testing.T) {
+		_, err := lnurlPayURL("not-a-destination")
+		require.Error(t, err)
 	})
 }
