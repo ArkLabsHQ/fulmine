@@ -49,9 +49,10 @@ func (t *TemplRender) Instance(name string, data interface{}) render.Render {
 
 type service struct {
 	*gin.Engine
-	svc       *application.Service
-	stopCh    chan struct{}
-	arkServer string
+	svc             *application.Service
+	stopCh          chan struct{}
+	arkServer       string
+	delegateEnabled bool
 }
 
 func NewService(
@@ -59,6 +60,7 @@ func NewService(
 	stopCh chan struct{},
 	sentryEnabled bool,
 	arkServer string,
+	delegateEnabled bool,
 ) *service {
 	// Create a new Fiber server.
 	gin.SetMode(gin.ReleaseMode)
@@ -69,10 +71,11 @@ func NewService(
 	staticFS, _ := fs.Sub(static, "static")
 
 	svc := &service{
-		Engine:    router,
-		svc:       appSvc,
-		stopCh:    stopCh,
-		arkServer: arkServer,
+		Engine:          router,
+		svc:             appSvc,
+		stopCh:          stopCh,
+		arkServer:       arkServer,
+		delegateEnabled: delegateEnabled,
 	}
 
 	// Configure Sentry for Gin (includes built-in panic recovery)

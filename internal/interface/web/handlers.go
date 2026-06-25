@@ -1092,13 +1092,13 @@ func (s *service) getHero(c *gin.Context) {
 	isSynced, err := s.svc.IsSynced()
 	if err != nil {
 		// TODO: Render error
-		partialContent := components.Hero("ERROR", false)
+		partialContent := components.Hero("ERROR", false, s.delegateEnabled)
 		partialViewHandler(partialContent, c)
 		return
 	}
 	if !isSynced {
 		// TODO: Render placeholder
-		partialContent := components.Hero("PLACEHOLDER", false)
+		partialContent := components.Hero("PLACEHOLDER", false, s.delegateEnabled)
 		partialViewHandler(partialContent, c)
 		return
 	}
@@ -1112,7 +1112,7 @@ func (s *service) getHero(c *gin.Context) {
 		log.WithError(err).Warn("failed to get spendable balance")
 	}
 
-	partialContent := components.Hero(spendableBalance, isOnline)
+	partialContent := components.Hero(spendableBalance, isOnline, s.delegateEnabled)
 	partialViewHandler(partialContent, c)
 }
 

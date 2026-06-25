@@ -1,12 +1,17 @@
 package components
 
-templ HeroHeader() {
+templ HeroHeader(delegateEnabled bool) {
 	<div class="flex justify-between mb-10">
 	  <div class="flex gap-2 items-center">
 	    @LogoWhiteSmall()
 			@LogoNameSmall()
 		</div>
-	  <a href="/settings/general">@SettingsButton()</a>
+	  <div class="flex gap-2 items-center">
+	    if delegateEnabled {
+	      <a href="/delegate" title="Delegate">@iconButton(ServerIcon())</a>
+	    }
+	    <a href="/settings/general">@SettingsButton()</a>
+	  </div>
 	</div>
 }
 
@@ -48,9 +53,9 @@ templ Actions(online bool, currentBalance string) {
 	}
 }
 
-templ Hero(currentBalance string, online bool) {
+templ Hero(currentBalance string, online bool, delegateEnabled bool) {
   <div class="bg-orange-image rounded-b-lg md:rounded-t-lg p-3 mb-10">
-	  @HeroHeader()
+	  @HeroHeader(delegateEnabled)
 	  @HeroBalance(currentBalance)
 	  @Actions(online, currentBalance)
 	</div>
