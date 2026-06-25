@@ -25,7 +25,7 @@ templ HeroBalance(currentBalance string) {
 
 templ Actions(online bool, currentBalance string) {
 	if online {
-	  <div class="grid grid-cols-3 gap-4 md:flex md:flex-row">
+	  <div class="grid grid-cols-2 gap-4 md:flex md:flex-row">
 	    <button
 			  class="white flex items-center justify-center text-black p-2 md:px-4 md:py-3 md:w-auto"
 				hx-on:click="redirect('/send')"
@@ -41,12 +41,6 @@ templ Actions(online bool, currentBalance string) {
 			>
 	  	  @ReceiveIcon() Receive
 	  	</button>
-			<button
-			  class="white flex items-center justify-center text-black px-2 md:px-4 md:w-auto"
-				hx-on:click="redirect('/swap')"
-			>
-				@SwapIcon() Swap
-			</button>
 	  </div>
 	} else {
 		<p>Server is offline</p>
