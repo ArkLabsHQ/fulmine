@@ -1130,6 +1130,55 @@ func (s *service) claimTx(c *gin.Context) {
 	partialViewHandler(partial, c)
 }
 
+// refundTx initiates a unilateral refund of a pending submarine swap / payment
+// from its detail page (the "Initiate Refund" button). It uses the same call the
+// startup auto-refund uses — RefundVHTLC -> RefundSwap(submarine, withoutReceiver,
+// nil outpoint) — and re-renders the detail in the "refunding" state.
+func (s *service) refundTx(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	txid := c.Param("txid")
+
+	swaps, err := s.svc.GetSwapHistory(c)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	var target *domain.Swap
+	for i := range swaps {
+		if swaps[i].Id == txid {
+			target = &swaps[i]
+			break
+		}
+	}
+	if target == nil {
+		toast := components.Toast("swap not found", true)
+		toastHandler(toast, c)
+		return
+	}
+
+	if _, err := s.svc.RefundVHTLC(c, target.Id, target.Vhtlc.Id, false, nil); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	if target.Type == domain.SwapPayment {
+		payment := toPayment(*target)
+		payment.Status = "refunding"
+		partialViewHandler(pages.PaymentTxRefundingContent(payment), c)
+		return
+	}
+
+	swap := toSwap(*target)
+	swap.Status = "refunding"
+	partialViewHandler(pages.SwapTxRefundingContent(swap), c)
+}
+
 func (s *service) getHero(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
@@ -1284,6 +1333,7 @@ func toPayment(payment domain.Swap) types.Payment {
 		Amount:         strconv.FormatUint(payment.Amount, 10),
 		Date:           prettyDay(payment.Timestamp),
 		Hour:           prettyHour(payment.Timestamp),
+		Id:             payment.Id,
 		Kind:           selectPaymentType(payment),
 		Status:         selectPaymentStatus(payment),
 		RefundLockTime: &refundLocktime,
