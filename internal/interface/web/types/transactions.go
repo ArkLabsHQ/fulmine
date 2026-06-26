@@ -8,7 +8,7 @@ type PoolTxs struct {
 }
 
 type Transaction struct {
-	// Kind can be "swap" or "transfer" or "payment"
+	// Kind can be "swap", "transfer", "payment" or "chainswap"
 	Kind string `json:"kind"`
 
 	Id string `json:"id"`
@@ -16,7 +16,8 @@ type Transaction struct {
 	DateCreated int64 `json:"dateCreated"`
 
 	// Exactly one of these will be non-nil:
-	Swap     *Swap     `json:"swap,omitempty"`
-	Transfer *Transfer `json:"transfer,omitempty"`
-	Payment  *Payment  `json:"payment,omitempty"`
+	Swap      *Swap      `json:"swap,omitempty"`
+	Transfer  *Transfer  `json:"transfer,omitempty"`
+	Payment   *Payment   `json:"payment,omitempty"`
+	ChainSwap *ChainSwap `json:"chainswap,omitempty"`
 }
