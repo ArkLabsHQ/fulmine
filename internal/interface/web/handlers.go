@@ -738,6 +738,10 @@ func (s *service) getPayment(c *gin.Context, payment types.Payment) templ.Compon
 	}
 }
 
+func (s *service) getChainSwap(cs types.ChainSwap) templ.Component {
+	return pages.ChainSwapContent(cs)
+}
+
 func (s *service) getTx(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
@@ -808,6 +812,8 @@ func (s *service) getTx(c *gin.Context) {
 		bodyContent = s.getTransfer(c, *tx.Transfer, explorerUrl, arkExplorerUrl)
 	} else if tx.Kind == "payment" {
 		bodyContent = s.getPayment(c, *tx.Payment)
+	} else if tx.Kind == "chainswap" {
+		bodyContent = s.getChainSwap(*tx.ChainSwap)
 	} else {
 		bodyContent = s.getSwap(*tx.Swap)
 	}
@@ -1013,6 +1019,21 @@ func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction
 		history = append(history, paymentTxn)
 	}
 
+	// add chain swaps (on-chain BTC<->ARK) to history
+	chainSwaps, err := s.svc.ListChainSwaps(c, nil)
+	if err != nil {
+		return nil, err
+	}
+	for _, cs := range chainSwaps {
+		transformedChainSwap := toChainSwap(cs)
+		history = append(history, types.Transaction{
+			Kind:        "chainswap",
+			ChainSwap:   &transformedChainSwap,
+			Id:          cs.Id,
+			DateCreated: cs.CreatedAt,
+		})
+	}
+
 	for _, tx := range transferTxns {
 
 		modifiedTransfer := toTransfer(tx)
@@ -1181,6 +1202,33 @@ func (s *service) refundTx(c *gin.Context) {
 	partialViewHandler(pages.SwapTxRefundingContent(swap), c)
 }
 
+// refundChainSwapTx initiates a refund of a chain swap (BTC<->ARK) from its
+// detail page and re-renders the result. RefundChainSwap handles both ARK->BTC
+// (cooperative) and BTC->ARK (unilateral) refunds.
+func (s *service) refundChainSwapTx(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+
+	id := c.Param("id")
+
+	if err := s.svc.RefundChainSwap(c, id); err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+
+	chainSwaps, err := s.svc.ListChainSwaps(c, []string{id})
+	if err != nil || len(chainSwaps) == 0 {
+		toast := components.Toast("refund initiated", false)
+		toastHandler(toast, c)
+		return
+	}
+
+	cs := toChainSwap(chainSwaps[0])
+	partialViewHandler(pages.ChainSwapContent(cs), c)
+}
+
 func (s *service) getHero(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
@@ -1342,6 +1390,33 @@ func toPayment(payment domain.Swap) types.Payment {
 		ExpiresAt:      expiry,
 	}
 
+}
+
+func toChainSwap(cs domain.ChainSwap) types.ChainSwap {
+	kind := "btc_to_ark"
+	if cs.From == boltz.CurrencyArk && cs.To == boltz.CurrencyBtc {
+		kind = "ark_to_btc"
+	}
+
+	status := "pending"
+	switch {
+	case cs.Status == domain.ChainSwapClaimed:
+		status = "success"
+	case cs.Status == domain.ChainSwapRefunded || cs.Status == domain.ChainSwapRefundedUnilaterally:
+		status = "failure"
+	case domain.ShouldRefundChainSwapStatus(cs.Status):
+		status = "refundable"
+	}
+
+	return types.ChainSwap{
+		Amount:               strconv.FormatUint(cs.Amount, 10),
+		Date:                 prettyDay(cs.CreatedAt),
+		Hour:                 prettyHour(cs.CreatedAt),
+		Id:                   cs.Id,
+		Kind:                 kind,
+		Status:               status,
+		UserBtcLockupAddress: cs.UserBtcLockupAddress,
+	}
 }
 
 func toTransfer(tx clientTypes.Transaction) types.Transfer {
