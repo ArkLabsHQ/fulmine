@@ -132,6 +132,7 @@ func NewService(
 
 	svc.POST("/helpers/bip21/validate", svc.validateBip21Api)
 	svc.POST("/helpers/claim/:txid", svc.claimTx)
+	svc.POST("/helpers/refund/:txid", svc.refundTx)
 	svc.POST("/helpers/forgot", svc.forgotApi)
 	svc.POST("/helpers/invoice/validate", svc.validateInvoiceApi)
 	svc.POST("/helpers/offer/validate", svc.validateOfferApi)
