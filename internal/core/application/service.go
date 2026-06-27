@@ -896,14 +896,15 @@ func (s *Service) GetSwapVHTLC(
 		return "", "", nil, err
 	}
 
-	go func() {
-		if err := s.dbSvc.VHTLC().Add(context.Background(), domain.NewVhtlc(opts)); err != nil {
-			log.WithError(err).Error("failed to add vhtlc")
-			return
-		}
-
-		log.Debugf("added new vhtlc %s", vhtlcId)
-	}()
+	// Persist synchronously: the duplicate check above (VHTLC().Get) and callers
+	// like ListVHTLC read the record back immediately, so adding it in a detached
+	// goroutine raced the read — intermittently letting duplicates through and
+	// making the record briefly invisible (flaky e2e: TestVHTLC dedup and
+	// TestSettleVHTLCByDelegateRefundWithOutpoint).
+	if err := s.dbSvc.VHTLC().Add(ctx, domain.NewVhtlc(opts)); err != nil {
+		return "", "", nil, fmt.Errorf("failed to add vhtlc: %w", err)
+	}
+	log.Debugf("added new vhtlc %s", vhtlcId)
 
 	return encodedAddr, vhtlcId, vHTLCScript, nil
 }
