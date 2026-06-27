@@ -314,6 +314,33 @@ func (s *service) receiveQrCode(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
+func (s *service) receiveSwap(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	sats, err := strconv.ParseUint(c.PostForm("sats"), 10, 0)
+	if err != nil || sats == 0 {
+		toast := components.Toast("enter an amount to swap", true)
+		toastHandler(toast, c)
+		return
+	}
+	chainSwap, err := s.svc.CreateBtcToArkChainSwap(c, sats)
+	if err != nil {
+		toast := components.Toast(err.Error(), true)
+		toastHandler(toast, c)
+		return
+	}
+	png, err := qrcode.Encode(chainSwap.UserBtcLockupAddress, qrcode.Medium, 256)
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	encoded := base64.StdEncoding.EncodeToString(png)
+	bodyContent := pages.ReceiveSwapContent(chainSwap.UserBtcLockupAddress, fmt.Sprintf("%d", sats), encoded)
+	s.pageViewHandler(bodyContent, c)
+}
+
 func (s *service) receiveSuccess(c *gin.Context) {
 	bip21 := c.PostForm(("bip21"))
 
@@ -457,13 +484,17 @@ func (s *service) sendPreview(c *gin.Context) {
 
 	}
 
+	if utils.IsLnAddressOrLnurl(dest) {
+		addr = dest
+	}
+
 	if len(addr) == 0 {
 		toast := components.Toast("Invalid address", true)
 		toastHandler(toast, c)
 		return
 	}
 
-	bodyContent := pages.SendPreviewContent(addr, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total))
+	bodyContent := pages.SendPreviewContent(addr, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total), utils.IsValidBtcAddress(addr))
 	partialViewHandler(bodyContent, c)
 }
 
@@ -510,6 +541,16 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsValidBtcAddress(address) {
+		if c.PostForm("method") == "swap" {
+			if _, err := s.svc.CreateChainSwapArkToBtc(c, value, address); err != nil {
+				toast := components.Toast(err.Error(), true)
+				toastHandler(toast, c)
+				return
+			}
+			// the chain swap settles asynchronously; it shows up in tx history.
+			redirect("/", c)
+			return
+		}
 		txId, err = s.svc.CollaborativeExit(c, address, value)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
@@ -520,6 +561,28 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	if utils.IsValidInvoice(address) {
 		resp, err := s.svc.PayInvoice(c, address)
+		if err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+		txId = resp.TxId
+
+		if resp.SwapStatus == domain.SwapFailed {
+			bodyContent := pages.SendFailureContent(address, sats)
+			partialViewHandler(bodyContent, c)
+			return
+		}
+	}
+
+	if utils.IsLnAddressOrLnurl(address) {
+		invoice, err := utils.ResolveLightningAddressOrLnurl(nil, address, value)
+		if err != nil {
+			toast := components.Toast(err.Error(), true)
+			toastHandler(toast, c)
+			return
+		}
+		resp, err := s.svc.PayInvoice(c, invoice)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)

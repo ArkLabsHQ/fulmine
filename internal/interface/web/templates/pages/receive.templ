@@ -41,6 +41,7 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, 
 	  @components.DesktopHeader()
 	  <input class="hidden" id="submitButton" type="submit"/>
 	  <input class="hidden" name="bip21" value={bip21} />
+	  <input class="hidden" name="sats" value={sats} />
 	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	    @components.Header("Receive")
       <div class="flex flex-col justify-center items-center gap-2">
@@ -67,6 +68,11 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, 
 	  		  @components.EditIcon()
 	  			<span class="ml-2">Add amount</span>
 	  		</a>
+			if sats != "0" {
+				<button type="button" class="button md:w-auto" hx-post="/receive/swap" hx-include="[name='sats']" hx-target="#success" hx-swap="outerHTML">
+					<span class="ml-2">Receive via BTC</span>
+				</button>
+			}
 	    </div>
 	  </div>
 	</form>
@@ -86,5 +92,27 @@ templ ReceiveSuccessContent(offchainAddr, sats string) {
 				@components.CopyWidget(offchainAddr)
 			</div>
 		</div>
+	</div>
+}
+templ ReceiveSwapContent(lockupAddr, amount, encoded string) {
+	@components.DesktopHeader()
+	<div id="receiveBody">
+	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
+	    @components.Header("Receive via BTC")
+	    <div class="flex flex-col justify-center items-center gap-2">
+	      <p class="mt-2 text-center text-white/50 w-11/12 max-w-[600px]">Send <span class="cryptoAmount" sats={amount}>{amount} SATS</span> of on-chain BTC to the address below. Your Ark balance updates once the swap confirms.</p>
+	      <div class="h-64 my-6">
+	        <img src={"data:image/png;base64," + encoded} alt="qrcode for BTC lockup address" title={lockupAddr}>
+	      </div>
+	      <div class="flex flex-col gap-2 w-11/12 max-w-[600px]">
+	        @addressLine("BTC lockup address", lockupAddr)
+	      </div>
+	    </div>
+	    <div class="flex flex-col md:flex-row justify-start gap-4 mt-10 mb-2">
+	      <a class="button md:w-auto" onclick="redirect('/receive')">
+	        <span class="ml-2">Done</span>
+	      </a>
+	    </div>
+	  </div>
 	</div>
 }

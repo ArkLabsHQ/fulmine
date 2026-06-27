@@ -1,0 +1,103 @@
+name: ci_web_e2e
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    name: web e2e tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Authenticate to Docker Hub so the many image pulls (arkd, boltz, lnd,
+      # mempool, ...) aren't subject to the anonymous rate limit.
+      - name: Log in to Docker Hub
+        continue-on-error: true # don't fail the run if the secrets aren't set
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Fulmine image (under test)
+        run: docker build -t fulmine:e2e .
+
+      - name: Start regtest infrastructure
+        run: |
+          for attempt in 1 2 3; do
+            if node regtest/regtest.mjs start --profile boltz,delegate; then
+              exit 0
+            fi
+            echo "::warning::regtest stack start attempt $attempt failed (often a transient Docker Hub image pull); cleaning up and retrying..."
+            node regtest/regtest.mjs clean || true
+            sleep 15
+          done
+          echo "::error::regtest stack failed to start after 3 attempts"
+          exit 1
+
+      - name: Wait for the stack to settle
+        run: |
+          # Wait for arkd's gRPC to be *stably* reachable before the web suite
+          # brings up its fulmine-web (which connects to arkd on first wallet use).
+          streak=0
+          for i in $(seq 1 80); do
+            if bash -c 'exec 3<>/dev/tcp/localhost/7070' 2>/dev/null; then
+              streak=$((streak + 1))
+              if [ "$streak" -ge 6 ]; then echo "arkd stable"; exit 0; fi
+            else
+              streak=0
+            fi
+            sleep 3
+          done
+          echo "::warning::arkd did not stabilise within ~4min; proceeding anyway"
+
+      # make web-e2e installs the Playwright dep + chromium, then runs the suite.
+      # Playwright's global setup brings up a dedicated fulmine-web on the stack's
+      # network and tears it down afterwards.
+      - name: Run web e2e tests
+        run: make web-e2e
+
+      # Always upload the captured UI screenshots (05-screenshots.spec) so a human
+      # can eyeball the styling each run — the one thing the assertions can't cover.
+      - name: Upload UI screenshots
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-ui-screenshots
+          path: web-e2e/screenshots/
+          retention-days: 14
+
+      - name: Stack logs
+        if: failure()
+        continue-on-error: true
+        run: |
+          docker ps -a
+          for c in fulmine-web boltz boltz-fulmine boltz-lnd fulmine-delegator arkd arkd-wallet lnd bitcoin; do
+            echo "::group::docker logs $c"
+            docker logs "$c" 2>&1 | tail -n 400 || echo "(no container $c)"
+            echo "::endgroup::"
+          done
+
+      - name: Upload Playwright report
+        if: failure()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: web-e2e/playwright-report/
+          retention-days: 7
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker rm -f fulmine-web || true
+          node regtest/regtest.mjs clean || true

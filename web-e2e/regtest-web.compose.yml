@@ -1,0 +1,38 @@
+# Dedicated "web" Fulmine for the Playwright web-UI e2e suite.
+#
+# A separate instance of THIS repo's image (fulmine:e2e), attached to the running
+# arkade-regtest network, so the browser tests drive a wallet that the Go e2e
+# suite's fulmine-user can't mutate. Brought up + torn down by Playwright's
+# global setup/teardown (web-e2e/global-setup.ts), reachable at localhost:7019.
+#
+# Requires the arkade-regtest stack to be running first (make regtest-up).
+services:
+  fulmine-web:
+    image: ${FULMINE_IMAGE:-fulmine:e2e}
+    container_name: fulmine-web
+    restart: unless-stopped
+    environment:
+      - FULMINE_ARK_SERVER=http://arkd:7070
+      - FULMINE_ESPLORA_URL=http://mempool_web/api
+      - FULMINE_BOLTZ_URL=http://boltz:9001
+      - FULMINE_BOLTZ_WS_URL=ws://boltz:9004
+      - FULMINE_NO_MACAROONS=true
+      - FULMINE_DISABLE_TELEMETRY=true
+      # env unlocker: the wallet auto-unlocks on restart, and the UI setup flow
+      # uses this password (so the init spec doesn't need a password step).
+      - FULMINE_UNLOCKER_TYPE=env
+      - FULMINE_UNLOCKER_PASSWORD=password
+    ports:
+      # Loopback only: with FULMINE_NO_MACAROONS the endpoints are unauthenticated
+      # and Playwright reaches them via localhost. One port serves both the web UI
+      # (/) and the REST API (/api).
+      - "127.0.0.1:7019:7001"
+    networks:
+      - default
+
+# Join the stack's network (compose project name=arkade-regtest -> *_default) so
+# fulmine-web resolves arkd/boltz/mempool_web by service name.
+networks:
+  default:
+    name: arkade-regtest_default
+    external: true
