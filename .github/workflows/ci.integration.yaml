@@ -84,6 +84,13 @@ jobs:
               sleep 2
             done
             echo "::warning::fulmine-user not initialised after attempt $attempt; recreating + retrying"
+            # Capture the container's logs before recreating it: the retry loop
+            # otherwise destroys the only record of why setup failed, so the
+            # on-failure "Stack logs" step finds "No such container: fulmine-user"
+            # and the real init error is lost.
+            echo "::group::fulmine-user logs (failed attempt $attempt)"
+            docker logs fulmine-user 2>&1 | tail -n 200 || echo "(no fulmine-user container)"
+            echo "::endgroup::"
             docker rm -f fulmine-user || true
           done
           echo "::error::fulmine-user failed to initialise after 3 attempts"
