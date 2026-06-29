@@ -165,7 +165,7 @@ templ SendBodyContent(currentBalance string) {
 				if (lnurlMeta && sats && sats < lnurlMeta.minSats) {
 					button.disabled = true
 					button.innerText = `Min ${fmtSats(lnurlMeta.minSats)} sats`
-				} else if (lnurlMeta && sats && sats > lnurlMeta.maxSats) {
+				} else if (lnurlMeta && sats && lnurlMeta.maxSats > 0 && sats > lnurlMeta.maxSats) {
 					button.disabled = true
 					button.innerText = `Max ${fmtSats(lnurlMeta.maxSats)} sats`
 				} else if (sats && sats <= balance) {

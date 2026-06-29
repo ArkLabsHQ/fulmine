@@ -28,4 +28,16 @@ test.describe('send lnurl metadata', () => {
     await page.locator('#amount').fill('60000');
     await expect(page.getByRole('button', { name: /Max 50,000 sats/ })).toBeVisible();
   });
+
+  test('treats maxSats 0 as no maximum (does not block large amounts)', async ({ page }) => {
+    await page.route('**/helpers/lnurl/metadata', (route) =>
+      route.fulfill({ json: { valid: true, minSats: 1, maxSats: 0, description: 'No max' } }),
+    );
+    await page.goto('/send');
+    await page.locator('#address').fill('nomax@example.com');
+    await expect(page.locator('#lnurlInfo')).toContainText('No max');
+    // A large amount must not be rejected with "Max 0 sats".
+    await page.locator('#amount').fill('1000000');
+    await expect(page.locator('button[type="submit"]')).not.toHaveText(/Max 0/);
+  });
 });
