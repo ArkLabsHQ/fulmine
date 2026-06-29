@@ -570,6 +570,10 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 		go s.recoverChainSwaps(context.Background(), arkConfig)
 
+		// Start here, inside the post-sync goroutine: privateKey (above) and
+		// swapHandler (used by the invoice callback) are only set here.
+		s.startLnurlReceiver()
+
 		s.sanitize(context.Background())
 	}()
 
@@ -582,8 +586,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		wsUrl = boltzURLByNetwork[arkConfig.Network.Name]
 	}
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
-
-	s.startLnurlReceiver()
 
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: WalletUnlock, Password: password}
