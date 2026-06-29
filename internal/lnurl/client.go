@@ -128,7 +128,9 @@ func (c *Client) connect(ctx context.Context) error {
 				var d struct {
 					AmountMsat int64 `json:"amountMsat"`
 				}
-				if err := json.Unmarshal([]byte(data), &d); err == nil {
+				if err := json.Unmarshal([]byte(data), &d); err != nil {
+					log.WithError(err).Warnf("lnurl: bad invoice_request data: %s", data)
+				} else {
 					c.handleInvoiceRequest(ctx, sessionID, authToken, d.AmountMsat)
 				}
 			}
@@ -151,12 +153,24 @@ func (c *Client) handleInvoiceRequest(ctx context.Context, sessionID, token stri
 		if token != "" {
 			req.Header.Set("Authorization", "Bearer "+token)
 		}
-		if resp, err := http.DefaultClient.Do(req); err == nil {
-			resp.Body.Close()
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			log.WithError(err).Warn("lnurl: failed to post invoice result")
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode/100 != 2 {
+			log.Warnf("lnurl: invoice-result POST returned HTTP %d", resp.StatusCode)
 		}
 	}
 	if amountMsat <= 0 {
 		post(`{"error":"invalid amount"}`)
+		return
+	}
+	if amountMsat%1000 != 0 {
+		// We mint whole-sat invoices; flooring a sub-sat request would make the
+		// invoice amount disagree with what the sender approved, so reject it.
+		post(`{"error":"sub-satoshi amounts are not supported"}`)
 		return
 	}
 	pr, err := c.invoiceFor(ctx, uint64(amountMsat)/1000)

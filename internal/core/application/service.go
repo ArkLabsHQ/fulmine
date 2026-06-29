@@ -404,9 +404,14 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	s.isInitialized = true
 
 	// Setup brings the wallet online without going through UnlockNode (which
-	// early-returns here because the ArkClient is already unlocked), so start
-	// the amountless LNURL receiver here. It only needs the key + server URL,
-	// both set above.
+	// early-returns here because the ArkClient is already unlocked). Build the
+	// swap handler now so the LNURL receiver started just below can actually
+	// mint invoices on a fresh setup -- otherwise pay requests fail with
+	// "wallet not ready" until the user locks and unlocks again.
+	// nolint
+	s.swapHandler, _ = swap.NewSwapHandler(
+		s.ArkClient, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
+	)
 	s.startLnurlReceiver()
 
 	// Revitilise all Swaps If Present
