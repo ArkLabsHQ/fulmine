@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf8"
 
 	"github.com/btcsuite/btcd/btcutil/bech32"
 )
@@ -93,7 +94,7 @@ func ResolveLightningAddressOrLnurl(client *http.Client, input string, amountSat
 		if meta.CommentAllowed <= 0 {
 			return "", fmt.Errorf("the recipient does not accept comments")
 		}
-		if len(cmt) > meta.CommentAllowed {
+		if utf8.RuneCountInString(cmt) > meta.CommentAllowed {
 			return "", fmt.Errorf("comment too long (max %d characters)", meta.CommentAllowed)
 		}
 	}

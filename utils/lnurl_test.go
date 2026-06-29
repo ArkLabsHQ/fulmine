@@ -261,6 +261,14 @@ func TestResolveLightningAddressOrLnurlComment(t *testing.T) {
 		require.ErrorContains(t, err, "too long")
 	})
 
+	t.Run("counts characters not bytes (multi-byte within the limit is allowed)", func(t *testing.T) {
+		emoji := strings.Repeat("😀", 50) // 50 chars but 200 bytes; commentAllowed is 50
+		inv, err := ResolveLightningAddressOrLnurl(srv.Client(), lnurl, 1000, emoji)
+		require.NoError(t, err)
+		require.Equal(t, "lnbcCOMMENT", inv)
+		require.Equal(t, emoji, gotComment)
+	})
+
 	t.Run("rejects a comment when the recipient disallows them", func(t *testing.T) {
 		noMux := http.NewServeMux()
 		noMux.HandleFunc("/pay", func(w http.ResponseWriter, _ *http.Request) {
