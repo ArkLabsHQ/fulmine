@@ -232,3 +232,43 @@ func TestMsatToSats(t *testing.T) {
 	require.Equal(t, uint64(2), msatToSatsCeil(1500))
 	require.Equal(t, uint64(0), msatToSatsCeil(0))
 }
+
+func TestResolveLightningAddressOrLnurlComment(t *testing.T) {
+	var gotComment string
+	var serverURL string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/pay", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprintf(w, `{"tag":"payRequest","callback":%q,"minSendable":1000,"maxSendable":100000000,"commentAllowed":50}`, serverURL+"/cb")
+	})
+	mux.HandleFunc("/cb", func(w http.ResponseWriter, r *http.Request) {
+		gotComment = r.URL.Query().Get("comment")
+		fmt.Fprint(w, `{"pr":"lnbcCOMMENT","status":"OK"}`)
+	})
+	srv := httptest.NewTLSServer(mux)
+	defer srv.Close()
+	serverURL = srv.URL
+	lnurl := encodeLnurl(t, srv.URL+"/pay")
+
+	t.Run("forwards the comment to the callback", func(t *testing.T) {
+		inv, err := ResolveLightningAddressOrLnurl(srv.Client(), lnurl, 1000, "thanks!")
+		require.NoError(t, err)
+		require.Equal(t, "lnbcCOMMENT", inv)
+		require.Equal(t, "thanks!", gotComment)
+	})
+
+	t.Run("rejects a comment longer than commentAllowed", func(t *testing.T) {
+		_, err := ResolveLightningAddressOrLnurl(srv.Client(), lnurl, 1000, strings.Repeat("x", 51))
+		require.ErrorContains(t, err, "too long")
+	})
+
+	t.Run("rejects a comment when the recipient disallows them", func(t *testing.T) {
+		noMux := http.NewServeMux()
+		noMux.HandleFunc("/pay", func(w http.ResponseWriter, _ *http.Request) {
+			fmt.Fprint(w, `{"tag":"payRequest","callback":"https://x/cb","minSendable":1000,"maxSendable":100000000,"commentAllowed":0}`)
+		})
+		noSrv := httptest.NewTLSServer(noMux)
+		defer noSrv.Close()
+		_, err := ResolveLightningAddressOrLnurl(noSrv.Client(), encodeLnurl(t, noSrv.URL+"/pay"), 1000, "hi")
+		require.ErrorContains(t, err, "does not accept comments")
+	})
+}

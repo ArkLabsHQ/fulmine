@@ -61,15 +61,20 @@ type lnurlInvoiceResponse struct {
 }
 
 // ResolveLightningAddressOrLnurl resolves a Lightning Address (LUD-16) or LNURL-pay
-// (LUD-06) into a payable BOLT11 invoice for amountSats.
+// (LUD-06) into a payable BOLT11 invoice for amountSats. A non-empty comment is
+// attached to the callback (LUD-12) when the recipient allows comments.
 //
 // The destination URL is attacker-controlled, so the default client (used when
 // client is nil) enforces https and refuses to connect to loopback/private/
 // reserved IP ranges (SSRF protection, applied at dial time so it covers
 // redirects and DNS rebinding). Pass a non-nil client only in tests.
-func ResolveLightningAddressOrLnurl(client *http.Client, input string, amountSats uint64) (string, error) {
+func ResolveLightningAddressOrLnurl(client *http.Client, input string, amountSats uint64, comment ...string) (string, error) {
 	if client == nil {
 		client = newSafeHTTPClient()
+	}
+	var cmt string
+	if len(comment) > 0 {
+		cmt = comment[0]
 	}
 
 	meta, payURL, err := fetchLnurlPayRequest(client, input)
@@ -84,6 +89,14 @@ func ResolveLightningAddressOrLnurl(client *http.Client, input string, amountSat
 	if meta.MaxSendable > 0 && amountMsat > meta.MaxSendable {
 		return "", fmt.Errorf("amount above the recipient's maximum (%d sats)", meta.MaxSendable/1000)
 	}
+	if cmt != "" {
+		if meta.CommentAllowed <= 0 {
+			return "", fmt.Errorf("the recipient does not accept comments")
+		}
+		if len(cmt) > meta.CommentAllowed {
+			return "", fmt.Errorf("comment too long (max %d characters)", meta.CommentAllowed)
+		}
+	}
 
 	cbURL, err := validateOutboundURL(meta.Callback)
 	if err != nil {
@@ -96,6 +109,9 @@ func ResolveLightningAddressOrLnurl(client *http.Client, input string, amountSat
 	}
 	q := cbURL.Query()
 	q.Set("amount", strconv.FormatInt(amountMsat, 10))
+	if cmt != "" {
+		q.Set("comment", cmt)
+	}
 	cbURL.RawQuery = q.Encode()
 
 	var inv lnurlInvoiceResponse
