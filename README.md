@@ -102,6 +102,7 @@ All settings are read from environment variables prefixed with `FULMINE_`. The m
 |----------|-------------|---------|
 | `FULMINE_BOLTZ_URL` | URL of a custom Boltz backend for swaps | Not set |
 | `FULMINE_BOLTZ_WS_URL` | URL of a custom Boltz WebSocket backend for swap events | Not set |
+| `FULMINE_LNURL_SERVER_URL` | URL of an lnurl-server for amountless Lightning receive (enables the receive page's "Lightning (any amount)" address); empty disables it | Not set |
 | `FULMINE_SWAP_TIMEOUT` | Swap timeout, in seconds | `15` |
 
 #### Advanced
