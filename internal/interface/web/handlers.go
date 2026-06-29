@@ -341,6 +341,30 @@ func (s *service) receiveSwap(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
+// receiveLnurlQr renders the active amountless LNURL as a scannable QR.
+func (s *service) receiveLnurlQr(c *gin.Context) {
+	if s.redirectedBecauseWalletIsLocked(c) {
+		return
+	}
+	lnurl := s.svc.CurrentLnurl()
+	if lnurl == "" {
+		toast := components.Toast("no Lightning address available yet", true)
+		toastHandler(toast, c)
+		return
+	}
+	// bech32 uppercase encodes in the QR alphanumeric mode, yielding a denser,
+	// easier-to-scan code; it decodes to the same LNURL as the displayed text.
+	png, err := qrcode.Encode(strings.ToUpper(lnurl), qrcode.Medium, 256)
+	if err != nil {
+		// nolint:all
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+	encoded := base64.StdEncoding.EncodeToString(png)
+	bodyContent := pages.ReceiveLnurlQrContent(lnurl, encoded)
+	s.pageViewHandler(bodyContent, c)
+}
+
 func (s *service) receiveSuccess(c *gin.Context) {
 	bip21 := c.PostForm(("bip21"))
 
