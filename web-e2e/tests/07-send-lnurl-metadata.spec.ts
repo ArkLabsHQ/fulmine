@@ -36,6 +36,7 @@ test.describe('send lnurl metadata', () => {
     await page.goto('/send');
     await page.locator('#address').fill('nomax@example.com');
     await expect(page.locator('#lnurlInfo')).toContainText('No max');
+    await expect(page.locator('#lnurlInfo')).not.toContainText('max 0');
     // A large amount must not be rejected with "Max 0 sats".
     await page.locator('#amount').fill('1000000');
     await expect(page.locator('button[type="submit"]')).not.toHaveText(/Max 0/);

@@ -134,7 +134,7 @@ func ResolveLnurlPayMetadata(client *http.Client, input string) (*LnurlPayMetada
 		return nil, err
 	}
 	return &LnurlPayMetadata{
-		MinSats:        msatToSats(meta.MinSendable),
+		MinSats:        msatToSatsCeil(meta.MinSendable),
 		MaxSats:        msatToSats(meta.MaxSendable),
 		Description:    lnurlDescription(meta.Metadata),
 		CommentAllowed: meta.CommentAllowed,
@@ -173,6 +173,17 @@ func msatToSats(msat int64) uint64 {
 		return 0
 	}
 	return uint64(msat) / 1000
+}
+
+// msatToSatsCeil converts millisats to whole sats, rounding up; negatives become
+// 0. Minimums round up so the advertised value is actually sendable -- the
+// backend enforces the exact millisat minimum, so flooring would show a sat
+// amount that gets rejected on submit.
+func msatToSatsCeil(msat int64) uint64 {
+	if msat <= 0 {
+		return 0
+	}
+	return uint64((msat + 999) / 1000)
 }
 
 // lnurlDescription extracts the text/plain description from an LNURL-pay metadata

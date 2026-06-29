@@ -122,7 +122,8 @@ templ SendBodyContent(currentBalance string) {
 	  const renderLnurlInfo = () => {
 			const info = document.querySelector('#lnurlInfo')
 			if (!lnurlMeta) { info.classList.add('hidden'); info.textContent = ''; return }
-			let txt = `min ${fmtSats(lnurlMeta.minSats)} · max ${fmtSats(lnurlMeta.maxSats)} sats`
+			let txt = `min ${fmtSats(lnurlMeta.minSats)} sats`
+			if (lnurlMeta.maxSats > 0) txt += ` · max ${fmtSats(lnurlMeta.maxSats)} sats`
 			if (lnurlMeta.description) txt += ` — ${lnurlMeta.description}`
 			info.textContent = txt
 			info.classList.remove('hidden')

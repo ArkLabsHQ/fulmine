@@ -220,3 +220,15 @@ func TestLnurlDescription(t *testing.T) {
 	require.Equal(t, "", lnurlDescription(`not json`))
 	require.Equal(t, "", lnurlDescription(`[["text/identifier","a@b.com"]]`)) // no text/plain
 }
+
+func TestMsatToSats(t *testing.T) {
+	// Floor for maximums (the most you can send).
+	require.Equal(t, uint64(1), msatToSats(1000))
+	require.Equal(t, uint64(1), msatToSats(1999))
+	require.Equal(t, uint64(0), msatToSats(999))
+	// Ceil for minimums: a 1500-msat minimum isn't satisfied by a 1-sat send.
+	require.Equal(t, uint64(1), msatToSatsCeil(1000))
+	require.Equal(t, uint64(2), msatToSatsCeil(1001))
+	require.Equal(t, uint64(2), msatToSatsCeil(1500))
+	require.Equal(t, uint64(0), msatToSatsCeil(0))
+}
