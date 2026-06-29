@@ -157,7 +157,7 @@ func SendBodyContent(currentBalance string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p id=\"lnurlInfo\" class=\"hidden mt-2 text-center text-sm text-white/50\"></p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p id=\"lnurlInfo\" class=\"hidden mt-2 text-center text-sm text-white/50\"></p><input id=\"lnurlComment\" name=\"comment\" type=\"text\" class=\"hidden mt-2 w-full bg-white/10 rounded-lg px-3 py-2 text-white placeholder-white/40\" placeholder=\"Optional comment to the recipient\"></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -165,7 +165,7 @@ func SendBodyContent(currentBalance string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div></form></div><script>\r\n\t  const updateUI = ({ sats, buttonLabel }) => {\r\n\t\t\tconst button = document.querySelector('button[type=\"submit\"]')\r\n\t\t\tbutton.disabled = false\r\n\t\t\tbutton.innerText = buttonLabel\r\n\t\t\tdocument.querySelector('#sats').value = sats\r\n\t\t\tconst unit = document.querySelector('#unit').innerText\r\n\t\t\tconst amount = unit === 'SATS' ? sats : fromSatoshis(sats)\r\n\t\t\tdocument.querySelector('#amount').value = amount\r\n\t\t}\r\n\r\n\t  const validateArkNote = async (note) => {\r\n      const data = new FormData()\r\n\t\t\tdata.set('note', note)\r\n\t\t\tconst res = await fetch('/helpers/note/validate', { method: 'POST', body: data })\r\n\t\t\tif (res.ok) {\r\n\t\t\t\tconst { sats, valid } = await res.json()\r\n\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Redeem note' })\r\n\t\t\t\treturn valid\r\n\t\t\t}\r\n\t\t\treturn false\r\n\t\t}\r\n\t\t\r\n\r\n\tconst validateIsBip21 = async (bip21) => {\r\n      const data = new FormData()\r\n\t\t\tdata.set('bip21', bip21)\r\n\t\t\tconst res = await fetch('/helpers/bip21/validate', { method: 'POST', body: data })\r\n\t\t\tif (res.ok) {\r\n\t\t\t\tconst { sats, valid } = await res.json()\r\n\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Send' })\r\n\t\t\t\treturn valid\r\n\t\t\t}\r\n\t\t\treturn false\r\n\t\t}\r\n\r\n\t  const validateInvoice = async (invoice) => {\r\n      const data = new FormData()\r\n\t\t\tdata.set('invoice', invoice)\r\n\t\t\tconst res = await fetch('/helpers/invoice/validate', { method: 'POST', body: data })\r\n\t\t\tif (res.ok) {\r\n\t\t\t\tconst { sats, valid } = await res.json()\r\n\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Send to lightning' })\r\n\t\t\t\treturn valid\r\n\t\t\t}\r\n\t\t\treturn false\r\n\t\t}\r\n\r\n\t  const validateOffer = async (offer) => {\r\n\t  const data = new FormData()\r\n\t  \tdata.set('offer', offer)\r\n\t\t\t\tconst res = await fetch('/helpers/offer/validate', { method: 'POST', body: data })\r\n\t\t\t\tif (res.ok) {\r\n\t\t\t\t\tconst { sats, valid } = await res.json()\r\n\t\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Send to Bolt12' })\r\n\t\t\t\t\treturn valid\r\n\t\t\t\t}\r\n\t\t\t\treturn false\r\n\t\t\t}\r\n\r\n\r\n\t  const isLnAddressOrLnurl = (s) => {\r\n\t\t\ts = s.trim().toLowerCase().replace(/^lightning:/, '')\r\n\t\t\treturn /^[a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}$/.test(s) || s.startsWith('lnurl1')\r\n\t\t}\r\n\r\n\t  let lnurlMeta = null\r\n\t  let lnurlTimer = null\r\n\t  let lnurlFetchedFor = ''\r\n\t  const fmtSats = (n) => Number(n).toLocaleString()\r\n\r\n\t  const renderLnurlInfo = () => {\r\n\t\t\tconst info = document.querySelector('#lnurlInfo')\r\n\t\t\tif (!lnurlMeta) { info.classList.add('hidden'); info.textContent = ''; return }\r\n\t\t\tlet txt = `min ${fmtSats(lnurlMeta.minSats)} sats`\r\n\t\t\tif (lnurlMeta.maxSats > 0) txt += ` · max ${fmtSats(lnurlMeta.maxSats)} sats`\r\n\t\t\tif (lnurlMeta.description) txt += ` — ${lnurlMeta.description}`\r\n\t\t\tinfo.textContent = txt\r\n\t\t\tinfo.classList.remove('hidden')\r\n\t\t}\r\n\r\n\t  const fetchLnurlMetadata = (address) => {\r\n\t\t\tlnurlFetchedFor = address\r\n\t\t\tclearTimeout(lnurlTimer)\r\n\t\t\tlnurlTimer = setTimeout(async () => {\r\n\t\t\t\tconst data = new FormData()\r\n\t\t\t\tdata.set('address', address)\r\n\t\t\t\tlet meta = null\r\n\t\t\t\ttry {\r\n\t\t\t\t\tconst res = await fetch('/helpers/lnurl/metadata', { method: 'POST', body: data })\r\n\t\t\t\t\tconst json = await res.json()\r\n\t\t\t\t\tif (res.ok && json.valid) meta = json\r\n\t\t\t\t} catch (e) {}\r\n\t\t\t\tif (address !== lnurlFetchedFor) return\r\n\t\t\t\tlnurlMeta = meta\r\n\t\t\t\trenderLnurlInfo()\r\n\t\t\t\tcanSend()\r\n\t\t\t}, 400)\r\n\t\t}\r\n\r\n\t  const canSend = async () => {\r\n\t\t\tconst address = document.querySelector('#address').value\r\n\t\t\tconst amount = document.querySelector('#amount').value\r\n\t\t\tconst button = document.querySelector('button[type=\"submit\"]')\r\n\t\t\tconst balance = parseInt(document.querySelector('#balance').value)\r\n\t\t\tconst sats = parseInt(document.querySelector('#sats').value)\r\n\t\t\tbutton.disabled = address.length === 0 || amount.length === 0 || !sats || sats > balance\r\n\t\t\tbutton.innerText = sats > balance ? 'Not enough funds' : 'Preview send'\r\n\t\t\tif (address && isLnAddressOrLnurl(address)) {\r\n\t\t\t\tdocument.querySelector('#amount').disabled = false\r\n\t\t\t\tif (address !== lnurlFetchedFor) {\r\n\t\t\t\t\tlnurlMeta = null\r\n\t\t\t\t\trenderLnurlInfo()\r\n\t\t\t\t\tfetchLnurlMetadata(address)\r\n\t\t\t\t}\r\n\t\t\t\tif (lnurlMeta && sats && sats < lnurlMeta.minSats) {\r\n\t\t\t\t\tbutton.disabled = true\r\n\t\t\t\t\tbutton.innerText = `Min ${fmtSats(lnurlMeta.minSats)} sats`\r\n\t\t\t\t} else if (lnurlMeta && sats && lnurlMeta.maxSats > 0 && sats > lnurlMeta.maxSats) {\r\n\t\t\t\t\tbutton.disabled = true\r\n\t\t\t\t\tbutton.innerText = `Max ${fmtSats(lnurlMeta.maxSats)} sats`\r\n\t\t\t\t} else if (sats && sats <= balance) {\r\n\t\t\t\t\tbutton.innerText = 'Send to lightning'\r\n\t\t\t\t}\r\n\t\t\t} else if (address) {\r\n\t\t\t\tif (lnurlFetchedFor) { lnurlMeta = null; lnurlFetchedFor = ''; renderLnurlInfo() }\r\n\t\t\t\tconst [isNote, isInvoice, isBip21, isOffer] = await Promise.all([\r\n\t\t\t\t\tvalidateArkNote(address),\r\n\t\t\t\t\tvalidateInvoice(address),\r\n\t\t\t\t\tvalidateIsBip21(address),\r\n\t\t\t\t\tvalidateOffer(address),\r\n\t\t\t\t])\r\n\r\n\t\t\t\tconst disableInputAmount = isNote || isInvoice || isBip21  || isOffer\r\n\t\t\t\t\t\r\n\t\t\t\tdocument.querySelector('#amount').disabled = disableInputAmount\r\n\t\t\t} else {\r\n\t\t\t\tdocument.querySelector('#amount').disabled = false\r\n\t\t\t}\r\n\t\t}\r\n\r\n\t  document.querySelector('#address').addEventListener('input', canSend)\r\n\t  document.querySelector('#amount').addEventListener('input', canSend)\r\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div></form></div><script>\r\n\t  const updateUI = ({ sats, buttonLabel }) => {\r\n\t\t\tconst button = document.querySelector('button[type=\"submit\"]')\r\n\t\t\tbutton.disabled = false\r\n\t\t\tbutton.innerText = buttonLabel\r\n\t\t\tdocument.querySelector('#sats').value = sats\r\n\t\t\tconst unit = document.querySelector('#unit').innerText\r\n\t\t\tconst amount = unit === 'SATS' ? sats : fromSatoshis(sats)\r\n\t\t\tdocument.querySelector('#amount').value = amount\r\n\t\t}\r\n\r\n\t  const validateArkNote = async (note) => {\r\n      const data = new FormData()\r\n\t\t\tdata.set('note', note)\r\n\t\t\tconst res = await fetch('/helpers/note/validate', { method: 'POST', body: data })\r\n\t\t\tif (res.ok) {\r\n\t\t\t\tconst { sats, valid } = await res.json()\r\n\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Redeem note' })\r\n\t\t\t\treturn valid\r\n\t\t\t}\r\n\t\t\treturn false\r\n\t\t}\r\n\t\t\r\n\r\n\tconst validateIsBip21 = async (bip21) => {\r\n      const data = new FormData()\r\n\t\t\tdata.set('bip21', bip21)\r\n\t\t\tconst res = await fetch('/helpers/bip21/validate', { method: 'POST', body: data })\r\n\t\t\tif (res.ok) {\r\n\t\t\t\tconst { sats, valid } = await res.json()\r\n\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Send' })\r\n\t\t\t\treturn valid\r\n\t\t\t}\r\n\t\t\treturn false\r\n\t\t}\r\n\r\n\t  const validateInvoice = async (invoice) => {\r\n      const data = new FormData()\r\n\t\t\tdata.set('invoice', invoice)\r\n\t\t\tconst res = await fetch('/helpers/invoice/validate', { method: 'POST', body: data })\r\n\t\t\tif (res.ok) {\r\n\t\t\t\tconst { sats, valid } = await res.json()\r\n\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Send to lightning' })\r\n\t\t\t\treturn valid\r\n\t\t\t}\r\n\t\t\treturn false\r\n\t\t}\r\n\r\n\t  const validateOffer = async (offer) => {\r\n\t  const data = new FormData()\r\n\t  \tdata.set('offer', offer)\r\n\t\t\t\tconst res = await fetch('/helpers/offer/validate', { method: 'POST', body: data })\r\n\t\t\t\tif (res.ok) {\r\n\t\t\t\t\tconst { sats, valid } = await res.json()\r\n\t\t\t\t\tif (valid) updateUI({ sats, buttonLabel: 'Send to Bolt12' })\r\n\t\t\t\t\treturn valid\r\n\t\t\t\t}\r\n\t\t\t\treturn false\r\n\t\t\t}\r\n\r\n\r\n\t  const isLnAddressOrLnurl = (s) => {\r\n\t\t\ts = s.trim().toLowerCase().replace(/^lightning:/, '')\r\n\t\t\treturn /^[a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}$/.test(s) || s.startsWith('lnurl1')\r\n\t\t}\r\n\r\n\t  let lnurlMeta = null\r\n\t  let lnurlTimer = null\r\n\t  let lnurlFetchedFor = ''\r\n\t  const fmtSats = (n) => Number(n).toLocaleString()\r\n\r\n\t  const renderLnurlInfo = () => {\r\n\t\t\tconst info = document.querySelector('#lnurlInfo')\r\n\t\t\tconst comment = document.querySelector('#lnurlComment')\r\n\t\t\tif (!lnurlMeta) { info.classList.add('hidden'); info.textContent = ''; comment.classList.add('hidden'); comment.value = ''; return }\r\n\t\t\tlet txt = `min ${fmtSats(lnurlMeta.minSats)} sats`\r\n\t\t\tif (lnurlMeta.maxSats > 0) txt += ` · max ${fmtSats(lnurlMeta.maxSats)} sats`\r\n\t\t\tif (lnurlMeta.description) txt += ` — ${lnurlMeta.description}`\r\n\t\t\tinfo.textContent = txt\r\n\t\t\tinfo.classList.remove('hidden')\r\n\t\t\tif (lnurlMeta.commentAllowed > 0) {\r\n\t\t\t\tcomment.maxLength = lnurlMeta.commentAllowed\r\n\t\t\t\tcomment.classList.remove('hidden')\r\n\t\t\t} else {\r\n\t\t\t\tcomment.classList.add('hidden'); comment.value = ''\r\n\t\t\t}\r\n\t\t}\r\n\r\n\t  const fetchLnurlMetadata = (address) => {\r\n\t\t\tlnurlFetchedFor = address\r\n\t\t\tclearTimeout(lnurlTimer)\r\n\t\t\tlnurlTimer = setTimeout(async () => {\r\n\t\t\t\tconst data = new FormData()\r\n\t\t\t\tdata.set('address', address)\r\n\t\t\t\tlet meta = null\r\n\t\t\t\ttry {\r\n\t\t\t\t\tconst res = await fetch('/helpers/lnurl/metadata', { method: 'POST', body: data })\r\n\t\t\t\t\tconst json = await res.json()\r\n\t\t\t\t\tif (res.ok && json.valid) meta = json\r\n\t\t\t\t} catch (e) {}\r\n\t\t\t\tif (address !== lnurlFetchedFor) return\r\n\t\t\t\tlnurlMeta = meta\r\n\t\t\t\trenderLnurlInfo()\r\n\t\t\t\tcanSend()\r\n\t\t\t}, 400)\r\n\t\t}\r\n\r\n\t  const canSend = async () => {\r\n\t\t\tconst address = document.querySelector('#address').value\r\n\t\t\tconst amount = document.querySelector('#amount').value\r\n\t\t\tconst button = document.querySelector('button[type=\"submit\"]')\r\n\t\t\tconst balance = parseInt(document.querySelector('#balance').value)\r\n\t\t\tconst sats = parseInt(document.querySelector('#sats').value)\r\n\t\t\tbutton.disabled = address.length === 0 || amount.length === 0 || !sats || sats > balance\r\n\t\t\tbutton.innerText = sats > balance ? 'Not enough funds' : 'Preview send'\r\n\t\t\tif (address && isLnAddressOrLnurl(address)) {\r\n\t\t\t\tdocument.querySelector('#amount').disabled = false\r\n\t\t\t\tif (address !== lnurlFetchedFor) {\r\n\t\t\t\t\tlnurlMeta = null\r\n\t\t\t\t\trenderLnurlInfo()\r\n\t\t\t\t\tfetchLnurlMetadata(address)\r\n\t\t\t\t}\r\n\t\t\t\tif (lnurlMeta && sats && sats < lnurlMeta.minSats) {\r\n\t\t\t\t\tbutton.disabled = true\r\n\t\t\t\t\tbutton.innerText = `Min ${fmtSats(lnurlMeta.minSats)} sats`\r\n\t\t\t\t} else if (lnurlMeta && sats && lnurlMeta.maxSats > 0 && sats > lnurlMeta.maxSats) {\r\n\t\t\t\t\tbutton.disabled = true\r\n\t\t\t\t\tbutton.innerText = `Max ${fmtSats(lnurlMeta.maxSats)} sats`\r\n\t\t\t\t} else if (sats && sats <= balance) {\r\n\t\t\t\t\tbutton.innerText = 'Send to lightning'\r\n\t\t\t\t}\r\n\t\t\t} else if (address) {\r\n\t\t\t\tif (lnurlFetchedFor) { lnurlMeta = null; lnurlFetchedFor = ''; renderLnurlInfo() }\r\n\t\t\t\tconst [isNote, isInvoice, isBip21, isOffer] = await Promise.all([\r\n\t\t\t\t\tvalidateArkNote(address),\r\n\t\t\t\t\tvalidateInvoice(address),\r\n\t\t\t\t\tvalidateIsBip21(address),\r\n\t\t\t\t\tvalidateOffer(address),\r\n\t\t\t\t])\r\n\r\n\t\t\t\tconst disableInputAmount = isNote || isInvoice || isBip21  || isOffer\r\n\t\t\t\t\t\r\n\t\t\t\tdocument.querySelector('#amount').disabled = disableInputAmount\r\n\t\t\t} else {\r\n\t\t\t\tdocument.querySelector('#amount').disabled = false\r\n\t\t\t}\r\n\t\t}\r\n\r\n\t  document.querySelector('#address').addEventListener('input', canSend)\r\n\t  document.querySelector('#amount').addEventListener('input', canSend)\r\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -173,7 +173,7 @@ func SendBodyContent(currentBalance string) templ.Component {
 	})
 }
 
-func SendPreviewContent(address, sats, feeAmount, total string, isBtc bool) templ.Component {
+func SendPreviewContent(address, sats, feeAmount, total, comment string, isBtc bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -201,7 +201,7 @@ func SendPreviewContent(address, sats, feeAmount, total string, isBtc bool) temp
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(address)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 200, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 208, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -214,13 +214,26 @@ func SendPreviewContent(address, sats, feeAmount, total string, isBtc bool) temp
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 201, Col: 48}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 209, Col: 48}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"><div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\"><div class=\"flex flex-col items-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"> <input type=\"hidden\" name=\"comment\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var9 string
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(comment)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 210, Col: 54}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\"><div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\"><div class=\"flex flex-col items-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -228,7 +241,7 @@ func SendPreviewContent(address, sats, feeAmount, total string, isBtc bool) temp
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"showOnRequest flex flex-col items-center mt-10 w-full\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"showOnRequest flex flex-col items-center mt-10 w-full\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -236,7 +249,7 @@ func SendPreviewContent(address, sats, feeAmount, total string, isBtc bool) temp
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<p class=\"mt-10\">Sending...</p></div><div class=\"hideOnRequest flex flex-col items-center w-full\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<p class=\"mt-10\">Sending...</p></div><div class=\"hideOnRequest flex flex-col items-center w-full\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -244,46 +257,46 @@ func SendPreviewContent(address, sats, feeAmount, total string, isBtc bool) temp
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<p class=\"mt-4\">Send</p><p class=\"mt-4 text-3xl cryptoAmount\" sats=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 212, Col: 55}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<p class=\"mt-4\">Send</p><p class=\"mt-4 text-3xl cryptoAmount\" sats=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 212, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 221, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, " SATS</p><div class=\"flex mt-4 w-64 gap-2\"><p class=\"text-white/50\">to</p><p class=\"overflow-hidden text-ellipsis whitespace-nowrap\" id=\"sentAddress\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var11 string
-		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(address)
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(sats)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 215, Col: 92}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 221, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " SATS</p><div class=\"flex mt-4 w-64 gap-2\"><p class=\"text-white/50\">to</p><p class=\"overflow-hidden text-ellipsis whitespace-nowrap\" id=\"sentAddress\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var12 string
+		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(address)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 224, Col: 92}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -291,7 +304,7 @@ func SendPreviewContent(address, sats, feeAmount, total string, isBtc bool) temp
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -299,12 +312,12 @@ func SendPreviewContent(address, sats, feeAmount, total string, isBtc bool) temp
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if isBtc {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"hideOnRequest flex gap-2 mt-4 w-11/12 max-w-[600px] mx-auto\"><label class=\"flex-1\"><input type=\"radio\" name=\"method\" value=\"exit\" checked class=\"peer sr-only\"><div class=\"cursor-pointer text-center text-white/50 border border-white/10 rounded-lg px-3 py-2 peer-checked:border-orange peer-checked:text-orange peer-checked:bg-orange/10\">Exit on-chain</div></label> <label class=\"flex-1\"><input type=\"radio\" name=\"method\" value=\"swap\" class=\"peer sr-only\"><div class=\"cursor-pointer text-center text-white/50 border border-white/10 rounded-lg px-3 py-2 peer-checked:border-orange peer-checked:text-orange peer-checked:bg-orange/10\">Swap to BTC</div></label></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<div class=\"hideOnRequest flex gap-2 mt-4 w-11/12 max-w-[600px] mx-auto\"><label class=\"flex-1\"><input type=\"radio\" name=\"method\" value=\"exit\" checked class=\"peer sr-only\"><div class=\"cursor-pointer text-center text-white/50 border border-white/10 rounded-lg px-3 py-2 peer-checked:border-orange peer-checked:text-orange peer-checked:bg-orange/10\">Exit on-chain</div></label> <label class=\"flex-1\"><input type=\"radio\" name=\"method\" value=\"swap\" class=\"peer sr-only\"><div class=\"cursor-pointer text-center text-white/50 border border-white/10 rounded-lg px-3 py-2 peer-checked:border-orange peer-checked:text-orange peer-checked:bg-orange/10\">Swap to BTC</div></label></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -313,7 +326,7 @@ func SendPreviewContent(address, sats, feeAmount, total string, isBtc bool) temp
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div></form></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</div></form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -337,12 +350,12 @@ func SendSuccessContent(address, amount, txid, explorerUrl string) templ.Compone
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var12 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var12 == nil {
-			templ_7745c5c3_Var12 = templ.NopComponent
+		templ_7745c5c3_Var13 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var13 == nil {
+			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\"><div class=\"flex flex-col items-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\"><div class=\"flex flex-col items-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -354,46 +367,46 @@ func SendSuccessContent(address, amount, txid, explorerUrl string) templ.Compone
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<p class=\"mt-8\">Sent successfully</p><p class=\"mt-8 text-3xl cryptoAmount\" sats=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var13 string
-		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(amount)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 239, Col: 53}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<p class=\"mt-8\">Sent successfully</p><p class=\"mt-8 text-3xl cryptoAmount\" sats=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(amount)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 239, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 248, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, " SATS</p><div class=\"flex mt-8 w-64 gap-2\"><p class=\"text-white/50\">to</p><p class=\"overflow-hidden text-ellipsis whitespace-nowrap\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var15 string
-		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(address)
+		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(amount)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 242, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 248, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</p><p class=\"text-white/50\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, " SATS</p><div class=\"flex mt-8 w-64 gap-2\"><p class=\"text-white/50\">to</p><p class=\"overflow-hidden text-ellipsis whitespace-nowrap\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var16 string
+		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(address)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 251, Col: 71}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</p><p class=\"text-white/50\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -401,7 +414,7 @@ func SendSuccessContent(address, amount, txid, explorerUrl string) templ.Compone
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</p></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -411,7 +424,7 @@ func SendSuccessContent(address, amount, txid, explorerUrl string) templ.Compone
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -435,12 +448,12 @@ func SendFailureContent(address, amount string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var16 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var16 == nil {
-			templ_7745c5c3_Var16 = templ.NopComponent
+		templ_7745c5c3_Var17 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var17 == nil {
+			templ_7745c5c3_Var17 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\"><div class=\"flex flex-col items-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<div class=\"p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg\"><div class=\"flex flex-col items-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -452,46 +465,46 @@ func SendFailureContent(address, amount string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<p class=\"mt-8\">Failed To Send</p><p class=\"mt-8 text-3xl cryptoAmount\" sats=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var17 string
-		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(amount)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 258, Col: 53}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<p class=\"mt-8\">Failed To Send</p><p class=\"mt-8 text-3xl cryptoAmount\" sats=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(amount)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 258, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 267, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, " SATS</p><div class=\"flex mt-8 w-64 gap-2\"><p class=\"text-white/50\">to</p><p class=\"overflow-hidden text-ellipsis whitespace-nowrap\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var19 string
-		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(address)
+		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(amount)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 261, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 267, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</p><p class=\"text-white/50\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, " SATS</p><div class=\"flex mt-8 w-64 gap-2\"><p class=\"text-white/50\">to</p><p class=\"overflow-hidden text-ellipsis whitespace-nowrap\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var20 string
+		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(address)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/send.templ`, Line: 270, Col: 71}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</p><p class=\"text-white/50\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -499,7 +512,7 @@ func SendFailureContent(address, amount string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</p></div></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</p></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

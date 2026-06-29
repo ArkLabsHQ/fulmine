@@ -394,6 +394,7 @@ func (s *service) sendPreview(c *gin.Context) {
 	}
 
 	dest := c.PostForm("address")
+	comment := c.PostForm("comment")
 	var addr, invoice, onchainAddr, offchainAddr, offer string
 
 	sats, err := strconv.Atoi(c.PostForm("sats"))
@@ -494,7 +495,7 @@ func (s *service) sendPreview(c *gin.Context) {
 		return
 	}
 
-	bodyContent := pages.SendPreviewContent(addr, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total), utils.IsValidBtcAddress(addr))
+	bodyContent := pages.SendPreviewContent(addr, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total), comment, utils.IsValidBtcAddress(addr))
 	partialViewHandler(bodyContent, c)
 }
 
@@ -576,7 +577,8 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 
 	if utils.IsLnAddressOrLnurl(address) {
-		invoice, err := utils.ResolveLightningAddressOrLnurl(nil, address, value)
+		comment := c.PostForm("comment")
+		invoice, err := utils.ResolveLightningAddressOrLnurl(nil, address, value, comment)
 		if err != nil {
 			toast := components.Toast(err.Error(), true)
 			toastHandler(toast, c)

@@ -43,6 +43,7 @@ templ SendBodyContent(currentBalance string) {
 					@components.InputAddress()
 					@components.SendAmount(currentBalance)
 					<p id="lnurlInfo" class="hidden mt-2 text-center text-sm text-white/50"></p>
+					<input id="lnurlComment" name="comment" type="text" class="hidden mt-2 w-full bg-white/10 rounded-lg px-3 py-2 text-white placeholder-white/40" placeholder="Optional comment to the recipient" />
 	    	</div>
 	    	@components.ActionButtons("Preview send", true)
 	    </div>
@@ -121,12 +122,19 @@ templ SendBodyContent(currentBalance string) {
 
 	  const renderLnurlInfo = () => {
 			const info = document.querySelector('#lnurlInfo')
-			if (!lnurlMeta) { info.classList.add('hidden'); info.textContent = ''; return }
+			const comment = document.querySelector('#lnurlComment')
+			if (!lnurlMeta) { info.classList.add('hidden'); info.textContent = ''; comment.classList.add('hidden'); comment.value = ''; return }
 			let txt = `min ${fmtSats(lnurlMeta.minSats)} sats`
 			if (lnurlMeta.maxSats > 0) txt += ` · max ${fmtSats(lnurlMeta.maxSats)} sats`
 			if (lnurlMeta.description) txt += ` — ${lnurlMeta.description}`
 			info.textContent = txt
 			info.classList.remove('hidden')
+			if (lnurlMeta.commentAllowed > 0) {
+				comment.maxLength = lnurlMeta.commentAllowed
+				comment.classList.remove('hidden')
+			} else {
+				comment.classList.add('hidden'); comment.value = ''
+			}
 		}
 
 	  const fetchLnurlMetadata = (address) => {
@@ -194,11 +202,12 @@ templ SendBodyContent(currentBalance string) {
 	</script>
 }
 
-templ SendPreviewContent(address, sats, feeAmount, total string, isBtc bool) {
+templ SendPreviewContent(address, sats, feeAmount, total, comment string, isBtc bool) {
 	<div id="sendBody">
 	  <form hx-post="/send/confirm" hx-target="#sendBody" hx-target="outerHTML">
 		  <input type="hidden" name="address" value={address}>
 		  <input type="hidden" name="sats" value={sats}>
+		  <input type="hidden" name="comment" value={comment}>
 	    <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	      <div class="flex flex-col items-center">
 	        @components.Header("Confirm Send")
