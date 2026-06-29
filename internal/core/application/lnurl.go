@@ -39,7 +39,10 @@ func (s *Service) startLnurlReceiver() {
 		}
 		resp, err := s.GetInvoice(ctx, sats)
 		if err != nil {
-			return "", err
+			// Don't relay raw Boltz/ark/network error strings to an untrusted
+			// remote payer; log the detail and return a generic message.
+			log.WithError(err).Warn("lnurl: failed to create invoice for a pay request")
+			return "", fmt.Errorf("unable to create invoice")
 		}
 		if resp == nil {
 			// GetInvoice returns (nil, nil) when Boltz rejects the amount as out

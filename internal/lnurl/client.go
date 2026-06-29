@@ -63,23 +63,36 @@ func (c *Client) setLnurl(v string) {
 }
 
 // Run opens the session and handles events until ctx is cancelled, reconnecting
-// with capped backoff on stream errors. Blocks; run it in a goroutine.
+// with capped backoff after a stream error OR a clean close. Blocks; run it in a
+// goroutine.
 func (c *Client) Run(ctx context.Context) {
 	backoff := time.Second
 	for ctx.Err() == nil {
+		start := time.Now()
 		err := c.connect(ctx)
 		if ctx.Err() != nil {
 			return
 		}
 		if err != nil {
 			log.WithError(err).Warn("lnurl: session error, retrying")
-			time.Sleep(backoff)
-			if backoff < 30*time.Second {
-				backoff *= 2
-			}
-			continue
+		} else {
+			log.Debug("lnurl: session ended, reconnecting")
 		}
-		backoff = time.Second
+		// Back off before every reconnect, including a clean stream close: a
+		// server that returns 200 then EOFs immediately must not spin us in a
+		// tight loop. Reset the backoff only after a session that actually
+		// stayed up, so a flapping endpoint stays throttled.
+		if time.Since(start) > 30*time.Second {
+			backoff = time.Second
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(backoff):
+		}
+		if backoff < 30*time.Second {
+			backoff *= 2
+		}
 	}
 }
 

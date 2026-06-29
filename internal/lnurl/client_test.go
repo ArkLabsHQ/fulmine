@@ -105,3 +105,30 @@ func TestHandleInvoiceRequestRecoversFromPanic(t *testing.T) {
 	}()
 	c.handleInvoiceRequest(context.Background(), "sess", "tok", 50000)
 }
+
+func TestRunBackoffOnCleanClose(t *testing.T) {
+	// A server that returns 200 then closes the stream cleanly (no events) must
+	// not spin Run in a tight reconnect loop -- the backoff applies to clean
+	// closes too, not only errors.
+	var mu sync.Mutex
+	attempts := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		attempts++
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK) // 200, then an immediate clean EOF
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, []byte{1, 2, 3, 4}, func(context.Context, uint64) (string, error) { return "", nil })
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	c.Run(ctx) // blocks until ctx is done
+
+	mu.Lock()
+	n := attempts
+	mu.Unlock()
+	if n > 5 {
+		t.Fatalf("clean-close reconnect not throttled: %d connect attempts in 2s", n)
+	}
+}
