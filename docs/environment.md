@@ -14,6 +14,7 @@ Generated from `config Structure`. **Do not edit manually.**
 | `FULMINE_ESPLORA_URL` | `` | `string` | Esplora base URL (e.g., http://chopsticks:3000) |
 | `FULMINE_BOLTZ_URL` | `` | `string` | Boltz HTTP endpoint (e.g., http://boltz:9001) |
 | `FULMINE_BOLTZ_WS_URL` | `` | `string` | Boltz WebSocket endpoint (e.g., ws://boltz:9002) |
+| `FULMINE_LNURL_SERVER_URL` | `` | `string` | lnurl-server base URL for amountless Lightning receive (e.g. http://lnurl-server:3000); empty disables it |
 | `FULMINE_SCHEDULER_POLL_INTERVAL` | `600` | `int64` | Scheduler polling interval in seconds |
 | `FULMINE_PROFILING_ENABLED` | `false` | `bool` | Enable profiling endpoints |
 | `FULMINE_REFRESH_DB_INTERVAL` | `60` | `int64` | Interval in seconds to refresh the database with latest blockchain data |

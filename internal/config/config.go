@@ -33,6 +33,7 @@ type Config struct {
 	EsploraURL            string `mapstructure:"ESPLORA_URL" envInfo:"Esplora base URL (e.g., http://chopsticks:3000)"`
 	BoltzURL              string `mapstructure:"BOLTZ_URL" envInfo:"Boltz HTTP endpoint (e.g., http://boltz:9001)"`
 	BoltzWSURL            string `mapstructure:"BOLTZ_WS_URL" envInfo:"Boltz WebSocket endpoint (e.g., ws://boltz:9002)"`
+	LnurlServerURL        string `mapstructure:"LNURL_SERVER_URL" envInfo:"lnurl-server base URL for amountless Lightning receive (e.g. http://lnurl-server:3000); empty disables it"`
 	SchedulerPollInterval int64  `mapstructure:"SCHEDULER_POLL_INTERVAL" envDefault:"600" envInfo:"Scheduler polling interval in seconds"`
 	ProfilingEnabled      bool   `mapstructure:"PROFILING_ENABLED" envDefault:"false" envInfo:"Enable profiling endpoints"`
 	RefreshDbInterval     int64  `mapstructure:"REFRESH_DB_INTERVAL" envDefault:"60" envInfo:"Interval in seconds to refresh the database with latest blockchain data"`
