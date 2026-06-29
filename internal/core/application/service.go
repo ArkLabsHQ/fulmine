@@ -263,6 +263,7 @@ func newService(
 		esploraUrl:            esploraUrl,
 		boltzUrl:              boltzUrl,
 		boltzWSUrl:            boltzWSUrl,
+		lnurlServerURL:        lnurlServerURL,
 		swapTimeout:           swapTimeout,
 		walletUpdates:         make(chan WalletUpdate),
 		syncLock:              &sync.RWMutex{},
@@ -401,6 +402,12 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, privateKey str
 	s.publicKey = prvKey.PubKey()
 	s.privateKey = prvKey
 	s.isInitialized = true
+
+	// Setup brings the wallet online without going through UnlockNode (which
+	// early-returns here because the ArkClient is already unlocked), so start
+	// the amountless LNURL receiver here. It only needs the key + server URL,
+	// both set above.
+	s.startLnurlReceiver()
 
 	// Revitilise all Swaps If Present
 	if err := s.restoreSwapHistory(ctx); err != nil {

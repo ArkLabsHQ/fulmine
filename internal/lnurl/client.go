@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // InvoiceFunc generates a BOLT11 invoice to receive `sats` (fulmine's GetInvoice).
@@ -70,6 +72,7 @@ func (c *Client) Run(ctx context.Context) {
 			return
 		}
 		if err != nil {
+			log.WithError(err).Warn("lnurl: session error, retrying")
 			time.Sleep(backoff)
 			if backoff < 30*time.Second {
 				backoff *= 2
@@ -117,6 +120,9 @@ func (c *Client) connect(ctx context.Context) error {
 				if err := json.Unmarshal([]byte(data), &d); err == nil {
 					sessionID, authToken = d.SessionId, d.Token
 					c.setLnurl(d.Lnurl)
+					log.Infof("lnurl: session established, lnurl=%s", d.Lnurl)
+				} else {
+					log.WithError(err).Warnf("lnurl: bad session_created data: %s", data)
 				}
 			case "invoice_request":
 				var d struct {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ArkLabsHQ/fulmine/internal/lnurl"
+	log "github.com/sirupsen/logrus"
 )
 
 // startLnurlReceiver opens a background lnurl-server session that yields a
@@ -12,9 +13,20 @@ import (
 // Started on unlock, cancelled on lock. No-op without a configured lnurl-server
 // URL. Safe to call once per unlock.
 func (s *Service) startLnurlReceiver() {
-	if s.lnurlServerURL == "" || s.privateKey == nil {
+	if s.lnurlServerURL == "" {
 		return
 	}
+	if s.privateKey == nil {
+		log.Warn("lnurl: configured but wallet key unavailable; receiver not started")
+		return
+	}
+	if s.lnurlCancel != nil {
+		// Already running (called from both Setup and a later unlock); restart
+		// cleanly rather than leaking a second session.
+		s.lnurlCancel()
+		s.lnurlClient = nil
+	}
+	log.Infof("lnurl: starting receiver against %s", s.lnurlServerURL)
 	ctx, cancel := context.WithCancel(context.Background())
 	s.lnurlCancel = cancel
 
