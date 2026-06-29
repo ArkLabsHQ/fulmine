@@ -90,3 +90,18 @@ func TestRunHandlesSessionAndInvoice(t *testing.T) {
 		t.Fatalf("posted pr = %q", gotPR)
 	}
 }
+
+func TestHandleInvoiceRequestRecoversFromPanic(t *testing.T) {
+	// A panicking invoiceFor (e.g. the historical nil-deref on an out-of-range
+	// amount) must be contained to the request, not propagate through the session
+	// goroutine and crash the daemon.
+	c := New("http://lnurl-server.invalid", []byte{1, 2, 3, 4}, func(context.Context, uint64) (string, error) {
+		panic("boom")
+	})
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("handleInvoiceRequest let a panic escape: %v", r)
+		}
+	}()
+	c.handleInvoiceRequest(context.Background(), "sess", "tok", 50000)
+}

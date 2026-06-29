@@ -41,6 +41,11 @@ func (s *Service) startLnurlReceiver() {
 		if err != nil {
 			return "", err
 		}
+		if resp == nil {
+			// GetInvoice returns (nil, nil) when Boltz rejects the amount as out
+			// of its swap limits; surface that rather than panicking on resp.Invoice.
+			return "", fmt.Errorf("amount is outside the supported range")
+		}
 		return resp.Invoice, nil
 	}
 

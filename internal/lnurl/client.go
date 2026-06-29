@@ -142,6 +142,14 @@ func (c *Client) connect(ctx context.Context) error {
 }
 
 func (c *Client) handleInvoiceRequest(ctx context.Context, sessionID, token string, amountMsat int64) {
+	// This processes untrusted remote input; contain any panic to this request
+	// rather than letting it unwind through the session goroutine and crash the
+	// daemon.
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("lnurl: recovered from panic handling an invoice request: %v", r)
+		}
+	}()
 	post := func(payload string) {
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 			fmt.Sprintf("%s/lnurl/session/%s/invoice", c.baseURL, sessionID),
