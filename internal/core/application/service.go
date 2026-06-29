@@ -18,6 +18,7 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
+	"github.com/ArkLabsHQ/fulmine/internal/lnurl"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
@@ -101,6 +102,10 @@ type Service struct {
 	boltzUrl   string
 	boltzWSUrl string
 
+	lnurlServerURL string
+	lnurlClient    *lnurl.Client
+	lnurlCancel    context.CancelFunc
+
 	swapTimeout uint32
 
 	isInitialized bool
@@ -150,13 +155,13 @@ func NewServices(
 	datadir string,
 	dbSvc ports.RepoManager,
 	schedulerSvc ports.SchedulerService,
-	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
+	esploraUrl, boltzUrl, boltzWSUrl, lnurlServerURL string, swapTimeout uint32,
 	refreshDbInterval int64,
 	delegateConfig DelegateConfig,
 ) (*Service, *DelegateService, error) {
 	svc, err := newService(
 		buildInfo, datadir, dbSvc, schedulerSvc, refreshDbInterval,
-		esploraUrl, boltzUrl, boltzWSUrl, swapTimeout,
+		esploraUrl, boltzUrl, boltzWSUrl, lnurlServerURL, swapTimeout,
 	)
 	if err != nil {
 		return nil, nil, err
@@ -182,7 +187,7 @@ func newService(
 	dbSvc ports.RepoManager,
 	schedulerSvc ports.SchedulerService,
 	refreshDbInterval int64,
-	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
+	esploraUrl, boltzUrl, boltzWSUrl, lnurlServerURL string, swapTimeout uint32,
 ) (*Service, error) {
 	walletStore, err := filestore.NewWalletStore(datadir)
 	if err != nil {
@@ -218,6 +223,7 @@ func newService(
 			esploraUrl:            data.ExplorerURL,
 			boltzUrl:              boltzUrl,
 			boltzWSUrl:            boltzWSUrl,
+			lnurlServerURL:        lnurlServerURL,
 			swapTimeout:           swapTimeout,
 			walletUpdates:         make(chan WalletUpdate),
 			syncLock:              &sync.RWMutex{},
@@ -422,6 +428,12 @@ func (s *Service) LockNode(ctx context.Context) error {
 		s.onLock()
 	}
 
+	if s.lnurlCancel != nil {
+		s.lnurlCancel()
+		s.lnurlCancel = nil
+		s.lnurlClient = nil
+	}
+
 	if s.schedulerSvc != nil {
 		s.schedulerSvc.Stop()
 		log.Info("scheduler stopped")
@@ -570,6 +582,8 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		wsUrl = boltzURLByNetwork[arkConfig.Network.Name]
 	}
 	s.boltzSvc = &boltz.Api{URL: url, WSURL: wsUrl}
+
+	s.startLnurlReceiver()
 
 	go func() {
 		s.walletUpdates <- WalletUpdate{Type: WalletUnlock, Password: password}
