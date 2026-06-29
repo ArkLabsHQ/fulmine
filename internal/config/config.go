@@ -65,6 +65,7 @@ var (
 	EsploraURL            = "ESPLORA_URL"
 	BoltzURL              = "BOLTZ_URL"
 	BoltzWSURL            = "BOLTZ_WS_URL"
+	LnurlServerURL        = "LNURL_SERVER_URL"
 	DisableTelemetry      = "DISABLE_TELEMETRY"
 	NoMacaroons           = "NO_MACAROONS"
 	OtelCollectorURL      = "OTEL_COLLECTOR_URL"
@@ -158,6 +159,7 @@ func LoadConfig() (*Config, error) {
 		EsploraURL:            viper.GetString(EsploraURL),
 		BoltzURL:              viper.GetString(BoltzURL),
 		BoltzWSURL:            viper.GetString(BoltzWSURL),
+		LnurlServerURL:        viper.GetString(LnurlServerURL),
 		UnlockerType:          viper.GetString(UnlockerType),
 		UnlockerFilePath:      viper.GetString(UnlockerFilePath),
 		UnlockerPassword:      viper.GetString(UnlockerPassword),
