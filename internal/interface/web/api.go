@@ -158,6 +158,30 @@ func (s *service) validateOfferApi(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
+// lnurlMetadataApi resolves a Lightning Address or LNURL to its pay-request
+// metadata (sendable range + description) so the send screen can show min/max
+// and constrain the amount before submit. Applies to both LN addresses and
+// raw LNURLs.
+func (s *service) lnurlMetadataApi(c *gin.Context) {
+	address := c.PostForm("address")
+	if !utils.IsLnAddressOrLnurl(address) {
+		c.JSON(http.StatusOK, gin.H{"valid": false, "error": "not a lightning address or lnurl"})
+		return
+	}
+	meta, err := utils.ResolveLnurlPayMetadata(nil, address)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"valid": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"valid":          true,
+		"minSats":        meta.MinSats,
+		"maxSats":        meta.MaxSats,
+		"description":    meta.Description,
+		"commentAllowed": meta.CommentAllowed,
+	})
+}
+
 func (s *service) validateNoteApi(c *gin.Context) {
 	var data gin.H
 	note := c.PostForm("note")
