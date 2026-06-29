@@ -93,9 +93,15 @@ regtest-build:
 	@docker build -t fulmine:e2e .
 
 ## regtest-up: build the image and start the arkade-regtest stack + user Fulmine
+#
+# The stack pins the web wallet at ghcr.io/arkade-os/wallet:latest, but
+# `compose up` reuses a cached image and never re-pulls it -- so a stale local
+# :latest silently masks upstream fixes (e.g. the .mjs service-worker MIME fix).
+# Refresh it before starting; a failed/offline pull is tolerated.
 regtest-up: regtest-build
 	@echo "Starting arkade-regtest stack..."
 	@git submodule update --init regtest
+	@docker pull ghcr.io/arkade-os/wallet:latest || true
 	@node regtest/regtest.mjs start --profile boltz,delegate
 	@$(MAKE) regtest-user-up
 
