@@ -436,8 +436,11 @@ func (s *Service) LockNode(ctx context.Context) error {
 		s.externalSubscription.stop()
 	}
 
-	// close boarding event listener
-	s.stopVtxoEventListener <- struct{}{}
+	// close boarding event listener (signal it only if it's running, matching
+	// unwindFailedUnlock, so we don't block if the listener already exited)
+	if s.vtxoListenerRunning.Load() {
+		s.stopVtxoEventListener <- struct{}{}
+	}
 	close(s.stopVtxoEventListener)
 	s.stopVtxoEventListener = make(chan struct{})
 
@@ -475,14 +478,19 @@ func (s *Service) unwindFailedUnlock() {
 	close(s.stopVtxoEventListener)
 	s.stopVtxoEventListener = make(chan struct{})
 
-	if err := s.Lock(context.Background()); err != nil {
-		log.WithError(err).Error("failed to re-lock after a failed unlock")
-	}
 	s.walletReady.Store(false)
 	s.syncEvent = nil
 	if s.syncCh != nil {
 		close(s.syncCh)
 		s.syncCh = nil
+	}
+
+	// Re-lock LAST. s.Lock makes IsLocked() return true, which reopens UnlockNode's
+	// guard; tearing down syncCh/syncEvent/walletReady first means a retry that races
+	// in right after the lock allocates a fresh syncCh instead of finding this one
+	// mid-close (a send on a closed syncCh would panic its sync goroutine).
+	if err := s.Lock(context.Background()); err != nil {
+		log.WithError(err).Error("failed to re-lock after a failed unlock")
 	}
 }
 
