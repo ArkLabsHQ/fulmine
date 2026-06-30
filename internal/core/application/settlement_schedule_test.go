@@ -173,6 +173,8 @@ func newTestService(t *testing.T, fake *fakeArkClient) (*Service, func(types.Vtx
 		isInitialized: true,
 		syncEvent:     &types.SyncEvent{},
 	}
+	// The gate also requires the wallet to be fully assembled (publicKey/swapHandler).
+	svc.walletReady.Store(true)
 
 	// SessionDuration is tiny so the 2-session safety offset doesn't push
 	// far-future schedules around in a way that would confuse the assertions.

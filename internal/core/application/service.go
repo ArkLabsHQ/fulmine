@@ -104,6 +104,7 @@ type Service struct {
 	swapTimeout uint32
 
 	isInitialized bool
+	walletReady   atomic.Bool // true once UnlockNode has populated publicKey/privateKey/swapHandler
 	syncLock      *sync.RWMutex
 	syncEvent     *types.SyncEvent
 	syncCh        chan types.SyncEvent
@@ -436,6 +437,7 @@ func (s *Service) LockNode(ctx context.Context) error {
 	close(s.stopVtxoEventListener)
 	s.stopVtxoEventListener = make(chan struct{})
 
+	s.walletReady.Store(false)
 	s.syncEvent = nil
 	if s.syncCh != nil {
 		close(s.syncCh)
@@ -456,6 +458,10 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if !s.ArkClient.IsLocked(ctx) {
 		return nil
 	}
+
+	// Stays closed until the post-sync goroutine below finishes assembling the
+	// wallet, so the unlock window can't expose a nil publicKey/privateKey/swapHandler.
+	s.walletReady.Store(false)
 
 	s.syncCh = make(chan types.SyncEvent, 1)
 
@@ -556,6 +562,10 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			s.ArkClient, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
 		)
 
+		// All gate-required fields are populated; open the gate. The atomic store
+		// publishes the writes above to any reader that passes the gate.
+		s.walletReady.Store(true)
+
 		go s.recoverChainSwaps(context.Background(), arkConfig)
 
 		s.sanitize(context.Background())
@@ -595,6 +605,7 @@ func (s *Service) ResetWallet(ctx context.Context) error {
 	}
 
 	s.isInitialized = false
+	s.walletReady.Store(false)
 	s.syncEvent = nil
 	if s.syncCh != nil {
 		close(s.syncCh)
@@ -1597,6 +1608,13 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 
 	if s.syncEvent == nil {
 		return fmt.Errorf("service is syncing")
+	}
+
+	// syncEvent only signals that the sdk finished syncing; UnlockNode's post-sync
+	// goroutine then populates publicKey/privateKey/swapHandler. Gate on walletReady
+	// too so a request in that window fails cleanly instead of nil-derefing a field.
+	if !s.walletReady.Load() {
+		return fmt.Errorf("wallet is finalizing unlock")
 	}
 
 	return nil
