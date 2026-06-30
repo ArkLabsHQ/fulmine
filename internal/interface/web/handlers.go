@@ -308,7 +308,7 @@ func (s *service) receiveQrCode(c *gin.Context) {
 	if err != nil {
 		return
 	}
-	encoded := base64.StdEncoding.EncodeToString(png)
+	bip21Qr := base64.StdEncoding.EncodeToString(png)
 
 	// Pre-encode the LNURL QR too (when a session is active) so the page can toggle
 	// to it client-side without a round-trip. bech32 uppercase keeps the QR in the
@@ -321,7 +321,7 @@ func (s *service) receiveQrCode(c *gin.Context) {
 		}
 	}
 
-	bodyContent := pages.ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, fmt.Sprintf("%d", sats), lnurl, lnurlQr)
+	bodyContent := pages.ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, bip21Qr, fmt.Sprintf("%d", sats), lnurl, lnurlQr)
 	s.pageViewHandler(bodyContent, c)
 }
 

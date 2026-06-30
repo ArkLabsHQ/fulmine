@@ -36,7 +36,7 @@ templ ReceiveEditContent() {
 	</script>
 }
 
-templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, sats, lnurl, lnurlQr string) {
+templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, bip21Qr, sats, lnurl, lnurlQr string) {
 	<form id="success" hx-post="/receive/success" hx-ext="sse" sse-connect="/events" hx-trigger="sse:TXS_ADDED">
 	  @components.DesktopHeader()
 	  <input class="hidden" id="submitButton" type="submit"/>
@@ -46,7 +46,7 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, 
 	    @components.Header("Receive")
       <div class="flex flex-col justify-center items-center gap-2">
 	  	  <div class="h-64 mb-8">
-            <img id="bip21Qr" src={"data:image/png;base64," + encoded} alt="qrcode for receive address" title={bip21}>
+            <img id="bip21Qr" src={"data:image/png;base64," + bip21Qr} alt="qrcode for receive address" title={bip21}>
             if len(lnurlQr) > 0 {
               <img id="lnurlQr" class="hidden" src={"data:image/png;base64," + lnurlQr} alt="qrcode for Lightning address" title={lnurl}>
             }

@@ -132,7 +132,7 @@ func ReceiveEditContent() templ.Component {
 	})
 }
 
-func ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, sats, lnurl, lnurlQr string) templ.Component {
+func ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, bip21Qr, sats, lnurl, lnurlQr string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -200,7 +200,7 @@ func ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, s
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs("data:image/png;base64," + encoded)
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs("data:image/png;base64," + bip21Qr)
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/interface/web/templates/pages/receive.templ`, Line: 49, Col: 69}
 		}
