@@ -310,7 +310,18 @@ func (s *service) receiveQrCode(c *gin.Context) {
 	}
 	encoded := base64.StdEncoding.EncodeToString(png)
 
-	bodyContent := pages.ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, fmt.Sprintf("%d", sats), s.svc.CurrentLnurl())
+	// Pre-encode the LNURL QR too (when a session is active) so the page can toggle
+	// to it client-side without a round-trip. bech32 uppercase keeps the QR in the
+	// denser alphanumeric mode and decodes to the same LNURL as the text below it.
+	lnurl := s.svc.CurrentLnurl()
+	var lnurlQr string
+	if lnurl != "" {
+		if lnPng, lnErr := qrcode.Encode(strings.ToUpper(lnurl), qrcode.Medium, 256); lnErr == nil {
+			lnurlQr = base64.StdEncoding.EncodeToString(lnPng)
+		}
+	}
+
+	bodyContent := pages.ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, fmt.Sprintf("%d", sats), lnurl, lnurlQr)
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -338,30 +349,6 @@ func (s *service) receiveSwap(c *gin.Context) {
 	}
 	encoded := base64.StdEncoding.EncodeToString(png)
 	bodyContent := pages.ReceiveSwapContent(chainSwap.UserBtcLockupAddress, fmt.Sprintf("%d", sats), encoded)
-	s.pageViewHandler(bodyContent, c)
-}
-
-// receiveLnurlQr renders the active amountless LNURL as a scannable QR.
-func (s *service) receiveLnurlQr(c *gin.Context) {
-	if s.redirectedBecauseWalletIsLocked(c) {
-		return
-	}
-	lnurl := s.svc.CurrentLnurl()
-	if lnurl == "" {
-		toast := components.Toast("no Lightning address available yet", true)
-		toastHandler(toast, c)
-		return
-	}
-	// bech32 uppercase encodes in the QR alphanumeric mode, yielding a denser,
-	// easier-to-scan code; it decodes to the same LNURL as the displayed text.
-	png, err := qrcode.Encode(strings.ToUpper(lnurl), qrcode.Medium, 256)
-	if err != nil {
-		// nolint:all
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	encoded := base64.StdEncoding.EncodeToString(png)
-	bodyContent := pages.ReceiveLnurlQrContent(lnurl, encoded)
 	s.pageViewHandler(bodyContent, c)
 }
 

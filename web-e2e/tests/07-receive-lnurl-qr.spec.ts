@@ -1,20 +1,21 @@
 import { test, expect } from '@playwright/test';
 
-// LNURL QR: when an amountless LNURL session is active, the receive page offers
-// a "Lightning QR" button; clicking it renders the LNURL as a scannable QR.
-// Requires the lnurl-server session (same setup as 06-receive-lightning).
-test('receive page shows a scannable QR for the amountless LNURL', async ({ page }) => {
+// LNURL QR: the receive page pre-renders the amountless LNURL as a QR (hidden)
+// and a "Lightning QR" button toggles it client-side — no extra request, no
+// separate endpoint. Requires the lnurl-server session (same setup as 06).
+test('receive page toggles to a scannable QR for the amountless LNURL', async ({ page }) => {
   // Reload /receive until the LNURL session is established (see 06).
   await expect(async () => {
     await page.goto('/receive');
     await expect(page.getByText('Lightning (any amount)')).toBeVisible({ timeout: 2000 });
   }).toPass({ timeout: 30000 });
 
-  const qrButton = page.getByRole('button', { name: 'Lightning QR' });
-  await expect(qrButton).toBeVisible();
-  await qrButton.click();
+  // The LNURL QR is pre-rendered but hidden until toggled.
+  const lnurlQr = page.locator('#lnurlQr');
+  await expect(lnurlQr).toBeHidden();
 
-  // The QR view: a QR image for the Lightning address + the lnurl1… text.
-  await expect(page.locator('img[alt="qrcode for Lightning address"]')).toBeVisible();
-  await expect(page.getByText(/lnurl1/i)).toBeVisible();
+  await page.getByRole('button', { name: 'Lightning QR' }).click();
+
+  await expect(lnurlQr).toBeVisible();
+  await expect(page.locator('#bip21Qr')).toBeHidden();
 });

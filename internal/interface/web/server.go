@@ -128,7 +128,6 @@ func NewService(
 	svc.POST("/receive/preview", svc.receiveQrCode)
 	svc.POST("/receive/success", svc.receiveSuccess)
 	svc.POST("/receive/swap", svc.receiveSwap)
-	svc.POST("/receive/lnurl-qr", svc.receiveLnurlQr)
 	svc.POST("/send/preview", svc.sendPreview)
 	svc.POST("/send/confirm", svc.sendConfirm)
 

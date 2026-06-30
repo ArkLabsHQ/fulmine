@@ -36,7 +36,7 @@ templ ReceiveEditContent() {
 	</script>
 }
 
-templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, sats, lnurl string) {
+templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, sats, lnurl, lnurlQr string) {
 	<form id="success" hx-post="/receive/success" hx-ext="sse" sse-connect="/events" hx-trigger="sse:TXS_ADDED">
 	  @components.DesktopHeader()
 	  <input class="hidden" id="submitButton" type="submit"/>
@@ -46,7 +46,10 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, 
 	    @components.Header("Receive")
       <div class="flex flex-col justify-center items-center gap-2">
 	  	  <div class="h-64 mb-8">
-            <img src={"data:image/png;base64," + encoded} alt="qrcode for receive address" title={bip21}>
+            <img id="bip21Qr" src={"data:image/png;base64," + encoded} alt="qrcode for receive address" title={bip21}>
+            if len(lnurlQr) > 0 {
+              <img id="lnurlQr" class="hidden" src={"data:image/png;base64," + lnurlQr} alt="qrcode for Lightning address" title={lnurl}>
+            }
 		  </div>
 				<div class="flex flex-col gap-2 w-11/12 max-w-[600px]">
 					if len(bip21) > 0 {
@@ -76,14 +79,25 @@ templ ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, 
 					<span class="ml-2">Receive via BTC</span>
 				</button>
 			}
-			if len(lnurl) > 0 {
-				<button type="button" class="button md:w-auto" hx-post="/receive/lnurl-qr" hx-target="#success" hx-swap="outerHTML">
-					<span class="ml-2">Lightning QR</span>
+			if len(lnurlQr) > 0 {
+				<button type="button" class="button md:w-auto" onclick="toggleLnurlQr()">
+					<span id="qrToggleLabel" class="ml-2">Lightning QR</span>
 				</button>
 			}
 	    </div>
 	  </div>
 	</form>
+	<script>
+	  function toggleLnurlQr() {
+			const bip = document.getElementById('bip21Qr')
+			const ln = document.getElementById('lnurlQr')
+			if (!ln) return
+			const showLnurl = ln.classList.contains('hidden')
+			ln.classList.toggle('hidden', !showLnurl)
+			bip.classList.toggle('hidden', showLnurl)
+			document.getElementById('qrToggleLabel').textContent = showLnurl ? 'Bitcoin QR' : 'Lightning QR'
+		}
+	</script>
 }
 
 templ ReceiveSuccessContent(offchainAddr, sats string) {
@@ -114,29 +128,6 @@ templ ReceiveSwapContent(lockupAddr, amount, encoded string) {
 	      </div>
 	      <div class="flex flex-col gap-2 w-11/12 max-w-[600px]">
 	        @addressLine("BTC lockup address", lockupAddr)
-	      </div>
-	    </div>
-	    <div class="flex flex-col md:flex-row justify-start gap-4 mt-10 mb-2">
-	      <a class="button md:w-auto" onclick="redirect('/receive')">
-	        <span class="ml-2">Done</span>
-	      </a>
-	    </div>
-	  </div>
-	</div>
-}
-
-templ ReceiveLnurlQrContent(lnurl, encoded string) {
-	@components.DesktopHeader()
-	<div id="receiveBody">
-	  <div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
-	    @components.Header("Lightning")
-	    <div class="flex flex-col justify-center items-center gap-2">
-	      <p class="mt-2 text-center text-white/50 w-11/12 max-w-[600px]">Scan to pay any amount over Lightning. Funds arrive in your Ark balance once the payment settles.</p>
-	      <div class="h-64 my-6">
-	        <img src={"data:image/png;base64," + encoded} alt="qrcode for Lightning address" title={lnurl}>
-	      </div>
-	      <div class="flex flex-col gap-2 w-11/12 max-w-[600px]">
-	        @addressLine("Lightning (any amount)", lnurl)
 	      </div>
 	    </div>
 	    <div class="flex flex-col md:flex-row justify-start gap-4 mt-10 mb-2">
