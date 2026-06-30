@@ -20,6 +20,11 @@ func (s *Service) startLnurlReceiver() {
 		log.Warn("lnurl: configured but wallet key unavailable; receiver not started")
 		return
 	}
+
+	// lnurlClient/lnurlCancel are read on the web path (CurrentLnurl) and torn
+	// down by LockNode, so serialize all mutation of the pair with lnurlMu.
+	s.lnurlMu.Lock()
+	defer s.lnurlMu.Unlock()
 	if s.lnurlCancel != nil {
 		// Already running (called from both Setup and a later unlock); restart
 		// cleanly rather than leaking a second session.
@@ -60,8 +65,11 @@ func (s *Service) startLnurlReceiver() {
 // CurrentLnurl returns the active amountless LNURL, or "" if unavailable
 // (no lnurl-server configured, wallet locked, or session not yet established).
 func (s *Service) CurrentLnurl() string {
-	if s.lnurlClient == nil {
+	s.lnurlMu.Lock()
+	c := s.lnurlClient
+	s.lnurlMu.Unlock()
+	if c == nil {
 		return ""
 	}
-	return s.lnurlClient.Lnurl()
+	return c.Lnurl()
 }

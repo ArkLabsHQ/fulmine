@@ -103,6 +103,7 @@ type Service struct {
 	boltzWSUrl string
 
 	lnurlServerURL string
+	lnurlMu        sync.Mutex // guards lnurlClient/lnurlCancel: read on the web path, written on lock/unlock
 	lnurlClient    *lnurl.Client
 	lnurlCancel    context.CancelFunc
 
@@ -440,11 +441,13 @@ func (s *Service) LockNode(ctx context.Context) error {
 		s.onLock()
 	}
 
+	s.lnurlMu.Lock()
 	if s.lnurlCancel != nil {
 		s.lnurlCancel()
 		s.lnurlCancel = nil
 		s.lnurlClient = nil
 	}
+	s.lnurlMu.Unlock()
 
 	if s.schedulerSvc != nil {
 		s.schedulerSvc.Stop()
