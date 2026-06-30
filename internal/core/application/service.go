@@ -557,10 +557,14 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			log.WithError(err).Error("failed to schedule next settlement")
 		}
 
-		// nolint
-		s.swapHandler, _ = swap.NewSwapHandler(
+		swapHandler, err := swap.NewSwapHandler(
 			s.ArkClient, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
 		)
+		if err != nil {
+			log.WithError(err).Error("failed to create swap handler; leaving wallet not ready")
+			return
+		}
+		s.swapHandler = swapHandler
 
 		// All gate-required fields are populated; open the gate. The atomic store
 		// publishes the writes above to any reader that passes the gate.
