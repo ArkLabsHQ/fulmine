@@ -14,15 +14,14 @@ import (
 func TestUnwindFailedUnlockReLocks(t *testing.T) {
 	fake := newFakeArkClient()
 	svc := &Service{
-		ArkClient:             fake,
-		stopVtxoEventListener: make(chan struct{}),
-		isInitialized:         true,
-		syncEvent:             &types.SyncEvent{},
+		ArkClient:     fake,
+		isInitialized: true,
+		syncEvent:     &types.SyncEvent{},
 	}
 	svc.walletReady.Store(true) // pretend assembly got partway before the failure
 
-	// No listener was started, so the rollback must skip the unbuffered
-	// stopVtxoEventListener send rather than block on it forever.
+	// No listener was started, so vtxoListenerCancel is nil and the rollback must
+	// simply skip the listener stop (not deref a nil cancel).
 	svc.unwindFailedUnlock()
 
 	require.True(t, fake.wasLocked(), "a failed unlock must re-lock so it can be retried")

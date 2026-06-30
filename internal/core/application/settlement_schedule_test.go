@@ -179,9 +179,8 @@ func newTestService(t *testing.T, fake *fakeArkClient) (*Service, func(types.Vtx
 	sched.Start()
 
 	svc := &Service{
-		ArkClient:             fake,
-		schedulerSvc:          sched,
-		stopVtxoEventListener: make(chan struct{}),
+		ArkClient:    fake,
+		schedulerSvc: sched,
 		// Mark the service initialized/unlocked/synced so the guarded Settle
 		// (isInitializedAndUnlocked) used by the renewal path is allowed to run.
 		isInitialized: true,
@@ -194,10 +193,12 @@ func newTestService(t *testing.T, fake *fakeArkClient) (*Service, func(types.Vtx
 	// far-future schedules around in a way that would confuse the assertions.
 	cfg := &clientTypes.Config{SessionDuration: 1}
 
-	go svc.subscribeForVtxoEvent(context.Background(), cfg)
+	listenerCtx, cancel := context.WithCancel(context.Background())
+	svc.vtxoListenerCancel = cancel
+	go svc.subscribeForVtxoEvent(listenerCtx, cfg)
 
 	t.Cleanup(func() {
-		close(svc.stopVtxoEventListener)
+		cancel()
 		sched.Stop()
 	})
 
