@@ -94,10 +94,11 @@ func TestSettlementScheduleSettlesAlreadyExpiredVtxos(t *testing.T) {
 type fakeArkClient struct {
 	arksdk.ArkClient
 
-	mu        sync.Mutex
-	spendable []clientTypes.Vtxo
-	eventCh   chan types.VtxoEvent
-	settles   int
+	mu         sync.Mutex
+	spendable  []clientTypes.Vtxo
+	eventCh    chan types.VtxoEvent
+	settles    int
+	lockCalled bool
 	// onSettle, if set, is run while holding the lock when Settle is called,
 	// so a test can simulate the vtxo set being renewed by the settlement.
 	onSettle func()
@@ -136,6 +137,19 @@ func (f *fakeArkClient) GetVtxoEventChannel(_ context.Context) <-chan types.Vtxo
 }
 
 func (f *fakeArkClient) IsLocked(_ context.Context) bool { return false }
+
+func (f *fakeArkClient) Lock(_ context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.lockCalled = true
+	return nil
+}
+
+func (f *fakeArkClient) wasLocked() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.lockCalled
+}
 
 func (f *fakeArkClient) Settle(_ context.Context, _ ...arksdk.BatchSessionOption) (string, error) {
 	f.mu.Lock()
