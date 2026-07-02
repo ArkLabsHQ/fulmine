@@ -471,6 +471,14 @@ func (s *Service) unwindFailedUnlock() {
 		s.vtxoListenerCancel = nil
 	}
 
+	// Stop the delegate service that onUnlock may have started before the failure;
+	// otherwise its event loops keep running against the wallet we re-lock below.
+	// Stop is idempotent and non-blocking, so this is safe even on the early paths
+	// where onUnlock never ran.
+	if s.onLock != nil {
+		s.onLock()
+	}
+
 	s.walletReady.Store(false)
 	s.syncEvent = nil
 	if s.syncCh != nil {
