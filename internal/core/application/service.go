@@ -543,6 +543,13 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	// All operations that require the sdk client to be synced must stay here.
 	// TODO: Improve by handling the errors instead of just logging them.
 	go func() {
+		// This goroutine outlives UnlockNode, so its request-scoped ctx is likely
+		// already canceled by the time wg.Wait returns. Use a detached context for
+		// the finalization work below (same reason the vtxo listener detaches): a
+		// canceled ctx would make Dump/resumePendingSwapRefunds fail and spuriously
+		// trigger unwindFailedUnlock on an unlock the caller already saw succeed.
+		finalizeCtx := context.Background()
+
 		// We must wait for the client to be synced before doing anything.
 		wg.Wait()
 
@@ -552,7 +559,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		// Load delegate signer key.
-		prvkeyStr, err := s.Dump(ctx)
+		prvkeyStr, err := s.Dump(finalizeCtx)
 		if err != nil {
 			log.WithError(err).Error("failed to get delegate signer key")
 			s.unwindFailedUnlock()
@@ -587,7 +594,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		// Resume pending swap refunds.
-		go s.resumePendingSwapRefunds(ctx)
+		go s.resumePendingSwapRefunds(finalizeCtx)
 
 		// Detach from the request-scoped ctx: this listener lives for the whole
 		// unlocked session (stopped by cancelling its context), and it makes
