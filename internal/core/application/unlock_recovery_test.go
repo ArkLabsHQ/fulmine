@@ -2,6 +2,8 @@ package application
 
 import (
 	"context"
+	"errors"
+	"sync"
 	"testing"
 
 	"github.com/arkade-os/go-sdk/types"
@@ -59,4 +61,26 @@ func TestUnwindFailedUnlockStopsDelegate(t *testing.T) {
 
 	require.Nil(t, delegateSvc.cancelFunc, "rollback must stop the delegate service")
 	require.Error(t, delegateCtx.Err(), "rollback must cancel the delegate context so its loops exit")
+}
+
+// TestUnlockNodeFailedUnlockArmsNoSyncState guards against arming the sync waiter
+// before UnlockNode's synchronous failure paths. If Unlock fails, the wallet was
+// never unlocked and the SDK's sync never completes, so a waiter armed before that
+// point blocks forever holding syncLock — wedging every later retry's waiter and
+// leaving the wallet stuck not-ready. A failed unlock must therefore leave syncCh
+// unarmed (the waiter is only started once the synchronous setup has succeeded).
+func TestUnlockNodeFailedUnlockArmsNoSyncState(t *testing.T) {
+	fake := newFakeArkClient()
+	fake.locked = true                            // pass UnlockNode's IsLocked guard
+	fake.unlockErr = errors.New("wrong password") // fail synchronously inside Unlock
+
+	svc := &Service{
+		ArkClient:     fake,
+		isInitialized: true,
+		syncLock:      &sync.RWMutex{},
+	}
+
+	err := svc.UnlockNode(context.Background(), "wrong")
+	require.Error(t, err, "a wrong password must surface the Unlock error")
+	require.Nil(t, svc.syncCh, "a failed unlock must not arm the sync waiter")
 }

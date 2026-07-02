@@ -507,17 +507,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	// wallet, so the unlock window can't expose a nil publicKey/privateKey/swapHandler.
 	s.walletReady.Store(false)
 
-	s.syncCh = make(chan types.SyncEvent, 1)
-
-	wg := &sync.WaitGroup{}
-	wg.Go(func() {
-		s.syncLock.Lock()
-		defer s.syncLock.Unlock()
-		ev := <-s.ArkClient.IsSynced(context.Background())
-		s.syncEvent = &ev
-		s.syncCh <- ev
-	})
-
 	if err := s.Unlock(ctx, password); err != nil {
 		return err
 	}
@@ -537,6 +526,21 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return err
 	}
 	s.externalSubscription = subsHandler
+
+	// Arm the sync waiter only now that every synchronous failure path is past.
+	// Arming it before Unlock/GetConfigData/newSubscriptionHandler can still fail
+	// would leave this goroutine blocked on IsSynced while holding syncLock (a
+	// failed unlock never syncs), wedging every later retry. Starting it here can't
+	// miss the event: IsSynced replays a completed sync via its syncDone fast-path.
+	s.syncCh = make(chan types.SyncEvent, 1)
+	wg := &sync.WaitGroup{}
+	wg.Go(func() {
+		s.syncLock.Lock()
+		defer s.syncLock.Unlock()
+		ev := <-s.ArkClient.IsSynced(context.Background())
+		s.syncEvent = &ev
+		s.syncCh <- ev
+	})
 
 	// This go routine takes care of scheduling the next settlement and restore the watch
 	// for the subscribed addresses.

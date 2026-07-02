@@ -102,6 +102,10 @@ type fakeArkClient struct {
 	// onSettle, if set, is run while holding the lock when Settle is called,
 	// so a test can simulate the vtxo set being renewed by the settlement.
 	onSettle func()
+
+	// locked / unlockErr let a test drive UnlockNode's guard and its Unlock call.
+	locked    bool
+	unlockErr error
 }
 
 func newFakeArkClient() *fakeArkClient {
@@ -136,7 +140,15 @@ func (f *fakeArkClient) GetVtxoEventChannel(_ context.Context) <-chan types.Vtxo
 	return f.eventCh
 }
 
-func (f *fakeArkClient) IsLocked(_ context.Context) bool { return false }
+func (f *fakeArkClient) IsLocked(_ context.Context) bool { return f.locked }
+
+func (f *fakeArkClient) Unlock(_ context.Context, _ string) error { return f.unlockErr }
+
+// IsSynced returns a channel that never fires, mimicking the SDK when a wallet
+// was never unlocked (e.g. a failed Unlock): the sync never completes.
+func (f *fakeArkClient) IsSynced(_ context.Context) <-chan types.SyncEvent {
+	return make(chan types.SyncEvent)
+}
 
 func (f *fakeArkClient) Lock(_ context.Context) error {
 	f.mu.Lock()
