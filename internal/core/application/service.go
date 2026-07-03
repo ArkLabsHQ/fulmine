@@ -104,6 +104,7 @@ type Service struct {
 	swapTimeout uint32
 
 	isInitialized bool
+	walletReady   atomic.Bool // true once UnlockNode has populated publicKey/privateKey/swapHandler
 	syncLock      *sync.RWMutex
 	syncEvent     *types.SyncEvent
 	syncCh        chan types.SyncEvent
@@ -115,7 +116,10 @@ type Service struct {
 	// Notification channels
 	notifications chan Notification
 
-	stopVtxoEventListener chan struct{}
+	// vtxoListenerCancel stops subscribeForVtxoEvent. A context cancel is idempotent
+	// and non-blocking, so lock and unlock-rollback can stop the listener without the
+	// unbuffered-channel hand-off that could hang if it had already exited.
+	vtxoListenerCancel context.CancelFunc
 
 	// renewing is a single-flight guard so that, while we are settling to renew
 	// already-expired vtxos, concurrent vtxo events don't pile up extra settles.
@@ -207,20 +211,19 @@ func newService(
 		}
 
 		svc := &Service{
-			BuildInfo:             buildInfo,
-			ArkClient:             arkClient,
-			dbSvc:                 dbSvc,
-			schedulerSvc:          schedulerSvc,
-			publicKey:             nil,
-			isInitialized:         true,
-			notifications:         make(chan Notification),
-			stopVtxoEventListener: make(chan struct{}),
-			esploraUrl:            data.ExplorerURL,
-			boltzUrl:              boltzUrl,
-			boltzWSUrl:            boltzWSUrl,
-			swapTimeout:           swapTimeout,
-			walletUpdates:         make(chan WalletUpdate),
-			syncLock:              &sync.RWMutex{},
+			BuildInfo:     buildInfo,
+			ArkClient:     arkClient,
+			dbSvc:         dbSvc,
+			schedulerSvc:  schedulerSvc,
+			publicKey:     nil,
+			isInitialized: true,
+			notifications: make(chan Notification),
+			esploraUrl:    data.ExplorerURL,
+			boltzUrl:      boltzUrl,
+			boltzWSUrl:    boltzWSUrl,
+			swapTimeout:   swapTimeout,
+			walletUpdates: make(chan WalletUpdate),
+			syncLock:      &sync.RWMutex{},
 		}
 
 		if err := svc.RefreshServerConfig(context.Background()); err != nil {
@@ -248,18 +251,17 @@ func newService(
 	}
 
 	svc := &Service{
-		BuildInfo:             buildInfo,
-		ArkClient:             arkClient,
-		dbSvc:                 dbSvc,
-		schedulerSvc:          schedulerSvc,
-		notifications:         make(chan Notification),
-		stopVtxoEventListener: make(chan struct{}),
-		esploraUrl:            esploraUrl,
-		boltzUrl:              boltzUrl,
-		boltzWSUrl:            boltzWSUrl,
-		swapTimeout:           swapTimeout,
-		walletUpdates:         make(chan WalletUpdate),
-		syncLock:              &sync.RWMutex{},
+		BuildInfo:     buildInfo,
+		ArkClient:     arkClient,
+		dbSvc:         dbSvc,
+		schedulerSvc:  schedulerSvc,
+		notifications: make(chan Notification),
+		esploraUrl:    esploraUrl,
+		boltzUrl:      boltzUrl,
+		boltzWSUrl:    boltzWSUrl,
+		swapTimeout:   swapTimeout,
+		walletUpdates: make(chan WalletUpdate),
+		syncLock:      &sync.RWMutex{},
 	}
 
 	return svc, nil
@@ -431,11 +433,13 @@ func (s *Service) LockNode(ctx context.Context) error {
 		s.externalSubscription.stop()
 	}
 
-	// close boarding event listener
-	s.stopVtxoEventListener <- struct{}{}
-	close(s.stopVtxoEventListener)
-	s.stopVtxoEventListener = make(chan struct{})
+	// stop the vtxo event listener (cancel is idempotent and never blocks)
+	if s.vtxoListenerCancel != nil {
+		s.vtxoListenerCancel()
+		s.vtxoListenerCancel = nil
+	}
 
+	s.walletReady.Store(false)
 	s.syncEvent = nil
 	if s.syncCh != nil {
 		close(s.syncCh)
@@ -449,6 +453,48 @@ func (s *Service) LockNode(ctx context.Context) error {
 	return nil
 }
 
+// unwindFailedUnlock rolls back a partially-completed unlock so the wallet
+// returns to a clean locked state and a fresh unlock can retry, instead of being
+// stuck "finalizing unlock" until a restart. It runs only from UnlockNode's
+// post-sync goroutine after wg.Wait, and LockNode is gated out while walletReady
+// is false, so there is no concurrent teardown to race with.
+func (s *Service) unwindFailedUnlock() {
+	if s.schedulerSvc != nil {
+		s.schedulerSvc.Stop()
+	}
+	if s.externalSubscription != nil {
+		s.externalSubscription.stop()
+	}
+	// stop the vtxo event listener if it launched (cancel is idempotent / non-blocking)
+	if s.vtxoListenerCancel != nil {
+		s.vtxoListenerCancel()
+		s.vtxoListenerCancel = nil
+	}
+
+	// Stop the delegate service that onUnlock may have started before the failure;
+	// otherwise its event loops keep running against the wallet we re-lock below.
+	// Stop is idempotent and non-blocking, so this is safe even on the early paths
+	// where onUnlock never ran.
+	if s.onLock != nil {
+		s.onLock()
+	}
+
+	s.walletReady.Store(false)
+	s.syncEvent = nil
+	if s.syncCh != nil {
+		close(s.syncCh)
+		s.syncCh = nil
+	}
+
+	// Re-lock LAST. s.Lock makes IsLocked() return true, which reopens UnlockNode's
+	// guard; tearing down syncCh/syncEvent/walletReady first means a retry that races
+	// in right after the lock allocates a fresh syncCh instead of finding this one
+	// mid-close (a send on a closed syncCh would panic its sync goroutine).
+	if err := s.Lock(context.Background()); err != nil {
+		log.WithError(err).Error("failed to re-lock after a failed unlock")
+	}
+}
+
 func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if !s.isInitialized {
 		return fmt.Errorf("service not initialized")
@@ -457,16 +503,9 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return nil
 	}
 
-	s.syncCh = make(chan types.SyncEvent, 1)
-
-	wg := &sync.WaitGroup{}
-	wg.Go(func() {
-		s.syncLock.Lock()
-		defer s.syncLock.Unlock()
-		ev := <-s.ArkClient.IsSynced(context.Background())
-		s.syncEvent = &ev
-		s.syncCh <- ev
-	})
+	// Stays closed until the post-sync goroutine below finishes assembling the
+	// wallet, so the unlock window can't expose a nil publicKey/privateKey/swapHandler.
+	s.walletReady.Store(false)
 
 	if err := s.Unlock(ctx, password); err != nil {
 		return err
@@ -488,11 +527,33 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	}
 	s.externalSubscription = subsHandler
 
+	// Arm the sync waiter only now that every synchronous failure path is past.
+	// Arming it before Unlock/GetConfigData/newSubscriptionHandler can still fail
+	// would leave this goroutine blocked on IsSynced while holding syncLock (a
+	// failed unlock never syncs), wedging every later retry. Starting it here can't
+	// miss the event: IsSynced replays a completed sync via its syncDone fast-path.
+	s.syncCh = make(chan types.SyncEvent, 1)
+	wg := &sync.WaitGroup{}
+	wg.Go(func() {
+		s.syncLock.Lock()
+		defer s.syncLock.Unlock()
+		ev := <-s.ArkClient.IsSynced(context.Background())
+		s.syncEvent = &ev
+		s.syncCh <- ev
+	})
+
 	// This go routine takes care of scheduling the next settlement and restore the watch
 	// for the subscribed addresses.
 	// All operations that require the sdk client to be synced must stay here.
 	// TODO: Improve by handling the errors instead of just logging them.
 	go func() {
+		// This goroutine outlives UnlockNode, so its request-scoped ctx is likely
+		// already canceled by the time wg.Wait returns. Use a detached context for
+		// the finalization work below (same reason the vtxo listener detaches): a
+		// canceled ctx would make Dump/resumePendingSwapRefunds fail and spuriously
+		// trigger unwindFailedUnlock on an unlock the caller already saw succeed.
+		finalizeCtx := context.Background()
+
 		// We must wait for the client to be synced before doing anything.
 		wg.Wait()
 
@@ -502,15 +563,17 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		// Load delegate signer key.
-		prvkeyStr, err := s.Dump(ctx)
+		prvkeyStr, err := s.Dump(finalizeCtx)
 		if err != nil {
 			log.WithError(err).Error("failed to get delegate signer key")
+			s.unwindFailedUnlock()
 			return
 		}
 
 		buf, err := hex.DecodeString(prvkeyStr)
 		if err != nil {
 			log.WithError(err).Error("failed to decode delegate signer key")
+			s.unwindFailedUnlock()
 			return
 		}
 
@@ -535,15 +598,17 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		// Resume pending swap refunds.
-		go s.resumePendingSwapRefunds(ctx)
+		go s.resumePendingSwapRefunds(finalizeCtx)
 
 		// Detach from the request-scoped ctx: this listener lives for the whole
-		// unlocked session (stopped via stopVtxoEventListener), and it makes
+		// unlocked session (stopped by cancelling its context), and it makes
 		// long-lived sdk calls (ListVtxos/Settle) on every refresh. If it kept
 		// the UnlockNode ctx, that ctx being canceled after unlock returns would
 		// make every refresh fail with "context canceled" and silently stop
 		// rescheduling settlements.
-		go s.subscribeForVtxoEvent(context.Background(), arkConfig)
+		listenerCtx, cancel := context.WithCancel(context.Background())
+		s.vtxoListenerCancel = cancel
+		go s.subscribeForVtxoEvent(listenerCtx, arkConfig)
 
 		// Schedule next settlement for the current vtxo set. Subsequent updates
 		// are handled by subscribeForVtxoEvent and its periodic safety check.
@@ -551,10 +616,19 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 			log.WithError(err).Error("failed to schedule next settlement")
 		}
 
-		// nolint
-		s.swapHandler, _ = swap.NewSwapHandler(
+		swapHandler, err := swap.NewSwapHandler(
 			s.ArkClient, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
 		)
+		if err != nil {
+			log.WithError(err).Error("failed to create swap handler; rolling back unlock")
+			s.unwindFailedUnlock()
+			return
+		}
+		s.swapHandler = swapHandler
+
+		// All gate-required fields are populated; open the gate. The atomic store
+		// publishes the writes above to any reader that passes the gate.
+		s.walletReady.Store(true)
 
 		go s.recoverChainSwaps(context.Background(), arkConfig)
 
@@ -595,6 +669,7 @@ func (s *Service) ResetWallet(ctx context.Context) error {
 	}
 
 	s.isInitialized = false
+	s.walletReady.Store(false)
 	s.syncEvent = nil
 	if s.syncCh != nil {
 		close(s.syncCh)
@@ -1599,6 +1674,13 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 		return fmt.Errorf("service is syncing")
 	}
 
+	// syncEvent only signals that the sdk finished syncing; UnlockNode's post-sync
+	// goroutine then populates publicKey/privateKey/swapHandler. Gate on walletReady
+	// too so a request in that window fails cleanly instead of nil-derefing a field.
+	if !s.walletReady.Load() {
+		return fmt.Errorf("wallet is finalizing unlock")
+	}
+
 	return nil
 }
 
@@ -1969,7 +2051,7 @@ func (s *Service) subscribeForVtxoEvent(ctx context.Context, cfg *clientTypes.Co
 
 	for {
 		select {
-		case <-s.stopVtxoEventListener:
+		case <-ctx.Done():
 			return
 		case <-ticker.C:
 			refresh()

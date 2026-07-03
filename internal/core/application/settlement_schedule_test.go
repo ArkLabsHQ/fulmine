@@ -94,13 +94,18 @@ func TestSettlementScheduleSettlesAlreadyExpiredVtxos(t *testing.T) {
 type fakeArkClient struct {
 	arksdk.ArkClient
 
-	mu        sync.Mutex
-	spendable []clientTypes.Vtxo
-	eventCh   chan types.VtxoEvent
-	settles   int
+	mu         sync.Mutex
+	spendable  []clientTypes.Vtxo
+	eventCh    chan types.VtxoEvent
+	settles    int
+	lockCalled bool
 	// onSettle, if set, is run while holding the lock when Settle is called,
 	// so a test can simulate the vtxo set being renewed by the settlement.
 	onSettle func()
+
+	// locked / unlockErr let a test drive UnlockNode's guard and its Unlock call.
+	locked    bool
+	unlockErr error
 }
 
 func newFakeArkClient() *fakeArkClient {
@@ -135,7 +140,28 @@ func (f *fakeArkClient) GetVtxoEventChannel(_ context.Context) <-chan types.Vtxo
 	return f.eventCh
 }
 
-func (f *fakeArkClient) IsLocked(_ context.Context) bool { return false }
+func (f *fakeArkClient) IsLocked(_ context.Context) bool { return f.locked }
+
+func (f *fakeArkClient) Unlock(_ context.Context, _ string) error { return f.unlockErr }
+
+// IsSynced returns a channel that never fires, mimicking the SDK when a wallet
+// was never unlocked (e.g. a failed Unlock): the sync never completes.
+func (f *fakeArkClient) IsSynced(_ context.Context) <-chan types.SyncEvent {
+	return make(chan types.SyncEvent)
+}
+
+func (f *fakeArkClient) Lock(_ context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.lockCalled = true
+	return nil
+}
+
+func (f *fakeArkClient) wasLocked() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.lockCalled
+}
 
 func (f *fakeArkClient) Settle(_ context.Context, _ ...arksdk.BatchSessionOption) (string, error) {
 	f.mu.Lock()
@@ -165,23 +191,26 @@ func newTestService(t *testing.T, fake *fakeArkClient) (*Service, func(types.Vtx
 	sched.Start()
 
 	svc := &Service{
-		ArkClient:             fake,
-		schedulerSvc:          sched,
-		stopVtxoEventListener: make(chan struct{}),
+		ArkClient:    fake,
+		schedulerSvc: sched,
 		// Mark the service initialized/unlocked/synced so the guarded Settle
 		// (isInitializedAndUnlocked) used by the renewal path is allowed to run.
 		isInitialized: true,
 		syncEvent:     &types.SyncEvent{},
 	}
+	// The gate also requires the wallet to be fully assembled (publicKey/swapHandler).
+	svc.walletReady.Store(true)
 
 	// SessionDuration is tiny so the 2-session safety offset doesn't push
 	// far-future schedules around in a way that would confuse the assertions.
 	cfg := &clientTypes.Config{SessionDuration: 1}
 
-	go svc.subscribeForVtxoEvent(context.Background(), cfg)
+	listenerCtx, cancel := context.WithCancel(context.Background())
+	svc.vtxoListenerCancel = cancel
+	go svc.subscribeForVtxoEvent(listenerCtx, cfg)
 
 	t.Cleanup(func() {
-		close(svc.stopVtxoEventListener)
+		cancel()
 		sched.Stop()
 	})
 
