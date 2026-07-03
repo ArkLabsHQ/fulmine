@@ -184,3 +184,51 @@ func TestLnurlPayURL(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestResolveLnurlPayMetadata(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/pay", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, `{"tag":"payRequest","callback":"https://x/cb","minSendable":1000,"maxSendable":500000000,"metadata":"[[\"text/plain\",\"Pay Alice\"],[\"text/identifier\",\"alice@x.com\"]]","commentAllowed":120}`)
+	})
+	srv := httptest.NewTLSServer(mux)
+	defer srv.Close()
+
+	t.Run("returns min/max sats, description and comment length", func(t *testing.T) {
+		meta, err := ResolveLnurlPayMetadata(srv.Client(), encodeLnurl(t, srv.URL+"/pay"))
+		require.NoError(t, err)
+		require.Equal(t, uint64(1), meta.MinSats)      // 1000 msat -> 1 sat
+		require.Equal(t, uint64(500000), meta.MaxSats) // 500_000_000 msat -> 500_000 sat
+		require.Equal(t, "Pay Alice", meta.Description)
+		require.Equal(t, 120, meta.CommentAllowed)
+	})
+
+	t.Run("surfaces an endpoint error", func(t *testing.T) {
+		errMux := http.NewServeMux()
+		errMux.HandleFunc("/pay", func(w http.ResponseWriter, _ *http.Request) {
+			fmt.Fprint(w, `{"status":"ERROR","reason":"no such user"}`)
+		})
+		errSrv := httptest.NewTLSServer(errMux)
+		defer errSrv.Close()
+		_, err := ResolveLnurlPayMetadata(errSrv.Client(), encodeLnurl(t, errSrv.URL+"/pay"))
+		require.ErrorContains(t, err, "no such user")
+	})
+}
+
+func TestLnurlDescription(t *testing.T) {
+	require.Equal(t, "Hello", lnurlDescription(`[["text/plain","Hello"],["image/png;base64","x"]]`))
+	require.Equal(t, "", lnurlDescription(""))
+	require.Equal(t, "", lnurlDescription(`not json`))
+	require.Equal(t, "", lnurlDescription(`[["text/identifier","a@b.com"]]`)) // no text/plain
+}
+
+func TestMsatToSats(t *testing.T) {
+	// Floor for maximums (the most you can send).
+	require.Equal(t, uint64(1), msatToSats(1000))
+	require.Equal(t, uint64(1), msatToSats(1999))
+	require.Equal(t, uint64(0), msatToSats(999))
+	// Ceil for minimums: a 1500-msat minimum isn't satisfied by a 1-sat send.
+	require.Equal(t, uint64(1), msatToSatsCeil(1000))
+	require.Equal(t, uint64(2), msatToSatsCeil(1001))
+	require.Equal(t, uint64(2), msatToSatsCeil(1500))
+	require.Equal(t, uint64(0), msatToSatsCeil(0))
+}

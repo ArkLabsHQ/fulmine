@@ -42,6 +42,7 @@ templ SendBodyContent(currentBalance string) {
 					@components.BalanceWithMax(components.ArkBalanceIcon(), currentBalance)
 					@components.InputAddress()
 					@components.SendAmount(currentBalance)
+					<p id="lnurlInfo" class="hidden mt-2 text-center text-sm text-white/50"></p>
 	    	</div>
 	    	@components.ActionButtons("Preview send", true)
 	    </div>
@@ -113,6 +114,40 @@ templ SendBodyContent(currentBalance string) {
 			return /^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$/.test(s) || s.startsWith('lnurl1')
 		}
 
+	  let lnurlMeta = null
+	  let lnurlTimer = null
+	  let lnurlFetchedFor = ''
+	  const fmtSats = (n) => Number(n).toLocaleString()
+
+	  const renderLnurlInfo = () => {
+			const info = document.querySelector('#lnurlInfo')
+			if (!lnurlMeta) { info.classList.add('hidden'); info.textContent = ''; return }
+			let txt = `min ${fmtSats(lnurlMeta.minSats)} sats`
+			if (lnurlMeta.maxSats > 0) txt += ` · max ${fmtSats(lnurlMeta.maxSats)} sats`
+			if (lnurlMeta.description) txt += ` — ${lnurlMeta.description}`
+			info.textContent = txt
+			info.classList.remove('hidden')
+		}
+
+	  const fetchLnurlMetadata = (address) => {
+			lnurlFetchedFor = address
+			clearTimeout(lnurlTimer)
+			lnurlTimer = setTimeout(async () => {
+				const data = new FormData()
+				data.set('address', address)
+				let meta = null
+				try {
+					const res = await fetch('/helpers/lnurl/metadata', { method: 'POST', body: data })
+					const json = await res.json()
+					if (res.ok && json.valid) meta = json
+				} catch (e) {}
+				if (address !== lnurlFetchedFor) return
+				lnurlMeta = meta
+				renderLnurlInfo()
+				canSend()
+			}, 400)
+		}
+
 	  const canSend = async () => {
 			const address = document.querySelector('#address').value
 			const amount = document.querySelector('#amount').value
@@ -123,8 +158,22 @@ templ SendBodyContent(currentBalance string) {
 			button.innerText = sats > balance ? 'Not enough funds' : 'Preview send'
 			if (address && isLnAddressOrLnurl(address)) {
 				document.querySelector('#amount').disabled = false
-				if (sats && sats <= balance) button.innerText = 'Send to lightning'
+				if (address !== lnurlFetchedFor) {
+					lnurlMeta = null
+					renderLnurlInfo()
+					fetchLnurlMetadata(address)
+				}
+				if (lnurlMeta && sats && sats < lnurlMeta.minSats) {
+					button.disabled = true
+					button.innerText = `Min ${fmtSats(lnurlMeta.minSats)} sats`
+				} else if (lnurlMeta && sats && lnurlMeta.maxSats > 0 && sats > lnurlMeta.maxSats) {
+					button.disabled = true
+					button.innerText = `Max ${fmtSats(lnurlMeta.maxSats)} sats`
+				} else if (sats && sats <= balance) {
+					button.innerText = 'Send to lightning'
+				}
 			} else if (address) {
+				if (lnurlFetchedFor) { lnurlMeta = null; lnurlFetchedFor = ''; renderLnurlInfo() }
 				const [isNote, isInvoice, isBip21, isOffer] = await Promise.all([
 					validateArkNote(address),
 					validateInvoice(address),

@@ -44,12 +44,14 @@ func IsLnAddressOrLnurl(s string) bool {
 }
 
 type lnurlPayResponse struct {
-	Callback    string `json:"callback"`
-	MinSendable int64  `json:"minSendable"` // millisats
-	MaxSendable int64  `json:"maxSendable"` // millisats
-	Tag         string `json:"tag"`
-	Status      string `json:"status"`
-	Reason      string `json:"reason"`
+	Callback       string `json:"callback"`
+	MinSendable    int64  `json:"minSendable"` // millisats
+	MaxSendable    int64  `json:"maxSendable"` // millisats
+	Metadata       string `json:"metadata"`    // JSON-encoded [[type,value],...] array
+	CommentAllowed int    `json:"commentAllowed"`
+	Tag            string `json:"tag"`
+	Status         string `json:"status"`
+	Reason         string `json:"reason"`
 }
 
 type lnurlInvoiceResponse struct {
@@ -70,24 +72,9 @@ func ResolveLightningAddressOrLnurl(client *http.Client, input string, amountSat
 		client = newSafeHTTPClient()
 	}
 
-	payURLStr, err := lnurlPayURL(input)
+	meta, payURL, err := fetchLnurlPayRequest(client, input)
 	if err != nil {
 		return "", err
-	}
-	payURL, err := validateOutboundURL(payURLStr)
-	if err != nil {
-		return "", err
-	}
-
-	var meta lnurlPayResponse
-	if err := getJSON(client, payURL.String(), &meta); err != nil {
-		return "", fmt.Errorf("failed to reach the Lightning endpoint: %w", err)
-	}
-	if strings.EqualFold(meta.Status, "ERROR") {
-		return "", fmt.Errorf("lightning endpoint error: %s", meta.Reason)
-	}
-	if !strings.EqualFold(meta.Tag, "payRequest") {
-		return "", fmt.Errorf("not a Lightning pay endpoint")
 	}
 
 	amountMsat := int64(amountSats) * 1000
@@ -122,6 +109,99 @@ func ResolveLightningAddressOrLnurl(client *http.Client, input string, amountSat
 		return "", fmt.Errorf("the Lightning endpoint returned no invoice")
 	}
 	return inv.Pr, nil
+}
+
+// LnurlPayMetadata is the recipient-facing info from an LNURL-pay / Lightning
+// Address pay-request, surfaced to the sender before they pick an amount.
+type LnurlPayMetadata struct {
+	MinSats        uint64
+	MaxSats        uint64
+	Description    string // the text/plain entry from the LNURL-pay metadata
+	CommentAllowed int    // LUD-12 max comment length; 0 if unsupported
+}
+
+// ResolveLnurlPayMetadata fetches the pay-request for a Lightning Address (LUD-16)
+// or LNURL-pay (LUD-06) and returns its sendable range and description, without
+// requesting an invoice. Used to show min/max/description on the send screen.
+// Same SSRF protections as ResolveLightningAddressOrLnurl; pass a non-nil client
+// only in tests.
+func ResolveLnurlPayMetadata(client *http.Client, input string) (*LnurlPayMetadata, error) {
+	if client == nil {
+		client = newSafeHTTPClient()
+	}
+	meta, _, err := fetchLnurlPayRequest(client, input)
+	if err != nil {
+		return nil, err
+	}
+	return &LnurlPayMetadata{
+		MinSats:        msatToSatsCeil(meta.MinSendable),
+		MaxSats:        msatToSats(meta.MaxSendable),
+		Description:    lnurlDescription(meta.Metadata),
+		CommentAllowed: meta.CommentAllowed,
+	}, nil
+}
+
+// fetchLnurlPayRequest resolves the input to its pay-request URL and fetches the
+// LNURL-pay response, validating it's a non-error payRequest. client must be
+// non-nil (callers apply newSafeHTTPClient for the nil case). Returns the parsed
+// response and the pay-request URL (for the callback same-host check).
+func fetchLnurlPayRequest(client *http.Client, input string) (*lnurlPayResponse, *url.URL, error) {
+	payURLStr, err := lnurlPayURL(input)
+	if err != nil {
+		return nil, nil, err
+	}
+	payURL, err := validateOutboundURL(payURLStr)
+	if err != nil {
+		return nil, nil, err
+	}
+	var meta lnurlPayResponse
+	if err := getJSON(client, payURL.String(), &meta); err != nil {
+		return nil, nil, fmt.Errorf("failed to reach the Lightning endpoint: %w", err)
+	}
+	if strings.EqualFold(meta.Status, "ERROR") {
+		return nil, nil, fmt.Errorf("lightning endpoint error: %s", meta.Reason)
+	}
+	if !strings.EqualFold(meta.Tag, "payRequest") {
+		return nil, nil, fmt.Errorf("not a Lightning pay endpoint")
+	}
+	return &meta, payURL, nil
+}
+
+// msatToSats converts millisats to whole sats, flooring; negatives become 0.
+func msatToSats(msat int64) uint64 {
+	if msat < 0 {
+		return 0
+	}
+	return uint64(msat) / 1000
+}
+
+// msatToSatsCeil converts millisats to whole sats, rounding up; negatives become
+// 0. Minimums round up so the advertised value is actually sendable -- the
+// backend enforces the exact millisat minimum, so flooring would show a sat
+// amount that gets rejected on submit.
+func msatToSatsCeil(msat int64) uint64 {
+	if msat <= 0 {
+		return 0
+	}
+	return uint64((msat + 999) / 1000)
+}
+
+// lnurlDescription extracts the text/plain description from an LNURL-pay metadata
+// array ([[type, value], ...]); returns "" if absent or unparseable.
+func lnurlDescription(metadata string) string {
+	if metadata == "" {
+		return ""
+	}
+	var pairs [][]string
+	if err := json.Unmarshal([]byte(metadata), &pairs); err != nil {
+		return ""
+	}
+	for _, p := range pairs {
+		if len(p) == 2 && p[0] == "text/plain" {
+			return p[1]
+		}
+	}
+	return ""
 }
 
 // lnurlPayURL turns a Lightning Address or LNURL into its initial pay-request URL.

@@ -138,6 +138,7 @@ func NewService(
 	svc.POST("/helpers/forgot", svc.forgotApi)
 	svc.POST("/helpers/invoice/validate", svc.validateInvoiceApi)
 	svc.POST("/helpers/offer/validate", svc.validateOfferApi)
+	svc.POST("/helpers/lnurl/metadata", svc.lnurlMetadataApi)
 	svc.POST("/helpers/note/validate", svc.validateNoteApi)
 	svc.POST("/helpers/mnemonic/validate", svc.validateMnemonicApi)
 	svc.POST("/helpers/privatekey/validate", svc.validatePrivateKeyApi)
