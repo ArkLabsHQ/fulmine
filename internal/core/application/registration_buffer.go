@@ -21,7 +21,7 @@ type registrationBuffer struct {
 	maxBatch int             // <= 0 means unbounded
 	register func(id string) // registers a single task by id (best-effort)
 
-	now func() time.Time     // clock (injectable for tests)
+	now func() time.Time      // clock (injectable for tests)
 	arm func(d time.Duration) // (re)arm the flush timer (injectable for tests)
 
 	entries  []bufferedRegistration

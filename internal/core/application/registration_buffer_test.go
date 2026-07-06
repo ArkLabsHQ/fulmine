@@ -29,7 +29,7 @@ func TestBufferCoalescesWithinWindow(t *testing.T) {
 	require.Equal(t, time.Hour, *armed) // first task opens a 1h window
 	b.enqueue("b", far)
 	require.Empty(t, *registered) // nothing registered yet
-	b.flush()                      // simulate the timer firing
+	b.flush()                     // simulate the timer firing
 	require.Equal(t, []string{"a", "b"}, *registered)
 }
 
