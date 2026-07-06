@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -42,6 +43,9 @@ func sendOffChainWithRecovery(
 	attempts int,
 	retryDelay time.Duration,
 ) (string, error) {
+	if attempts <= 0 {
+		return "", fmt.Errorf("attempts must be positive, got %d", attempts)
+	}
 	var txid string
 	var err error
 	for attempt := 0; attempt < attempts; attempt++ {
