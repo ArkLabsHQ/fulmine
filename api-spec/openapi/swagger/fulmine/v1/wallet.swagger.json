@@ -18,7 +18,7 @@
   "paths": {
     "/v1/password/change": {
       "post": {
-        "summary": "ChangePassword changes the password used to encrypt/decrypt the HD seeds.\nIt requires the wallet to be locked.",
+        "summary": "ChangePassword changes the password used to encrypt/decrypt the HD seeds.\r\nIt requires the wallet to be locked.",
         "operationId": "WalletService_ChangePassword",
         "responses": {
           "200": {
@@ -84,7 +84,7 @@
     },
     "/v1/wallet/create": {
       "post": {
-        "summary": "CreateWallet creates an HD Wallet based on signing seeds,\nencrypts them with the password and persists the encrypted seeds.",
+        "summary": "CreateWallet creates an HD Wallet based on signing seeds,\r\nencrypts them with the password and persists the encrypted seeds.",
         "operationId": "WalletService_CreateWallet",
         "responses": {
           "200": {
@@ -173,7 +173,7 @@
     },
     "/v1/wallet/restore": {
       "post": {
-        "summary": "RestoreWallet restores an HD Wallet based on signing seeds,\nencrypts them with the password and persists the encrypted seeds.",
+        "summary": "RestoreWallet restores an HD Wallet based on signing seeds,\r\nencrypts them with the password and persists the encrypted seeds.",
         "operationId": "WalletService_RestoreWallet",
         "responses": {
           "200": {
@@ -336,11 +336,11 @@
       "properties": {
         "privateKey": {
           "type": "string",
-          "description": "The private key from where signing key pairs are derived.\nIn 64 chars hexadecimal format."
+          "description": "The private key from where signing key pairs are derived.\r\nIn 64 chars hexadecimal format."
         },
         "password": {
           "type": "string",
-          "description": "The password to decrypt HD wallet. After creation, the wallet is locked\nand the same password is required to unlock it."
+          "description": "The password to decrypt HD wallet. After creation, the wallet is locked\r\nand the same password is required to unlock it."
         },
         "serverUrl": {
           "type": "string",
@@ -385,7 +385,7 @@
         },
         "password": {
           "type": "string",
-          "description": "The password to decrypt HD wallet. After restoration, the wallet is locked\nand the same password is required to unlock it."
+          "description": "The password to decrypt HD wallet. After restoration, the wallet is locked\r\nand the same password is required to unlock it."
         },
         "serverUrl": {
           "type": "string",

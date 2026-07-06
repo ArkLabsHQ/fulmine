@@ -24,6 +24,15 @@ service DelegateService {
       body: "*"
     };
   };
+
+  // GetDelegateQueue returns intents currently held for coalesced registration
+  rpc GetDelegateQueue(GetDelegateQueueRequest) returns (GetDelegateQueueResponse) {
+    option (google.api.http) = { get: "/v1/delegate/queue" };
+  };
+  // FlushDelegateQueue registers all currently-held intents immediately
+  rpc FlushDelegateQueue(FlushDelegateQueueRequest) returns (FlushDelegateQueueResponse) {
+    option (google.api.http) = { post: "/v1/delegate/queue/flush" body: "*" };
+  };
 }
 
 // GetDelegateInfoRequest is the request message for GetDelegateInfo rpc
@@ -62,3 +71,24 @@ message Intent {
   // Intent proof tx (psbt in base64 format)
   string proof = 2;
 }
+
+// GetDelegateQueueRequest is the request message for GetDelegateQueue rpc
+message GetDelegateQueueRequest {}
+// GetDelegateQueueResponse is the response message for GetDelegateQueue rpc
+message GetDelegateQueueResponse {
+  repeated DelegateQueueEntry entries = 1;
+  // Unix seconds of the next scheduled flush; 0 if the queue is empty
+  int64 next_flush_at = 2;
+  // Configured coalescing window in seconds
+  int64 coalesce_window = 3;
+}
+// DelegateQueueEntry describes a single intent buffered for coalesced registration
+message DelegateQueueEntry {
+  string task_id = 1;
+  // Unix seconds by which this intent must be registered
+  int64 register_by = 2;
+}
+// FlushDelegateQueueRequest is the request message for FlushDelegateQueue rpc
+message FlushDelegateQueueRequest {}
+// FlushDelegateQueueResponse is the response message for FlushDelegateQueue rpc
+message FlushDelegateQueueResponse {}

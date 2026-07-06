@@ -19,8 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	DelegateService_GetDelegateInfo_FullMethodName = "/fulmine.v1.DelegateService/GetDelegateInfo"
-	DelegateService_Delegate_FullMethodName        = "/fulmine.v1.DelegateService/Delegate"
+	DelegateService_GetDelegateInfo_FullMethodName    = "/fulmine.v1.DelegateService/GetDelegateInfo"
+	DelegateService_Delegate_FullMethodName           = "/fulmine.v1.DelegateService/Delegate"
+	DelegateService_GetDelegateQueue_FullMethodName   = "/fulmine.v1.DelegateService/GetDelegateQueue"
+	DelegateService_FlushDelegateQueue_FullMethodName = "/fulmine.v1.DelegateService/FlushDelegateQueue"
 )
 
 // DelegateServiceClient is the client API for DelegateService service.
@@ -34,6 +36,10 @@ type DelegateServiceClient interface {
 	GetDelegateInfo(ctx context.Context, in *GetDelegateInfoRequest, opts ...grpc.CallOption) (*GetDelegateInfoResponse, error)
 	// Delegate is consumed by clients to request the delegation of the refresh of their VTXOs
 	Delegate(ctx context.Context, in *DelegateRequest, opts ...grpc.CallOption) (*DelegateResponse, error)
+	// GetDelegateQueue returns intents currently held for coalesced registration
+	GetDelegateQueue(ctx context.Context, in *GetDelegateQueueRequest, opts ...grpc.CallOption) (*GetDelegateQueueResponse, error)
+	// FlushDelegateQueue registers all currently-held intents immediately
+	FlushDelegateQueue(ctx context.Context, in *FlushDelegateQueueRequest, opts ...grpc.CallOption) (*FlushDelegateQueueResponse, error)
 }
 
 type delegateServiceClient struct {
@@ -64,6 +70,26 @@ func (c *delegateServiceClient) Delegate(ctx context.Context, in *DelegateReques
 	return out, nil
 }
 
+func (c *delegateServiceClient) GetDelegateQueue(ctx context.Context, in *GetDelegateQueueRequest, opts ...grpc.CallOption) (*GetDelegateQueueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDelegateQueueResponse)
+	err := c.cc.Invoke(ctx, DelegateService_GetDelegateQueue_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *delegateServiceClient) FlushDelegateQueue(ctx context.Context, in *FlushDelegateQueueRequest, opts ...grpc.CallOption) (*FlushDelegateQueueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FlushDelegateQueueResponse)
+	err := c.cc.Invoke(ctx, DelegateService_FlushDelegateQueue_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DelegateServiceServer is the server API for DelegateService service.
 // All implementations should embed UnimplementedDelegateServiceServer
 // for forward compatibility
@@ -75,6 +101,10 @@ type DelegateServiceServer interface {
 	GetDelegateInfo(context.Context, *GetDelegateInfoRequest) (*GetDelegateInfoResponse, error)
 	// Delegate is consumed by clients to request the delegation of the refresh of their VTXOs
 	Delegate(context.Context, *DelegateRequest) (*DelegateResponse, error)
+	// GetDelegateQueue returns intents currently held for coalesced registration
+	GetDelegateQueue(context.Context, *GetDelegateQueueRequest) (*GetDelegateQueueResponse, error)
+	// FlushDelegateQueue registers all currently-held intents immediately
+	FlushDelegateQueue(context.Context, *FlushDelegateQueueRequest) (*FlushDelegateQueueResponse, error)
 }
 
 // UnimplementedDelegateServiceServer should be embedded to have forward compatible implementations.
@@ -86,6 +116,12 @@ func (UnimplementedDelegateServiceServer) GetDelegateInfo(context.Context, *GetD
 }
 func (UnimplementedDelegateServiceServer) Delegate(context.Context, *DelegateRequest) (*DelegateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delegate not implemented")
+}
+func (UnimplementedDelegateServiceServer) GetDelegateQueue(context.Context, *GetDelegateQueueRequest) (*GetDelegateQueueResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDelegateQueue not implemented")
+}
+func (UnimplementedDelegateServiceServer) FlushDelegateQueue(context.Context, *FlushDelegateQueueRequest) (*FlushDelegateQueueResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FlushDelegateQueue not implemented")
 }
 
 // UnsafeDelegateServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -135,6 +171,42 @@ func _DelegateService_Delegate_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DelegateService_GetDelegateQueue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDelegateQueueRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DelegateServiceServer).GetDelegateQueue(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DelegateService_GetDelegateQueue_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DelegateServiceServer).GetDelegateQueue(ctx, req.(*GetDelegateQueueRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DelegateService_FlushDelegateQueue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FlushDelegateQueueRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DelegateServiceServer).FlushDelegateQueue(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DelegateService_FlushDelegateQueue_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DelegateServiceServer).FlushDelegateQueue(ctx, req.(*FlushDelegateQueueRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DelegateService_ServiceDesc is the grpc.ServiceDesc for DelegateService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -149,6 +221,14 @@ var DelegateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Delegate",
 			Handler:    _DelegateService_Delegate_Handler,
+		},
+		{
+			MethodName: "GetDelegateQueue",
+			Handler:    _DelegateService_GetDelegateQueue_Handler,
+		},
+		{
+			MethodName: "FlushDelegateQueue",
+			Handler:    _DelegateService_FlushDelegateQueue_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

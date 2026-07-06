@@ -726,7 +726,7 @@
     },
     "/v1/vhtlc/spendTx/{vhtlcId}": {
       "get": {
-        "summary": "GetVHTLCSpendingTx returns the fully signed ark transaction for a spent VHTLC,\nwhether the VHTLC is spent by a finalized or pending tx.",
+        "summary": "GetVHTLCSpendingTx returns the fully signed ark transaction for a spent VHTLC,\r\nwhether the VHTLC is spent by a finalized or pending tx.",
         "operationId": "Service_GetVHTLCSpendingTx",
         "responses": {
           "200": {
@@ -827,7 +827,7 @@
     },
     "/v1/vtxos": {
       "get": {
-        "summary": "GetVtxos returns VTXOs filtered by the specified filter type.\nIf no filter is provided, returns all VTXOs.",
+        "summary": "GetVtxos returns VTXOs filtered by the specified filter type.\r\nIf no filter is provided, returns all VTXOs.",
         "operationId": "Service_GetVtxos",
         "responses": {
           "200": {
