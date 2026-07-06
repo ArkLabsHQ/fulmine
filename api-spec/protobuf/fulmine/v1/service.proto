@@ -542,12 +542,24 @@ message GetDelegateQueueResponse {
   int64 next_flush_at = 2;
   // Configured coalescing window in seconds
   int64 coalesce_window = 3;
+  // Configured expiry margin in seconds
+  int64 expiry_margin = 4;
+  // Configured maximum coalescing buffer size
+  int64 coalesce_max = 5;
 }
 // DelegateQueueEntry describes a single intent buffered for coalesced registration
 message DelegateQueueEntry {
   string task_id = 1;
   // Unix seconds by which this intent must be registered
   int64 register_by = 2;
+  // Intent txid
+  string intent_txid = 3;
+  // Inputs of the intent, formatted as txid:vout
+  repeated string inputs = 4;
+  // Fee amount in satoshis
+  uint64 fee = 5;
+  // Unix seconds when the task was scheduled
+  int64 scheduled_at = 6;
 }
 // FlushDelegateQueueRequest is the request message for FlushDelegateQueue rpc
 message FlushDelegateQueueRequest {}

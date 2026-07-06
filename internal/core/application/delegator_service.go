@@ -48,6 +48,7 @@ type DelegateService struct {
 
 	registrationBuffer *registrationBuffer
 	coalesceWindow     time.Duration
+	coalesceMax        int
 	expiryMargin       time.Duration
 }
 
@@ -69,6 +70,7 @@ func newDelegateService(
 		intentsMtx:        sync.Mutex{},
 		delegateMtx:       sync.Mutex{},
 		coalesceWindow:    coalesceWindow,
+		coalesceMax:       coalesceMax,
 		expiryMargin:      expiryMargin,
 	}
 	s.registrationBuffer = newRegistrationBuffer(coalesceWindow, coalesceMax, func(id string) {
@@ -349,16 +351,37 @@ func (s *DelegateService) enqueueForRegistration(task *domain.DelegateTask) {
 
 // DelegateQueueEntry describes a task awaiting registration.
 type DelegateQueueEntry struct {
-	TaskID     string
-	RegisterBy time.Time
+	TaskID      string
+	RegisterBy  time.Time
+	IntentTxid  string
+	Inputs      []string
+	Fee         uint64
+	ScheduledAt time.Time
 }
 
 // GetQueue returns the buffered tasks and the projected next flush time.
-func (s *DelegateService) GetQueue() ([]DelegateQueueEntry, time.Time) {
+func (s *DelegateService) GetQueue(ctx context.Context) ([]DelegateQueueEntry, time.Time) {
 	entries, nextFlush := s.registrationBuffer.snapshot()
 	out := make([]DelegateQueueEntry, len(entries))
 	for i, e := range entries {
-		out[i] = DelegateQueueEntry{TaskID: e.ID, RegisterBy: e.RegisterBy}
+		entry := DelegateQueueEntry{TaskID: e.ID, RegisterBy: e.RegisterBy}
+
+		task, err := s.svc.dbSvc.Delegate().GetByID(ctx, e.ID)
+		if err != nil {
+			log.WithError(err).Debugf("failed to fetch delegate task %s for queue entry", e.ID)
+			out[i] = entry
+			continue
+		}
+
+		entry.IntentTxid = task.Intent.Txid
+		entry.Fee = task.Fee
+		entry.ScheduledAt = task.ScheduledAt
+		entry.Inputs = make([]string, len(task.Intent.Inputs))
+		for j, op := range task.Intent.Inputs {
+			entry.Inputs[j] = fmt.Sprintf("%s:%d", op.Hash.String(), op.Index)
+		}
+
+		out[i] = entry
 	}
 	return out, nextFlush
 }
@@ -366,6 +389,16 @@ func (s *DelegateService) GetQueue() ([]DelegateQueueEntry, time.Time) {
 // CoalesceWindow returns the configured coalescing window duration.
 func (s *DelegateService) CoalesceWindow() time.Duration {
 	return s.coalesceWindow
+}
+
+// ExpiryMargin returns the configured expiry margin duration.
+func (s *DelegateService) ExpiryMargin() time.Duration {
+	return s.expiryMargin
+}
+
+// CoalesceMax returns the configured maximum coalescing buffer size.
+func (s *DelegateService) CoalesceMax() int {
+	return s.coalesceMax
 }
 
 // FlushRegistrationQueue registers all buffered tasks now.

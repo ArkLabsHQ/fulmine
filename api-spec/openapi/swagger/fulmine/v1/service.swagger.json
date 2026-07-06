@@ -1260,6 +1260,27 @@
           "type": "string",
           "format": "int64",
           "title": "Unix seconds by which this intent must be registered"
+        },
+        "intentTxid": {
+          "type": "string",
+          "title": "Intent txid"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "Inputs of the intent, formatted as txid:vout"
+        },
+        "fee": {
+          "type": "string",
+          "format": "uint64",
+          "title": "Fee amount in satoshis"
+        },
+        "scheduledAt": {
+          "type": "string",
+          "format": "int64",
+          "title": "Unix seconds when the task was scheduled"
         }
       },
       "title": "DelegateQueueEntry describes a single intent buffered for coalesced registration"
@@ -1325,6 +1346,16 @@
           "type": "string",
           "format": "int64",
           "title": "Configured coalescing window in seconds"
+        },
+        "expiryMargin": {
+          "type": "string",
+          "format": "int64",
+          "title": "Configured expiry margin in seconds"
+        },
+        "coalesceMax": {
+          "type": "string",
+          "format": "int64",
+          "title": "Configured maximum coalescing buffer size"
         }
       },
       "title": "GetDelegateQueueResponse is the response message for GetDelegateQueue rpc"

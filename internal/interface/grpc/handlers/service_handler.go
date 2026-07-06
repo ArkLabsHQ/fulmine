@@ -738,10 +738,17 @@ func (h *serviceHandler) GetDelegateQueue(
 	if h.delegateSvc == nil {
 		return nil, status.Error(codes.FailedPrecondition, "delegation not enabled")
 	}
-	entries, nextFlush := h.delegateSvc.GetQueue()
+	entries, nextFlush := h.delegateSvc.GetQueue(ctx)
 	pbEntries := make([]*pb.DelegateQueueEntry, len(entries))
 	for i, e := range entries {
-		pbEntries[i] = &pb.DelegateQueueEntry{TaskId: e.TaskID, RegisterBy: e.RegisterBy.Unix()}
+		pbEntries[i] = &pb.DelegateQueueEntry{
+			TaskId:      e.TaskID,
+			RegisterBy:  e.RegisterBy.Unix(),
+			IntentTxid:  e.IntentTxid,
+			Inputs:      e.Inputs,
+			Fee:         e.Fee,
+			ScheduledAt: e.ScheduledAt.Unix(),
+		}
 	}
 	var nextFlushAt int64
 	if !nextFlush.IsZero() {
@@ -751,6 +758,8 @@ func (h *serviceHandler) GetDelegateQueue(
 		Entries:        pbEntries,
 		NextFlushAt:    nextFlushAt,
 		CoalesceWindow: int64(h.delegateSvc.CoalesceWindow().Seconds()),
+		ExpiryMargin:   int64(h.delegateSvc.ExpiryMargin().Seconds()),
+		CoalesceMax:    int64(h.delegateSvc.CoalesceMax()),
 	}, nil
 }
 
