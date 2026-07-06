@@ -401,8 +401,10 @@ func (s *DelegateService) CoalesceMax() int {
 	return s.coalesceMax
 }
 
-// FlushRegistrationQueue registers all buffered tasks now.
-func (s *DelegateService) FlushRegistrationQueue() { s.registrationBuffer.flushNow() }
+// FlushRegistrationQueue registers all buffered tasks now (non-blocking).
+func (s *DelegateService) FlushRegistrationQueue() {
+	go s.registrationBuffer.flushNow()
+}
 
 func (s *DelegateService) getDelegateAddress(ctx context.Context) (*arklib.Address, error) {
 	s.delegateAddrMtx.Lock()
@@ -480,12 +482,29 @@ func (s *DelegateService) hydrateAndEnqueue(taskID string) {
 		return
 	}
 
+	if task.Status != domain.DelegateTaskStatusPending {
+		// task is not pending, it has been cancelled or completed
+		return
+	}
+
 	outpoints := make([]clientTypes.Outpoint, len(task.Intent.Inputs))
 	for i, in := range task.Intent.Inputs {
 		outpoints[i] = clientTypes.Outpoint{Txid: in.Hash.String(), VOut: in.Index}
 	}
-	if vtxos, err := s.svc.Indexer().GetVtxos(s.ctx, indexer.WithOutpoints(outpoints)); err == nil {
-		if expiry, err := earliestInputExpiry(vtxos.Vtxos); err == nil {
+	vtxos, err := s.svc.Indexer().GetVtxos(s.ctx, indexer.WithOutpoints(outpoints))
+	if err != nil {
+		log.WithError(err).WithField("task", taskID).Warnf(
+			"failed to GetVtxos for task %s outpoints during expiry recomputation, using zero expiry fallback",
+			taskID,
+		)
+	} else {
+		expiry, err := earliestInputExpiry(vtxos.Vtxos)
+		if err != nil {
+			log.WithError(err).WithField("task", taskID).Warnf(
+				"failed to compute earliestInputExpiry for task %s, using zero expiry fallback",
+				taskID,
+			)
+		} else {
 			task.EarliestInputExpiresAt = expiry
 		}
 	}
