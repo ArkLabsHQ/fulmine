@@ -303,7 +303,27 @@ func (s *DelegateService) newDelegateTask(
 			return nil, fmt.Errorf("input %d is unrolled", i)
 		}
 	}
+
+	expiry, err := earliestInputExpiry(vtxos.Vtxos)
+	if err != nil {
+		return nil, err
+	}
+	task.EarliestInputExpiresAt = expiry
 	return task, nil
+}
+
+// earliestInputExpiry returns the earliest ExpiresAt across the given vtxos.
+func earliestInputExpiry(vtxos []clientTypes.Vtxo) (time.Time, error) {
+	if len(vtxos) == 0 {
+		return time.Time{}, fmt.Errorf("no vtxos to derive expiry from")
+	}
+	earliest := vtxos[0].ExpiresAt
+	for _, v := range vtxos[1:] {
+		if v.ExpiresAt.Before(earliest) {
+			earliest = v.ExpiresAt
+		}
+	}
+	return earliest, nil
 }
 
 func (s *DelegateService) getDelegateAddress(ctx context.Context) (*arklib.Address, error) {
