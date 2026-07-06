@@ -87,7 +87,11 @@ func (h *delegateHandler) GetDelegateQueue(
 	if !nextFlush.IsZero() {
 		nextFlushAt = nextFlush.Unix()
 	}
-	return &pb.GetDelegateQueueResponse{Entries: pbEntries, NextFlushAt: nextFlushAt}, nil
+	return &pb.GetDelegateQueueResponse{
+		Entries:        pbEntries,
+		NextFlushAt:    nextFlushAt,
+		CoalesceWindow: int64(h.svc.CoalesceWindow().Seconds()),
+	}, nil
 }
 
 func (h *delegateHandler) FlushDelegateQueue(

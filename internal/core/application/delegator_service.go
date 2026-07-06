@@ -47,6 +47,7 @@ type DelegateService struct {
 	delegateMtx sync.Mutex
 
 	registrationBuffer *registrationBuffer
+	coalesceWindow     time.Duration
 	expiryMargin       time.Duration
 }
 
@@ -67,6 +68,7 @@ func newDelegateService(
 		delegateAddrMtx:   sync.Mutex{},
 		intentsMtx:        sync.Mutex{},
 		delegateMtx:       sync.Mutex{},
+		coalesceWindow:    coalesceWindow,
 		expiryMargin:      expiryMargin,
 	}
 	s.registrationBuffer = newRegistrationBuffer(coalesceWindow, coalesceMax, func(id string) {
@@ -359,6 +361,11 @@ func (s *DelegateService) GetQueue() ([]DelegateQueueEntry, time.Time) {
 		out[i] = DelegateQueueEntry{TaskID: e.ID, RegisterBy: e.RegisterBy}
 	}
 	return out, nextFlush
+}
+
+// CoalesceWindow returns the configured coalescing window duration.
+func (s *DelegateService) CoalesceWindow() time.Duration {
+	return s.coalesceWindow
 }
 
 // FlushRegistrationQueue registers all buffered tasks now.
