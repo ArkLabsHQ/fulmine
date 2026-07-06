@@ -181,17 +181,17 @@ func (h *serviceHandler) SendOffChain(
 	}
 
 	receivers := []clientTypes.Receiver{{To: address, Amount: amount}}
-	var arkTxid string
-	for range 3 {
-		arkTxid, err = h.svc.SendOffChain(ctx, receivers)
-		if err != nil {
-			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
-				continue
-			}
-			return nil, err
-		}
-		break
-	}
+	// A send whose finalization was interrupted after the server registered the
+	// spend leaves the input spent server-side but still spendable locally, so a
+	// plain retry keeps re-selecting it. Recover by finalizing the stranded
+	// pending tx between attempts.
+	arkTxid, err := sendOffChainWithRecovery(
+		ctx, receivers,
+		h.svc.SendOffChain,
+		h.svc.FinalizePendingTxs,
+		maxSendOffChainAttempts,
+		sendRecoveryRetryDelay,
+	)
 	if err != nil {
 		return nil, err
 	}
