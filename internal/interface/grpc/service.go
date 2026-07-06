@@ -118,7 +118,7 @@ func NewService(
 	walletHandler := handlers.NewWalletHandler(appSvc, unlockerSvc)
 	pb.RegisterWalletServiceServer(grpcServer, walletHandler)
 
-	serviceHandler := handlers.NewServiceHandler(appSvc)
+	serviceHandler := handlers.NewServiceHandler(appSvc, delegateSvc)
 	pb.RegisterServiceServer(grpcServer, serviceHandler)
 
 	notificationHandler := handlers.NewNotificationHandler(appSvc, appStopCh)

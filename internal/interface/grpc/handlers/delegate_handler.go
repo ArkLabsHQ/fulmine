@@ -71,35 +71,3 @@ func (h *delegateHandler) Delegate(
 	}
 	return &pb.DelegateResponse{}, nil
 }
-
-func (h *delegateHandler) GetDelegateQueue(
-	ctx context.Context, req *pb.GetDelegateQueueRequest,
-) (*pb.GetDelegateQueueResponse, error) {
-	if h.svc == nil {
-		return nil, status.Error(codes.Unavailable, "delegate service unavailable")
-	}
-	entries, nextFlush := h.svc.GetQueue()
-	pbEntries := make([]*pb.DelegateQueueEntry, len(entries))
-	for i, e := range entries {
-		pbEntries[i] = &pb.DelegateQueueEntry{TaskId: e.TaskID, RegisterBy: e.RegisterBy.Unix()}
-	}
-	var nextFlushAt int64
-	if !nextFlush.IsZero() {
-		nextFlushAt = nextFlush.Unix()
-	}
-	return &pb.GetDelegateQueueResponse{
-		Entries:        pbEntries,
-		NextFlushAt:    nextFlushAt,
-		CoalesceWindow: int64(h.svc.CoalesceWindow().Seconds()),
-	}, nil
-}
-
-func (h *delegateHandler) FlushDelegateQueue(
-	ctx context.Context, req *pb.FlushDelegateQueueRequest,
-) (*pb.FlushDelegateQueueResponse, error) {
-	if h.svc == nil {
-		return nil, status.Error(codes.Unavailable, "delegate service unavailable")
-	}
-	h.svc.FlushRegistrationQueue()
-	return &pb.FlushDelegateQueueResponse{}, nil
-}

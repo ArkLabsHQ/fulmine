@@ -72,62 +72,6 @@
         ]
       }
     },
-    "/v1/delegate/queue": {
-      "get": {
-        "summary": "GetDelegateQueue returns intents currently held for coalesced registration",
-        "operationId": "DelegateService_GetDelegateQueue",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1GetDelegateQueueResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "tags": [
-          "DelegateService"
-        ]
-      }
-    },
-    "/v1/delegate/queue/flush": {
-      "post": {
-        "summary": "FlushDelegateQueue registers all currently-held intents immediately",
-        "operationId": "DelegateService_FlushDelegateQueue",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1FlushDelegateQueueResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1FlushDelegateQueueRequest"
-            }
-          }
-        ],
-        "tags": [
-          "DelegateService"
-        ]
-      }
-    },
     "/v1/delegator/info": {
       "get": {
         "summary": "GetDelegateInfo returns info about the delegate contract",
@@ -181,20 +125,6 @@
         }
       }
     },
-    "v1DelegateQueueEntry": {
-      "type": "object",
-      "properties": {
-        "taskId": {
-          "type": "string"
-        },
-        "registerBy": {
-          "type": "string",
-          "format": "int64",
-          "title": "Unix seconds by which this intent must be registered"
-        }
-      },
-      "title": "DelegateQueueEntry describes a single intent buffered for coalesced registration"
-    },
     "v1DelegateRequest": {
       "type": "object",
       "properties": {
@@ -220,14 +150,6 @@
       "type": "object",
       "title": "DelegateResponse is the response message for Delegate rpc"
     },
-    "v1FlushDelegateQueueRequest": {
-      "type": "object",
-      "title": "FlushDelegateQueueRequest is the request message for FlushDelegateQueue rpc"
-    },
-    "v1FlushDelegateQueueResponse": {
-      "type": "object",
-      "title": "FlushDelegateQueueResponse is the response message for FlushDelegateQueue rpc"
-    },
     "v1GetDelegateInfoResponse": {
       "type": "object",
       "properties": {
@@ -249,29 +171,6 @@
         }
       },
       "title": "GetDelegateInfoResponse is the response message for GetDelegateInfo rpc"
-    },
-    "v1GetDelegateQueueResponse": {
-      "type": "object",
-      "properties": {
-        "entries": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1DelegateQueueEntry"
-          }
-        },
-        "nextFlushAt": {
-          "type": "string",
-          "format": "int64",
-          "title": "Unix seconds of the next scheduled flush; 0 if the queue is empty"
-        },
-        "coalesceWindow": {
-          "type": "string",
-          "format": "int64",
-          "title": "Configured coalescing window in seconds"
-        }
-      },
-      "title": "GetDelegateQueueResponse is the response message for GetDelegateQueue rpc"
     },
     "v1Intent": {
       "type": "object",
