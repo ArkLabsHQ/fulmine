@@ -86,6 +86,8 @@ func ProtectedByMethod() map[string][]bakery.Op {
 		fmt.Sprintf("/%s/ListChainSwaps", fulminev1.Service_ServiceDesc.ServiceName):             {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/RefundChainSwap", fulminev1.Service_ServiceDesc.ServiceName):            {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/ListDelegates", fulminev1.Service_ServiceDesc.ServiceName):              {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/GetDelegateQueue", fulminev1.Service_ServiceDesc.ServiceName):           {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/FlushDelegateQueue", fulminev1.Service_ServiceDesc.ServiceName):         {{Entity: EntityService, Action: ActionAccess}},
 		// Notification.proto methods
 		fmt.Sprintf("/%s/SubscribeForAddresses", fulminev1.NotificationService_ServiceDesc.ServiceName):   {{Entity: EntityNotification, Action: ActionAccess}},
 		fmt.Sprintf("/%s/UnsubscribeForAddresses", fulminev1.NotificationService_ServiceDesc.ServiceName): {{Entity: EntityNotification, Action: ActionAccess}},

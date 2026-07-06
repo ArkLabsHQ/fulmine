@@ -130,18 +130,18 @@
       "properties": {
         "intent": {
           "$ref": "#/definitions/v1Intent",
-          "title": "The partially signed intent that is gonna be registered by the delegate when close enough to\nunderlying VTXOs expiration"
+          "title": "The partially signed intent that is gonna be registered by the delegate when close enough to\r\nunderlying VTXOs expiration"
         },
         "forfeitTxs": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "title": "The partially signed forfeit txs that are gonna be submitted by the delegate when joining\nthe batch execution"
+          "title": "The partially signed forfeit txs that are gonna be submitted by the delegate when joining\r\nthe batch execution"
         },
         "rejectReplace": {
           "type": "boolean",
-          "title": "Opt-in flag to instruct the delegate to not replace an existing delegate that includes at\nleast one VTXO included in this request"
+          "title": "Opt-in flag to instruct the delegate to not replace an existing delegate that includes at\r\nleast one VTXO included in this request"
         }
       },
       "title": "DelegateRequest is the request message for Delegate rpc"

@@ -51,3 +51,11 @@ func TestGetVirtualTxs(t *testing.T) {
 		}
 	})
 }
+
+// TestFlushDelegateQueueValidates asserts that a serviceHandler with no delegate
+// service wired in (delegation disabled) returns an error rather than panicking.
+func TestFlushDelegateQueueValidates(t *testing.T) {
+	h := &serviceHandler{}
+	_, err := h.FlushDelegateQueue(context.Background(), &pb.FlushDelegateQueueRequest{})
+	require.Error(t, err) // delegateSvc nil -> error, not panic
+}

@@ -20,6 +20,9 @@ Generated from `config Structure`. **Do not edit manually.**
 | `FULMINE_DELEGATE_PORT` | `7002` | `uint32` | Delegate server port |
 | `FULMINE_DELEGATE_FEE` | `0` | `uint64` | Fee the delegate charges, in satoshis |
 | `FULMINE_DELEGATE_ENABLED` | `false` | `bool` | Run the delegate server |
+| `FULMINE_DELEGATE_REGISTRATION_COALESCE_WINDOW` | `3600` | `int64` | Seconds to hold a ready delegate intent to coalesce it with others (0 = register immediately) |
+| `FULMINE_DELEGATE_REGISTRATION_EXPIRY_MARGIN` | `1800` | `int64` | Safety margin in seconds before a VTXO's expiry by which its delegate intent must be registered |
+| `FULMINE_DELEGATE_REGISTRATION_COALESCE_MAX` | `0` | `int64` | Max buffered delegate intents before an early flush (0 = unbounded) |
 | `FULMINE_UNLOCKER_TYPE` | `` | `string` | Unlocker type: file or env |
 | `FULMINE_UNLOCKER_FILE_PATH` | `` | `string` | Path to the unlocker password file (file unlocker) |
 | `FULMINE_UNLOCKER_PASSWORD` | `` | `string` | Unlocker password (env unlocker) |

@@ -23,22 +23,25 @@ const (
 
 //go:generate go run ../../tools/gen-env-doc/main.go
 type Config struct {
-	Datadir               string `mapstructure:"DATADIR" envInfo:"Data directory for Fulmine state (defaults to an OS-specific app data dir)"`
-	DbType                string `mapstructure:"DB_TYPE" envDefault:"sqlite" envInfo:"Database backend: sqlite or badger"`
-	GRPCPort              uint32 `mapstructure:"GRPC_PORT" envDefault:"7000" envInfo:"gRPC server port"`
-	HTTPPort              uint32 `mapstructure:"HTTP_PORT" envDefault:"7001" envInfo:"HTTP server port"`
-	WithTLS               bool   `mapstructure:"WITH_TLS" envDefault:"false" envInfo:"Enable TLS on the server"`
-	LogLevel              uint32 `mapstructure:"LOG_LEVEL" envDefault:"4" envInfo:"Log verbosity (higher = more verbose)"`
-	ArkServer             string `mapstructure:"ARK_SERVER" envInfo:"Ark server address (e.g., arkd:7070)"`
-	EsploraURL            string `mapstructure:"ESPLORA_URL" envInfo:"Esplora base URL (e.g., http://chopsticks:3000)"`
-	BoltzURL              string `mapstructure:"BOLTZ_URL" envInfo:"Boltz HTTP endpoint (e.g., http://boltz:9001)"`
-	BoltzWSURL            string `mapstructure:"BOLTZ_WS_URL" envInfo:"Boltz WebSocket endpoint (e.g., ws://boltz:9002)"`
-	SchedulerPollInterval int64  `mapstructure:"SCHEDULER_POLL_INTERVAL" envDefault:"600" envInfo:"Scheduler polling interval in seconds"`
-	ProfilingEnabled      bool   `mapstructure:"PROFILING_ENABLED" envDefault:"false" envInfo:"Enable profiling endpoints"`
-	RefreshDbInterval     int64  `mapstructure:"REFRESH_DB_INTERVAL" envDefault:"60" envInfo:"Interval in seconds to refresh the database with latest blockchain data"`
-	DelegatePort          uint32 `mapstructure:"DELEGATE_PORT" envDefault:"7002" envInfo:"Delegate server port"`
-	DelegateFee           uint64 `mapstructure:"DELEGATE_FEE" envDefault:"0" envInfo:"Fee the delegate charges, in satoshis"`
-	DelegateEnabled       bool   `mapstructure:"DELEGATE_ENABLED" envDefault:"false" envInfo:"Run the delegate server"`
+	Datadir                string `mapstructure:"DATADIR" envInfo:"Data directory for Fulmine state (defaults to an OS-specific app data dir)"`
+	DbType                 string `mapstructure:"DB_TYPE" envDefault:"sqlite" envInfo:"Database backend: sqlite or badger"`
+	GRPCPort               uint32 `mapstructure:"GRPC_PORT" envDefault:"7000" envInfo:"gRPC server port"`
+	HTTPPort               uint32 `mapstructure:"HTTP_PORT" envDefault:"7001" envInfo:"HTTP server port"`
+	WithTLS                bool   `mapstructure:"WITH_TLS" envDefault:"false" envInfo:"Enable TLS on the server"`
+	LogLevel               uint32 `mapstructure:"LOG_LEVEL" envDefault:"4" envInfo:"Log verbosity (higher = more verbose)"`
+	ArkServer              string `mapstructure:"ARK_SERVER" envInfo:"Ark server address (e.g., arkd:7070)"`
+	EsploraURL             string `mapstructure:"ESPLORA_URL" envInfo:"Esplora base URL (e.g., http://chopsticks:3000)"`
+	BoltzURL               string `mapstructure:"BOLTZ_URL" envInfo:"Boltz HTTP endpoint (e.g., http://boltz:9001)"`
+	BoltzWSURL             string `mapstructure:"BOLTZ_WS_URL" envInfo:"Boltz WebSocket endpoint (e.g., ws://boltz:9002)"`
+	SchedulerPollInterval  int64  `mapstructure:"SCHEDULER_POLL_INTERVAL" envDefault:"600" envInfo:"Scheduler polling interval in seconds"`
+	ProfilingEnabled       bool   `mapstructure:"PROFILING_ENABLED" envDefault:"false" envInfo:"Enable profiling endpoints"`
+	RefreshDbInterval      int64  `mapstructure:"REFRESH_DB_INTERVAL" envDefault:"60" envInfo:"Interval in seconds to refresh the database with latest blockchain data"`
+	DelegatePort           uint32 `mapstructure:"DELEGATE_PORT" envDefault:"7002" envInfo:"Delegate server port"`
+	DelegateFee            uint64 `mapstructure:"DELEGATE_FEE" envDefault:"0" envInfo:"Fee the delegate charges, in satoshis"`
+	DelegateEnabled        bool   `mapstructure:"DELEGATE_ENABLED" envDefault:"false" envInfo:"Run the delegate server"`
+	DelegateCoalesceWindow int64  `mapstructure:"DELEGATE_REGISTRATION_COALESCE_WINDOW" envDefault:"3600" envInfo:"Seconds to hold a ready delegate intent to coalesce it with others (0 = register immediately)"`
+	DelegateExpiryMargin   int64  `mapstructure:"DELEGATE_REGISTRATION_EXPIRY_MARGIN" envDefault:"1800" envInfo:"Safety margin in seconds before a VTXO's expiry by which its delegate intent must be registered"`
+	DelegateCoalesceMax    int64  `mapstructure:"DELEGATE_REGISTRATION_COALESCE_MAX" envDefault:"0" envInfo:"Max buffered delegate intents before an early flush (0 = unbounded)"`
 
 	UnlockerType     string `mapstructure:"UNLOCKER_TYPE" envInfo:"Unlocker type: file or env"`
 	UnlockerFilePath string `mapstructure:"UNLOCKER_FILE_PATH" envInfo:"Path to the unlocker password file (file unlocker)"`
@@ -54,28 +57,31 @@ type Config struct {
 }
 
 var (
-	Datadir               = "DATADIR"
-	DbType                = "DB_TYPE"
-	GRPCPort              = "GRPC_PORT"
-	HTTPPort              = "HTTP_PORT"
-	WithTLS               = "WITH_TLS"
-	LogLevel              = "LOG_LEVEL"
-	ArkServer             = "ARK_SERVER"
-	EsploraURL            = "ESPLORA_URL"
-	BoltzURL              = "BOLTZ_URL"
-	BoltzWSURL            = "BOLTZ_WS_URL"
-	DisableTelemetry      = "DISABLE_TELEMETRY"
-	NoMacaroons           = "NO_MACAROONS"
-	OtelCollectorURL      = "OTEL_COLLECTOR_URL"
-	OtelPushInterval      = "OTEL_PUSH_INTERVAL"
-	PyroscopeURL          = "PYROSCOPE_URL"
-	SwapTimeout           = "SWAP_TIMEOUT"
-	SchedulerPollInterval = "SCHEDULER_POLL_INTERVAL"
-	ProfilingEnabled      = "PROFILING_ENABLED"
-	RefreshDbInterval     = "REFRESH_DB_INTERVAL"
-	DelegatePort          = "DELEGATE_PORT"
-	DelegateFee           = "DELEGATE_FEE"
-	DelegateEnabled       = "DELEGATE_ENABLED"
+	Datadir                = "DATADIR"
+	DbType                 = "DB_TYPE"
+	GRPCPort               = "GRPC_PORT"
+	HTTPPort               = "HTTP_PORT"
+	WithTLS                = "WITH_TLS"
+	LogLevel               = "LOG_LEVEL"
+	ArkServer              = "ARK_SERVER"
+	EsploraURL             = "ESPLORA_URL"
+	BoltzURL               = "BOLTZ_URL"
+	BoltzWSURL             = "BOLTZ_WS_URL"
+	DisableTelemetry       = "DISABLE_TELEMETRY"
+	NoMacaroons            = "NO_MACAROONS"
+	OtelCollectorURL       = "OTEL_COLLECTOR_URL"
+	OtelPushInterval       = "OTEL_PUSH_INTERVAL"
+	PyroscopeURL           = "PYROSCOPE_URL"
+	SwapTimeout            = "SWAP_TIMEOUT"
+	SchedulerPollInterval  = "SCHEDULER_POLL_INTERVAL"
+	ProfilingEnabled       = "PROFILING_ENABLED"
+	RefreshDbInterval      = "REFRESH_DB_INTERVAL"
+	DelegatePort           = "DELEGATE_PORT"
+	DelegateFee            = "DELEGATE_FEE"
+	DelegateEnabled        = "DELEGATE_ENABLED"
+	DelegateCoalesceWindow = "DELEGATE_REGISTRATION_COALESCE_WINDOW"
+	DelegateExpiryMargin   = "DELEGATE_REGISTRATION_EXPIRY_MARGIN"
+	DelegateCoalesceMax    = "DELEGATE_REGISTRATION_COALESCE_MAX"
 
 	// Unlocker configuration
 	UnlockerType     = "UNLOCKER_TYPE"
@@ -94,15 +100,18 @@ var (
 		sqliteDb: {},
 		badgerDb: {},
 	}
-	defaultNoMacaroons           = false
-	defaultSwapTimeout           = 15  // In seconds
-	defaultSchedulerPollInterval = 600 // 10 minutes
-	defaultProfilingEnabled      = false
-	defaultRefreshDbInterval     = 60
-	defaultOtelPushInterval      = 10 // 10 seconds
-	defaultDelegatePort          = 7002
-	defaultDelegateFee           = 0
-	defaultDelegateEnabled       = false
+	defaultNoMacaroons            = false
+	defaultSwapTimeout            = 15  // In seconds
+	defaultSchedulerPollInterval  = 600 // 10 minutes
+	defaultProfilingEnabled       = false
+	defaultRefreshDbInterval      = 60
+	defaultOtelPushInterval       = 10 // 10 seconds
+	defaultDelegatePort           = 7002
+	defaultDelegateFee            = 0
+	defaultDelegateEnabled        = false
+	defaultDelegateCoalesceWindow = 3600
+	defaultDelegateExpiryMargin   = 1800
+	defaultDelegateCoalesceMax    = 0
 )
 
 func LoadConfig() (*Config, error) {
@@ -126,6 +135,9 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(OtelPushInterval, defaultOtelPushInterval)
 	viper.SetDefault(DelegateFee, defaultDelegateFee)
 	viper.SetDefault(DelegateEnabled, defaultDelegateEnabled)
+	viper.SetDefault(DelegateCoalesceWindow, defaultDelegateCoalesceWindow)
+	viper.SetDefault(DelegateExpiryMargin, defaultDelegateExpiryMargin)
+	viper.SetDefault(DelegateCoalesceMax, defaultDelegateCoalesceMax)
 
 	// TODO: move to validate method
 	if err := initDatadir(); err != nil {
@@ -147,30 +159,33 @@ func LoadConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		Datadir:               viper.GetString(Datadir),
-		DbType:                viper.GetString(DbType),
-		GRPCPort:              viper.GetUint32(GRPCPort),
-		HTTPPort:              viper.GetUint32(HTTPPort),
-		WithTLS:               viper.GetBool(WithTLS),
-		LogLevel:              viper.GetUint32(LogLevel),
-		ArkServer:             viper.GetString(ArkServer),
-		EsploraURL:            viper.GetString(EsploraURL),
-		BoltzURL:              viper.GetString(BoltzURL),
-		BoltzWSURL:            viper.GetString(BoltzWSURL),
-		UnlockerType:          viper.GetString(UnlockerType),
-		UnlockerFilePath:      viper.GetString(UnlockerFilePath),
-		UnlockerPassword:      viper.GetString(UnlockerPassword),
-		DisableTelemetry:      viper.GetBool(DisableTelemetry),
-		SwapTimeout:           viper.GetUint32(SwapTimeout),
-		SchedulerPollInterval: viper.GetInt64(SchedulerPollInterval),
-		ProfilingEnabled:      viper.GetBool(ProfilingEnabled),
-		RefreshDbInterval:     viper.GetInt64(RefreshDbInterval),
-		OtelCollectorURL:      viper.GetString(OtelCollectorURL),
-		OtelPushInterval:      viper.GetInt64(OtelPushInterval),
-		PyroscopeURL:          viper.GetString(PyroscopeURL),
-		DelegatePort:          viper.GetUint32(DelegatePort),
-		DelegateFee:           viper.GetUint64(DelegateFee),
-		DelegateEnabled:       viper.GetBool(DelegateEnabled),
+		Datadir:                viper.GetString(Datadir),
+		DbType:                 viper.GetString(DbType),
+		GRPCPort:               viper.GetUint32(GRPCPort),
+		HTTPPort:               viper.GetUint32(HTTPPort),
+		WithTLS:                viper.GetBool(WithTLS),
+		LogLevel:               viper.GetUint32(LogLevel),
+		ArkServer:              viper.GetString(ArkServer),
+		EsploraURL:             viper.GetString(EsploraURL),
+		BoltzURL:               viper.GetString(BoltzURL),
+		BoltzWSURL:             viper.GetString(BoltzWSURL),
+		UnlockerType:           viper.GetString(UnlockerType),
+		UnlockerFilePath:       viper.GetString(UnlockerFilePath),
+		UnlockerPassword:       viper.GetString(UnlockerPassword),
+		DisableTelemetry:       viper.GetBool(DisableTelemetry),
+		SwapTimeout:            viper.GetUint32(SwapTimeout),
+		SchedulerPollInterval:  viper.GetInt64(SchedulerPollInterval),
+		ProfilingEnabled:       viper.GetBool(ProfilingEnabled),
+		RefreshDbInterval:      viper.GetInt64(RefreshDbInterval),
+		OtelCollectorURL:       viper.GetString(OtelCollectorURL),
+		OtelPushInterval:       viper.GetInt64(OtelPushInterval),
+		PyroscopeURL:           viper.GetString(PyroscopeURL),
+		DelegatePort:           viper.GetUint32(DelegatePort),
+		DelegateFee:            viper.GetUint64(DelegateFee),
+		DelegateEnabled:        viper.GetBool(DelegateEnabled),
+		DelegateCoalesceWindow: viper.GetInt64(DelegateCoalesceWindow),
+		DelegateExpiryMargin:   viper.GetInt64(DelegateExpiryMargin),
+		DelegateCoalesceMax:    viper.GetInt64(DelegateCoalesceMax),
 	}
 
 	if err := config.initUnlockerService(); err != nil {

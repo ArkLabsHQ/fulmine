@@ -46,6 +46,8 @@ const (
 	Service_ListChainSwaps_FullMethodName             = "/fulmine.v1.Service/ListChainSwaps"
 	Service_RefundChainSwap_FullMethodName            = "/fulmine.v1.Service/RefundChainSwap"
 	Service_ListDelegates_FullMethodName              = "/fulmine.v1.Service/ListDelegates"
+	Service_GetDelegateQueue_FullMethodName           = "/fulmine.v1.Service/GetDelegateQueue"
+	Service_FlushDelegateQueue_FullMethodName         = "/fulmine.v1.Service/FlushDelegateQueue"
 )
 
 // ServiceClient is the client API for Service service.
@@ -102,6 +104,10 @@ type ServiceClient interface {
 	RefundChainSwap(ctx context.Context, in *RefundChainSwapRequest, opts ...grpc.CallOption) (*RefundChainSwapResponse, error)
 	// ListDelegates returns delegate tasks filtered by status, paginated by limit/offset.
 	ListDelegates(ctx context.Context, in *ListDelegatesRequest, opts ...grpc.CallOption) (*ListDelegatesResponse, error)
+	// GetDelegateQueue returns intents currently held for coalesced registration
+	GetDelegateQueue(ctx context.Context, in *GetDelegateQueueRequest, opts ...grpc.CallOption) (*GetDelegateQueueResponse, error)
+	// FlushDelegateQueue registers all currently-held intents immediately
+	FlushDelegateQueue(ctx context.Context, in *FlushDelegateQueueRequest, opts ...grpc.CallOption) (*FlushDelegateQueueResponse, error)
 }
 
 type serviceClient struct {
@@ -382,6 +388,26 @@ func (c *serviceClient) ListDelegates(ctx context.Context, in *ListDelegatesRequ
 	return out, nil
 }
 
+func (c *serviceClient) GetDelegateQueue(ctx context.Context, in *GetDelegateQueueRequest, opts ...grpc.CallOption) (*GetDelegateQueueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDelegateQueueResponse)
+	err := c.cc.Invoke(ctx, Service_GetDelegateQueue_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) FlushDelegateQueue(ctx context.Context, in *FlushDelegateQueueRequest, opts ...grpc.CallOption) (*FlushDelegateQueueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FlushDelegateQueueResponse)
+	err := c.cc.Invoke(ctx, Service_FlushDelegateQueue_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServiceServer is the server API for Service service.
 // All implementations should embed UnimplementedServiceServer
 // for forward compatibility
@@ -436,6 +462,10 @@ type ServiceServer interface {
 	RefundChainSwap(context.Context, *RefundChainSwapRequest) (*RefundChainSwapResponse, error)
 	// ListDelegates returns delegate tasks filtered by status, paginated by limit/offset.
 	ListDelegates(context.Context, *ListDelegatesRequest) (*ListDelegatesResponse, error)
+	// GetDelegateQueue returns intents currently held for coalesced registration
+	GetDelegateQueue(context.Context, *GetDelegateQueueRequest) (*GetDelegateQueueResponse, error)
+	// FlushDelegateQueue registers all currently-held intents immediately
+	FlushDelegateQueue(context.Context, *FlushDelegateQueueRequest) (*FlushDelegateQueueResponse, error)
 }
 
 // UnimplementedServiceServer should be embedded to have forward compatible implementations.
@@ -522,6 +552,12 @@ func (UnimplementedServiceServer) RefundChainSwap(context.Context, *RefundChainS
 }
 func (UnimplementedServiceServer) ListDelegates(context.Context, *ListDelegatesRequest) (*ListDelegatesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListDelegates not implemented")
+}
+func (UnimplementedServiceServer) GetDelegateQueue(context.Context, *GetDelegateQueueRequest) (*GetDelegateQueueResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDelegateQueue not implemented")
+}
+func (UnimplementedServiceServer) FlushDelegateQueue(context.Context, *FlushDelegateQueueRequest) (*FlushDelegateQueueResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FlushDelegateQueue not implemented")
 }
 
 // UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -1021,6 +1057,42 @@ func _Service_ListDelegates_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_GetDelegateQueue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDelegateQueueRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).GetDelegateQueue(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_GetDelegateQueue_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).GetDelegateQueue(ctx, req.(*GetDelegateQueueRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_FlushDelegateQueue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FlushDelegateQueueRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).FlushDelegateQueue(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_FlushDelegateQueue_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).FlushDelegateQueue(ctx, req.(*FlushDelegateQueueRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Service_ServiceDesc is the grpc.ServiceDesc for Service service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1135,6 +1207,14 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListDelegates",
 			Handler:    _Service_ListDelegates_Handler,
+		},
+		{
+			MethodName: "GetDelegateQueue",
+			Handler:    _Service_GetDelegateQueue_Handler,
+		},
+		{
+			MethodName: "FlushDelegateQueue",
+			Handler:    _Service_FlushDelegateQueue_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

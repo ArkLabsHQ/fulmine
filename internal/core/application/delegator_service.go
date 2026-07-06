@@ -45,6 +45,11 @@ type DelegateService struct {
 	// delegateMtx is used to prevent concurrent access to delegate tasks
 	// while we are monitoring spent vtxos and registering new tasks
 	delegateMtx sync.Mutex
+
+	registrationBuffer *registrationBuffer
+	coalesceWindow     time.Duration
+	coalesceMax        int
+	expiryMargin       time.Duration
 }
 
 type DelegateInfo struct {
@@ -53,15 +58,27 @@ type DelegateInfo struct {
 	Address string
 }
 
-func newDelegateService(svc *Service, fee uint64) *DelegateService {
-	return &DelegateService{
+func newDelegateService(
+	svc *Service, fee uint64,
+	coalesceWindow, expiryMargin time.Duration, coalesceMax int,
+) *DelegateService {
+	s := &DelegateService{
 		svc:               svc,
 		fee:               fee,
 		registeredIntents: make(map[string]registeredIntent),
 		delegateAddrMtx:   sync.Mutex{},
 		intentsMtx:        sync.Mutex{},
 		delegateMtx:       sync.Mutex{},
+		coalesceWindow:    coalesceWindow,
+		coalesceMax:       coalesceMax,
+		expiryMargin:      expiryMargin,
 	}
+	s.registrationBuffer = newRegistrationBuffer(coalesceWindow, coalesceMax, func(id string) {
+		if err := s.registerDelegate(id); err != nil {
+			log.WithError(err).Warnf("failed to register delegate task %s", id)
+		}
+	})
+	return s
 }
 
 func (s *DelegateService) start() {
@@ -158,9 +175,7 @@ func (s *DelegateService) Delegate(
 
 	// schedule task
 	if err := s.svc.schedulerSvc.ScheduleTaskAtTime(task.ScheduledAt, func() {
-		if err := s.registerDelegate(task.ID); err != nil {
-			log.WithError(err).Warnf("failed to execute delegate task %s", task.ID)
-		}
+		s.enqueueForRegistration(task)
 	}); err != nil {
 		if err := repo.FailTasks(ctx, err.Error(), task.ID); err != nil {
 			log.WithError(err).Warnf("failed to mark delegate task %s as failed", task.ID)
@@ -303,7 +318,92 @@ func (s *DelegateService) newDelegateTask(
 			return nil, fmt.Errorf("input %d is unrolled", i)
 		}
 	}
+
+	expiry, err := earliestInputExpiry(vtxos.Vtxos)
+	if err != nil {
+		return nil, err
+	}
+	task.EarliestInputExpiresAt = expiry
 	return task, nil
+}
+
+// earliestInputExpiry returns the earliest ExpiresAt across the given vtxos.
+func earliestInputExpiry(vtxos []clientTypes.Vtxo) (time.Time, error) {
+	if len(vtxos) == 0 {
+		return time.Time{}, fmt.Errorf("no vtxos to derive expiry from")
+	}
+	earliest := vtxos[0].ExpiresAt
+	for _, v := range vtxos[1:] {
+		if v.ExpiresAt.Before(earliest) {
+			earliest = v.ExpiresAt
+		}
+	}
+	return earliest, nil
+}
+
+// enqueueForRegistration hands a ready task to the coalescing buffer instead of
+// registering it immediately. registerBy is the intent's safe registration
+// deadline: the earliest input expiry minus the configured margin.
+func (s *DelegateService) enqueueForRegistration(task *domain.DelegateTask) {
+	registerBy := task.EarliestInputExpiresAt.Add(-s.expiryMargin)
+	s.registrationBuffer.enqueue(task.ID, registerBy)
+}
+
+// DelegateQueueEntry describes a task awaiting registration.
+type DelegateQueueEntry struct {
+	TaskID      string
+	RegisterBy  time.Time
+	IntentTxid  string
+	Inputs      []string
+	Fee         uint64
+	ScheduledAt time.Time
+}
+
+// GetQueue returns the buffered tasks and the projected next flush time.
+func (s *DelegateService) GetQueue(ctx context.Context) ([]DelegateQueueEntry, time.Time) {
+	entries, nextFlush := s.registrationBuffer.snapshot()
+	out := make([]DelegateQueueEntry, len(entries))
+	for i, e := range entries {
+		entry := DelegateQueueEntry{TaskID: e.ID, RegisterBy: e.RegisterBy}
+
+		task, err := s.svc.dbSvc.Delegate().GetByID(ctx, e.ID)
+		if err != nil {
+			log.WithError(err).Debugf("failed to fetch delegate task %s for queue entry", e.ID)
+			out[i] = entry
+			continue
+		}
+
+		entry.IntentTxid = task.Intent.Txid
+		entry.Fee = task.Fee
+		entry.ScheduledAt = task.ScheduledAt
+		entry.Inputs = make([]string, len(task.Intent.Inputs))
+		for j, op := range task.Intent.Inputs {
+			entry.Inputs[j] = fmt.Sprintf("%s:%d", op.Hash.String(), op.Index)
+		}
+
+		out[i] = entry
+	}
+	return out, nextFlush
+}
+
+// CoalesceWindow returns the configured coalescing window duration.
+func (s *DelegateService) CoalesceWindow() time.Duration {
+	return s.coalesceWindow
+}
+
+// ExpiryMargin returns the configured expiry margin duration.
+func (s *DelegateService) ExpiryMargin() time.Duration {
+	return s.expiryMargin
+}
+
+// CoalesceMax returns the configured maximum coalescing buffer size.
+func (s *DelegateService) CoalesceMax() int {
+	return s.coalesceMax
+}
+
+// FlushRegistrationQueue registers all buffered tasks now (non-blocking).
+func (s *DelegateService) FlushRegistrationQueue() {
+	go s.registrationBuffer.flushNow()
 }
 
 func (s *DelegateService) getDelegateAddress(ctx context.Context) (*arklib.Address, error) {
@@ -358,9 +458,7 @@ func (s *DelegateService) restorePendingTasks() error {
 
 		taskID := pendingTask.ID // capture value
 		if err = s.svc.schedulerSvc.ScheduleTaskAtTime(pendingTask.ScheduledAt, func() {
-			if err := s.registerDelegate(taskID); err != nil {
-				log.WithError(err).Warnf("failed to execute delegate task %s", taskID)
-			}
+			s.hydrateAndEnqueue(taskID)
 		}); err != nil {
 			log.WithError(err).Warnf("failed to schedule delegate task %s", taskID)
 			continue
@@ -368,6 +466,49 @@ func (s *DelegateService) restorePendingTasks() error {
 	}
 
 	return nil
+}
+
+// hydrateAndEnqueue looks up a restored task by id (lazily, at scheduled-execution
+// time, same as registerDelegate does, so it sees any cancellation that happened
+// while it was waiting) and recomputes its earliest input expiry, which is not
+// persisted. On any lookup error the task is enqueued with a zero expiry, which
+// makes registerBy be in the past and registers immediately.
+func (s *DelegateService) hydrateAndEnqueue(taskID string) {
+	repo := s.svc.dbSvc.Delegate()
+	task, err := repo.GetByID(s.ctx, taskID)
+	if err != nil {
+		log.WithError(err).Warnf("failed to fetch delegate task %s for registration", taskID)
+		s.enqueueForRegistration(&domain.DelegateTask{ID: taskID})
+		return
+	}
+
+	if task.Status != domain.DelegateTaskStatusPending {
+		// task is not pending, it has been cancelled or completed
+		return
+	}
+
+	outpoints := make([]clientTypes.Outpoint, len(task.Intent.Inputs))
+	for i, in := range task.Intent.Inputs {
+		outpoints[i] = clientTypes.Outpoint{Txid: in.Hash.String(), VOut: in.Index}
+	}
+	vtxos, err := s.svc.Indexer().GetVtxos(s.ctx, indexer.WithOutpoints(outpoints))
+	if err != nil {
+		log.WithError(err).WithField("task", taskID).Warnf(
+			"failed to GetVtxos for task %s outpoints during expiry recomputation, using zero expiry fallback",
+			taskID,
+		)
+	} else {
+		expiry, err := earliestInputExpiry(vtxos.Vtxos)
+		if err != nil {
+			log.WithError(err).WithField("task", taskID).Warnf(
+				"failed to compute earliestInputExpiry for task %s, using zero expiry fallback",
+				taskID,
+			)
+		} else {
+			task.EarliestInputExpiresAt = expiry
+		}
+	}
+	s.enqueueForRegistration(task)
 }
 
 func (s *DelegateService) registerDelegate(id string) error {

@@ -24,6 +24,7 @@ service DelegateService {
       body: "*"
     };
   };
+
 }
 
 // GetDelegateInfoRequest is the request message for GetDelegateInfo rpc
@@ -62,3 +63,4 @@ message Intent {
   // Intent proof tx (psbt in base64 format)
   string proof = 2;
 }
+

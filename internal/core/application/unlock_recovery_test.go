@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/stretchr/testify/require"
@@ -47,7 +48,7 @@ func TestUnwindFailedUnlockStopsDelegate(t *testing.T) {
 	svc.walletReady.Store(true)
 
 	// Wire the delegate lifecycle the way newServiceWithDelegate does.
-	delegateSvc := newDelegateService(svc, 0)
+	delegateSvc := newDelegateService(svc, 0, time.Hour, 30*time.Minute, 0)
 	svc.onUnlock = func() { delegateSvc.start() }
 	svc.onLock = func() { delegateSvc.Stop() }
 

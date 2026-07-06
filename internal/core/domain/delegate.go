@@ -60,15 +60,16 @@ func DelegateTaskStatusFromString(s string) (DelegateTaskStatus, error) {
 }
 
 type DelegateTask struct {
-	ID                string
-	Intent            Intent
-	ForfeitTxs        map[wire.OutPoint]string // forfeit transaction per input
-	Fee               uint64
-	DelegatePublicKey string
-	ScheduledAt       time.Time
-	Status            DelegateTaskStatus
-	FailReason        string // set only when task is failed
-	CommitmentTxid    string // set only when task is completed
+	ID                     string
+	Intent                 Intent
+	ForfeitTxs             map[wire.OutPoint]string // forfeit transaction per input
+	Fee                    uint64
+	DelegatePublicKey      string
+	ScheduledAt            time.Time
+	EarliestInputExpiresAt time.Time // in-memory; earliest ExpiresAt across inputs
+	Status                 DelegateTaskStatus
+	FailReason             string // set only when task is failed
+	CommitmentTxid         string // set only when task is completed
 }
 
 type PendingDelegateTask struct {
