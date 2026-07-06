@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	"github.com/stretchr/testify/require"
 )
@@ -22,4 +23,25 @@ func TestEarliestInputExpiry(t *testing.T) {
 func TestEarliestInputExpiryEmpty(t *testing.T) {
 	_, err := earliestInputExpiry(nil)
 	require.Error(t, err)
+}
+
+func TestDelegateServiceEnqueueUsesExpiryMargin(t *testing.T) {
+	// Build a bare DelegateService with just the buffer wired, bypassing svc.
+	registered := []string{}
+	margin := 30 * time.Minute
+	s := &DelegateService{expiryMargin: margin}
+	s.registrationBuffer = newRegistrationBuffer(time.Hour, 0, func(id string) {
+		registered = append(registered, id)
+	})
+	var armed time.Duration
+	s.registrationBuffer.now = func() time.Time { return time.Unix(1_000_000, 0) }
+	s.registrationBuffer.arm = func(d time.Duration) { armed = d }
+
+	// input expires in 40m; registerBy = 40m - 30m margin = 10m from now.
+	task := &domain.DelegateTask{
+		ID:                     "t1",
+		EarliestInputExpiresAt: s.registrationBuffer.now().Add(40 * time.Minute),
+	}
+	s.enqueueForRegistration(task)
+	require.Equal(t, 10*time.Minute, armed)
 }

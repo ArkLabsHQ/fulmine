@@ -145,8 +145,11 @@ type SwapResponse struct {
 }
 
 type DelegateConfig struct {
-	Enabled bool
-	Fee     uint64
+	Enabled        bool
+	Fee            uint64
+	CoalesceWindow time.Duration
+	ExpiryMargin   time.Duration
+	CoalesceMax    int
 }
 
 func NewServices(
@@ -167,7 +170,10 @@ func NewServices(
 	}
 
 	if delegateConfig.Enabled {
-		delegateSvc := newDelegateService(svc, delegateConfig.Fee)
+		delegateSvc := newDelegateService(
+			svc, delegateConfig.Fee,
+			delegateConfig.CoalesceWindow, delegateConfig.ExpiryMargin, delegateConfig.CoalesceMax,
+		)
 		svc.onUnlock = func() {
 			delegateSvc.start()
 		}

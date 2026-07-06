@@ -109,8 +109,11 @@ func main() {
 		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout,
 		cfg.RefreshDbInterval,
 		application.DelegateConfig{
-			Enabled: cfg.DelegateEnabled,
-			Fee:     cfg.DelegateFee,
+			Enabled:        cfg.DelegateEnabled,
+			Fee:            cfg.DelegateFee,
+			CoalesceWindow: time.Duration(cfg.DelegateCoalesceWindow) * time.Second,
+			ExpiryMargin:   time.Duration(cfg.DelegateExpiryMargin) * time.Second,
+			CoalesceMax:    int(cfg.DelegateCoalesceMax),
 		},
 	)
 	if err != nil {
