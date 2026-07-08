@@ -9,8 +9,8 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
@@ -157,6 +157,38 @@ func toVhtlc(row queries.Vhtlc) (domain.Vhtlc, error) {
 		PreimageHash:                         preimageHashBytes,
 	}
 
+	hasPkScript := row.NonInteractiveReceiverPkscript.Valid
+	hasPubKey := row.NonInteractiveEmulatorPubkey.Valid
+	if hasPkScript != hasPubKey {
+		return domain.Vhtlc{}, fmt.Errorf(
+			"inconsistent non-interactive data: both receiver pkScript and emulator pubkey must be set together",
+		)
+	}
+	if hasPkScript && hasPubKey {
+		pkScript, err := hex.DecodeString(row.NonInteractiveReceiverPkscript.String)
+		if err != nil {
+			return domain.Vhtlc{}, fmt.Errorf(
+				"decode non-interactive receiver pkScript: %w", err,
+			)
+		}
+		pubBytes, err := hex.DecodeString(row.NonInteractiveEmulatorPubkey.String)
+		if err != nil {
+			return domain.Vhtlc{}, fmt.Errorf(
+				"decode non-interactive emulator pubkey: %w", err,
+			)
+		}
+		pub, err := btcec.ParsePubKey(pubBytes)
+		if err != nil {
+			return domain.Vhtlc{}, fmt.Errorf(
+				"parse non-interactive emulator pubkey: %w", err,
+			)
+		}
+		opts.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
+			ReceiverPkScript: pkScript,
+			EmulatorPubKey:   pub,
+		}
+	}
+
 	return domain.NewVhtlc(opts), nil
 }
 
@@ -168,7 +200,7 @@ func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
 
 	vhtlcId := domain.GetVhtlcId(preimageHash, sender, receiver)
 
-	return queries.InsertVHTLCParams{
+	params := queries.InsertVHTLCParams{
 		ID:                                       vhtlcId,
 		PreimageHash:                             hex.EncodeToString(preimageHash),
 		Sender:                                   hex.EncodeToString(sender),
@@ -182,4 +214,17 @@ func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
 		UnilateralRefundWithoutReceiverDelayType: int64(vhtlc.UnilateralRefundWithoutReceiverDelay.Type),
 		UnilateralRefundWithoutReceiverDelayValue: int64(vhtlc.UnilateralRefundWithoutReceiverDelay.Value),
 	}
+	if vhtlc.NonInteractiveClaim != nil {
+		params.NonInteractiveReceiverPkscript = sql.NullString{
+			String: hex.EncodeToString(vhtlc.NonInteractiveClaim.ReceiverPkScript),
+			Valid:  true,
+		}
+		params.NonInteractiveEmulatorPubkey = sql.NullString{
+			String: hex.EncodeToString(
+				vhtlc.NonInteractiveClaim.EmulatorPubKey.SerializeCompressed(),
+			),
+			Valid: true,
+		}
+	}
+	return params
 }

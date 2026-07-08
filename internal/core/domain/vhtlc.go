@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
+	"github.com/arkade-os/go-sdk/vhtlc"
 )
 
 type Vhtlc struct {

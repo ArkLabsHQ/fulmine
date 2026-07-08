@@ -96,7 +96,7 @@ regtest-build:
 regtest-up: regtest-build
 	@echo "Starting arkade-regtest stack..."
 	@git submodule update --init regtest
-	@node regtest/regtest.mjs start --profile boltz,delegate
+	@node regtest/regtest.mjs start --profile boltz,delegate,covclaimd
 	@$(MAKE) regtest-user-up
 
 ## regtest-user-up: start + initialise the dedicated swap-user Fulmine

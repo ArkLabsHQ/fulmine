@@ -149,12 +149,12 @@ func TestRefundBtcToArkSwapGuards(t *testing.T) {
 	})
 }
 
-// refundMockArkClient is a fake arksdk.ArkClient for the post-gate refund flow.
+// refundMockArkClient is a fake arksdk.Wallet for the post-gate refund flow.
 // It embeds the interface (so any unexpected call panics) and overrides the two
 // ArkClient calls RefundBtcToArkSwap makes: NewBoardingAddress (the destination
 // for the reclaimed BTC) and Settle (boarding that BTC as a VTXO).
 type refundMockArkClient struct {
-	arksdk.ArkClient
+	arksdk.Wallet
 	boardingAddr string
 }
 

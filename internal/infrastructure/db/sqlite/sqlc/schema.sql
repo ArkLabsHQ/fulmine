@@ -10,7 +10,9 @@ CREATE TABLE vhtlc (
     unilateral_refund_delay_type INTEGER NOT NULL,
     unilateral_refund_delay_value INTEGER NOT NULL,
     unilateral_refund_without_receiver_delay_type INTEGER NOT NULL,
-    unilateral_refund_without_receiver_delay_value INTEGER NOT NULL
+    unilateral_refund_without_receiver_delay_value INTEGER NOT NULL,
+    non_interactive_receiver_pkscript TEXT,
+    non_interactive_emulator_pubkey TEXT
 );
 
 CREATE TABLE IF NOT EXISTS settings (

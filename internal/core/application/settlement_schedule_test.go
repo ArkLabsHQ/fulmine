@@ -87,12 +87,12 @@ func TestSettlementScheduleSettlesAlreadyExpiredVtxos(t *testing.T) {
 	require.Equal(t, 1, fake.settleCount(), "renewal must not be repeated in a loop")
 }
 
-// fakeArkClient is a minimal stand-in for arksdk.ArkClient that only implements
+// fakeArkClient is a minimal stand-in for arksdk.Wallet that only implements
 // the methods exercised by the settlement scheduling logic. Any other method is
 // inherited from the (nil) embedded interface and would panic if called, which
 // keeps the test honest about what the scheduler actually depends on.
 type fakeArkClient struct {
-	arksdk.ArkClient
+	arksdk.Wallet
 
 	mu         sync.Mutex
 	spendable  []clientTypes.Vtxo
@@ -124,12 +124,14 @@ func (f *fakeArkClient) settleCount() int {
 	return f.settles
 }
 
-func (f *fakeArkClient) ListVtxos(_ context.Context) (spendable, spent []clientTypes.Vtxo, err error) {
+func (f *fakeArkClient) ListVtxos(
+	_ context.Context, _ ...arksdk.ListVtxosOption,
+) ([]clientTypes.Vtxo, string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	out := make([]clientTypes.Vtxo, len(f.spendable))
 	copy(out, f.spendable)
-	return out, nil, nil
+	return out, "", nil
 }
 
 func (f *fakeArkClient) GetTransactionHistory(_ context.Context) ([]clientTypes.Transaction, error) {
@@ -191,7 +193,7 @@ func newTestService(t *testing.T, fake *fakeArkClient) (*Service, func(types.Vtx
 	sched.Start()
 
 	svc := &Service{
-		ArkClient:    fake,
+		Wallet:       fake,
 		schedulerSvc: sched,
 		// Mark the service initialized/unlocked/synced so the guarded Settle
 		// (isInitializedAndUnlocked) used by the renewal path is allowed to run.

@@ -10,13 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	arksdk "github.com/arkade-os/go-sdk"
+	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -26,11 +27,122 @@ import (
 	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/lightningnetwork/lnd/input"
 	decodepay "github.com/nbd-wtf/ln-decodepay"
+	log "github.com/sirupsen/logrus"
 )
 
 func checkpointExitScript(cfg clientTypes.Config) []byte {
 	buf, _ := hex.DecodeString(cfg.CheckpointTapscript)
 	return buf
+}
+
+// signTransaction locally signs any tapscript leaf that references the
+// wallet key before delegating to the SDK. The go-sdk's SignTransaction only
+// signs inputs whose scripts are registered in its contract store, which VHTLC
+// leaves may not be (e.g. self-to-self VHTLCs the handler refuses).
+func (h *SwapHandler) signTransaction(ctx context.Context, tx string) (string, error) {
+	return signWithLocalTapscripts(ctx, h.arkClient, h.privateKey, tx)
+}
+
+func signWithLocalTapscripts(
+	ctx context.Context, arkClient arksdk.Wallet, privKey *btcec.PrivateKey, tx string,
+) (string, error) {
+	if ptx, err := psbt.NewFromRawBytes(strings.NewReader(tx), true); err == nil {
+		if err := signLocalTapscriptInputs(ptx, privKey); err != nil {
+			log.WithError(err).Debug("skipped local tapscript signing")
+		} else if encoded, err := ptx.B64Encode(); err == nil {
+			tx = encoded
+		}
+	}
+	return arkClient.SignTransaction(ctx, tx)
+}
+
+// signLocalTapscriptInputs produces a tapscript-spend Schnorr signature for
+// every PSBT input whose revealed leaf closure references privKey's pubkey,
+// appending each result to the input's TaprootScriptSpendSig.
+func signLocalTapscriptInputs(tx *psbt.Packet, privKey *btcec.PrivateKey) error {
+	xOnlyPub := schnorr.SerializePubKey(privKey.PubKey())
+
+	prevouts := make(map[wire.OutPoint]*wire.TxOut, len(tx.Inputs))
+	for i := range tx.Inputs {
+		if tx.Inputs[i].WitnessUtxo == nil {
+			return fmt.Errorf("input %d: missing witness utxo", i)
+		}
+		prevouts[tx.UnsignedTx.TxIn[i].PreviousOutPoint] = tx.Inputs[i].WitnessUtxo
+	}
+	fetcher := txscript.NewMultiPrevOutFetcher(prevouts)
+	sighashes := txscript.NewTxSigHashes(tx.UnsignedTx, fetcher)
+
+	for inputIndex := range tx.Inputs {
+		input := tx.Inputs[inputIndex]
+		for _, leaf := range input.TaprootLeafScript {
+			closure, err := script.DecodeClosure(leaf.Script)
+			if err != nil {
+				continue
+			}
+
+			var pubkeys []*btcec.PublicKey
+			switch c := closure.(type) {
+			case *script.MultisigClosure:
+				pubkeys = c.PubKeys
+			case *script.CSVMultisigClosure:
+				pubkeys = c.PubKeys
+			case *script.CLTVMultisigClosure:
+				pubkeys = c.PubKeys
+			case *script.ConditionMultisigClosure:
+				pubkeys = c.PubKeys
+			default:
+				continue
+			}
+
+			shouldSign := false
+			for _, k := range pubkeys {
+				if bytes.Equal(schnorr.SerializePubKey(k), xOnlyPub) {
+					shouldSign = true
+					break
+				}
+			}
+			if !shouldSign {
+				continue
+			}
+
+			tapLeaf := txscript.NewBaseTapLeaf(leaf.Script)
+			leafHash := tapLeaf.TapHash()
+
+			alreadySigned := false
+			for _, sig := range tx.Inputs[inputIndex].TaprootScriptSpendSig {
+				if bytes.Equal(sig.XOnlyPubKey, xOnlyPub) &&
+					bytes.Equal(sig.LeafHash, leafHash[:]) {
+					alreadySigned = true
+					break
+				}
+			}
+			if alreadySigned {
+				continue
+			}
+
+			sighashPreimage, err := txscript.CalcTapscriptSignaturehash(
+				sighashes, input.SighashType, tx.UnsignedTx, inputIndex, fetcher, tapLeaf,
+			)
+			if err != nil {
+				return fmt.Errorf("input %d: calc tapscript sighash: %w", inputIndex, err)
+			}
+			sig, err := schnorr.Sign(privKey, sighashPreimage)
+			if err != nil {
+				return fmt.Errorf("input %d: sign tapscript: %w", inputIndex, err)
+			}
+
+			tx.Inputs[inputIndex].TaprootScriptSpendSig = append(
+				tx.Inputs[inputIndex].TaprootScriptSpendSig,
+				&psbt.TaprootScriptSpendSig{
+					XOnlyPubKey: xOnlyPub,
+					LeafHash:    leafHash.CloneBytes(),
+					Signature:   sig.Serialize(),
+					SigHash:     input.SighashType,
+				},
+			)
+		}
+	}
+	return nil
 }
 
 type pendingTxIntentInput struct {

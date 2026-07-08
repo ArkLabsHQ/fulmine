@@ -15,7 +15,7 @@ import (
 // the daemon. The walletReady gate must reject such a request cleanly instead.
 func TestUnlockWindowGateBlocksUntilReady(t *testing.T) {
 	svc := &Service{
-		ArkClient:     newFakeArkClient(), // IsLocked() == false
+		Wallet:        newFakeArkClient(), // IsLocked() == false
 		isInitialized: true,
 		syncEvent:     &types.SyncEvent{}, // sync finished, so the old gate would open...
 		// ...but walletReady is still false: the post-sync goroutine hasn't set

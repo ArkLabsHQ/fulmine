@@ -8,10 +8,10 @@ import (
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/wire"
@@ -175,6 +175,49 @@ func parseTransaction(tx string) (string, error) {
 		return "", fmt.Errorf("invalid transaction: %s", err)
 	}
 	return tx, nil
+}
+
+func parseNonInteractiveClaim(
+	nic *pb.NonInteractiveClaim, networkHRP string,
+) (*application.NonInteractiveClaimParams, error) {
+	if nic == nil {
+		return nil, nil // non interactive claim path is optional
+	}
+	if nic.GetClaimReceiverAddress() == "" {
+		return nil, fmt.Errorf("claim_receiver_address is required")
+	}
+	addr, err := arklib.DecodeAddressV0(nic.GetClaimReceiverAddress())
+	if err != nil {
+		return nil, fmt.Errorf("invalid claim_receiver_address: %w", err)
+	}
+	if addr.HRP != networkHRP {
+		return nil, fmt.Errorf(
+			"claim_receiver_address network %q does not match configured network %q",
+			addr.HRP, networkHRP,
+		)
+	}
+	pkScript, err := addr.GetPkScript()
+	if err != nil {
+		return nil, fmt.Errorf("derive pkScript from claim_receiver_address: %w", err)
+	}
+
+	pubHex := nic.GetEmulatorPubkey()
+	if pubHex == "" {
+		return nil, fmt.Errorf("emulator_pubkey is required")
+	}
+	pubBytes, err := hex.DecodeString(pubHex)
+	if err != nil {
+		return nil, fmt.Errorf("invalid emulator_pubkey hex: %w", err)
+	}
+	pub, err := btcec.ParsePubKey(pubBytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse emulator_pubkey: %w", err)
+	}
+
+	return &application.NonInteractiveClaimParams{
+		ReceiverPkScript:   pkScript,
+		EmulatorPubKey: pub,
+	}, nil
 }
 
 func toNetworkProto(net string) pb.GetInfoResponse_Network {

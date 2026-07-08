@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/offchain"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
@@ -23,6 +22,7 @@ import (
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
+	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -38,7 +38,7 @@ import (
 var ErrorNoVtxosFound = fmt.Errorf("no vtxos found for the given vhtlc opts")
 
 type SwapHandler struct {
-	arkClient      arksdk.ArkClient
+	arkClient      arksdk.Wallet
 	boltzSvc       BoltzClient
 	explorerClient ExplorerClient
 	privateKey     *btcec.PrivateKey
@@ -69,7 +69,7 @@ type Swap struct {
 }
 
 func NewSwapHandler(
-	arkClient arksdk.ArkClient,
+	arkClient arksdk.Wallet,
 	boltzSvc BoltzClient,
 	esploraURL string,
 	privateKey *btcec.PrivateKey,
@@ -210,7 +210,7 @@ func (h *SwapHandler) getPendingVHTLCTx(
 		return "", err
 	}
 
-	signedProof, err := h.arkClient.SignTransaction(ctx, proof)
+	signedProof, err := h.signTransaction(ctx, proof)
 	if err != nil {
 		return "", fmt.Errorf("failed to sign pending tx proof: %w", err)
 	}
@@ -286,7 +286,7 @@ func (h *SwapHandler) ClaimVHTLC(
 		return "", err
 	}
 
-	amount, err := safecast.ToInt64(vtxo.Amount)
+	amount, err := safecast.Convert[int64](vtxo.Amount)
 	if err != nil {
 		return "", err
 	}
@@ -330,7 +330,7 @@ func (h *SwapHandler) ClaimVHTLC(
 			return "", err
 		}
 
-		return h.arkClient.SignTransaction(ctx, encoded)
+		return h.signTransaction(ctx, encoded)
 	}
 
 	signedArkTx, err := signTransaction(arkTx)
@@ -440,7 +440,7 @@ func (h *SwapHandler) RefundSwap(
 		return "", err
 	}
 
-	amount, err := safecast.ToInt64(vtxo.Amount)
+	amount, err := safecast.Convert[int64](vtxo.Amount)
 	if err != nil {
 		return "", err
 	}
@@ -485,7 +485,7 @@ func (h *SwapHandler) RefundSwap(
 		if err != nil {
 			return "", err
 		}
-		return h.arkClient.SignTransaction(ctx, encoded)
+		return h.signTransaction(ctx, encoded)
 	}
 
 	// user signing
@@ -542,6 +542,13 @@ func (h *SwapHandler) RefundSwap(
 
 		for i := range signedRefundPsbt.Inputs {
 			boltzIn := boltzSignedRefundPtx.Inputs[i]
+			// Boltz may legitimately omit a partial sig for inputs it
+			// can't (or won't) co-sign — e.g. underfunded swaps that
+			// only return sigs for a subset of inputs. Skip those
+			// rather than indexing into an empty slice and panicking.
+			if len(boltzIn.TaprootScriptSpendSig) == 0 {
+				continue
+			}
 			partialSig := boltzIn.TaprootScriptSpendSig[0]
 			signedRefundPsbt.Inputs[i].TaprootScriptSpendSig =
 				append(signedRefundPsbt.Inputs[i].TaprootScriptSpendSig, partialSig)
@@ -626,7 +633,7 @@ func (h *SwapHandler) SettleVHTLCWithClaimPath(
 		return "", fmt.Errorf("failed to build claim intent: %w", err)
 	}
 
-	signedProof, err := h.arkClient.SignTransaction(ctx, proof)
+	signedProof, err := h.signTransaction(ctx, proof)
 	if err != nil {
 		return "", fmt.Errorf("failed to sign intent proof: %w", err)
 	}
@@ -645,6 +652,7 @@ func (h *SwapHandler) SettleVHTLCWithClaimPath(
 
 	claimHandler, err := newClaimBatchSessionHandler(
 		h.arkClient,
+		h.privateKey,
 		intentID,
 		session.vtxos,
 		[]clientTypes.Receiver{{To: session.destinationAddr, Amount: session.totalAmount}},
@@ -681,7 +689,7 @@ func (h *SwapHandler) SettleVhtlcWithRefundPath(
 		return "", fmt.Errorf("failed to build refund intent: %w", err)
 	}
 
-	signedProof, err := h.arkClient.SignTransaction(ctx, proof)
+	signedProof, err := h.signTransaction(ctx, proof)
 	if err != nil {
 		return "", fmt.Errorf("failed to sign intent proof: %w", err)
 	}
@@ -702,6 +710,7 @@ func (h *SwapHandler) SettleVhtlcWithRefundPath(
 	withoutReceiver := !withReceiver
 	refundHandler, err := newRefundBatchSessionHandler(
 		h.arkClient,
+		h.privateKey,
 		h.arkClient.Client(),
 		intentID,
 		session.vtxos,
@@ -735,7 +744,7 @@ func (h *SwapHandler) SettleVHTLCWithCollaborativeRefundPath(
 		return "", err
 	}
 
-	signedProof, err := h.arkClient.SignTransaction(ctx, proof)
+	signedProof, err := h.signTransaction(ctx, proof)
 	if err != nil {
 		return "", fmt.Errorf("failed to cosign intent proof: %w", err)
 	}
@@ -748,6 +757,7 @@ func (h *SwapHandler) SettleVHTLCWithCollaborativeRefundPath(
 	withReceiver := true
 	handler, err := newCollabRefundBatchSessionHandler(
 		h.arkClient,
+		h.privateKey,
 		h.arkClient.Client(),
 		intentId,
 		session.vtxos,
@@ -1349,7 +1359,7 @@ func (h *SwapHandler) finalizePendingVHTLCTxs(
 		return nil, err
 	}
 
-	signedProof, err := h.arkClient.SignTransaction(ctx, proof)
+	signedProof, err := h.signTransaction(ctx, proof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign pending tx proof: %w", err)
 	}
@@ -1400,7 +1410,7 @@ func (h *SwapHandler) finalizePendingClaimVHTLCTxs(
 			return "", err
 		}
 
-		return h.arkClient.SignTransaction(ctx, encoded)
+		return h.signTransaction(ctx, encoded)
 	}
 
 	return h.finalizePendingVHTLCTxs(ctx, []pendingTxIntentInput{{
@@ -1418,7 +1428,7 @@ func (h *SwapHandler) finalizePendingRefundVHTLCTxs(
 	ctx context.Context, vtxo clientTypes.Vtxo, vhtlcScript *vhtlc.VHTLCScript,
 ) ([]string, error) {
 	signCheckpoint := func(checkpoint string) (string, error) {
-		return h.arkClient.SignTransaction(ctx, checkpoint)
+		return h.signTransaction(ctx, checkpoint)
 	}
 
 	return h.finalizePendingVHTLCTxs(ctx, []pendingTxIntentInput{{

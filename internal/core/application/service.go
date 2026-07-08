@@ -20,17 +20,21 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
 	"github.com/ArkLabsHQ/fulmine/pkg/swap"
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
+	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
+	client "github.com/arkade-os/arkd/pkg/client-lib"
+	singlekeywallet "github.com/arkade-os/arkd/pkg/client-lib/identity/singlekey"
+	filestore "github.com/arkade-os/arkd/pkg/client-lib/identity/singlekey/store/file"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
+	clientstore "github.com/arkade-os/arkd/pkg/client-lib/store"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
-	singlekeywallet "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey"
-	filestore "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey/store/file"
 	arksdk "github.com/arkade-os/go-sdk"
+	"github.com/arkade-os/go-sdk/contract"
 	"github.com/arkade-os/go-sdk/types"
+	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -88,7 +92,8 @@ type WalletUpdate struct {
 type Service struct {
 	BuildInfo BuildInfo
 
-	arksdk.ArkClient
+	arksdk.Wallet
+	configStore  clientTypes.ConfigStore
 	dbSvc        ports.RepoManager
 	schedulerSvc ports.SchedulerService
 	boltzSvc     *boltz.Api
@@ -188,23 +193,34 @@ func newService(
 	refreshDbInterval int64,
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 ) (*Service, error) {
-	walletStore, err := filestore.NewWalletStore(datadir)
+	walletStore, err := filestore.NewStore(datadir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize wallet store: %w", err)
 	}
-	singleKeyWallet, err := singlekeywallet.NewBitcoinWallet(walletStore)
+	singleKeyWallet, err := singlekeywallet.NewIdentity(walletStore)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize wallet: %w", err)
 	}
 
-	opts := []arksdk.ClientOption{
+	// Same file-backed store the SDK opens internally; the SDK no longer
+	// exposes its config store, so open a second handle to persist updates.
+	clientStore, err := clientstore.NewStore(clientstore.Config{
+		ConfigStoreType: clientTypes.FileStore,
+		BaseDir:         datadir,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize config store: %w", err)
+	}
+	configStore := clientStore.ConfigStore()
+
+	opts := []arksdk.WalletOption{
 		arksdk.WithRefreshDbInterval(time.Duration(refreshDbInterval) * time.Second),
-		arksdk.WithWallet(singleKeyWallet),
+		arksdk.WithIdentity(singleKeyWallet),
 	}
 	if log.IsLevelEnabled(log.DebugLevel) {
 		opts = append(opts, arksdk.WithVerbose())
 	}
-	if arkClient, err := arksdk.LoadArkClient(datadir, opts...); err == nil {
+	if arkClient, err := arksdk.LoadWallet(datadir, opts...); err == nil {
 		data, err := arkClient.GetConfigData(context.Background())
 		if err != nil {
 			return nil, err
@@ -212,7 +228,8 @@ func newService(
 
 		svc := &Service{
 			BuildInfo:     buildInfo,
-			ArkClient:     arkClient,
+			Wallet:        arkClient,
+			configStore:   configStore,
 			dbSvc:         dbSvc,
 			schedulerSvc:  schedulerSvc,
 			publicKey:     nil,
@@ -243,7 +260,7 @@ func newService(
 		}
 	}
 
-	arkClient, err := arksdk.NewArkClient(datadir, opts...)
+	arkClient, err := arksdk.NewWallet(datadir, opts...)
 	if err != nil {
 		// nolint:all
 		settingsRepo.CleanSettings(ctx)
@@ -252,7 +269,8 @@ func newService(
 
 	svc := &Service{
 		BuildInfo:     buildInfo,
-		ArkClient:     arkClient,
+		Wallet:        arkClient,
+		configStore:   configStore,
 		dbSvc:         dbSvc,
 		schedulerSvc:  schedulerSvc,
 		notifications: make(chan Notification),
@@ -330,7 +348,7 @@ func (s *Service) RefreshServerConfig(ctx context.Context) error {
 	currentCfg.ForfeitPubKey = forfeitPubkey
 	currentCfg.CheckpointTapscript = info.CheckpointTapscript
 
-	if err := s.GetConfigStore().AddData(ctx, *currentCfg); err != nil {
+	if err := s.configStore.AddData(ctx, *currentCfg); err != nil {
 		return fmt.Errorf("failed to persist updated config: %w", err)
 	}
 
@@ -499,7 +517,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if !s.isInitialized {
 		return fmt.Errorf("service not initialized")
 	}
-	if !s.ArkClient.IsLocked(ctx) {
+	if !s.Wallet.IsLocked(ctx) {
 		return nil
 	}
 
@@ -537,7 +555,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	wg.Go(func() {
 		s.syncLock.Lock()
 		defer s.syncLock.Unlock()
-		ev := <-s.ArkClient.IsSynced(context.Background())
+		ev := <-s.Wallet.IsSynced(context.Background())
 		s.syncEvent = &ev
 		s.syncCh <- ev
 	})
@@ -617,7 +635,7 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		}
 
 		swapHandler, err := swap.NewSwapHandler(
-			s.ArkClient, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
+			s.Wallet, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
 		)
 		if err != nil {
 			log.WithError(err).Error("failed to create swap handler; rolling back unlock")
@@ -862,7 +880,7 @@ func (s *Service) Settle(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	commitmentTxid, err := s.ArkClient.Settle(ctx)
+	commitmentTxid, err := s.Wallet.Settle(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -887,6 +905,13 @@ func (s *Service) WhenNextSettlement(ctx context.Context) time.Time {
 	return s.schedulerSvc.WhenNextSettlement()
 }
 
+// NonInteractiveClaimParams carries the data needed to enable a non-interactive
+// claimer (covclaimd) covenant closure on a VHTLC.
+type NonInteractiveClaimParams struct {
+	ReceiverPkScript []byte
+	EmulatorPubKey   *btcec.PublicKey
+}
+
 func (s *Service) GetSwapVHTLC(
 	ctx context.Context,
 	receiverPubkey, senderPubkey *btcec.PublicKey,
@@ -895,6 +920,7 @@ func (s *Service) GetSwapVHTLC(
 	unilateralClaimDelayParam *arklib.RelativeLocktime,
 	unilateralRefundDelayParam *arklib.RelativeLocktime,
 	unilateralRefundWithoutReceiverDelayParam *arklib.RelativeLocktime,
+	nonInteractive *NonInteractiveClaimParams,
 ) (string, string, *vhtlc.VHTLCScript, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", "", nil, err
@@ -961,6 +987,12 @@ func (s *Service) GetSwapVHTLC(
 		UnilateralRefundDelay:                unilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
 	}
+	if nonInteractive != nil {
+		opts.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
+			ReceiverPkScript: nonInteractive.ReceiverPkScript,
+			EmulatorPubKey:   nonInteractive.EmulatorPubKey,
+		}
+	}
 	vHTLCScript, err := vhtlc.NewVHTLCScriptFromOpts(opts)
 	if err != nil {
 		return "", "", nil, err
@@ -969,6 +1001,10 @@ func (s *Service) GetSwapVHTLC(
 	encodedAddr, err := vHTLCScript.Address(cfg.Network.Addr)
 	if err != nil {
 		return "", "", nil, err
+	}
+
+	if err := s.registerVHTLCContract(ctx, opts); err != nil {
+		return "", "", nil, fmt.Errorf("failed to register vhtlc contract: %w", err)
 	}
 
 	// Persist synchronously: the duplicate check above (VHTLC().Get) and callers
@@ -982,6 +1018,108 @@ func (s *Service) GetSwapVHTLC(
 	log.Debugf("added new vhtlc %s", vhtlcId)
 
 	return encodedAddr, vhtlcId, vHTLCScript, nil
+}
+
+// registerVHTLCContract mirrors a freshly-created VHTLC into the go-sdk
+// contract store so that wallet.SignTransaction can resolve the script and
+// route signing through the wallet identity.
+func (s *Service) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) error {
+	keyRef, err := s.Wallet.Identity().GetKey(ctx, "")
+	if err != nil {
+		return fmt.Errorf("get owner key: %w", err)
+	}
+
+	// The vhtlc contract handler expects exactly one of Sender/Receiver unset:
+	// the owned side, repopulated from the key ref.
+	contractOpts := opts
+	ownsSender := s.publicKey.IsEqual(opts.Sender)
+	ownsReceiver := s.publicKey.IsEqual(opts.Receiver)
+	switch {
+	case ownsSender && ownsReceiver:
+		// Degenerate self-to-self VHTLC: the handler refuses it, and the swap
+		// handler signs those leaves locally anyway.
+		log.Debugf("skipping contract registration: wallet owns both vhtlc keys")
+		return nil
+	case ownsSender:
+		contractOpts.Sender = nil
+	case ownsReceiver:
+		contractOpts.Receiver = nil
+	default:
+		// The wallet can't sign for this VHTLC anyway, nothing to mirror.
+		log.Debugf("skipping contract registration: wallet owns neither vhtlc key")
+		return nil
+	}
+
+	contractType := types.ContractTypeVHTLC
+	if opts.NonInteractiveClaim != nil {
+		contractType = types.ContractTypeNonInteractiveVHTLC
+	}
+	if _, err := s.Wallet.ContractManager().NewContract(
+		ctx,
+		contractType,
+		contract.WithKeyRef(*keyRef),
+		contract.WithParams(&contractOpts),
+	); err != nil {
+		return fmt.Errorf("persist vhtlc contract: %w", err)
+	}
+	return nil
+}
+
+// SendOffChain sends to the given receivers off-chain. If a receiver address
+// matches a persisted VHTLC with the non-interactive claim option, the VHTLC
+// tap tree is attached to that output of the funding tx so a claimer daemon
+// (covclaimd) can locate the covenant claim leaf.
+func (s *Service) SendOffChain(
+	ctx context.Context, receivers []clientTypes.Receiver, sendOpts ...arksdk.SendOffChainOption,
+) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	pkScripts := make([]string, 0, len(receivers))
+	for _, r := range receivers {
+		decoded, err := arklib.DecodeAddressV0(r.To)
+		if err != nil {
+			continue
+		}
+		pkScript, err := script.P2TRScript(decoded.VtxoTapKey)
+		if err != nil {
+			continue
+		}
+		pkScripts = append(pkScripts, hex.EncodeToString(pkScript))
+	}
+
+	tapTrees := make(map[string][]byte)
+	if len(pkScripts) > 0 {
+		mgr := s.ContractManager()
+		contracts, err := mgr.GetContracts(ctx, contract.WithScripts(pkScripts))
+		if err != nil {
+			return "", err
+		}
+		for _, c := range contracts {
+			if c.Type != types.ContractTypeNonInteractiveVHTLC {
+				continue
+			}
+			h, err := mgr.GetHandler(ctx, c)
+			if err != nil {
+				return "", fmt.Errorf("get handler for contract %s: %w", c.Script, err)
+			}
+			tapscripts, err := h.GetTapscripts(c)
+			if err != nil {
+				return "", fmt.Errorf("get tapscripts for contract %s: %w", c.Script, err)
+			}
+			encoded, err := txutils.TapTree(tapscripts).Encode()
+			if err != nil {
+				return "", fmt.Errorf("encode taptree for contract %s: %w", c.Script, err)
+			}
+			tapTrees[c.Script] = encoded
+		}
+	}
+	if len(tapTrees) > 0 {
+		log.Debugf("SendOffChain: attaching tap trees for %d non-interactive vhtlc output(s)", len(tapTrees))
+		sendOpts = append(sendOpts, client.WithTxOutsTaprootTree(tapTrees))
+	}
+	return s.Wallet.SendOffChain(ctx, receivers, sendOpts...)
 }
 
 func (s *Service) ListVHTLCs(
@@ -1135,11 +1273,11 @@ func (s *Service) GetVtxoNotifications(ctx context.Context) <-chan Notification 
 }
 
 func (s *Service) IsLocked(ctx context.Context) bool {
-	if s.ArkClient == nil {
+	if s.Wallet == nil {
 		return true
 	}
 
-	return s.ArkClient.IsLocked(ctx)
+	return s.Wallet.IsLocked(ctx)
 }
 
 func (s *Service) GetInvoice(ctx context.Context, amount uint64) (*SwapResponse, error) {
@@ -1886,9 +2024,19 @@ func (s *Service) restoreSwapHistory(ctx context.Context) error {
 func (s *Service) computeNextExpiry(
 	ctx context.Context, data *clientTypes.Config,
 ) (*time.Time, error) {
-	spendableVtxos, _, err := s.ListVtxos(ctx)
-	if err != nil {
-		return nil, err
+	var spendableVtxos []clientTypes.Vtxo
+	for cursor := ""; ; {
+		page, next, err := s.ListVtxos(
+			ctx, arksdk.WithSpendableOnly(), arksdk.WithCursor(cursor),
+		)
+		if err != nil {
+			return nil, err
+		}
+		spendableVtxos = append(spendableVtxos, page...)
+		if next == "" {
+			break
+		}
+		cursor = next
 	}
 
 	var expiry *time.Time
@@ -2422,7 +2570,7 @@ func (s *Service) sanitize(ctx context.Context) {
 
 	// Collect all on-chain UTXOs across all boarding addresses.
 	onchainUtxos := make(map[string]struct{})
-	explorerUtxos, err := s.Explorer().GetUtxos(boardingAddr)
+	explorerUtxos, err := s.Explorer().GetUtxos([]string{boardingAddr})
 	if err != nil {
 		log.WithError(err).Warnf("sanitize: failed to get utxos for %s", boardingAddr)
 		return

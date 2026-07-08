@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/dgraph-io/badger/v4"
 	"github.com/timshannon/badgerhold/v4"
@@ -105,6 +105,14 @@ func (r *vhtlcRepository) Add(ctx context.Context, vhtlc domain.Vhtlc) error {
 		UnilateralRefundDelay:                vhtlc.UnilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: vhtlc.UnilateralRefundWithoutReceiverDelay,
 	}
+	if vhtlc.NonInteractiveClaim != nil {
+		data.NonInteractiveReceiverPkScript = hex.EncodeToString(
+			vhtlc.NonInteractiveClaim.ReceiverPkScript,
+		)
+		data.NonInteractiveEmulatorPubKey = hex.EncodeToString(
+			vhtlc.NonInteractiveClaim.EmulatorPubKey.SerializeCompressed(),
+		)
+	}
 
 	if err := r.store.Insert(data.Id, data); err != nil {
 		if errors.Is(err, badgerhold.ErrKeyExists) {
@@ -130,6 +138,8 @@ type vhtlcData struct {
 	UnilateralClaimDelay                 arklib.RelativeLocktime
 	UnilateralRefundDelay                arklib.RelativeLocktime
 	UnilateralRefundWithoutReceiverDelay arklib.RelativeLocktime
+	NonInteractiveReceiverPkScript       string
+	NonInteractiveEmulatorPubKey     string
 }
 
 func (d *vhtlcData) toVhtlc() (domain.Vhtlc, error) {
@@ -173,6 +183,38 @@ func (d *vhtlcData) toVhtlc() (domain.Vhtlc, error) {
 		UnilateralRefundDelay:                d.UnilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: d.UnilateralRefundWithoutReceiverDelay,
 		PreimageHash:                         preimageHashBytes,
+	}
+
+	hasPkScript := d.NonInteractiveReceiverPkScript != ""
+	hasPubKey := d.NonInteractiveEmulatorPubKey != ""
+	if hasPkScript != hasPubKey {
+		return domain.Vhtlc{}, fmt.Errorf(
+			"inconsistent non-interactive data: both receiver pkScript and emulator pubkey must be set together",
+		)
+	}
+	if hasPkScript && hasPubKey {
+		pkScript, err := hex.DecodeString(d.NonInteractiveReceiverPkScript)
+		if err != nil {
+			return domain.Vhtlc{}, fmt.Errorf(
+				"decode non-interactive receiver pkScript: %w", err,
+			)
+		}
+		pubBytes, err := hex.DecodeString(d.NonInteractiveEmulatorPubKey)
+		if err != nil {
+			return domain.Vhtlc{}, fmt.Errorf(
+				"decode non-interactive emulator pubkey: %w", err,
+			)
+		}
+		pub, err := btcec.ParsePubKey(pubBytes)
+		if err != nil {
+			return domain.Vhtlc{}, fmt.Errorf(
+				"parse non-interactive emulator pubkey: %w", err,
+			)
+		}
+		opts.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
+			ReceiverPkScript: pkScript,
+			EmulatorPubKey:   pub,
+		}
 	}
 
 	return domain.NewVhtlc(opts), nil

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	arksdk "github.com/arkade-os/go-sdk"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -20,7 +21,7 @@ const (
 	sendRecoveryRetryDelay = 1 * time.Second
 )
 
-type sendOffChainFunc func(context.Context, []clientTypes.Receiver) (string, error)
+type sendOffChainFunc func(context.Context, []clientTypes.Receiver, ...arksdk.SendOffChainOption) (string, error)
 
 type finalizePendingTxsFunc func(context.Context, *time.Time) ([]string, error)
 
