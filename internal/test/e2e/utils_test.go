@@ -374,6 +374,13 @@ func setupArkSDKwithPublicKey(
 		t.Fatalf("timed out waiting for ark client sync: %v", syncCtx.Err())
 	}
 
+	// A fresh wallet has no derived addresses; GetAddresses is empty until
+	// they are created.
+	_, err = arkClient.NewOffchainAddress(t.Context())
+	require.NoError(t, err)
+	_, err = arkClient.NewBoardingAddress(t.Context())
+	require.NoError(t, err)
+
 	grpcClient, err := grpcclient.NewClient(serverUrl, "")
 	require.NoError(t, err)
 

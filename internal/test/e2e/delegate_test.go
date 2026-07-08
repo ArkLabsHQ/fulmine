@@ -17,6 +17,7 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -196,7 +197,7 @@ func TestDelegate(t *testing.T) {
 	unsignedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
+	signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, map[string]string{"_": "m"})
 	require.NoError(t, err)
 
 	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
@@ -257,7 +258,7 @@ func TestDelegate(t *testing.T) {
 	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 	require.NoError(t, err)
 
-	signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
+	signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
 	require.NoError(t, err)
 
 	_, err = delegateClient.Delegate(ctx, &pb.DelegateRequest{
@@ -271,7 +272,7 @@ func TestDelegate(t *testing.T) {
 
 	time.Sleep(30 * time.Second)
 
-	spendable, _, err := alice.ListVtxos(ctx)
+	spendable, _, err := alice.ListVtxos(ctx, arksdk.WithSpendableOnly())
 	require.NoError(t, err)
 	require.Len(t, spendable, 1)
 	require.Equal(t, int(aliceVtxo.Amount), int(spendable[0].Amount))
@@ -451,7 +452,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	unsignedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
+	signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, map[string]string{"_": "m"})
 	require.NoError(t, err)
 
 	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
@@ -512,7 +513,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 	require.NoError(t, err)
 
-	signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
+	signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
 	require.NoError(t, err)
 
 	_, err = delegateClient.Delegate(ctx, &pb.DelegateRequest{
@@ -739,7 +740,7 @@ func TestMultipleDelegate(t *testing.T) {
 		unsignedIntentProof, err := intentProof.B64Encode()
 		require.NoError(t, err)
 
-		signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
+		signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, map[string]string{"_": "m"})
 		require.NoError(t, err)
 
 		signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
@@ -778,7 +779,7 @@ func TestMultipleDelegate(t *testing.T) {
 		b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 		require.NoError(t, err)
 
-		signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
+		signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
 		require.NoError(t, err)
 
 		delegateRequests = append(delegateRequests, &pb.DelegateRequest{
@@ -797,7 +798,7 @@ func TestMultipleDelegate(t *testing.T) {
 
 	time.Sleep(30 * time.Second)
 
-	spendable, _, err := alice.ListVtxos(ctx)
+	spendable, _, err := alice.ListVtxos(ctx, arksdk.WithSpendableOnly())
 	require.NoError(t, err)
 	require.Len(t, spendable, numVtxos, "expected %d refreshed vtxos", numVtxos)
 
@@ -988,7 +989,7 @@ func TestDelegateSameInput(t *testing.T) {
 			return nil, err
 		}
 
-		signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
+		signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, map[string]string{"_": "m"})
 		if err != nil {
 			return nil, err
 		}
@@ -1070,7 +1071,7 @@ func TestDelegateSameInput(t *testing.T) {
 			return nil, err
 		}
 
-		signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
+		signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
 		if err != nil {
 			return nil, err
 		}
@@ -1099,7 +1100,7 @@ func TestDelegateSameInput(t *testing.T) {
 
 	time.Sleep(30 * time.Second)
 
-	spendable, _, err := alice.ListVtxos(ctx)
+	spendable, _, err := alice.ListVtxos(ctx, arksdk.WithSpendableOnly())
 	require.NoError(t, err)
 	require.Len(t, spendable, 1)
 	require.Equal(t, int(aliceVtxo.Amount), int(spendable[0].Amount))
@@ -1332,7 +1333,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	unsignedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
+	signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, map[string]string{"_": "m"})
 	require.NoError(t, err)
 
 	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
@@ -1379,7 +1380,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 		b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 		require.NoError(t, err)
 
-		signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
+		signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
 		require.NoError(t, err)
 
 		forfeits = append(forfeits, signedPartialForfeitTx)
@@ -1396,7 +1397,7 @@ func TestDelegateSeveralInputs(t *testing.T) {
 
 	time.Sleep(30 * time.Second)
 
-	spendable, _, err := alice.ListVtxos(ctx)
+	spendable, _, err := alice.ListVtxos(ctx, arksdk.WithSpendableOnly())
 	require.NoError(t, err)
 	require.Len(t, spendable, 2)
 
@@ -1635,7 +1636,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	unsignedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	signedIntentProof, err := alice.SignTransaction(ctx, unsignedIntentProof)
+	signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, map[string]string{"_": "m"})
 	require.NoError(t, err)
 
 	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
@@ -1698,7 +1699,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 	require.NoError(t, err)
 
-	signedPartialForfeitTx, err := alice.SignTransaction(ctx, b64partialForfeitTx)
+	signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
 	require.NoError(t, err)
 
 	// --- Delegate ---
@@ -1715,7 +1716,7 @@ func TestDelegateWithAssets(t *testing.T) {
 	time.Sleep(30 * time.Second)
 
 	// --- Verify the refreshed VTXO ---
-	allSpendable, _, err := alice.ListVtxos(ctx)
+	allSpendable, _, err := alice.ListVtxos(ctx, arksdk.WithSpendableOnly())
 	require.NoError(t, err)
 
 	// Find the refreshed VTXO: non-preconfirmed, carrying the BTC dust amount.

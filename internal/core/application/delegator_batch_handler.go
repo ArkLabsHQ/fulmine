@@ -170,7 +170,11 @@ func (h *delegateBatchSessionHandler) submitForfeitTxs(
 			return fmt.Errorf("failed to encode forfeit tx: %w", err)
 		}
 
-		signedForfeitTx, err := h.delegate.svc.SignTransaction(ctx, encodedForfeitTx)
+		// Sign via the identity: the delegated vtxo script is not a contract
+		// known to the go-sdk store, so wallet.SignTransaction would skip it.
+		signedForfeitTx, err := h.delegate.svc.Identity().SignTransaction(
+			ctx, encodedForfeitTx, map[string]string{"_": "m"},
+		)
 		if err != nil {
 			return fmt.Errorf("failed to sign forfeit: %w", err)
 		}

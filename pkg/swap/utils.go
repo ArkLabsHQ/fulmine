@@ -43,17 +43,28 @@ func (h *SwapHandler) signTransaction(ctx context.Context, tx string) (string, e
 	return signWithLocalTapscripts(ctx, h.arkClient, h.privateKey, tx)
 }
 
+// The SDK only signs inputs whose scripts its contract store resolves and
+// returns the tx untouched otherwise, so leaves referencing the wallet key are
+// signed locally afterwards. Local signing runs after the SDK (not before)
+// because the identity signer does not dedupe: a pre-added signature would be
+// added again and corrupt the PSBT with a duplicate key.
 func signWithLocalTapscripts(
 	ctx context.Context, arkClient arksdk.Wallet, privKey *btcec.PrivateKey, tx string,
 ) (string, error) {
-	if ptx, err := psbt.NewFromRawBytes(strings.NewReader(tx), true); err == nil {
-		if err := signLocalTapscriptInputs(ptx, privKey); err != nil {
-			log.WithError(err).Debug("skipped local tapscript signing")
-		} else if encoded, err := ptx.B64Encode(); err == nil {
-			tx = encoded
-		}
+	signedTx, err := arkClient.SignTransaction(ctx, tx)
+	if err != nil {
+		return "", err
 	}
-	return arkClient.SignTransaction(ctx, tx)
+	ptx, err := psbt.NewFromRawBytes(strings.NewReader(signedTx), true)
+	if err != nil {
+		log.WithError(err).Debug("skipped local tapscript signing")
+		return signedTx, nil
+	}
+	if err := signLocalTapscriptInputs(ptx, privKey); err != nil {
+		log.WithError(err).Debug("skipped local tapscript signing")
+		return signedTx, nil
+	}
+	return ptx.B64Encode()
 }
 
 // signLocalTapscriptInputs produces a tapscript-spend Schnorr signature for

@@ -1056,7 +1056,7 @@ func buildDelegateIntentProof(
 	encodedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	partialySignedProof, err := senderArkClient.SignTransaction(ctx, encodedIntentProof)
+	partialySignedProof, err := senderArkClient.Identity().SignTransaction(ctx, encodedIntentProof, map[string]string{"_": "m"})
 	require.NoError(t, err)
 
 	return partialySignedProof, nil
@@ -1127,7 +1127,7 @@ func buildDelegatePartialForfeit(
 	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 	require.NoError(t, err)
 
-	signedPartialForfeitTx, err := senderArkClient.SignTransaction(ctx, b64partialForfeitTx)
+	signedPartialForfeitTx, err := senderArkClient.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
 	require.NoError(t, err)
 
 	return signedPartialForfeitTx, nil
