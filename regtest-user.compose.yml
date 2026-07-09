@@ -35,6 +35,23 @@ services:
     networks:
       - default
 
+  covclaimd:
+    image: ghcr.io/arkade-os/covclaimd:v0.0.1-rc.0
+    container_name: covclaimd
+    restart: unless-stopped
+    environment:
+      - COVCLAIMD_ARK_URL=arkd:7070
+      - COVCLAIMD_EMULATOR_URL=emulator:7073
+      - COVCLAIMD_SECRET_KEY=c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d5
+      - COVCLAIMD_ENCRYPTED_ENABLED=true
+      - COVCLAIMD_REVEAL_ENABLED=true
+      - COVCLAIMD_LOG_LEVEL=4
+    ports:
+      - "127.0.0.1:7270:7070"
+      - "127.0.0.1:7271:7071"
+    networks:
+      - default
+
 # Join the stack's network (compose project name=arkade-regtest -> *_default) so
 # fulmine-user resolves arkd/boltz/mempool_web by service name.
 networks:
