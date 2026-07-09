@@ -179,7 +179,7 @@ func parseTransaction(tx string) (string, error) {
 
 func parseNonInteractiveClaim(
 	nic *pb.NonInteractiveClaim, networkHRP string,
-) (*application.NonInteractiveClaimParams, error) {
+) (*vhtlc.NonInteractiveClaimOpts, error) {
 	if nic == nil {
 		return nil, nil // non interactive claim path is optional
 	}
@@ -214,9 +214,9 @@ func parseNonInteractiveClaim(
 		return nil, fmt.Errorf("parse emulator_pubkey: %w", err)
 	}
 
-	return &application.NonInteractiveClaimParams{
-		ReceiverPkScript:   pkScript,
-		EmulatorPubKey: pub,
+	return &vhtlc.NonInteractiveClaimOpts{
+		ReceiverPkScript: pkScript,
+		EmulatorPubKey:   pub,
 	}, nil
 }
 

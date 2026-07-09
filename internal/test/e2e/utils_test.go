@@ -330,6 +330,17 @@ func setupArkSDKwithPublicKey(
 	t *testing.T,
 ) (arksdk.Wallet, *btcec.PublicKey, client.Client) {
 	t.Helper()
+	w, priv, c := setupArkSDKwithPrivateKey(t)
+	return w, priv.PubKey(), c
+}
+
+// setupArkSDKwithPrivateKey also exposes the wallet key, for tests that build
+// a swap.SwapHandler directly: production wires the wallet key as the
+// handler's signing key, so tests must do the same.
+func setupArkSDKwithPrivateKey(
+	t *testing.T,
+) (arksdk.Wallet, *btcec.PrivateKey, client.Client) {
+	t.Helper()
 
 	serverUrl := "localhost:7070"
 	password := "pass"
@@ -384,7 +395,7 @@ func setupArkSDKwithPublicKey(
 	grpcClient, err := grpcclient.NewClient(serverUrl, "")
 	require.NoError(t, err)
 
-	return arkClient, privkey.PubKey(), grpcClient
+	return arkClient, privkey, grpcClient
 }
 
 // issueAsset issues a new asset with the given supply and returns the asset ID string.

@@ -79,7 +79,7 @@ func TestNonInteractiveClaim(t *testing.T) {
 		},
 		NonInteractiveClaim: &pb.NonInteractiveClaim{
 			ClaimReceiverAddress: receiverArkAddress(t, info, receiverPriv.PubKey()),
-			EmulatorPubkey:   emulatorPubHex,
+			EmulatorPubkey:       emulatorPubHex,
 		},
 	})
 	require.NoError(t, err)

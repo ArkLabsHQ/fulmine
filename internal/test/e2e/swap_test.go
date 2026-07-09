@@ -399,13 +399,11 @@ func (e *errs) add(err error) {
 func TestSubmarineSwapUnderfundedCooperativeRefund(t *testing.T) {
 	ctx := t.Context()
 
-	arkClient, arkPubKey, _ := setupArkSDKwithPublicKey(t)
+	arkClient, walletKey, _ := setupArkSDKwithPrivateKey(t)
+	arkPubKey := walletKey.PubKey()
 	faucetOffchain(t, arkClient, 0.001)
 
 	cfg, err := arkClient.GetConfigData(ctx)
-	require.NoError(t, err)
-
-	handlerKey, err := btcec.NewPrivateKey()
 	require.NoError(t, err)
 
 	boltzApi := &boltz.Api{URL: "http://localhost:9001", WSURL: "ws://localhost:9004"}
@@ -458,7 +456,7 @@ func TestSubmarineSwapUnderfundedCooperativeRefund(t *testing.T) {
 	// as failed before we ask it to co-sign the refund.
 	time.Sleep(5 * time.Second)
 
-	handler, err := swap.NewSwapHandler(arkClient, boltzApi, "", handlerKey, 120)
+	handler, err := swap.NewSwapHandler(arkClient, boltzApi, "", walletKey, 120)
 	require.NoError(t, err)
 
 	_, err = handler.RefundSwap(ctx, swap.SwapTypeSubmarine, createResp.Id, true, opts, nil)

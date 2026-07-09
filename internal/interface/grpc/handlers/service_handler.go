@@ -14,6 +14,7 @@ import (
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -449,7 +450,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 
 	// nonInteractive is nil if not set
 	// GetSwapVHTLC handles nil value and won't add the extra tapscript
-	var nonInteractive *application.NonInteractiveClaimParams
+	var nonInteractive *vhtlc.NonInteractiveClaimOpts
 	if req.GetNonInteractiveClaim() != nil {
 		cfg, err := h.svc.GetConfigData(ctx)
 		if err != nil {

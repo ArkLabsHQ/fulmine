@@ -18,12 +18,12 @@ require (
 	github.com/ArkLabsHQ/fulmine/pkg/swap v0.0.0-00010101000000-000000000000
 	github.com/a-h/templ v0.3.1001
 	github.com/angelofallars/htmx-go v0.5.0
-	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260429091057-9246f043c4c8
-	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260622161208-51384c05f48b
+	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260707112601-db93f3d63dab
+	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260707112601-db93f3d63dab
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
 	github.com/arkade-os/covclaimd v0.0.1-rc.0
-	github.com/arkade-os/go-sdk v0.9.2-0.20260615205532-87bf561185ff
+	github.com/arkade-os/go-sdk v0.10.2-0.20260708194937-3d70fc70176d
 	github.com/ccoveille/go-safecast v1.8.2
 	github.com/creack/pty v1.1.24
 	github.com/dgraph-io/badger/v4 v4.8.0
@@ -53,7 +53,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.43.0
 	go.opentelemetry.io/otel/sdk/log v0.14.0
 	go.opentelemetry.io/otel/sdk/metric v1.43.0
-	golang.org/x/net v0.52.0
 	google.golang.org/grpc v1.81.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/macaroon-bakery.v2 v2.3.0
@@ -145,10 +144,11 @@ require (
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/mod v0.34.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/mod v0.35.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
-	golang.org/x/tools v0.43.0 // indirect
+	golang.org/x/tools v0.44.0 // indirect
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260511170946-3700d4141b60 // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
@@ -241,13 +241,11 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.8.0 // indirect
-	golang.org/x/crypto v0.49.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/term v0.41.0 // indirect
-	golang.org/x/text v0.36.0 // indirect
+	golang.org/x/term v0.43.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260504160031-60b97b32f348 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/arkade-os/go-sdk => github.com/sekulicd/go-sdk v0.0.0-20260708043508-65dbdcaf2207

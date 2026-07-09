@@ -21,8 +21,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -201,15 +199,13 @@ func NewService(
 	mux.Handle("/api/", http.StripPrefix("/api", gwmux))
 	mux.Handle("/static/", feHandler)
 
-	httpServerHandler := http.Handler(mux)
-	if cfg.insecure() {
-		httpServerHandler = h2c.NewHandler(httpServerHandler, &http2.Server{})
-	}
-
 	httpServer := &http.Server{
 		Addr:      cfg.httpAddress(),
-		Handler:   httpServerHandler,
+		Handler:   mux,
 		TLSConfig: cfg.tlsConfig(),
+	}
+	if cfg.insecure() {
+		httpServer.Protocols = h2cProtocols()
 	}
 
 	// Setup server for the delegate if enabled
@@ -251,15 +247,13 @@ func NewService(
 
 		mux.Handle("/", handler)
 
-		httpServerHandler := http.Handler(mux)
-		if cfg.insecure() {
-			httpServerHandler = h2c.NewHandler(httpServerHandler, &http2.Server{})
-		}
-
 		delegateHTTPServer = &http.Server{
 			Addr:      cfg.delegateAddress(),
-			Handler:   httpServerHandler,
+			Handler:   mux,
 			TLSConfig: cfg.tlsConfig(),
+		}
+		if cfg.insecure() {
+			delegateHTTPServer.Protocols = h2cProtocols()
 		}
 	}
 
@@ -392,6 +386,15 @@ func (s *service) listenToWalletUpdates() {
 			}
 		}
 	}
+}
+
+// h2cProtocols enables cleartext HTTP/2 (with HTTP/1 fallback), replacing the
+// deprecated h2c.NewHandler wrapper.
+func h2cProtocols() *http.Protocols {
+	p := new(http.Protocols)
+	p.SetHTTP1(true)
+	p.SetUnencryptedHTTP2(true)
+	return p
 }
 
 func router(

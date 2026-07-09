@@ -139,7 +139,7 @@ type vhtlcData struct {
 	UnilateralRefundDelay                arklib.RelativeLocktime
 	UnilateralRefundWithoutReceiverDelay arklib.RelativeLocktime
 	NonInteractiveReceiverPkScript       string
-	NonInteractiveEmulatorPubKey     string
+	NonInteractiveEmulatorPubKey         string
 }
 
 func (d *vhtlcData) toVhtlc() (domain.Vhtlc, error) {
@@ -185,37 +185,13 @@ func (d *vhtlcData) toVhtlc() (domain.Vhtlc, error) {
 		PreimageHash:                         preimageHashBytes,
 	}
 
-	hasPkScript := d.NonInteractiveReceiverPkScript != ""
-	hasPubKey := d.NonInteractiveEmulatorPubKey != ""
-	if hasPkScript != hasPubKey {
-		return domain.Vhtlc{}, fmt.Errorf(
-			"inconsistent non-interactive data: both receiver pkScript and emulator pubkey must be set together",
-		)
+	nic, err := domain.ParseNonInteractiveClaim(
+		d.NonInteractiveReceiverPkScript, d.NonInteractiveEmulatorPubKey,
+	)
+	if err != nil {
+		return domain.Vhtlc{}, err
 	}
-	if hasPkScript && hasPubKey {
-		pkScript, err := hex.DecodeString(d.NonInteractiveReceiverPkScript)
-		if err != nil {
-			return domain.Vhtlc{}, fmt.Errorf(
-				"decode non-interactive receiver pkScript: %w", err,
-			)
-		}
-		pubBytes, err := hex.DecodeString(d.NonInteractiveEmulatorPubKey)
-		if err != nil {
-			return domain.Vhtlc{}, fmt.Errorf(
-				"decode non-interactive emulator pubkey: %w", err,
-			)
-		}
-		pub, err := btcec.ParsePubKey(pubBytes)
-		if err != nil {
-			return domain.Vhtlc{}, fmt.Errorf(
-				"parse non-interactive emulator pubkey: %w", err,
-			)
-		}
-		opts.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
-			ReceiverPkScript: pkScript,
-			EmulatorPubKey:   pub,
-		}
-	}
+	opts.NonInteractiveClaim = nic
 
 	return domain.NewVhtlc(opts), nil
 }

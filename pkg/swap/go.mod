@@ -9,9 +9,9 @@ require (
 
 require (
 	github.com/ArkLabsHQ/fulmine/pkg/boltz v0.0.0-00010101000000-000000000000
-	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260429091057-9246f043c4c8
-	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260622161208-51384c05f48b
-	github.com/arkade-os/go-sdk v0.9.2-0.20260615205532-87bf561185ff
+	github.com/arkade-os/arkd/pkg/ark-lib v0.8.1-0.20260707112601-db93f3d63dab
+	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260707112601-db93f3d63dab
+	github.com/arkade-os/go-sdk v0.10.2-0.20260708194937-3d70fc70176d
 	github.com/ccoveille/go-safecast v1.8.2
 )
 
@@ -54,10 +54,10 @@ require (
 	go.etcd.io/etcd/pkg/v3 v3.5.16 // indirect
 	go.etcd.io/etcd/raft/v3 v3.5.16 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	golang.org/x/mod v0.32.0 // indirect
-	golang.org/x/net v0.51.0 // indirect
-	golang.org/x/text v0.34.0 // indirect
-	golang.org/x/tools v0.41.0 // indirect
+	golang.org/x/mod v0.35.0 // indirect
+	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/tools v0.44.0 // indirect
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260209200024-4cfbd4190f57 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 // indirect
@@ -110,11 +110,11 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/stretchr/testify v1.11.1
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
-	golang.org/x/crypto v0.48.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
-	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
-	golang.org/x/term v0.40.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/term v0.43.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
@@ -122,5 +122,3 @@ replace (
 	github.com/ArkLabsHQ/fulmine => ../..
 	github.com/ArkLabsHQ/fulmine/pkg/boltz => ../boltz
 )
-
-replace github.com/arkade-os/go-sdk => github.com/sekulicd/go-sdk v0.0.0-20260708043508-65dbdcaf2207

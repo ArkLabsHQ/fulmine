@@ -905,13 +905,6 @@ func (s *Service) WhenNextSettlement(ctx context.Context) time.Time {
 	return s.schedulerSvc.WhenNextSettlement()
 }
 
-// NonInteractiveClaimParams carries the data needed to enable a non-interactive
-// claimer (covclaimd) covenant closure on a VHTLC.
-type NonInteractiveClaimParams struct {
-	ReceiverPkScript []byte
-	EmulatorPubKey   *btcec.PublicKey
-}
-
 func (s *Service) GetSwapVHTLC(
 	ctx context.Context,
 	receiverPubkey, senderPubkey *btcec.PublicKey,
@@ -920,7 +913,7 @@ func (s *Service) GetSwapVHTLC(
 	unilateralClaimDelayParam *arklib.RelativeLocktime,
 	unilateralRefundDelayParam *arklib.RelativeLocktime,
 	unilateralRefundWithoutReceiverDelayParam *arklib.RelativeLocktime,
-	nonInteractive *NonInteractiveClaimParams,
+	nonInteractive *vhtlc.NonInteractiveClaimOpts,
 ) (string, string, *vhtlc.VHTLCScript, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", "", nil, err
@@ -987,12 +980,7 @@ func (s *Service) GetSwapVHTLC(
 		UnilateralRefundDelay:                unilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
 	}
-	if nonInteractive != nil {
-		opts.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
-			ReceiverPkScript: nonInteractive.ReceiverPkScript,
-			EmulatorPubKey:   nonInteractive.EmulatorPubKey,
-		}
-	}
+	opts.NonInteractiveClaim = nonInteractive
 	vHTLCScript, err := vhtlc.NewVHTLCScriptFromOpts(opts)
 	if err != nil {
 		return "", "", nil, err
@@ -1024,26 +1012,28 @@ func (s *Service) GetSwapVHTLC(
 // contract store so that wallet.SignTransaction can resolve the script and
 // route signing through the wallet identity.
 func (s *Service) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) error {
-	keyRef, err := s.Wallet.Identity().GetKey(ctx, "")
-	if err != nil {
-		return fmt.Errorf("get owner key: %w", err)
+	args := contract.VHTLCContractArgs{
+		PreimageHash:                         opts.PreimageHash,
+		RefundLocktime:                       opts.RefundLocktime,
+		UnilateralClaimDelay:                 opts.UnilateralClaimDelay,
+		UnilateralRefundDelay:                opts.UnilateralRefundDelay,
+		UnilateralRefundWithoutReceiverDelay: opts.UnilateralRefundWithoutReceiverDelay,
 	}
 
-	// The vhtlc contract handler expects exactly one of Sender/Receiver unset:
-	// the owned side, repopulated from the key ref.
-	contractOpts := opts
+	// The contract manager expects only the external counterparty key: the
+	// owned side is derived from the wallet identity.
 	ownsSender := s.publicKey.IsEqual(opts.Sender)
 	ownsReceiver := s.publicKey.IsEqual(opts.Receiver)
 	switch {
 	case ownsSender && ownsReceiver:
-		// Degenerate self-to-self VHTLC: the handler refuses it, and the swap
+		// Degenerate self-to-self VHTLC: the manager refuses it, and the swap
 		// handler signs those leaves locally anyway.
 		log.Debugf("skipping contract registration: wallet owns both vhtlc keys")
 		return nil
 	case ownsSender:
-		contractOpts.Sender = nil
+		args.Receiver = opts.Receiver
 	case ownsReceiver:
-		contractOpts.Receiver = nil
+		args.Sender = opts.Sender
 	default:
 		// The wallet can't sign for this VHTLC anyway, nothing to mirror.
 		log.Debugf("skipping contract registration: wallet owns neither vhtlc key")
@@ -1053,12 +1043,11 @@ func (s *Service) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) er
 	contractType := types.ContractTypeVHTLC
 	if opts.NonInteractiveClaim != nil {
 		contractType = types.ContractTypeNonInteractiveVHTLC
+		args.NonInteractiveReceiver = opts.NonInteractiveClaim.ReceiverPkScript
+		args.NonInteractiveEmulator = opts.NonInteractiveClaim.EmulatorPubKey
 	}
 	if _, err := s.Wallet.ContractManager().NewContract(
-		ctx,
-		contractType,
-		contract.WithKeyRef(*keyRef),
-		contract.WithParams(&contractOpts),
+		ctx, contractType, contract.WithParams(args),
 	); err != nil {
 		return fmt.Errorf("persist vhtlc contract: %w", err)
 	}
