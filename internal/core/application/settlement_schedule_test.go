@@ -96,6 +96,7 @@ type fakeArkClient struct {
 
 	mu         sync.Mutex
 	spendable  []clientTypes.Vtxo
+	spent      []clientTypes.Vtxo
 	eventCh    chan types.VtxoEvent
 	settles    int
 	lockCalled bool
@@ -124,12 +125,20 @@ func (f *fakeArkClient) settleCount() int {
 	return f.settles
 }
 
+func (f *fakeArkClient) setSpentVtxos(vtxos ...clientTypes.Vtxo) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.spent = vtxos
+}
+
 func (f *fakeArkClient) ListVtxos(_ context.Context) (spendable, spent []clientTypes.Vtxo, err error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := make([]clientTypes.Vtxo, len(f.spendable))
-	copy(out, f.spendable)
-	return out, nil, nil
+	spendable = make([]clientTypes.Vtxo, len(f.spendable))
+	copy(spendable, f.spendable)
+	spent = make([]clientTypes.Vtxo, len(f.spent))
+	copy(spent, f.spent)
+	return spendable, spent, nil
 }
 
 func (f *fakeArkClient) GetTransactionHistory(_ context.Context) ([]clientTypes.Transaction, error) {
