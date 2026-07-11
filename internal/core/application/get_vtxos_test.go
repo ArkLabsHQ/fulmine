@@ -1,7 +1,6 @@
 package application
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -33,7 +32,8 @@ func TestGetVtxos(t *testing.T) {
 		isInitialized: true,
 		syncEvent:     &types.SyncEvent{},
 	}
-	ctx := context.Background()
+	svc.walletReady.Store(true)
+	ctx := t.Context()
 
 	testCases := []struct {
 		filter string
