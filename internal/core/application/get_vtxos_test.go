@@ -11,9 +11,9 @@ import (
 
 // TestGetVtxos verifies Service.GetVtxos filters:
 //
-//	spendable:   !Spent && !Swept && !Unrolled
+//	spendable:   !Spent && !IsRecoverable() && !Unrolled
 //	spent:       Spent || Swept || Unrolled
-//	recoverable: (Swept || expired) && !Spent && !Unrolled
+//	recoverable: IsRecoverable() && !Unrolled
 func TestGetVtxos(t *testing.T) {
 	spendable := storedVtxo("spendable", false, false, false, time.Hour)
 	spentV := storedVtxo("spent", true, false, false, time.Hour)
