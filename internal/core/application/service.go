@@ -610,12 +610,6 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		s.vtxoListenerCancel = cancel
 		go s.subscribeForVtxoEvent(listenerCtx, arkConfig)
 
-		// Schedule next settlement for the current vtxo set. Subsequent updates
-		// are handled by subscribeForVtxoEvent and its periodic safety check.
-		if err := s.refreshSettlementSchedule(context.Background(), arkConfig); err != nil {
-			log.WithError(err).Error("failed to schedule next settlement")
-		}
-
 		swapHandler, err := swap.NewSwapHandler(
 			s.ArkClient, s.boltzSvc, s.esploraUrl, s.privateKey, s.swapTimeout,
 		)
@@ -629,6 +623,15 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		// All gate-required fields are populated; open the gate. The atomic store
 		// publishes the writes above to any reader that passes the gate.
 		s.walletReady.Store(true)
+
+		// Schedule next settlement for the current vtxo set. This must run with
+		// the gate open: if vtxos are already due it settles through the guarded
+		// Settle, which rejects while the wallet is still finalizing unlock.
+		// Subsequent updates are handled by subscribeForVtxoEvent and its
+		// periodic safety check.
+		if err := s.refreshSettlementSchedule(context.Background(), arkConfig); err != nil {
+			log.WithError(err).Error("failed to schedule next settlement")
+		}
 
 		go s.recoverChainSwaps(context.Background(), arkConfig)
 
@@ -1926,9 +1929,10 @@ func (s *Service) computeNextExpiry(
 }
 
 // refreshSettlementSchedule recomputes the next settlement time from the full
-// current vtxo set and (re)schedules it. If some vtxos are already expired it
-// settles immediately to renew them. It must be used instead of scheduling off
-// the delta of a single event, so that vtxos already held by the wallet (e.g.
+// current vtxo set and (re)schedules it. If the settlement is already due
+// (vtxos expired or expiring within the settle-ahead window) it renews them
+// right away, single-flighted. It must be used instead of scheduling off the
+// delta of a single event, so that vtxos already held by the wallet (e.g.
 // left over by a previous batch) cannot expire unnoticed behind a later
 // scheduled settlement.
 func (s *Service) refreshSettlementSchedule(ctx context.Context, data *clientTypes.Config) error {
@@ -1940,28 +1944,44 @@ func (s *Service) refreshSettlementSchedule(ctx context.Context, data *clientTyp
 		return nil
 	}
 
-	// If the next expiry is in the past, settle immediately because some vtxos
-	// expired. The renewal runs in the background (single-flighted) so it does
-	// not block the caller (e.g. the vtxo event loop); the resulting vtxo events
-	// will reschedule the next settlement.
-	if nextExpiry.Before(time.Now()) {
-		s.renewExpiredVtxos(ctx, data)
-		return nil
-	}
-
-	return s.scheduleNextSettlement(*nextExpiry, data)
+	return s.scheduleNextSettlement(ctx, *nextExpiry, data)
 }
 
-// renewExpiredVtxos settles in the background to renew already-expired vtxos.
-// It is single-flighted: if a renewal is already running, the call is a no-op,
-// so a burst of vtxo events cannot pile up redundant settlements.
-func (s *Service) renewExpiredVtxos(ctx context.Context, data *clientTypes.Config) {
+// renewalRecheckDelay is how long a renewal waits before re-verifying that a
+// settlement is actually due. A just-completed settle updates the store in two
+// steps (renewed vtxos are added before the spent ones are marked), each
+// emitting its own event: a refresh landing in between sees the old vtxos
+// still spendable and due, and would join a second batch that pointlessly
+// churns the freshly renewed vtxos. The delay lets the store settle so such
+// stale triggers evaporate on recheck.
+const renewalRecheckDelay = time.Second
+
+// refreshVtxos settles in the background to renew vtxos that are expired or expiring within the
+// settle-ahead window. It is single-flighted: if a renewal is already running, the call is a
+// no-op, so a burst of vtxo events cannot pile up concurrent settlements racing over the same
+// vtxos.
+func (s *Service) refreshVtxos(ctx context.Context, data *clientTypes.Config) {
 	if !s.renewing.CompareAndSwap(false, true) {
 		return
 	}
 
 	go func() {
-		log.Debug("detected expired vtxos, joining a batch to renew them...")
+		// Re-verify on a settled store before joining a batch; skip if the
+		// trigger came from a mid-update (stale) read. On recheck error keep
+		// going: wrongly skipping a due renewal risks expired funds, wrongly
+		// settling does not.
+		time.Sleep(renewalRecheckDelay)
+		if due, err := s.settlementDue(ctx, data); err == nil && !due {
+			s.renewing.Store(false)
+			log.Debug("skipping settlement, no more vtxos to renew")
+			// Arm the future schedule the stale trigger replaced.
+			if err := s.refreshSettlementSchedule(ctx, data); err != nil {
+				log.WithError(err).Error("failed to reschedule after skipped renewal")
+			}
+			return
+		}
+
+		log.Debug("joining a batch to renew vtxos...")
 		// Use the guarded Settle so we never settle while the node is locked
 		// (the renewal can be detected just before a Lock and run afterwards).
 		_, err := s.Settle(ctx)
@@ -1977,26 +1997,35 @@ func (s *Service) renewExpiredVtxos(ctx context.Context, data *clientTypes.Confi
 			return
 		}
 
-		// Recompute from the full set in case more vtxos are still near expiry.
+		// Recompute from the full set: the settle's own vtxo events may have
+		// arrived while the guard was still held and been absorbed as no-ops.
 		if err := s.refreshSettlementSchedule(ctx, data); err != nil {
-			log.WithError(err).Error("failed to reschedule after renewing expired vtxos")
+			log.WithError(err).Error("failed to reschedule after renewing vtxos")
 		}
 	}()
 }
 
-func (s *Service) scheduleNextSettlement(at time.Time, data *clientTypes.Config) error {
-	task := func() {
-		if _, err := s.Settle(context.Background()); err != nil {
-			log.WithError(err).Warn("failed to renew vtxos")
-		}
-		// Recompute the next settlement from the full vtxo set after settling.
-		// This way any near-expiry vtxo that was not part of the batch is not
-		// left stranded, and a failed settle is retried instead of silently
-		// stopping the auto-settlement loop.
-		if err := s.refreshSettlementSchedule(context.Background(), data); err != nil {
-			log.WithError(err).Error("failed to reschedule settlement after renewing vtxos")
-		}
+// settlementDue reports whether the earliest expiry across the wallet's funds
+// falls within the settle-ahead window (2 session durations), i.e. whether a
+// settlement should run now rather than be scheduled.
+func (s *Service) settlementDue(ctx context.Context, data *clientTypes.Config) (bool, error) {
+	nextExpiry, err := s.computeNextExpiry(ctx, data)
+	if err != nil {
+		return false, err
 	}
+	if nextExpiry == nil {
+		return false, nil
+	}
+
+	sessionDuration := time.Duration(data.SessionDuration) * time.Second
+	at := nextExpiry.Add(-2 * sessionDuration)
+	return !at.After(time.Now()), nil
+}
+
+func (s *Service) scheduleNextSettlement(ctx context.Context, at time.Time, data *clientTypes.Config) error {
+	// The scheduled task funnels through the same single-flight guard as the event-driven
+	// renewals: whichever fires first wins, the others are no-ops.
+	task := func() { s.refreshVtxos(context.Background(), data) }
 
 	// TODO: Fetch GetInfo to know if there's any scheduled session close to "at",
 	// otherwise keep this as fallback strategy, ie. schedule the settlement 2 session durations
@@ -2004,10 +2033,19 @@ func (s *Service) scheduleNextSettlement(at time.Time, data *clientTypes.Config)
 	sessionDuration := time.Duration(data.SessionDuration) * time.Second
 	at = at.Add(-2 * sessionDuration)
 	now := time.Now()
-	nextSettlement := s.schedulerSvc.WhenNextSettlement()
 
-	// Checking if "at" is after now is a safe guard against buggish time values.
-	if !nextSettlement.IsZero() && at.After(now) && at.After(nextSettlement) {
+	// A settlement time already due (vtxos expired, or expiring within the
+	// settle-ahead window) must not be armed on the scheduler: it would fire
+	// immediately and unguarded on every vtxo event, spawning concurrent
+	// batches that race each other (VTXO_ALREADY_SPENT storms). Route it
+	// through the single-flighted renewal instead.
+	if !at.After(now) {
+		s.refreshVtxos(ctx, data)
+		return nil
+	}
+
+	nextSettlement := s.schedulerSvc.WhenNextSettlement()
+	if !nextSettlement.IsZero() && at.After(nextSettlement) {
 		log.Debugf(
 			"scheduling next settlement at %s skipped - one already set at %s",
 			at.Format(time.RFC3339), nextSettlement.Format(time.RFC3339),
@@ -2030,7 +2068,7 @@ const vtxoExpiryCheckInterval = 10 * time.Minute
 // subscribeForVtxoEvent keeps the scheduled settlement in sync with the wallet's
 // vtxo set: whenever vtxos are added or spent, and periodically as a safety net,
 // it recomputes the earliest expiry across all spendable vtxos and reschedules
-// the next settlement (settling immediately if anything already expired).
+// the next settlement (renewing right away if anything is already due).
 func (s *Service) subscribeForVtxoEvent(ctx context.Context, cfg *clientTypes.Config) {
 	eventsCh := s.GetVtxoEventChannel(ctx)
 

@@ -107,6 +107,10 @@ type fakeArkClient struct {
 	// locked / unlockErr let a test drive UnlockNode's guard and its Unlock call.
 	locked    bool
 	unlockErr error
+
+	// settleDelay simulates the duration of a real batch session (set before
+	// the service starts; read without the lock).
+	settleDelay time.Duration
 }
 
 func newFakeArkClient() *fakeArkClient {
@@ -173,6 +177,9 @@ func (f *fakeArkClient) wasLocked() bool {
 }
 
 func (f *fakeArkClient) Settle(_ context.Context, _ ...arksdk.BatchSessionOption) (string, error) {
+	if f.settleDelay > 0 {
+		time.Sleep(f.settleDelay)
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.settles++
@@ -228,4 +235,89 @@ func newTestService(t *testing.T, fake *fakeArkClient) (*Service, func(types.Vtx
 	}
 
 	return svc, emit
+}
+
+// TestSettlementScheduleSingleFlightsDueVtxos is the regression test for the
+// duplicate-batch cascade seen in production: a vtxo whose expiry falls inside
+// the settle-ahead window (2 session durations) makes the computed settlement
+// time land in the past, and every vtxo event then fired an immediate,
+// unguarded settle (gocron's delay<=0 branch bypassed the renewing guard).
+// Concurrent settles raced each other and arkd rejected the losers with
+// VTXO_ALREADY_SPENT. All settle paths must funnel through the single-flight
+// guard so a burst of events yields exactly one settlement.
+func TestSettlementScheduleSingleFlightsDueVtxos(t *testing.T) {
+	fake := newFakeArkClient()
+	// A real batch session takes seconds and the events of a completing batch
+	// arrive while other refreshes run. Without this delay the fake renews the
+	// vtxo set before the event burst is processed and the race never opens.
+	fake.settleDelay = 150 * time.Millisecond
+
+	// Once settled, the due vtxo is renewed into a fresh far-future one, as a
+	// real settlement would do.
+	fake.onSettle = func() {
+		fake.spendable = []clientTypes.Vtxo{vtxo("renewed", 240*time.Hour)}
+	}
+
+	_, emit := newTestService(t, fake)
+
+	// Expires in 1.5s: not expired yet, but inside the 2s settle-ahead window
+	// (SessionDuration is 1s in tests), so the computed settlement time is
+	// already in the past.
+	due := vtxo("due", 1500*time.Millisecond)
+	fake.setVtxos(due)
+
+	// A burst of vtxo events, as emitted by a completing batch.
+	for range 4 {
+		emit(types.VtxosAdded, due)
+	}
+
+	require.Eventually(t, func() bool {
+		return fake.settleCount() >= 1
+	}, 2*time.Second, 10*time.Millisecond, "a due vtxo should trigger a settlement")
+
+	// The event burst must be absorbed by the single-flight guard: no
+	// concurrent or repeated settlements for the same due vtxo.
+	time.Sleep(300 * time.Millisecond)
+	require.Equal(t, 1, fake.settleCount(), "event burst must not fire duplicate settlements")
+}
+
+// TestSettlementScheduleIgnoresStaleStoreReads reproduces the sequential
+// double-batch: a completed settle updates the store in two steps (the renewed
+// vtxo is added before the old ones are marked spent) and each step emits an
+// event. A refresh landing between the two steps sees the old vtxo still
+// spendable and due, and used to immediately join a second batch that churned
+// the freshly renewed vtxo. The renewal must re-verify due-ness on a settled
+// store before joining a batch, so the stale trigger evaporates.
+func TestSettlementScheduleIgnoresStaleStoreReads(t *testing.T) {
+	fake := newFakeArkClient()
+
+	due := vtxo("due", 1500*time.Millisecond)
+	renewed := vtxo("renewed", 240*time.Hour)
+
+	// Simulate the sdk's two-step store update: on settle, first the renewed
+	// vtxo is added (old one still spendable -> stale window), and only a bit
+	// later the old one is marked spent. Each step emits its event.
+	fake.onSettle = func() {
+		fake.spendable = []clientTypes.Vtxo{due, renewed}
+		go func() {
+			fake.eventCh <- types.VtxoEvent{Type: types.VtxosAdded, Vtxos: []clientTypes.Vtxo{renewed}}
+			time.Sleep(50 * time.Millisecond)
+			fake.setVtxos(renewed)
+			fake.eventCh <- types.VtxoEvent{Type: types.VtxosSpent, Vtxos: []clientTypes.Vtxo{due}}
+		}()
+	}
+
+	_, emit := newTestService(t, fake)
+
+	fake.setVtxos(due)
+	emit(types.VtxosAdded, due)
+
+	require.Eventually(t, func() bool {
+		return fake.settleCount() >= 1
+	}, 3*time.Second, 10*time.Millisecond, "the due vtxo should trigger a settlement")
+
+	// Give the stale-window refresh ample time to run a would-be second
+	// settlement: the renewed set must not be settled again.
+	time.Sleep(1500 * time.Millisecond)
+	require.Equal(t, 1, fake.settleCount(), "a mid-update store read must not trigger a second settlement")
 }
