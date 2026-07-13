@@ -20,6 +20,7 @@ Generated from `config Structure`. **Do not edit manually.**
 | `FULMINE_DELEGATE_PORT` | `7002` | `uint32` | Delegate server port |
 | `FULMINE_DELEGATE_FEE` | `0` | `uint64` | Fee the delegate charges, in satoshis |
 | `FULMINE_DELEGATE_ENABLED` | `false` | `bool` | Run the delegate server |
+| `FULMINE_EMULATOR_PUBKEY` | `` | `string` | Emulator public key (33-byte compressed hex) used as the non-interactive claim tapscript |
 | `FULMINE_UNLOCKER_TYPE` | `` | `string` | Unlocker type: file or env |
 | `FULMINE_UNLOCKER_FILE_PATH` | `` | `string` | Path to the unlocker password file (file unlocker) |
 | `FULMINE_UNLOCKER_PASSWORD` | `` | `string` | Unlocker password (env unlocker) |

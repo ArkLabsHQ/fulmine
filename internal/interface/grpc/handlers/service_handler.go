@@ -460,7 +460,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 			return nil, status.Error(codes.Internal, "missing network config")
 		}
 		nonInteractive, err = parseNonInteractiveClaim(
-			req.GetNonInteractiveClaim(), cfg.Network.Addr,
+			req.GetNonInteractiveClaim(), cfg.Network.Addr, h.svc.EmulatorPubKey(),
 		)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())

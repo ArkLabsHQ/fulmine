@@ -51,7 +51,7 @@ func TestNonInteractiveClaim(t *testing.T) {
 	require.NoError(t, err)
 
 	// fetch covclaimd's encryption pubkey and its emulator (emulator) pubkey
-	covclaimdPub, emulatorPub := fetchCovclaimdPubKeys(t)
+	covclaimdPub, _ := fetchCovclaimdPubKeys(t)
 
 	// generate a preimage
 	preimg := make([]byte, 32)
@@ -59,7 +59,6 @@ func TestNonInteractiveClaim(t *testing.T) {
 	require.NoError(t, err)
 	sha := sha256.Sum256(preimg)
 	preimageHashHex := hex.EncodeToString(input.Ripemd160H(sha[:]))
-	emulatorPubHex := hex.EncodeToString(emulatorPub.SerializeCompressed())
 
 	// create the VHTLC with the non-interactive claim option
 	createResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
@@ -79,7 +78,6 @@ func TestNonInteractiveClaim(t *testing.T) {
 		},
 		NonInteractiveClaim: &pb.NonInteractiveClaim{
 			ClaimReceiverAddress: receiverArkAddress(t, info, receiverPriv.PubKey()),
-			EmulatorPubkey:       emulatorPubHex,
 		},
 	})
 	require.NoError(t, err)

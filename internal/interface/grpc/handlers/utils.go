@@ -178,10 +178,13 @@ func parseTransaction(tx string) (string, error) {
 }
 
 func parseNonInteractiveClaim(
-	nic *pb.NonInteractiveClaim, networkHRP string,
+	nic *pb.NonInteractiveClaim, networkHRP string, emulatorPubKey *btcec.PublicKey,
 ) (*vhtlc.NonInteractiveClaimOpts, error) {
 	if nic == nil {
 		return nil, nil // non interactive claim path is optional
+	}
+	if emulatorPubKey == nil {
+		return nil, fmt.Errorf("non-interactive claims are disabled: missing EMULATOR_PUBKEY")
 	}
 	if nic.GetClaimReceiverAddress() == "" {
 		return nil, fmt.Errorf("claim_receiver_address is required")
@@ -201,22 +204,9 @@ func parseNonInteractiveClaim(
 		return nil, fmt.Errorf("derive pkScript from claim_receiver_address: %w", err)
 	}
 
-	pubHex := nic.GetEmulatorPubkey()
-	if pubHex == "" {
-		return nil, fmt.Errorf("emulator_pubkey is required")
-	}
-	pubBytes, err := hex.DecodeString(pubHex)
-	if err != nil {
-		return nil, fmt.Errorf("invalid emulator_pubkey hex: %w", err)
-	}
-	pub, err := btcec.ParsePubKey(pubBytes)
-	if err != nil {
-		return nil, fmt.Errorf("parse emulator_pubkey: %w", err)
-	}
-
 	return &vhtlc.NonInteractiveClaimOpts{
 		ReceiverPkScript: pkScript,
-		EmulatorPubKey:   pub,
+		EmulatorPubKey:   emulatorPubKey,
 	}, nil
 }
 

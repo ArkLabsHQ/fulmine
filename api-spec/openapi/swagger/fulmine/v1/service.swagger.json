@@ -1422,13 +1422,8 @@
         "claimReceiverAddress": {
           "type": "string",
           "title": "fulmine will use it to compute the ArkadeScript (ark address)"
-        },
-        "emulatorPubkey": {
-          "type": "string",
-          "title": "tweaked by ArkadeScript (33 bytes compressed public key)"
         }
-      },
-      "title": "RelativeLocktime represents a relative timelock"
+      }
     },
     "v1PayInvoiceRequest": {
       "type": "object",

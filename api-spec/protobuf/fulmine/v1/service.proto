@@ -393,10 +393,8 @@ message TaprootLeaf {
   string output = 2;
 }
 
-// RelativeLocktime represents a relative timelock
 message NonInteractiveClaim {
   string claim_receiver_address = 1; // fulmine will use it to compute the ArkadeScript (ark address)
-  string emulator_pubkey = 2; // tweaked by ArkadeScript (33 bytes compressed public key)
 }
 
 message RelativeLocktime {

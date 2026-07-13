@@ -27,6 +27,9 @@ services:
       - FULMINE_UNLOCKER_TYPE=env
       - FULMINE_UNLOCKER_PASSWORD=password
       - FULMINE_DELEGATE_ENABLED=true
+      # Compressed pubkey of EMULATOR_SECRET_KEY (regtest/.env.defaults) — the
+      # non-interactive claim tapscript key. covclaimd/emulator claim with it.
+      - FULMINE_EMULATOR_PUBKEY=02999413c46fa10ada5cbc4bcc79a1d09160c2ba3cfc812705d7a13e5e545fb2a9
     ports:
       # Bind to loopback only: with FULMINE_NO_MACAROONS the endpoints are
       # unauthenticated, and the e2e suite reaches them via localhost anyway.

@@ -102,6 +102,10 @@ type Service struct {
 	publicKey  *btcec.PublicKey
 	privateKey *btcec.PrivateKey
 
+	// emulatorPubKey is the server-configured non-interactive claim tapscript
+	// key. Nil when unset, which disables non-interactive claims.
+	emulatorPubKey *btcec.PublicKey
+
 	esploraUrl string
 	boltzUrl   string
 	boltzWSUrl string
@@ -162,10 +166,23 @@ func NewServices(
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
 	refreshDbInterval int64,
 	delegateConfig DelegateConfig,
+	emulatorPubkeyHex string,
 ) (*Service, *DelegateService, error) {
+	var emulatorPubKey *btcec.PublicKey
+	if emulatorPubkeyHex != "" {
+		pubBytes, err := hex.DecodeString(emulatorPubkeyHex)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid emulator pubkey hex: %w", err)
+		}
+		emulatorPubKey, err = btcec.ParsePubKey(pubBytes)
+		if err != nil {
+			return nil, nil, fmt.Errorf("parse emulator pubkey: %w", err)
+		}
+	}
+
 	svc, err := newService(
 		buildInfo, datadir, dbSvc, schedulerSvc, refreshDbInterval,
-		esploraUrl, boltzUrl, boltzWSUrl, swapTimeout,
+		esploraUrl, boltzUrl, boltzWSUrl, swapTimeout, emulatorPubKey,
 	)
 	if err != nil {
 		return nil, nil, err
@@ -192,6 +209,7 @@ func newService(
 	schedulerSvc ports.SchedulerService,
 	refreshDbInterval int64,
 	esploraUrl, boltzUrl, boltzWSUrl string, swapTimeout uint32,
+	emulatorPubKey *btcec.PublicKey,
 ) (*Service, error) {
 	walletStore, err := filestore.NewStore(datadir)
 	if err != nil {
@@ -232,8 +250,9 @@ func newService(
 			configStore:   configStore,
 			dbSvc:         dbSvc,
 			schedulerSvc:  schedulerSvc,
-			publicKey:     nil,
-			isInitialized: true,
+			publicKey:      nil,
+			emulatorPubKey: emulatorPubKey,
+			isInitialized:  true,
 			notifications: make(chan Notification),
 			esploraUrl:    data.ExplorerURL,
 			boltzUrl:      boltzUrl,
@@ -270,19 +289,25 @@ func newService(
 	svc := &Service{
 		BuildInfo:     buildInfo,
 		Wallet:        arkClient,
-		configStore:   configStore,
-		dbSvc:         dbSvc,
-		schedulerSvc:  schedulerSvc,
-		notifications: make(chan Notification),
-		esploraUrl:    esploraUrl,
-		boltzUrl:      boltzUrl,
-		boltzWSUrl:    boltzWSUrl,
-		swapTimeout:   swapTimeout,
-		walletUpdates: make(chan WalletUpdate),
-		syncLock:      &sync.RWMutex{},
+		configStore:    configStore,
+		dbSvc:          dbSvc,
+		schedulerSvc:   schedulerSvc,
+		notifications:  make(chan Notification),
+		esploraUrl:     esploraUrl,
+		boltzUrl:       boltzUrl,
+		boltzWSUrl:     boltzWSUrl,
+		swapTimeout:    swapTimeout,
+		emulatorPubKey: emulatorPubKey,
+		walletUpdates:  make(chan WalletUpdate),
+		syncLock:       &sync.RWMutex{},
 	}
 
 	return svc, nil
+}
+
+// EmulatorPubKey returns the server-configured non-interactive claim key, or nil if non-interactive claims are disabled.
+func (s *Service) EmulatorPubKey() *btcec.PublicKey {
+	return s.emulatorPubKey
 }
 
 func (s *Service) IsInitialized() bool {
