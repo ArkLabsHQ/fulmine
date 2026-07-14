@@ -35,10 +35,10 @@ func checkpointExitScript(cfg clientTypes.Config) []byte {
 	return buf
 }
 
-// signTransaction locally signs any tapscript leaf that references the
-// wallet key before delegating to the SDK. The go-sdk's SignTransaction only
-// signs inputs whose scripts are registered in its contract store, which VHTLC
-// leaves may not be (e.g. self-to-self VHTLCs the handler refuses).
+// signTransaction signs the swap VHTLC leaves locally. The go-sdk's
+// SignTransaction only signs inputs whose scripts its contract store resolves,
+// and the swap handler never registers its VHTLCs as contracts, so the SDK call
+// is a no-op here and the local tapscript pass does the actual signing.
 func (h *SwapHandler) signTransaction(ctx context.Context, tx string) (string, error) {
 	return signWithLocalTapscripts(ctx, h.arkClient, h.privateKey, tx)
 }

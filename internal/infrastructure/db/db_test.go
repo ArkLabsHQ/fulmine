@@ -127,42 +127,6 @@ func testVHTLCRepository(t *testing.T, svc ports.RepoManager) {
 	})
 }
 
-func testAddNonInteractiveVHTLC(t *testing.T, repo domain.VHTLCRepository) {
-	t.Run("non-interactive claim round-trip", func(t *testing.T) {
-		v := makeVHTLC()
-		introKey, err := btcec.NewPrivateKey()
-		require.NoError(t, err)
-		recvKey, err := btcec.NewPrivateKey()
-		require.NoError(t, err)
-
-		xonly := schnorr.SerializePubKey(recvKey.PubKey())
-		pkScript := append([]byte{0x51, 0x20}, xonly...)
-		v.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
-			ReceiverPkScript: pkScript,
-			EmulatorPubKey:   introKey.PubKey(),
-		}
-		// Refresh id since opts changed.
-		v.Id = domain.GetVhtlcId(
-			v.PreimageHash,
-			v.Sender.SerializeCompressed(),
-			v.Receiver.SerializeCompressed(),
-		)
-
-		err = repo.Add(ctx, v)
-		require.NoError(t, err)
-
-		got, err := repo.Get(ctx, v.Id)
-		require.NoError(t, err)
-		require.NotNil(t, got)
-		require.NotNil(t, got.NonInteractiveClaim)
-		require.Equal(t, v.NonInteractiveClaim.ReceiverPkScript, got.NonInteractiveClaim.ReceiverPkScript)
-		require.Equal(t,
-			v.NonInteractiveClaim.EmulatorPubKey.SerializeCompressed(),
-			got.NonInteractiveClaim.EmulatorPubKey.SerializeCompressed(),
-		)
-	})
-}
-
 func testDelegateRepository(t *testing.T, svc ports.RepoManager) {
 	t.Run("delegate repository", func(t *testing.T) {
 		testAddDelegateTask(t, svc.Delegate())
@@ -340,6 +304,36 @@ func testGetVHTLCsById(t *testing.T, repo domain.VHTLCRepository) {
 		require.NoError(t, err)
 		require.Len(t, vhtlcList, 2)
 		require.Subset(t, []domain.Vhtlc{testVHTLC, secondVHTLC}, vhtlcList)
+	})
+}
+
+func testAddNonInteractiveVHTLC(t *testing.T, repo domain.VHTLCRepository) {
+	t.Run("non-interactive claim round-trip", func(t *testing.T) {
+		v := makeVHTLC()
+		introKey, err := btcec.NewPrivateKey()
+		require.NoError(t, err)
+		recvKey, err := btcec.NewPrivateKey()
+		require.NoError(t, err)
+
+		xonly := schnorr.SerializePubKey(recvKey.PubKey())
+		pkScript := append([]byte{0x51, 0x20}, xonly...)
+		v.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
+			ReceiverPkScript: pkScript,
+			EmulatorPubKey:   introKey.PubKey(),
+		}
+
+		err = repo.Add(ctx, v)
+		require.NoError(t, err)
+
+		got, err := repo.Get(ctx, v.Id)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.NotNil(t, got.NonInteractiveClaim)
+		require.Equal(t, v.NonInteractiveClaim.ReceiverPkScript, got.NonInteractiveClaim.ReceiverPkScript)
+		require.Equal(t,
+			v.NonInteractiveClaim.EmulatorPubKey.SerializeCompressed(),
+			got.NonInteractiveClaim.EmulatorPubKey.SerializeCompressed(),
+		)
 	})
 }
 

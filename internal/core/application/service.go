@@ -1057,14 +1057,12 @@ func (s *Service) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) er
 		UnilateralRefundWithoutReceiverDelay: opts.UnilateralRefundWithoutReceiverDelay,
 	}
 
-	// The contract manager expects only the external counterparty key: the
-	// owned side is derived from the wallet identity.
+	// contract manager expects only the external counterparty key: 
+	// the owned side is derived from the wallet identity.
 	ownsSender := s.publicKey.IsEqual(opts.Sender)
 	ownsReceiver := s.publicKey.IsEqual(opts.Receiver)
 	switch {
 	case ownsSender && ownsReceiver:
-		// Degenerate self-to-self VHTLC: the manager refuses it, and the swap
-		// handler signs those leaves locally anyway.
 		log.Debugf("skipping contract registration: wallet owns both vhtlc keys")
 		return nil
 	case ownsSender:
@@ -1072,7 +1070,6 @@ func (s *Service) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) er
 	case ownsReceiver:
 		args.Sender = opts.Sender
 	default:
-		// The wallet can't sign for this VHTLC anyway, nothing to mirror.
 		log.Debugf("skipping contract registration: wallet owns neither vhtlc key")
 		return nil
 	}
@@ -1094,7 +1091,7 @@ func (s *Service) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) er
 // SendOffChain sends to the given receivers off-chain. If a receiver address
 // matches a persisted VHTLC with the non-interactive claim option, the VHTLC
 // tap tree is attached to that output of the funding tx so a claimer daemon
-// (covclaimd) can locate the covenant claim leaf.
+// can locate the covenant claim leaf.
 func (s *Service) SendOffChain(
 	ctx context.Context, receivers []clientTypes.Receiver, sendOpts ...arksdk.SendOffChainOption,
 ) (string, error) {
@@ -1122,6 +1119,7 @@ func (s *Service) SendOffChain(
 		if err != nil {
 			return "", err
 		}
+		
 		for _, c := range contracts {
 			if c.Type != types.ContractTypeNonInteractiveVHTLC {
 				continue
@@ -1142,7 +1140,6 @@ func (s *Service) SendOffChain(
 		}
 	}
 	if len(tapTrees) > 0 {
-		log.Debugf("SendOffChain: attaching tap trees for %d non-interactive vhtlc output(s)", len(tapTrees))
 		sendOpts = append(sendOpts, client.WithTxOutsTaprootTree(tapTrees))
 	}
 	return s.Wallet.SendOffChain(ctx, receivers, sendOpts...)

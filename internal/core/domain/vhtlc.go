@@ -4,10 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 
 	"github.com/arkade-os/go-sdk/vhtlc"
-	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 type Vhtlc struct {
@@ -32,35 +30,6 @@ func NewVhtlc(opts vhtlc.Opts) Vhtlc {
 		Opts: opts,
 		Id:   GetVhtlcId(preimageHash, sender, receiver),
 	}
-}
-
-func ParseNonInteractiveClaim(
-	pkScriptHex, emulatorPubKeyHex string,
-) (*vhtlc.NonInteractiveClaimOpts, error) {
-	if (pkScriptHex == "") != (emulatorPubKeyHex == "") {
-		return nil, fmt.Errorf(
-			"inconsistent non-interactive data: both receiver pkScript and emulator pubkey must be set together",
-		)
-	}
-	if pkScriptHex == "" {
-		return nil, nil
-	}
-	pkScript, err := hex.DecodeString(pkScriptHex)
-	if err != nil {
-		return nil, fmt.Errorf("decode non-interactive receiver pkScript: %w", err)
-	}
-	pubBytes, err := hex.DecodeString(emulatorPubKeyHex)
-	if err != nil {
-		return nil, fmt.Errorf("decode non-interactive emulator pubkey: %w", err)
-	}
-	pub, err := btcec.ParsePubKey(pubBytes)
-	if err != nil {
-		return nil, fmt.Errorf("parse non-interactive emulator pubkey: %w", err)
-	}
-	return &vhtlc.NonInteractiveClaimOpts{
-		ReceiverPkScript: pkScript,
-		EmulatorPubKey:   pub,
-	}, nil
 }
 
 func GetVhtlcId(preimageHash, sender, receiver []byte) string {

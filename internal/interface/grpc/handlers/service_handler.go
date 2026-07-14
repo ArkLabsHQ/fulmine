@@ -225,9 +225,7 @@ func (h *serviceHandler) SignTransaction(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	// Route through identity to sign checkpoint tap leaves not registered
-	// in the contract store (required for Boltz cooperative refund).
-	signedTx, err := h.svc.Identity().SignTransaction(ctx, tx, map[string]string{"_": "m"})
+	signedTx, err := h.svc.Identity().SignTransaction(ctx, tx, nil)
 	if err != nil {
 		return nil, err
 	}

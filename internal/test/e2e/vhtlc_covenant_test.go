@@ -83,11 +83,10 @@ func TestNonInteractiveClaim(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, createResp.Address)
 
-	// direct reveal: register the claim packet with covclaimd out of band,
-	// before funding, so the claim fires as soon as the address is funded
+	// direct reveal to claimer
 	revealToCovclaimd(t, createResp.Address, preimg, covclaimdPub, receiverPkScript)
 
-	// fund the VHTLC — plain send, no extension attached
+	// fund the VHTLC
 	const amount uint64 = 10_000
 	sendResp, err := f.SendOffChain(ctx, &pb.SendOffChainRequest{
 		Address: createResp.Address,

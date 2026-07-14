@@ -157,7 +157,7 @@ func toVhtlc(row queries.Vhtlc) (domain.Vhtlc, error) {
 		PreimageHash:                         preimageHashBytes,
 	}
 
-	nic, err := domain.ParseNonInteractiveClaim(
+	nic, err := parseNonInteractiveClaim(
 		row.NonInteractiveReceiverPkscript.String, row.NonInteractiveEmulatorPubkey.String,
 	)
 	if err != nil {
@@ -203,4 +203,34 @@ func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
 		}
 	}
 	return params
+}
+
+func parseNonInteractiveClaim(pkScriptHex, emulatorPubKeyHex string) (
+	*vhtlc.NonInteractiveClaimOpts, error,
+) {
+	if (len(pkScriptHex) == 0) != (len(emulatorPubKeyHex) == 0) {
+		return nil, fmt.Errorf(
+			"inconsistent non-interactive data: both receiver pkScript and emulator pubkey must be set together",
+		)
+	}
+	if len(pkScriptHex) == 0 {
+		return nil, nil
+	}
+
+	pkScript, err := hex.DecodeString(pkScriptHex)
+	if err != nil {
+		return nil, fmt.Errorf("decode non-interactive receiver pkScript: %w", err)
+	}
+	pubBytes, err := hex.DecodeString(emulatorPubKeyHex)
+	if err != nil {
+		return nil, fmt.Errorf("decode non-interactive emulator pubkey: %w", err)
+	}
+	pub, err := btcec.ParsePubKey(pubBytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse non-interactive emulator pubkey: %w", err)
+	}
+	return &vhtlc.NonInteractiveClaimOpts{
+		ReceiverPkScript: pkScript,
+		EmulatorPubKey:   pub,
+	}, nil
 }
