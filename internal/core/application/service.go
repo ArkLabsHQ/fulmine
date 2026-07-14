@@ -1000,23 +1000,23 @@ func (s *Service) GetSwapVHTLC(
 		UnilateralRefundDelay:                unilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
 	}
-	if nonInteractiveClaimAddress == nil && s.emulatorPubKey == nil {
-		return "", "", nil, fmt.Errorf("non-interactive claims are disabled: missing EMULATOR_PUBKEY")
-	}
+	if nonInteractiveClaimAddress != nil {
+		if s.emulatorPubKey == nil {
+			return "", "", nil, fmt.Errorf("non-interactive claims are disabled: missing EMULATOR_PUBKEY")
+		}
+		if nonInteractiveClaimAddress.HRP != cfg.Network.Addr {
+			return "", "", nil, fmt.Errorf("non-interactive claim address has wrong network")
+		}
 
-	if nonInteractiveClaimAddress.HRP != cfg.Network.Addr {
-		return "", "", nil, fmt.Errorf("non-interactive claim address has wrong network")
-	}
+		pkScript, err := nonInteractiveClaimAddress.GetPkScript()
+		if err != nil {
+			return "", "", nil, fmt.Errorf("invalid non-interactive claim address")
+		}
 
-	pkgScript, err := nonInteractiveClaimAddress.GetPkScript()
-	if err != nil {
-		return "", "", nil, fmt.Errorf("invalid non-interactive claim address")
-	}
-
-
-	opts.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
-		ReceiverPkScript: pkgScript,
-		EmulatorPubKey: s.emulatorPubKey,
+		opts.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
+			ReceiverPkScript: pkScript,
+			EmulatorPubKey:   s.emulatorPubKey,
+		}
 	}
 	vHTLCScript, err := vhtlc.NewVHTLCScriptFromOpts(opts)
 	if err != nil {

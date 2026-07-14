@@ -16,7 +16,8 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
-	arksdk "github.com/arkade-os/go-sdk"
+	"github.com/arkade-os/go-sdk/contract"
+	"github.com/arkade-os/go-sdk/types"
 	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -27,7 +28,6 @@ import (
 	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/lightningnetwork/lnd/input"
 	decodepay "github.com/nbd-wtf/ln-decodepay"
-	log "github.com/sirupsen/logrus"
 )
 
 func checkpointExitScript(cfg clientTypes.Config) []byte {
@@ -35,123 +35,43 @@ func checkpointExitScript(cfg clientTypes.Config) []byte {
 	return buf
 }
 
-// signTransaction signs the swap VHTLC leaves locally. The go-sdk's
-// SignTransaction only signs inputs whose scripts its contract store resolves,
-// and the swap handler never registers its VHTLCs as contracts, so the SDK call
-// is a no-op here and the local tapscript pass does the actual signing.
-func (h *SwapHandler) signTransaction(ctx context.Context, tx string) (string, error) {
-	return signWithLocalTapscripts(ctx, h.arkClient, h.privateKey, tx)
+// buildVHTLC = register + newVHTLC
+func (h *SwapHandler) buildVHTLC(ctx context.Context, opts vhtlc.Opts) (*vhtlc.VHTLCScript, error) {
+	if err := h.registerVHTLCContract(ctx, opts); err != nil {
+		return nil, err
+	}
+	return vhtlc.NewVHTLCScriptFromOpts(opts)
 }
 
-// The SDK only signs inputs whose scripts its contract store resolves and
-// returns the tx untouched otherwise, so leaves referencing the wallet key are
-// signed locally afterwards. Local signing runs after the SDK (not before)
-// because the identity signer does not dedupe: a pre-added signature would be
-// added again and corrupt the PSBT with a duplicate key.
-func signWithLocalTapscripts(
-	ctx context.Context, arkClient arksdk.Wallet, privKey *btcec.PrivateKey, tx string,
-) (string, error) {
-	signedTx, err := arkClient.SignTransaction(ctx, tx)
-	if err != nil {
-		return "", err
+// registerVHTLCContract mirrors a VHTLC into the go-sdk contract store.
+func (h *SwapHandler) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) error {
+	args := contract.VHTLCContractArgs{
+		PreimageHash:                         opts.PreimageHash,
+		RefundLocktime:                       opts.RefundLocktime,
+		UnilateralClaimDelay:                 opts.UnilateralClaimDelay,
+		UnilateralRefundDelay:                opts.UnilateralRefundDelay,
+		UnilateralRefundWithoutReceiverDelay: opts.UnilateralRefundWithoutReceiverDelay,
 	}
-	ptx, err := psbt.NewFromRawBytes(strings.NewReader(signedTx), true)
-	if err != nil {
-		log.WithError(err).Debug("skipped local tapscript signing")
-		return signedTx, nil
+	switch {
+	case h.publicKey.IsEqual(opts.Sender):
+		args.Receiver = opts.Receiver
+	case h.publicKey.IsEqual(opts.Receiver):
+		args.Sender = opts.Sender
+	default:
+		// wallet owns neither side; it can't sign this VHTLC anyway
+		return nil
 	}
-	if err := signLocalTapscriptInputs(ptx, privKey); err != nil {
-		log.WithError(err).Debug("skipped local tapscript signing")
-		return signedTx, nil
+
+	contractType := types.ContractTypeVHTLC
+	if opts.NonInteractiveClaim != nil {
+		contractType = types.ContractTypeNonInteractiveVHTLC
+		args.NonInteractiveReceiver = opts.NonInteractiveClaim.ReceiverPkScript
+		args.NonInteractiveEmulator = opts.NonInteractiveClaim.EmulatorPubKey
 	}
-	return ptx.B64Encode()
-}
-
-// signLocalTapscriptInputs produces a tapscript-spend Schnorr signature for
-// every PSBT input whose revealed leaf closure references privKey's pubkey,
-// appending each result to the input's TaprootScriptSpendSig.
-func signLocalTapscriptInputs(tx *psbt.Packet, privKey *btcec.PrivateKey) error {
-	xOnlyPub := schnorr.SerializePubKey(privKey.PubKey())
-
-	prevouts := make(map[wire.OutPoint]*wire.TxOut, len(tx.Inputs))
-	for i := range tx.Inputs {
-		if tx.Inputs[i].WitnessUtxo == nil {
-			return fmt.Errorf("input %d: missing witness utxo", i)
-		}
-		prevouts[tx.UnsignedTx.TxIn[i].PreviousOutPoint] = tx.Inputs[i].WitnessUtxo
-	}
-	fetcher := txscript.NewMultiPrevOutFetcher(prevouts)
-	sighashes := txscript.NewTxSigHashes(tx.UnsignedTx, fetcher)
-
-	for inputIndex := range tx.Inputs {
-		input := tx.Inputs[inputIndex]
-		for _, leaf := range input.TaprootLeafScript {
-			closure, err := script.DecodeClosure(leaf.Script)
-			if err != nil {
-				continue
-			}
-
-			var pubkeys []*btcec.PublicKey
-			switch c := closure.(type) {
-			case *script.MultisigClosure:
-				pubkeys = c.PubKeys
-			case *script.CSVMultisigClosure:
-				pubkeys = c.PubKeys
-			case *script.CLTVMultisigClosure:
-				pubkeys = c.PubKeys
-			case *script.ConditionMultisigClosure:
-				pubkeys = c.PubKeys
-			default:
-				continue
-			}
-
-			shouldSign := false
-			for _, k := range pubkeys {
-				if bytes.Equal(schnorr.SerializePubKey(k), xOnlyPub) {
-					shouldSign = true
-					break
-				}
-			}
-			if !shouldSign {
-				continue
-			}
-
-			tapLeaf := txscript.NewBaseTapLeaf(leaf.Script)
-			leafHash := tapLeaf.TapHash()
-
-			alreadySigned := false
-			for _, sig := range tx.Inputs[inputIndex].TaprootScriptSpendSig {
-				if bytes.Equal(sig.XOnlyPubKey, xOnlyPub) &&
-					bytes.Equal(sig.LeafHash, leafHash[:]) {
-					alreadySigned = true
-					break
-				}
-			}
-			if alreadySigned {
-				continue
-			}
-
-			sighashPreimage, err := txscript.CalcTapscriptSignaturehash(
-				sighashes, input.SighashType, tx.UnsignedTx, inputIndex, fetcher, tapLeaf,
-			)
-			if err != nil {
-				return fmt.Errorf("input %d: calc tapscript sighash: %w", inputIndex, err)
-			}
-			sig, err := schnorr.Sign(privKey, sighashPreimage)
-			if err != nil {
-				return fmt.Errorf("input %d: sign tapscript: %w", inputIndex, err)
-			}
-
-			tx.Inputs[inputIndex].TaprootScriptSpendSig = append(
-				tx.Inputs[inputIndex].TaprootScriptSpendSig,
-				&psbt.TaprootScriptSpendSig{
-					XOnlyPubKey: xOnlyPub,
-					LeafHash:    leafHash.CloneBytes(),
-					Signature:   sig.Serialize(),
-					SigHash:     input.SighashType,
-				},
-			)
-		}
+	if _, err := h.arkClient.ContractManager().NewContract(
+		ctx, contractType, contract.WithParams(args),
+	); err != nil && !strings.Contains(err.Error(), "already exists") {
+		return fmt.Errorf("failed to register vhtlc contract: %w", err)
 	}
 	return nil
 }
