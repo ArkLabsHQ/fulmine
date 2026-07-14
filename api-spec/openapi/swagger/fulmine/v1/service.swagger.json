@@ -1419,9 +1419,9 @@
     "v1NonInteractiveClaim": {
       "type": "object",
       "properties": {
-        "claimReceiverAddress": {
+        "claimAddress": {
           "type": "string",
-          "title": "fulmine will use it to compute the ArkadeScript (ark address)"
+          "title": "ark address of the claim tx recipient"
         }
       }
     },

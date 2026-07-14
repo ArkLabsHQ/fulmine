@@ -77,7 +77,7 @@ func TestNonInteractiveClaim(t *testing.T) {
 			Value: 1024,
 		},
 		NonInteractiveClaim: &pb.NonInteractiveClaim{
-			ClaimReceiverAddress: receiverArkAddress(t, info, receiverPriv.PubKey()),
+			ClaimAddress: receiverArkAddress(t, info, receiverPriv.PubKey()),
 		},
 	})
 	require.NoError(t, err)

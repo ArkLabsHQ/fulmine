@@ -12,9 +12,9 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/utils"
+	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
-	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -448,26 +448,17 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
 	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
 
-	// nonInteractive is nil if not set
-	// GetSwapVHTLC handles nil value and won't add the extra tapscript
-	var nonInteractive *vhtlc.NonInteractiveClaimOpts
+
+	// optional non-interactive claim option
+	var nonInteractiveClaimAddress *arklib.Address
 	if req.GetNonInteractiveClaim() != nil {
-		cfg, err := h.svc.GetConfigData(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if cfg == nil || cfg.Network.Addr == "" {
-			return nil, status.Error(codes.Internal, "missing network config")
-		}
-		nonInteractive, err = parseNonInteractiveClaim(
-			req.GetNonInteractiveClaim(), cfg.Network.Addr, h.svc.EmulatorPubKey(),
-		)
+		nonInteractiveClaimAddress, err = parseNonInteractiveClaim(req.GetNonInteractiveClaim())
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 	}
 
-	addr, vhtlc_id, vhtlcScript, err := h.svc.GetSwapVHTLC(
+	addr, vhtlcId, vhtlcScript, err := h.svc.GetSwapVHTLC(
 		ctx,
 		receiverPubkey,
 		senderPubkey,
@@ -476,14 +467,14 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		unilateralClaimDelay,
 		unilateralRefundDelay,
 		unilateralRefundWithoutReceiverDelay,
-		nonInteractive,
+		nonInteractiveClaimAddress,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.CreateVHTLCResponse{
-		Id:                                   vhtlc_id,
+		Id:                                   vhtlcId,
 		Address:                              addr,
 		ClaimPubkey:                          hex.EncodeToString(vhtlcScript.Receiver.SerializeCompressed()[1:]),
 		RefundPubkey:                         hex.EncodeToString(vhtlcScript.Sender.SerializeCompressed()[1:]),

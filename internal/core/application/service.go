@@ -305,11 +305,6 @@ func newService(
 	return svc, nil
 }
 
-// EmulatorPubKey returns the server-configured non-interactive claim key, or nil if non-interactive claims are disabled.
-func (s *Service) EmulatorPubKey() *btcec.PublicKey {
-	return s.emulatorPubKey
-}
-
 func (s *Service) IsInitialized() bool {
 	return s.isInitialized
 }
@@ -938,7 +933,7 @@ func (s *Service) GetSwapVHTLC(
 	unilateralClaimDelayParam *arklib.RelativeLocktime,
 	unilateralRefundDelayParam *arklib.RelativeLocktime,
 	unilateralRefundWithoutReceiverDelayParam *arklib.RelativeLocktime,
-	nonInteractive *vhtlc.NonInteractiveClaimOpts,
+	nonInteractiveClaimAddress *arklib.Address, // nil means nic disabled
 ) (string, string, *vhtlc.VHTLCScript, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", "", nil, err
@@ -1005,7 +1000,24 @@ func (s *Service) GetSwapVHTLC(
 		UnilateralRefundDelay:                unilateralRefundDelay,
 		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
 	}
-	opts.NonInteractiveClaim = nonInteractive
+	if nonInteractiveClaimAddress == nil && s.emulatorPubKey == nil {
+		return "", "", nil, fmt.Errorf("non-interactive claims are disabled: missing EMULATOR_PUBKEY")
+	}
+
+	if nonInteractiveClaimAddress.HRP != cfg.Network.Addr {
+		return "", "", nil, fmt.Errorf("non-interactive claim address has wrong network")
+	}
+
+	pkgScript, err := nonInteractiveClaimAddress.GetPkScript()
+	if err != nil {
+		return "", "", nil, fmt.Errorf("invalid non-interactive claim address")
+	}
+
+
+	opts.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
+		ReceiverPkScript: pkgScript,
+		EmulatorPubKey: s.emulatorPubKey,
+	}
 	vHTLCScript, err := vhtlc.NewVHTLCScriptFromOpts(opts)
 	if err != nil {
 		return "", "", nil, err

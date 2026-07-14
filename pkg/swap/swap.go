@@ -541,6 +541,9 @@ func (h *SwapHandler) RefundSwap(
 		}
 
 		for i := range signedRefundPsbt.Inputs {
+			if i >= len(boltzSignedRefundPtx.Inputs) {
+				break
+			}
 			boltzIn := boltzSignedRefundPtx.Inputs[i]
 			// Boltz may legitimately omit a partial sig for inputs it
 			// can't (or won't) co-sign — e.g. underfunded swaps that

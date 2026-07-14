@@ -177,37 +177,15 @@ func parseTransaction(tx string) (string, error) {
 	return tx, nil
 }
 
-func parseNonInteractiveClaim(
-	nic *pb.NonInteractiveClaim, networkHRP string, emulatorPubKey *btcec.PublicKey,
-) (*vhtlc.NonInteractiveClaimOpts, error) {
+func parseNonInteractiveClaim(nic *pb.NonInteractiveClaim) (*arklib.Address, error) {
 	if nic == nil {
 		return nil, nil // non interactive claim path is optional
 	}
-	if emulatorPubKey == nil {
-		return nil, fmt.Errorf("non-interactive claims are disabled: missing EMULATOR_PUBKEY")
+	claimAddr := nic.GetClaimAddress()
+	if len(claimAddr) == 0 {
+		return nil, fmt.Errorf("claim_address is required")
 	}
-	if nic.GetClaimReceiverAddress() == "" {
-		return nil, fmt.Errorf("claim_receiver_address is required")
-	}
-	addr, err := arklib.DecodeAddressV0(nic.GetClaimReceiverAddress())
-	if err != nil {
-		return nil, fmt.Errorf("invalid claim_receiver_address: %w", err)
-	}
-	if addr.HRP != networkHRP {
-		return nil, fmt.Errorf(
-			"claim_receiver_address network %q does not match configured network %q",
-			addr.HRP, networkHRP,
-		)
-	}
-	pkScript, err := addr.GetPkScript()
-	if err != nil {
-		return nil, fmt.Errorf("derive pkScript from claim_receiver_address: %w", err)
-	}
-
-	return &vhtlc.NonInteractiveClaimOpts{
-		ReceiverPkScript: pkScript,
-		EmulatorPubKey:   emulatorPubKey,
-	}, nil
+	return arklib.DecodeAddressV0(claimAddr)
 }
 
 func toNetworkProto(net string) pb.GetInfoResponse_Network {

@@ -394,7 +394,8 @@ message TaprootLeaf {
 }
 
 message NonInteractiveClaim {
-  string claim_receiver_address = 1; // fulmine will use it to compute the ArkadeScript (ark address)
+  // ark address of the claim tx recipient
+  string claim_address = 1;
 }
 
 message RelativeLocktime {
