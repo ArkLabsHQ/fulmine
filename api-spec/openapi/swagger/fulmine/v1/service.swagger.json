@@ -868,15 +868,15 @@
         ]
       }
     },
-    "/v1/wallet/pubkey/{derivationPath}": {
+    "/v1/wallet/pubkey/{derivationIndex}": {
       "get": {
         "summary": "GetPubkeyFromDerivationIndex derives a wallet pubkey from a derivation index.",
-        "operationId": "Service_GetPubkeyFromDerivationPath",
+        "operationId": "Service_GetPubkeyFromDerivationIndex",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1GetPubkeyFromDerivationPathResponse"
+              "$ref": "#/definitions/v1GetPubkeyFromDerivationIndexResponse"
             }
           },
           "default": {
@@ -888,10 +888,11 @@
         },
         "parameters": [
           {
-            "name": "derivationPath",
+            "name": "derivationIndex",
             "in": "path",
             "required": true,
-            "type": "string"
+            "type": "integer",
+            "format": "int64"
           }
         ],
         "tags": [
@@ -1160,8 +1161,9 @@
         "pubkey": {
           "type": "string"
         },
-        "derivationPath": {
-          "type": "string"
+        "derivationIndex": {
+          "type": "integer",
+          "format": "int64"
         }
       }
     },
@@ -1332,7 +1334,7 @@
         }
       }
     },
-    "v1GetPubkeyFromDerivationPathResponse": {
+    "v1GetPubkeyFromDerivationIndexResponse": {
       "type": "object",
       "properties": {
         "pubkey": {

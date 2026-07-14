@@ -85,8 +85,8 @@ func local_request_Service_GetInfo_0(ctx context.Context, marshaler runtime.Mars
 
 }
 
-func request_Service_GetPubkeyFromDerivationPath_0(ctx context.Context, marshaler runtime.Marshaler, client ServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GetPubkeyFromDerivationPathRequest
+func request_Service_GetPubkeyFromDerivationIndex_0(ctx context.Context, marshaler runtime.Marshaler, client ServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetPubkeyFromDerivationIndexRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -96,23 +96,23 @@ func request_Service_GetPubkeyFromDerivationPath_0(ctx context.Context, marshale
 		_   = err
 	)
 
-	val, ok = pathParams["derivation_path"]
+	val, ok = pathParams["derivation_index"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "derivation_path")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "derivation_index")
 	}
 
-	protoReq.DerivationPath, err = runtime.String(val)
+	protoReq.DerivationIndex, err = runtime.Uint32(val)
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "derivation_path", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "derivation_index", err)
 	}
 
-	msg, err := client.GetPubkeyFromDerivationPath(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GetPubkeyFromDerivationIndex(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_Service_GetPubkeyFromDerivationPath_0(ctx context.Context, marshaler runtime.Marshaler, server ServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GetPubkeyFromDerivationPathRequest
+func local_request_Service_GetPubkeyFromDerivationIndex_0(ctx context.Context, marshaler runtime.Marshaler, server ServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetPubkeyFromDerivationIndexRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -122,17 +122,17 @@ func local_request_Service_GetPubkeyFromDerivationPath_0(ctx context.Context, ma
 		_   = err
 	)
 
-	val, ok = pathParams["derivation_path"]
+	val, ok = pathParams["derivation_index"]
 	if !ok {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "derivation_path")
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "derivation_index")
 	}
 
-	protoReq.DerivationPath, err = runtime.String(val)
+	protoReq.DerivationIndex, err = runtime.Uint32(val)
 	if err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "derivation_path", err)
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "derivation_index", err)
 	}
 
-	msg, err := server.GetPubkeyFromDerivationPath(ctx, &protoReq)
+	msg, err := server.GetPubkeyFromDerivationIndex(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -1084,7 +1084,7 @@ func RegisterServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, se
 
 	})
 
-	mux.Handle("GET", pattern_Service_GetPubkeyFromDerivationPath_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_Service_GetPubkeyFromDerivationIndex_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -1092,12 +1092,12 @@ func RegisterServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, se
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/fulmine.v1.Service/GetPubkeyFromDerivationPath", runtime.WithHTTPPathPattern("/v1/wallet/pubkey/{derivation_path}"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/fulmine.v1.Service/GetPubkeyFromDerivationIndex", runtime.WithHTTPPathPattern("/v1/wallet/pubkey/{derivation_index}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Service_GetPubkeyFromDerivationPath_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Service_GetPubkeyFromDerivationIndex_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
@@ -1105,7 +1105,7 @@ func RegisterServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, se
 			return
 		}
 
-		forward_Service_GetPubkeyFromDerivationPath_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Service_GetPubkeyFromDerivationIndex_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1816,25 +1816,25 @@ func RegisterServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, cl
 
 	})
 
-	mux.Handle("GET", pattern_Service_GetPubkeyFromDerivationPath_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_Service_GetPubkeyFromDerivationIndex_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/fulmine.v1.Service/GetPubkeyFromDerivationPath", runtime.WithHTTPPathPattern("/v1/wallet/pubkey/{derivation_path}"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/fulmine.v1.Service/GetPubkeyFromDerivationIndex", runtime.WithHTTPPathPattern("/v1/wallet/pubkey/{derivation_index}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Service_GetPubkeyFromDerivationPath_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Service_GetPubkeyFromDerivationIndex_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_Service_GetPubkeyFromDerivationPath_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Service_GetPubkeyFromDerivationIndex_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -2376,7 +2376,7 @@ var (
 
 	pattern_Service_GetInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "info"}, ""))
 
-	pattern_Service_GetPubkeyFromDerivationPath_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v1", "wallet", "pubkey", "derivation_path"}, ""))
+	pattern_Service_GetPubkeyFromDerivationIndex_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"v1", "wallet", "pubkey", "derivation_index"}, ""))
 
 	pattern_Service_GetOnboardAddress_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "onboard"}, ""))
 
@@ -2434,7 +2434,7 @@ var (
 
 	forward_Service_GetInfo_0 = runtime.ForwardResponseMessage
 
-	forward_Service_GetPubkeyFromDerivationPath_0 = runtime.ForwardResponseMessage
+	forward_Service_GetPubkeyFromDerivationIndex_0 = runtime.ForwardResponseMessage
 
 	forward_Service_GetOnboardAddress_0 = runtime.ForwardResponseMessage
 

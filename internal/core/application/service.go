@@ -246,21 +246,21 @@ func newService(
 		}
 
 		svc := &Service{
-			BuildInfo:     buildInfo,
-			Wallet:        arkClient,
-			configStore:   configStore,
-			dbSvc:         dbSvc,
-			schedulerSvc:  schedulerSvc,
+			BuildInfo:      buildInfo,
+			Wallet:         arkClient,
+			configStore:    configStore,
+			dbSvc:          dbSvc,
+			schedulerSvc:   schedulerSvc,
 			publicKey:      nil,
 			emulatorPubKey: emulatorPubKey,
 			isInitialized:  true,
-			notifications: make(chan Notification),
-			esploraUrl:    data.ExplorerURL,
-			boltzUrl:      boltzUrl,
-			boltzWSUrl:    boltzWSUrl,
-			swapTimeout:   swapTimeout,
-			walletUpdates: make(chan WalletUpdate),
-			syncLock:      &sync.RWMutex{},
+			notifications:  make(chan Notification),
+			esploraUrl:     data.ExplorerURL,
+			boltzUrl:       boltzUrl,
+			boltzWSUrl:     boltzWSUrl,
+			swapTimeout:    swapTimeout,
+			walletUpdates:  make(chan WalletUpdate),
+			syncLock:       &sync.RWMutex{},
 		}
 
 		if err := svc.RefreshServerConfig(context.Background()); err != nil {
@@ -288,8 +288,8 @@ func newService(
 	}
 
 	svc := &Service{
-		BuildInfo:     buildInfo,
-		Wallet:        arkClient,
+		BuildInfo:      buildInfo,
+		Wallet:         arkClient,
 		configStore:    configStore,
 		dbSvc:          dbSvc,
 		schedulerSvc:   schedulerSvc,
@@ -788,11 +788,21 @@ func (s *Service) GetAddress(
 	return
 }
 
-func (s *Service) GetPubkeyFromDerivationPath(
-	ctx context.Context, derivationPath string,
+func (s *Service) GetPubkeyFromDerivationIndex(
+	ctx context.Context, derivationIndex int,
 ) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
+	}
+
+	var isSingleKey bool
+	if s.Wallet.Identity().GetType() == identity.SingleKeyIdentity {
+		isSingleKey = true
+	}
+
+	derivationPath := "m"
+	if !isSingleKey {
+		derivationPath += fmt.Sprintf("m/0/%d", derivationIndex)
 	}
 
 	key, err := s.Identity().GetKey(ctx, derivationPath)
@@ -954,7 +964,7 @@ func (s *Service) GetSwapVHTLC(
 	unilateralRefundDelayParam *arklib.RelativeLocktime,
 	unilateralRefundWithoutReceiverDelayParam *arklib.RelativeLocktime,
 	nonInteractiveClaimAddress *arklib.Address, // nil means nic disabled
-) (string, string, *vhtlc.VHTLCScript, *identity.KeyRef, error) {
+) (string, string, *vhtlc.VHTLCScript, *KeyRef, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", "", nil, nil, err
 	}
@@ -1052,7 +1062,7 @@ func (s *Service) GetSwapVHTLC(
 		return "", "", nil, nil, fmt.Errorf("failed to register vhtlc contract: %w", err)
 	}
 
-	var keyRef *identity.KeyRef
+	var keyRef KeyRef
 
 	if contract != nil {
 		vhtlcHandler, err := s.Wallet.ContractManager().GetHandler(ctx, *contract)
@@ -1065,7 +1075,15 @@ func (s *Service) GetSwapVHTLC(
 			return "", "", nil, nil, fmt.Errorf("failed to get vhtlc contract key reference: %w", err)
 		}
 
-		keyRef = kr
+		keyIndex, err := s.Wallet.Identity().GetKeyIndex(ctx, kr.Id)
+		if err != nil {
+			return "", "", nil, nil, fmt.Errorf("failed to get vhtlc contract key index: %w", err)
+		}
+
+		keyRef = KeyRef{
+			Index:  keyIndex,
+			PubKey: kr.PubKey,
+		}
 	}
 
 	// Persist synchronously: the duplicate check above (VHTLC().Get) and callers
@@ -1078,7 +1096,12 @@ func (s *Service) GetSwapVHTLC(
 	}
 	log.Debugf("added new vhtlc %s", vhtlcId)
 
-	return encodedAddr, vhtlcId, vHTLCScript, keyRef, nil
+	return encodedAddr, vhtlcId, vHTLCScript, &keyRef, nil
+}
+
+type KeyRef struct {
+	Index  uint32
+	PubKey *btcec.PublicKey
 }
 
 // registerVHTLCContract mirrors a freshly-created VHTLC into the go-sdk

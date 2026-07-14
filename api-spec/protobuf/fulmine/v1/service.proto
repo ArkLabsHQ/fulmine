@@ -25,9 +25,9 @@ service Service {
     };
   };
   // GetPubkeyFromDerivationIndex derives a wallet pubkey from a derivation index.
-  rpc GetPubkeyFromDerivationPath(GetPubkeyFromDerivationPathRequest) returns (GetPubkeyFromDerivationPathResponse) {
+  rpc GetPubkeyFromDerivationIndex(GetPubkeyFromDerivationIndexRequest) returns (GetPubkeyFromDerivationIndexResponse) {
     option (google.api.http) = {
-      get: "/v1/wallet/pubkey/{derivation_path}"
+      get: "/v1/wallet/pubkey/{derivation_index}"
     };
   };
   // GetOnboardAddress returns onchain address and invoice for requested amount
@@ -219,10 +219,10 @@ message GetInfoResponse {
   string signer_pubkey = 6;
 }
 
-message GetPubkeyFromDerivationPathRequest {
-  string derivation_path = 1;
+message GetPubkeyFromDerivationIndexRequest {
+  uint32 derivation_index = 1;
 }
-message GetPubkeyFromDerivationPathResponse {
+message GetPubkeyFromDerivationIndexResponse {
   string pubkey = 1;
 }
 
@@ -307,7 +307,7 @@ message CreateVHTLCResponse {
   int64 unilateral_refund_delay = 9;
   int64 unilateral_refund_without_receiver_delay = 10;
   string pubkey = 11;
-  string derivation_path = 12;
+  uint32 derivation_index = 12;
 }
 
 message ClaimVHTLCRequest {

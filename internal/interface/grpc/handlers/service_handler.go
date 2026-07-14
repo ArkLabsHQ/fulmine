@@ -90,19 +90,19 @@ func (h *serviceHandler) GetInfo(
 	return response, nil
 }
 
-func (h *serviceHandler) GetPubkeyFromDerivationPath(
-	ctx context.Context, req *pb.GetPubkeyFromDerivationPathRequest,
-) (*pb.GetPubkeyFromDerivationPathResponse, error) {
+func (h *serviceHandler) GetPubkeyFromDerivationIndex(
+	ctx context.Context, req *pb.GetPubkeyFromDerivationIndexRequest,
+) (*pb.GetPubkeyFromDerivationIndexResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request cannot be nil")
 	}
 
-	pubkey, err := h.svc.GetPubkeyFromDerivationPath(ctx, req.GetDerivationPath())
+	pubkey, err := h.svc.GetPubkeyFromDerivationIndex(ctx, int(req.GetDerivationIndex()))
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.GetPubkeyFromDerivationPathResponse{Pubkey: pubkey}, nil
+	return &pb.GetPubkeyFromDerivationIndexResponse{Pubkey: pubkey}, nil
 }
 
 func (h *serviceHandler) GetOnboardAddress(
@@ -499,7 +499,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		UnilateralRefundDelay:                int64(vhtlcScript.UnilateralRefundClosure.Locktime.Value),
 		UnilateralRefundWithoutReceiverDelay: int64(vhtlcScript.UnilateralRefundWithoutReceiverClosure.Locktime.Value),
 		Pubkey:                               pubKey,
-		DerivationPath:                      keyRef.Id,
+		DerivationIndex:                      keyRef.Index,
 	}, nil
 }
 
