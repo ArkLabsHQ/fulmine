@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -802,7 +803,7 @@ func (s *Service) GetPubkeyFromDerivationIndex(
 
 	derivationPath := "m"
 	if !isSingleKey {
-		derivationPath += fmt.Sprintf("m/0/%d", derivationIndex)
+		derivationPath = strconv.Itoa(derivationIndex)
 	}
 
 	key, err := s.Identity().GetKey(ctx, derivationPath)
