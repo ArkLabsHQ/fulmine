@@ -867,6 +867,37 @@
           "Service"
         ]
       }
+    },
+    "/v1/wallet/pubkey/{derivationPath}": {
+      "get": {
+        "summary": "GetPubkeyFromDerivationIndex derives a wallet pubkey from a derivation index.",
+        "operationId": "Service_GetPubkeyFromDerivationPath",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetPubkeyFromDerivationPathResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "derivationPath",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
     }
   },
   "definitions": {
@@ -1125,6 +1156,12 @@
         "unilateralRefundWithoutReceiverDelay": {
           "type": "string",
           "format": "int64"
+        },
+        "pubkey": {
+          "type": "string"
+        },
+        "derivationPath": {
+          "type": "string"
         }
       }
     },
@@ -1291,6 +1328,14 @@
       "type": "object",
       "properties": {
         "address": {
+          "type": "string"
+        }
+      }
+    },
+    "v1GetPubkeyFromDerivationPathResponse": {
+      "type": "object",
+      "properties": {
+        "pubkey": {
           "type": "string"
         }
       }

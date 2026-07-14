@@ -19,33 +19,34 @@ import (
 const _ = grpc.SupportPackageIsVersion8
 
 const (
-	Service_GetAddress_FullMethodName                 = "/fulmine.v1.Service/GetAddress"
-	Service_GetBalance_FullMethodName                 = "/fulmine.v1.Service/GetBalance"
-	Service_GetInfo_FullMethodName                    = "/fulmine.v1.Service/GetInfo"
-	Service_GetOnboardAddress_FullMethodName          = "/fulmine.v1.Service/GetOnboardAddress"
-	Service_GetRoundInfo_FullMethodName               = "/fulmine.v1.Service/GetRoundInfo"
-	Service_GetTransactionHistory_FullMethodName      = "/fulmine.v1.Service/GetTransactionHistory"
-	Service_RedeemNote_FullMethodName                 = "/fulmine.v1.Service/RedeemNote"
-	Service_Settle_FullMethodName                     = "/fulmine.v1.Service/Settle"
-	Service_SendOffChain_FullMethodName               = "/fulmine.v1.Service/SendOffChain"
-	Service_SendOnChain_FullMethodName                = "/fulmine.v1.Service/SendOnChain"
-	Service_SignTransaction_FullMethodName            = "/fulmine.v1.Service/SignTransaction"
-	Service_CreateVHTLC_FullMethodName                = "/fulmine.v1.Service/CreateVHTLC"
-	Service_ClaimVHTLC_FullMethodName                 = "/fulmine.v1.Service/ClaimVHTLC"
-	Service_RefundVHTLCWithoutReceiver_FullMethodName = "/fulmine.v1.Service/RefundVHTLCWithoutReceiver"
-	Service_SettleVHTLC_FullMethodName                = "/fulmine.v1.Service/SettleVHTLC"
-	Service_ListVHTLC_FullMethodName                  = "/fulmine.v1.Service/ListVHTLC"
-	Service_ListVHTLCs_FullMethodName                 = "/fulmine.v1.Service/ListVHTLCs"
-	Service_GetVHTLCSpendingTx_FullMethodName         = "/fulmine.v1.Service/GetVHTLCSpendingTx"
-	Service_GetInvoice_FullMethodName                 = "/fulmine.v1.Service/GetInvoice"
-	Service_PayInvoice_FullMethodName                 = "/fulmine.v1.Service/PayInvoice"
-	Service_GetVirtualTxs_FullMethodName              = "/fulmine.v1.Service/GetVirtualTxs"
-	Service_GetVtxos_FullMethodName                   = "/fulmine.v1.Service/GetVtxos"
-	Service_NextSettlement_FullMethodName             = "/fulmine.v1.Service/NextSettlement"
-	Service_CreateChainSwap_FullMethodName            = "/fulmine.v1.Service/CreateChainSwap"
-	Service_ListChainSwaps_FullMethodName             = "/fulmine.v1.Service/ListChainSwaps"
-	Service_RefundChainSwap_FullMethodName            = "/fulmine.v1.Service/RefundChainSwap"
-	Service_ListDelegates_FullMethodName              = "/fulmine.v1.Service/ListDelegates"
+	Service_GetAddress_FullMethodName                  = "/fulmine.v1.Service/GetAddress"
+	Service_GetBalance_FullMethodName                  = "/fulmine.v1.Service/GetBalance"
+	Service_GetInfo_FullMethodName                     = "/fulmine.v1.Service/GetInfo"
+	Service_GetPubkeyFromDerivationPath_FullMethodName = "/fulmine.v1.Service/GetPubkeyFromDerivationPath"
+	Service_GetOnboardAddress_FullMethodName           = "/fulmine.v1.Service/GetOnboardAddress"
+	Service_GetRoundInfo_FullMethodName                = "/fulmine.v1.Service/GetRoundInfo"
+	Service_GetTransactionHistory_FullMethodName       = "/fulmine.v1.Service/GetTransactionHistory"
+	Service_RedeemNote_FullMethodName                  = "/fulmine.v1.Service/RedeemNote"
+	Service_Settle_FullMethodName                      = "/fulmine.v1.Service/Settle"
+	Service_SendOffChain_FullMethodName                = "/fulmine.v1.Service/SendOffChain"
+	Service_SendOnChain_FullMethodName                 = "/fulmine.v1.Service/SendOnChain"
+	Service_SignTransaction_FullMethodName             = "/fulmine.v1.Service/SignTransaction"
+	Service_CreateVHTLC_FullMethodName                 = "/fulmine.v1.Service/CreateVHTLC"
+	Service_ClaimVHTLC_FullMethodName                  = "/fulmine.v1.Service/ClaimVHTLC"
+	Service_RefundVHTLCWithoutReceiver_FullMethodName  = "/fulmine.v1.Service/RefundVHTLCWithoutReceiver"
+	Service_SettleVHTLC_FullMethodName                 = "/fulmine.v1.Service/SettleVHTLC"
+	Service_ListVHTLC_FullMethodName                   = "/fulmine.v1.Service/ListVHTLC"
+	Service_ListVHTLCs_FullMethodName                  = "/fulmine.v1.Service/ListVHTLCs"
+	Service_GetVHTLCSpendingTx_FullMethodName          = "/fulmine.v1.Service/GetVHTLCSpendingTx"
+	Service_GetInvoice_FullMethodName                  = "/fulmine.v1.Service/GetInvoice"
+	Service_PayInvoice_FullMethodName                  = "/fulmine.v1.Service/PayInvoice"
+	Service_GetVirtualTxs_FullMethodName               = "/fulmine.v1.Service/GetVirtualTxs"
+	Service_GetVtxos_FullMethodName                    = "/fulmine.v1.Service/GetVtxos"
+	Service_NextSettlement_FullMethodName              = "/fulmine.v1.Service/NextSettlement"
+	Service_CreateChainSwap_FullMethodName             = "/fulmine.v1.Service/CreateChainSwap"
+	Service_ListChainSwaps_FullMethodName              = "/fulmine.v1.Service/ListChainSwaps"
+	Service_RefundChainSwap_FullMethodName             = "/fulmine.v1.Service/RefundChainSwap"
+	Service_ListDelegates_FullMethodName               = "/fulmine.v1.Service/ListDelegates"
 )
 
 // ServiceClient is the client API for Service service.
@@ -58,6 +59,8 @@ type ServiceClient interface {
 	GetBalance(ctx context.Context, in *GetBalanceRequest, opts ...grpc.CallOption) (*GetBalanceResponse, error)
 	// GetInfo returns info about the ark account
 	GetInfo(ctx context.Context, in *GetInfoRequest, opts ...grpc.CallOption) (*GetInfoResponse, error)
+	// GetPubkeyFromDerivationIndex derives a wallet pubkey from a derivation index.
+	GetPubkeyFromDerivationPath(ctx context.Context, in *GetPubkeyFromDerivationPathRequest, opts ...grpc.CallOption) (*GetPubkeyFromDerivationPathResponse, error)
 	// GetOnboardAddress returns onchain address and invoice for requested amount
 	GetOnboardAddress(ctx context.Context, in *GetOnboardAddressRequest, opts ...grpc.CallOption) (*GetOnboardAddressResponse, error)
 	// Returns round info for optional round_id (no round_id returns current round info)
@@ -136,6 +139,16 @@ func (c *serviceClient) GetInfo(ctx context.Context, in *GetInfoRequest, opts ..
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetInfoResponse)
 	err := c.cc.Invoke(ctx, Service_GetInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) GetPubkeyFromDerivationPath(ctx context.Context, in *GetPubkeyFromDerivationPathRequest, opts ...grpc.CallOption) (*GetPubkeyFromDerivationPathResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPubkeyFromDerivationPathResponse)
+	err := c.cc.Invoke(ctx, Service_GetPubkeyFromDerivationPath_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -392,6 +405,8 @@ type ServiceServer interface {
 	GetBalance(context.Context, *GetBalanceRequest) (*GetBalanceResponse, error)
 	// GetInfo returns info about the ark account
 	GetInfo(context.Context, *GetInfoRequest) (*GetInfoResponse, error)
+	// GetPubkeyFromDerivationIndex derives a wallet pubkey from a derivation index.
+	GetPubkeyFromDerivationPath(context.Context, *GetPubkeyFromDerivationPathRequest) (*GetPubkeyFromDerivationPathResponse, error)
 	// GetOnboardAddress returns onchain address and invoice for requested amount
 	GetOnboardAddress(context.Context, *GetOnboardAddressRequest) (*GetOnboardAddressResponse, error)
 	// Returns round info for optional round_id (no round_id returns current round info)
@@ -450,6 +465,9 @@ func (UnimplementedServiceServer) GetBalance(context.Context, *GetBalanceRequest
 }
 func (UnimplementedServiceServer) GetInfo(context.Context, *GetInfoRequest) (*GetInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInfo not implemented")
+}
+func (UnimplementedServiceServer) GetPubkeyFromDerivationPath(context.Context, *GetPubkeyFromDerivationPathRequest) (*GetPubkeyFromDerivationPathResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPubkeyFromDerivationPath not implemented")
 }
 func (UnimplementedServiceServer) GetOnboardAddress(context.Context, *GetOnboardAddressRequest) (*GetOnboardAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOnboardAddress not implemented")
@@ -585,6 +603,24 @@ func _Service_GetInfo_Handler(srv interface{}, ctx context.Context, dec func(int
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).GetInfo(ctx, req.(*GetInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_GetPubkeyFromDerivationPath_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPubkeyFromDerivationPathRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).GetPubkeyFromDerivationPath(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_GetPubkeyFromDerivationPath_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).GetPubkeyFromDerivationPath(ctx, req.(*GetPubkeyFromDerivationPathRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1039,6 +1075,10 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetInfo",
 			Handler:    _Service_GetInfo_Handler,
+		},
+		{
+			MethodName: "GetPubkeyFromDerivationPath",
+			Handler:    _Service_GetPubkeyFromDerivationPath_Handler,
 		},
 		{
 			MethodName: "GetOnboardAddress",
