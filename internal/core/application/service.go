@@ -35,6 +35,7 @@ import (
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/contract"
+	vhtlccontract "github.com/arkade-os/go-sdk/contract/handlers/vhtlc"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -1109,7 +1110,7 @@ type KeyRef struct {
 // contract store so that wallet.SignTransaction can resolve the script and
 // route signing through the wallet identity.
 func (s *Service) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) (*types.Contract, error) {
-	args := contract.VHTLCContractArgs{
+	args := vhtlccontract.ContractArgs{
 		PreimageHash:                         opts.PreimageHash,
 		RefundLocktime:                       opts.RefundLocktime,
 		UnilateralClaimDelay:                 opts.UnilateralClaimDelay,
@@ -1135,17 +1136,31 @@ func (s *Service) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) (*
 	}
 
 	contractType := types.ContractTypeVHTLC
+	var contractArgs any = args
 	if opts.NonInteractiveClaim != nil {
 		contractType = types.ContractTypeNonInteractiveVHTLC
-		args.NonInteractiveReceiver = opts.NonInteractiveClaim.ReceiverPkScript
-		args.NonInteractiveEmulator = opts.NonInteractiveClaim.EmulatorPubKey
+		contractArgs = vhtlccontract.NonInteractiveContractArgs{
+			ContractArgs:           args,
+			NonInteractiveReceiver: opts.NonInteractiveClaim.ReceiverPkScript,
+			NonInteractiveEmulator: opts.NonInteractiveClaim.EmulatorPubKey,
+		}
 	}
-	contract, err := s.Wallet.ContractManager().NewContract(
-		ctx, contractType, contract.WithParams(args),
-	)
+
+	contractManager := s.Wallet.ContractManager()
+	handler, err := contractManager.Registry().GetHandler(contractType)
 	if err != nil {
-		return nil, fmt.Errorf("persist vhtlc contract: %w", err)
+		return nil, err
 	}
+
+	contract, err := handler.NewContract(ctx, contractArgs)
+	if err != nil {
+		return nil, fmt.Errorf("build vhtlc contract: %w", err)
+	}
+
+	if err := contractManager.ImportContract(ctx, *contract); err != nil {
+		return nil, fmt.Errorf("import vhtlc contract: %w", err)
+	}
+
 	return contract, nil
 }
 
