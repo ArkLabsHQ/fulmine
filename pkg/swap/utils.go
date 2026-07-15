@@ -10,13 +10,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	"github.com/arkade-os/go-sdk/contract"
+	"github.com/arkade-os/go-sdk/types"
+	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -31,6 +33,47 @@ import (
 func checkpointExitScript(cfg clientTypes.Config) []byte {
 	buf, _ := hex.DecodeString(cfg.CheckpointTapscript)
 	return buf
+}
+
+// buildVHTLC = register + newVHTLC
+func (h *SwapHandler) buildVHTLC(ctx context.Context, opts vhtlc.Opts) (*vhtlc.VHTLCScript, error) {
+	if err := h.registerVHTLCContract(ctx, opts); err != nil {
+		return nil, err
+	}
+	return vhtlc.NewVHTLCScriptFromOpts(opts)
+}
+
+// registerVHTLCContract mirrors a VHTLC into the go-sdk contract store.
+func (h *SwapHandler) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) error {
+	args := contract.VHTLCContractArgs{
+		PreimageHash:                         opts.PreimageHash,
+		RefundLocktime:                       opts.RefundLocktime,
+		UnilateralClaimDelay:                 opts.UnilateralClaimDelay,
+		UnilateralRefundDelay:                opts.UnilateralRefundDelay,
+		UnilateralRefundWithoutReceiverDelay: opts.UnilateralRefundWithoutReceiverDelay,
+	}
+	switch {
+	case h.publicKey.IsEqual(opts.Sender):
+		args.Receiver = opts.Receiver
+	case h.publicKey.IsEqual(opts.Receiver):
+		args.Sender = opts.Sender
+	default:
+		// wallet owns neither side; it can't sign this VHTLC anyway
+		return nil
+	}
+
+	contractType := types.ContractTypeVHTLC
+	if opts.NonInteractiveClaim != nil {
+		contractType = types.ContractTypeNonInteractiveVHTLC
+		args.NonInteractiveReceiver = opts.NonInteractiveClaim.ReceiverPkScript
+		args.NonInteractiveEmulator = opts.NonInteractiveClaim.EmulatorPubKey
+	}
+	if _, err := h.arkClient.ContractManager().NewContract(
+		ctx, contractType, contract.WithParams(args),
+	); err != nil && !strings.Contains(err.Error(), "already exists") {
+		return fmt.Errorf("failed to register vhtlc contract: %w", err)
+	}
+	return nil
 }
 
 type pendingTxIntentInput struct {

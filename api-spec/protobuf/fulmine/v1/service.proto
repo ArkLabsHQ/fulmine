@@ -279,6 +279,8 @@ message CreateVHTLCRequest {
   RelativeLocktime unilateral_refund_delay = 6;
   // Optional unilateral refund without receiver delay (relative timelock)
   RelativeLocktime unilateral_refund_without_receiver_delay = 7;
+  // Optional non-interactive claim config
+  NonInteractiveClaim non_interactive_claim = 8;
 }
 message CreateVHTLCResponse {
   string id = 1;
@@ -391,7 +393,11 @@ message TaprootLeaf {
   string output = 2;
 }
 
-// RelativeLocktime represents a relative timelock
+message NonInteractiveClaim {
+  // ark address of the claim tx recipient
+  string claim_address = 1;
+}
+
 message RelativeLocktime {
   enum LocktimeType {
     LOCKTIME_TYPE_UNSPECIFIED = 0;

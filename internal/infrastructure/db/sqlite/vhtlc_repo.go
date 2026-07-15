@@ -9,8 +9,8 @@ import (
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
@@ -157,6 +157,14 @@ func toVhtlc(row queries.Vhtlc) (domain.Vhtlc, error) {
 		PreimageHash:                         preimageHashBytes,
 	}
 
+	nic, err := parseNonInteractiveClaim(
+		row.NonInteractiveReceiverPkscript.String, row.NonInteractiveEmulatorPubkey.String,
+	)
+	if err != nil {
+		return domain.Vhtlc{}, err
+	}
+	opts.NonInteractiveClaim = nic
+
 	return domain.NewVhtlc(opts), nil
 }
 
@@ -168,7 +176,7 @@ func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
 
 	vhtlcId := domain.GetVhtlcId(preimageHash, sender, receiver)
 
-	return queries.InsertVHTLCParams{
+	params := queries.InsertVHTLCParams{
 		ID:                                       vhtlcId,
 		PreimageHash:                             hex.EncodeToString(preimageHash),
 		Sender:                                   hex.EncodeToString(sender),
@@ -182,4 +190,47 @@ func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
 		UnilateralRefundWithoutReceiverDelayType: int64(vhtlc.UnilateralRefundWithoutReceiverDelay.Type),
 		UnilateralRefundWithoutReceiverDelayValue: int64(vhtlc.UnilateralRefundWithoutReceiverDelay.Value),
 	}
+	if vhtlc.NonInteractiveClaim != nil {
+		params.NonInteractiveReceiverPkscript = sql.NullString{
+			String: hex.EncodeToString(vhtlc.NonInteractiveClaim.ReceiverPkScript),
+			Valid:  true,
+		}
+		params.NonInteractiveEmulatorPubkey = sql.NullString{
+			String: hex.EncodeToString(
+				vhtlc.NonInteractiveClaim.EmulatorPubKey.SerializeCompressed(),
+			),
+			Valid: true,
+		}
+	}
+	return params
+}
+
+func parseNonInteractiveClaim(pkScriptHex, emulatorPubKeyHex string) (
+	*vhtlc.NonInteractiveClaimOpts, error,
+) {
+	if (len(pkScriptHex) == 0) != (len(emulatorPubKeyHex) == 0) {
+		return nil, fmt.Errorf(
+			"inconsistent non-interactive data: both receiver pkScript and emulator pubkey must be set together",
+		)
+	}
+	if len(pkScriptHex) == 0 {
+		return nil, nil
+	}
+
+	pkScript, err := hex.DecodeString(pkScriptHex)
+	if err != nil {
+		return nil, fmt.Errorf("decode non-interactive receiver pkScript: %w", err)
+	}
+	pubBytes, err := hex.DecodeString(emulatorPubKeyHex)
+	if err != nil {
+		return nil, fmt.Errorf("decode non-interactive emulator pubkey: %w", err)
+	}
+	pub, err := btcec.ParsePubKey(pubBytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse non-interactive emulator pubkey: %w", err)
+	}
+	return &vhtlc.NonInteractiveClaimOpts{
+		ReceiverPkScript: pkScript,
+		EmulatorPubKey:   pub,
+	}, nil
 }

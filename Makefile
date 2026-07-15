@@ -96,7 +96,7 @@ regtest-build:
 regtest-up: regtest-build
 	@echo "Starting arkade-regtest stack..."
 	@git submodule update --init regtest
-	@node regtest/regtest.mjs start --profile boltz,delegate
+	@node regtest/regtest.mjs start --profile boltz,delegate,emulator
 	@$(MAKE) regtest-user-up
 
 ## regtest-user-up: start + initialise the dedicated swap-user Fulmine
@@ -108,7 +108,7 @@ regtest-user-up:
 ## regtest-down: stop and remove the arkade-regtest stack + volumes + user Fulmine
 regtest-down:
 	@echo "Stopping arkade-regtest stack..."
-	@docker rm -f fulmine-user >/dev/null 2>&1 || true
+	@docker rm -f fulmine-user covclaimd >/dev/null 2>&1 || true
 	@node regtest/regtest.mjs clean || true
 
 ## regtest-logs: tail arkade-regtest stack logs

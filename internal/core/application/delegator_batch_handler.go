@@ -170,7 +170,9 @@ func (h *delegateBatchSessionHandler) submitForfeitTxs(
 			return fmt.Errorf("failed to encode forfeit tx: %w", err)
 		}
 
-		signedForfeitTx, err := h.delegate.svc.SignTransaction(ctx, encodedForfeitTx)
+		signedForfeitTx, err := h.delegate.svc.Identity().SignTransaction(
+			ctx, encodedForfeitTx, nil,
+		)
 		if err != nil {
 			return fmt.Errorf("failed to sign forfeit: %w", err)
 		}
@@ -185,7 +187,7 @@ func (h *delegateBatchSessionHandler) submitForfeitTxs(
 type musig2BatchSessionHandler struct {
 	SweepClosure    script.CSVMultisigClosure
 	SignerSession   tree.SignerSession
-	TransportClient client.TransportClient
+	TransportClient client.Client
 }
 
 func (h *musig2BatchSessionHandler) OnTreeSigningStarted(

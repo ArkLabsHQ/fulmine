@@ -39,6 +39,7 @@ type Config struct {
 	DelegatePort          uint32 `mapstructure:"DELEGATE_PORT" envDefault:"7002" envInfo:"Delegate server port"`
 	DelegateFee           uint64 `mapstructure:"DELEGATE_FEE" envDefault:"0" envInfo:"Fee the delegate charges, in satoshis"`
 	DelegateEnabled       bool   `mapstructure:"DELEGATE_ENABLED" envDefault:"false" envInfo:"Run the delegate server"`
+	EmulatorPubkey        string `mapstructure:"EMULATOR_PUBKEY" envInfo:"Emulator public key (33-byte compressed hex) used as the non-interactive claim tapscript"`
 
 	UnlockerType     string `mapstructure:"UNLOCKER_TYPE" envInfo:"Unlocker type: file or env"`
 	UnlockerFilePath string `mapstructure:"UNLOCKER_FILE_PATH" envInfo:"Path to the unlocker password file (file unlocker)"`
@@ -76,6 +77,7 @@ var (
 	DelegatePort          = "DELEGATE_PORT"
 	DelegateFee           = "DELEGATE_FEE"
 	DelegateEnabled       = "DELEGATE_ENABLED"
+	EmulatorPubkey        = "EMULATOR_PUBKEY"
 
 	// Unlocker configuration
 	UnlockerType     = "UNLOCKER_TYPE"
@@ -171,6 +173,7 @@ func LoadConfig() (*Config, error) {
 		DelegatePort:          viper.GetUint32(DelegatePort),
 		DelegateFee:           viper.GetUint64(DelegateFee),
 		DelegateEnabled:       viper.GetBool(DelegateEnabled),
+		EmulatorPubkey:        viper.GetString(EmulatorPubkey),
 	}
 
 	if err := config.initUnlockerService(); err != nil {

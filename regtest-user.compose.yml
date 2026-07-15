@@ -27,11 +27,31 @@ services:
       - FULMINE_UNLOCKER_TYPE=env
       - FULMINE_UNLOCKER_PASSWORD=password
       - FULMINE_DELEGATE_ENABLED=true
+      # Compressed pubkey of EMULATOR_SECRET_KEY (regtest/.env.defaults) — the
+      # non-interactive claim tapscript key. covclaimd/emulator claim with it.
+      - FULMINE_EMULATOR_PUBKEY=02999413c46fa10ada5cbc4bcc79a1d09160c2ba3cfc812705d7a13e5e545fb2a9
     ports:
       # Bind to loopback only: with FULMINE_NO_MACAROONS the endpoints are
       # unauthenticated, and the e2e suite reaches them via localhost anyway.
       - "127.0.0.1:7020:7000" # gRPC  (clientFulmineURL)
       - "127.0.0.1:7021:7001" # REST/admin
+    networks:
+      - default
+
+  covclaimd:
+    image: ghcr.io/arkade-os/covclaimd:v0.0.1-rc.0
+    container_name: covclaimd
+    restart: unless-stopped
+    environment:
+      - COVCLAIMD_ARK_URL=arkd:7070
+      - COVCLAIMD_EMULATOR_URL=emulator:7073
+      - COVCLAIMD_SECRET_KEY=c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d5
+      - COVCLAIMD_ENCRYPTED_ENABLED=true
+      - COVCLAIMD_REVEAL_ENABLED=true
+      - COVCLAIMD_LOG_LEVEL=4
+    ports:
+      - "127.0.0.1:7270:7070"
+      - "127.0.0.1:7271:7071"
     networks:
       - default
 

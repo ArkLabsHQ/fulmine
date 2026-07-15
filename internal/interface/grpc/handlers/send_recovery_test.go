@@ -7,6 +7,7 @@ import (
 	"time"
 
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +23,7 @@ func TestSendOffChainWithRecovery(t *testing.T) {
 
 	t.Run("finalizes pending txs on already-spent then retries to success", func(t *testing.T) {
 		var sendCalls, finalizeCalls int
-		send := func(context.Context, []clientTypes.Receiver) (string, error) {
+		send := func(context.Context, []clientTypes.Receiver, ...arksdk.SendOffChainOption) (string, error) {
 			sendCalls++
 			// The stranded input is only cleared once the pending tx is
 			// finalized and the local db reconciles; model that by succeeding
@@ -46,7 +47,7 @@ func TestSendOffChainWithRecovery(t *testing.T) {
 
 	t.Run("returns unrelated errors immediately without finalizing", func(t *testing.T) {
 		var finalizeCalls int
-		send := func(context.Context, []clientTypes.Receiver) (string, error) {
+		send := func(context.Context, []clientTypes.Receiver, ...arksdk.SendOffChainOption) (string, error) {
 			return "", errors.New("insufficient funds")
 		}
 		finalize := func(context.Context, *time.Time) ([]string, error) {
@@ -61,7 +62,7 @@ func TestSendOffChainWithRecovery(t *testing.T) {
 
 	t.Run("gives up after max attempts but still finalizes to self-heal", func(t *testing.T) {
 		var sendCalls, finalizeCalls int
-		send := func(context.Context, []clientTypes.Receiver) (string, error) {
+		send := func(context.Context, []clientTypes.Receiver, ...arksdk.SendOffChainOption) (string, error) {
 			sendCalls++
 			return "", errAlreadySpent
 		}
@@ -78,7 +79,7 @@ func TestSendOffChainWithRecovery(t *testing.T) {
 
 	t.Run("first attempt succeeds without finalizing", func(t *testing.T) {
 		var finalizeCalls int
-		send := func(context.Context, []clientTypes.Receiver) (string, error) {
+		send := func(context.Context, []clientTypes.Receiver, ...arksdk.SendOffChainOption) (string, error) {
 			return "immediate", nil
 		}
 		finalize := func(context.Context, *time.Time) ([]string, error) {
@@ -94,7 +95,7 @@ func TestSendOffChainWithRecovery(t *testing.T) {
 
 	t.Run("aborts the retry wait when the context is cancelled", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		send := func(context.Context, []clientTypes.Receiver) (string, error) {
+		send := func(context.Context, []clientTypes.Receiver, ...arksdk.SendOffChainOption) (string, error) {
 			return "", errAlreadySpent
 		}
 		finalize := func(context.Context, *time.Time) ([]string, error) {

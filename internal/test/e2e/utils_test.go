@@ -19,18 +19,18 @@ import (
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/offchain"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	"github.com/arkade-os/arkd/pkg/client-lib/client"
 	grpcclient "github.com/arkade-os/arkd/pkg/client-lib/client/grpc"
+	singlekeywallet "github.com/arkade-os/arkd/pkg/client-lib/identity/singlekey"
+	inmemorystore "github.com/arkade-os/arkd/pkg/client-lib/identity/singlekey/store/inmemory"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
-	singlekeywallet "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey"
-	inmemorystore "github.com/arkade-os/arkd/pkg/client-lib/wallet/singlekey/store/inmemory"
 	arksdk "github.com/arkade-os/go-sdk"
+	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -289,7 +289,7 @@ func generateNote(t *testing.T, amount uint64) string {
 	return noteResp.Notes[0]
 }
 
-func faucetOffchain(t *testing.T, client arksdk.ArkClient, amount float64) clientTypes.Vtxo {
+func faucetOffchain(t *testing.T, client arksdk.Wallet, amount float64) clientTypes.Vtxo {
 	offchainAddr, err := client.NewOffchainAddress(t.Context())
 	require.NoError(t, err)
 
@@ -328,19 +328,31 @@ func newDelegateClient(url string) (pb.DelegateServiceClient, error) {
 
 func setupArkSDKwithPublicKey(
 	t *testing.T,
-) (arksdk.ArkClient, *btcec.PublicKey, client.TransportClient) {
+) (arksdk.Wallet, *btcec.PublicKey, client.Client) {
+	t.Helper()
+	w, priv, c := setupArkSDKwithPrivateKey(t)
+	return w, priv.PubKey(), c
+}
+
+// setupArkSDKwithPrivateKey also exposes the wallet key, for tests that build
+// a swap.SwapHandler directly: production wires the wallet key as the
+// handler's signing key, so tests must do the same.
+func setupArkSDKwithPrivateKey(
+	t *testing.T,
+) (arksdk.Wallet, *btcec.PrivateKey, client.Client) {
 	t.Helper()
 
 	serverUrl := "localhost:7070"
 	password := "pass"
 
-	walletStore, err := inmemorystore.NewWalletStore()
+	walletStore, err := inmemorystore.NewStore()
 	require.NoError(t, err)
-	singleKeyWallet, err := singlekeywallet.NewBitcoinWallet(walletStore)
+	singleKeyWallet, err := singlekeywallet.NewIdentity(walletStore)
 	require.NoError(t, err)
 
-	arkClient, err := arksdk.NewArkClient("", arksdk.WithWallet(singleKeyWallet))
+	arkClient, err := arksdk.NewWallet(t.TempDir(), arksdk.WithIdentity(singleKeyWallet))
 	require.NoError(t, err)
+	t.Cleanup(arkClient.Stop)
 
 	privkey, err := btcec.NewPrivateKey()
 	require.NoError(t, err)
@@ -374,14 +386,21 @@ func setupArkSDKwithPublicKey(
 		t.Fatalf("timed out waiting for ark client sync: %v", syncCtx.Err())
 	}
 
+	// A fresh wallet has no derived addresses; GetAddresses is empty until
+	// they are created.
+	_, err = arkClient.NewOffchainAddress(t.Context())
+	require.NoError(t, err)
+	_, err = arkClient.NewBoardingAddress(t.Context())
+	require.NoError(t, err)
+
 	grpcClient, err := grpcclient.NewClient(serverUrl, "")
 	require.NoError(t, err)
 
-	return arkClient, privkey.PubKey(), grpcClient
+	return arkClient, privkey, grpcClient
 }
 
 // issueAsset issues a new asset with the given supply and returns the asset ID string.
-func issueAsset(t *testing.T, client arksdk.ArkClient, supply uint64) string {
+func issueAsset(t *testing.T, client arksdk.Wallet, supply uint64) string {
 	t.Helper()
 	_, assetIds, err := client.IssueAsset(t.Context(), supply, nil, nil)
 	require.NoError(t, err)
@@ -390,7 +409,7 @@ func issueAsset(t *testing.T, client arksdk.ArkClient, supply uint64) string {
 }
 
 // listVtxosWithAsset returns all spendable VTXOs that contain the given asset ID.
-func listVtxosWithAsset(t *testing.T, client arksdk.ArkClient, assetID string) []clientTypes.Vtxo {
+func listVtxosWithAsset(t *testing.T, client arksdk.Wallet, assetID string) []clientTypes.Vtxo {
 	t.Helper()
 	vtxos, _, err := client.ListVtxos(t.Context())
 	require.NoError(t, err)
@@ -531,7 +550,7 @@ func mustDecodeHex(t *testing.T, value string) []byte {
 // FinalizeTx so the VTXO remains in the partially-executed pending state.
 func submitPendingClaimVHTLC(
 	t *testing.T,
-	arkClient arksdk.ArkClient,
+	arkClient arksdk.Wallet,
 	fulmineClient pb.ServiceClient,
 	vhtlc testVHTLC,
 	preimage []byte,
@@ -629,7 +648,7 @@ func submitPendingClaimVHTLC(
 // transaction but intentionally skips FinalizeTx so the VTXO remains pending.
 func submitPendingRefundVHTLCWithoutReceiver(
 	t *testing.T,
-	arkClient arksdk.ArkClient,
+	arkClient arksdk.Wallet,
 	fulmineClient pb.ServiceClient,
 	vhtlc testVHTLC,
 ) string {
@@ -712,7 +731,7 @@ func submitPendingRefundVHTLCWithoutReceiver(
 
 func requirePendingVHTLC(
 	t *testing.T,
-	arkClient arksdk.ArkClient,
+	arkClient arksdk.Wallet,
 	vhtlc testVHTLC,
 ) {
 	t.Helper()
@@ -845,7 +864,7 @@ func verifyInputSignatures(
 	return nil
 }
 
-func faucetAndSettle(t *testing.T, ctx context.Context, c arksdk.ArkClient, address string, amount float64) {
+func faucetAndSettle(t *testing.T, ctx context.Context, c arksdk.Wallet, address string, amount float64) {
 	t.Helper()
 
 	// Funding a boarding address and onboarding it via Settle is unreliable in

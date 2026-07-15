@@ -144,7 +144,7 @@ func (s *spyMacaroonService) Auth(ctx context.Context, _ string) error {
 	return s.errToReturn
 }
 
-func (s *spyMacaroonService) Unlock(context.Context, string) error                { return nil }
+func (s *spyMacaroonService) Unlock(context.Context, string) error                 { return nil }
 func (s *spyMacaroonService) ChangePassword(context.Context, string, string) error { return nil }
 func (s *spyMacaroonService) Generate(context.Context) error                       { return nil }
 func (s *spyMacaroonService) Reset(context.Context) error                          { return nil }

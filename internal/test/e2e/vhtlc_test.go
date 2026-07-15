@@ -11,13 +11,13 @@ import (
 	"time"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
+	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -992,7 +992,7 @@ func TestSettleVHTLCByDelegateRefundWithOutpoint(t *testing.T) {
 func buildDelegateIntentProof(
 	t *testing.T,
 	ctx context.Context,
-	senderArkClient arksdk.ArkClient,
+	senderArkClient arksdk.Wallet,
 	intentMessage string,
 	vtxoToDelegate *pb.Vtxo,
 	vhtlcAddress string,
@@ -1056,7 +1056,7 @@ func buildDelegateIntentProof(
 	encodedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	partialySignedProof, err := senderArkClient.SignTransaction(ctx, encodedIntentProof)
+	partialySignedProof, err := senderArkClient.Identity().SignTransaction(ctx, encodedIntentProof, map[string]string{"_": "m"})
 	require.NoError(t, err)
 
 	return partialySignedProof, nil
@@ -1065,7 +1065,7 @@ func buildDelegateIntentProof(
 func buildDelegatePartialForfeit(
 	t *testing.T,
 	ctx context.Context,
-	senderArkClient arksdk.ArkClient,
+	senderArkClient arksdk.Wallet,
 	vhtlcVtxo *pb.Vtxo,
 	vhtlcAddress string,
 	vhtlcScript *vhtlc.VHTLCScript,
@@ -1127,7 +1127,7 @@ func buildDelegatePartialForfeit(
 	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 	require.NoError(t, err)
 
-	signedPartialForfeitTx, err := senderArkClient.SignTransaction(ctx, b64partialForfeitTx)
+	signedPartialForfeitTx, err := senderArkClient.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
 	require.NoError(t, err)
 
 	return signedPartialForfeitTx, nil

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
@@ -17,6 +16,7 @@ import (
 	"github.com/arkade-os/arkd/pkg/client-lib/client"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
+	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -38,7 +38,7 @@ type batchSessionArgs struct {
 
 type batchSessionHandler struct {
 	musig2BatchSessionHandler
-	arkClient arksdk.ArkClient
+	arkClient arksdk.Wallet
 
 	intentId       string
 	vtxos          []clientTypes.VtxoWithTapTree
@@ -51,8 +51,8 @@ type batchSessionHandler struct {
 }
 
 func newBatchSessionHandler(
-	arkClient arksdk.ArkClient,
-	transportClient client.TransportClient,
+	arkClient arksdk.Wallet,
+	transportClient client.Client,
 	intentId string,
 	vtxos []clientTypes.VtxoWithTapTree,
 	receivers []clientTypes.Receiver,
@@ -247,7 +247,7 @@ type claimBatchSessionHandler struct {
 }
 
 func newClaimBatchSessionHandler(
-	arkClient arksdk.ArkClient,
+	arkClient arksdk.Wallet,
 	intentId string,
 	vtxos []clientTypes.VtxoWithTapTree,
 	receivers []clientTypes.Receiver,
@@ -307,8 +307,8 @@ type refundBatchSessionHandler struct {
 }
 
 func newRefundBatchSessionHandler(
-	arkClient arksdk.ArkClient,
-	transportClient client.TransportClient,
+	arkClient arksdk.Wallet,
+	transportClient client.Client,
 	intentId string,
 	vtxos []clientTypes.VtxoWithTapTree,
 	receivers []clientTypes.Receiver,
@@ -369,8 +369,8 @@ type collabRefundBatchSessionHandler struct {
 }
 
 func newCollabRefundBatchSessionHandler(
-	arkClient arksdk.ArkClient,
-	transportClient client.TransportClient,
+	arkClient arksdk.Wallet,
+	transportClient client.Client,
 	intentId string,
 	vtxos []clientTypes.VtxoWithTapTree,
 	receivers []clientTypes.Receiver,

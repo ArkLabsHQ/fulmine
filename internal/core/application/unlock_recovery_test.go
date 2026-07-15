@@ -17,7 +17,7 @@ import (
 func TestUnwindFailedUnlockReLocks(t *testing.T) {
 	fake := newFakeArkClient()
 	svc := &Service{
-		ArkClient:     fake,
+		Wallet:        fake,
 		isInitialized: true,
 		syncEvent:     &types.SyncEvent{},
 	}
@@ -40,7 +40,7 @@ func TestUnwindFailedUnlockReLocks(t *testing.T) {
 func TestUnwindFailedUnlockStopsDelegate(t *testing.T) {
 	fake := newFakeArkClient()
 	svc := &Service{
-		ArkClient:     fake,
+		Wallet:        fake,
 		isInitialized: true,
 		syncEvent:     &types.SyncEvent{},
 	}
@@ -75,7 +75,7 @@ func TestUnlockNodeFailedUnlockArmsNoSyncState(t *testing.T) {
 	fake.unlockErr = errors.New("wrong password") // fail synchronously inside Unlock
 
 	svc := &Service{
-		ArkClient:     fake,
+		Wallet:        fake,
 		isInitialized: true,
 		syncLock:      &sync.RWMutex{},
 	}

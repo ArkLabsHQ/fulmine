@@ -112,7 +112,7 @@ func DecodeBolt12Invoice(invoice string) (*Invoice, error) {
 		return nil, errors.New("invoice amount is required")
 	}
 
-	invoiceData.AmountInSats, err = safecast.ToUint64(invoiceData.Amount / 1000)
+	invoiceData.AmountInSats, err = safecast.Convert[uint64](invoiceData.Amount / 1000)
 	if err != nil {
 		return nil, fmt.Errorf("invalid amount in sats: %w", err)
 	}
@@ -164,7 +164,7 @@ func DecodeBolt12Offer(offer string) (*Offer, error) {
 		return nil, errors.New("offer amount is required")
 	}
 
-	offerData.AmountInSats, err = safecast.ToUint64(offerData.Amount / 1000)
+	offerData.AmountInSats, err = safecast.Convert[uint64](offerData.Amount / 1000)
 	if err != nil {
 		return nil, fmt.Errorf("invalid amount in sats: %w", err)
 	}

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
-	"github.com/ArkLabsHQ/fulmine/pkg/vhtlc"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/offchain"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
@@ -23,6 +22,7 @@ import (
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
+	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
@@ -38,7 +38,7 @@ import (
 var ErrorNoVtxosFound = fmt.Errorf("no vtxos found for the given vhtlc opts")
 
 type SwapHandler struct {
-	arkClient      arksdk.ArkClient
+	arkClient      arksdk.Wallet
 	boltzSvc       BoltzClient
 	explorerClient ExplorerClient
 	privateKey     *btcec.PrivateKey
@@ -69,7 +69,7 @@ type Swap struct {
 }
 
 func NewSwapHandler(
-	arkClient arksdk.ArkClient,
+	arkClient arksdk.Wallet,
 	boltzSvc BoltzClient,
 	esploraURL string,
 	privateKey *btcec.PrivateKey,
@@ -163,7 +163,7 @@ func (h *SwapHandler) GetVHTLCFunds(
 func (h *SwapHandler) GetVHTLCSpendingTx(
 	ctx context.Context, vhtlcOpts vhtlc.Opts, outpoint *clientTypes.Outpoint,
 ) (string, bool, error) {
-	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
+	vhtlcScript, err := h.buildVHTLC(ctx, vhtlcOpts)
 	if err != nil {
 		return "", false, fmt.Errorf("failed to create VHTLC script: %w", err)
 	}
@@ -230,7 +230,7 @@ func (h *SwapHandler) getPendingVHTLCTx(
 func (h *SwapHandler) ClaimVHTLC(
 	ctx context.Context, preimage []byte, vhtlcOpts vhtlc.Opts, outpoint *clientTypes.Outpoint,
 ) (string, error) {
-	vHTLC, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
+	vHTLC, err := h.buildVHTLC(ctx, vhtlcOpts)
 	if err != nil {
 		return "", err
 	}
@@ -286,7 +286,7 @@ func (h *SwapHandler) ClaimVHTLC(
 		return "", err
 	}
 
-	amount, err := safecast.ToInt64(vtxo.Amount)
+	amount, err := safecast.Convert[int64](vtxo.Amount)
 	if err != nil {
 		return "", err
 	}
@@ -379,7 +379,7 @@ func (h *SwapHandler) RefundSwap(
 	ctx context.Context, swapType, swapId string, withReceiver bool, vhtlcOpts vhtlc.Opts,
 	outpoint *clientTypes.Outpoint,
 ) (string, error) {
-	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
+	vhtlcScript, err := h.buildVHTLC(ctx, vhtlcOpts)
 	if err != nil {
 		return "", err
 	}
@@ -440,7 +440,7 @@ func (h *SwapHandler) RefundSwap(
 		return "", err
 	}
 
-	amount, err := safecast.ToInt64(vtxo.Amount)
+	amount, err := safecast.Convert[int64](vtxo.Amount)
 	if err != nil {
 		return "", err
 	}
@@ -541,7 +541,17 @@ func (h *SwapHandler) RefundSwap(
 		}
 
 		for i := range signedRefundPsbt.Inputs {
+			if i >= len(boltzSignedRefundPtx.Inputs) {
+				break
+			}
 			boltzIn := boltzSignedRefundPtx.Inputs[i]
+			// Boltz may legitimately omit a partial sig for inputs it
+			// can't (or won't) co-sign — e.g. underfunded swaps that
+			// only return sigs for a subset of inputs. Skip those
+			// rather than indexing into an empty slice and panicking.
+			if len(boltzIn.TaprootScriptSpendSig) == 0 {
+				continue
+			}
 			partialSig := boltzIn.TaprootScriptSpendSig[0]
 			signedRefundPsbt.Inputs[i].TaprootScriptSpendSig =
 				append(signedRefundPsbt.Inputs[i].TaprootScriptSpendSig, partialSig)
@@ -1081,7 +1091,7 @@ func (h *SwapHandler) getPendingVHTLCFunds(
 }
 
 func (h *SwapHandler) getVHTLC(
-	_ context.Context,
+	ctx context.Context,
 	receiverPubkey, senderPubkey *btcec.PublicKey, preimageHash []byte,
 	refundLocktime arklib.AbsoluteLocktime,
 	unilateralClaimDelay, unilateralRefundDelay,
@@ -1110,7 +1120,7 @@ func (h *SwapHandler) getVHTLC(
 		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
 	}
 
-	vHTLC, err := vhtlc.NewVHTLCScriptFromOpts(opts)
+	vHTLC, err := h.buildVHTLC(ctx, opts)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -1225,7 +1235,7 @@ func (h *SwapHandler) collaborativeRefund(
 func (h *SwapHandler) getBatchSessionArgs(
 	ctx context.Context, vhtlcOpts vhtlc.Opts, outpoint *clientTypes.Outpoint, signerSession *tree.SignerSession,
 ) (*batchSessionArgs, error) {
-	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
+	vhtlcScript, err := h.buildVHTLC(ctx, vhtlcOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create VHTLC script: %w", err)
 	}

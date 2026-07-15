@@ -1082,6 +1082,10 @@
         "unilateralRefundWithoutReceiverDelay": {
           "$ref": "#/definitions/v1RelativeLocktime",
           "title": "Optional unilateral refund without receiver delay (relative timelock)"
+        },
+        "nonInteractiveClaim": {
+          "$ref": "#/definitions/v1NonInteractiveClaim",
+          "title": "Optional non-interactive claim config"
         }
       }
     },
@@ -1412,6 +1416,15 @@
         }
       }
     },
+    "v1NonInteractiveClaim": {
+      "type": "object",
+      "properties": {
+        "claimAddress": {
+          "type": "string",
+          "title": "ark address of the claim tx recipient"
+        }
+      }
+    },
     "v1PayInvoiceRequest": {
       "type": "object",
       "properties": {
@@ -1490,8 +1503,7 @@
           "type": "integer",
           "format": "int64"
         }
-      },
-      "title": "RelativeLocktime represents a relative timelock"
+      }
     },
     "v1Round": {
       "type": "object",

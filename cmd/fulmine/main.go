@@ -112,6 +112,7 @@ func main() {
 			Enabled: cfg.DelegateEnabled,
 			Fee:     cfg.DelegateFee,
 		},
+		cfg.EmulatorPubkey,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init application service")
