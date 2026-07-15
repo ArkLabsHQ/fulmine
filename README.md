@@ -1,6 +1,6 @@
 # ⚡️fulmine
 
-[![Go Version](https://img.shields.io/badge/Go-1.26.2-blue.svg)](https://golang.org/doc/go1.26)
+[![Go Version](https://img.shields.io/badge/Go-1.26.5-blue.svg)](https://golang.org/doc/go1.26)
 [![GitHub Release](https://img.shields.io/github/v/release/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/releases/latest)
 [![License](https://img.shields.io/github/license/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/blob/master/LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/ArkLabsHQ/fulmine)](https://github.com/ArkLabsHQ/fulmine/stargazers)
@@ -522,7 +522,7 @@ The examples above cover the most common operations. For the complete request/re
 
 ## 👨‍💻 Development
 
-To get started with fulmine development you need Go `1.26.2` or higher and Node.js `18.17.1` or higher (the Docker image builds the web assets with Node 22).
+To get started with fulmine development you need Go `1.26.5` or higher and Node.js `18.17.1` or higher (the Docker image builds the web assets with Node 22).
 
 ```bash
 git clone https://github.com/ArkLabsHQ/fulmine.git

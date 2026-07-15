@@ -1,6 +1,6 @@
 module github.com/ArkLabsHQ/fulmine
 
-go 1.26.4
+go 1.26.5
 
 replace github.com/ArkLabsHQ/fulmine/pkg/boltz => ./pkg/boltz
 

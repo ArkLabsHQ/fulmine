@@ -1,6 +1,6 @@
 module github.com/ArkLabsHQ/fulmine/pkg/swap
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/nbd-wtf/ln-decodepay v1.13.0
