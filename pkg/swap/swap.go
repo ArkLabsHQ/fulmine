@@ -163,7 +163,7 @@ func (h *SwapHandler) GetVHTLCFunds(
 func (h *SwapHandler) GetVHTLCSpendingTx(
 	ctx context.Context, vhtlcOpts vhtlc.Opts, outpoint *clientTypes.Outpoint,
 ) (string, bool, error) {
-	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
+	vhtlcScript, err := h.buildVHTLC(ctx, vhtlcOpts)
 	if err != nil {
 		return "", false, fmt.Errorf("failed to create VHTLC script: %w", err)
 	}
