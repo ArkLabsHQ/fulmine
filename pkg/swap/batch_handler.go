@@ -38,8 +38,7 @@ type batchSessionArgs struct {
 
 type batchSessionHandler struct {
 	musig2BatchSessionHandler
-	arkClient  arksdk.Wallet
-	privateKey *btcec.PrivateKey
+	arkClient arksdk.Wallet
 
 	intentId       string
 	vtxos          []clientTypes.VtxoWithTapTree
@@ -53,7 +52,6 @@ type batchSessionHandler struct {
 
 func newBatchSessionHandler(
 	arkClient arksdk.Wallet,
-	privateKey *btcec.PrivateKey,
 	transportClient client.Client,
 	intentId string,
 	vtxos []clientTypes.VtxoWithTapTree,
@@ -96,7 +94,6 @@ func newBatchSessionHandler(
 			TransportClient: transportClient,
 		},
 		arkClient:      arkClient,
-		privateKey:     privateKey,
 		intentId:       intentId,
 		vtxos:          vtxos,
 		receivers:      receivers,
@@ -232,7 +229,7 @@ func (h *batchSessionHandler) createAndSignForfeits(
 			return nil, err
 		}
 
-		signedForfeitTx, err := signWithLocalTapscripts(ctx, h.arkClient, h.privateKey, forfeitTx)
+		signedForfeitTx, err := h.arkClient.SignTransaction(ctx, forfeitTx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to sign forfeit: %w", err)
 		}
@@ -251,7 +248,6 @@ type claimBatchSessionHandler struct {
 
 func newClaimBatchSessionHandler(
 	arkClient arksdk.Wallet,
-	privateKey *btcec.PrivateKey,
 	intentId string,
 	vtxos []clientTypes.VtxoWithTapTree,
 	receivers []clientTypes.Receiver,
@@ -264,7 +260,7 @@ func newClaimBatchSessionHandler(
 		return nil, fmt.Errorf("missing preimage")
 	}
 	handler, err := newBatchSessionHandler(
-		arkClient, privateKey, arkClient.Client(), intentId, vtxos, receivers, vhtlcScripts, config, signerSession,
+		arkClient, arkClient.Client(), intentId, vtxos, receivers, vhtlcScripts, config, signerSession,
 	)
 	if err != nil {
 		return nil, err
@@ -312,7 +308,6 @@ type refundBatchSessionHandler struct {
 
 func newRefundBatchSessionHandler(
 	arkClient arksdk.Wallet,
-	privateKey *btcec.PrivateKey,
 	transportClient client.Client,
 	intentId string,
 	vtxos []clientTypes.VtxoWithTapTree,
@@ -327,7 +322,7 @@ func newRefundBatchSessionHandler(
 		return nil, fmt.Errorf("missing public key")
 	}
 	handler, err := newBatchSessionHandler(
-		arkClient, privateKey, transportClient, intentId, vtxos, receivers, vhtlcScripts, config, signerSession,
+		arkClient, transportClient, intentId, vtxos, receivers, vhtlcScripts, config, signerSession,
 	)
 	if err != nil {
 		return nil, err
@@ -375,7 +370,6 @@ type collabRefundBatchSessionHandler struct {
 
 func newCollabRefundBatchSessionHandler(
 	arkClient arksdk.Wallet,
-	privateKey *btcec.PrivateKey,
 	transportClient client.Client,
 	intentId string,
 	vtxos []clientTypes.VtxoWithTapTree,
@@ -387,7 +381,7 @@ func newCollabRefundBatchSessionHandler(
 	partialForfeitTx string,
 ) (*collabRefundBatchSessionHandler, error) {
 	handler, err := newBatchSessionHandler(
-		arkClient, privateKey, transportClient, intentId, vtxos, receivers, vhtlcScripts, config, signerSession,
+		arkClient, transportClient, intentId, vtxos, receivers, vhtlcScripts, config, signerSession,
 	)
 	if err != nil {
 		return nil, err
@@ -469,7 +463,7 @@ func (h *collabRefundBatchSessionHandler) OnBatchFinalization(
 		return nil, fmt.Errorf("failed to encode forfeit tx: %w", err)
 	}
 
-	signedForfeitTx, err := signWithLocalTapscripts(ctx, h.arkClient, h.privateKey, encodedForfeitTx)
+	signedForfeitTx, err := h.arkClient.SignTransaction(ctx, encodedForfeitTx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign forfeit: %w", err)
 	}
