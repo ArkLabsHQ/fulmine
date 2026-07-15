@@ -352,6 +352,7 @@ func setupArkSDKwithPrivateKey(
 
 	arkClient, err := arksdk.NewWallet(t.TempDir(), arksdk.WithIdentity(singleKeyWallet))
 	require.NoError(t, err)
+	t.Cleanup(arkClient.Stop)
 
 	privkey, err := btcec.NewPrivateKey()
 	require.NoError(t, err)

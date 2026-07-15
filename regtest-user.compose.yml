@@ -35,8 +35,6 @@ services:
       # unauthenticated, and the e2e suite reaches them via localhost anyway.
       - "127.0.0.1:7020:7000" # gRPC  (clientFulmineURL)
       - "127.0.0.1:7021:7001" # REST/admin
-    volumes:
-      - fulmine_user_datadir:/app/data
     networks:
       - default
 
@@ -63,6 +61,3 @@ networks:
   default:
     name: arkade-regtest_default
     external: true
-
-volumes:
-  fulmine_user_datadir:
