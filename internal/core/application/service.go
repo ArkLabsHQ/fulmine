@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -26,6 +27,7 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	client "github.com/arkade-os/arkd/pkg/client-lib"
+	"github.com/arkade-os/arkd/pkg/client-lib/identity"
 	singlekeywallet "github.com/arkade-os/arkd/pkg/client-lib/identity/singlekey"
 	filestore "github.com/arkade-os/arkd/pkg/client-lib/identity/singlekey/store/file"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
@@ -33,6 +35,7 @@ import (
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/contract"
+	vhtlccontract "github.com/arkade-os/go-sdk/contract/handlers/vhtlc"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -245,21 +248,21 @@ func newService(
 		}
 
 		svc := &Service{
-			BuildInfo:     buildInfo,
-			Wallet:        arkClient,
-			configStore:   configStore,
-			dbSvc:         dbSvc,
-			schedulerSvc:  schedulerSvc,
+			BuildInfo:      buildInfo,
+			Wallet:         arkClient,
+			configStore:    configStore,
+			dbSvc:          dbSvc,
+			schedulerSvc:   schedulerSvc,
 			publicKey:      nil,
 			emulatorPubKey: emulatorPubKey,
 			isInitialized:  true,
-			notifications: make(chan Notification),
-			esploraUrl:    data.ExplorerURL,
-			boltzUrl:      boltzUrl,
-			boltzWSUrl:    boltzWSUrl,
-			swapTimeout:   swapTimeout,
-			walletUpdates: make(chan WalletUpdate),
-			syncLock:      &sync.RWMutex{},
+			notifications:  make(chan Notification),
+			esploraUrl:     data.ExplorerURL,
+			boltzUrl:       boltzUrl,
+			boltzWSUrl:     boltzWSUrl,
+			swapTimeout:    swapTimeout,
+			walletUpdates:  make(chan WalletUpdate),
+			syncLock:       &sync.RWMutex{},
 		}
 
 		if err := svc.RefreshServerConfig(context.Background()); err != nil {
@@ -287,8 +290,8 @@ func newService(
 	}
 
 	svc := &Service{
-		BuildInfo:     buildInfo,
-		Wallet:        arkClient,
+		BuildInfo:      buildInfo,
+		Wallet:         arkClient,
 		configStore:    configStore,
 		dbSvc:          dbSvc,
 		schedulerSvc:   schedulerSvc,
@@ -787,6 +790,35 @@ func (s *Service) GetAddress(
 	return
 }
 
+func (s *Service) GetPubkeyFromDerivationIndex(
+	ctx context.Context, derivationIndex int,
+) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
+	var isSingleKey bool
+	if s.Wallet.Identity().GetType() == identity.SingleKeyIdentity {
+		isSingleKey = true
+	}
+
+	derivationPath := "m"
+	if !isSingleKey {
+		derivationPath = strconv.Itoa(derivationIndex)
+	}
+
+	key, err := s.Identity().GetKey(ctx, derivationPath)
+	if err != nil {
+		return "", err
+	}
+
+	if key == nil || key.PubKey == nil {
+		return "", fmt.Errorf("wallet identity returned an empty key")
+	}
+
+	return hex.EncodeToString(key.PubKey.SerializeCompressed()), nil
+}
+
 func (s *Service) GetTotalBalance(ctx context.Context) (uint64, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return 0, err
@@ -934,9 +966,9 @@ func (s *Service) GetSwapVHTLC(
 	unilateralRefundDelayParam *arklib.RelativeLocktime,
 	unilateralRefundWithoutReceiverDelayParam *arklib.RelativeLocktime,
 	nonInteractiveClaimAddress *arklib.Address, // nil means nic disabled
-) (string, string, *vhtlc.VHTLCScript, error) {
+) (string, string, *vhtlc.VHTLCScript, *KeyRef, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", "", nil, err
+		return "", "", nil, nil, err
 	}
 
 	receiverKey := receiverPubkey
@@ -954,7 +986,7 @@ func (s *Service) GetSwapVHTLC(
 	vhtlcId := domain.GetVhtlcId(preimageHash, compressedSenderPubkey, compressedReceiverPubkey)
 
 	if _, err := s.dbSvc.VHTLC().Get(ctx, vhtlcId); err == nil {
-		return "", "", nil, fmt.Errorf("vHTLC with id %s already exists", vhtlcId)
+		return "", "", nil, nil, fmt.Errorf("vHTLC with id %s already exists", vhtlcId)
 	}
 
 	// nolint
@@ -1002,15 +1034,15 @@ func (s *Service) GetSwapVHTLC(
 	}
 	if nonInteractiveClaimAddress != nil {
 		if s.emulatorPubKey == nil {
-			return "", "", nil, fmt.Errorf("non-interactive claims are disabled: missing EMULATOR_PUBKEY")
+			return "", "", nil, nil, fmt.Errorf("non-interactive claims are disabled: missing EMULATOR_PUBKEY")
 		}
 		if nonInteractiveClaimAddress.HRP != cfg.Network.Addr {
-			return "", "", nil, fmt.Errorf("non-interactive claim address has wrong network")
+			return "", "", nil, nil, fmt.Errorf("non-interactive claim address has wrong network")
 		}
 
 		pkScript, err := nonInteractiveClaimAddress.GetPkScript()
 		if err != nil {
-			return "", "", nil, fmt.Errorf("invalid non-interactive claim address")
+			return "", "", nil, nil, fmt.Errorf("invalid non-interactive claim address")
 		}
 
 		opts.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
@@ -1020,16 +1052,41 @@ func (s *Service) GetSwapVHTLC(
 	}
 	vHTLCScript, err := vhtlc.NewVHTLCScriptFromOpts(opts)
 	if err != nil {
-		return "", "", nil, err
+		return "", "", nil, nil, err
 	}
 
 	encodedAddr, err := vHTLCScript.Address(cfg.Network.Addr)
 	if err != nil {
-		return "", "", nil, err
+		return "", "", nil, nil, err
 	}
 
-	if err := s.registerVHTLCContract(ctx, opts); err != nil {
-		return "", "", nil, fmt.Errorf("failed to register vhtlc contract: %w", err)
+	contract, err := s.registerVHTLCContract(ctx, opts)
+	if err != nil {
+		return "", "", nil, nil, fmt.Errorf("failed to register vhtlc contract: %w", err)
+	}
+
+	var keyRef KeyRef
+
+	if contract != nil {
+		vhtlcHandler, err := s.Wallet.ContractManager().GetHandler(ctx, *contract)
+		if err != nil {
+			return "", "", nil, nil, fmt.Errorf("failed to get vhtlc contract handler: %w", err)
+		}
+
+		kr, err := vhtlcHandler.GetKeyRef(*contract)
+		if err != nil {
+			return "", "", nil, nil, fmt.Errorf("failed to get vhtlc contract key reference: %w", err)
+		}
+
+		keyIndex, err := s.Wallet.Identity().GetKeyIndex(ctx, kr.Id)
+		if err != nil {
+			return "", "", nil, nil, fmt.Errorf("failed to get vhtlc contract key index: %w", err)
+		}
+
+		keyRef = KeyRef{
+			Index:  keyIndex,
+			PubKey: kr.PubKey,
+		}
 	}
 
 	// Persist synchronously: the duplicate check above (VHTLC().Get) and callers
@@ -1038,18 +1095,23 @@ func (s *Service) GetSwapVHTLC(
 	// making the record briefly invisible (flaky e2e: TestVHTLC dedup and
 	// TestSettleVHTLCByDelegateRefundWithOutpoint).
 	if err := s.dbSvc.VHTLC().Add(ctx, domain.NewVhtlc(opts)); err != nil {
-		return "", "", nil, fmt.Errorf("failed to add vhtlc: %w", err)
+		return "", "", nil, nil, fmt.Errorf("failed to add vhtlc: %w", err)
 	}
 	log.Debugf("added new vhtlc %s", vhtlcId)
 
-	return encodedAddr, vhtlcId, vHTLCScript, nil
+	return encodedAddr, vhtlcId, vHTLCScript, &keyRef, nil
+}
+
+type KeyRef struct {
+	Index  uint32
+	PubKey *btcec.PublicKey
 }
 
 // registerVHTLCContract mirrors a freshly-created VHTLC into the go-sdk
 // contract store so that wallet.SignTransaction can resolve the script and
 // route signing through the wallet identity.
-func (s *Service) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) error {
-	args := contract.VHTLCContractArgs{
+func (s *Service) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) (*types.Contract, error) {
+	args := vhtlccontract.ContractArgs{
 		PreimageHash:                         opts.PreimageHash,
 		RefundLocktime:                       opts.RefundLocktime,
 		UnilateralClaimDelay:                 opts.UnilateralClaimDelay,
@@ -1057,35 +1119,50 @@ func (s *Service) registerVHTLCContract(ctx context.Context, opts vhtlc.Opts) er
 		UnilateralRefundWithoutReceiverDelay: opts.UnilateralRefundWithoutReceiverDelay,
 	}
 
-	// contract manager expects only the external counterparty key: 
+	// contract manager expects only the external counterparty key:
 	// the owned side is derived from the wallet identity.
 	ownsSender := s.publicKey.IsEqual(opts.Sender)
 	ownsReceiver := s.publicKey.IsEqual(opts.Receiver)
 	switch {
 	case ownsSender && ownsReceiver:
 		log.Debugf("skipping contract registration: wallet owns both vhtlc keys")
-		return nil
+		return nil, nil
 	case ownsSender:
 		args.Receiver = opts.Receiver
 	case ownsReceiver:
 		args.Sender = opts.Sender
 	default:
 		log.Debugf("skipping contract registration: wallet owns neither vhtlc key")
-		return nil
+		return nil, nil
 	}
 
 	contractType := types.ContractTypeVHTLC
+	var contractArgs any = args
 	if opts.NonInteractiveClaim != nil {
 		contractType = types.ContractTypeNonInteractiveVHTLC
-		args.NonInteractiveReceiver = opts.NonInteractiveClaim.ReceiverPkScript
-		args.NonInteractiveEmulator = opts.NonInteractiveClaim.EmulatorPubKey
+		contractArgs = vhtlccontract.NonInteractiveContractArgs{
+			ContractArgs:           args,
+			NonInteractiveReceiver: opts.NonInteractiveClaim.ReceiverPkScript,
+			NonInteractiveEmulator: opts.NonInteractiveClaim.EmulatorPubKey,
+		}
 	}
-	if _, err := s.Wallet.ContractManager().NewContract(
-		ctx, contractType, contract.WithParams(args),
-	); err != nil {
-		return fmt.Errorf("persist vhtlc contract: %w", err)
+
+	contractManager := s.Wallet.ContractManager()
+	handler, err := contractManager.Registry().GetHandler(contractType)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+
+	contract, err := handler.NewContract(ctx, contractArgs)
+	if err != nil {
+		return nil, fmt.Errorf("build vhtlc contract: %w", err)
+	}
+
+	if err := contractManager.ImportContract(ctx, *contract); err != nil {
+		return nil, fmt.Errorf("import vhtlc contract: %w", err)
+	}
+
+	return contract, nil
 }
 
 // SendOffChain sends to the given receivers off-chain. If a receiver address
@@ -1119,7 +1196,7 @@ func (s *Service) SendOffChain(
 		if err != nil {
 			return "", err
 		}
-		
+
 		for _, c := range contracts {
 			if c.Type != types.ContractTypeNonInteractiveVHTLC {
 				continue

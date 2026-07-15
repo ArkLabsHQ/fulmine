@@ -90,6 +90,21 @@ func (h *serviceHandler) GetInfo(
 	return response, nil
 }
 
+func (h *serviceHandler) GetPubkeyFromDerivationIndex(
+	ctx context.Context, req *pb.GetPubkeyFromDerivationIndexRequest,
+) (*pb.GetPubkeyFromDerivationIndexResponse, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "request cannot be nil")
+	}
+
+	pubkey, err := h.svc.GetPubkeyFromDerivationIndex(ctx, int(req.GetDerivationIndex()))
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.GetPubkeyFromDerivationIndexResponse{Pubkey: pubkey}, nil
+}
+
 func (h *serviceHandler) GetOnboardAddress(
 	ctx context.Context, req *pb.GetOnboardAddressRequest,
 ) (*pb.GetOnboardAddressResponse, error) {
@@ -446,7 +461,6 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 	unilateralRefundDelay := parseRelativeLocktime(req.GetUnilateralRefundDelay())
 	unilateralRefundWithoutReceiverDelay := parseRelativeLocktime(req.GetUnilateralRefundWithoutReceiverDelay())
 
-
 	// optional non-interactive claim option
 	var nonInteractiveClaimAddress *arklib.Address
 	if req.GetNonInteractiveClaim() != nil {
@@ -456,7 +470,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		}
 	}
 
-	addr, vhtlcId, vhtlcScript, err := h.svc.GetSwapVHTLC(
+	addr, vhtlcId, vhtlcScript, keyRef, err := h.svc.GetSwapVHTLC(
 		ctx,
 		receiverPubkey,
 		senderPubkey,
@@ -471,6 +485,8 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		return nil, err
 	}
 
+	pubKey := hex.EncodeToString(keyRef.PubKey.SerializeCompressed())
+
 	return &pb.CreateVHTLCResponse{
 		Id:                                   vhtlcId,
 		Address:                              addr,
@@ -482,6 +498,8 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		UnilateralClaimDelay:                 int64(vhtlcScript.UnilateralClaimClosure.Locktime.Value),
 		UnilateralRefundDelay:                int64(vhtlcScript.UnilateralRefundClosure.Locktime.Value),
 		UnilateralRefundWithoutReceiverDelay: int64(vhtlcScript.UnilateralRefundWithoutReceiverClosure.Locktime.Value),
+		Pubkey:                               pubKey,
+		DerivationIndex:                      keyRef.Index,
 	}, nil
 }
 

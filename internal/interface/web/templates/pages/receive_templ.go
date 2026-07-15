@@ -124,7 +124,7 @@ func ReceiveEditContent() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div></form></div><script>\r\n\t  document.querySelector('#amount').addEventListener('input', () => {\r\n\t\t\tconst amount = document.querySelector('#amount').value\r\n\t\t\tconst button = document.querySelector('button[type=\"submit\"]')\r\n\t\t\tbutton.disabled = !amount || !(amount > 0)\r\n\t\t})\r\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div></form></div><script>\n\t  document.querySelector('#amount').addEventListener('input', () => {\n\t\t\tconst amount = document.querySelector('#amount').value\n\t\t\tconst button = document.querySelector('button[type=\"submit\"]')\n\t\t\tbutton.disabled = !amount || !(amount > 0)\n\t\t})\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
