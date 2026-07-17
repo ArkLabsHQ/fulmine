@@ -82,6 +82,7 @@ func TestNonInteractiveClaim(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, createResp.Address)
+	require.NotNil(t, createResp.SwapTree.NonInteractiveClaimLeaf)
 
 	// direct reveal to claimer
 	revealToCovclaimd(t, createResp.Address, preimg, covclaimdPub, receiverPkScript)

@@ -219,7 +219,8 @@ func toSwapTreeProto(tree *vhtlc.VHTLCScript) *pb.TaprootTree {
 	unilateralClaimScript, _ := tree.UnilateralClaimClosure.Script()
 	unilateralRefundScript, _ := tree.UnilateralRefundClosure.Script()
 	unilateralRefundWithoutBoltzScript, _ := tree.UnilateralRefundWithoutReceiverClosure.Script()
-	return &pb.TaprootTree{
+
+	taptree := &pb.TaprootTree{
 		ClaimLeaf: &pb.TaprootLeaf{
 			Version: 0,
 			Output:  hex.EncodeToString(claimScript),
@@ -245,6 +246,17 @@ func toSwapTreeProto(tree *vhtlc.VHTLCScript) *pb.TaprootTree {
 			Output:  hex.EncodeToString(unilateralRefundWithoutBoltzScript),
 		},
 	}
+
+	if tree.NonInteractiveClaimClosure != nil {
+		nonInteractiveClaimScript, _ := tree.NonInteractiveClaimClosure.Script()
+
+		taptree.NonInteractiveClaimLeaf = &pb.TaprootLeaf{
+			Version: 0,
+			Output: hex.EncodeToString(nonInteractiveClaimScript),
+		}
+	}
+
+	return taptree
 }
 
 func toNotificationProto(n application.Notification) *pb.Notification {

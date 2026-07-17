@@ -1652,6 +1652,9 @@
         },
         "unilateralRefundWithoutBoltzLeaf": {
           "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "nonInteractiveClaimLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
         }
       }
     },

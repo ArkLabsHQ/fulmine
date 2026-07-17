@@ -386,6 +386,7 @@ message TaprootTree {
   TaprootLeaf unilateral_claim_leaf = 4;
   TaprootLeaf unilateral_refund_leaf = 5;
   TaprootLeaf unilateral_refund_without_boltz_leaf = 6;
+  optional TaprootLeaf non_interactive_claim_leaf = 7;
 }
 
 message TaprootLeaf {
