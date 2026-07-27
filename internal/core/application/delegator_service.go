@@ -215,10 +215,6 @@ func (s *DelegateService) newDelegateTask(
 		}
 	}
 
-	if message.ValidAt == 0 {
-		return nil, fmt.Errorf("invalid valid at")
-	}
-
 	scheduledAt := time.Unix(message.ValidAt, 0)
 
 	inputs := proof.GetOutpoints()

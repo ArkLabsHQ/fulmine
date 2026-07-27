@@ -28,255 +28,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestDelegate delegate the renewal of a single vtxo
+// TestDelegate delegates the renewal of a single vtxo, covering both a
+// future ValidAt timestamp and the ValidAt == 0 case ("valid right away").
+// The zero case is a regression test for a fix in delegator_service.go:
+// newDelegateTask used to reject ValidAt == 0 outright, even though the
+// shared RegisterMessage docs say 0 means "valid right away". It exercises
+// the real application/delegate submission path (gRPC Delegate ->
+// DelegateService.Delegate -> newDelegateTask) instead of calling the
+// scheduler directly, so it also covers newDelegateTask itself.
 func TestDelegate(t *testing.T) {
-	ctx := t.Context()
-	alice, alicePubKey, grpcClient := setupArkSDKwithPublicKey(t)
-	defer alice.Stop()
-	defer grpcClient.Close()
-
-	delegateClient, err := newDelegateClient("localhost:7012")
-	require.NoError(t, err)
-	require.NotNil(t, delegateClient)
-
-	delegateInfo, err := delegateClient.GetDelegateInfo(ctx, &pb.GetDelegateInfoRequest{})
-	require.NoError(t, err)
-	require.NotEmpty(t, delegateInfo.GetPubkey())
-	require.NotEmpty(t, delegateInfo.GetFee())
-
-	delegatePubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
-	require.NoError(t, err)
-	delegatePubKey, err := btcec.ParsePubKey(delegatePubKeyBytes)
-	require.NoError(t, err)
-	require.NotNil(t, delegatePubKey)
-
-	_, aliceAddr, _, _, err := alice.GetAddresses(ctx)
-	require.NoError(t, err)
-	require.NotEmpty(t, aliceAddr)
-
-	aliceArkAddr, err := arklib.DecodeAddressV0(aliceAddr[0])
-	require.NoError(t, err)
-	require.NotNil(t, aliceArkAddr)
-
-	aliceConfig, err := alice.GetConfigData(ctx)
-	require.NoError(t, err)
-
-	signerPubKey := aliceConfig.SignerPubKey
-
-	aliceDelegatorClosure := &script.MultisigClosure{
-		PubKeys: []*btcec.PublicKey{alicePubKey, delegatePubKey, signerPubKey},
-	}
-
-	exitLocktime := arklib.RelativeLocktime{
-		Type:  arklib.LocktimeTypeSecond,
-		Value: 1024,
-	}
-
-	delegatorVtxoScript := script.TapscriptsVtxoScript{
-		Closures: []script.Closure{
-			aliceDelegatorClosure,
-			&script.MultisigClosure{
-				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
-			},
-			&script.CSVMultisigClosure{
-				Locktime: exitLocktime,
-				MultisigClosure: script.MultisigClosure{
-					PubKeys: []*btcec.PublicKey{alicePubKey},
-				},
-			},
+	tests := []struct {
+		name    string
+		validAt func() int64
+	}{
+		{
+			name:    "future ValidAt",
+			validAt: func() int64 { return time.Now().Add(3 * time.Second).Unix() },
+		},
+		{
+			name:    "ValidAt zero",
+			validAt: func() int64 { return 0 },
 		},
 	}
 
-	vtxoTapKey, vtxoTapTree, err := delegatorVtxoScript.TapTree()
-	require.NoError(t, err)
-
-	arkAddress := arklib.Address{
-		HRP:        "tark",
-		VtxoTapKey: vtxoTapKey,
-		Signer:     signerPubKey,
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			runDelegateTest(t, tc.validAt())
+		})
 	}
-
-	arkAddressStr, err := arkAddress.EncodeV0()
-	require.NoError(t, err)
-
-	faucetOffchain(t, alice, 0.00021)
-
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	var incomingFunds []clientTypes.Vtxo
-	var incomingErr error
-	go func() {
-		incomingFunds, incomingErr = alice.NotifyIncomingFunds(ctx, arkAddressStr)
-		wg.Done()
-	}()
-	_, err = alice.SendOffChain(ctx, []clientTypes.Receiver{{
-		To:     arkAddressStr,
-		Amount: 21000,
-	}})
-	require.NoError(t, err)
-
-	wg.Wait()
-	require.NoError(t, incomingErr)
-	require.NotEmpty(t, incomingFunds)
-
-	aliceVtxo := incomingFunds[0]
-
-	intentMessage := intent.RegisterMessage{
-		BaseMessage: intent.BaseMessage{
-			Type: intent.IntentMessageTypeRegister,
-		},
-		CosignersPublicKeys: []string{delegateInfo.GetPubkey()},
-		ValidAt:             time.Now().Add(3 * time.Second).Unix(),
-		ExpireAt:            0,
-	}
-
-	encodedIntentMessage, err := intentMessage.Encode()
-	require.NoError(t, err)
-
-	vtxoHash, err := chainhash.NewHashFromStr(aliceVtxo.Txid)
-	require.NoError(t, err)
-
-	exitScript, err := delegatorVtxoScript.ExitClosures()[0].Script()
-	require.NoError(t, err)
-
-	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
-		txscript.NewBaseTapLeaf(exitScript).TapHash(),
-	)
-	require.NoError(t, err)
-
-	sequence, err := arklib.BIP68Sequence(exitLocktime)
-	require.NoError(t, err)
-
-	delegatorPkScript, err := arkAddress.GetPkScript()
-	require.NoError(t, err)
-
-	alicePkScript, err := aliceArkAddr.GetPkScript()
-	require.NoError(t, err)
-
-	intentProof, err := intent.New(
-		encodedIntentMessage,
-		[]intent.Input{
-			{
-				OutPoint: &wire.OutPoint{
-					Hash:  *vtxoHash,
-					Index: aliceVtxo.VOut,
-				},
-				Sequence: sequence,
-				WitnessUtxo: &wire.TxOut{
-					Value:    int64(aliceVtxo.Amount),
-					PkScript: delegatorPkScript,
-				},
-			},
-		},
-		[]*wire.TxOut{
-			{
-				Value:    int64(aliceVtxo.Amount),
-				PkScript: alicePkScript,
-			},
-		},
-	)
-	require.NoError(t, err)
-
-	tapLeafScript := &psbt.TaprootTapLeafScript{
-		ControlBlock: exitScriptMerkleProof.ControlBlock,
-		Script:       exitScriptMerkleProof.Script,
-		LeafVersion:  txscript.BaseLeafVersion,
-	}
-
-	intentProof.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
-	intentProof.Inputs[1].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
-
-	scripts, err := delegatorVtxoScript.Encode()
-	require.NoError(t, err)
-
-	tapTree := txutils.TapTree(scripts)
-
-	err = txutils.SetArkPsbtField(&intentProof.Packet, 1, txutils.VtxoTaprootTreeField, tapTree)
-	require.NoError(t, err)
-
-	unsignedIntentProof, err := intentProof.B64Encode()
-	require.NoError(t, err)
-
-	signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, map[string]string{"_": "m"})
-	require.NoError(t, err)
-
-	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
-	require.NoError(t, err)
-
-	encodedIntentProof, err := signedIntentProofPsbt.B64Encode()
-	require.NoError(t, err)
-
-	forfeitOutputAddr, err := btcutil.DecodeAddress(aliceConfig.ForfeitAddress, nil)
-	require.NoError(t, err)
-
-	forfeitOutputScript, err := txscript.PayToAddrScript(forfeitOutputAddr)
-	require.NoError(t, err)
-
-	connectorAmount := aliceConfig.Dust
-
-	partialForfeitTx, err := tree.BuildForfeitTxWithOutput(
-		[]*wire.OutPoint{{
-			Hash:  *vtxoHash,
-			Index: aliceVtxo.VOut,
-		}},
-		[]uint32{wire.MaxTxInSequenceNum},
-		[]*wire.TxOut{{
-			Value:    int64(aliceVtxo.Amount),
-			PkScript: delegatorPkScript,
-		}},
-		&wire.TxOut{
-			Value:    int64(aliceVtxo.Amount + connectorAmount),
-			PkScript: forfeitOutputScript,
-		},
-		0,
-	)
-	require.NoError(t, err)
-
-	updater, err := psbt.NewUpdater(partialForfeitTx)
-	require.NoError(t, err)
-	require.NotNil(t, updater)
-
-	err = updater.AddInSighashType(txscript.SigHashAnyOneCanPay|txscript.SigHashAll, 0)
-	require.NoError(t, err)
-
-	aliceDelegatorScript, err := aliceDelegatorClosure.Script()
-	require.NoError(t, err)
-
-	aliceDelegatorMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
-		txscript.NewBaseTapLeaf(aliceDelegatorScript).TapHash(),
-	)
-	require.NoError(t, err)
-
-	aliceDelegatorTapLeafScript := &psbt.TaprootTapLeafScript{
-		ControlBlock: aliceDelegatorMerkleProof.ControlBlock,
-		Script:       aliceDelegatorMerkleProof.Script,
-		LeafVersion:  txscript.BaseLeafVersion,
-	}
-
-	updater.Upsbt.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{aliceDelegatorTapLeafScript}
-
-	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
-	require.NoError(t, err)
-
-	signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
-	require.NoError(t, err)
-
-	_, err = delegateClient.Delegate(ctx, &pb.DelegateRequest{
-		Intent: &pb.Intent{
-			Message: encodedIntentMessage,
-			Proof:   encodedIntentProof,
-		},
-		ForfeitTxs: []string{signedPartialForfeitTx},
-	})
-	require.NoError(t, err)
-
-	time.Sleep(30 * time.Second)
-
-	spendable, _, err := alice.ListVtxos(ctx, arksdk.WithSpendableOnly())
-	require.NoError(t, err)
-	require.Len(t, spendable, 1)
-	require.Equal(t, int(aliceVtxo.Amount), int(spendable[0].Amount))
-	require.False(t, spendable[0].Preconfirmed)
 }
 
 func TestDelegateCollaborativeExit(t *testing.T) {
@@ -1735,4 +1514,260 @@ func TestDelegateWithAssets(t *testing.T) {
 	require.NotEmpty(t, refreshedAssetVtxos)
 	requireVtxoHasAsset(t, refreshedAssetVtxos[0], assetId, assetTransferAmount)
 	require.False(t, refreshedAssetVtxos[0].Preconfirmed)
+}
+
+// runDelegateTest exercises the delegate renewal flow for a single vtxo,
+// submitting a RegisterMessage intent with the given ValidAt.
+func runDelegateTest(t *testing.T, validAt int64) {
+	t.Helper()
+
+	ctx := t.Context()
+	alice, alicePubKey, grpcClient := setupArkSDKwithPublicKey(t)
+	defer alice.Stop()
+	defer grpcClient.Close()
+
+	delegateClient, err := newDelegateClient("localhost:7012")
+	require.NoError(t, err)
+	require.NotNil(t, delegateClient)
+
+	delegateInfo, err := delegateClient.GetDelegateInfo(ctx, &pb.GetDelegateInfoRequest{})
+	require.NoError(t, err)
+	require.NotEmpty(t, delegateInfo.GetPubkey())
+	require.NotEmpty(t, delegateInfo.GetFee())
+
+	delegatePubKeyBytes, err := hex.DecodeString(delegateInfo.GetPubkey())
+	require.NoError(t, err)
+	delegatePubKey, err := btcec.ParsePubKey(delegatePubKeyBytes)
+	require.NoError(t, err)
+	require.NotNil(t, delegatePubKey)
+
+	_, aliceAddr, _, _, err := alice.GetAddresses(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, aliceAddr)
+
+	aliceArkAddr, err := arklib.DecodeAddressV0(aliceAddr[0])
+	require.NoError(t, err)
+	require.NotNil(t, aliceArkAddr)
+
+	aliceConfig, err := alice.GetConfigData(ctx)
+	require.NoError(t, err)
+
+	signerPubKey := aliceConfig.SignerPubKey
+
+	aliceDelegatorClosure := &script.MultisigClosure{
+		PubKeys: []*btcec.PublicKey{alicePubKey, delegatePubKey, signerPubKey},
+	}
+
+	exitLocktime := arklib.RelativeLocktime{
+		Type:  arklib.LocktimeTypeSecond,
+		Value: 1024,
+	}
+
+	delegatorVtxoScript := script.TapscriptsVtxoScript{
+		Closures: []script.Closure{
+			aliceDelegatorClosure,
+			&script.MultisigClosure{
+				PubKeys: []*btcec.PublicKey{alicePubKey, signerPubKey},
+			},
+			&script.CSVMultisigClosure{
+				Locktime: exitLocktime,
+				MultisigClosure: script.MultisigClosure{
+					PubKeys: []*btcec.PublicKey{alicePubKey},
+				},
+			},
+		},
+	}
+
+	vtxoTapKey, vtxoTapTree, err := delegatorVtxoScript.TapTree()
+	require.NoError(t, err)
+
+	arkAddress := arklib.Address{
+		HRP:        "tark",
+		VtxoTapKey: vtxoTapKey,
+		Signer:     signerPubKey,
+	}
+
+	arkAddressStr, err := arkAddress.EncodeV0()
+	require.NoError(t, err)
+
+	faucetOffchain(t, alice, 0.00021)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	var incomingFunds []clientTypes.Vtxo
+	var incomingErr error
+	go func() {
+		incomingFunds, incomingErr = alice.NotifyIncomingFunds(ctx, arkAddressStr)
+		wg.Done()
+	}()
+	_, err = alice.SendOffChain(ctx, []clientTypes.Receiver{{
+		To:     arkAddressStr,
+		Amount: 21000,
+	}})
+	require.NoError(t, err)
+
+	wg.Wait()
+	require.NoError(t, incomingErr)
+	require.NotEmpty(t, incomingFunds)
+
+	aliceVtxo := incomingFunds[0]
+
+	intentMessage := intent.RegisterMessage{
+		BaseMessage: intent.BaseMessage{
+			Type: intent.IntentMessageTypeRegister,
+		},
+		CosignersPublicKeys: []string{delegateInfo.GetPubkey()},
+		ValidAt:             validAt,
+		ExpireAt:            0,
+	}
+
+	encodedIntentMessage, err := intentMessage.Encode()
+	require.NoError(t, err)
+
+	vtxoHash, err := chainhash.NewHashFromStr(aliceVtxo.Txid)
+	require.NoError(t, err)
+
+	exitScript, err := delegatorVtxoScript.ExitClosures()[0].Script()
+	require.NoError(t, err)
+
+	exitScriptMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(exitScript).TapHash(),
+	)
+	require.NoError(t, err)
+
+	sequence, err := arklib.BIP68Sequence(exitLocktime)
+	require.NoError(t, err)
+
+	delegatorPkScript, err := arkAddress.GetPkScript()
+	require.NoError(t, err)
+
+	alicePkScript, err := aliceArkAddr.GetPkScript()
+	require.NoError(t, err)
+
+	intentProof, err := intent.New(
+		encodedIntentMessage,
+		[]intent.Input{
+			{
+				OutPoint: &wire.OutPoint{
+					Hash:  *vtxoHash,
+					Index: aliceVtxo.VOut,
+				},
+				Sequence: sequence,
+				WitnessUtxo: &wire.TxOut{
+					Value:    int64(aliceVtxo.Amount),
+					PkScript: delegatorPkScript,
+				},
+			},
+		},
+		[]*wire.TxOut{
+			{
+				Value:    int64(aliceVtxo.Amount),
+				PkScript: alicePkScript,
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	tapLeafScript := &psbt.TaprootTapLeafScript{
+		ControlBlock: exitScriptMerkleProof.ControlBlock,
+		Script:       exitScriptMerkleProof.Script,
+		LeafVersion:  txscript.BaseLeafVersion,
+	}
+
+	intentProof.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
+	intentProof.Inputs[1].TaprootLeafScript = []*psbt.TaprootTapLeafScript{tapLeafScript}
+
+	scripts, err := delegatorVtxoScript.Encode()
+	require.NoError(t, err)
+
+	tapTree := txutils.TapTree(scripts)
+
+	err = txutils.SetArkPsbtField(&intentProof.Packet, 1, txutils.VtxoTaprootTreeField, tapTree)
+	require.NoError(t, err)
+
+	unsignedIntentProof, err := intentProof.B64Encode()
+	require.NoError(t, err)
+
+	signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, map[string]string{"_": "m"})
+	require.NoError(t, err)
+
+	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
+	require.NoError(t, err)
+
+	encodedIntentProof, err := signedIntentProofPsbt.B64Encode()
+	require.NoError(t, err)
+
+	forfeitOutputAddr, err := btcutil.DecodeAddress(aliceConfig.ForfeitAddress, nil)
+	require.NoError(t, err)
+
+	forfeitOutputScript, err := txscript.PayToAddrScript(forfeitOutputAddr)
+	require.NoError(t, err)
+
+	connectorAmount := aliceConfig.Dust
+
+	partialForfeitTx, err := tree.BuildForfeitTxWithOutput(
+		[]*wire.OutPoint{{
+			Hash:  *vtxoHash,
+			Index: aliceVtxo.VOut,
+		}},
+		[]uint32{wire.MaxTxInSequenceNum},
+		[]*wire.TxOut{{
+			Value:    int64(aliceVtxo.Amount),
+			PkScript: delegatorPkScript,
+		}},
+		&wire.TxOut{
+			Value:    int64(aliceVtxo.Amount + connectorAmount),
+			PkScript: forfeitOutputScript,
+		},
+		0,
+	)
+	require.NoError(t, err)
+
+	updater, err := psbt.NewUpdater(partialForfeitTx)
+	require.NoError(t, err)
+	require.NotNil(t, updater)
+
+	err = updater.AddInSighashType(txscript.SigHashAnyOneCanPay|txscript.SigHashAll, 0)
+	require.NoError(t, err)
+
+	aliceDelegatorScript, err := aliceDelegatorClosure.Script()
+	require.NoError(t, err)
+
+	aliceDelegatorMerkleProof, err := vtxoTapTree.GetTaprootMerkleProof(
+		txscript.NewBaseTapLeaf(aliceDelegatorScript).TapHash(),
+	)
+	require.NoError(t, err)
+
+	aliceDelegatorTapLeafScript := &psbt.TaprootTapLeafScript{
+		ControlBlock: aliceDelegatorMerkleProof.ControlBlock,
+		Script:       aliceDelegatorMerkleProof.Script,
+		LeafVersion:  txscript.BaseLeafVersion,
+	}
+
+	updater.Upsbt.Inputs[0].TaprootLeafScript = []*psbt.TaprootTapLeafScript{aliceDelegatorTapLeafScript}
+
+	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
+	require.NoError(t, err)
+
+	signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
+	require.NoError(t, err)
+
+	_, err = delegateClient.Delegate(ctx, &pb.DelegateRequest{
+		Intent: &pb.Intent{
+			Message: encodedIntentMessage,
+			Proof:   encodedIntentProof,
+		},
+		ForfeitTxs: []string{signedPartialForfeitTx},
+	})
+	require.NoError(t, err)
+
+	var spendable []clientTypes.Vtxo
+	require.Eventually(t, func() bool {
+		var err error
+		spendable, _, err = alice.ListVtxos(ctx, arksdk.WithSpendableOnly())
+		return err == nil && len(spendable) == 1
+	}, 30*time.Second, 2*time.Second, "renewed vtxo did not appear")
+
+	require.Equal(t, int(aliceVtxo.Amount), int(spendable[0].Amount))
+	require.False(t, spendable[0].Preconfirmed)
 }
