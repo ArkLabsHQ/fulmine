@@ -35,22 +35,16 @@ type ServiceConfig struct {
 }
 
 type service struct {
-	settingsRepo         domain.SettingsRepository
 	vhtlcRepo            domain.VHTLCRepository
 	delegateRepo         domain.DelegateRepository
-	swapRepo             domain.SwapRepository
 	subscribedScriptRepo domain.SubscribedScriptRepository
-	chainSwapRepo        domain.ChainSwapRepository
 }
 
 func NewService(config ServiceConfig) (ports.RepoManager, error) {
 	var (
-		settingsRepo         domain.SettingsRepository
 		vhtlcRepo            domain.VHTLCRepository
 		delegateRepo         domain.DelegateRepository
-		swapRepo             domain.SwapRepository
 		subscribedScriptRepo domain.SubscribedScriptRepository
-		chainSwapRepo        domain.ChainSwapRepository
 		err                  error
 	)
 
@@ -70,10 +64,6 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 				return nil, fmt.Errorf("invalid logger")
 			}
 		}
-		settingsRepo, err = badgerdb.NewSettingsRepository(baseDir, logger)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open settings db: %s", err)
-		}
 		vhtlcRepo, err = badgerdb.NewVHTLCRepository(baseDir, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open vhtlc db: %s", err)
@@ -81,10 +71,6 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		delegateRepo, err = badgerdb.NewDelegateRepository(baseDir, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open delegate db: %s", err)
-		}
-		swapRepo, err = badgerdb.NewSwapRepository(baseDir, logger)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open swap db: %s", err)
 		}
 
 		subscribedScriptRepo, err = badgerdb.NewSubscribedScriptRepository(baseDir, logger)
@@ -136,8 +122,7 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 				return nil, fmt.Errorf("failed to run migrations: %s", err)
 			}
 
-			err = sqlitedb.BackfillVhtlc(context.Background(), db)
-			if err != nil {
+			if err := sqlitedb.BackfillVhtlc(context.Background(), db); err != nil {
 				return nil, err
 			}
 		}
@@ -146,10 +131,6 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 			return nil, fmt.Errorf("failed to run remaining migrations: %s", err)
 		}
 
-		settingsRepo, err = sqlitedb.NewSettingsRepository(db)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open settings db: %s", err)
-		}
 		vhtlcRepo, err = sqlitedb.NewVHTLCRepository(db)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open vhtlc db: %s", err)
@@ -158,19 +139,10 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open delegate db: %s", err)
 		}
-		swapRepo, err = sqlitedb.NewSwapRepository(db)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open swap db: %s", err)
-		}
 
 		subscribedScriptRepo, err = sqlitedb.NewSubscribedScriptRepository(db)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open subscribed script db: %s", err)
-		}
-
-		chainSwapRepo, err = sqlitedb.NewChainSwapRepository(db)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open chain swap db: %s", err)
 		}
 
 	default:
@@ -178,17 +150,10 @@ func NewService(config ServiceConfig) (ports.RepoManager, error) {
 	}
 
 	return &service{
-		settingsRepo:         settingsRepo,
 		vhtlcRepo:            vhtlcRepo,
 		delegateRepo:         delegateRepo,
-		swapRepo:             swapRepo,
 		subscribedScriptRepo: subscribedScriptRepo,
-		chainSwapRepo:        chainSwapRepo,
 	}, nil
-}
-
-func (s *service) Settings() domain.SettingsRepository {
-	return s.settingsRepo
 }
 
 func (s *service) VHTLC() domain.VHTLCRepository {
@@ -199,22 +164,12 @@ func (s *service) Delegate() domain.DelegateRepository {
 	return s.delegateRepo
 }
 
-func (s *service) Swap() domain.SwapRepository {
-	return s.swapRepo
-}
-
 func (s *service) SubscribedScript() domain.SubscribedScriptRepository {
 	return s.subscribedScriptRepo
 }
 
-func (s *service) ChainSwaps() domain.ChainSwapRepository {
-	return s.chainSwapRepo
-}
-
 func (s *service) Close() {
-	s.settingsRepo.Close()
 	s.vhtlcRepo.Close()
 	s.delegateRepo.Close()
-	s.swapRepo.Close()
 	s.subscribedScriptRepo.Close()
 }

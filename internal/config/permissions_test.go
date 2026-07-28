@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	delegatev1 "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/delegate/v1"
 	fulminev1 "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/config"
 	"github.com/stretchr/testify/require"
@@ -41,8 +42,8 @@ func TestWhitelistedMethods(t *testing.T) {
 		allMethods = append(allMethods, fmt.Sprintf("/%s/%s", fulminev1.WalletService_ServiceDesc.ServiceName, m.MethodName))
 	}
 	// DelegateService methods
-	for _, m := range fulminev1.DelegateService_ServiceDesc.Methods {
-		allMethods = append(allMethods, fmt.Sprintf("/%s/%s", fulminev1.DelegateService_ServiceDesc.ServiceName, m.MethodName))
+	for _, m := range delegatev1.DelegateService_ServiceDesc.Methods {
+		allMethods = append(allMethods, fmt.Sprintf("/%s/%s", delegatev1.DelegateService_ServiceDesc.ServiceName, m.MethodName))
 	}
 
 	perms := config.WhitelistedByMethod()

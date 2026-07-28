@@ -200,11 +200,11 @@ func receiverArkAddress(t *testing.T, info *pb.GetInfoResponse, receiverPub *btc
 	return addr
 }
 
-func addrHRPFromNetwork(network pb.GetInfoResponse_Network) string {
+func addrHRPFromNetwork(network pb.Network) string {
 	switch network {
-	case pb.GetInfoResponse_NETWORK_MAINNET:
+	case pb.Network_NETWORK_MAINNET:
 		return arklib.Bitcoin.Addr
-	case pb.GetInfoResponse_NETWORK_TESTNET:
+	case pb.Network_NETWORK_TESTNET:
 		return arklib.BitcoinTestNet.Addr
 	default:
 		return arklib.BitcoinRegTest.Addr

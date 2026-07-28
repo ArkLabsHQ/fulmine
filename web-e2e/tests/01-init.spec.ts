@@ -10,7 +10,7 @@ test.describe.serial('wallet init', () => {
     const result = await page.evaluate(async () => {
       const data = new FormData();
       data.set('serverUrl', 'http://arkd:9999'); // reachable host, dead port
-      data.set('privateKey', '0000000000000000000000000000000000000000000000000000000000000001');
+      data.set('mnemonic', 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');
       data.set('password', 'testpassword123');
       const res = await fetch('/initialize', { method: 'POST', body: data });
       return {

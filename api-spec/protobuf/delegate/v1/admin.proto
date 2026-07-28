@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package delegate.v1;
+
+import "google/api/annotations.proto";
+
+// AdminService defines the private RPCs that operator can use to manage the delegate service.
+service AdminService {
+    // ListDelegates returns delegate tasks filtered by status, paginated by limit/offset.
+    rpc ListDelegates(ListDelegatesRequest) returns (ListDelegatesResponse) {
+        option (google.api.http) = {
+        get: "/v1/delegates"
+        };
+    };
+}
+
+message ListDelegatesRequest {
+  string status = 1;
+  uint32 limit = 2;
+  uint32 offset = 3;
+}
+
+message ListDelegatesResponse {
+  repeated Delegate delegates = 1;
+}
+
+message DelegateIntent {
+  string txid = 1;
+  string message = 2;
+  string proof = 3;
+  repeated Input inputs = 4;
+}
+
+message DelegateForfeitTx {
+  Input input = 1;
+  string forfeit_tx = 2;
+}
+
+message Delegate {
+  string id = 1;
+  DelegateIntent intent = 2;
+  repeated DelegateForfeitTx forfeit_txs = 3;
+  uint64 fee = 4;
+  string delegate_public_key = 5;
+  int64 scheduled_at = 6;
+  string status = 7;
+  string fail_reason = 8;
+  string commitment_txid = 9;
+}
+
+message Input {
+  string txid = 1;
+  uint32 vout = 2;
+}

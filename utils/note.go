@@ -12,6 +12,6 @@ func SatsFromNote(text string) int {
 	return int(n.Value)
 }
 
-func IsValidArkNote(text string) bool {
+func IsValidNote(text string) bool {
 	return SatsFromNote(text) > 0
 }

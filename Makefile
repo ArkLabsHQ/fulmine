@@ -1,4 +1,4 @@
-.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-mutinynet run-2 test test-vhtlc vet proto proto-lint regtest-build regtest-up regtest-user-up regtest-down regtest-logs web-e2e
+.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint migrate run run-mutinynet run-2 test test-vhtlc vet proto proto-lint regtest-build regtest-up regtest-user-up regtest-down regtest-logs web-e2e
 
 GOLANGCI_LINT ?= $(shell \
 	echo "docker run --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v2.9.0 golangci-lint"; \
@@ -96,7 +96,7 @@ regtest-build:
 regtest-up: regtest-build
 	@echo "Starting arkade-regtest stack..."
 	@git submodule update --init regtest
-	@node regtest/regtest.mjs start --profile boltz,delegate,emulator
+	@node regtest/regtest.mjs start --profile delegate,emulator
 	@$(MAKE) regtest-user-up
 
 ## regtest-user-up: start + initialise the dedicated swap-user Fulmine
@@ -130,24 +130,9 @@ web-e2e:
 # Path to the database directory (change as needed)
 DB_PATH?=./data
 
-## mig_file: creates SQLite migration file (eg. make FILE=init mig_file)
-mig_file:
-	@migrate create -ext sql -dir ./internal/infrastructure/db/sqlite/migration/ $(FILE)
-
-## mig_up: apply up migration
-mig_up:
-	@echo "migration up..."
-	@migrate -database "sqlite://$(DB_PATH)/sqlite.db" -path ./internal/infrastructure/db/sqlite/migration/ up
-
-## mig_down: apply down migration
-mig_down:
-	@echo "migration down..."
-	@migrate -database "sqlite://$(DB_PATH)/sqlite.db" -path ./internal/infrastructure/db/sqlite/migration/ down
-
-## mig_down_yes: apply down migration without prompt
-mig_down_yes:
-	@echo "migration down..."
-	@"yes" | migrate -database "sqlite://$(DB_PATH)/sqlite.db" -path ./internal/infrastructure/db/sqlite/migration/ down
+## migrate: creates SQLite migration file (eg. make FILE=init migrate)
+migrate:
+	@@docker run --rm -v ./internal/infrastructure/db/sqlite/migration:/migration migrate/migrate create -ext sql -dir /migration $(FILE)
 
 ## vet_db: check if mig_up and mig_down are ok
 vet_db: mig_up mig_down_yes
@@ -156,4 +141,4 @@ vet_db: mig_up mig_down_yes
 ## sqlc: generate Go code from SQLC
 sqlc:
 	@echo "gen sql..."
-	cd ./internal/infrastructure/db/sqlite; sqlc generate
+	@docker run --rm -v ./internal/infrastructure/db/sqlite:/src -w /src sqlc/sqlc:1.30.0 generate

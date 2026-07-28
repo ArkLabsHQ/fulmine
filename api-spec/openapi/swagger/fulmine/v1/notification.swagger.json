@@ -116,6 +116,18 @@
     }
   },
   "definitions": {
+    "fulminev1Input": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        },
+        "vout": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -174,18 +186,6 @@
       "properties": {
         "notification": {
           "$ref": "#/definitions/v1Notification"
-        }
-      }
-    },
-    "v1Input": {
-      "type": "object",
-      "properties": {
-        "txid": {
-          "type": "string"
-        },
-        "vout": {
-          "type": "integer",
-          "format": "int64"
         }
       }
     },
@@ -312,7 +312,7 @@
       "type": "object",
       "properties": {
         "outpoint": {
-          "$ref": "#/definitions/v1Input"
+          "$ref": "#/definitions/fulminev1Input"
         },
         "createdAt": {
           "type": "string",

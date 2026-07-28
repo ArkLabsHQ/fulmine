@@ -25,12 +25,11 @@ func NewWalletHandler(appSvc *application.Service, unlocker ports.Unlocker) pb.W
 func (h *walletHandler) GenSeed(
 	ctx context.Context, req *pb.GenSeedRequest,
 ) (*pb.GenSeedResponse, error) {
-	hex := utils.GetNewPrivateKey()
-	nsec, err := utils.SeedToNsec(hex)
+	mnemonic, err := utils.GetNewMnemonic()
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	return &pb.GenSeedResponse{Hex: hex, Nsec: nsec}, nil
+	return &pb.GenSeedResponse{Mnemonic: mnemonic}, nil
 }
 
 // CreateWallet creates an HD Wallet based on signing seeds,
@@ -55,11 +54,11 @@ func (h *walletHandler) CreateWallet(
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 	}
-	privateKey, err := parsePrivateKey(req.GetPrivateKey())
+	mnemonic, err := parseMnemonic(req.GetMnemonic())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if err := h.svc.Setup(ctx, serverUrl, password, privateKey); err != nil {
+	if err := h.svc.Setup(ctx, serverUrl, password, mnemonic); err != nil {
 		return nil, err
 	}
 

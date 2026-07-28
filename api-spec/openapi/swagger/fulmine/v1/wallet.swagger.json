@@ -334,9 +334,9 @@
     "v1CreateWalletRequest": {
       "type": "object",
       "properties": {
-        "privateKey": {
+        "mnemonic": {
           "type": "string",
-          "description": "The private key from where signing key pairs are derived.\nIn 64 chars hexadecimal format."
+          "description": "The list of words from where signing key pairs are derived."
         },
         "password": {
           "type": "string",
@@ -354,13 +354,9 @@
     "v1GenSeedResponse": {
       "type": "object",
       "properties": {
-        "hex": {
+        "mnemonic": {
           "type": "string",
-          "description": "A hex secret key from where deriving signing key pairs."
-        },
-        "nsec": {
-          "type": "string",
-          "description": "The same secret key but in nsec (nip19) format."
+          "description": "The list of words."
         }
       }
     },

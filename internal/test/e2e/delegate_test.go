@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
+	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/delegate/v1"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/asset"
 	"github.com/arkade-os/arkd/pkg/ark-lib/extension"
@@ -530,7 +530,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	// round) instead of a fixed sleep, which is racy under load.
 	deadline := time.Now().Add(90 * time.Second)
 	for time.Now().Before(deadline) {
-		mineRegtestBlocks(t, ctx, 1)
+		generateBlocks(t, 1)
 		balance, err := alice.Balance(t.Context())
 		require.NoError(t, err)
 		if len(balance.OnchainBalance.LockedAmount) == 1 {

@@ -23,7 +23,6 @@ const (
 	Service_GetBalance_FullMethodName                 = "/fulmine.v1.Service/GetBalance"
 	Service_GetInfo_FullMethodName                    = "/fulmine.v1.Service/GetInfo"
 	Service_GetOnboardAddress_FullMethodName          = "/fulmine.v1.Service/GetOnboardAddress"
-	Service_GetRoundInfo_FullMethodName               = "/fulmine.v1.Service/GetRoundInfo"
 	Service_GetTransactionHistory_FullMethodName      = "/fulmine.v1.Service/GetTransactionHistory"
 	Service_RedeemNote_FullMethodName                 = "/fulmine.v1.Service/RedeemNote"
 	Service_Settle_FullMethodName                     = "/fulmine.v1.Service/Settle"
@@ -33,19 +32,12 @@ const (
 	Service_CreateVHTLC_FullMethodName                = "/fulmine.v1.Service/CreateVHTLC"
 	Service_ClaimVHTLC_FullMethodName                 = "/fulmine.v1.Service/ClaimVHTLC"
 	Service_RefundVHTLCWithoutReceiver_FullMethodName = "/fulmine.v1.Service/RefundVHTLCWithoutReceiver"
-	Service_SettleVHTLC_FullMethodName                = "/fulmine.v1.Service/SettleVHTLC"
 	Service_ListVHTLC_FullMethodName                  = "/fulmine.v1.Service/ListVHTLC"
 	Service_ListVHTLCs_FullMethodName                 = "/fulmine.v1.Service/ListVHTLCs"
 	Service_GetVHTLCSpendingTx_FullMethodName         = "/fulmine.v1.Service/GetVHTLCSpendingTx"
-	Service_GetInvoice_FullMethodName                 = "/fulmine.v1.Service/GetInvoice"
-	Service_PayInvoice_FullMethodName                 = "/fulmine.v1.Service/PayInvoice"
 	Service_GetVirtualTxs_FullMethodName              = "/fulmine.v1.Service/GetVirtualTxs"
 	Service_GetVtxos_FullMethodName                   = "/fulmine.v1.Service/GetVtxos"
 	Service_NextSettlement_FullMethodName             = "/fulmine.v1.Service/NextSettlement"
-	Service_CreateChainSwap_FullMethodName            = "/fulmine.v1.Service/CreateChainSwap"
-	Service_ListChainSwaps_FullMethodName             = "/fulmine.v1.Service/ListChainSwaps"
-	Service_RefundChainSwap_FullMethodName            = "/fulmine.v1.Service/RefundChainSwap"
-	Service_ListDelegates_FullMethodName              = "/fulmine.v1.Service/ListDelegates"
 )
 
 // ServiceClient is the client API for Service service.
@@ -60,8 +52,6 @@ type ServiceClient interface {
 	GetInfo(ctx context.Context, in *GetInfoRequest, opts ...grpc.CallOption) (*GetInfoResponse, error)
 	// GetOnboardAddress returns onchain address and invoice for requested amount
 	GetOnboardAddress(ctx context.Context, in *GetOnboardAddressRequest, opts ...grpc.CallOption) (*GetOnboardAddressResponse, error)
-	// Returns round info for optional round_id (no round_id returns current round info)
-	GetRoundInfo(ctx context.Context, in *GetRoundInfoRequest, opts ...grpc.CallOption) (*GetRoundInfoResponse, error)
 	// GetTransactionHistory returns virtual transactions history
 	GetTransactionHistory(ctx context.Context, in *GetTransactionHistoryRequest, opts ...grpc.CallOption) (*GetTransactionHistoryResponse, error)
 	// Redeems an ark note by joining a round
@@ -78,15 +68,12 @@ type ServiceClient interface {
 	// ClaimVHTLC = self send vHTLC -> VTXO
 	ClaimVHTLC(ctx context.Context, in *ClaimVHTLCRequest, opts ...grpc.CallOption) (*ClaimVHTLCResponse, error)
 	RefundVHTLCWithoutReceiver(ctx context.Context, in *RefundVHTLCWithoutReceiverRequest, opts ...grpc.CallOption) (*RefundVHTLCWithoutReceiverResponse, error)
-	SettleVHTLC(ctx context.Context, in *SettleVHTLCRequest, opts ...grpc.CallOption) (*SettleVHTLCResponse, error)
 	// ListVHTLC = list all vhtlc OR filter by vhtlc_id
 	ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opts ...grpc.CallOption) (*ListVHTLCResponse, error)
 	ListVHTLCs(ctx context.Context, in *ListVHTLCsRequest, opts ...grpc.CallOption) (*ListVHTLCsResponse, error)
 	// GetVHTLCSpendingTx returns the fully signed ark transaction for a spent VHTLC,
 	// whether the VHTLC is spent by a finalized or pending tx.
 	GetVHTLCSpendingTx(ctx context.Context, in *GetVHTLCSpendingTxRequest, opts ...grpc.CallOption) (*GetVHTLCSpendingTxResponse, error)
-	GetInvoice(ctx context.Context, in *GetInvoiceRequest, opts ...grpc.CallOption) (*GetInvoiceResponse, error)
-	PayInvoice(ctx context.Context, in *PayInvoiceRequest, opts ...grpc.CallOption) (*PayInvoiceResponse, error)
 	// GetVirtualTxs returns the virtual transactions in hex format for the specified txids.
 	GetVirtualTxs(ctx context.Context, in *GetVirtualTxsRequest, opts ...grpc.CallOption) (*GetVirtualTxsResponse, error)
 	// GetVtxos returns VTXOs filtered by the specified filter type.
@@ -94,14 +81,6 @@ type ServiceClient interface {
 	GetVtxos(ctx context.Context, in *GetVtxosRequest, opts ...grpc.CallOption) (*GetVtxosResponse, error)
 	// NextSettlement returns the next scheduled settlement time
 	NextSettlement(ctx context.Context, in *NextSettlementRequest, opts ...grpc.CallOption) (*NextSettlementResponse, error)
-	// CreateChainSwap initiates a chain swap between Ark and Bitcoin
-	CreateChainSwap(ctx context.Context, in *CreateChainSwapRequest, opts ...grpc.CallOption) (*CreateChainSwapResponse, error)
-	// ListChainSwaps retrieves all chain swaps
-	ListChainSwaps(ctx context.Context, in *ListChainSwapsRequest, opts ...grpc.CallOption) (*ListChainSwapsResponse, error)
-	// RefundChainSwap initiates a cooperative refund for a chain swap
-	RefundChainSwap(ctx context.Context, in *RefundChainSwapRequest, opts ...grpc.CallOption) (*RefundChainSwapResponse, error)
-	// ListDelegates returns delegate tasks filtered by status, paginated by limit/offset.
-	ListDelegates(ctx context.Context, in *ListDelegatesRequest, opts ...grpc.CallOption) (*ListDelegatesResponse, error)
 }
 
 type serviceClient struct {
@@ -146,16 +125,6 @@ func (c *serviceClient) GetOnboardAddress(ctx context.Context, in *GetOnboardAdd
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetOnboardAddressResponse)
 	err := c.cc.Invoke(ctx, Service_GetOnboardAddress_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *serviceClient) GetRoundInfo(ctx context.Context, in *GetRoundInfoRequest, opts ...grpc.CallOption) (*GetRoundInfoResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetRoundInfoResponse)
-	err := c.cc.Invoke(ctx, Service_GetRoundInfo_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -252,16 +221,6 @@ func (c *serviceClient) RefundVHTLCWithoutReceiver(ctx context.Context, in *Refu
 	return out, nil
 }
 
-func (c *serviceClient) SettleVHTLC(ctx context.Context, in *SettleVHTLCRequest, opts ...grpc.CallOption) (*SettleVHTLCResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SettleVHTLCResponse)
-	err := c.cc.Invoke(ctx, Service_SettleVHTLC_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *serviceClient) ListVHTLC(ctx context.Context, in *ListVHTLCRequest, opts ...grpc.CallOption) (*ListVHTLCResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListVHTLCResponse)
@@ -286,26 +245,6 @@ func (c *serviceClient) GetVHTLCSpendingTx(ctx context.Context, in *GetVHTLCSpen
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetVHTLCSpendingTxResponse)
 	err := c.cc.Invoke(ctx, Service_GetVHTLCSpendingTx_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *serviceClient) GetInvoice(ctx context.Context, in *GetInvoiceRequest, opts ...grpc.CallOption) (*GetInvoiceResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetInvoiceResponse)
-	err := c.cc.Invoke(ctx, Service_GetInvoice_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *serviceClient) PayInvoice(ctx context.Context, in *PayInvoiceRequest, opts ...grpc.CallOption) (*PayInvoiceResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(PayInvoiceResponse)
-	err := c.cc.Invoke(ctx, Service_PayInvoice_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -342,46 +281,6 @@ func (c *serviceClient) NextSettlement(ctx context.Context, in *NextSettlementRe
 	return out, nil
 }
 
-func (c *serviceClient) CreateChainSwap(ctx context.Context, in *CreateChainSwapRequest, opts ...grpc.CallOption) (*CreateChainSwapResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CreateChainSwapResponse)
-	err := c.cc.Invoke(ctx, Service_CreateChainSwap_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *serviceClient) ListChainSwaps(ctx context.Context, in *ListChainSwapsRequest, opts ...grpc.CallOption) (*ListChainSwapsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListChainSwapsResponse)
-	err := c.cc.Invoke(ctx, Service_ListChainSwaps_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *serviceClient) RefundChainSwap(ctx context.Context, in *RefundChainSwapRequest, opts ...grpc.CallOption) (*RefundChainSwapResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RefundChainSwapResponse)
-	err := c.cc.Invoke(ctx, Service_RefundChainSwap_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *serviceClient) ListDelegates(ctx context.Context, in *ListDelegatesRequest, opts ...grpc.CallOption) (*ListDelegatesResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListDelegatesResponse)
-	err := c.cc.Invoke(ctx, Service_ListDelegates_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ServiceServer is the server API for Service service.
 // All implementations should embed UnimplementedServiceServer
 // for forward compatibility
@@ -394,8 +293,6 @@ type ServiceServer interface {
 	GetInfo(context.Context, *GetInfoRequest) (*GetInfoResponse, error)
 	// GetOnboardAddress returns onchain address and invoice for requested amount
 	GetOnboardAddress(context.Context, *GetOnboardAddressRequest) (*GetOnboardAddressResponse, error)
-	// Returns round info for optional round_id (no round_id returns current round info)
-	GetRoundInfo(context.Context, *GetRoundInfoRequest) (*GetRoundInfoResponse, error)
 	// GetTransactionHistory returns virtual transactions history
 	GetTransactionHistory(context.Context, *GetTransactionHistoryRequest) (*GetTransactionHistoryResponse, error)
 	// Redeems an ark note by joining a round
@@ -412,15 +309,12 @@ type ServiceServer interface {
 	// ClaimVHTLC = self send vHTLC -> VTXO
 	ClaimVHTLC(context.Context, *ClaimVHTLCRequest) (*ClaimVHTLCResponse, error)
 	RefundVHTLCWithoutReceiver(context.Context, *RefundVHTLCWithoutReceiverRequest) (*RefundVHTLCWithoutReceiverResponse, error)
-	SettleVHTLC(context.Context, *SettleVHTLCRequest) (*SettleVHTLCResponse, error)
 	// ListVHTLC = list all vhtlc OR filter by vhtlc_id
 	ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error)
 	ListVHTLCs(context.Context, *ListVHTLCsRequest) (*ListVHTLCsResponse, error)
 	// GetVHTLCSpendingTx returns the fully signed ark transaction for a spent VHTLC,
 	// whether the VHTLC is spent by a finalized or pending tx.
 	GetVHTLCSpendingTx(context.Context, *GetVHTLCSpendingTxRequest) (*GetVHTLCSpendingTxResponse, error)
-	GetInvoice(context.Context, *GetInvoiceRequest) (*GetInvoiceResponse, error)
-	PayInvoice(context.Context, *PayInvoiceRequest) (*PayInvoiceResponse, error)
 	// GetVirtualTxs returns the virtual transactions in hex format for the specified txids.
 	GetVirtualTxs(context.Context, *GetVirtualTxsRequest) (*GetVirtualTxsResponse, error)
 	// GetVtxos returns VTXOs filtered by the specified filter type.
@@ -428,14 +322,6 @@ type ServiceServer interface {
 	GetVtxos(context.Context, *GetVtxosRequest) (*GetVtxosResponse, error)
 	// NextSettlement returns the next scheduled settlement time
 	NextSettlement(context.Context, *NextSettlementRequest) (*NextSettlementResponse, error)
-	// CreateChainSwap initiates a chain swap between Ark and Bitcoin
-	CreateChainSwap(context.Context, *CreateChainSwapRequest) (*CreateChainSwapResponse, error)
-	// ListChainSwaps retrieves all chain swaps
-	ListChainSwaps(context.Context, *ListChainSwapsRequest) (*ListChainSwapsResponse, error)
-	// RefundChainSwap initiates a cooperative refund for a chain swap
-	RefundChainSwap(context.Context, *RefundChainSwapRequest) (*RefundChainSwapResponse, error)
-	// ListDelegates returns delegate tasks filtered by status, paginated by limit/offset.
-	ListDelegates(context.Context, *ListDelegatesRequest) (*ListDelegatesResponse, error)
 }
 
 // UnimplementedServiceServer should be embedded to have forward compatible implementations.
@@ -453,9 +339,6 @@ func (UnimplementedServiceServer) GetInfo(context.Context, *GetInfoRequest) (*Ge
 }
 func (UnimplementedServiceServer) GetOnboardAddress(context.Context, *GetOnboardAddressRequest) (*GetOnboardAddressResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOnboardAddress not implemented")
-}
-func (UnimplementedServiceServer) GetRoundInfo(context.Context, *GetRoundInfoRequest) (*GetRoundInfoResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetRoundInfo not implemented")
 }
 func (UnimplementedServiceServer) GetTransactionHistory(context.Context, *GetTransactionHistoryRequest) (*GetTransactionHistoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionHistory not implemented")
@@ -484,9 +367,6 @@ func (UnimplementedServiceServer) ClaimVHTLC(context.Context, *ClaimVHTLCRequest
 func (UnimplementedServiceServer) RefundVHTLCWithoutReceiver(context.Context, *RefundVHTLCWithoutReceiverRequest) (*RefundVHTLCWithoutReceiverResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RefundVHTLCWithoutReceiver not implemented")
 }
-func (UnimplementedServiceServer) SettleVHTLC(context.Context, *SettleVHTLCRequest) (*SettleVHTLCResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SettleVHTLC not implemented")
-}
 func (UnimplementedServiceServer) ListVHTLC(context.Context, *ListVHTLCRequest) (*ListVHTLCResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListVHTLC not implemented")
 }
@@ -496,12 +376,6 @@ func (UnimplementedServiceServer) ListVHTLCs(context.Context, *ListVHTLCsRequest
 func (UnimplementedServiceServer) GetVHTLCSpendingTx(context.Context, *GetVHTLCSpendingTxRequest) (*GetVHTLCSpendingTxResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetVHTLCSpendingTx not implemented")
 }
-func (UnimplementedServiceServer) GetInvoice(context.Context, *GetInvoiceRequest) (*GetInvoiceResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetInvoice not implemented")
-}
-func (UnimplementedServiceServer) PayInvoice(context.Context, *PayInvoiceRequest) (*PayInvoiceResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PayInvoice not implemented")
-}
 func (UnimplementedServiceServer) GetVirtualTxs(context.Context, *GetVirtualTxsRequest) (*GetVirtualTxsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetVirtualTxs not implemented")
 }
@@ -510,18 +384,6 @@ func (UnimplementedServiceServer) GetVtxos(context.Context, *GetVtxosRequest) (*
 }
 func (UnimplementedServiceServer) NextSettlement(context.Context, *NextSettlementRequest) (*NextSettlementResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NextSettlement not implemented")
-}
-func (UnimplementedServiceServer) CreateChainSwap(context.Context, *CreateChainSwapRequest) (*CreateChainSwapResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateChainSwap not implemented")
-}
-func (UnimplementedServiceServer) ListChainSwaps(context.Context, *ListChainSwapsRequest) (*ListChainSwapsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListChainSwaps not implemented")
-}
-func (UnimplementedServiceServer) RefundChainSwap(context.Context, *RefundChainSwapRequest) (*RefundChainSwapResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RefundChainSwap not implemented")
-}
-func (UnimplementedServiceServer) ListDelegates(context.Context, *ListDelegatesRequest) (*ListDelegatesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListDelegates not implemented")
 }
 
 // UnsafeServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -603,24 +465,6 @@ func _Service_GetOnboardAddress_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).GetOnboardAddress(ctx, req.(*GetOnboardAddressRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Service_GetRoundInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetRoundInfoRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).GetRoundInfo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_GetRoundInfo_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).GetRoundInfo(ctx, req.(*GetRoundInfoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -787,24 +631,6 @@ func _Service_RefundVHTLCWithoutReceiver_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Service_SettleVHTLC_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SettleVHTLCRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).SettleVHTLC(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_SettleVHTLC_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).SettleVHTLC(ctx, req.(*SettleVHTLCRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Service_ListVHTLC_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListVHTLCRequest)
 	if err := dec(in); err != nil {
@@ -855,42 +681,6 @@ func _Service_GetVHTLCSpendingTx_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).GetVHTLCSpendingTx(ctx, req.(*GetVHTLCSpendingTxRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Service_GetInvoice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetInvoiceRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).GetInvoice(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_GetInvoice_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).GetInvoice(ctx, req.(*GetInvoiceRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Service_PayInvoice_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PayInvoiceRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).PayInvoice(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_PayInvoice_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).PayInvoice(ctx, req.(*PayInvoiceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -949,78 +739,6 @@ func _Service_NextSettlement_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Service_CreateChainSwap_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateChainSwapRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).CreateChainSwap(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_CreateChainSwap_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).CreateChainSwap(ctx, req.(*CreateChainSwapRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Service_ListChainSwaps_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListChainSwapsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).ListChainSwaps(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_ListChainSwaps_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).ListChainSwaps(ctx, req.(*ListChainSwapsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Service_RefundChainSwap_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RefundChainSwapRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).RefundChainSwap(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_RefundChainSwap_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).RefundChainSwap(ctx, req.(*RefundChainSwapRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Service_ListDelegates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListDelegatesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ServiceServer).ListDelegates(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Service_ListDelegates_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ServiceServer).ListDelegates(ctx, req.(*ListDelegatesRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // Service_ServiceDesc is the grpc.ServiceDesc for Service service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1043,10 +761,6 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetOnboardAddress",
 			Handler:    _Service_GetOnboardAddress_Handler,
-		},
-		{
-			MethodName: "GetRoundInfo",
-			Handler:    _Service_GetRoundInfo_Handler,
 		},
 		{
 			MethodName: "GetTransactionHistory",
@@ -1085,10 +799,6 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Service_RefundVHTLCWithoutReceiver_Handler,
 		},
 		{
-			MethodName: "SettleVHTLC",
-			Handler:    _Service_SettleVHTLC_Handler,
-		},
-		{
 			MethodName: "ListVHTLC",
 			Handler:    _Service_ListVHTLC_Handler,
 		},
@@ -1101,14 +811,6 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Service_GetVHTLCSpendingTx_Handler,
 		},
 		{
-			MethodName: "GetInvoice",
-			Handler:    _Service_GetInvoice_Handler,
-		},
-		{
-			MethodName: "PayInvoice",
-			Handler:    _Service_PayInvoice_Handler,
-		},
-		{
 			MethodName: "GetVirtualTxs",
 			Handler:    _Service_GetVirtualTxs_Handler,
 		},
@@ -1119,22 +821,6 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "NextSettlement",
 			Handler:    _Service_NextSettlement_Handler,
-		},
-		{
-			MethodName: "CreateChainSwap",
-			Handler:    _Service_CreateChainSwap_Handler,
-		},
-		{
-			MethodName: "ListChainSwaps",
-			Handler:    _Service_ListChainSwaps_Handler,
-		},
-		{
-			MethodName: "RefundChainSwap",
-			Handler:    _Service_RefundChainSwap_Handler,
-		},
-		{
-			MethodName: "ListDelegates",
-			Handler:    _Service_ListDelegates_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

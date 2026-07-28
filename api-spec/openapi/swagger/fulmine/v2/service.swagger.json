@@ -1,0 +1,1107 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "fulmine/v2/service.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "Service"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v2/address": {
+      "get": {
+        "summary": "NewAddress returns the next unfunded offchain address",
+        "operationId": "Service_NewAddress",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v2NewAddressResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/balance": {
+      "get": {
+        "summary": "GetBalance returns ark balance",
+        "operationId": "Service_GetBalance",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/fulminev2GetBalanceResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/info": {
+      "get": {
+        "summary": "GetInfo returns info about the ark account",
+        "operationId": "Service_GetInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/fulminev2GetInfoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/redeemNote": {
+      "post": {
+        "summary": "Redeems an ark note by joining a round",
+        "operationId": "Service_RedeemNote",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/fulminev2RedeemNoteResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/fulminev2RedeemNoteRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/send": {
+      "post": {
+        "summary": "Send asks to send amount to ark address by joining a round",
+        "operationId": "Service_SendOffChain",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/fulminev2SendOffChainResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/fulminev2SendOffChainRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/sendOnchain": {
+      "post": {
+        "summary": "SendOnChain asks to send requested amount to requested onchain address",
+        "operationId": "Service_SendOnChain",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/fulminev2SendOnChainResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/fulminev2SendOnChainRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/signTransaction": {
+      "post": {
+        "operationId": "Service_SignTransaction",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/fulminev2SignTransactionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/fulminev2SignTransactionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/transactionHistory": {
+      "get": {
+        "summary": "GetTransactionHistory returns virtual transactions history",
+        "operationId": "Service_GetTransactionHistory",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/fulminev2GetTransactionHistoryResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/vhtlc": {
+      "post": {
+        "summary": "CreateVHTLCAddress computes a VHTLC address",
+        "operationId": "Service_CreateVHTLC",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/fulminev2CreateVHTLCResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/fulminev2CreateVHTLCRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/vhtlc/{vhtlcId}/claim": {
+      "post": {
+        "summary": "ClaimVHTLC = self send vHTLC -\u003e VTXO",
+        "operationId": "Service_ClaimVHTLC",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/fulminev2ClaimVHTLCResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vhtlcId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "preimage": {
+                  "type": "string"
+                },
+                "outpoint": {
+                  "$ref": "#/definitions/fulminev1Input",
+                  "description": "Optional outpoint to target a specific VTXO when multiple VTXOs exist at the same VHTLC address."
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/vhtlc/{vhtlcId}/refund": {
+      "post": {
+        "operationId": "Service_RefundVHTLC",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v2RefundVHTLCResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vhtlcId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "outpoint": {
+                  "$ref": "#/definitions/fulminev1Input",
+                  "description": "Optional outpoint to target a specific VTXO when multiple VTXOs exist at the same VHTLC address."
+                }
+              }
+            }
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/vhtlc/{vhtlcId}/spendingTx": {
+      "get": {
+        "summary": "GetVHTLCSpendingTx returns the fully signed ark transaction for a spent VHTLC,\nwhether the VHTLC is spent by a finalized or pending tx.",
+        "operationId": "Service_GetVHTLCSpendingTx",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/fulminev2GetVHTLCSpendingTxResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vhtlcId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/vhtlc/{vhtlcId}/vtxos": {
+      "get": {
+        "operationId": "Service_GetVHTLCFunds",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v2GetVHTLCFundsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vhtlcId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/vhtlcs/vtxos": {
+      "get": {
+        "operationId": "Service_ListVHTLCsFunds",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v2ListVHTLCsFundsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "vhtlcIds",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/virtualTx/{txids}": {
+      "get": {
+        "summary": "GetVirtualTxs returns the virtual transactions in hex format for the specified txids.",
+        "operationId": "Service_GetVirtualTxs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/fulminev2GetVirtualTxsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "txids",
+            "in": "path",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "csv",
+            "minItems": 1
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/vtxos": {
+      "get": {
+        "summary": "ListVtxos returns VTXOs filtered by the specified filter type.\nIf no filter is provided, returns all VTXOs.",
+        "operationId": "Service_ListVtxos",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v2ListVtxosResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "spendableOnly",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "spentOnly",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "recoverableOnly",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/vtxos/refresh": {
+      "get": {
+        "summary": "Refresh forces a refresh of the vtxos close to expiration",
+        "operationId": "Service_RefreshVtxos",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v2RefreshVtxosResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    },
+    "/v2/vtxos/refresh/next": {
+      "get": {
+        "summary": "NextRefresh returns the time at which the next refresh is scheduled",
+        "operationId": "Service_NextRefresh",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v2NextRefreshResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Service"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "RelativeLocktimeLocktimeType": {
+      "type": "string",
+      "enum": [
+        "LOCKTIME_TYPE_UNSPECIFIED",
+        "LOCKTIME_TYPE_BLOCK",
+        "LOCKTIME_TYPE_SECOND"
+      ],
+      "default": "LOCKTIME_TYPE_UNSPECIFIED"
+    },
+    "fulminev1Input": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        },
+        "vout": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "fulminev2ClaimVHTLCResponse": {
+      "type": "object",
+      "properties": {
+        "redeemTxid": {
+          "type": "string"
+        }
+      }
+    },
+    "fulminev2CreateVHTLCRequest": {
+      "type": "object",
+      "properties": {
+        "preimageHash": {
+          "type": "string"
+        },
+        "senderPubkey": {
+          "type": "string"
+        },
+        "receiverPubkey": {
+          "type": "string"
+        },
+        "refundLocktime": {
+          "type": "integer",
+          "format": "int64",
+          "title": "Optional absolute locktime for refund condition (in blocks)"
+        },
+        "unilateralClaimDelay": {
+          "$ref": "#/definitions/v1RelativeLocktime",
+          "title": "Optional unilateral claim delay (relative timelock)"
+        },
+        "unilateralRefundDelay": {
+          "$ref": "#/definitions/v1RelativeLocktime",
+          "title": "Optional unilateral refund delay (relative timelock)"
+        },
+        "unilateralRefundWithoutReceiverDelay": {
+          "$ref": "#/definitions/v1RelativeLocktime",
+          "title": "Optional unilateral refund without receiver delay (relative timelock)"
+        },
+        "nonInteractiveClaim": {
+          "$ref": "#/definitions/v1NonInteractiveClaim",
+          "title": "Optional non-interactive claim config"
+        }
+      }
+    },
+    "fulminev2CreateVHTLCResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "claimPubkey": {
+          "type": "string"
+        },
+        "refundPubkey": {
+          "type": "string"
+        },
+        "serverPubkey": {
+          "type": "string"
+        },
+        "swapTree": {
+          "$ref": "#/definitions/v1TaprootTree"
+        },
+        "refundLocktime": {
+          "type": "string",
+          "format": "int64"
+        },
+        "unilateralClaimDelay": {
+          "type": "string",
+          "format": "int64"
+        },
+        "unilateralRefundDelay": {
+          "type": "string",
+          "format": "int64"
+        },
+        "unilateralRefundWithoutReceiverDelay": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "fulminev2GetBalanceResponse": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "fulminev2GetInfoResponse": {
+      "type": "object",
+      "properties": {
+        "network": {
+          "$ref": "#/definitions/v1Network",
+          "description": "The bitcoin network on which Fulmine is running."
+        },
+        "addrPrefix": {
+          "type": "string",
+          "description": "The ark address prefix (ark | tark)."
+        },
+        "serverUrl": {
+          "type": "string",
+          "description": "The URL of the server to which Fulmine is connected to if already initialized."
+        },
+        "buildInfo": {
+          "$ref": "#/definitions/v1BuildInfo",
+          "description": "info about the current version of the ark wallet."
+        },
+        "pubkey": {
+          "type": "string",
+          "description": "The Fulmine's public key used in VTXO scripts."
+        },
+        "signerPubkey": {
+          "type": "string",
+          "description": "The signer's public key used in VTXO scripts."
+        }
+      }
+    },
+    "fulminev2GetTransactionHistoryResponse": {
+      "type": "object",
+      "properties": {
+        "transactions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1TransactionInfo"
+          }
+        }
+      }
+    },
+    "fulminev2GetVHTLCSpendingTxResponse": {
+      "type": "object",
+      "properties": {
+        "tx": {
+          "type": "string",
+          "description": "The fully signed ark psbt."
+        }
+      }
+    },
+    "fulminev2GetVirtualTxsResponse": {
+      "type": "object",
+      "properties": {
+        "txs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "fulminev2RedeemNoteRequest": {
+      "type": "object",
+      "properties": {
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "fulminev2RedeemNoteResponse": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        }
+      }
+    },
+    "fulminev2SendOffChainRequest": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "fulminev2SendOffChainResponse": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        }
+      }
+    },
+    "fulminev2SendOnChainRequest": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "fulminev2SendOnChainResponse": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        }
+      }
+    },
+    "fulminev2SignTransactionRequest": {
+      "type": "object",
+      "properties": {
+        "tx": {
+          "type": "string"
+        }
+      }
+    },
+    "fulminev2SignTransactionResponse": {
+      "type": "object",
+      "properties": {
+        "signedTx": {
+          "type": "string"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1BuildInfo": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "commit": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string"
+        }
+      }
+    },
+    "v1Network": {
+      "type": "string",
+      "enum": [
+        "NETWORK_UNSPECIFIED",
+        "NETWORK_MAINNET",
+        "NETWORK_TESTNET",
+        "NETWORK_REGTEST"
+      ],
+      "default": "NETWORK_UNSPECIFIED"
+    },
+    "v1NonInteractiveClaim": {
+      "type": "object",
+      "properties": {
+        "claimAddress": {
+          "type": "string",
+          "title": "ark address of the claim tx recipient"
+        }
+      }
+    },
+    "v1RelativeLocktime": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/RelativeLocktimeLocktimeType"
+        },
+        "value": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "v1TaprootLeaf": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "output": {
+          "type": "string"
+        }
+      }
+    },
+    "v1TaprootTree": {
+      "type": "object",
+      "properties": {
+        "claimLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "refundLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "refundWithoutBoltzLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "unilateralClaimLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "unilateralRefundLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "unilateralRefundWithoutBoltzLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        },
+        "nonInteractiveClaimLeaf": {
+          "$ref": "#/definitions/v1TaprootLeaf"
+        }
+      }
+    },
+    "v1TransactionInfo": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "commitmentTxid": {
+          "type": "string"
+        },
+        "arkTxid": {
+          "type": "string"
+        },
+        "boardingTxid": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/v1TxType"
+        },
+        "settledBy": {
+          "type": "string"
+        }
+      }
+    },
+    "v1TxType": {
+      "type": "string",
+      "enum": [
+        "TX_TYPE_UNSPECIFIED",
+        "TX_TYPE_SENT",
+        "TX_TYPE_RECEIVED"
+      ],
+      "default": "TX_TYPE_UNSPECIFIED"
+    },
+    "v1Vtxo": {
+      "type": "object",
+      "properties": {
+        "outpoint": {
+          "$ref": "#/definitions/fulminev1Input"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "int64"
+        },
+        "commitmentTxids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "isPreconfirmed": {
+          "type": "boolean"
+        },
+        "isSwept": {
+          "type": "boolean"
+        },
+        "isUnrolled": {
+          "type": "boolean"
+        },
+        "isSpent": {
+          "type": "boolean"
+        },
+        "spentBy": {
+          "type": "string"
+        },
+        "settledBy": {
+          "type": "string"
+        },
+        "arkTxid": {
+          "type": "string"
+        },
+        "script": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v2GetVHTLCFundsResponse": {
+      "type": "object",
+      "properties": {
+        "vtxos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Vtxo"
+          }
+        }
+      }
+    },
+    "v2ListVHTLCsFundsResponse": {
+      "type": "object",
+      "properties": {
+        "vtxos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Vtxo"
+          }
+        }
+      }
+    },
+    "v2ListVtxosResponse": {
+      "type": "object",
+      "properties": {
+        "vtxos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Vtxo"
+          }
+        }
+      }
+    },
+    "v2NewAddressResponse": {
+      "type": "object",
+      "properties": {
+        "offchain": {
+          "type": "string"
+        },
+        "boarding": {
+          "type": "string"
+        },
+        "bip21": {
+          "type": "string"
+        }
+      }
+    },
+    "v2NextRefreshResponse": {
+      "type": "object",
+      "properties": {
+        "nextRefreshAt": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "v2RefreshVtxosResponse": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        }
+      }
+    },
+    "v2RefundVHTLCResponse": {
+      "type": "object",
+      "properties": {
+        "redeemTxid": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

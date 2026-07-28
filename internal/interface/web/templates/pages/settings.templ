@@ -2,7 +2,7 @@ package pages
 
 import (
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
-	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
 )
 
 templ Hr() {
@@ -42,11 +42,10 @@ templ SettingsTab(text, path string, active bool) {
 templ SettingsTabs(active string) {
   <div class="flex gap-2 mb-8 text-sm text-white/80 font-semibold">
     @SettingsTab("General", "/settings/general", active == "general")
-    <!-- @SettingsTab("Server", "/settings/server", active == "server") // TODO: reactivate this -->
   </div>
 }
 
-templ SettingsBodyContent(active string, settings domain.Settings, locked bool, version string) {
+templ SettingsBodyContent(active string, settings types.Settings, locked bool, version string) {
   @components.DesktopHeader()
 	<div class="p-3 flex flex-col justify-between rounded-lg h-screen md:h-auto md:bg-desktopbg">
 	  <div>
@@ -55,30 +54,15 @@ templ SettingsBodyContent(active string, settings domain.Settings, locked bool, 
       if active == "general" {
         @SettingsGeneralContent(settings, locked, version)
       }
-      if active == "server" {
-        @SettingsServerContent(settings)
-      }
     </div>
   </div>
 }
 
-templ SettingsGeneralContent(settings domain.Settings, locked bool, version string) {
-  <form hx-post="/helpers/settings" hx-trigger="change">
+templ SettingsGeneralContent(settings types.Settings, locked bool, version string) {
+  <form>
     @Separator("Details")
     @components.Label("Version")
     <p class="text-white/50">{version}</p>
-    @components.Label("Bitcoin unit")
-    @components.SelectDropdown("unit", settings.Unit, [][]string{
-      {"sat", "Satoshi (0.00000001 BTC)"},
-      {"btc", "Bitcoin (100.000.000 SATS)"},
-    })
-    @components.Label("Reference currency")
-    @components.SelectDropdown("currency", settings.Currency, [][]string{
-      {"usd", "USD ($)"},
-      {"eur", "EURO (€)"},
-    })
-    @components.Label("Server URL")
-    @components.InputFake(settings.ServerUrl)
     @Hr()
     @Separator("Wallet status")
     @StatusLock(locked)
@@ -90,30 +74,3 @@ templ SettingsGeneralContent(settings domain.Settings, locked bool, version stri
     @components.SignOutButton()
   </form>
 }
-
-templ SettingsServerContent(settings domain.Settings) {
-  <form hx-post="/helpers/settings" hx-trigger="change">
-    @Separator("Link")
-    @components.Label("Server Link")
-    <div class="border border-1 border-white/50 flex bg-graybg items-center justify-between rounded-lg gap-4 pr-3 focus:border-orange">
-      <input
-        class="border-0 bg-graybg p-4 rounded-lg text-white/50 focus:text-white max-w-96"
-        id="serverlink"
-        name="serverlink"
-        value={settings.ApiRoot}>
-      <div class="cursor-pointer flex items-center gap-4 text-white/50">
-        @components.PasteWidget("serverlink")
-        @components.ScanWidget("serverlink")
-      </div>
-    </div>
-    @Hr()
-    @Separator("Host settings")
-    @components.Label("Server Host")
-    @components.InputGeneric("serverhost", "", settings.ApiRoot)
-    @components.Label("Server Port")
-    @components.InputGeneric("serverport", "", settings.ApiRoot)
-    @components.Label("Server API Root")
-    @components.InputGeneric("serverapihost", "", settings.ApiRoot)
-  </form>
-}
-

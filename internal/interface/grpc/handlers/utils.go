@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
+	delegatev1 "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/delegate/v1"
+	fulminev1 "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/utils"
@@ -15,7 +16,6 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/nbd-wtf/go-nostr/nip19"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -40,21 +40,14 @@ func parsePassword(p string) (string, error) {
 	return p, nil
 }
 
-func parsePrivateKey(sk string) (string, error) {
-	if len(sk) == 0 {
-		return "", fmt.Errorf("missing private key")
+func parseMnemonic(mnemonic string) (string, error) {
+	if len(mnemonic) <= 0 {
+		return "", fmt.Errorf("missing mnemonic")
 	}
-	if strings.HasPrefix(sk, "nsec") {
-		_, seed, err := nip19.Decode(sk)
-		if err != nil {
-			return "", err
-		}
-		sk = fmt.Sprint(seed)
-	}
-	if err := utils.IsValidPrivateKey(sk); err != nil {
+	if err := utils.IsValidMnemonic(mnemonic); err != nil {
 		return "", err
 	}
-	return sk, nil
+	return mnemonic, nil
 }
 
 func parseAddresses(addresses []string) ([]string, error) {
@@ -73,7 +66,7 @@ func parseArkAddress(a string) (string, error) {
 	if len(a) <= 0 {
 		return "", fmt.Errorf("missing address")
 	}
-	if !utils.IsValidArkAddress(a) {
+	if !utils.IsValidOffchainAddress(a) {
 		return "", fmt.Errorf("invalid address")
 	}
 	return a, nil
@@ -83,7 +76,7 @@ func parseAddress(a string) (string, error) {
 	if len(a) <= 0 {
 		return "", fmt.Errorf("missing address")
 	}
-	if !utils.IsValidArkAddress(a) && !utils.IsValidBtcAddress(a) {
+	if !utils.IsValidOffchainAddress(a) && !utils.IsValidBtcAddress(a) {
 		return "", fmt.Errorf("invalid address")
 	}
 	return a, nil
@@ -100,7 +93,7 @@ func parseNote(n string) (string, error) {
 	if len(n) == 0 {
 		return "", fmt.Errorf("missing note")
 	}
-	if !utils.IsValidArkNote(n) {
+	if !utils.IsValidNote(n) {
 		return "", fmt.Errorf("invalid note")
 	}
 	return n, nil
@@ -146,7 +139,7 @@ func parseAbsoluteLocktime(locktime uint32) *arklib.AbsoluteLocktime {
 	return &lt
 }
 
-func parseRelativeLocktime(locktime *pb.RelativeLocktime) *arklib.RelativeLocktime {
+func parseRelativeLocktime(locktime *fulminev1.RelativeLocktime) *arklib.RelativeLocktime {
 	if locktime == nil {
 		return nil
 	}
@@ -156,11 +149,11 @@ func parseRelativeLocktime(locktime *pb.RelativeLocktime) *arklib.RelativeLockti
 	}
 }
 
-func parseRelativeLocktimeType(locktimeType pb.RelativeLocktime_LocktimeType) arklib.RelativeLocktimeType {
+func parseRelativeLocktimeType(locktimeType fulminev1.RelativeLocktime_LocktimeType) arklib.RelativeLocktimeType {
 	switch locktimeType {
-	case pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK:
+	case fulminev1.RelativeLocktime_LOCKTIME_TYPE_BLOCK:
 		return arklib.LocktimeTypeBlock
-	case pb.RelativeLocktime_LOCKTIME_TYPE_SECOND:
+	case fulminev1.RelativeLocktime_LOCKTIME_TYPE_SECOND:
 		return arklib.LocktimeTypeSecond
 	default:
 		return arklib.LocktimeTypeBlock
@@ -177,7 +170,7 @@ func parseTransaction(tx string) (string, error) {
 	return tx, nil
 }
 
-func parseNonInteractiveClaim(nic *pb.NonInteractiveClaim) (*arklib.Address, error) {
+func parseNonInteractiveClaim(nic *fulminev1.NonInteractiveClaim) (*arklib.Address, error) {
 	if nic == nil {
 		return nil, nil // non interactive claim path is optional
 	}
@@ -188,31 +181,31 @@ func parseNonInteractiveClaim(nic *pb.NonInteractiveClaim) (*arklib.Address, err
 	return arklib.DecodeAddressV0(claimAddr)
 }
 
-func toNetworkProto(net string) pb.GetInfoResponse_Network {
+func toNetworkProto(net string) fulminev1.Network {
 	switch net {
 	case "regtest":
-		return pb.GetInfoResponse_NETWORK_REGTEST
+		return fulminev1.Network_NETWORK_REGTEST
 	case "testnet":
-		return pb.GetInfoResponse_NETWORK_TESTNET
+		return fulminev1.Network_NETWORK_TESTNET
 	case "mainnet":
-		return pb.GetInfoResponse_NETWORK_MAINNET
+		return fulminev1.Network_NETWORK_MAINNET
 	default:
-		return pb.GetInfoResponse_NETWORK_UNSPECIFIED
+		return fulminev1.Network_NETWORK_UNSPECIFIED
 	}
 }
 
-func toTxTypeProto(txType clientTypes.TxType) pb.TxType {
+func toTxTypeProto(txType clientTypes.TxType) fulminev1.TxType {
 	switch txType {
 	case clientTypes.TxSent:
-		return pb.TxType_TX_TYPE_SENT
+		return fulminev1.TxType_TX_TYPE_SENT
 	case clientTypes.TxReceived:
-		return pb.TxType_TX_TYPE_RECEIVED
+		return fulminev1.TxType_TX_TYPE_RECEIVED
 	default:
-		return pb.TxType_TX_TYPE_UNSPECIFIED
+		return fulminev1.TxType_TX_TYPE_UNSPECIFIED
 	}
 }
 
-func toSwapTreeProto(tree *vhtlc.VHTLCScript) *pb.TaprootTree {
+func toSwapTreeProto(tree *vhtlc.VHTLCScript) *fulminev1.TaprootTree {
 	claimScript, _ := tree.ClaimClosure.Script()
 	refundScript, _ := tree.RefundClosure.Script()
 	refundWithoutBoltzScript, _ := tree.RefundWithoutReceiverClosure.Script()
@@ -220,28 +213,28 @@ func toSwapTreeProto(tree *vhtlc.VHTLCScript) *pb.TaprootTree {
 	unilateralRefundScript, _ := tree.UnilateralRefundClosure.Script()
 	unilateralRefundWithoutBoltzScript, _ := tree.UnilateralRefundWithoutReceiverClosure.Script()
 
-	taptree := &pb.TaprootTree{
-		ClaimLeaf: &pb.TaprootLeaf{
+	taptree := &fulminev1.TaprootTree{
+		ClaimLeaf: &fulminev1.TaprootLeaf{
 			Version: 0,
 			Output:  hex.EncodeToString(claimScript),
 		},
-		RefundLeaf: &pb.TaprootLeaf{
+		RefundLeaf: &fulminev1.TaprootLeaf{
 			Version: 0,
 			Output:  hex.EncodeToString(refundScript),
 		},
-		RefundWithoutBoltzLeaf: &pb.TaprootLeaf{
+		RefundWithoutBoltzLeaf: &fulminev1.TaprootLeaf{
 			Version: 0,
 			Output:  hex.EncodeToString(refundWithoutBoltzScript),
 		},
-		UnilateralClaimLeaf: &pb.TaprootLeaf{
+		UnilateralClaimLeaf: &fulminev1.TaprootLeaf{
 			Version: 0,
 			Output:  hex.EncodeToString(unilateralClaimScript),
 		},
-		UnilateralRefundLeaf: &pb.TaprootLeaf{
+		UnilateralRefundLeaf: &fulminev1.TaprootLeaf{
 			Version: 0,
 			Output:  hex.EncodeToString(unilateralRefundScript),
 		},
-		UnilateralRefundWithoutBoltzLeaf: &pb.TaprootLeaf{
+		UnilateralRefundWithoutBoltzLeaf: &fulminev1.TaprootLeaf{
 			Version: 0,
 			Output:  hex.EncodeToString(unilateralRefundWithoutBoltzScript),
 		},
@@ -250,17 +243,17 @@ func toSwapTreeProto(tree *vhtlc.VHTLCScript) *pb.TaprootTree {
 	if tree.NonInteractiveClaimClosure != nil {
 		nonInteractiveClaimScript, _ := tree.NonInteractiveClaimClosure.Script()
 
-		taptree.NonInteractiveClaimLeaf = &pb.TaprootLeaf{
+		taptree.NonInteractiveClaimLeaf = &fulminev1.TaprootLeaf{
 			Version: 0,
-			Output: hex.EncodeToString(nonInteractiveClaimScript),
+			Output:  hex.EncodeToString(nonInteractiveClaimScript),
 		}
 	}
 
 	return taptree
 }
 
-func toNotificationProto(n application.Notification) *pb.Notification {
-	notification := &pb.Notification{
+func toNotificationProto(n application.Notification) *fulminev1.Notification {
+	notification := &fulminev1.Notification{
 		Addresses:  n.Addrs,
 		NewVtxos:   toVtxosProto(n.NewVtxos),
 		SpentVtxos: toVtxosProto(n.SpentVtxos),
@@ -268,9 +261,9 @@ func toNotificationProto(n application.Notification) *pb.Notification {
 		Tx:         n.Tx,
 	}
 	if len(n.Checkpoints) > 0 {
-		notification.Checkpoints = make(map[string]*pb.TxData, len(n.Checkpoints))
+		notification.Checkpoints = make(map[string]*fulminev1.TxData, len(n.Checkpoints))
 		for k, v := range n.Checkpoints {
-			notification.Checkpoints[k] = &pb.TxData{
+			notification.Checkpoints[k] = &fulminev1.TxData{
 				Tx:   v.Tx,
 				Txid: v.Txid,
 			}
@@ -280,10 +273,10 @@ func toNotificationProto(n application.Notification) *pb.Notification {
 }
 
 // Todo: Verify that the script is not Taproot Script
-func toVtxosProto(vtxos []clientTypes.Vtxo) []*pb.Vtxo {
-	list := make([]*pb.Vtxo, 0, len(vtxos))
+func toVtxosProto(vtxos []clientTypes.Vtxo) []*fulminev1.Vtxo {
+	list := make([]*fulminev1.Vtxo, 0, len(vtxos))
 	for _, vtxo := range vtxos {
-		list = append(list, &pb.Vtxo{
+		list = append(list, &fulminev1.Vtxo{
 			Outpoint:        toInputProto(vtxo.Outpoint),
 			Script:          vtxo.Script,
 			Amount:          vtxo.Amount,
@@ -302,40 +295,47 @@ func toVtxosProto(vtxos []clientTypes.Vtxo) []*pb.Vtxo {
 	return list
 }
 
-func toInputProto(outpoint clientTypes.Outpoint) *pb.Input {
-	return &pb.Input{
+func toInputProto(outpoint clientTypes.Outpoint) *fulminev1.Input {
+	return &fulminev1.Input{
 		Txid: outpoint.Txid,
 		Vout: outpoint.VOut,
 	}
 }
 
-func toProtoInput(outpoint wire.OutPoint) *pb.Input {
-	return &pb.Input{
+func toProtoInput(outpoint wire.OutPoint) *fulminev1.Input {
+	return &fulminev1.Input{
 		Txid: outpoint.Hash.String(),
 		Vout: outpoint.Index,
 	}
 }
 
-func toDelegateProto(delegate domain.DelegateTask) *pb.Delegate {
-	intent := &pb.DelegateIntent{
+func toDelegateProtoInput(outpoint wire.OutPoint) *delegatev1.Input {
+	return &delegatev1.Input{
+		Txid: outpoint.Hash.String(),
+		Vout: outpoint.Index,
+	}
+}
+
+func toDelegateProto(delegate domain.DelegateTask) *delegatev1.Delegate {
+	intent := &delegatev1.DelegateIntent{
 		Txid:    delegate.Intent.Txid,
 		Message: delegate.Intent.Message,
 		Proof:   delegate.Intent.Proof,
-		Inputs:  make([]*pb.Input, 0, len(delegate.Intent.Inputs)),
+		Inputs:  make([]*delegatev1.Input, 0, len(delegate.Intent.Inputs)),
 	}
 	for _, input := range delegate.Intent.Inputs {
-		intent.Inputs = append(intent.Inputs, toProtoInput(input))
+		intent.Inputs = append(intent.Inputs, toDelegateProtoInput(input))
 	}
 
-	forfeitTxs := make([]*pb.DelegateForfeitTx, 0, len(delegate.ForfeitTxs))
+	forfeitTxs := make([]*delegatev1.DelegateForfeitTx, 0, len(delegate.ForfeitTxs))
 	for outpoint, forfeitTx := range delegate.ForfeitTxs {
-		forfeitTxs = append(forfeitTxs, &pb.DelegateForfeitTx{
-			Input:     toProtoInput(outpoint),
+		forfeitTxs = append(forfeitTxs, &delegatev1.DelegateForfeitTx{
+			Input:     toDelegateProtoInput(outpoint),
 			ForfeitTx: forfeitTx,
 		})
 	}
 
-	return &pb.Delegate{
+	return &delegatev1.Delegate{
 		Id:                delegate.ID,
 		Intent:            intent,
 		ForfeitTxs:        forfeitTxs,
@@ -348,8 +348,8 @@ func toDelegateProto(delegate domain.DelegateTask) *pb.Delegate {
 	}
 }
 
-func toDelegatesProto(delegates []domain.DelegateTask) []*pb.Delegate {
-	list := make([]*pb.Delegate, 0, len(delegates))
+func toDelegatesProto(delegates []domain.DelegateTask) []*delegatev1.Delegate {
+	list := make([]*delegatev1.Delegate, 0, len(delegates))
 	for _, delegate := range delegates {
 		list = append(list, toDelegateProto(delegate))
 	}

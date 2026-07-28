@@ -4,13 +4,28 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-
-	"github.com/arkade-os/go-sdk/vhtlc"
 )
 
 type Vhtlc struct {
-	vhtlc.Opts
-	Id string
+	Id     string
+	Script string
+}
+
+type LegacyVhtlc struct {
+	PreimageHash   string
+	Sender         string
+	Receiver       string
+	Server         string
+	RefundLocktime int64
+
+	UnilateralClaimDelayType  int64
+	UnilateralClaimDelayValue int64
+
+	UnilateralRefundDelayType  int64
+	UnilateralRefundDelayValue int64
+
+	UnilateralRefundWithoutReceiverDelayType  int64
+	UnilateralRefundWithoutReceiverDelayValue int64
 }
 
 // VHTLCRepository stores the VHTLC options owned by the wallet
@@ -19,16 +34,19 @@ type VHTLCRepository interface {
 	Get(ctx context.Context, id string) (*Vhtlc, error)
 	GetByIds(ctx context.Context, ids []string) ([]Vhtlc, error)
 	Add(ctx context.Context, vhtlc Vhtlc) error
+
+	// Legacy single-key upgrade support.
+	HasLegacy(ctx context.Context) (bool, error)
+	GetLegacy(ctx context.Context) ([]LegacyVhtlc, error)
+	DropLegacy(ctx context.Context) error
+
 	Close()
 }
 
-func NewVhtlc(opts vhtlc.Opts) Vhtlc {
-	preimageHash := opts.PreimageHash
-	sender := opts.Sender.SerializeCompressed()
-	receiver := opts.Receiver.SerializeCompressed()
+func NewVhtlc(vhtlcId, script string) Vhtlc {
 	return Vhtlc{
-		Opts: opts,
-		Id:   GetVhtlcId(preimageHash, sender, receiver),
+		Id:     vhtlcId,
+		Script: script,
 	}
 }
 

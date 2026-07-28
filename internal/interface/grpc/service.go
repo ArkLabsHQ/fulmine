@@ -9,7 +9,8 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
+	delegatev1 "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/delegate/v1"
+	fulminev1 "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/telemetry"
@@ -114,13 +115,13 @@ func NewService(
 	grpcServer := grpc.NewServer(grpcConfig...)
 
 	walletHandler := handlers.NewWalletHandler(appSvc, unlockerSvc)
-	pb.RegisterWalletServiceServer(grpcServer, walletHandler)
+	fulminev1.RegisterWalletServiceServer(grpcServer, walletHandler)
 
 	serviceHandler := handlers.NewServiceHandler(appSvc)
-	pb.RegisterServiceServer(grpcServer, serviceHandler)
+	fulminev1.RegisterServiceServer(grpcServer, serviceHandler)
 
 	notificationHandler := handlers.NewNotificationHandler(appSvc, appStopCh)
-	pb.RegisterNotificationServiceServer(grpcServer, notificationHandler)
+	fulminev1.RegisterNotificationServiceServer(grpcServer, notificationHandler)
 
 	healthHandler := handlers.NewHealthHandler(appSvc)
 	grpchealth.RegisterHealthServer(grpcServer, healthHandler)
@@ -182,13 +183,13 @@ func NewService(
 		}
 	})
 	ctx := context.Background()
-	if err := pb.RegisterServiceHandler(ctx, gwmux, conn); err != nil {
+	if err := fulminev1.RegisterServiceHandler(ctx, gwmux, conn); err != nil {
 		return nil, err
 	}
-	if err := pb.RegisterWalletServiceHandler(ctx, gwmux, conn); err != nil {
+	if err := fulminev1.RegisterWalletServiceHandler(ctx, gwmux, conn); err != nil {
 		return nil, err
 	}
-	if err := pb.RegisterNotificationServiceHandler(ctx, gwmux, conn); err != nil {
+	if err := fulminev1.RegisterNotificationServiceHandler(ctx, gwmux, conn); err != nil {
 		return nil, err
 	}
 
@@ -217,7 +218,7 @@ func NewService(
 		}
 		delegateGrpcServer = grpc.NewServer(grpcConfig...)
 		delegateHandler := handlers.NewDelegateHandler(delegateSvc)
-		pb.RegisterDelegateServiceServer(delegateGrpcServer, delegateHandler)
+		delegatev1.RegisterDelegateServiceServer(delegateGrpcServer, delegateHandler)
 
 		conn, err := grpc.NewClient(cfg.delegateGatewayAddress(), gatewayOpts)
 		if err != nil {
@@ -236,7 +237,7 @@ func NewService(
 			}),
 		)
 
-		if err := pb.RegisterDelegateServiceHandler(ctx, delegateGwmux, conn); err != nil {
+		if err := delegatev1.RegisterDelegateServiceHandler(ctx, delegateGwmux, conn); err != nil {
 			return nil, err
 		}
 

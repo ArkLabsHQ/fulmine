@@ -2,10 +2,8 @@ package web
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
-	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/gin-gonic/gin"
 )
@@ -28,71 +26,6 @@ func (s *service) getBalanceApi(c *gin.Context) {
 		"total":    balance.OffchainBalance.Total + onchainBalance,
 	}
 	c.JSON(http.StatusOK, data)
-}
-
-func (s *service) updateSettingsApi(c *gin.Context) {
-	changed := false
-
-	settings, err := s.svc.GetSettings(c)
-	if err != nil {
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
-	}
-
-	if apiroot := c.PostForm("apiroot"); len(apiroot) > 0 && settings.ApiRoot != apiroot {
-		if utils.IsValidURL(apiroot) {
-			settings.ApiRoot = apiroot
-			changed = true
-		} else {
-			toast := components.Toast("Invalid API root URL", true)
-			toastHandler(toast, c)
-			return
-		}
-	}
-
-	if currency := c.PostForm("currency"); len(currency) > 0 && settings.Currency != currency {
-		settings.Currency = currency
-		changed = true
-	}
-
-	if eventServer := c.PostForm("eventserver"); len(eventServer) > 0 && settings.EventServer != eventServer {
-		if utils.IsValidURL(eventServer) {
-			settings.EventServer = eventServer
-			changed = true
-		} else {
-			toast := components.Toast("Invalid Event Server URL", true)
-			toastHandler(toast, c)
-			return
-		}
-	}
-
-	if fullNode := c.PostForm("fullnode"); len(fullNode) > 0 && settings.FullNode != fullNode {
-		if utils.IsValidURL(fullNode) {
-			settings.FullNode = fullNode
-			changed = true
-		} else {
-			toast := components.Toast("Invalid Full Node URL", true)
-			toastHandler(toast, c)
-			return
-		}
-	}
-
-	if unit := c.PostForm("unit"); len(unit) > 0 && settings.Unit != unit {
-		settings.Unit = unit
-		changed = true
-	}
-
-	if changed {
-		if err := s.svc.UpdateSettings(c, *settings); err != nil {
-			toast := components.Toast(err.Error(), true)
-			toastHandler(toast, c)
-			return
-		}
-		toast := components.Toast("Saved")
-		toastHandler(toast, c)
-	}
-
 }
 
 func (s *service) forgotApi(c *gin.Context) {
@@ -122,66 +55,6 @@ func (s *service) validateBip21Api(c *gin.Context) {
 	c.JSON(http.StatusOK, data)
 }
 
-func (s *service) validateInvoiceApi(c *gin.Context) {
-	var data gin.H
-	invoice := c.PostForm("invoice")
-	sats := utils.SatsFromInvoice(invoice)
-	if sats > 0 {
-		data = gin.H{
-			"sats":  sats,
-			"valid": true,
-		}
-	} else {
-		data = gin.H{
-			"valid": false,
-			"error": "invalid invoice",
-		}
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-func (s *service) validateOfferApi(c *gin.Context) {
-	var data gin.H
-	offer := c.PostForm("offer")
-	sats := swap.SatsFromBolt12Offer(offer)
-	if sats > 0 {
-		data = gin.H{
-			"sats":  sats,
-			"valid": true,
-		}
-	} else {
-		data = gin.H{
-			"valid": false,
-			"error": "invalid offer",
-		}
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-// lnurlMetadataApi resolves a Lightning Address or LNURL to its pay-request
-// metadata (sendable range + description) so the send screen can show min/max
-// and constrain the amount before submit. Applies to both LN addresses and
-// raw LNURLs.
-func (s *service) lnurlMetadataApi(c *gin.Context) {
-	address := c.PostForm("address")
-	if !utils.IsLnAddressOrLnurl(address) {
-		c.JSON(http.StatusOK, gin.H{"valid": false, "error": "not a lightning address or lnurl"})
-		return
-	}
-	meta, err := utils.ResolveLnurlPayMetadata(nil, address)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"valid": false, "error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"valid":          true,
-		"minSats":        meta.MinSats,
-		"maxSats":        meta.MaxSats,
-		"description":    meta.Description,
-		"commentAllowed": meta.CommentAllowed,
-	})
-}
-
 func (s *service) validateNoteApi(c *gin.Context) {
 	var data gin.H
 	note := c.PostForm("note")
@@ -204,35 +77,6 @@ func (s *service) validateMnemonicApi(c *gin.Context) {
 	var data gin.H
 	mnemonic := c.PostForm("mnemonic")
 	err := utils.IsValidMnemonic(mnemonic)
-	if err == nil {
-		data = gin.H{
-			"valid": true,
-		}
-	} else {
-		data = gin.H{
-			"valid": false,
-			"error": err.Error(),
-		}
-	}
-	c.JSON(http.StatusOK, data)
-}
-
-func (s *service) validatePrivateKeyApi(c *gin.Context) {
-	var data gin.H
-	privateKey := c.PostForm("privateKey")
-	if strings.HasPrefix(privateKey, "nsec") {
-		seed, err := utils.NsecToSeed(privateKey)
-		if err != nil {
-			data = gin.H{
-				"valid": false,
-				"error": err.Error(),
-			}
-			c.JSON(http.StatusOK, data)
-			return
-		}
-		privateKey = seed
-	}
-	err := utils.IsValidPrivateKey(privateKey)
 	if err == nil {
 		data = gin.H{
 			"valid": true,

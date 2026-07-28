@@ -1,0 +1,93 @@
+package pages
+
+import (
+	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
+)
+
+templ ManageMnemonicContent(mnemonic string) {
+	if len(mnemonic) > 0 {
+		@newMnemonicContent(mnemonic)
+	} else {
+		@importMnemonicContent()
+	}
+	<script>
+	  	const handleMnemonicPaste = () => {
+			if (navigator.clipboard) {
+				navigator.clipboard.readText().then((mnemonic) => {
+					document.querySelector('#mnemonic').value = mnemonic
+						validateMnemonic()
+				})
+			}
+		}
+
+    const getMnemonic = () => {
+      const mnemonic = document.querySelector("input[name='mnemonic']").value
+      return mnemonic ?? ""
+    }
+
+		const validateMnemonic = () => {
+      const data = new FormData()
+			data.set('mnemonic', getMnemonic())
+			fetch('/helpers/mnemonic/validate', {
+				method: 'POST',
+        body: data,
+			}).then((res) => {
+				if (res.ok) {
+					res.json().then(({ valid, error }) => {
+						const button = document.querySelector('#importButton')
+						if (!button) return
+						if (valid) {
+							button.disabled = false
+							button.innerText = 'Continue'
+						} else {
+							button.disabled = true
+							button.innerText = 'Invalid mnemonic'
+						}
+					})
+				}
+		  })
+		}
+	</script>
+}
+
+templ importMnemonicContent() {
+	<form hx-post="/mnemonic">
+	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
+		  <div>
+	      <div class="hidden md:block">@BigLogo()</div>
+	      @components.Header("Import wallet", "/welcome")
+	  	  <p class="mb-6">Import an existing wallet with your mnemonic.</p>
+				<div class="border border-1 border-white/20 bg-graybg p-4 flex items-center justify-between rounded-lg">
+	        <input
+	      	  class="bg-graybg border-0 p-0 mr-4"
+	      		id="mnemonic"
+	      		name="mnemonic"
+	      		placeholder="abcdef0123456789..."
+						oninput="validateMnemonic()"
+	      	/>
+					<a data-needs="clipboard" onclick="handleMnemonicPaste()">
+						<p class="cursor-pointer text-white/50">
+							@components.PasteIcon()
+						</p>
+					</a>
+	      </div>
+	  	</div>
+			<button class="bg-orange text-white" disabled id="importButton" type="submit">Insert mnemonic</button>
+	  </div>
+	</form>
+}
+
+templ newMnemonicContent(mnemonic string) {
+	<form hx-post="/mnemonic">
+	  <input type="hidden" name="mnemonic" value={mnemonic} />
+	  <div class="flex flex-col justify-between h-screen md:max-w-96 mx-auto p-3">
+		  <div>
+				<div class="hidden md:block">@BigLogo()</div>
+				@components.Header("New wallet", "/welcome")
+	  	  <p class="mb-10">Write down the following mnemonic in a secure place.</p>
+	  	  <p class="bg-white/20 rounded-lg p-3 break-words text-lg">{mnemonic}</p>
+			</div>
+			@components.ContinueCopyButtons(mnemonic, true)
+	  </div>
+	</form>
+}

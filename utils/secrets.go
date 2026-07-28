@@ -1,12 +1,9 @@
 package utils
 
 import (
-	"encoding/hex"
 	"fmt"
 	"strings"
 
-	"github.com/nbd-wtf/go-nostr/nip19"
-	"github.com/tyler-smith/go-bip32"
 	"github.com/tyler-smith/go-bip39"
 )
 
@@ -37,78 +34,15 @@ func IsValidPassword(password string) error {
 	// return nil
 }
 
-func IsValidPrivateKey(privateKey string) error {
-	if len(privateKey) != 64 {
-		return fmt.Errorf("invalid private key")
-	}
-	return nil
-}
-
-func PrivateKeyFromMnemonic(mnemonic string) (string, error) {
-	seed := bip39.NewSeed(mnemonic, "")
-	key, err := bip32.NewMasterKey(seed)
-	if err != nil {
-		return "", err
-	}
-
-	// TODO: validate this path
-	derivationPath := []uint32{
-		bip32.FirstHardenedChild + 44,
-		bip32.FirstHardenedChild + 1237,
-		bip32.FirstHardenedChild + 0,
-		0,
-		0,
-	}
-
-	next := key
-	for _, idx := range derivationPath {
-		var err error
-		if next, err = next.NewChildKey(idx); err != nil {
-			return "", err
-		}
-	}
-
-	return hex.EncodeToString(next.Key), nil
-}
-
-func getNewMnemonic() []string {
+func GetNewMnemonic() (string, error) {
 	// 128 bits of entropy for a 12-word mnemonic
 	entropy, err := bip39.NewEntropy(128)
 	if err != nil {
-		return strings.Fields("")
+		return "", fmt.Errorf("failed to generate entropy: %w", err)
 	}
 	mnemonic, err := bip39.NewMnemonic(entropy)
 	if err != nil {
-		return strings.Fields("")
+		return "", fmt.Errorf("failed to generate mnemonic: %w", err)
 	}
-	return strings.Fields(mnemonic)
-}
-
-func GetNewPrivateKey() string {
-	words := getNewMnemonic()
-	mnemonic := strings.Join(words, " ")
-	privateKey, err := PrivateKeyFromMnemonic(mnemonic)
-	if err != nil {
-		return ""
-	}
-	return privateKey
-}
-
-func SeedToNsec(seed string) (string, error) {
-	nsec, err := nip19.EncodePrivateKey(seed)
-	if err != nil {
-		return "", err
-	}
-	return nsec, nil
-}
-
-func NsecToSeed(nsec string) (string, error) {
-	prefix, seed, err := nip19.Decode(nsec)
-	if err != nil {
-		return "", err
-	}
-	if prefix != "nsec" {
-		return "", fmt.Errorf("invalid prefix")
-	}
-	return fmt.Sprint(seed), nil
+	return mnemonic, nil
 }

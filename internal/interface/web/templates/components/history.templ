@@ -17,11 +17,9 @@ func ShowTxIcon(kind, status string) templ.Component {
     case "received":
         return TxReceivedIcon()
     case "sent":
+		fallthrough
+	default:
         return TxSentIcon()
-    case "swap":
-        return TxSwapIcon()
-    default:
-        return TxSwapIcon()
   }
 }
 
@@ -51,18 +49,6 @@ templ TxSentIcon() {
       <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2">
         <path stroke-miterlimit="10" d="M17.657 6.343L6.343 17.657"/>
         <path stroke-linejoin="round" d="M18.101 16.733V7.437A1.53 1.53 0 0 0 16.563 5.9H7.267"/>
-      </g>
-    </svg>
-	</div>
-}
-
-templ TxSwapIcon() {
-	<div class="flex items-center w-8 h-8 bg-white/10 rounded-full mr-2">
-	  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mx-auto text-white" viewBox="0 0 21 21">
-      <g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
-        <path d="M13 8h5V3"/>
-        <path d="M18 8c-2.837-3.333-5.67-5-8.5-5S4.17 4 2 6m4.5 5.5h-5v5"/>
-        <path d="M1.5 11.5c2.837 3.333 5.67 5 8.5 5s5.33-1 7.5-3"/>
       </g>
     </svg>
 	</div>
@@ -117,173 +103,9 @@ templ TransferHistoryLine(tx types.Transfer) {
 	</div>
 }
 
-templ SwapHistoryLine(swap types.Swap) {
-	<div class="flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10" >
-	  <div class="flex items-center gap-4">
-			<div class="flex items-center gap-2">
-				if swap.Kind == "submarine" {
-					@ArkIcon()
-					@ArrowRight()
-					@LightningIcon()
-				} else {
-					@LightningIcon()
-					@ArrowRight()
-					@ArkIcon()
-				}
-			</div>
-			<div class="flex flex-col">
-				<p class="text-white">{swap.Date}</p>
-				<p class="text-sm text-white/50">{swap.Hour}</p>
-			</div>
-		</div>
-		if swap.Status == "pending" {
-        	<div class="flex items-center">
-				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
-			</div>
-      	}
-	  	if swap.Status == "refunding" {
-      	  <div class="flex items-center">
-				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunding</p>
-			</div>
-      	}
-
-		if swap.Status == "failure" {
-			if swap.RedeemTransfer != nil && swap.RedeemTransfer.Txid != "" {
-      	  		<div class="flex items-center">
-					if swap.RedeemTransfer.Status == "pending" {
-		  			<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
-					}
-					<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunded</p>
-				</div>	
-			} else {
-				<div class="flex items-center">
-				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Failure</p>
-				</div>
-			} 
-      	}
-
-		<div class="flex items-center gap-4">
-			<div class="flex flex-col w-32 text-right">
-				<p class="cryptoAmount" sats={swap.Amount}>{swap.Amount} SATS</p>
-				<p class="text-sm text-white/50 fiatAmount" sats={swap.Amount}>&nbsp;</p>
-			</div>
-		</div>
-	</div>
-}
-
-templ PaymentHistoryLine(payment types.Payment) {
-	<div class="flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10" >
-	  <div class="flex items-center gap-4">
-			<div class="flex items-center gap-2">
-				if payment.Kind == "send" {
-					@ArkIcon()
-					@ArrowRight()
-				} else {
-					@ArrowRight()
-					@ArkIcon()
-				}
-			</div>
-			<div class="flex flex-col">
-				<p class="text-white">{payment.Date}</p>
-				<p class="text-sm text-white/50">{payment.Hour}</p>
-			</div>
-		</div>
-		 if payment.Status == "pending" {
-        	<div class="flex items-center">
-				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
-			</div>
-      	}
-	  	if payment.Status == "refunding" {
-      	  <div class="flex items-center">
-				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunding</p>
-			</div>
-      	}
-
-		if payment.Status == "failure" {
-			if payment.ReclaimTransfer != nil && payment.ReclaimTransfer.Txid != "" {
-      	  		<div class="flex items-center">
-					if payment.ReclaimTransfer.Status == "pending" {
-		  			<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
-					}
-					<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunded</p>
-				</div>	
-			} else {
-				<div class="flex items-center">
-				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Failure</p>
-				</div>
-			} 
-      	}
-
-		<div class="flex items-center gap-4">
-			<div class="flex flex-col w-32 text-right">
-				<p class="cryptoAmount" sats={payment.Amount}>{payment.Amount} SATS</p>
-				<p class="text-sm text-white/50 fiatAmount" sats={payment.Amount}>&nbsp;</p>
-			</div>
-     
-		</div>
-	</div>
-}
-
-
-templ ChainSwapHistoryLine(swap types.ChainSwap) {
-	<div class="flex justify-between cursor-pointer p-3 rounded-lg hover:bg-white/10">
-		<div class="flex items-center gap-4">
-			<div class="flex items-center gap-2">
-				if swap.Kind == "ark_to_btc" {
-					@ArkIcon()
-					@ArrowRight()
-					<span class="text-sm font-semibold">BTC</span>
-				} else {
-					<span class="text-sm font-semibold">BTC</span>
-					@ArrowRight()
-					@ArkIcon()
-				}
-			</div>
-			<div class="flex flex-col">
-				<p class="text-white">{swap.Date}</p>
-				<p class="text-sm text-white/50">{swap.Hour}</p>
-			</div>
-		</div>
-		if swap.Status == "pending" {
-			<div class="flex items-center">
-				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Pending</p>
-			</div>
-		}
-		if swap.Status == "refundable" {
-			<div class="flex items-center">
-				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refund available</p>
-			</div>
-		}
-		if swap.Status == "refunding" {
-			<div class="flex items-center">
-				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunding</p>
-			</div>
-		}
-		if swap.Status == "failure" {
-			<div class="flex items-center">
-				<p class="bg-orange/20 px-2 py-1 rounded-md text-sm text-orange">Refunded</p>
-			</div>
-		}
-		<div class="flex items-center gap-4">
-			<div class="flex flex-col w-32 text-right">
-				<p class="cryptoAmount" sats={swap.Amount}>{swap.Amount} SATS</p>
-				<p class="text-sm text-white/50 fiatAmount" sats={swap.Amount}>&nbsp;</p>
-			</div>
-		</div>
-	</div>
-}
-
 templ HistoryLine(tx types.Transaction) {
 	<div txid={tx.Id} onclick="showTx(this)">
-	  	if tx.Kind == "swap" {
-			@SwapHistoryLine(*tx.Swap)
-		} else if tx.Kind == "payment" {
-			@PaymentHistoryLine(*tx.Payment)
-		} else if tx.Kind == "chainswap" {
-			@ChainSwapHistoryLine(*tx.ChainSwap)
-		} else {
-			@TransferHistoryLine(*tx.Transfer)
-		}
+		@TransferHistoryLine(*tx.Transfer)
 	</div>
 }
 
