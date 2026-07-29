@@ -84,12 +84,48 @@ func TestGetOffchainAddress(t *testing.T) {
 }
 
 func TestIsBip21(t *testing.T) {
-	require.True(t, utils.IsBip21("bitcoin:"+validBtcAddr))
-	require.True(t, utils.IsBip21("bitcoin:"+validBtcAddr+"?ark="+validArkAddr))
-	// Valid ark address but no on-chain part is still a usable bip21.
-	require.True(t, utils.IsBip21("bitcoin:?ark="+validArkAddr))
+	tests := []struct {
+		name  string
+		bip21 string
+		want  bool
+	}{
+		{
+			name:  "onchain address only",
+			bip21: "bitcoin:" + validBtcAddr,
+			want:  true,
+		},
+		{
+			name:  "onchain address with ark parameter",
+			bip21: "bitcoin:" + validBtcAddr + "?ark=" + validArkAddr,
+			want:  true,
+		},
+		{
+			// An ark address with no on-chain part is still a usable bip21:
+			// IsBip21 only requires one of the two to be present.
+			name:  "ark parameter only",
+			bip21: "bitcoin:?ark=" + validArkAddr,
+			want:  true,
+		},
+		{
+			name:  "empty string",
+			bip21: "",
+			want:  false,
+		},
+		{
+			name:  "wrong scheme",
+			bip21: "lightning:" + validBtcAddr,
+			want:  false,
+		},
+		{
+			name:  "invalid address",
+			bip21: "bitcoin:nonsense",
+			want:  false,
+		},
+	}
 
-	require.False(t, utils.IsBip21(""))
-	require.False(t, utils.IsBip21("lightning:"+validBtcAddr))
-	require.False(t, utils.IsBip21("bitcoin:nonsense"))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, utils.IsBip21(tt.bip21))
+		})
+	}
 }
