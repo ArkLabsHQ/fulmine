@@ -4,18 +4,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 )
 
-templ BackupTab(kind string, active bool) {
-  <div
-	  id={kind}
-	  class={"flex", "rounded-lg", templ.KV("bg-white", active), templ.KV("text-black", active)}
-		hx-get={"/backup/tab/" + kind}
-		hx-target="#backupPartial">
-    <p class="px-3 py-2.5 flex items-center gap-2 mx-auto cursor-pointer">
-	    {kind}
-	  </p>
-	</div>
-}
-
 templ BackupPartialContent(active, secret string) {
 	<div id="backupPartial">
     <p class="border border-1 border-white/20 p-3 break-words" id="secret">{secret}</p>

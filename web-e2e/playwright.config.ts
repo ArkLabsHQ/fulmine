@@ -8,7 +8,7 @@ const BASE_URL = process.env.FULMINE_WEB_URL ?? 'http://localhost:7019';
 export default defineConfig({
   testDir: './tests',
   // The specs drive ONE shared wallet, so they run serially in filename order:
-  // 01-init creates + unlocks the wallet before 02-send / 03-receive use it.
+  // 01-init creates + unlocks the wallet before 02-receive / 03-send use it.
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
