@@ -14,7 +14,7 @@ require (
 	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260723170207-4a97334a8ef8
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/covclaimd v0.0.1-rc.0
+	github.com/arkade-os/covclaimd v0.0.1-rc.2
 	github.com/arkade-os/go-sdk v0.10.2-0.20260728100801-5dfe88b5be1c
 	github.com/ccoveille/go-safecast v1.8.2
 	github.com/creack/pty v1.1.24
@@ -58,8 +58,8 @@ require (
 	github.com/arkade-os/arkd/api-spec v0.0.0-20260420150126-77b6c3aba563 // indirect
 	github.com/arkade-os/arkd/pkg/errors v0.0.0-20260617121018-268d19d9641c // indirect
 	github.com/arkade-os/emulator/api-spec v0.0.0-20260526192649-eac4fbc07c4c // indirect
-	github.com/arkade-os/emulator/pkg/arkade v0.0.0-20260616144513-96f9b06a5380 // indirect
-	github.com/arkade-os/emulator/pkg/client v0.0.0-20260526192649-eac4fbc07c4c // indirect
+	github.com/arkade-os/emulator/pkg/arkade v0.0.0-20260701134639-4e1a84f43397 // indirect
+	github.com/arkade-os/emulator/pkg/client v0.0.0-20260701134639-4e1a84f43397 // indirect
 	github.com/arkade-os/solver v0.0.1-rc.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.20.0 // indirect
@@ -123,11 +123,11 @@ require (
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/mod v0.35.0 // indirect
-	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/mod v0.36.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
-	golang.org/x/tools v0.44.0 // indirect
+	golang.org/x/tools v0.45.0 // indirect
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260715232425-e75dac1f907d // indirect
 	gopkg.in/errgo.v1 v1.0.1 // indirect
@@ -214,11 +214,11 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.8.0 // indirect
-	golang.org/x/crypto v0.52.0 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/term v0.43.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/term v0.44.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

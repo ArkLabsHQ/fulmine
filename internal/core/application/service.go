@@ -17,8 +17,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
-	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
-	client "github.com/arkade-os/arkd/pkg/client-lib"
 	"github.com/arkade-os/arkd/pkg/client-lib/identity"
 	singlekeyidentity "github.com/arkade-os/arkd/pkg/client-lib/identity/singlekey"
 	singlekeyfilestore "github.com/arkade-os/arkd/pkg/client-lib/identity/singlekey/store/file"
@@ -770,63 +768,6 @@ func (s *Service) CreateVHTLC(
 	log.Debugf("added new vhtlc %s", vhtlcId)
 
 	return encodedAddr, vhtlcId, vhtlcScript, nil
-}
-
-// SendOffChain sends to the given receivers off-chain. If a receiver address
-// matches a persisted VHTLC with the non-interactive claim option, the VHTLC
-// tap tree is attached to that output of the funding tx so a claimer daemon
-// can locate the covenant claim leaf.
-func (s *Service) SendOffChain(
-	ctx context.Context, receivers []clientTypes.Receiver, sendOpts ...arksdk.SendOffChainOption,
-) (string, error) {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", err
-	}
-
-	pkScripts := make([]string, 0, len(receivers))
-	for _, r := range receivers {
-		decoded, err := arklib.DecodeAddressV0(r.To)
-		if err != nil {
-			continue
-		}
-		pkScript, err := script.P2TRScript(decoded.VtxoTapKey)
-		if err != nil {
-			continue
-		}
-		pkScripts = append(pkScripts, hex.EncodeToString(pkScript))
-	}
-
-	tapTrees := make(map[string][]byte)
-	if len(pkScripts) > 0 {
-		mgr := s.ContractManager()
-		contracts, err := mgr.GetContracts(ctx, contract.WithScripts(pkScripts))
-		if err != nil {
-			return "", err
-		}
-
-		for _, c := range contracts {
-			if c.Type != types.ContractTypeNonInteractiveVHTLC {
-				continue
-			}
-			h, err := mgr.GetHandler(ctx, c)
-			if err != nil {
-				return "", fmt.Errorf("get handler for contract %s: %w", c.Script, err)
-			}
-			tapscripts, err := h.GetTapscripts(c)
-			if err != nil {
-				return "", fmt.Errorf("get tapscripts for contract %s: %w", c.Script, err)
-			}
-			encoded, err := txutils.TapTree(tapscripts).Encode()
-			if err != nil {
-				return "", fmt.Errorf("encode taptree for contract %s: %w", c.Script, err)
-			}
-			tapTrees[c.Script] = encoded
-		}
-	}
-	if len(tapTrees) > 0 {
-		sendOpts = append(sendOpts, client.WithTxOutsTaprootTree(tapTrees))
-	}
-	return s.Wallet.SendOffChain(ctx, receivers, sendOpts...)
 }
 
 func (s *Service) ListVHTLCs(ctx context.Context, vhtlcIds []string) ([]clientTypes.Vtxo, error) {

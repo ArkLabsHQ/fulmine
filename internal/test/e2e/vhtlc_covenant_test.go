@@ -14,6 +14,7 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	indexergrpc "github.com/arkade-os/arkd/pkg/client-lib/indexer/grpc"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
@@ -87,7 +88,10 @@ func TestNonInteractiveClaim(t *testing.T) {
 			require.NotNil(t, createResp.SwapTree.NonInteractiveClaimLeaf)
 
 			// direct reveal to claimer
-			revealToCovclaimd(t, createResp.Address, preimg, covclaimdPub, receiverPkScript)
+			revealToCovclaimd(
+				t, createResp.Address, preimg, covclaimdPub, receiverPkScript,
+				encodeSwapTaptree(t, createResp.SwapTree),
+			)
 
 			// fund the VHTLC
 			const amount uint64 = 10_000
@@ -128,7 +132,7 @@ func fetchCovclaimdPubKeys(t *testing.T) (*btcec.PublicKey, *btcec.PublicKey) {
 // covclaimd's reveal endpoint (direct reveal mode).
 func revealToCovclaimd(
 	t *testing.T, swapAddress string, preimg []byte,
-	covclaimdPub *btcec.PublicKey, receiverPkScript []byte,
+	covclaimdPub *btcec.PublicKey, receiverPkScript []byte, taptree string,
 ) {
 	t.Helper()
 	ciphertext, err := preimage.Encrypt(covclaimdPub, preimg)
@@ -142,6 +146,7 @@ func revealToCovclaimd(
 			"ciphertext":    base64.StdEncoding.EncodeToString(ciphertext),
 			"arkade_script": base64.StdEncoding.EncodeToString(arkadeScript),
 		},
+		"taptree": taptree,
 	})
 	require.NoError(t, err)
 
@@ -153,6 +158,27 @@ func revealToCovclaimd(
 	var respBody bytes.Buffer
 	_, _ = respBody.ReadFrom(resp.Body)
 	require.Equal(t, http.StatusOK, resp.StatusCode, "reveal failed: %s", respBody.String())
+}
+
+func encodeSwapTaptree(t *testing.T, swapTree *pb.TaprootTree) string {
+	t.Helper()
+	leaves := []*pb.TaprootLeaf{
+		swapTree.GetClaimLeaf(),
+		swapTree.GetRefundLeaf(),
+		swapTree.GetRefundWithoutBoltzLeaf(),
+		swapTree.GetUnilateralClaimLeaf(),
+		swapTree.GetUnilateralRefundLeaf(),
+		swapTree.GetUnilateralRefundWithoutBoltzLeaf(),
+		swapTree.GetNonInteractiveClaimLeaf(),
+	}
+	tapscripts := make(txutils.TapTree, 0, len(leaves))
+	for _, leaf := range leaves {
+		require.NotNil(t, leaf)
+		tapscripts = append(tapscripts, leaf.GetOutput())
+	}
+	encoded, err := tapscripts.Encode()
+	require.NoError(t, err)
+	return hex.EncodeToString(encoded)
 }
 
 func pollForVtxoAtScript(

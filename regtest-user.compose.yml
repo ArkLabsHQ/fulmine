@@ -39,7 +39,7 @@ services:
       - default
 
   covclaimd:
-    image: ghcr.io/arkade-os/covclaimd:v0.0.1-rc.0
+    image: ghcr.io/arkade-os/covclaimd:v0.0.1-rc.2
     container_name: covclaimd
     restart: unless-stopped
     environment:
