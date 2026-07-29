@@ -411,8 +411,7 @@ func (s *service) sendPreview(c *gin.Context) {
 	}
 
 	bodyContent := pages.SendPreviewContent(
-		addr, strconv.Itoa(sats), strconv.Itoa(feeAmount),
-		strconv.Itoa(total), utils.IsValidBtcAddress(addr),
+		addr, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total),
 	)
 	partialViewHandler(bodyContent, c)
 }

@@ -141,19 +141,8 @@ func TestBuildVhtlcContractArgs(t *testing.T) {
 	})
 }
 
-func TestBuildVhtlcContractArgs_WeAreSender(t *testing.T) {
-
-}
-
-func TestBuildVhtlcContractArgs_NotOwned(t *testing.T) {
-
-}
-
-func TestBuildVhtlcContractArgs_BadHex(t *testing.T) {
-
-}
-
 func mustPubkeyHex(t *testing.T) (string, *btcec.PublicKey) {
+	t.Helper()
 	priv, err := btcec.NewPrivateKey()
 	require.NoError(t, err)
 	pub := priv.PubKey()

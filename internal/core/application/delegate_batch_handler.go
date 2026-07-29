@@ -272,21 +272,18 @@ func (h *musig2BatchSessionHandler) OnStreamStartedEvent(
 // signForfeitWithDelegateKey adds the delegate's signature to every tapscript
 // leaf of the forfeit's first input that names the delegate's public key.
 //
-// It deliberately does not go through Wallet.SignTransaction or
-// Identity().SignTransaction, neither of which can do this job:
+// It deliberately does not go through Wallet.SignTransaction: the vtxo being
+// forfeited belongs to the delegator's client, not to us, so the wallet's
+// contract manager cannot resolve its script, and Wallet.SignTransaction returns
+// the tx UNSIGNED with a nil error in that case (go-sdk sign.go:39) — which arkd
+// then rejects as ForfeitInvalidSignature / "missing 1 signatures".
 //
-//   - The vtxo being forfeited belongs to the delegator's client, not to us, so
-//     the wallet's contract manager cannot resolve its script. Wallet.SignTransaction
-//     returns the tx UNSIGNED with a nil error in that case (go-sdk sign.go:39),
-//     which arkd then rejects as ForfeitInvalidSignature / "missing 1 signatures".
-//   - The delegate key is derived at m/86'/coin'/0' (utils.PrivateKeyFromMnemonic)
-//     and advertised via GetDelegateInfo, so clients embed its pubkey in their
-//     delegation closures. That key is not addressable by the HD identity's key
-//     ids, so no key map could make the identity produce this signature.
-//
-// Under the old single-key wallet the identity key and the delegate key were the
-// same key, which is why passing a nil key map used to work. Making HD the
-// default split them apart.
+// Under the old single-key wallet, Identity().SignTransaction with a nil key map
+// signed this correctly, because the wallet's only key was also the delegate
+// key. Making HD the default broke that: the HD identity rejects an empty key
+// map outright, so signing through it would mean hand-building a
+// script -> key-id map for a script the wallet does not own. Signing with the
+// delegate key here is the direct route.
 //
 // Mirrors the single-key identity's signTapscriptSpend, including its use of the
 // input's own SighashType, so the bytes produced are unchanged from before.
@@ -303,14 +300,11 @@ func signForfeitWithDelegateKey(forfeitTx *psbt.Packet, prvkey *btcec.PrivateKey
 	for i := range forfeitTx.Inputs {
 		in := forfeitTx.Inputs[i]
 		outpoint := forfeitTx.UnsignedTx.TxIn[i].PreviousOutPoint
-		switch {
-		case in.WitnessUtxo != nil:
-			prevouts[outpoint] = in.WitnessUtxo
-		case in.NonWitnessUtxo != nil && int(outpoint.Index) < len(in.NonWitnessUtxo.TxOut):
-			prevouts[outpoint] = in.NonWitnessUtxo.TxOut[outpoint.Index]
-		default:
+		if in.WitnessUtxo == nil {
 			return fmt.Errorf("forfeit input %d: missing prevout", i)
+
 		}
+		prevouts[outpoint] = in.WitnessUtxo
 	}
 
 	prevoutFetcher := txscript.NewMultiPrevOutFetcher(prevouts)
@@ -358,8 +352,6 @@ func signForfeitWithDelegateKey(forfeitTx *psbt.Packet, prvkey *btcec.PrivateKey
 		signed = true
 	}
 
-	// Fail loudly. Returning an unsigned forfeit is what produced the opaque
-	// ForfeitInvalidSignature bans on the arkd side.
 	if !signed {
 		return fmt.Errorf(
 			"no tapscript leaf on the forfeit input names the delegate key %x", myPubkey,

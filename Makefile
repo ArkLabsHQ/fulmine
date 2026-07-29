@@ -108,13 +108,14 @@ regtest-up: regtest-build
 regtest-user-up: regtest-seeder-build
 	@echo "Seeding legacy single-key datadir..."
 	@docker volume create fulmine-user-legacy-data >/dev/null
-	@docker run --rm --network arkade-regtest_default \
+	@set -e; \
+	LEGACY_PUBKEY=$$(docker run --rm --network arkade-regtest_default \
 		-v fulmine-user-legacy-data:/app/data fulmine-seeder:e2e \
 		-datadir /app/data -server-url http://arkd:7070 \
-		-explorer-url http://mempool_web/api -password password
-	@echo "Starting user Fulmines (fulmine-user, fulmine-user-legacy)..."
-	@docker compose -f regtest-user.compose.yml up -d
-	@node regtest-user-setup.mjs
+		-explorer-url http://mempool_web/api -password password); \
+	echo "Starting user Fulmines (fulmine-user, fulmine-user-legacy)..."; \
+	docker compose -f regtest-user.compose.yml up -d; \
+	FULMINE_LEGACY_PUBKEY="$$LEGACY_PUBKEY" node regtest-user-setup.mjs
 
 ## regtest-down: stop and remove the arkade-regtest stack + volumes + user Fulmine
 regtest-down:

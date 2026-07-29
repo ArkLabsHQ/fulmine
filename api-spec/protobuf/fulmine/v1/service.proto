@@ -132,7 +132,6 @@ service Service {
 message GetAddressRequest {}
 message GetAddressResponse {
   string address = 1;
-  string pubkey = 2;
 }
 
 message GetBalanceRequest {}
