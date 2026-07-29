@@ -87,11 +87,14 @@ func TestVHTLC(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			// Get the VHTLC
-			vhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
-			require.NoError(t, err)
-			require.NotNil(t, vhtlcs)
-			require.NotEmpty(t, vhtlcs.GetVhtlcs())
+			// Get the VHTLC. The vtxo is indexed asynchronously after
+			// SendOffChain, so poll instead of racing the indexer.
+			var vhtlcs *pb.ListVHTLCResponse
+			require.Eventually(t, func() bool {
+				var err error
+				vhtlcs, err = f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
+				return err == nil && len(vhtlcs.GetVhtlcs()) > 0
+			}, 30*time.Second, time.Second, "no VTXO indexed at the VHTLC address within 30s")
 
 			// Claim the VHTLC
 			redeemTxid, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
@@ -161,9 +164,16 @@ func TestClaimVHTLCWithOutpoint(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			// List VHTLCs and verify there are two VTXOs
-			vhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
-			require.NoError(t, err)
+			// List VHTLCs and verify there are two VTXOs. Both deposits are
+			// indexed asynchronously, so wait for the second to land before
+			// asserting the exact count — otherwise this races the indexer and
+			// fails whenever only the first deposit is visible yet.
+			var vhtlcs *pb.ListVHTLCResponse
+			require.Eventually(t, func() bool {
+				var err error
+				vhtlcs, err = f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
+				return err == nil && len(vhtlcs.GetVhtlcs()) >= 2
+			}, 30*time.Second, time.Second, "expected 2 VTXOs at the VHTLC address within 30s")
 			require.Len(t, vhtlcs.GetVhtlcs(), 2, "expected exactly 2 VTXOs at the VHTLC address")
 
 			// Identify the 2000-sat VTXO and the 1000-sat VTXO
@@ -282,8 +292,22 @@ func TestClaimVHTLCOldestVtxo(t *testing.T) {
 			require.NotNil(t, redeemTxid)
 			require.NotEmpty(t, redeemTxid.GetRedeemTxid())
 
-			vtxos, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
-			require.NoError(t, err)
+			// The claim is reflected in the listing asynchronously too, so wait
+			// for the spend rather than asserting on whatever is visible now.
+			var vtxos *pb.ListVHTLCResponse
+			require.Eventually(t, func() bool {
+				var err error
+				vtxos, err = f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
+				if err != nil {
+					return false
+				}
+				for _, v := range vtxos.GetVhtlcs() {
+					if v.Amount == 1000 && v.IsSpent {
+						return true
+					}
+				}
+				return false
+			}, 30*time.Second, time.Second, "the claimed VTXO was not marked spent within 30s")
 
 			for _, v := range vtxos.GetVhtlcs() {
 				if v.Amount == 1000 {
@@ -421,8 +445,14 @@ func TestRefundVHTLCWithoutReceiverWithOutpoint(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			vhtlcs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
-			require.NoError(t, err)
+			// Both deposits are indexed asynchronously; findVHTLCsByAmount
+			// requires both to be present, so wait for them.
+			var vhtlcs *pb.ListVHTLCResponse
+			require.Eventually(t, func() bool {
+				var err error
+				vhtlcs, err = fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
+				return err == nil && len(vhtlcs.GetVhtlcs()) >= 2
+			}, 30*time.Second, time.Second, "expected 2 VTXOs at the VHTLC address within 30s")
 
 			targetVtxo, otherVtxo := findVHTLCsByAmount(t, vhtlcs.GetVhtlcs(), 2000, 1000)
 
@@ -440,10 +470,25 @@ func TestRefundVHTLCWithoutReceiverWithOutpoint(t *testing.T) {
 			require.NotNil(t, refundResp)
 			require.NotEmpty(t, refundResp.GetRedeemTxid())
 
-			time.Sleep(2 * time.Second)
-
-			updatedVHTLCs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
-			require.NoError(t, err)
+			// Wait for the refund to be reflected instead of sleeping a fixed
+			// interval and hoping the indexer kept up.
+			var updatedVHTLCs *pb.ListVHTLCResponse
+			require.Eventually(t, func() bool {
+				var err error
+				updatedVHTLCs, err = fulmineClient.ListVHTLC(
+					ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()},
+				)
+				if err != nil {
+					return false
+				}
+				for _, v := range updatedVHTLCs.GetVhtlcs() {
+					if v.Outpoint.GetTxid() == targetVtxo.Outpoint.GetTxid() &&
+						v.Outpoint.GetVout() == targetVtxo.Outpoint.GetVout() {
+						return v.IsSpent
+					}
+				}
+				return false
+			}, 30*time.Second, time.Second, "the refunded VTXO was not marked spent within 30s")
 
 			requireVHTLCSpentState(t, updatedVHTLCs.GetVhtlcs(), targetVtxo, true)
 			requireVHTLCSpentState(t, updatedVHTLCs.GetVhtlcs(), otherVtxo, false)
@@ -580,15 +625,14 @@ func TestGetVHTLCSpendingTxFinalized(t *testing.T) {
 			require.NotEmpty(t, claimResp.GetRedeemTxid())
 
 			// The spending tx is registered asynchronously after ClaimVHTLC; poll for it.
-			resp, err := f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{VhtlcId: vhtlcResp.GetId()})
-			spendingDeadline := time.Now().Add(30 * time.Second)
-			for (err != nil || resp.GetTx() == "") && time.Now().Before(spendingDeadline) {
-				time.Sleep(1 * time.Second)
-				resp, err = f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{VhtlcId: vhtlcResp.GetId()})
-			}
-			require.NoError(t, err)
-			require.NotNil(t, resp)
-			require.NotEmpty(t, resp.GetTx())
+			var resp *pb.GetVHTLCSpendingTxResponse
+			require.Eventually(t, func() bool {
+				var err error
+				resp, err = f.GetVHTLCSpendingTx(
+					ctx, &pb.GetVHTLCSpendingTxRequest{VhtlcId: vhtlcResp.GetId()},
+				)
+				return err == nil && resp.GetTx() != ""
+			}, 30*time.Second, time.Second, "no spending tx registered for the VHTLC within 30s")
 
 			// Verify the returned tx is a valid PSBT
 			ptx, err := psbt.NewFromRawBytes(strings.NewReader(resp.GetTx()), true)
@@ -704,12 +748,16 @@ func TestGetVHTLCSpendingTxPending(t *testing.T) {
 			pendingTxid := submitPendingClaimVHTLC(t, arkadeWallet, f, testVhtlc, preimage)
 			require.NotEmpty(t, pendingTxid)
 
-			// GetVHTLCTransaction should return the pending tx
-			resp, err := f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{
-				VhtlcId: vhtlcResp.GetId(),
-			})
-			require.NoError(t, err)
-			require.NotEmpty(t, resp.GetTx())
+			// GetVHTLCTransaction should return the pending tx. Registration is
+			// asynchronous here too, so poll rather than asserting immediately.
+			var resp *pb.GetVHTLCSpendingTxResponse
+			require.Eventually(t, func() bool {
+				var err error
+				resp, err = f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{
+					VhtlcId: vhtlcResp.GetId(),
+				})
+				return err == nil && resp.GetTx() != ""
+			}, 30*time.Second, time.Second, "no pending spending tx registered within 30s")
 
 			// Parse the pending tx and extract the condition witness (preimage)
 			ptx, err := psbt.NewFromRawBytes(strings.NewReader(resp.GetTx()), true)
