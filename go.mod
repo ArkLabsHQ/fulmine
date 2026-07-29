@@ -14,7 +14,7 @@ require (
 	github.com/arkade-os/arkd/pkg/client-lib v0.0.0-20260723170207-4a97334a8ef8
 	github.com/arkade-os/arkd/pkg/kvdb v0.7.0
 	github.com/arkade-os/arkd/pkg/macaroons v0.7.0
-	github.com/arkade-os/covclaimd v0.0.1-rc.0
+	github.com/arkade-os/covclaimd v0.0.1-rc.2
 	github.com/arkade-os/go-sdk v0.10.2-0.20260728100801-5dfe88b5be1c
 	github.com/ccoveille/go-safecast v1.8.2
 	github.com/creack/pty v1.1.24
@@ -58,8 +58,8 @@ require (
 	github.com/arkade-os/arkd/api-spec v0.0.0-20260420150126-77b6c3aba563 // indirect
 	github.com/arkade-os/arkd/pkg/errors v0.0.0-20260617121018-268d19d9641c // indirect
 	github.com/arkade-os/emulator/api-spec v0.0.0-20260526192649-eac4fbc07c4c // indirect
-	github.com/arkade-os/emulator/pkg/arkade v0.0.0-20260616144513-96f9b06a5380 // indirect
-	github.com/arkade-os/emulator/pkg/client v0.0.0-20260526192649-eac4fbc07c4c // indirect
+	github.com/arkade-os/emulator/pkg/arkade v0.0.0-20260701134639-4e1a84f43397 // indirect
+	github.com/arkade-os/emulator/pkg/client v0.0.0-20260701134639-4e1a84f43397 // indirect
 	github.com/arkade-os/solver v0.0.1-rc.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.20.0 // indirect
