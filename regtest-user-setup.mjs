@@ -10,8 +10,6 @@ import { execFileSync } from 'node:child_process';
 
 const BASE = 'http://localhost:7021'; // fulmine-user REST (host 7021 -> container 7001)
 const LEGACY_BASE = 'http://localhost:7031'; // fulmine-user-legacy REST (host 7031 -> container 7001)
-const LEGACY_VOLUME = 'fulmine-user-legacy-data';
-const EXPLORER_URL = 'http://mempool_web/api';
 const ARK_SERVER = 'http://arkd:7070';
 const PASSWORD = 'password';
 const NOTE_AMOUNT = '100000000'; // 1 BTC, matching the stack's other wallets
@@ -80,17 +78,18 @@ async function setupLegacy() {
     process.exit(1);
   }
 
-  // Re-run the seeder (idempotent) purely to read back the pubkey it stored.
-  const seededPubkey = execFileSync(
-    'docker',
-    [
-      'run', '--rm', '--network', 'arkade-regtest_default',
-      '-v', `${LEGACY_VOLUME}:/app/data`, 'fulmine-seeder:e2e',
-      '-datadir', '/app/data', '-server-url', ARK_SERVER,
-      '-explorer-url', EXPLORER_URL, '-password', PASSWORD,
-    ],
-    { encoding: 'utf8', timeout: PROC_TIMEOUT_MS },
-  ).trim();
+  // The pubkey the seeder stored. `make regtest-user-up` captures it from the
+  // seeder run it performs BEFORE starting the container, and passes it here.
+  // Re-running the seeder at this point would open a second handle to a datadir
+  // that fulmine-user-legacy already has mounted, so take the value instead.
+  const seededPubkey = (process.env.FULMINE_LEGACY_PUBKEY || '').trim();
+  if (!seededPubkey) {
+    console.error(
+      'FULMINE_LEGACY_PUBKEY is not set: run this through `make regtest-user-up`, ' +
+        'which seeds the legacy datadir before the container starts and forwards the pubkey',
+    );
+    process.exit(1);
+  }
 
   if (!s.unlocked) {
     const unlocked = await fetchT(`${LEGACY_BASE}/api/v1/wallet/unlock`, {
