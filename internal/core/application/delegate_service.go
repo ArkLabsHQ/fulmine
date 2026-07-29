@@ -207,17 +207,8 @@ func (s *DelegateService) newDelegateTask(
 		return nil, err
 	}
 
-	feeAmount := int64(0)
-	feePaidToUs := false
-
 	// search for the fee output in intent proof
-	for _, output := range proof.UnsignedTx.TxOut {
-		if bytes.Equal(output.PkScript, delegateAddrScript) {
-			feeAmount = output.Value
-			feePaidToUs = true
-			break
-		}
-	}
+	feeAmount, feePaidToUs := findDelegateFeeOutput(proof.UnsignedTx.TxOut, delegateAddrScript)
 
 	if message.ValidAt == 0 {
 		return nil, fmt.Errorf("invalid valid at")
@@ -262,30 +253,15 @@ func (s *DelegateService) newDelegateTask(
 		Status:            domain.DelegateTaskStatusPending,
 	}
 
-	// validate delegate fee. Skipped entirely when no fee is required: GetInfo
-	// advertises s.fee, so a client told the fee is 0 is free not to pay us at all.
-	if s.fee > 0 {
-		// Distinguish "paid us too little" from "paid someone else". Without this
-		// the second case reports an underpayment, which blames the client for
-		// what is usually our own fault: an intent built against a delegate
-		// address we no longer recognise.
-		if !feePaidToUs {
-			encodedDelegateAddr, err := delegateAddr.EncodeV0()
-			if err != nil {
-				return nil, err
-			}
-			return nil, fmt.Errorf(
-				"intent proof has no output paying the delegate address %s: "+
-					"the fee must be paid to the address returned by GetInfo",
-				encodedDelegateAddr,
-			)
-		}
-		if task.Fee < s.fee {
-			return nil, fmt.Errorf(
-				"delegate fee is less than the required fee (expected at least %d, got %d)",
-				s.fee, task.Fee,
-			)
-		}
+	// validate delegate fee
+	encodedDelegateAddr, err := delegateAddr.EncodeV0()
+	if err != nil {
+		return nil, err
+	}
+	if err := validateDelegateFee(
+		s.fee, feeAmount, feePaidToUs, encodedDelegateAddr,
+	); err != nil {
+		return nil, err
 	}
 
 	// verify forfeit input are referenced in the intent
@@ -375,6 +351,58 @@ func (s *DelegateService) getDelegateAddress(ctx context.Context) (*arklib.Addre
 	s.delegateAddrMtx.Unlock()
 
 	return decodedAddr, nil
+}
+
+// findDelegateFeeOutput returns the value of the first output paying
+// delegateScript, and whether such an output exists at all. The two are
+// distinct: a proof carrying no output for us is a client paying an address we
+// do not recognise, which is a different fault from paying us too little.
+func findDelegateFeeOutput(outputs []*wire.TxOut, delegateScript []byte) (int64, bool) {
+	for _, output := range outputs {
+		if bytes.Equal(output.PkScript, delegateScript) {
+			return output.Value, true
+		}
+	}
+	return 0, false
+}
+
+// validateDelegateFee checks that a delegation pays the fee we advertise.
+//
+// The whole check is skipped when no fee is required: GetInfo advertises
+// requiredFee, so a client told the fee is 0 is free not to pay us at all.
+func validateDelegateFee(
+	requiredFee uint64, paidAmount int64, feePaidToUs bool, delegateAddr string,
+) error {
+	if requiredFee == 0 {
+		return nil
+	}
+
+	// Distinguish "paid us too little" from "paid someone else". Without this
+	// the second case reports an underpayment, which blames the client for what
+	// is usually our own fault: an intent built against a delegate address we no
+	// longer recognise.
+	if !feePaidToUs {
+		return fmt.Errorf(
+			"intent proof has no output paying the delegate address %s: "+
+				"the fee must be paid to the address returned by GetInfo",
+			delegateAddr,
+		)
+	}
+
+	// A negative value cannot occur in a valid transaction, but the field is a
+	// signed int64: converting it to uint64 unchecked would wrap into a huge
+	// number and sail past the comparison below.
+	if paidAmount < 0 {
+		return fmt.Errorf("invalid delegate fee output amount %d", paidAmount)
+	}
+
+	if uint64(paidAmount) < requiredFee {
+		return fmt.Errorf(
+			"delegate fee is less than the required fee (expected at least %d, got %d)",
+			requiredFee, paidAmount,
+		)
+	}
+	return nil
 }
 
 // resolveDelegateAddress returns the address of the wallet's lowest-index
