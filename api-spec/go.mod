@@ -1,6 +1,6 @@
 module github.com/ArkLabsHQ/fulmine/api-spec
 
-go 1.26.2
+go 1.26.5
 
 require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0
