@@ -191,6 +191,14 @@ func getPendingTxIntent(inputsData []pendingTxIntentInput, locktime uint32) (str
 
 	proof.UnsignedTx.LockTime = locktime
 
+	// intent.New prepends a synthetic BIP-322 message input, so proof.Inputs is
+	// one longer than leafProofs and the real inputs sit at 1..n, mapping to
+	// leafProofs[i-1].
+	//
+	// Input 0 is given leafProofs[0] purely so every input carries a well-formed
+	// TaprootLeafScript; it is never spent, so which proof it holds is inert. The
+	// same proof is then assigned again, correctly, to the first real input at
+	// i == 1. Only real inputs get their ark fields.
 	for i, input := range proof.Inputs {
 		var leafProof *arklib.TaprootMerkleProof
 		if i == 0 {

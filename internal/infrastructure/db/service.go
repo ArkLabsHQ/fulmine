@@ -15,7 +15,6 @@ import (
 	"github.com/dgraph-io/badger/v4"
 	"github.com/golang-migrate/migrate/v4"
 	sqlitemigrate "github.com/golang-migrate/migrate/v4/database/sqlite"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
@@ -26,7 +25,7 @@ const (
 var (
 	//go:embed sqlite/migration/*
 	migrations   embed.FS
-	allowedTypes = strings.Join([]string{"badger"}, ",")
+	allowedTypes = strings.Join([]string{"badger", "sqlite"}, ",")
 )
 
 type ServiceConfig struct {

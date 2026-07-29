@@ -34,6 +34,10 @@ func (s *Service) migrateVhtlcs(ctx context.Context) {
 	identitySvc := s.Identity()
 
 	if identitySvc.GetType() == hdidentity.Type {
+		// The cleanup migration renames vhtlc -> vhtlc_legacy unconditionally, so
+		// even a wallet that was never single-key ends up with the table. Nothing
+		// below runs for HD, so without this the empty table would linger forever.
+		s.dropEmptyLegacyVhtlcs(ctx)
 		return
 	}
 
@@ -62,6 +66,43 @@ func (s *Service) migrateVhtlcs(ctx context.Context) {
 	}
 	if migrated > 0 || skipped > 0 {
 		log.Debugf("vhtlc migration: migrated %d vhtlcs, skipped %d", migrated, skipped)
+	}
+}
+
+// dropEmptyLegacyVhtlcs removes the vhtlc_legacy table when it holds nothing.
+//
+// Deliberately checks the rows rather than dropping on sight: legacy rows are
+// the only record of a pre-HD vhtlc's parameters, and DropLegacy is a DROP TABLE
+// we could not undo. Finding rows here means an HD identity is running against a
+// datadir that once belonged to a single-key wallet, which is worth a loud log
+// rather than a silent delete.
+func (s *Service) dropEmptyLegacyVhtlcs(ctx context.Context) {
+	store := s.dbSvc.VHTLC()
+
+	has, err := store.HasLegacy(ctx)
+	if err != nil {
+		log.WithError(err).Warn("vhtlc migration: failed to check for vhtlc_legacy")
+		return
+	}
+	if !has {
+		return
+	}
+
+	rows, err := store.GetLegacy(ctx)
+	if err != nil {
+		log.WithError(err).Warn("vhtlc migration: failed to read vhtlc_legacy")
+		return
+	}
+	if len(rows) > 0 {
+		log.Warnf(
+			"vhtlc migration: %d legacy vhtlcs found on an HD wallet, leaving vhtlc_legacy in place",
+			len(rows),
+		)
+		return
+	}
+
+	if err := store.DropLegacy(ctx); err != nil {
+		log.WithError(err).Warn("vhtlc migration: failed to drop empty vhtlc_legacy")
 	}
 }
 

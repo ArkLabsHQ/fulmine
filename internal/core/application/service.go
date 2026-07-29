@@ -268,6 +268,8 @@ func (s *Service) LockNode(ctx context.Context) error {
 	if s.onLock != nil {
 		s.onLock()
 	}
+	// onLock stopped the delegate service, so nothing reads the signer key now.
+	s.clearSignerKey()
 
 	if s.schedulerSvc != nil {
 		s.schedulerSvc.Stop()
@@ -323,6 +325,9 @@ func (s *Service) unwindFailedUnlock() {
 	if s.onLock != nil {
 		s.onLock()
 	}
+	// The unlock goroutine may already have loaded the delegate key before
+	// failing; drop it rather than leaving a live key behind a locked wallet.
+	s.clearSignerKey()
 
 	s.walletReady.Store(false)
 	s.syncEvent = nil
@@ -450,9 +455,33 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	return nil
 }
 
+// clearSignerKey scrubs the mnemonic-derived delegate signing key.
+//
+// Zero() overwrites the key material in place; nil-ing the fields alone would
+// only drop the reference and leave the secret resident on the heap until the
+// GC happened to reuse that memory.
+//
+// Callers must stop the delegate service first (onLock): it reads privateKey
+// and publicKey without synchronisation.
+func (s *Service) clearSignerKey() {
+	if s.privateKey != nil {
+		s.privateKey.Zero()
+	}
+	s.privateKey = nil
+	s.publicKey = nil
+}
+
 func (s *Service) ResetWallet(ctx context.Context) error {
 	// reset wallet (cleans all repos)
 	s.Reset(ctx)
+
+	// Stop the delegate service before dropping its signing key. Reset wipes the
+	// wallet out from under it either way, so leaving it running was already
+	// wrong; Stop is idempotent.
+	if s.onLock != nil {
+		s.onLock()
+	}
+	s.clearSignerKey()
 
 	if s.schedulerSvc != nil {
 		s.schedulerSvc.Stop()
