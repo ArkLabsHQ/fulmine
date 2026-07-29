@@ -248,8 +248,6 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, mnemonic strin
 	}
 
 	s.esploraUrl = config.ExplorerURL
-	// s.publicKey = prvKey.PubKey()
-	// s.privateKey = prvKey
 	s.isInitialized = true
 
 	go func() {

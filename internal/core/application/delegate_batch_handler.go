@@ -300,14 +300,11 @@ func signForfeitWithDelegateKey(forfeitTx *psbt.Packet, prvkey *btcec.PrivateKey
 	for i := range forfeitTx.Inputs {
 		in := forfeitTx.Inputs[i]
 		outpoint := forfeitTx.UnsignedTx.TxIn[i].PreviousOutPoint
-		switch {
-		case in.WitnessUtxo != nil:
-			prevouts[outpoint] = in.WitnessUtxo
-		case in.NonWitnessUtxo != nil && int(outpoint.Index) < len(in.NonWitnessUtxo.TxOut):
-			prevouts[outpoint] = in.NonWitnessUtxo.TxOut[outpoint.Index]
-		default:
+		if in.WitnessUtxo == nil {
 			return fmt.Errorf("forfeit input %d: missing prevout", i)
+
 		}
+		prevouts[outpoint] = in.WitnessUtxo
 	}
 
 	prevoutFetcher := txscript.NewMultiPrevOutFetcher(prevouts)
@@ -355,8 +352,6 @@ func signForfeitWithDelegateKey(forfeitTx *psbt.Packet, prvkey *btcec.PrivateKey
 		signed = true
 	}
 
-	// Fail loudly. Returning an unsigned forfeit is what produced the opaque
-	// ForfeitInvalidSignature bans on the arkd side.
 	if !signed {
 		return fmt.Errorf(
 			"no tapscript leaf on the forfeit input names the delegate key %x", myPubkey,

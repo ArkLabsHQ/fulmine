@@ -142,6 +142,7 @@ func TestBuildVhtlcContractArgs(t *testing.T) {
 }
 
 func mustPubkeyHex(t *testing.T) (string, *btcec.PublicKey) {
+	t.Helper()
 	priv, err := btcec.NewPrivateKey()
 	require.NoError(t, err)
 	pub := priv.PubKey()
