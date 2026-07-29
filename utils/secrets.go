@@ -60,7 +60,7 @@ func PrivateKeyFromMnemonic(mnemonic, network string) (*btcec.PrivateKey, error)
 	}
 
 	next := key
-	derivationPath := getBIP86RootPath(network)
+	derivationPath := getBIP86DerivationPath(network)
 	for _, idx := range derivationPath {
 		var err error
 		if next, err = next.NewChildKey(idx); err != nil {
@@ -72,16 +72,17 @@ func PrivateKeyFromMnemonic(mnemonic, network string) (*btcec.PrivateKey, error)
 	return privateKey, nil
 }
 
-func getBIP86RootPath(network string) []uint32 {
+func getBIP86DerivationPath(network string) []uint32 {
 	coinType := uint32(1)
 	if network == "bitcoin" || network == "mainnet" {
 		coinType = uint32(0)
 	}
-	// m/86'/0'/0' on mainnet
-	// m/86'/1'/0' on any other network
+	// m/86'/0'/0'/0/0 on mainnet
+	// m/86'/1'/0'/0/0 on any other network
 	return []uint32{
 		hdkeychain.HardenedKeyStart + 86,
 		uint32(hdkeychain.HardenedKeyStart) + coinType,
 		hdkeychain.HardenedKeyStart,
+		0, 0,
 	}
 }
