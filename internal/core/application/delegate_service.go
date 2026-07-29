@@ -18,6 +18,8 @@ import (
 	"github.com/arkade-os/arkd/pkg/client-lib/client"
 	indexer "github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	"github.com/arkade-os/go-sdk/contract"
+	"github.com/arkade-os/go-sdk/types"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
@@ -206,11 +208,13 @@ func (s *DelegateService) newDelegateTask(
 	}
 
 	feeAmount := int64(0)
+	feePaidToUs := false
 
 	// search for the fee output in intent proof
 	for _, output := range proof.UnsignedTx.TxOut {
 		if bytes.Equal(output.PkScript, delegateAddrScript) {
 			feeAmount = output.Value
+			feePaidToUs = true
 			break
 		}
 	}
@@ -258,12 +262,30 @@ func (s *DelegateService) newDelegateTask(
 		Status:            domain.DelegateTaskStatusPending,
 	}
 
-	// validate delegate fee
-	if task.Fee < s.fee {
-		return nil, fmt.Errorf(
-			"delegate fee is less than the required fee (expected at least %d, got %d)",
-			s.fee, task.Fee,
-		)
+	// validate delegate fee. Skipped entirely when no fee is required: GetInfo
+	// advertises s.fee, so a client told the fee is 0 is free not to pay us at all.
+	if s.fee > 0 {
+		// Distinguish "paid us too little" from "paid someone else". Without this
+		// the second case reports an underpayment, which blames the client for
+		// what is usually our own fault: an intent built against a delegate
+		// address we no longer recognise.
+		if !feePaidToUs {
+			encodedDelegateAddr, err := delegateAddr.EncodeV0()
+			if err != nil {
+				return nil, err
+			}
+			return nil, fmt.Errorf(
+				"intent proof has no output paying the delegate address %s: "+
+					"the fee must be paid to the address returned by GetInfo",
+				encodedDelegateAddr,
+			)
+		}
+		if task.Fee < s.fee {
+			return nil, fmt.Errorf(
+				"delegate fee is less than the required fee (expected at least %d, got %d)",
+				s.fee, task.Fee,
+			)
+		}
 	}
 
 	// verify forfeit input are referenced in the intent
@@ -306,6 +328,19 @@ func (s *DelegateService) newDelegateTask(
 	return task, nil
 }
 
+// getDelegateAddress returns the offchain address clients pay the delegate fee
+// to. It must be identical on every start: GetInfo advertises it, clients build
+// their intent proof with a fee output paying it, and Delegate later re-derives
+// it to locate that output. If it rotates, a client that read GetInfo before a
+// restart pays a script we no longer recognise, the fee output is not found,
+// and the task is executed for free.
+//
+// NewAddress alone cannot give that guarantee. Under an HD identity each call
+// derives the next key index (go-sdk contract/manager.go newDefaultContract ->
+// identity.NextKeyId), so it returns a fresh address every time; a single-key
+// identity reuses one key for every contract, which is why this was stable
+// until HD became the default. Resolve the wallet's lowest-index default
+// contract instead, and derive only when the wallet has none.
 func (s *DelegateService) getDelegateAddress(ctx context.Context) (*arklib.Address, error) {
 	s.delegateAddrMtx.Lock()
 	if s.cachedDelegateAddress != nil {
@@ -319,7 +354,7 @@ func (s *DelegateService) getDelegateAddress(ctx context.Context) (*arklib.Addre
 		return nil, err
 	}
 
-	_, addr, _, err := s.svc.NewAddress(ctx, 0)
+	addr, err := s.resolveDelegateAddress(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -340,6 +375,50 @@ func (s *DelegateService) getDelegateAddress(ctx context.Context) (*arklib.Addre
 	s.delegateAddrMtx.Unlock()
 
 	return decodedAddr, nil
+}
+
+// resolveDelegateAddress returns the address of the wallet's lowest-index
+// default contract, deriving the first one when the wallet has none.
+//
+// On an empty wallet the first derivation is index 0, so the address derived
+// here is exactly the one this lookup returns on every subsequent start.
+func (s *DelegateService) resolveDelegateAddress(ctx context.Context) (string, error) {
+	manager := s.svc.ContractManager()
+
+	contracts, err := manager.GetContracts(ctx, contract.WithType(types.ContractTypeDefault))
+	if err != nil {
+		return "", fmt.Errorf("failed to list default contracts: %w", err)
+	}
+
+	for _, c := range contracts {
+		handler, err := manager.GetHandler(ctx, c)
+		if err != nil {
+			return "", fmt.Errorf("failed to get handler for contract %s: %w", c.Script, err)
+		}
+		keyRef, err := handler.GetKeyRef(c)
+		if err != nil {
+			return "", fmt.Errorf("failed to get key ref for contract %s: %w", c.Script, err)
+		}
+
+		index, err := s.svc.Identity().GetKeyIndex(ctx, keyRef.Id)
+		if err != nil {
+			// A key id we cannot rank is not a safe anchor: it might sort
+			// differently next start, which is the very thing this avoids.
+			log.WithError(err).Warnf(
+				"skipping default contract %s while resolving the delegate address", c.Script,
+			)
+			continue
+		}
+		if index == 0 {
+			return c.Address, nil
+		}
+	}
+
+	_, offchainAddr, _, err := s.svc.NewAddress(ctx, 0)
+	if err != nil {
+		return "", err
+	}
+	return offchainAddr, nil
 }
 
 // restorePendingTasks restores all pending tasks from DB and schedules them for execution.
