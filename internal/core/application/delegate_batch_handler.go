@@ -1,6 +1,7 @@
 package application
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"slices"
@@ -11,6 +12,8 @@ import (
 	"github.com/arkade-os/arkd/pkg/client-lib/client"
 	indexer "github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
@@ -165,16 +168,13 @@ func (h *delegateBatchSessionHandler) submitForfeitTxs(
 		})
 		forfeitTx.Inputs[0].SighashType = txscript.SigHashDefault
 
-		encodedForfeitTx, err := forfeitTx.B64Encode()
-		if err != nil {
-			return fmt.Errorf("failed to encode forfeit tx: %w", err)
+		if err := signForfeitWithDelegateKey(forfeitTx, h.delegate.svc.privateKey); err != nil {
+			return fmt.Errorf("failed to sign forfeit: %w", err)
 		}
 
-		signedForfeitTx, err := h.delegate.svc.Identity().SignTransaction(
-			ctx, encodedForfeitTx, nil,
-		)
+		signedForfeitTx, err := forfeitTx.B64Encode()
 		if err != nil {
-			return fmt.Errorf("failed to sign forfeit: %w", err)
+			return fmt.Errorf("failed to encode forfeit tx: %w", err)
 		}
 
 		signedForfeitTxs = append(signedForfeitTxs, signedForfeitTx)
@@ -267,4 +267,127 @@ func (h *musig2BatchSessionHandler) OnTreeNoncesAggregated(
 func (h *musig2BatchSessionHandler) OnStreamStartedEvent(
 	event client.StreamStartedEvent,
 ) {
+}
+
+// signForfeitWithDelegateKey adds the delegate's signature to every tapscript
+// leaf of the forfeit's first input that names the delegate's public key.
+//
+// It deliberately does not go through Wallet.SignTransaction or
+// Identity().SignTransaction, neither of which can do this job:
+//
+//   - The vtxo being forfeited belongs to the delegator's client, not to us, so
+//     the wallet's contract manager cannot resolve its script. Wallet.SignTransaction
+//     returns the tx UNSIGNED with a nil error in that case (go-sdk sign.go:39),
+//     which arkd then rejects as ForfeitInvalidSignature / "missing 1 signatures".
+//   - The delegate key is derived at m/86'/coin'/0' (utils.PrivateKeyFromMnemonic)
+//     and advertised via GetDelegateInfo, so clients embed its pubkey in their
+//     delegation closures. That key is not addressable by the HD identity's key
+//     ids, so no key map could make the identity produce this signature.
+//
+// Under the old single-key wallet the identity key and the delegate key were the
+// same key, which is why passing a nil key map used to work. Making HD the
+// default split them apart.
+//
+// Mirrors the single-key identity's signTapscriptSpend, including its use of the
+// input's own SighashType, so the bytes produced are unchanged from before.
+func signForfeitWithDelegateKey(forfeitTx *psbt.Packet, prvkey *btcec.PrivateKey) error {
+	if prvkey == nil {
+		return fmt.Errorf("delegate signer key not loaded")
+	}
+	if len(forfeitTx.Inputs) == 0 {
+		return fmt.Errorf("forfeit tx has no inputs")
+	}
+
+	// Every input must carry its own prevout: the sighash commits to all of them.
+	prevouts := make(map[wire.OutPoint]*wire.TxOut)
+	for i := range forfeitTx.Inputs {
+		in := forfeitTx.Inputs[i]
+		outpoint := forfeitTx.UnsignedTx.TxIn[i].PreviousOutPoint
+		switch {
+		case in.WitnessUtxo != nil:
+			prevouts[outpoint] = in.WitnessUtxo
+		case in.NonWitnessUtxo != nil && int(outpoint.Index) < len(in.NonWitnessUtxo.TxOut):
+			prevouts[outpoint] = in.NonWitnessUtxo.TxOut[outpoint.Index]
+		default:
+			return fmt.Errorf("forfeit input %d: missing prevout", i)
+		}
+	}
+
+	prevoutFetcher := txscript.NewMultiPrevOutFetcher(prevouts)
+	txsighashes := txscript.NewTxSigHashes(forfeitTx.UnsignedTx, prevoutFetcher)
+
+	myPubkey := schnorr.SerializePubKey(prvkey.PubKey())
+	input := forfeitTx.Inputs[0]
+	signed := false
+
+	for _, leaf := range input.TaprootLeafScript {
+		closure, err := script.DecodeClosure(leaf.Script)
+		if err != nil {
+			continue // unknown leaf, not ours to sign
+		}
+		if !closureHasPubkey(closure, myPubkey) {
+			continue
+		}
+
+		leafHash := txscript.NewTapLeaf(leaf.LeafVersion, leaf.Script).TapHash()
+
+		preimage, err := txscript.CalcTapscriptSignaturehash(
+			txsighashes, input.SighashType, forfeitTx.UnsignedTx, 0,
+			prevoutFetcher, txscript.NewBaseTapLeaf(leaf.Script),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to compute forfeit sighash: %w", err)
+		}
+
+		sig, err := schnorr.Sign(prvkey, preimage)
+		if err != nil {
+			return fmt.Errorf("failed to sign forfeit leaf: %w", err)
+		}
+
+		// Append rather than replace: the client's signature is already here, and
+		// the closure needs both.
+		forfeitTx.Inputs[0].TaprootScriptSpendSig = append(
+			forfeitTx.Inputs[0].TaprootScriptSpendSig,
+			&psbt.TaprootScriptSpendSig{
+				XOnlyPubKey: myPubkey,
+				LeafHash:    leafHash.CloneBytes(),
+				Signature:   sig.Serialize(),
+				SigHash:     input.SighashType,
+			},
+		)
+		signed = true
+	}
+
+	// Fail loudly. Returning an unsigned forfeit is what produced the opaque
+	// ForfeitInvalidSignature bans on the arkd side.
+	if !signed {
+		return fmt.Errorf(
+			"no tapscript leaf on the forfeit input names the delegate key %x", myPubkey,
+		)
+	}
+	return nil
+}
+
+// closureHasPubkey reports whether xonly is one of the closure's signers.
+func closureHasPubkey(closure script.Closure, xonly []byte) bool {
+	var pubkeys []*btcec.PublicKey
+	switch c := closure.(type) {
+	case *script.CSVMultisigClosure:
+		pubkeys = c.PubKeys
+	case *script.MultisigClosure:
+		pubkeys = c.PubKeys
+	case *script.CLTVMultisigClosure:
+		pubkeys = c.PubKeys
+	case *script.ConditionMultisigClosure:
+		pubkeys = c.PubKeys
+	default:
+		return false
+	}
+
+	for _, key := range pubkeys {
+		if bytes.Equal(schnorr.SerializePubKey(key), xonly) {
+			return true
+		}
+	}
+	return false
 }

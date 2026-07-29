@@ -34,71 +34,75 @@ const (
 // reveal — no OP_RETURN packet in the funding tx). covclaimd then claims the
 // VHTLC through the emulator on the receiver's behalf.
 func TestNonInteractiveClaim(t *testing.T) {
-	f, err := newFulmineClient(clientFulmineURL)
-	require.NoError(t, err)
-	require.NotNil(t, f)
+	for _, target := range clientTargets {
+		t.Run(target.name, func(t *testing.T) {
+			f, err := newFulmineClient(target.url)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-	ctx := t.Context()
+			ctx := t.Context()
 
-	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
-	require.NoError(t, err)
-	require.NotEmpty(t, info)
+			info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+			require.NoError(t, err)
+			require.NotEmpty(t, info)
 
-	// create receiver "wallet" (just a keypair)
-	receiverPriv, err := btcec.NewPrivateKey()
-	require.NoError(t, err)
-	receiverPkScript, err := txscript.PayToTaprootScript(receiverPriv.PubKey())
-	require.NoError(t, err)
+			// create receiver "wallet" (just a keypair)
+			receiverPriv, err := btcec.NewPrivateKey()
+			require.NoError(t, err)
+			receiverPkScript, err := txscript.PayToTaprootScript(receiverPriv.PubKey())
+			require.NoError(t, err)
 
-	// fetch covclaimd's encryption pubkey and its emulator (emulator) pubkey
-	covclaimdPub, _ := fetchCovclaimdPubKeys(t)
+			// fetch covclaimd's encryption pubkey and its emulator (emulator) pubkey
+			covclaimdPub, _ := fetchCovclaimdPubKeys(t)
 
-	// generate a preimage
-	preimg := make([]byte, 32)
-	_, err = rand.Read(preimg)
-	require.NoError(t, err)
-	sha := sha256.Sum256(preimg)
-	preimageHashHex := hex.EncodeToString(input.Ripemd160H(sha[:]))
+			// generate a preimage
+			preimg := make([]byte, 32)
+			_, err = rand.Read(preimg)
+			require.NoError(t, err)
+			sha := sha256.Sum256(preimg)
+			preimageHashHex := hex.EncodeToString(input.Ripemd160H(sha[:]))
 
-	// create the VHTLC with the non-interactive claim option
-	createResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
-		PreimageHash:   preimageHashHex,
-		ReceiverPubkey: hex.EncodeToString(receiverPriv.PubKey().SerializeCompressed()),
-		UnilateralClaimDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
-			Value: 512,
-		},
-		UnilateralRefundDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
-			Value: 512,
-		},
-		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
-			Value: 1024,
-		},
-		NonInteractiveClaim: &pb.NonInteractiveClaim{
-			ClaimAddress: receiverArkAddress(t, info, receiverPriv.PubKey()),
-		},
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, createResp.Address)
-	require.NotNil(t, createResp.SwapTree.NonInteractiveClaimLeaf)
+			// create the VHTLC with the non-interactive claim option
+			createResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+				PreimageHash:   preimageHashHex,
+				ReceiverPubkey: hex.EncodeToString(receiverPriv.PubKey().SerializeCompressed()),
+				UnilateralClaimDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+					Value: 512,
+				},
+				UnilateralRefundDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+					Value: 512,
+				},
+				UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+					Value: 1024,
+				},
+				NonInteractiveClaim: &pb.NonInteractiveClaim{
+					ClaimAddress: receiverArkAddress(t, info, receiverPriv.PubKey()),
+				},
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, createResp.Address)
+			require.NotNil(t, createResp.SwapTree.NonInteractiveClaimLeaf)
 
-	// direct reveal to claimer
-	revealToCovclaimd(t, createResp.Address, preimg, covclaimdPub, receiverPkScript)
+			// direct reveal to claimer
+			revealToCovclaimd(t, createResp.Address, preimg, covclaimdPub, receiverPkScript)
 
-	// fund the VHTLC
-	const amount uint64 = 10_000
-	sendResp, err := f.SendOffChain(ctx, &pb.SendOffChainRequest{
-		Address: createResp.Address,
-		Amount:  amount,
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, sendResp.GetTxid())
+			// fund the VHTLC
+			const amount uint64 = 10_000
+			sendResp, err := f.SendOffChain(ctx, &pb.SendOffChainRequest{
+				Address: createResp.Address,
+				Amount:  amount,
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, sendResp.GetTxid())
 
-	// wait for covclaimd to auto claim to the receiver's script
-	v := pollForVtxoAtScript(t, ctx, receiverPkScript, 30*time.Second)
-	require.Equal(t, amount, v.Amount, "covclaimd should pay the full input value to the receiver")
+			// wait for covclaimd to auto claim to the receiver's script
+			v := pollForVtxoAtScript(t, ctx, receiverPkScript, 30*time.Second)
+			require.Equal(t, amount, v.Amount, "covclaimd should pay the full input value to the receiver")
+		})
+	}
 }
 
 // fetchCovclaimdPubKeys returns covclaimd's (encryption, emulator) pubkeys.

@@ -440,23 +440,22 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 		if s.delegateConfig.Enabled {
 			// Load delegate signer key.
-			prvkeyStr, err := s.Dump(finalizeCtx)
+			mnemonic, err := s.Dump(finalizeCtx)
 			if err != nil {
 				log.WithError(err).Error("failed to get delegate signer key")
 				s.unwindFailedUnlock()
 				return
 			}
 
-			buf, err := hex.DecodeString(prvkeyStr)
+			privateKey, err := utils.PrivateKeyFromMnemonic(mnemonic, arkConfig.Network.Name)
 			if err != nil {
-				log.WithError(err).Error("failed to decode delegate signer key")
 				s.unwindFailedUnlock()
+				log.WithError(err).Error("failed to decode delegate signer key")
 				return
 			}
 
-			privkey, pubkey := btcec.PrivKeyFromBytes(buf)
-			s.publicKey = pubkey
-			s.privateKey = privkey
+			s.publicKey = privateKey.PubKey()
+			s.privateKey = privateKey
 		}
 
 		if s.onUnlock != nil {

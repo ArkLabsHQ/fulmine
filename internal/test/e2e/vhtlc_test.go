@@ -28,258 +28,271 @@ import (
 )
 
 func TestVHTLC(t *testing.T) {
-	f, err := newFulmineClient(clientFulmineURL)
-	require.NoError(t, err)
-	require.NotNil(t, f)
+	for _, target := range clientTargets {
+		t.Run(target.name, func(t *testing.T) {
+			f, err := newFulmineClient(target.url)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-	ctx := t.Context()
-	// For sake of simplicity, in this test sender = receiver to test both
-	// funding and claiming the VHTLC via API
-	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
-	require.NoError(t, err)
-	require.NotEmpty(t, info)
+			ctx := t.Context()
+			// For sake of simplicity, in this test sender = receiver to test both
+			// funding and claiming the VHTLC via API
+			info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+			require.NoError(t, err)
+			require.NotEmpty(t, info)
 
-	// Create the VHTLC
-	preimage := make([]byte, 32)
-	_, err = rand.Read(preimage)
-	require.NoError(t, err)
-	sha256Hash := sha256.Sum256(preimage)
-	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+			// Create the VHTLC
+			preimage := make([]byte, 32)
+			_, err = rand.Read(preimage)
+			require.NoError(t, err)
+			sha256Hash := sha256.Sum256(preimage)
+			preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
 
-	req := &pb.CreateVHTLCRequest{
-		PreimageHash:   preimageHash,
-		SenderPubkey:   info.GetPubkey(),
-		RefundLocktime: uint32(time.Now().Add(100 * time.Second).Unix()),
-		UnilateralClaimDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 105,
-		},
-		UnilateralRefundDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 110,
-		},
-		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 115,
-		},
+			req := &pb.CreateVHTLCRequest{
+				PreimageHash:   preimageHash,
+				SenderPubkey:   info.GetPubkey(),
+				RefundLocktime: uint32(time.Now().Add(100 * time.Second).Unix()),
+				UnilateralClaimDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 105,
+				},
+				UnilateralRefundDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 110,
+				},
+				UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 115,
+				},
+			}
+			vhtlc, err := f.CreateVHTLC(ctx, req)
+			require.NoError(t, err)
+			require.NotEmpty(t, vhtlc.Address)
+			require.NotEmpty(t, vhtlc.ClaimPubkey)
+			require.NotEmpty(t, vhtlc.RefundPubkey)
+			require.NotEmpty(t, vhtlc.ServerPubkey)
+
+			// Ensure duplication is not allowed for single key only. Impossible to duplicate one
+			// calling this api with hd identity.
+			if target.name == "singlekey" {
+				vhtlc, err := f.CreateVHTLC(ctx, req)
+				require.Error(t, err)
+				require.Nil(t, vhtlc)
+			}
+
+			// Fund the VHTLC
+			_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+				Address: vhtlc.Address,
+				Amount:  1000,
+			})
+			require.NoError(t, err)
+
+			// Get the VHTLC
+			vhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
+			require.NoError(t, err)
+			require.NotNil(t, vhtlcs)
+			require.NotEmpty(t, vhtlcs.GetVhtlcs())
+
+			// Claim the VHTLC
+			redeemTxid, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
+				VhtlcId:  vhtlc.Id,
+				Preimage: hex.EncodeToString(preimage),
+			})
+			require.NoError(t, err)
+			require.NotNil(t, redeemTxid)
+			require.NotEmpty(t, redeemTxid.GetRedeemTxid())
+		})
 	}
-	vhtlc, err := f.CreateVHTLC(ctx, req)
-	require.NoError(t, err)
-	require.NotEmpty(t, vhtlc.Address)
-	require.NotEmpty(t, vhtlc.ClaimPubkey)
-	require.NotEmpty(t, vhtlc.RefundPubkey)
-	require.NotEmpty(t, vhtlc.ServerPubkey)
-
-	// Ensure duplication are not allowed
-	{
-		vhtlc, err := f.CreateVHTLC(ctx, req)
-		require.Error(t, err)
-		require.Nil(t, vhtlc)
-	}
-
-	// Fund the VHTLC
-	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
-		Address: vhtlc.Address,
-		Amount:  1000,
-	})
-	require.NoError(t, err)
-
-	// Get the VHTLC
-	vhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
-	require.NoError(t, err)
-	require.NotNil(t, vhtlcs)
-	require.NotEmpty(t, vhtlcs.GetVhtlcs())
-
-	// Claim the VHTLC
-	redeemTxid, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
-		VhtlcId:  vhtlc.Id,
-		Preimage: hex.EncodeToString(preimage),
-	})
-	require.NoError(t, err)
-	require.NotNil(t, redeemTxid)
-	require.NotEmpty(t, redeemTxid.GetRedeemTxid())
 }
 
 // TestClaimVHTLCWithOutpoint funds the same VHTLC address twice with different
 // amounts, then claims only the second VTXO by specifying its outpoint. It
 // verifies that the targeted VTXO is claimed and the first remains untouched.
 func TestClaimVHTLCWithOutpoint(t *testing.T) {
-	f, err := newFulmineClient(clientFulmineURL)
-	require.NoError(t, err)
-	require.NotNil(t, f)
+	for _, target := range clientTargets {
+		t.Run(target.name, func(t *testing.T) {
+			f, err := newFulmineClient(target.url)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-	ctx := t.Context()
+			ctx := t.Context()
 
-	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
-	require.NoError(t, err)
-	require.NotEmpty(t, info)
+			info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+			require.NoError(t, err)
+			require.NotEmpty(t, info)
 
-	// Create a VHTLC (sender = receiver for simplicity)
-	preimage := make([]byte, 32)
-	_, err = rand.Read(preimage)
-	require.NoError(t, err)
-	sha256Hash := sha256.Sum256(preimage)
-	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+			// Create a VHTLC (sender = receiver for simplicity)
+			preimage := make([]byte, 32)
+			_, err = rand.Read(preimage)
+			require.NoError(t, err)
+			sha256Hash := sha256.Sum256(preimage)
+			preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
 
-	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
-		PreimageHash:   preimageHash,
-		SenderPubkey:   info.GetPubkey(),
-		RefundLocktime: uint32(time.Now().Add(100 * time.Second).Unix()),
-		UnilateralClaimDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 105,
-		},
-		UnilateralRefundDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 110,
-		},
-		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 115,
-		},
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, vhtlcResp.Address)
+			vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+				PreimageHash:   preimageHash,
+				SenderPubkey:   info.GetPubkey(),
+				RefundLocktime: uint32(time.Now().Add(100 * time.Second).Unix()),
+				UnilateralClaimDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 105,
+				},
+				UnilateralRefundDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 110,
+				},
+				UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 115,
+				},
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, vhtlcResp.Address)
 
-	// Fund the VHTLC address twice with different amounts
-	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
-		Address: vhtlcResp.Address,
-		Amount:  1000,
-	})
-	require.NoError(t, err)
+			// Fund the VHTLC address twice with different amounts
+			_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+				Address: vhtlcResp.Address,
+				Amount:  1000,
+			})
+			require.NoError(t, err)
 
-	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
-		Address: vhtlcResp.Address,
-		Amount:  2000,
-	})
-	require.NoError(t, err)
+			_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+				Address: vhtlcResp.Address,
+				Amount:  2000,
+			})
+			require.NoError(t, err)
 
-	// List VHTLCs and verify there are two VTXOs
-	vhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
-	require.NoError(t, err)
-	require.Len(t, vhtlcs.GetVhtlcs(), 2, "expected exactly 2 VTXOs at the VHTLC address")
+			// List VHTLCs and verify there are two VTXOs
+			vhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
+			require.NoError(t, err)
+			require.Len(t, vhtlcs.GetVhtlcs(), 2, "expected exactly 2 VTXOs at the VHTLC address")
 
-	// Identify the 2000-sat VTXO and the 1000-sat VTXO
-	var targetVtxo, otherVtxo *pb.Vtxo
-	for _, v := range vhtlcs.GetVhtlcs() {
-		if v.Amount == 2000 {
-			targetVtxo = v
-		} else if v.Amount == 1000 {
-			otherVtxo = v
-		}
+			// Identify the 2000-sat VTXO and the 1000-sat VTXO
+			var targetVtxo, otherVtxo *pb.Vtxo
+			for _, v := range vhtlcs.GetVhtlcs() {
+				if v.Amount == 2000 {
+					targetVtxo = v
+				} else if v.Amount == 1000 {
+					otherVtxo = v
+				}
+			}
+			require.NotNil(t, targetVtxo, "expected a 2000-sat VTXO")
+			require.NotNil(t, otherVtxo, "expected a 1000-sat VTXO")
+
+			// Claim only the 2000-sat VTXO by specifying its outpoint
+			redeemTxid, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
+				VhtlcId:  vhtlcResp.Id,
+				Preimage: hex.EncodeToString(preimage),
+				Outpoint: &pb.Input{
+					Txid: targetVtxo.Outpoint.GetTxid(),
+					Vout: targetVtxo.Outpoint.GetVout(),
+				},
+			})
+			require.NoError(t, err)
+			require.NotNil(t, redeemTxid)
+			require.NotEmpty(t, redeemTxid.GetRedeemTxid())
+
+			// Verify the 1000-sat VTXO still exists (unclaimed)
+			remainingVhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
+			require.NoError(t, err)
+
+			var foundOther bool
+			for _, v := range remainingVhtlcs.GetVhtlcs() {
+				if v.Outpoint.GetTxid() == otherVtxo.Outpoint.GetTxid() &&
+					v.Outpoint.GetVout() == otherVtxo.Outpoint.GetVout() &&
+					!v.IsSpent {
+					foundOther = true
+				}
+			}
+			require.True(t, foundOther, "the 1000-sat VTXO should still exist and be unspent")
+		})
 	}
-	require.NotNil(t, targetVtxo, "expected a 2000-sat VTXO")
-	require.NotNil(t, otherVtxo, "expected a 1000-sat VTXO")
-
-	// Claim only the 2000-sat VTXO by specifying its outpoint
-	redeemTxid, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
-		VhtlcId:  vhtlcResp.Id,
-		Preimage: hex.EncodeToString(preimage),
-		Outpoint: &pb.Input{
-			Txid: targetVtxo.Outpoint.GetTxid(),
-			Vout: targetVtxo.Outpoint.GetVout(),
-		},
-	})
-	require.NoError(t, err)
-	require.NotNil(t, redeemTxid)
-	require.NotEmpty(t, redeemTxid.GetRedeemTxid())
-
-	// Verify the 1000-sat VTXO still exists (unclaimed)
-	remainingVhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
-	require.NoError(t, err)
-
-	var foundOther bool
-	for _, v := range remainingVhtlcs.GetVhtlcs() {
-		if v.Outpoint.GetTxid() == otherVtxo.Outpoint.GetTxid() &&
-			v.Outpoint.GetVout() == otherVtxo.Outpoint.GetVout() &&
-			!v.IsSpent {
-			foundOther = true
-		}
-	}
-	require.True(t, foundOther, "the 1000-sat VTXO should still exist and be unspent")
 }
 
 // TestClaimVHTLCOldestVtxo funds the same VHTLC address 3 times with different
 // amounts, oldest vtxo should be claimed
 func TestClaimVHTLCOldestVtxo(t *testing.T) {
-	f, err := newFulmineClient(clientFulmineURL)
-	require.NoError(t, err)
-	require.NotNil(t, f)
+	for _, target := range clientTargets {
+		t.Run(target.name, func(t *testing.T) {
+			f, err := newFulmineClient(target.url)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-	ctx := t.Context()
+			ctx := t.Context()
 
-	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
-	require.NoError(t, err)
-	require.NotEmpty(t, info)
+			info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+			require.NoError(t, err)
+			require.NotEmpty(t, info)
 
-	// Create a VHTLC (sender = receiver for simplicity)
-	preimage := make([]byte, 32)
-	_, err = rand.Read(preimage)
-	require.NoError(t, err)
-	sha256Hash := sha256.Sum256(preimage)
-	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+			// Create a VHTLC (sender = receiver for simplicity)
+			preimage := make([]byte, 32)
+			_, err = rand.Read(preimage)
+			require.NoError(t, err)
+			sha256Hash := sha256.Sum256(preimage)
+			preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
 
-	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
-		PreimageHash:   preimageHash,
-		SenderPubkey:   info.GetPubkey(),
-		RefundLocktime: uint32(time.Now().Add(100 * time.Second).Unix()),
-		UnilateralClaimDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 105,
-		},
-		UnilateralRefundDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 110,
-		},
-		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 115,
-		},
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, vhtlcResp.Address)
+			vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+				PreimageHash:   preimageHash,
+				SenderPubkey:   info.GetPubkey(),
+				RefundLocktime: uint32(time.Now().Add(100 * time.Second).Unix()),
+				UnilateralClaimDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 105,
+				},
+				UnilateralRefundDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 110,
+				},
+				UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 115,
+				},
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, vhtlcResp.Address)
 
-	// Fund the VHTLC address twice with different amounts
-	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
-		Address: vhtlcResp.Address,
-		Amount:  1000,
-	})
-	require.NoError(t, err)
+			// Fund the VHTLC address twice with different amounts
+			_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+				Address: vhtlcResp.Address,
+				Amount:  1000,
+			})
+			require.NoError(t, err)
 
-	time.Sleep(1 * time.Second)
+			time.Sleep(1 * time.Second)
 
-	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
-		Address: vhtlcResp.Address,
-		Amount:  2000,
-	})
-	require.NoError(t, err)
+			_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+				Address: vhtlcResp.Address,
+				Amount:  2000,
+			})
+			require.NoError(t, err)
 
-	time.Sleep(1 * time.Second)
+			time.Sleep(1 * time.Second)
 
-	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
-		Address: vhtlcResp.Address,
-		Amount:  3000,
-	})
-	require.NoError(t, err)
+			_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+				Address: vhtlcResp.Address,
+				Amount:  3000,
+			})
+			require.NoError(t, err)
 
-	// Claim only the 2000-sat VTXO by specifying its outpoint
-	redeemTxid, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
-		VhtlcId:  vhtlcResp.Id,
-		Preimage: hex.EncodeToString(preimage),
-	})
-	require.NoError(t, err)
-	require.NotNil(t, redeemTxid)
-	require.NotEmpty(t, redeemTxid.GetRedeemTxid())
+			// Claim only the 2000-sat VTXO by specifying its outpoint
+			redeemTxid, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
+				VhtlcId:  vhtlcResp.Id,
+				Preimage: hex.EncodeToString(preimage),
+			})
+			require.NoError(t, err)
+			require.NotNil(t, redeemTxid)
+			require.NotEmpty(t, redeemTxid.GetRedeemTxid())
 
-	vtxos, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
-	require.NoError(t, err)
+			vtxos, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
+			require.NoError(t, err)
 
-	for _, v := range vtxos.GetVhtlcs() {
-		if v.Amount == 1000 {
-			require.True(t, v.IsSpent)
-		} else {
-			require.False(t, v.IsSpent)
-		}
+			for _, v := range vtxos.GetVhtlcs() {
+				if v.Amount == 1000 {
+					require.True(t, v.IsSpent)
+				} else {
+					require.False(t, v.IsSpent)
+				}
+			}
+		})
 	}
 }
 
@@ -287,411 +300,431 @@ func TestClaimVHTLCOldestVtxo(t *testing.T) {
 // whose VTXO was already submitted (SubmitTx) but not finalized (FinalizeTx)
 // correctly detects the pending state and completes the finalization.
 func TestClaimVHTLCPendingFinalization(t *testing.T) {
-	ctx := t.Context()
+	for _, target := range clientTargets {
+		t.Run(target.name, func(t *testing.T) {
+			ctx := t.Context()
 
-	f, err := newFulmineClient(clientFulmineURL)
-	require.NoError(t, err)
+			f, err := newFulmineClient(target.url)
+			require.NoError(t, err)
 
-	arkadeWallet, _, _ := setupArkSDKwithPublicKey(t)
-	_, _, boarding, _, err := arkadeWallet.GetAddresses(ctx)
-	require.NoError(t, err)
+			arkadeWallet, _, _ := setupArkSDKwithPublicKey(t)
+			_, _, boarding, _, err := arkadeWallet.GetAddresses(ctx)
+			require.NoError(t, err)
 
-	faucetAndSettle(t, ctx, arkadeWallet, boarding[0], 0.001)
+			faucetAndSettle(t, ctx, arkadeWallet, boarding[0], 0.001)
 
-	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
-	require.NoError(t, err)
+			info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+			require.NoError(t, err)
 
-	// Create a VHTLC (sender = receiver for simplicity)
-	preimage := make([]byte, 32)
-	_, err = rand.Read(preimage)
-	require.NoError(t, err)
-	sha256Hash := sha256.Sum256(preimage)
-	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+			// Create a VHTLC (sender = receiver for simplicity)
+			preimage := make([]byte, 32)
+			_, err = rand.Read(preimage)
+			require.NoError(t, err)
+			sha256Hash := sha256.Sum256(preimage)
+			preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
 
-	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
-		PreimageHash:   preimageHash,
-		SenderPubkey:   info.GetPubkey(),
-		RefundLocktime: uint32(time.Now().Add(100 * time.Second).Unix()),
-		UnilateralClaimDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 105,
-		},
-		UnilateralRefundDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 110,
-		},
-		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 115,
-		},
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, vhtlcResp.Address)
+			vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+				PreimageHash:   preimageHash,
+				SenderPubkey:   info.GetPubkey(),
+				RefundLocktime: uint32(time.Now().Add(100 * time.Second).Unix()),
+				UnilateralClaimDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 105,
+				},
+				UnilateralRefundDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 110,
+				},
+				UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 115,
+				},
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, vhtlcResp.Address)
 
-	_, err = arkadeWallet.SendOffChain(ctx, []clientTypes.Receiver{
-		{
-			To:     vhtlcResp.Address,
-			Amount: 1000,
-		},
-	})
-	require.NoError(t, err)
+			_, err = arkadeWallet.SendOffChain(ctx, []clientTypes.Receiver{
+				{
+					To:     vhtlcResp.Address,
+					Amount: 1000,
+				},
+			})
+			require.NoError(t, err)
 
-	vhtlc := buildTestVHTLC(t, f, vhtlcResp, preimageHash)
-	pendingTxid := submitPendingClaimVHTLC(t, arkadeWallet, f, vhtlc, preimage)
-	require.NotEmpty(t, pendingTxid)
-	requirePendingVHTLC(t, arkadeWallet, vhtlc)
+			vhtlc := buildTestVHTLC(t, f, vhtlcResp, preimageHash)
+			pendingTxid := submitPendingClaimVHTLC(t, arkadeWallet, f, vhtlc, preimage)
+			require.NotEmpty(t, pendingTxid)
+			requirePendingVHTLC(t, arkadeWallet, vhtlc)
 
-	// Now call ClaimVHTLC via the normal gRPC path.
-	// The VTXO is spent (SubmitTx marked it) but not finalized.
-	// The pending detection should find it and call FinalizePendingTxs.
-	result, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
-		VhtlcId:  vhtlcResp.Id,
-		Preimage: hex.EncodeToString(preimage),
-	})
-	require.NoError(t, err, "ClaimVHTLC should succeed by finalizing the pending tx")
-	require.NotNil(t, result)
-	require.NotEmpty(t, result.GetRedeemTxid())
+			// Now call ClaimVHTLC via the normal gRPC path.
+			// The VTXO is spent (SubmitTx marked it) but not finalized.
+			// The pending detection should find it and call FinalizePendingTxs.
+			result, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
+				VhtlcId:  vhtlcResp.Id,
+				Preimage: hex.EncodeToString(preimage),
+			})
+			require.NoError(t, err, "ClaimVHTLC should succeed by finalizing the pending tx")
+			require.NotNil(t, result)
+			require.NotEmpty(t, result.GetRedeemTxid())
+		})
+	}
 }
 
 func TestRefundVHTLCWithoutReceiverWithOutpoint(t *testing.T) {
-	fulmineClient, err := newFulmineClient(clientFulmineURL)
-	require.NoError(t, err)
-	require.NotNil(t, fulmineClient)
+	for _, target := range clientTargets {
+		t.Run(target.name, func(t *testing.T) {
+			fulmineClient, err := newFulmineClient(target.url)
+			require.NoError(t, err)
+			require.NotNil(t, fulmineClient)
 
-	ctx := t.Context()
+			ctx := t.Context()
 
-	preimage := make([]byte, 32)
-	_, err = rand.Read(preimage)
-	require.NoError(t, err)
-	sha256Hash := sha256.Sum256(preimage)
-	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+			preimage := make([]byte, 32)
+			_, err = rand.Read(preimage)
+			require.NoError(t, err)
+			sha256Hash := sha256.Sum256(preimage)
+			preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
 
-	receiverPrivKey, err := btcec.NewPrivateKey()
-	require.NoError(t, err)
+			receiverPrivKey, err := btcec.NewPrivateKey()
+			require.NoError(t, err)
 
-	vhtlc, err := fulmineClient.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
-		PreimageHash:   preimageHash,
-		ReceiverPubkey: hex.EncodeToString(receiverPrivKey.PubKey().SerializeCompressed()),
-		// For sake of testing,the refund locktime is sey to block height 1 to be sure it can be
-		// refunded alone immediately as it's already expired.
-		RefundLocktime: 1,
-		UnilateralClaimDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 105,
-		},
-		UnilateralRefundDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 110,
-		},
-		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 115,
-		},
-	})
-	require.NoError(t, err)
+			vhtlc, err := fulmineClient.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+				PreimageHash:   preimageHash,
+				ReceiverPubkey: hex.EncodeToString(receiverPrivKey.PubKey().SerializeCompressed()),
+				// For sake of testing,the refund locktime is sey to block height 1 to be sure it can be
+				// refunded alone immediately as it's already expired.
+				RefundLocktime: 1,
+				UnilateralClaimDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 105,
+				},
+				UnilateralRefundDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 110,
+				},
+				UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 115,
+				},
+			})
+			require.NoError(t, err)
 
-	_, err = fulmineClient.SendOffChain(ctx, &pb.SendOffChainRequest{
-		Address: vhtlc.Address,
-		Amount:  1000,
-	})
-	require.NoError(t, err)
+			_, err = fulmineClient.SendOffChain(ctx, &pb.SendOffChainRequest{
+				Address: vhtlc.Address,
+				Amount:  1000,
+			})
+			require.NoError(t, err)
 
-	_, err = fulmineClient.SendOffChain(ctx, &pb.SendOffChainRequest{
-		Address: vhtlc.Address,
-		Amount:  2000,
-	})
-	require.NoError(t, err)
+			_, err = fulmineClient.SendOffChain(ctx, &pb.SendOffChainRequest{
+				Address: vhtlc.Address,
+				Amount:  2000,
+			})
+			require.NoError(t, err)
 
-	vhtlcs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
-	require.NoError(t, err)
+			vhtlcs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
+			require.NoError(t, err)
 
-	targetVtxo, otherVtxo := findVHTLCsByAmount(t, vhtlcs.GetVhtlcs(), 2000, 1000)
+			targetVtxo, otherVtxo := findVHTLCsByAmount(t, vhtlcs.GetVhtlcs(), 2000, 1000)
 
-	refundResp, err := fulmineClient.RefundVHTLCWithoutReceiver(
-		ctx,
-		&pb.RefundVHTLCWithoutReceiverRequest{
-			VhtlcId: vhtlc.Id,
-			Outpoint: &pb.Input{
-				Txid: targetVtxo.Outpoint.GetTxid(),
-				Vout: targetVtxo.Outpoint.GetVout(),
-			},
-		},
-	)
-	require.NoError(t, err)
-	require.NotNil(t, refundResp)
-	require.NotEmpty(t, refundResp.GetRedeemTxid())
+			refundResp, err := fulmineClient.RefundVHTLCWithoutReceiver(
+				ctx,
+				&pb.RefundVHTLCWithoutReceiverRequest{
+					VhtlcId: vhtlc.Id,
+					Outpoint: &pb.Input{
+						Txid: targetVtxo.Outpoint.GetTxid(),
+						Vout: targetVtxo.Outpoint.GetVout(),
+					},
+				},
+			)
+			require.NoError(t, err)
+			require.NotNil(t, refundResp)
+			require.NotEmpty(t, refundResp.GetRedeemTxid())
 
-	time.Sleep(2 * time.Second)
+			time.Sleep(2 * time.Second)
 
-	updatedVHTLCs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
-	require.NoError(t, err)
+			updatedVHTLCs, err := fulmineClient.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlc.GetId()})
+			require.NoError(t, err)
 
-	requireVHTLCSpentState(t, updatedVHTLCs.GetVhtlcs(), targetVtxo, true)
-	requireVHTLCSpentState(t, updatedVHTLCs.GetVhtlcs(), otherVtxo, false)
+			requireVHTLCSpentState(t, updatedVHTLCs.GetVhtlcs(), targetVtxo, true)
+			requireVHTLCSpentState(t, updatedVHTLCs.GetVhtlcs(), otherVtxo, false)
+		})
+	}
 }
 
 // TestRefundVHTLCPendingFinalization verifies that calling RefundVHTLCWithoutReceiver
 // on a VHTLC whose VTXO was already submitted (SubmitTx) but not finalized (FinalizeTx)
 // correctly detects the pending state and completes the finalization.
 func TestRefundVHTLCPendingFinalization(t *testing.T) {
-	ctx := t.Context()
+	for _, target := range clientTargets {
+		t.Run(target.name, func(t *testing.T) {
+			ctx := t.Context()
 
-	f, err := newFulmineClient(clientFulmineURL)
-	require.NoError(t, err)
+			f, err := newFulmineClient(target.url)
+			require.NoError(t, err)
 
-	arkClient, _, _ := setupArkSDKwithPublicKey(t)
-	_, _, boarding, _, err := arkClient.GetAddresses(ctx)
-	require.NoError(t, err)
+			arkClient, _, _ := setupArkSDKwithPublicKey(t)
+			_, _, boarding, _, err := arkClient.GetAddresses(ctx)
+			require.NoError(t, err)
 
-	faucetAndSettle(t, ctx, arkClient, boarding[0], 0.001)
+			faucetAndSettle(t, ctx, arkClient, boarding[0], 0.001)
 
-	preimage := make([]byte, 32)
-	_, err = rand.Read(preimage)
-	require.NoError(t, err)
-	sha256Hash := sha256.Sum256(preimage)
-	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+			preimage := make([]byte, 32)
+			_, err = rand.Read(preimage)
+			require.NoError(t, err)
+			sha256Hash := sha256.Sum256(preimage)
+			preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
 
-	receiverPrivKey, err := btcec.NewPrivateKey()
-	require.NoError(t, err)
+			receiverPrivKey, err := btcec.NewPrivateKey()
+			require.NoError(t, err)
 
-	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
-		PreimageHash:   preimageHash,
-		ReceiverPubkey: hex.EncodeToString(receiverPrivKey.PubKey().SerializeCompressed()),
-		// For sake of testing,the refund locktime is sey to block height 1 to be sure it can be
-		// refunded alone immediately as it's already expired.
-		RefundLocktime: 1,
-		UnilateralClaimDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 105,
-		},
-		UnilateralRefundDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 110,
-		},
-		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 115,
-		},
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, vhtlcResp.Address)
+			vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+				PreimageHash:   preimageHash,
+				ReceiverPubkey: hex.EncodeToString(receiverPrivKey.PubKey().SerializeCompressed()),
+				// For sake of testing,the refund locktime is sey to block height 1 to be sure it can be
+				// refunded alone immediately as it's already expired.
+				RefundLocktime: 1,
+				UnilateralClaimDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 105,
+				},
+				UnilateralRefundDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 110,
+				},
+				UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 115,
+				},
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, vhtlcResp.Address)
 
-	_, err = arkClient.SendOffChain(ctx, []clientTypes.Receiver{
-		{
-			To:     vhtlcResp.Address,
-			Amount: 1000,
-		},
-	})
-	require.NoError(t, err)
+			_, err = arkClient.SendOffChain(ctx, []clientTypes.Receiver{
+				{
+					To:     vhtlcResp.Address,
+					Amount: 1000,
+				},
+			})
+			require.NoError(t, err)
 
-	vhtlc := buildTestVHTLC(t, f, vhtlcResp, preimageHash)
-	pendingTxid := submitPendingRefundVHTLCWithoutReceiver(t, arkClient, f, vhtlc)
-	require.NotEmpty(t, pendingTxid)
-	requirePendingVHTLC(t, arkClient, vhtlc)
+			vhtlc := buildTestVHTLC(t, f, vhtlcResp, preimageHash)
+			pendingTxid := submitPendingRefundVHTLCWithoutReceiver(t, arkClient, f, vhtlc)
+			require.NotEmpty(t, pendingTxid)
+			requirePendingVHTLC(t, arkClient, vhtlc)
 
-	// Now call RefundVHTLCWithoutReceiver via the normal gRPC path.
-	// The VTXO is spent (SubmitTx marked it) but not finalized.
-	// The pending detection should find it and call FinalizePendingTxs.
-	result, err := f.RefundVHTLCWithoutReceiver(ctx, &pb.RefundVHTLCWithoutReceiverRequest{
-		VhtlcId: vhtlcResp.Id,
-	})
-	require.NoError(t, err, "RefundVHTLC should succeed by finalizing the pending tx")
-	require.NotNil(t, result)
-	require.NotEmpty(t, result.GetRedeemTxid())
+			// Now call RefundVHTLCWithoutReceiver via the normal gRPC path.
+			// The VTXO is spent (SubmitTx marked it) but not finalized.
+			// The pending detection should find it and call FinalizePendingTxs.
+			result, err := f.RefundVHTLCWithoutReceiver(ctx, &pb.RefundVHTLCWithoutReceiverRequest{
+				VhtlcId: vhtlcResp.Id,
+			})
+			require.NoError(t, err, "RefundVHTLC should succeed by finalizing the pending tx")
+			require.NotNil(t, result)
+			require.NotEmpty(t, result.GetRedeemTxid())
+		})
+	}
 }
 
 // TestGetVHTLCSpendingTxFinalized verifies that GetVHTLCSpendingTx returns the fully signed ark
 // transaction for a VHTLC that was claimed as expected.
 func TestGetVHTLCSpendingTxFinalized(t *testing.T) {
-	f, err := newFulmineClient(clientFulmineURL)
-	require.NoError(t, err)
+	for _, target := range clientTargets {
+		t.Run(target.name, func(t *testing.T) {
+			f, err := newFulmineClient(target.url)
+			require.NoError(t, err)
 
-	ctx := t.Context()
+			ctx := t.Context()
 
-	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
-	require.NoError(t, err)
+			info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+			require.NoError(t, err)
 
-	preimage := make([]byte, 32)
-	_, err = rand.Read(preimage)
-	require.NoError(t, err)
-	sha256Hash := sha256.Sum256(preimage)
-	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+			preimage := make([]byte, 32)
+			_, err = rand.Read(preimage)
+			require.NoError(t, err)
+			sha256Hash := sha256.Sum256(preimage)
+			preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
 
-	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
-		PreimageHash:   preimageHash,
-		SenderPubkey:   info.GetPubkey(),
-		RefundLocktime: uint32(time.Now().Add(100 * time.Second).Unix()),
-		UnilateralClaimDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 105,
-		},
-		UnilateralRefundDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 110,
-		},
-		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 115,
-		},
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, vhtlcResp.Address)
+			vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+				PreimageHash:   preimageHash,
+				SenderPubkey:   info.GetPubkey(),
+				RefundLocktime: uint32(time.Now().Add(100 * time.Second).Unix()),
+				UnilateralClaimDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 105,
+				},
+				UnilateralRefundDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 110,
+				},
+				UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 115,
+				},
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, vhtlcResp.Address)
 
-	// Fund the VHTLC (creates a finalized VTXO at the VHTLC address)
-	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
-		Address: vhtlcResp.Address,
-		Amount:  1000,
-	})
-	require.NoError(t, err)
+			// Fund the VHTLC (creates a finalized VTXO at the VHTLC address)
+			_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+				Address: vhtlcResp.Address,
+				Amount:  1000,
+			})
+			require.NoError(t, err)
 
-	claimResp, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
-		VhtlcId:  vhtlcResp.GetId(),
-		Preimage: hex.EncodeToString(preimage),
-	})
-	require.NoError(t, err)
-	require.NotNil(t, claimResp)
-	require.NotEmpty(t, claimResp.GetRedeemTxid())
+			claimResp, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
+				VhtlcId:  vhtlcResp.GetId(),
+				Preimage: hex.EncodeToString(preimage),
+			})
+			require.NoError(t, err)
+			require.NotNil(t, claimResp)
+			require.NotEmpty(t, claimResp.GetRedeemTxid())
 
-	// The spending tx is registered asynchronously after ClaimVHTLC; poll for it.
-	resp, err := f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{VhtlcId: vhtlcResp.GetId()})
-	spendingDeadline := time.Now().Add(30 * time.Second)
-	for (err != nil || resp.GetTx() == "") && time.Now().Before(spendingDeadline) {
-		time.Sleep(1 * time.Second)
-		resp, err = f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{VhtlcId: vhtlcResp.GetId()})
+			// The spending tx is registered asynchronously after ClaimVHTLC; poll for it.
+			resp, err := f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{VhtlcId: vhtlcResp.GetId()})
+			spendingDeadline := time.Now().Add(30 * time.Second)
+			for (err != nil || resp.GetTx() == "") && time.Now().Before(spendingDeadline) {
+				time.Sleep(1 * time.Second)
+				resp, err = f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{VhtlcId: vhtlcResp.GetId()})
+			}
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			require.NotEmpty(t, resp.GetTx())
+
+			// Verify the returned tx is a valid PSBT
+			ptx, err := psbt.NewFromRawBytes(strings.NewReader(resp.GetTx()), true)
+			require.NoError(t, err)
+			require.NotNil(t, ptx)
+			require.Equal(t, claimResp.GetRedeemTxid(), ptx.UnsignedTx.TxID())
+
+			// Assert the preimage is there
+			witnesses, err := txutils.GetArkPsbtFields(ptx, 0, txutils.ConditionWitnessField)
+			require.NoError(t, err)
+			require.NotEmpty(t, witnesses)
+			require.NotEmpty(t, witnesses[0])
+			require.Equal(t, preimage, []byte(witnesses[0][0]))
+		})
 	}
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.NotEmpty(t, resp.GetTx())
-
-	// Verify the returned tx is a valid PSBT
-	ptx, err := psbt.NewFromRawBytes(strings.NewReader(resp.GetTx()), true)
-	require.NoError(t, err)
-	require.NotNil(t, ptx)
-	require.Equal(t, claimResp.GetRedeemTxid(), ptx.UnsignedTx.TxID())
-
-	// Assert the preimage is there
-	witnesses, err := txutils.GetArkPsbtFields(ptx, 0, txutils.ConditionWitnessField)
-	require.NoError(t, err)
-	require.NotEmpty(t, witnesses)
-	require.NotEmpty(t, witnesses[0])
-	require.Equal(t, preimage, []byte(witnesses[0][0]))
 }
 
 // TestGetVHTLCSpendingTxPending verifies that GetVHTLCSpendingTx returns the fully signed ark
 // transaction for a VHTLC spent by a pending tx (only SubmitTx was called)
 func TestGetVHTLCSpendingTxPending(t *testing.T) {
-	ctx := t.Context()
+	for _, target := range clientTargets {
+		t.Run(target.name, func(t *testing.T) {
+			ctx := t.Context()
 
-	f, err := newFulmineClient(clientFulmineURL)
-	require.NoError(t, err)
+			f, err := newFulmineClient(target.url)
+			require.NoError(t, err)
 
-	arkadeWallet, _, _ := setupArkSDKwithPublicKey(t)
-	_, _, boarding, _, err := arkadeWallet.GetAddresses(ctx)
-	require.NoError(t, err)
+			arkadeWallet, _, _ := setupArkSDKwithPublicKey(t)
+			_, _, boarding, _, err := arkadeWallet.GetAddresses(ctx)
+			require.NoError(t, err)
 
-	faucetAndSettle(t, ctx, arkadeWallet, boarding[0], 0.001)
+			faucetAndSettle(t, ctx, arkadeWallet, boarding[0], 0.001)
 
-	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
-	require.NoError(t, err)
+			info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+			require.NoError(t, err)
 
-	preimage := make([]byte, 32)
-	_, err = rand.Read(preimage)
-	require.NoError(t, err)
-	sha256Hash := sha256.Sum256(preimage)
-	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+			preimage := make([]byte, 32)
+			_, err = rand.Read(preimage)
+			require.NoError(t, err)
+			sha256Hash := sha256.Sum256(preimage)
+			preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
 
-	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
-		PreimageHash:   preimageHash,
-		SenderPubkey:   info.GetPubkey(),
-		RefundLocktime: uint32(time.Now().Add(100 * time.Second).Unix()),
-		UnilateralClaimDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 105,
-		},
-		UnilateralRefundDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 110,
-		},
-		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
-			Value: 115,
-		},
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, vhtlcResp.Address)
+			vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+				PreimageHash:   preimageHash,
+				SenderPubkey:   info.GetPubkey(),
+				RefundLocktime: uint32(time.Now().Add(100 * time.Second).Unix()),
+				UnilateralClaimDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 105,
+				},
+				UnilateralRefundDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 110,
+				},
+				UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_BLOCK,
+					Value: 115,
+				},
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, vhtlcResp.Address)
 
-	// Fund from external wallet and wait for incoming VTXO
-	offchainAddr := newFulmineOffchainAddress(t, f)
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	var incomingFunds []clientTypes.Vtxo
-	go func() {
-		incomingFunds, _ = arkadeWallet.NotifyIncomingFunds(ctx, vhtlcResp.Address)
-		wg.Done()
-	}()
+			// Fund from external wallet and wait for incoming VTXO
+			offchainAddr := newFulmineOffchainAddress(t, f)
+			wg := &sync.WaitGroup{}
+			wg.Add(1)
+			var incomingFunds []clientTypes.Vtxo
+			go func() {
+				incomingFunds, _ = arkadeWallet.NotifyIncomingFunds(ctx, vhtlcResp.Address)
+				wg.Done()
+			}()
 
-	_, err = arkadeWallet.SendOffChain(ctx, []clientTypes.Receiver{{
-		To:     vhtlcResp.Address,
-		Amount: 1000,
-	}})
-	require.NoError(t, err)
-	_ = offchainAddr
+			_, err = arkadeWallet.SendOffChain(ctx, []clientTypes.Receiver{{
+				To:     vhtlcResp.Address,
+				Amount: 1000,
+			}})
+			require.NoError(t, err)
+			_ = offchainAddr
 
-	wg.Wait()
-	require.NotEmpty(t, incomingFunds)
+			wg.Wait()
+			require.NotEmpty(t, incomingFunds)
 
-	// Build the VHTLC script from the create response
-	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlc.Opts{
-		Sender:         mustParseSchnorrPubKey(t, vhtlcResp.GetRefundPubkey()),
-		Receiver:       mustParseSchnorrPubKey(t, vhtlcResp.GetClaimPubkey()),
-		Server:         mustParseSchnorrPubKey(t, vhtlcResp.GetServerPubkey()),
-		PreimageHash:   mustDecodeHex(t, preimageHash),
-		RefundLocktime: arklib.AbsoluteLocktime(vhtlcResp.GetRefundLocktime()),
-		UnilateralClaimDelay: arklib.RelativeLocktime{
-			Type:  arklib.LocktimeTypeBlock,
-			Value: uint32(vhtlcResp.GetUnilateralClaimDelay()),
-		},
-		UnilateralRefundDelay: arklib.RelativeLocktime{
-			Type:  arklib.LocktimeTypeBlock,
-			Value: uint32(vhtlcResp.GetUnilateralRefundDelay()),
-		},
-		UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{
-			Type:  arklib.LocktimeTypeBlock,
-			Value: uint32(vhtlcResp.GetUnilateralRefundWithoutReceiverDelay()),
-		},
-	})
-	require.NoError(t, err)
+			// Build the VHTLC script from the create response
+			vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlc.Opts{
+				Sender:         mustParseSchnorrPubKey(t, vhtlcResp.GetRefundPubkey()),
+				Receiver:       mustParseSchnorrPubKey(t, vhtlcResp.GetClaimPubkey()),
+				Server:         mustParseSchnorrPubKey(t, vhtlcResp.GetServerPubkey()),
+				PreimageHash:   mustDecodeHex(t, preimageHash),
+				RefundLocktime: arklib.AbsoluteLocktime(vhtlcResp.GetRefundLocktime()),
+				UnilateralClaimDelay: arklib.RelativeLocktime{
+					Type:  arklib.LocktimeTypeBlock,
+					Value: uint32(vhtlcResp.GetUnilateralClaimDelay()),
+				},
+				UnilateralRefundDelay: arklib.RelativeLocktime{
+					Type:  arklib.LocktimeTypeBlock,
+					Value: uint32(vhtlcResp.GetUnilateralRefundDelay()),
+				},
+				UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{
+					Type:  arklib.LocktimeTypeBlock,
+					Value: uint32(vhtlcResp.GetUnilateralRefundWithoutReceiverDelay()),
+				},
+			})
+			require.NoError(t, err)
 
-	// Use the VTXO we got from the incoming funds notification
-	fundedVtxo := incomingFunds[0]
-	testVhtlc := testVHTLC{
-		script: vhtlcScript,
-		vtxo:   &fundedVtxo,
+			// Use the VTXO we got from the incoming funds notification
+			fundedVtxo := incomingFunds[0]
+			testVhtlc := testVHTLC{
+				script: vhtlcScript,
+				vtxo:   &fundedVtxo,
+			}
+
+			// Submit a claim tx but don't finalize → creates pending state
+			pendingTxid := submitPendingClaimVHTLC(t, arkadeWallet, f, testVhtlc, preimage)
+			require.NotEmpty(t, pendingTxid)
+
+			// GetVHTLCTransaction should return the pending tx
+			resp, err := f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{
+				VhtlcId: vhtlcResp.GetId(),
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, resp.GetTx())
+
+			// Parse the pending tx and extract the condition witness (preimage)
+			ptx, err := psbt.NewFromRawBytes(strings.NewReader(resp.GetTx()), true)
+			require.NoError(t, err)
+			require.NotNil(t, ptx)
+			require.Equal(t, pendingTxid, ptx.UnsignedTx.TxID())
+
+			// Assert the preimage is there
+			witnesses, err := txutils.GetArkPsbtFields(ptx, 0, txutils.ConditionWitnessField)
+			require.NoError(t, err)
+			require.NotEmpty(t, witnesses)
+			require.NotEmpty(t, witnesses[0])
+			require.Equal(t, preimage, []byte(witnesses[0][0]))
+		})
 	}
-
-	// Submit a claim tx but don't finalize → creates pending state
-	pendingTxid := submitPendingClaimVHTLC(t, arkadeWallet, f, testVhtlc, preimage)
-	require.NotEmpty(t, pendingTxid)
-
-	// GetVHTLCTransaction should return the pending tx
-	resp, err := f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{
-		VhtlcId: vhtlcResp.GetId(),
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, resp.GetTx())
-
-	// Parse the pending tx and extract the condition witness (preimage)
-	ptx, err := psbt.NewFromRawBytes(strings.NewReader(resp.GetTx()), true)
-	require.NoError(t, err)
-	require.NotNil(t, ptx)
-	require.Equal(t, pendingTxid, ptx.UnsignedTx.TxID())
-
-	// Assert the preimage is there
-	witnesses, err := txutils.GetArkPsbtFields(ptx, 0, txutils.ConditionWitnessField)
-	require.NoError(t, err)
-	require.NotEmpty(t, witnesses)
-	require.NotEmpty(t, witnesses[0])
-	require.Equal(t, preimage, []byte(witnesses[0][0]))
 }
 
 func buildDelegateIntentProof(
@@ -761,7 +794,7 @@ func buildDelegateIntentProof(
 	encodedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	partialySignedProof, err := senderArkClient.Identity().SignTransaction(ctx, encodedIntentProof, map[string]string{"_": "m"})
+	partialySignedProof, err := senderArkClient.SignTransaction(ctx, encodedIntentProof)
 	require.NoError(t, err)
 
 	return partialySignedProof, nil
@@ -832,7 +865,7 @@ func buildDelegatePartialForfeit(
 	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 	require.NoError(t, err)
 
-	signedPartialForfeitTx, err := senderArkClient.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
+	signedPartialForfeitTx, err := senderArkClient.SignTransaction(ctx, b64partialForfeitTx)
 	require.NoError(t, err)
 
 	return signedPartialForfeitTx, nil
