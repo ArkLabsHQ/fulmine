@@ -32,7 +32,6 @@ import (
 	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
-	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/wire"
 	log "github.com/sirupsen/logrus"
 )
@@ -46,32 +45,6 @@ const (
 	defaultUnilateralRefundWithoutReceiverDelay = 2048
 	defaultRefundLocktime                       = time.Hour * 24
 )
-
-var ErrorNoVtxosFound = fmt.Errorf("no vtxos found for the given vhtlc opts")
-
-var boltzURLByNetwork = map[string]string{
-	arklib.Bitcoin.Name:          "https://api.ark.boltz.exchange",
-	arklib.BitcoinTestNet.Name:   "https://api.testnet.boltz.exchange",
-	arklib.BitcoinMutinyNet.Name: "https://api.boltz.mutinynet.arkade.sh",
-	arklib.BitcoinRegTest.Name:   "http://localhost:9001",
-}
-
-// networkNameToParams converts arklib network name to chaincfg.Params
-func networkNameToParams(networkName string) *chaincfg.Params {
-	switch networkName {
-	case arklib.Bitcoin.Name:
-		return &chaincfg.MainNetParams
-	case arklib.BitcoinTestNet.Name:
-		return &chaincfg.TestNet3Params
-	case arklib.BitcoinRegTest.Name:
-		return &chaincfg.RegressionNetParams
-	case arklib.BitcoinSigNet.Name, arklib.BitcoinMutinyNet.Name:
-		return &chaincfg.SigNetParams
-	default:
-		// Default to regtest for safety
-		return &chaincfg.RegressionNetParams
-	}
-}
 
 type BuildInfo struct {
 	Version string
@@ -513,7 +486,7 @@ func (s *Service) GetPubkey(ctx context.Context) (*btcec.PublicKey, error) {
 		return nil, err
 	}
 
-	identitySvc := s.Wallet.Identity()
+	identitySvc := s.Identity()
 	keyId := ""
 	if identitySvc.GetType() == hdidentity.Type {
 		keyId = "0/0"
@@ -903,7 +876,7 @@ func (s *Service) RefundVHTLC(
 		return "", err
 	}
 
-	return s.Wallet.UnilateralRefundVHTLC(ctx, vhtlc.Script, opts...)
+	return s.UnilateralRefundVHTLC(ctx, vhtlc.Script, opts...)
 }
 
 func (s *Service) SubscribeForAddresses(ctx context.Context, addresses []string) error {
@@ -1171,7 +1144,7 @@ func (s *Service) getPendingVHTLCTx(
 		return "", err
 	}
 
-	signedProof, err := s.Wallet.SignTransaction(ctx, proof)
+	signedProof, err := s.SignTransaction(ctx, proof)
 	if err != nil {
 		return "", fmt.Errorf("failed to sign pending tx proof: %w", err)
 	}

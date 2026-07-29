@@ -31,7 +31,7 @@ type vhtlcImporter interface {
 }
 
 func (s *Service) migrateVhtlcs(ctx context.Context) {
-	identitySvc := s.Wallet.Identity()
+	identitySvc := s.Identity()
 
 	if identitySvc.GetType() == hdidentity.Type {
 		return

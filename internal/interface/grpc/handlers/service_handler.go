@@ -193,7 +193,7 @@ func (h *serviceHandler) SignTransaction(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	signedTx, err := h.svc.Wallet.SignTransaction(ctx, tx)
+	signedTx, err := h.svc.SignTransaction(ctx, tx)
 	if err != nil {
 		return nil, err
 	}

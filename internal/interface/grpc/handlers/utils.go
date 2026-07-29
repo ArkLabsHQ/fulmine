@@ -99,20 +99,6 @@ func parseNote(n string) (string, error) {
 	return n, nil
 }
 
-func parseRoundId(id string) (string, error) {
-	if len(id) <= 0 {
-		return "", fmt.Errorf("missing round id")
-	}
-	return id, nil
-}
-
-func parseInvoice(invoice string) (string, error) {
-	if len(invoice) <= 0 {
-		return "", fmt.Errorf("missing invoice")
-	}
-	return invoice, nil
-}
-
 func parsePubkey(pubkey string) (*btcec.PublicKey, error) {
 	if len(pubkey) <= 0 {
 		return nil, nil
@@ -299,13 +285,6 @@ func toInputProto(outpoint clientTypes.Outpoint) *fulminev1.Input {
 	return &fulminev1.Input{
 		Txid: outpoint.Txid,
 		Vout: outpoint.VOut,
-	}
-}
-
-func toProtoInput(outpoint wire.OutPoint) *fulminev1.Input {
-	return &fulminev1.Input{
-		Txid: outpoint.Hash.String(),
-		Vout: outpoint.Index,
 	}
 }
 

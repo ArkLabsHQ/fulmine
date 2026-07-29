@@ -14,7 +14,6 @@ import (
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	"github.com/arkade-os/arkd/pkg/client-lib/client"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
-	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -47,24 +46,6 @@ func parseLocktime(locktime uint32) arklib.RelativeLocktime {
 	}
 
 	return arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: locktime}
-}
-
-func parsePubkey(pubkey string) (*btcec.PublicKey, error) {
-	if len(pubkey) <= 0 {
-		return nil, nil
-	}
-
-	dec, err := hex.DecodeString(pubkey)
-	if err != nil {
-		return nil, fmt.Errorf("invalid pubkey: %s", err)
-	}
-
-	pk, err := btcec.ParsePubKey(dec)
-	if err != nil {
-		return nil, fmt.Errorf("invalid pubkey: %s", err)
-	}
-
-	return pk, nil
 }
 
 func signVtxoTree(
