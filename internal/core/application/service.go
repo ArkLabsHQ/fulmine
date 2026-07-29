@@ -850,6 +850,10 @@ func (s *Service) ListVHTLCs(ctx context.Context, vhtlcIds []string) ([]clientTy
 func (s *Service) ClaimVHTLC(
 	ctx context.Context, preimage []byte, vhtlc_id string, outpoint *clientTypes.Outpoint,
 ) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
 	var opts []arksdk.VHTLCOption
 	if outpoint != nil {
 		opts = append(opts, arksdk.WithOutpoint(*outpoint))
@@ -866,6 +870,10 @@ func (s *Service) ClaimVHTLC(
 func (s *Service) RefundVHTLC(
 	ctx context.Context, swapId, vhtlc_id string, withReceiver bool, outpoint *clientTypes.Outpoint,
 ) (string, error) {
+	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+		return "", err
+	}
+
 	var opts []arksdk.VHTLCOption
 	if outpoint != nil {
 		opts = append(opts, arksdk.WithOutpoint(*outpoint))
