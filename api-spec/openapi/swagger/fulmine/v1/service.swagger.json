@@ -898,9 +898,6 @@
       "properties": {
         "address": {
           "type": "string"
-        },
-        "pubkey": {
-          "type": "string"
         }
       }
     },
