@@ -90,7 +90,7 @@ services:
 volumes:
   fulmine-user-legacy-data:
     name: fulmine-user-legacy-data
-    extarnal: true
+    external: true
 
 # Join the stack's network (compose project name=arkade-regtest -> *_default) so
 # fulmine-user resolves arkd/boltz/mempool_web by service name.
