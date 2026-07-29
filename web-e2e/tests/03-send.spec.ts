@@ -44,9 +44,11 @@ test.describe.serial('send', () => {
     await expect(button).toBeDisabled(); // address alone is not enough
 
     await page.locator('#amount').fill('1000');
-    // With no balance the button stays disabled, but the label must switch to
-    // explain why rather than silently staying "Preview send".
-    await expect(page.getByRole('button', { name: 'Not enough funds' })).toBeVisible();
+    // With no balance the button must stay disabled, and the label must switch
+    // to explain why rather than silently staying "Preview send".
+    const notEnough = page.getByRole('button', { name: 'Not enough funds' });
+    await expect(notEnough).toBeVisible();
+    await expect(notEnough).toBeDisabled();
   });
 
   test('an amount above the balance reports "Not enough funds"', async ({ page }) => {
@@ -70,6 +72,15 @@ test.describe.serial('send', () => {
     expect(html).toContain('hx-post="/send/confirm"');
     expect(html).toContain('name="address"');
     expect(html).toContain('name="sats"');
+
+    // The fee table (components.SendTxTable): an ARK FEE line and a total line.
+    // Assert the labels and that the fee renders as a sats figure, rather than
+    // pinning it to 0 — feeAmount is a TODO placeholder in sendPreview, so a
+    // hard-coded value would fail as soon as real fees land, for the wrong reason.
+    expect(html, 'preview renders the ARK FEE line').toMatch(
+      /ARK FEE<\/p>[\s\S]*?<p>\d+ SATS<\/p>/,
+    );
+    expect(html, 'preview renders the total line').toContain('>total</p>');
   });
 
   test('the preview offers no send-method choice, for BTC or ARK destinations', async ({ page }) => {
