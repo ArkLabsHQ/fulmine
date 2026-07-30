@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/btcsuite/btcd/btcutil"
 )
 
 func IsBip21(text string) bool {
@@ -49,7 +51,12 @@ func GetBtcAddress(bip21 string) string {
 	return ""
 }
 
-func SatsFromBip21(bip21 string) int {
+// SatsFromBip21 returns the amount carried by a bip21 URI in satoshis, or 0 if
+// it carries none.
+//
+// BIP21 denominates amount in decimal BTC, which is what Service.NewAddress
+// emits (`fmt.Sprintf("%.8f", btc)` -> "?amount=0.00001000").
+func SatsFromBip21(bip21 string) uint64 {
 	if !IsBip21(bip21) {
 		return 0
 	}
@@ -63,9 +70,15 @@ func SatsFromBip21(bip21 string) int {
 		// otherwise panic on kv[1].
 		if kv := strings.SplitN(param, "=", 2); len(kv) > 1 {
 			if kv[0] == "amount" {
-				if amount, err := strconv.Atoi(kv[1]); err == nil {
-					return int(amount * 100000000)
+				btc, err := strconv.ParseFloat(kv[1], 64)
+				if err != nil {
+					return 0
 				}
+				sats, err := btcutil.NewAmount(btc)
+				if err != nil || sats <= 0 {
+					return 0
+				}
+				return uint64(sats)
 			}
 		}
 	}

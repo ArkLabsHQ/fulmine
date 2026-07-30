@@ -83,6 +83,50 @@ func TestGetOffchainAddress(t *testing.T) {
 	}
 }
 
+// BIP21 denominates amount in decimal BTC. Service.NewAddress emits it as
+// fmt.Sprintf("%.8f", sats/1e8), so "0.00001000" and "1.00000000" below are the
+// literal strings that end up in our own receive QR codes — parsing those as
+// integers returned 0 for every one, which made validateBip21Api report
+// fulmine's own links as "invalid invoice".
+func TestSatsFromBip21(t *testing.T) {
+	tests := []struct {
+		name   string
+		amount string
+		want   uint64
+	}{
+		{name: "padded decimal", amount: "0.00001000", want: 1000},
+		{name: "padded int", amount: "1.00000000", want: 100000000},
+		{name: "unpadded decimal", amount: "0.0001", want: 10000},
+		{
+			// 0.29 * 1e8 is 28999999.9999999963 in binary floating point, so a
+			// truncating conversion would return 28999999 and lose a satoshi.
+			name: "no loss of precision", amount: "0.29", want: 29000000,
+		},
+		{name: "unpadded int", amount: "1", want: 100000000},
+		{name: "max supply", amount: "21000000.00000000", want: 2100000000000000},
+		{name: "zero", amount: "0.00000000", want: 0},
+		{name: "negative", amount: "-1.0", want: 0},
+		{name: "non-numeric", amount: "abc", want: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bip21 := "bitcoin:" + validBtcAddr + "?ark=" + validArkAddr + "&amount=" + tt.amount
+			require.Equal(t, tt.want, utils.SatsFromBip21(bip21))
+		})
+	}
+
+	t.Run("no amount parameter", func(t *testing.T) {
+		require.Zero(t, utils.SatsFromBip21("bitcoin:"+validBtcAddr+"?ark="+validArkAddr))
+	})
+	t.Run("valueless amount parameter", func(t *testing.T) {
+		require.Zero(t, utils.SatsFromBip21("bitcoin:"+validBtcAddr+"?amount"))
+	})
+	t.Run("not a bip21", func(t *testing.T) {
+		require.Zero(t, utils.SatsFromBip21("definitely-not-a-bip21"))
+	})
+}
+
 func TestIsBip21(t *testing.T) {
 	tests := []struct {
 		name  string
