@@ -53,18 +53,12 @@ func (h *serviceHandler) GetInfo(
 		return nil, err
 	}
 
-	pubkey, err := h.svc.GetPubkey(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	response := &pb.GetInfoResponse{
 		BuildInfo: &pb.BuildInfo{
 			Version: h.svc.BuildInfo.Version,
 			Commit:  h.svc.BuildInfo.Commit,
 			Date:    h.svc.BuildInfo.Date,
 		},
-		Pubkey:       hex.EncodeToString(pubkey.SerializeCompressed()),
 		SignerPubkey: hex.EncodeToString(config.SignerPubKey.SerializeCompressed()),
 	}
 
@@ -353,7 +347,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		}
 	}
 
-	addr, vhtlcId, vhtlcScript, err := h.svc.CreateVHTLC(
+	addr, vhtlcId, vhtlcScript, keyIndex, err := h.svc.CreateVHTLC(
 		ctx,
 		receiverPubkey,
 		senderPubkey,
@@ -379,6 +373,7 @@ func (h *serviceHandler) CreateVHTLC(ctx context.Context, req *pb.CreateVHTLCReq
 		UnilateralClaimDelay:                 int64(vhtlcScript.UnilateralClaimClosure.Locktime.Value),
 		UnilateralRefundDelay:                int64(vhtlcScript.UnilateralRefundClosure.Locktime.Value),
 		UnilateralRefundWithoutReceiverDelay: int64(vhtlcScript.UnilateralRefundWithoutReceiverClosure.Locktime.Value),
+		KeyIndex:                             uint64(keyIndex),
 	}, nil
 }
 

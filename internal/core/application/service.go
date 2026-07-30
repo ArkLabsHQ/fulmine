@@ -25,7 +25,6 @@ import (
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
 	arksdk "github.com/arkade-os/go-sdk"
 	"github.com/arkade-os/go-sdk/contract"
-	hdidentity "github.com/arkade-os/go-sdk/identity"
 	"github.com/arkade-os/go-sdk/types"
 	"github.com/arkade-os/go-sdk/vhtlc"
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -506,21 +505,18 @@ func (s *Service) ResetWallet(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) GetPubkey(ctx context.Context) (*btcec.PublicKey, error) {
+func (s *Service) GetPubkey(ctx context.Context, keyIndex string) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return nil, err
+		return "", err
 	}
 
-	identitySvc := s.Identity()
-	keyId := ""
-	if identitySvc.GetType() == hdidentity.Type {
-		keyId = "0/0"
-	}
-	keyRef, err := identitySvc.GetKey(ctx, keyId)
+	keyRef, err := s.Identity().GetKey(ctx, keyIndex)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return keyRef.PubKey, nil
+
+	return hex.EncodeToString(keyRef.PubKey.SerializeCompressed()), nil
+
 }
 
 func (s *Service) NewAddress(
@@ -696,9 +692,9 @@ func (s *Service) CreateVHTLC(
 	unilateralRefundDelayParam *arklib.RelativeLocktime,
 	unilateralRefundWithoutReceiverDelayParam *arklib.RelativeLocktime,
 	nonInteractiveClaimAddress *arklib.Address, // nil means nic disabled
-) (string, string, *vhtlc.VHTLCScript, error) {
+) (string, string, *vhtlc.VHTLCScript, uint64, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
-		return "", "", nil, err
+		return "", "", nil, 0, err
 	}
 
 	// nolint
@@ -738,15 +734,15 @@ func (s *Service) CreateVHTLC(
 	var nonInteractiveEmulator *btcec.PublicKey
 	if nonInteractiveClaimAddress != nil {
 		if s.emulatorPubKey == nil {
-			return "", "", nil, fmt.Errorf("non-interactive claims are disabled: missing EMULATOR_PUBKEY")
+			return "", "", nil, 0, fmt.Errorf("non-interactive claims are disabled: missing EMULATOR_PUBKEY")
 		}
 		if nonInteractiveClaimAddress.HRP != cfg.Network.Addr {
-			return "", "", nil, fmt.Errorf("non-interactive claim address has wrong network")
+			return "", "", nil, 0, fmt.Errorf("non-interactive claim address has wrong network")
 		}
 
 		pkScript, err := nonInteractiveClaimAddress.GetPkScript()
 		if err != nil {
-			return "", "", nil, fmt.Errorf("invalid non-interactive claim address")
+			return "", "", nil, 0, fmt.Errorf("invalid non-interactive claim address")
 		}
 
 		nonInteractiveReceiver = pkScript
@@ -765,19 +761,24 @@ func (s *Service) CreateVHTLC(
 		NonInteractiveEmulator:               nonInteractiveEmulator,
 	})
 	if err != nil {
-		return "", "", nil, err
+		return "", "", nil, 0, err
 	}
 
 	encodedAddr, err := vhtlcScript.Address(cfg.Network.Addr)
 	if err != nil {
-		return "", "", nil, err
+		return "", "", nil, 0, err
 	}
 
 	pkScript, err := vhtlcScript.PkScript()
 	if err != nil {
-		return "", "", nil, err
+		return "", "", nil, 0, err
 	}
 	script := hex.EncodeToString(pkScript)
+
+	keyIndex, err := s.getVHTLCKeyIndex(ctx, script)
+	if err != nil {
+		return "", "", nil, 0, err
+	}
 
 	compressedReceiverPubkey := vhtlcScript.Receiver.SerializeCompressed()
 	compressedSenderPubkey := vhtlcScript.Sender.SerializeCompressed()
@@ -790,11 +791,11 @@ func (s *Service) CreateVHTLC(
 	// TestSettleVHTLCByDelegateRefundWithOutpoint).
 	if err := s.dbSvc.VHTLC().Add(
 		ctx, domain.NewVhtlc(vhtlcId, script)); err != nil {
-		return "", "", nil, fmt.Errorf("failed to add vhtlc: %w", err)
+		return "", "", nil, 0, fmt.Errorf("failed to add vhtlc: %w", err)
 	}
 	log.Debugf("added new vhtlc %s", vhtlcId)
 
-	return encodedAddr, vhtlcId, vhtlcScript, nil
+	return encodedAddr, vhtlcId, vhtlcScript, keyIndex, nil
 }
 
 func (s *Service) ListVHTLCs(ctx context.Context, vhtlcIds []string) ([]clientTypes.Vtxo, error) {
@@ -1135,6 +1136,34 @@ func (s *Service) getPendingVHTLCTx(
 	}
 
 	return pendingTxs[0].FinalArkTx, nil
+}
+
+func (s *Service) getVHTLCKeyIndex(ctx context.Context, script string) (uint64, error) {
+	identity := s.Wallet.Identity()
+	contractManager := s.Wallet.ContractManager()
+
+	contracts, err := contractManager.GetContracts(ctx, contract.WithScripts([]string{script}))
+	if err != nil {
+		return 0, err
+	}
+	if len(contracts) != 1 {
+		return 0, fmt.Errorf("unexpected number of contracts: %d", len(contracts))
+	}
+	contract := contracts[0]
+
+	handler, err := s.Wallet.ContractManager().GetHandler(ctx, contract)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get contract handler for vhtlc %s: %w", err)
+	}
+	keyRef, err := handler.GetKeyRef(contract)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get key ref for vhtlc %s: %w", err)
+	}
+	keyIndex, err := identity.GetKeyIndex(ctx, keyRef.Id)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get key index for vhtlc %s: %w", err)
+	}
+	return uint64(keyIndex), nil
 }
 
 func newService(

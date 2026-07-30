@@ -27,6 +27,7 @@ const (
 	WalletService_RestoreWallet_FullMethodName  = "/fulmine.v1.WalletService/RestoreWallet"
 	WalletService_Status_FullMethodName         = "/fulmine.v1.WalletService/Status"
 	WalletService_Auth_FullMethodName           = "/fulmine.v1.WalletService/Auth"
+	WalletService_GetPubKey_FullMethodName      = "/fulmine.v1.WalletService/GetPubKey"
 )
 
 // WalletServiceClient is the client API for WalletService service.
@@ -58,6 +59,7 @@ type WalletServiceClient interface {
 	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
 	// Auth verifies whether the given password is valid without unlocking the wallet
 	Auth(ctx context.Context, in *AuthRequest, opts ...grpc.CallOption) (*AuthResponse, error)
+	GetPubKey(ctx context.Context, in *GetPubKeyRequest, opts ...grpc.CallOption) (*GetPubKeyResponse, error)
 }
 
 type walletServiceClient struct {
@@ -171,6 +173,16 @@ func (c *walletServiceClient) Auth(ctx context.Context, in *AuthRequest, opts ..
 	return out, nil
 }
 
+func (c *walletServiceClient) GetPubKey(ctx context.Context, in *GetPubKeyRequest, opts ...grpc.CallOption) (*GetPubKeyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPubKeyResponse)
+	err := c.cc.Invoke(ctx, WalletService_GetPubKey_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // WalletServiceServer is the server API for WalletService service.
 // All implementations should embed UnimplementedWalletServiceServer
 // for forward compatibility
@@ -200,6 +212,7 @@ type WalletServiceServer interface {
 	Status(context.Context, *StatusRequest) (*StatusResponse, error)
 	// Auth verifies whether the given password is valid without unlocking the wallet
 	Auth(context.Context, *AuthRequest) (*AuthResponse, error)
+	GetPubKey(context.Context, *GetPubKeyRequest) (*GetPubKeyResponse, error)
 }
 
 // UnimplementedWalletServiceServer should be embedded to have forward compatible implementations.
@@ -229,6 +242,9 @@ func (UnimplementedWalletServiceServer) Status(context.Context, *StatusRequest) 
 }
 func (UnimplementedWalletServiceServer) Auth(context.Context, *AuthRequest) (*AuthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Auth not implemented")
+}
+func (UnimplementedWalletServiceServer) GetPubKey(context.Context, *GetPubKeyRequest) (*GetPubKeyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPubKey not implemented")
 }
 
 // UnsafeWalletServiceServer may be embedded to opt out of forward compatibility for this service.
@@ -389,6 +405,24 @@ func _WalletService_Auth_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _WalletService_GetPubKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPubKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServiceServer).GetPubKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WalletService_GetPubKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServiceServer).GetPubKey(ctx, req.(*GetPubKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // WalletService_ServiceDesc is the grpc.ServiceDesc for WalletService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -423,6 +457,10 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Auth",
 			Handler:    _WalletService_Auth_Handler,
+		},
+		{
+			MethodName: "GetPubKey",
+			Handler:    _WalletService_GetPubKey_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

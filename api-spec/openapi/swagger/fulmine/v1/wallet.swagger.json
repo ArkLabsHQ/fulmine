@@ -171,6 +171,37 @@
         ]
       }
     },
+    "/v1/wallet/pubkey/{keyIndex}": {
+      "get": {
+        "operationId": "WalletService_GetPubKey",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetPubKeyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "keyIndex",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "uint64"
+          }
+        ],
+        "tags": [
+          "WalletService"
+        ]
+      }
+    },
     "/v1/wallet/restore": {
       "post": {
         "summary": "RestoreWallet restores an HD Wallet based on signing seeds,\nencrypts them with the password and persists the encrypted seeds.",
@@ -357,6 +388,14 @@
         "mnemonic": {
           "type": "string",
           "description": "The list of words."
+        }
+      }
+    },
+    "v1GetPubKeyResponse": {
+      "type": "object",
+      "properties": {
+        "pubkey": {
+          "type": "string"
         }
       }
     },
