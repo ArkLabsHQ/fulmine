@@ -136,7 +136,7 @@ func NewServices(
 	if delegateConfig.Enabled {
 		delegateSvc := newDelegateService(svc, delegateConfig.Fee)
 		svc.onUnlock = func() {
-			delegateSvc.start()
+			delegateSvc.Start()
 		}
 		svc.onLock = func() {
 			delegateSvc.Stop()

@@ -31,6 +31,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const maxDelegateSchedulingWindow = 31 * 24 * time.Hour
+
 type DelegateService struct {
 	svc *Service
 	fee uint64
@@ -49,7 +51,7 @@ type DelegateService struct {
 	delegateMtx sync.Mutex
 }
 
-type DelegateInfo struct {
+type delegateInfo struct {
 	PubKey  string
 	Fee     uint64
 	Address string
@@ -66,27 +68,8 @@ func newDelegateService(svc *Service, fee uint64) *DelegateService {
 	}
 }
 
-func (s *DelegateService) start() {
-	ctx, cancel := context.WithCancel(context.Background())
-	s.ctx = ctx
-	s.cancelFunc = cancel
-	if err := s.restorePendingTasks(); err != nil {
-		log.WithError(err).Warn("failed to restore pending tasks")
-	}
-
-	go s.listenBatchStartedEvents(s.ctx)
-	go s.monitorVtxosSpent(s.ctx)
-}
-
-func (s *DelegateService) Stop() {
-	if s.cancelFunc != nil {
-		s.cancelFunc()
-		s.cancelFunc = nil
-	}
-}
-
 // GetInfo returns the data needed to create the intent & forfeit tx for a delegate task.
-func (s *DelegateService) GetInfo(ctx context.Context) (*DelegateInfo, error) {
+func (s *DelegateService) GetInfo(ctx context.Context) (*delegateInfo, error) {
 	if s.svc.publicKey == nil {
 		return nil, fmt.Errorf("service not ready")
 	}
@@ -101,7 +84,7 @@ func (s *DelegateService) GetInfo(ctx context.Context) (*DelegateInfo, error) {
 		return nil, err
 	}
 
-	return &DelegateInfo{
+	return &delegateInfo{
 		PubKey:  hex.EncodeToString(s.svc.publicKey.SerializeCompressed()),
 		Fee:     s.fee,
 		Address: encodedAddr,
@@ -174,6 +157,28 @@ func (s *DelegateService) Delegate(
 	return nil
 }
 
+func (s *DelegateService) Start() {
+	ctx, cancel := context.WithCancel(context.Background())
+	s.ctx = ctx
+	s.cancelFunc = cancel
+	if err := s.restorePendingTasks(); err != nil {
+		log.WithError(err).Warn("failed to restore pending tasks")
+	}
+
+	go s.listenBatchStartedEvents(s.ctx)
+	go s.monitorVtxosSpent(s.ctx)
+}
+
+func (s *DelegateService) Stop() {
+	if s.cancelFunc != nil {
+		s.cancelFunc()
+		s.cancelFunc = nil
+	}
+	s.delegateAddrMtx.Lock()
+	s.cachedDelegateAddress = nil
+	s.delegateAddrMtx.Unlock()
+}
+
 func (s *DelegateService) newDelegateTask(
 	ctx context.Context,
 	message intent.RegisterMessage, proof intent.Proof, forfeitTxs []*psbt.Packet,
@@ -210,11 +215,19 @@ func (s *DelegateService) newDelegateTask(
 	// search for the fee output in intent proof
 	feeAmount, feePaidToUs := findDelegateFeeOutput(proof.UnsignedTx.TxOut, delegateAddrScript)
 
-	if message.ValidAt == 0 {
-		return nil, fmt.Errorf("invalid valid at")
+	now := time.Now()
+	scheduledAt := now
+	if message.ValidAt > 0 {
+		scheduledAt = time.Unix(message.ValidAt, 0)
+		if horizon := now.Add(maxDelegateSchedulingWindow); scheduledAt.After(horizon) {
+			return nil, fmt.Errorf(
+				"valid at %s is beyond the %s scheduling horizon (%s)",
+				scheduledAt.UTC().Format(time.RFC3339),
+				maxDelegateSchedulingWindow,
+				horizon.UTC().Format(time.RFC3339),
+			)
+		}
 	}
-
-	scheduledAt := time.Unix(message.ValidAt, 0)
 
 	inputs := proof.GetOutpoints()
 	if len(inputs) == 0 {
@@ -353,6 +366,50 @@ func (s *DelegateService) getDelegateAddress(ctx context.Context) (*arklib.Addre
 	return decodedAddr, nil
 }
 
+// resolveDelegateAddress returns the address of the wallet's lowest-index
+// default contract, deriving the first one when the wallet has none.
+//
+// On an empty wallet the first derivation is index 0, so the address derived
+// here is exactly the one this lookup returns on every subsequent start.
+func (s *DelegateService) resolveDelegateAddress(ctx context.Context) (string, error) {
+	manager := s.svc.ContractManager()
+
+	contracts, err := manager.GetContracts(ctx, contract.WithType(types.ContractTypeDefault))
+	if err != nil {
+		return "", fmt.Errorf("failed to list default contracts: %w", err)
+	}
+
+	for _, c := range contracts {
+		handler, err := manager.GetHandler(ctx, c)
+		if err != nil {
+			return "", fmt.Errorf("failed to get handler for contract %s: %w", c.Script, err)
+		}
+		keyRef, err := handler.GetKeyRef(c)
+		if err != nil {
+			return "", fmt.Errorf("failed to get key ref for contract %s: %w", c.Script, err)
+		}
+
+		index, err := s.svc.Identity().GetKeyIndex(ctx, keyRef.Id)
+		if err != nil {
+			// A key id we cannot rank is not a safe anchor: it might sort
+			// differently next start, which is the very thing this avoids.
+			log.WithError(err).Warnf(
+				"skipping default contract %s while resolving the delegate address", c.Script,
+			)
+			continue
+		}
+		if index == 0 {
+			return c.Address, nil
+		}
+	}
+
+	_, offchainAddr, _, err := s.svc.NewAddress(ctx, 0)
+	if err != nil {
+		return "", err
+	}
+	return offchainAddr, nil
+}
+
 // findDelegateFeeOutput returns the value of the first output paying
 // delegateScript, and whether such an output exists at all. The two are
 // distinct: a proof carrying no output for us is a client paying an address we
@@ -403,50 +460,6 @@ func validateDelegateFee(
 		)
 	}
 	return nil
-}
-
-// resolveDelegateAddress returns the address of the wallet's lowest-index
-// default contract, deriving the first one when the wallet has none.
-//
-// On an empty wallet the first derivation is index 0, so the address derived
-// here is exactly the one this lookup returns on every subsequent start.
-func (s *DelegateService) resolveDelegateAddress(ctx context.Context) (string, error) {
-	manager := s.svc.ContractManager()
-
-	contracts, err := manager.GetContracts(ctx, contract.WithType(types.ContractTypeDefault))
-	if err != nil {
-		return "", fmt.Errorf("failed to list default contracts: %w", err)
-	}
-
-	for _, c := range contracts {
-		handler, err := manager.GetHandler(ctx, c)
-		if err != nil {
-			return "", fmt.Errorf("failed to get handler for contract %s: %w", c.Script, err)
-		}
-		keyRef, err := handler.GetKeyRef(c)
-		if err != nil {
-			return "", fmt.Errorf("failed to get key ref for contract %s: %w", c.Script, err)
-		}
-
-		index, err := s.svc.Identity().GetKeyIndex(ctx, keyRef.Id)
-		if err != nil {
-			// A key id we cannot rank is not a safe anchor: it might sort
-			// differently next start, which is the very thing this avoids.
-			log.WithError(err).Warnf(
-				"skipping default contract %s while resolving the delegate address", c.Script,
-			)
-			continue
-		}
-		if index == 0 {
-			return c.Address, nil
-		}
-	}
-
-	_, offchainAddr, _, err := s.svc.NewAddress(ctx, 0)
-	if err != nil {
-		return "", err
-	}
-	return offchainAddr, nil
 }
 
 // restorePendingTasks restores all pending tasks from DB and schedules them for execution.
