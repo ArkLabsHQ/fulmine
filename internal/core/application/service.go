@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,7 +17,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
-	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/client-lib/identity"
 	singlekeyidentity "github.com/arkade-os/arkd/pkg/client-lib/identity/singlekey"
 	singlekeyfilestore "github.com/arkade-os/arkd/pkg/client-lib/identity/singlekey/store/file"
@@ -615,46 +615,46 @@ func (s *Service) GetVtxos(ctx context.Context, filterType string) ([]clientType
 		return nil, err
 	}
 
-	opts := []indexer.GetVtxosOption{}
-
+	var keep func(clientTypes.Vtxo) bool
 	switch filterType {
 	case "spendable":
-		opts = append(opts, indexer.WithSpendableOnly())
+		keep = func(v clientTypes.Vtxo) bool { return !v.Spent && !v.IsRecoverable() && !v.Unrolled }
 	case "spent":
-		opts = append(opts, indexer.WithSpentOnly())
+		keep = func(v clientTypes.Vtxo) bool { return v.Spent || v.Swept || v.Unrolled }
 	case "recoverable":
-		opts = append(opts, indexer.WithRecoverableOnly())
+		keep = func(v clientTypes.Vtxo) bool { return v.IsRecoverable() && !v.Unrolled }
 	case "all":
+		keep = func(clientTypes.Vtxo) bool { return true }
 	default:
 		return nil, fmt.Errorf("invalid filter type: %s", filterType)
 	}
 
-	_, offchainAddrs, _, _, err := s.GetAddresses(ctx)
+	allVtxos, cursor, err := s.ListVtxos(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	scripts := make([]string, 0, len(offchainAddrs))
-	for _, addr := range offchainAddrs {
-		decoded, err := arklib.DecodeAddressV0(addr)
+	for len(cursor) > 0 {
+		more, c, err := s.ListVtxos(ctx, arksdk.WithCursor(cursor))
 		if err != nil {
 			return nil, err
 		}
-		script, err := script.P2TRScript(decoded.VtxoTapKey)
-		if err != nil {
-			return nil, err
+		allVtxos = append(allVtxos, more...)
+		cursor = c
+	}
+
+	vtxos := make([]clientTypes.Vtxo, 0, len(allVtxos))
+	for _, v := range allVtxos {
+		if keep(v) {
+			vtxos = append(vtxos, v)
 		}
-		scripts = append(scripts, hex.EncodeToString(script))
 	}
 
-	opts = append(opts, indexer.WithScripts(scripts))
+	sort.SliceStable(vtxos, func(i, j int) bool {
+		return vtxos[i].CreatedAt.After(vtxos[j].CreatedAt)
+	})
 
-	resp, err := s.Indexer().GetVtxos(ctx, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp.Vtxos, nil
+	return vtxos, nil
 }
 
 func (s *Service) Settle(ctx context.Context) (string, error) {
