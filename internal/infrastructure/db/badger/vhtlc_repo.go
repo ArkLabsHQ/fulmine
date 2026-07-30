@@ -50,12 +50,12 @@ func (r *vhtlcRepository) GetByIds(ctx context.Context, ids []string) ([]domain.
 	return out, nil
 }
 
-// Get retrieves a specific VHTLC option by preimage hash
-func (r *vhtlcRepository) Get(ctx context.Context, preimageHash string) (*domain.Vhtlc, error) {
+// Get retrieves a specific VHTLC by its id.
+func (r *vhtlcRepository) Get(ctx context.Context, id string) (*domain.Vhtlc, error) {
 	var vhtlc domain.Vhtlc
-	if err := r.store.Get(preimageHash, &vhtlc); err != nil {
+	if err := r.store.Get(id, &vhtlc); err != nil {
 		if errors.Is(err, badgerhold.ErrNotFound) {
-			return nil, fmt.Errorf("vHTLC with preimage hash %s not found", preimageHash)
+			return nil, fmt.Errorf("vHTLC with id %s not found", id)
 		}
 		return nil, fmt.Errorf("failed to get vHTLC option: %w", err)
 	}
