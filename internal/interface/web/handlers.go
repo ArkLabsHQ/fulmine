@@ -95,6 +95,9 @@ func (s *service) events(c *gin.Context) {
 			}
 		}
 
+	} else {
+		c.SSEvent("SYNCED", <-s.svc.GetSyncedUpdate())
+		c.Writer.Flush()
 	}
 
 	txsCh := s.svc.GetTransactionEventChannel(c.Request.Context())
