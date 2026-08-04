@@ -72,8 +72,16 @@ func TestBindVariableLimitStatusUpdates(t *testing.T) {
 				},
 			}
 
-			for _, u := range updates {
+			for ui, u := range updates {
 				t.Run(u.name+" tasks over the bind variable limit", func(t *testing.T) {
+					// A task that is never named in any batch, so it pins the
+					// negative invariant at every size: a chunked update must not
+					// transition anything outside its id set.
+					bystander := fmt.Sprintf("boundary_%s_bystander", u.name)
+					require.NoError(t, repo.Add(ctx, makeDelegateTaskWithInputs(
+						bystander, outpointAt(900_000+ui),
+					)))
+
 					for _, size := range boundarySizes() {
 						t.Run(fmt.Sprintf("size=%d", size), func(t *testing.T) {
 							// Two real pending tasks: one first, one last. The
@@ -103,14 +111,21 @@ func TestBindVariableLimitStatusUpdates(t *testing.T) {
 									"status update must be applied across every chunk")
 							}
 
-							// A task that was never named must keep its status,
-							// so a chunked update cannot over-apply.
+							// The single-slot batch cannot carry last, so it doubles
+							// as a bystander for that size.
 							if size < 2 {
 								untouched, err := repo.GetByID(ctx, last)
 								require.NoError(t, err)
 								require.Equal(t, domain.DelegateTaskStatusPending, untouched.Status,
 									"tasks outside the id set must not be transitioned")
 							}
+
+							// Checked at every size, including the ones where
+							// chunking actually activates.
+							untouched, err := repo.GetByID(ctx, bystander)
+							require.NoError(t, err)
+							require.Equal(t, domain.DelegateTaskStatusPending, untouched.Status,
+								"a task outside the id set must not be transitioned")
 						})
 					}
 				})
