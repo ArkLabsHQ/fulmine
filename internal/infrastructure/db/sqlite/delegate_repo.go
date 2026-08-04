@@ -160,7 +160,7 @@ func (r *delegateRepository) GetPendingTaskIDsByInputs(ctx context.Context, inpu
 	for _, chunk := range chunkSlice(outpoints, maxBindVariablesPerStatement) {
 		ids, err := r.querier.GetPendingTaskIDsByInputs(ctx, chunk)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get pending task ids by inputs: %w", err)
 		}
 		taskIDs = append(taskIDs, ids...)
 	}
