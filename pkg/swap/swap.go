@@ -1311,11 +1311,11 @@ func (h *SwapHandler) outpointForFundingTx(
 
 	spendableVtxos, err := h.getVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get spendable VHTLC funds: %w", err)
 	}
 	pendingVtxos, err := h.getPendingVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get pending VHTLC funds: %w", err)
 	}
 
 	var found *clientTypes.Outpoint
