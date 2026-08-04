@@ -1304,7 +1304,7 @@ func (h *SwapHandler) outpointForFundingTx(
 		return nil, nil
 	}
 
-	vhtlcScript, err := vhtlc.NewVHTLCScriptFromOpts(vhtlcOpts)
+	vhtlcScript, err := h.buildVHTLC(ctx, vhtlcOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create VHTLC script: %w", err)
 	}
@@ -1316,6 +1316,22 @@ func (h *SwapHandler) outpointForFundingTx(
 	pendingVtxos, err := h.getPendingVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pending VHTLC funds: %w", err)
+	}
+
+	return selectOutpointByFundingTxid(spendableVtxos, pendingVtxos, fundingTxid)
+}
+
+// selectOutpointByFundingTxid picks the outpoint funded by fundingTxid out of
+// the vtxos held at a VHTLC address. Split out from outpointForFundingTx so the
+// selection can be exercised without standing up an indexer.
+//
+// A vtxo can appear in both lists, so the same outpoint seen twice is one
+// candidate, not a collision.
+func selectOutpointByFundingTxid(
+	spendableVtxos, pendingVtxos []clientTypes.Vtxo, fundingTxid string,
+) (*clientTypes.Outpoint, error) {
+	if fundingTxid == "" {
+		return nil, nil
 	}
 
 	var found *clientTypes.Outpoint
