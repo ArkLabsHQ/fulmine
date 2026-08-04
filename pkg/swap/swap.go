@@ -1445,7 +1445,15 @@ func (h *SwapHandler) selectClaimableVTXO(
 				return v, pendingByOutpoint[v.Outpoint.String()], nil
 			}
 		}
-		return nil, false, fmt.Errorf("outpoint %s not found among VTXOs for this VHTLC", outpoint)
+		// Wrapped in ErrorNoVtxosFound so callers that wait on that sentinel keep
+		// waiting. A requested outpoint can be missing simply because this fetch
+		// raced the one that chose it: waitAndClaim resolves the funding outpoint
+		// and then claims it in a second, independent indexer round-trip, so a
+		// vtxo can move or briefly not be reported in between. Treating that as a
+		// hard failure aborts a claim that would have succeeded on the next tick.
+		return nil, false, fmt.Errorf(
+			"%w: outpoint %s not found among VTXOs for this VHTLC", ErrorNoVtxosFound, outpoint,
+		)
 	}
 
 	sort.Slice(candidateVtxos, func(i, j int) bool {
