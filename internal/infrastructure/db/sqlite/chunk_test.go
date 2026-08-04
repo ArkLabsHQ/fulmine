@@ -2,6 +2,7 @@ package sqlitedb
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -43,6 +44,14 @@ func TestChunkSlice(t *testing.T) {
 				)
 			}
 		}
+	})
+
+	t.Run("a size larger than the input yields one chunk", func(t *testing.T) {
+		// math.MaxInt is the boundary for the capacity calculation: computing it
+		// as len(items)+size-1 wraps negative for any input of two or more.
+		require.Equal(t, [][]int{{0, 1}}, chunkSlice([]int{0, 1}, math.MaxInt))
+		require.Equal(t, [][]int{{0}}, chunkSlice([]int{0}, math.MaxInt))
+		require.Equal(t, [][]int{{0, 1, 2}}, chunkSlice([]int{0, 1, 2}, math.MaxInt))
 	})
 
 	t.Run("stays within the sqlite bind variable limit", func(t *testing.T) {

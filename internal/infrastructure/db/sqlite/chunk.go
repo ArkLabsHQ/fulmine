@@ -32,7 +32,10 @@ func chunkSlice[T any](items []T, size int) [][]T {
 		return nil
 	}
 
-	chunks := make([][]T, 0, (len(items)+size-1)/size)
+	// Round up as 1+(len-1)/size rather than (len+size-1)/size, which wraps
+	// negative for a size near math.MaxInt. The guard above keeps len(items)-1
+	// non-negative.
+	chunks := make([][]T, 0, 1+(len(items)-1)/size)
 	for start := 0; start < len(items); start += size {
 		end := start + size
 		if end > len(items) {
