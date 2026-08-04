@@ -1353,9 +1353,44 @@ func selectOutpointByFundingTxid(
 	}
 
 	if found == nil {
+		// An address holding vtxos, none of them from the funding tx, is the
+		// shape a txid-semantics mismatch takes: Boltz names one id and the
+		// indexer reports another, and the bare sentinel gives an operator
+		// nothing to tell that apart from "not propagated yet". Naming what was
+		// actually there costs nothing in the common case, where the address is
+		// still empty and the caller is simply waiting.
+		if seen := distinctTxids(spendableVtxos, pendingVtxos); len(seen) > 0 {
+			return nil, fmt.Errorf(
+				"%w: funding tx %s is not among the %d vtxo(s) at this VHTLC (%s)",
+				ErrorNoVtxosFound, fundingTxid, len(seen), strings.Join(seen, ", "),
+			)
+		}
 		return nil, ErrorNoVtxosFound
 	}
 	return found, nil
+}
+
+// distinctTxids lists the transactions that funded the given vtxos, once each
+// and capped, so an error built from it stays readable.
+func distinctTxids(vtxoLists ...[]clientTypes.Vtxo) []string {
+	const maxReported = 5
+
+	seen := make(map[string]struct{})
+	out := make([]string, 0, maxReported)
+	for _, vtxos := range vtxoLists {
+		for _, vtxo := range vtxos {
+			if _, ok := seen[vtxo.Txid]; ok {
+				continue
+			}
+			seen[vtxo.Txid] = struct{}{}
+			if len(out) == maxReported {
+				out = append(out, "...")
+				return out
+			}
+			out = append(out, vtxo.Txid)
+		}
+	}
+	return out
 }
 
 func (h *SwapHandler) selectClaimableVTXO(

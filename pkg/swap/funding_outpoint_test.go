@@ -1,6 +1,7 @@
 package swap
 
 import (
+	"fmt"
 	"testing"
 
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
@@ -40,6 +41,35 @@ func TestSelectOutpointByFundingTxid(t *testing.T) {
 		outpoint, err := selectOutpointByFundingTxid(nil, nil, funding)
 		require.ErrorIs(t, err, ErrorNoVtxosFound)
 		require.Nil(t, outpoint)
+
+		// The empty address is the ordinary "still waiting" case and must stay
+		// the bare sentinel: it is produced on every retry tick.
+		require.Equal(t, ErrorNoVtxosFound.Error(), err.Error())
+	})
+
+	// Vtxos present but none from the funding tx is what a txid-semantics
+	// mismatch looks like, so the error names what was there. It still has to
+	// satisfy errors.Is, because the retry paths key off the sentinel.
+	t.Run("unmatched funding txid names the vtxos that were present", func(t *testing.T) {
+		_, err := selectOutpointByFundingTxid(
+			[]clientTypes.Vtxo{vtxoAt(other, 0)}, []clientTypes.Vtxo{vtxoAt("cc33", 1)}, funding,
+		)
+		require.ErrorIs(t, err, ErrorNoVtxosFound)
+		require.ErrorContains(t, err, funding)
+		require.ErrorContains(t, err, other)
+		require.ErrorContains(t, err, "cc33")
+	})
+
+	t.Run("reported vtxo list is capped", func(t *testing.T) {
+		many := make([]clientTypes.Vtxo, 0, 12)
+		for i := range 12 {
+			many = append(many, vtxoAt(fmt.Sprintf("tx%02d", i), 0))
+		}
+
+		_, err := selectOutpointByFundingTxid(many, nil, funding)
+		require.ErrorIs(t, err, ErrorNoVtxosFound)
+		require.ErrorContains(t, err, "...")
+		require.NotContains(t, err.Error(), "tx11")
 	})
 
 	t.Run("picks the funding vtxo over an older decoy", func(t *testing.T) {
