@@ -113,9 +113,20 @@ func (b *btcToArkHandler) handleBtcToArkServerLocked(
 	serverLockupTxID := update.Transaction.Id
 	b.chainSwapState.Swap.ServerLock(serverLockupTxID)
 
+	// Claim the vtxo that boltz's lockup tx created, rather than whichever one
+	// sorts first by age at this address.
+	outpoint, err := b.swapHandler.outpointForFundingTx(
+		ctx, b.chainSwapState.Swap.VhtlcOpts, serverLockupTxID,
+	)
+	if err != nil {
+		b.chainSwapState.Swap.Fail(fmt.Sprintf("claim failed: %v", err))
+		return fmt.Errorf("failed to resolve Ark VTXO for lockup tx %s: %w", serverLockupTxID, err)
+	}
+
 	// Claim Ark VTXOs lockup
-	//TODO check if we should pass outpoint similarly as in swap
-	claimTxid, err := b.swapHandler.ClaimVHTLC(ctx, b.preimage, b.chainSwapState.Swap.VhtlcOpts, nil)
+	claimTxid, err := b.swapHandler.ClaimVHTLC(
+		ctx, b.preimage, b.chainSwapState.Swap.VhtlcOpts, outpoint,
+	)
 	if err != nil {
 		// ChainSwap.Fail() emits FailEvent automatically
 		b.chainSwapState.Swap.Fail(fmt.Sprintf("claim failed: %v", err))
