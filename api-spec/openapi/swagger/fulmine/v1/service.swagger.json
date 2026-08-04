@@ -748,6 +748,19 @@
             "in": "path",
             "required": true,
             "type": "string"
+          },
+          {
+            "name": "outpoint.txid",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "outpoint.vout",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
           }
         ],
         "tags": [

@@ -551,6 +551,10 @@ func local_request_Service_ListVHTLCs_0(ctx context.Context, marshaler runtime.M
 
 }
 
+var (
+	filter_Service_GetVHTLCSpendingTx_0 = &utilities.DoubleArray{Encoding: map[string]int{"vhtlc_id": 0, "vhtlcId": 1}, Base: []int{1, 1, 2, 0, 0}, Check: []int{0, 1, 1, 2, 3}}
+)
+
 func request_Service_GetVHTLCSpendingTx_0(ctx context.Context, marshaler runtime.Marshaler, client ServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq GetVHTLCSpendingTxRequest
 	var metadata runtime.ServerMetadata
@@ -570,6 +574,13 @@ func request_Service_GetVHTLCSpendingTx_0(ctx context.Context, marshaler runtime
 	protoReq.VhtlcId, err = runtime.String(val)
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "vhtlc_id", err)
+	}
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_Service_GetVHTLCSpendingTx_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.GetVHTLCSpendingTx(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -596,6 +607,13 @@ func local_request_Service_GetVHTLCSpendingTx_0(ctx context.Context, marshaler r
 	protoReq.VhtlcId, err = runtime.String(val)
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "vhtlc_id", err)
+	}
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_Service_GetVHTLCSpendingTx_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := server.GetVHTLCSpendingTx(ctx, &protoReq)

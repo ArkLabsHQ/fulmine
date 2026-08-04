@@ -358,6 +358,8 @@ message ListVHTLCsResponse {
 
 message GetVHTLCSpendingTxRequest {
   string vhtlc_id = 1;
+  // Optional outpoint to target a specific VTXO when multiple VTXOs exist at the same VHTLC address.
+  Input outpoint = 2;
 }
 
 message GetVHTLCSpendingTxResponse {
