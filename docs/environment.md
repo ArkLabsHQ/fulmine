@@ -24,7 +24,7 @@ Generated from `config Structure`. **Do not edit manually.**
 | `FULMINE_UNLOCKER_TYPE` | `` | `string` | Unlocker type: file or env |
 | `FULMINE_UNLOCKER_FILE_PATH` | `` | `string` | Path to the unlocker password file (file unlocker) |
 | `FULMINE_UNLOCKER_PASSWORD` | `` | `string` | Unlocker password (env unlocker) |
-| `FULMINE_DISABLE_TELEMETRY` | `false` | `bool` | Disable telemetry |
+| `FULMINE_DISABLE_TELEMETRY` | `true` | `bool` | Disable telemetry |
 | `FULMINE_SWAP_TIMEOUT` | `15` | `uint32` | Swap timeout in seconds |
 | `FULMINE_OTEL_COLLECTOR_URL` | `` | `string` | OpenTelemetry collector URL; enables OTel export when set |
 | `FULMINE_OTEL_PUSH_INTERVAL` | `10` | `int64` | OpenTelemetry metrics push interval in seconds |
