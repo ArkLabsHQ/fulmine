@@ -40,6 +40,7 @@ type service struct {
 	delegateGrpcServer *grpc.Server
 	unlockerSvc        ports.Unlocker
 	macaroonSvc        macaroon.Service
+	arkServer          string
 	appStopCh          chan struct{}
 	feStopCh           chan struct{}
 	otelShutdown       func()
@@ -268,6 +269,7 @@ func NewService(
 		delegateGrpcServer: delegateGrpcServer,
 		unlockerSvc:        unlockerSvc,
 		macaroonSvc:        macaroonSvc,
+		arkServer:          arkServer,
 		appStopCh:          appStopCh,
 		feStopCh:           feStopCh,
 		otelShutdown:       otelShutdown,
@@ -310,9 +312,26 @@ func (s *service) Start() error {
 		log.Infof("started Delegate server at %s", s.cfg.delegateAddress())
 	}
 
+	if s.cfg.AutoInit {
+		if err := s.autoInit(); err != nil {
+			return fmt.Errorf("auto-init failed: %w", err)
+		}
+	}
+
 	if s.unlockerSvc != nil {
 		if err := s.autoUnlock(); err != nil {
+			if s.cfg.AutoInit {
+				// Auto-init promises a wallet that ends up unlocked: a created-but-locked
+				// delegate is not operational, and a restart retries only the unlock.
+				return fmt.Errorf("auto-unlock failed: %w", err)
+			}
 			log.Warnf("failed to auto-unlock: %v", err)
+		}
+	}
+
+	if s.cfg.AutoInit && s.cfg.AutoInitMnemonic != "" {
+		if err := s.verifyConfiguredMnemonic(); err != nil {
+			return err
 		}
 	}
 

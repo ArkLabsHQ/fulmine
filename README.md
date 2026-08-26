@@ -88,6 +88,14 @@ All settings are read from environment variables prefixed with `FULMINE_`. The m
 | `FULMINE_UNLOCKER_FILE_PATH` | Path to a file containing the wallet password (when using the `file` unlocker) | Not set |
 | `FULMINE_UNLOCKER_PASSWORD` | Wallet password (when using the `env` unlocker) | Not set |
 
+#### Auto-init (see [Auto-Init Feature](#-auto-init-feature))
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `FULMINE_AUTO_INIT` | Create and unlock the wallet automatically on first boot; requires an unlocker and `FULMINE_ARK_SERVER` | `false` |
+| `FULMINE_MNEMONIC` | 12-word BIP39 mnemonic to restore during auto-init; omit to generate a new one | Not set |
+| `FULMINE_MNEMONIC_FILE_PATH` | Path to a file containing the mnemonic to restore during auto-init (mutually exclusive with `FULMINE_MNEMONIC`) | Not set |
+
 #### Delegate (see [Running as a Delegate](#-running-as-a-delegate))
 
 | Variable | Description | Default |
@@ -148,12 +156,36 @@ Fulmine supports automatic wallet unlocking on startup, which is useful for unat
    FULMINE_UNLOCKER_PASSWORD=your_wallet_password
    ```
 
-Auto-unlock only runs if a wallet already exists; you must create the wallet once first.
+Auto-unlock only runs if a wallet already exists; you must create the wallet once first, or let [auto-init](#-auto-init-feature) create it for you on first boot.
 
 ⚠️ **Security Warning**: When using the auto-unlock feature, ensure your password is stored securely:
 - For file-based unlocking, use appropriate file permissions (chmod 600)
 - For environment-based unlocking, be cautious about environment variable visibility
 - Consider using Docker secrets or similar tools in production environments
+
+### 🚀 Auto-Init Feature
+
+With `FULMINE_AUTO_INIT=true`, Fulmine creates the wallet by itself on first boot, so a fresh instance becomes fully operational from a single command — no `genseed`/`create`/`unlock` calls and no web UI visit needed. Auto-init requires an [unlocker](#-auto-unlock-feature) (the wallet is created with the unlocker's password and unlocked right after) and `FULMINE_ARK_SERVER`.
+
+On the very first boot, Fulmine generates a new mnemonic and **prints it to stdout exactly once**, clearly marked as a backup prompt:
+
+```
+==========================================================================
+
+  FULMINE WALLET CREATED - BACK UP YOUR MNEMONIC NOW
+
+      word1 word2 ... word12
+
+  ...
+
+==========================================================================
+```
+
+Run `docker logs <container>` right after the first start and store the mnemonic offline. It is never printed again: the data directory only holds it encrypted with your wallet password.
+
+To restore an existing wallet instead of generating a new one (for example when re-provisioning a crashed machine), pass the mnemonic via `FULMINE_MNEMONIC` or, preferably, a mounted secret file via `FULMINE_MNEMONIC_FILE_PATH`. Nothing is printed in that case, and if the data directory already contains a *different* wallet, Fulmine refuses to start rather than serve the wrong identity.
+
+If a wallet already exists, auto-init does nothing and startup behaves exactly as before (auto-unlock only).
 
 ## 🤝 Running as a Delegate
 
@@ -162,18 +194,22 @@ A **delegate** is a Fulmine instance that refreshes other users' VTXOs on their 
 ### Requirements
 
 - **The delegate is disabled by default.** Enable it with `FULMINE_DELEGATE_ENABLED=true`.
-- **A delegate needs a created _and unlocked_ wallet.** The delegate service starts when the wallet is unlocked and stops when it is locked, and it signs batch transactions with the wallet's key. For unattended operation, configure [auto-unlock](#-auto-unlock-feature).
+- **A delegate needs a created _and unlocked_ wallet.** The delegate service starts when the wallet is unlocked and stops when it is locked, and it signs batch transactions with the wallet's key. For unattended operation, configure [auto-init](#-auto-init-feature) and [auto-unlock](#-auto-unlock-feature).
 - The delegate listens on its own port, `FULMINE_DELEGATE_PORT` (default `7002`), which **must differ** from the gRPC and HTTP ports.
 - Optionally set `FULMINE_DELEGATE_FEE` (satoshis) to require a service fee; clients must pay at least this amount to the delegate's address in their intent.
 
 ### Example
 
+This single command brings up a fully working delegate — [auto-init](#-auto-init-feature) creates and unlocks the wallet on first boot, no follow-up API calls needed:
+
 ```bash
 docker run -d \
   --name fulmine-delegate \
+  --restart unless-stopped \
   -p 7000:7000 \
   -p 7001:7001 \
   -p 7002:7002 \
+  -e FULMINE_AUTO_INIT=true \
   -e FULMINE_DELEGATE_ENABLED=true \
   -e FULMINE_DELEGATE_FEE=1000 \
   -e FULMINE_ARK_SERVER="https://server.example.com" \
@@ -184,7 +220,11 @@ docker run -d \
   ghcr.io/arklabshq/fulmine:latest
 ```
 
-Create and unlock the wallet once (see [Wallet Setup & Basic Usage](#-wallet-setup--basic-usage)); after that, auto-unlock brings the delegate back up on every restart.
+⚠️ **Back up before onboarding users**: the first boot prints the wallet mnemonic to stdout exactly once — run `docker logs fulmine-delegate` right away and store it offline. The mnemonic is the delegate's signing identity: clients embed the delegate's pubkey in their VTXOs, so losing it means the delegate can no longer serve any of its outstanding delegations.
+
+To re-provision a delegate on a new machine with the same identity, add `-e FULMINE_MNEMONIC="<the 12 words>"` (or mount a secret file and set `FULMINE_MNEMONIC_FILE_PATH`) to the same command. Note that restoring the mnemonic recovers the identity and funds, but delegation tasks already accepted from clients live in the database inside the data directory — back up the `fulmine-data` volume as well if you want pending tasks to survive a machine loss.
+
+On every restart, auto-unlock brings the delegate back up automatically.
 
 ### Endpoints
 
