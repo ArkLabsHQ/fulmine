@@ -63,18 +63,30 @@ func (r *vhtlcRepository) Get(ctx context.Context, id string) (*domain.Vhtlc, er
 	return &vhtlc, nil
 }
 
+// GetByIds returns the vHTLCs matching ids, each at most once, in no particular
+// order. Ids with no stored vHTLC are skipped. The lookup runs as several
+// statements, and an error from any one of them fails the whole call rather than
+// returning a partial set.
 func (r *vhtlcRepository) GetByIds(ctx context.Context, ids []string) ([]domain.Vhtlc, error) {
-	rows, err := r.querier.ListVHTLCsByID(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]domain.Vhtlc, 0, len(rows))
-	for _, row := range rows {
-		vhtlcs, err := toVhtlc(row)
+	// Deduplicate first: a repeated id landing in two chunks would otherwise
+	// return the same vHTLC twice, where a single statement returned it once.
+	ids = dedupeStrings(ids)
+
+	// Not presized on len(ids): the caller controls that, and the result is
+	// bounded by the rows that actually exist.
+	out := make([]domain.Vhtlc, 0)
+	for i, chunk := range chunkSlice(ids, maxBindVariablesPerStatement) {
+		rows, err := r.querier.ListVHTLCsByID(ctx, chunk)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to list vHTLCs for id chunk %d: %w", i, err)
 		}
-		out = append(out, vhtlcs)
+		for _, row := range rows {
+			vhtlcs, err := toVhtlc(row)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert vHTLC %s: %w", row.ID, err)
+			}
+			out = append(out, vhtlcs)
+		}
 	}
 	return out, nil
 }
