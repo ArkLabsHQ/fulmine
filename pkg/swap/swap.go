@@ -1175,10 +1175,21 @@ func (h *SwapHandler) waitAndClaim(
 			}
 			if confirmed {
 				interval := 200 * time.Millisecond
+				fundingTxid := update.Transaction.Id
 				log.Debug("claiming VHTLC with preimage...")
 				if err := retry(ctx, interval, func(ctx context.Context) (bool, error) {
-					var err error
-					txid, err = h.ClaimVHTLC(ctx, preimage, *vhtlcOpts, nil)
+					// Resolved inside the retry: until the funding vtxo shows
+					// up this reports ErrorNoVtxosFound, which keeps waiting
+					// rather than claiming whatever else is at the address.
+					outpoint, err := h.outpointForFundingTx(ctx, *vhtlcOpts, fundingTxid)
+					if err != nil {
+						if errors.Is(err, ErrorNoVtxosFound) {
+							return false, nil
+						}
+						return false, err
+					}
+
+					txid, err = h.ClaimVHTLC(ctx, preimage, *vhtlcOpts, outpoint)
 					if err != nil {
 						if errors.Is(err, ErrorNoVtxosFound) {
 							return false, nil
@@ -1277,6 +1288,111 @@ func (h *SwapHandler) getBatchSessionArgs(
 	}, nil
 }
 
+// outpointForFundingTx resolves the vtxo that fundingTxid created at the VHTLC
+// address. Boltz names the transaction that locked the funds, so a claim can
+// say which vtxo it means instead of falling back to creation order, which
+// picks by age and so prefers anything that arrived at the address earlier.
+//
+// An empty fundingTxid yields a nil outpoint, leaving selection unchanged. A
+// txid that matches nothing yet yields ErrorNoVtxosFound rather than a nil
+// outpoint, so callers that retry on that error wait for the funding vtxo to
+// appear instead of claiming whatever else is already sitting there.
+func (h *SwapHandler) outpointForFundingTx(
+	ctx context.Context, vhtlcOpts vhtlc.Opts, fundingTxid string,
+) (*clientTypes.Outpoint, error) {
+	if fundingTxid == "" {
+		return nil, nil
+	}
+
+	vhtlcScript, err := h.buildVHTLC(ctx, vhtlcOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create VHTLC script: %w", err)
+	}
+
+	spendableVtxos, err := h.getVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get spendable VHTLC funds: %w", err)
+	}
+	pendingVtxos, err := h.getPendingVHTLCFunds(ctx, []*vhtlc.VHTLCScript{vhtlcScript})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pending VHTLC funds: %w", err)
+	}
+
+	return selectOutpointByFundingTxid(spendableVtxos, pendingVtxos, fundingTxid)
+}
+
+// selectOutpointByFundingTxid picks the outpoint funded by fundingTxid out of
+// the vtxos held at a VHTLC address. Split out from outpointForFundingTx so the
+// selection can be exercised without standing up an indexer.
+//
+// A vtxo can appear in both lists, so the same outpoint seen twice is one
+// candidate, not a collision.
+func selectOutpointByFundingTxid(
+	spendableVtxos, pendingVtxos []clientTypes.Vtxo, fundingTxid string,
+) (*clientTypes.Outpoint, error) {
+	if fundingTxid == "" {
+		return nil, nil
+	}
+
+	var found *clientTypes.Outpoint
+	for _, vtxos := range [][]clientTypes.Vtxo{spendableVtxos, pendingVtxos} {
+		for _, vtxo := range vtxos {
+			if vtxo.Txid != fundingTxid {
+				continue
+			}
+			if found != nil && *found != vtxo.Outpoint {
+				// The same transaction paid this address more than once and
+				// nothing here says which output the swap is for.
+				return nil, fmt.Errorf(
+					"funding tx %s has several outputs for this VHTLC", fundingTxid,
+				)
+			}
+			outpoint := vtxo.Outpoint
+			found = &outpoint
+		}
+	}
+
+	if found == nil {
+		// An address holding vtxos, none of them from the funding tx, is the
+		// shape a txid-semantics mismatch takes: Boltz names one id and the
+		// indexer reports another, and the bare sentinel gives an operator
+		// nothing to tell that apart from "not propagated yet". Naming what was
+		// actually there costs nothing in the common case, where the address is
+		// still empty and the caller is simply waiting.
+		if seen := distinctTxids(spendableVtxos, pendingVtxos); len(seen) > 0 {
+			return nil, fmt.Errorf(
+				"%w: funding tx %s is not among the %d vtxo(s) at this VHTLC (%s)",
+				ErrorNoVtxosFound, fundingTxid, len(seen), strings.Join(seen, ", "),
+			)
+		}
+		return nil, ErrorNoVtxosFound
+	}
+	return found, nil
+}
+
+// distinctTxids lists the transactions that funded the given vtxos, once each
+// and capped, so an error built from it stays readable.
+func distinctTxids(vtxoLists ...[]clientTypes.Vtxo) []string {
+	const maxReported = 5
+
+	seen := make(map[string]struct{})
+	out := make([]string, 0, maxReported)
+	for _, vtxos := range vtxoLists {
+		for _, vtxo := range vtxos {
+			if _, ok := seen[vtxo.Txid]; ok {
+				continue
+			}
+			seen[vtxo.Txid] = struct{}{}
+			if len(out) == maxReported {
+				out = append(out, "...")
+				return out
+			}
+			out = append(out, vtxo.Txid)
+		}
+	}
+	return out
+}
+
 func (h *SwapHandler) selectClaimableVTXO(
 	ctx context.Context,
 	vhtlcScript *vhtlc.VHTLCScript,
@@ -1329,7 +1445,15 @@ func (h *SwapHandler) selectClaimableVTXO(
 				return v, pendingByOutpoint[v.Outpoint.String()], nil
 			}
 		}
-		return nil, false, fmt.Errorf("outpoint %s not found among VTXOs for this VHTLC", outpoint)
+		// Wrapped in ErrorNoVtxosFound so callers that wait on that sentinel keep
+		// waiting. A requested outpoint can be missing simply because this fetch
+		// raced the one that chose it: waitAndClaim resolves the funding outpoint
+		// and then claims it in a second, independent indexer round-trip, so a
+		// vtxo can move or briefly not be reported in between. Treating that as a
+		// hard failure aborts a claim that would have succeeded on the next tick.
+		return nil, false, fmt.Errorf(
+			"%w: outpoint %s not found among VTXOs for this VHTLC", ErrorNoVtxosFound, outpoint,
+		)
 	}
 
 	sort.Slice(candidateVtxos, func(i, j int) bool {

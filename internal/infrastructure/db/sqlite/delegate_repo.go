@@ -154,8 +154,21 @@ func (r *delegateRepository) GetPendingTaskIDsByInputs(ctx context.Context, inpu
 	for i, input := range inputs {
 		outpoints[i] = input.String()
 	}
+	outpoints = dedupeStrings(outpoints)
 
-	return r.querier.GetPendingTaskIDsByInputs(ctx, outpoints)
+	taskIDs := make([]string, 0)
+	for _, chunk := range chunkSlice(outpoints, maxBindVariablesPerStatement) {
+		ids, err := r.querier.GetPendingTaskIDsByInputs(ctx, chunk)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get pending task ids by inputs: %w", err)
+		}
+		taskIDs = append(taskIDs, ids...)
+	}
+
+	// The query's SELECT DISTINCT only deduplicates within a single statement. A
+	// task whose inputs span two chunks is reported once per chunk, so restore
+	// the distinctness the caller relies on before returning.
+	return dedupeStrings(taskIDs), nil
 }
 
 func (r *delegateRepository) GetAll(ctx context.Context, status domain.DelegateTaskStatus, limit int, offset int) ([]domain.DelegateTask, error) {
@@ -238,7 +251,9 @@ func (r *delegateRepository) CancelTasks(ctx context.Context, ids ...string) err
 		return nil // Nothing to cancel
 	}
 
-	err := r.querier.CancelDelegateTasks(ctx, ids)
+	err := r.updateTasksInChunks(ctx, ids, func(q *queries.Queries, chunk []string) error {
+		return q.CancelDelegateTasks(ctx, chunk)
+	})
 	if err != nil {
 		return fmt.Errorf("failed to cancel delegate tasks: %w", err)
 	}
@@ -251,9 +266,11 @@ func (r *delegateRepository) CompleteTasks(ctx context.Context, commitmentTxid s
 		return nil
 	}
 
-	err := r.querier.SuccessDelegateTasks(ctx, queries.SuccessDelegateTasksParams{
-		CommitmentTxid: sql.NullString{String: commitmentTxid, Valid: commitmentTxid != ""},
-		Ids:            ids,
+	err := r.updateTasksInChunks(ctx, ids, func(q *queries.Queries, chunk []string) error {
+		return q.SuccessDelegateTasks(ctx, queries.SuccessDelegateTasksParams{
+			CommitmentTxid: sql.NullString{String: commitmentTxid, Valid: commitmentTxid != ""},
+			Ids:            chunk,
+		})
 	})
 	if err != nil {
 		return fmt.Errorf("failed to mark delegate tasks as done: %w", err)
@@ -267,15 +284,45 @@ func (r *delegateRepository) FailTasks(ctx context.Context, reason string, ids .
 		return nil
 	}
 
-	err := r.querier.FailDelegateTasks(ctx, queries.FailDelegateTasksParams{
-		FailReason: sql.NullString{String: reason, Valid: len(reason) > 0},
-		Ids:        ids,
+	err := r.updateTasksInChunks(ctx, ids, func(q *queries.Queries, chunk []string) error {
+		return q.FailDelegateTasks(ctx, queries.FailDelegateTasksParams{
+			FailReason: sql.NullString{String: reason, Valid: len(reason) > 0},
+			Ids:        chunk,
+		})
 	})
 	if err != nil {
 		return fmt.Errorf("failed to mark delegate tasks as failed: %w", err)
 	}
 
 	return nil
+}
+
+// updateTasksInChunks applies a status update across ids in batches small enough
+// to stay under the sqlite bind-variable limit.
+//
+// Every batch runs inside one transaction. These are terminal state transitions,
+// so a partially applied update would leave the task set split between the old
+// and new status with nothing recording where it stopped — the caller would see
+// an error but have no way to tell which tasks it still owns. All-or-nothing
+// keeps a retry safe.
+//
+// Note that the statements behind CompleteTasks and FailTasks bind a leading
+// variable of their own (commitment txid / fail reason) before the id list, so
+// their usable headroom is one lower than CancelTasks'. The chunk size sits far
+// enough below the limit that the difference does not matter.
+func (r *delegateRepository) updateTasksInChunks(
+	ctx context.Context, ids []string, apply func(*queries.Queries, []string) error,
+) error {
+	ids = dedupeStrings(ids)
+
+	return execTx(ctx, r.db, func(querierWithTx *queries.Queries) error {
+		for _, chunk := range chunkSlice(ids, maxBindVariablesPerStatement) {
+			if err := apply(querierWithTx, chunk); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (r *delegateRepository) Close() {

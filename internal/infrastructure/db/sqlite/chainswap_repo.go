@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
@@ -88,20 +89,32 @@ func (r *chainSwapRepository) GetByIDs(ctx context.Context, ids []string) ([]dom
 		return []domain.ChainSwap{}, nil
 	}
 
-	rows, err := r.querier.ListChainSwapsByIDs(ctx, ids)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list chain swaps by IDs: %w", err)
+	// Deduplicate first: a repeated id landing in two chunks would otherwise
+	// return the same swap twice, where a single statement returned it once.
+	ids = dedupeStrings(ids)
+
+	swaps := make([]domain.ChainSwap, 0)
+	for _, chunk := range chunkSlice(ids, maxBindVariablesPerStatement) {
+		rows, err := r.querier.ListChainSwapsByIDs(ctx, chunk)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list chain swaps by IDs: %w", err)
+		}
+
+		for _, row := range rows {
+			swap, err := toChainSwap(row)
+			if err != nil {
+				log.Warnf("failed to convert chain swap %s: %v", row.ID, err)
+				continue
+			}
+			swaps = append(swaps, *swap)
+		}
 	}
 
-	swaps := make([]domain.ChainSwap, 0, len(rows))
-	for _, row := range rows {
-		swap, err := toChainSwap(row)
-		if err != nil {
-			log.Warnf("failed to convert chain swap %s: %v", row.ID, err)
-			continue
-		}
-		swaps = append(swaps, *swap)
-	}
+	// ListChainSwapsByIDs orders by created_at DESC, but that only holds within a
+	// chunk. Restore the ordering the caller expects across the merged result.
+	sort.SliceStable(swaps, func(i, j int) bool {
+		return swaps[i].CreatedAt > swaps[j].CreatedAt
+	})
 
 	return swaps, nil
 }

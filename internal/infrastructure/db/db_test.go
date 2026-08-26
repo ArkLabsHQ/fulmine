@@ -123,6 +123,8 @@ func testVHTLCRepository(t *testing.T, svc ports.RepoManager) {
 		testAddVHTLC(t, svc.VHTLC())
 		testGetAllVHTLC(t, svc.VHTLC())
 		testGetVHTLCsById(t, svc.VHTLC())
+		testGetVHTLCsByIdAcrossVariableBound(t, svc.VHTLC())
+		testGetVHTLCsByIdWithDuplicates(t, svc.VHTLC())
 		testAddNonInteractiveVHTLC(t, svc.VHTLC())
 	})
 }
@@ -304,6 +306,62 @@ func testGetVHTLCsById(t *testing.T, repo domain.VHTLCRepository) {
 		require.NoError(t, err)
 		require.Len(t, vhtlcList, 2)
 		require.Subset(t, []domain.Vhtlc{testVHTLC, secondVHTLC}, vhtlcList)
+	})
+}
+
+// The bound these cases straddle is sqliteMaxVariableNumber, declared alongside
+// the other boundary tests in bind_variable_limit_test.go.
+
+func testGetVHTLCsByIdAcrossVariableBound(t *testing.T, repo domain.VHTLCRepository) {
+	t.Run("get vHTLCs by ids across the sqlite variable bound", func(t *testing.T) {
+		known := make([]domain.Vhtlc, 0, 3)
+		knownIds := make([]string, 0, 3)
+		for i := 0; i < 3; i++ {
+			v := makeVHTLC()
+			require.NoError(t, repo.Add(ctx, v))
+			known = append(known, v)
+			knownIds = append(knownIds, v.Id)
+		}
+
+		for _, count := range []int{
+			sqliteMaxVariableNumber - 1,
+			sqliteMaxVariableNumber,
+			sqliteMaxVariableNumber + 1,
+			sqliteMaxVariableNumber*2 + 1,
+		} {
+			t.Run(fmt.Sprintf("%d ids", count), func(t *testing.T) {
+				ids := make([]string, 0, count)
+				ids = append(ids, knownIds...)
+				for len(ids) < count {
+					ids = append(ids, uuid.NewString())
+				}
+
+				got, err := repo.GetByIds(ctx, ids)
+				require.NoError(t, err)
+				require.Len(t, got, len(known))
+				require.Subset(t, known, got)
+			})
+		}
+	})
+}
+
+func testGetVHTLCsByIdWithDuplicates(t *testing.T, repo domain.VHTLCRepository) {
+	t.Run("get vHTLCs by ids returns each vHTLC once when ids repeat", func(t *testing.T) {
+		v := makeVHTLC()
+		require.NoError(t, repo.Add(ctx, v))
+
+		// Repeat the same id either side of a chunk boundary, so a chunked
+		// implementation would match it once per chunk.
+		ids := []string{v.Id}
+		for len(ids) < 2000 {
+			ids = append(ids, uuid.NewString())
+		}
+		ids = append(ids, v.Id)
+
+		got, err := repo.GetByIds(ctx, ids)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		require.Equal(t, v, got[0])
 	})
 }
 
