@@ -44,7 +44,7 @@ type Config struct {
 	UnlockerType     string `mapstructure:"UNLOCKER_TYPE" envInfo:"Unlocker type: file or env"`
 	UnlockerFilePath string `mapstructure:"UNLOCKER_FILE_PATH" envInfo:"Path to the unlocker password file (file unlocker)"`
 	UnlockerPassword string `mapstructure:"UNLOCKER_PASSWORD" envInfo:"Unlocker password (env unlocker)"`
-	DisableTelemetry bool   `mapstructure:"DISABLE_TELEMETRY" envDefault:"false" envInfo:"Disable telemetry"`
+	DisableTelemetry bool   `mapstructure:"DISABLE_TELEMETRY" envDefault:"true" envInfo:"Disable telemetry"`
 	SwapTimeout      uint32 `mapstructure:"SWAP_TIMEOUT" envDefault:"15" envInfo:"Swap timeout in seconds"`
 	OtelCollectorURL string `mapstructure:"OTEL_COLLECTOR_URL" envInfo:"OpenTelemetry collector URL; enables OTel export when set"`
 	OtelPushInterval int64  `mapstructure:"OTEL_PUSH_INTERVAL" envDefault:"10" envInfo:"OpenTelemetry metrics push interval in seconds"`

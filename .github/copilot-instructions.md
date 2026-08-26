@@ -157,7 +157,7 @@ Complete list of configuration options:
 - `FULMINE_UNLOCKER_PASSWORD`: Password string for environment-based unlocker
 - `FULMINE_BOLTZ_URL`: Custom Boltz backend URL for swaps
 - `FULMINE_BOLTZ_WS_URL`: Custom Boltz WebSocket backend URL for swap events
-- `FULMINE_DISABLE_TELEMETRY`: Opt out of telemetry logs (default: false)
+- `FULMINE_DISABLE_TELEMETRY`: Opt out of telemetry logs (default: true)
 - `FULMINE_LOG_LEVEL`: Logging verbosity (5 = debug)
 - `FULMINE_NO_MACAROONS`: Disable macaroon authentication (dev only)
 

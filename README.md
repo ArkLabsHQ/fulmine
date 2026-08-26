@@ -110,7 +110,7 @@ All settings are read from environment variables prefixed with `FULMINE_`. The m
 |----------|-------------|---------|
 | `FULMINE_SCHEDULER_POLL_INTERVAL` | How often (seconds) the scheduler polls for VTXOs to refresh | `600` |
 | `FULMINE_REFRESH_DB_INTERVAL` | How often (seconds) the Ark SDK refreshes its local database | `60` |
-| `FULMINE_DISABLE_TELEMETRY` | Opt out of telemetry logs | `false` |
+| `FULMINE_DISABLE_TELEMETRY` | Opt out of telemetry logs | `true` |
 | `FULMINE_PROFILING_ENABLED` | Expose a pprof server on `:6060` | `false` |
 | `FULMINE_OTEL_COLLECTOR_URL` | OpenTelemetry collector endpoint (enables OTel metrics/traces) | Not set |
 | `FULMINE_OTEL_PUSH_INTERVAL` | OpenTelemetry push interval, in seconds | `10` |
