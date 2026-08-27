@@ -18,8 +18,9 @@ const (
 )
 
 // autoInit creates the wallet on first boot so a fresh instance becomes
-// operational without any manual genseed/create/unlock calls. The wallet is
-// left locked: the auto-unlock step that follows in Start() brings it up.
+// operational without any manual genseed/create/unlock calls. Whatever lock
+// state Setup leaves behind is handled by the autoUnlock step that follows in
+// Start(): UnlockNode guards on IsLocked, so it is safe either way.
 func (s *service) autoInit() error {
 	ctx := context.Background()
 
@@ -122,6 +123,9 @@ func formatMnemonicBanner(mnemonic string) string {
   identity and the delegate signing key: store them offline before
   onboarding users. To restore on a new machine, run the same command
   with FULMINE_MNEMONIC (or FULMINE_MNEMONIC_FILE_PATH) set.
+
+  Once backed up, scrub these words from wherever this output was
+  captured (container logs, log aggregators, terminal scrollback).
 
 ==========================================================================
 `, mnemonic)

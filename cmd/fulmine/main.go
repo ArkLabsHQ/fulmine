@@ -127,6 +127,10 @@ func main() {
 		log.WithError(err).Fatal("failed to init interface service")
 	}
 
+	// The mnemonic now lives in the interface service config, which clears it
+	// once the wallet is up; drop this copy so it is not retained here too.
+	cfg.Mnemonic = ""
+
 	log.RegisterExitHandler(svc.Stop)
 
 	log.Info("starting service...")

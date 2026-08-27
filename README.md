@@ -181,9 +181,11 @@ On the very first boot, Fulmine generates a new mnemonic and **prints it to stdo
 ==========================================================================
 ```
 
-Run `docker logs <container>` right after the first start and store the mnemonic offline. It is never printed again: the data directory only holds it encrypted with your wallet password.
+Run `docker logs <container>` right after the first start and store the mnemonic offline. It is never printed again: the data directory only holds it encrypted with your wallet password. Once it is backed up, scrub it from wherever the output was captured — container logs and any log aggregator that ingests them.
 
 To restore an existing wallet instead of generating a new one (for example when re-provisioning a crashed machine), pass the mnemonic via `FULMINE_MNEMONIC` or, preferably, a mounted secret file via `FULMINE_MNEMONIC_FILE_PATH`. Nothing is printed in that case, and if the data directory already contains a *different* wallet, Fulmine refuses to start rather than serve the wrong identity.
+
+⚠️ **Prefer the file path in production.** A mnemonic passed in `FULMINE_MNEMONIC` is visible to anything that can read the container's environment — `docker inspect`, `/proc/<pid>/environ`, orchestrator dashboards — for the life of the container. Fulmine drops its own copy once the wallet is up, but it cannot remove the value from the process environment. With `FULMINE_MNEMONIC_FILE_PATH` the secret stays in a file you control (`chmod 600`, a Docker/Kubernetes secret mount).
 
 If a wallet already exists, auto-init does nothing and startup behaves exactly as before (auto-unlock only).
 

@@ -312,6 +312,12 @@ func (s *service) Start() error {
 		log.Infof("started Delegate server at %s", s.cfg.delegateAddress())
 	}
 
+	// The listeners above are already accepting connections while the wallet is
+	// created and unlocked below. That window is deliberate: it lets /healthz
+	// answer NOT_SERVING instead of refusing connections during the auto-init
+	// retries, and any request arriving before the wallet is ready is rejected
+	// by the readiness gate. If a step below fails, Start returns and the
+	// process exits, cutting whatever arrived in the meantime.
 	if s.cfg.AutoInit {
 		if err := s.autoInit(); err != nil {
 			return fmt.Errorf("auto-init failed: %w", err)
@@ -329,10 +335,18 @@ func (s *service) Start() error {
 		}
 	}
 
-	if s.cfg.AutoInit && s.cfg.AutoInitMnemonic != "" {
-		if err := s.verifyConfiguredMnemonic(); err != nil {
-			return err
+	if s.cfg.AutoInit {
+		if s.cfg.AutoInitMnemonic != "" {
+			if err := s.verifyConfiguredMnemonic(); err != nil {
+				return err
+			}
 		}
+		// Nothing reads the configured mnemonic past this point: drop the
+		// reference so it is not retained for the process lifetime. When it came
+		// from FULMINE_MNEMONIC the value still lives in the process environment,
+		// so this bounds the live set rather than erasing the secret — which is
+		// why FULMINE_MNEMONIC_FILE_PATH is the recommended way to supply it.
+		s.cfg.AutoInitMnemonic = ""
 	}
 
 	return nil
