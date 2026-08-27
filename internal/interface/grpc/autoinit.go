@@ -53,8 +53,12 @@ func (s *service) autoInit() error {
 			break
 		}
 		if attempt >= autoInitMaxAttempts {
+			// Name the ark server: an unreachable or misconfigured
+			// FULMINE_ARK_SERVER is the likeliest cause, and this error is the
+			// last thing an operator sees before the process exits.
 			return fmt.Errorf(
-				"failed to initialize wallet after %d attempts: %w", autoInitMaxAttempts, err,
+				"failed to initialize wallet with ark server %s after %d attempts: %w",
+				s.arkServer, autoInitMaxAttempts, err,
 			)
 		}
 		log.WithError(err).Warnf(
