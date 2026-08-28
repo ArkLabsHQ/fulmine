@@ -385,7 +385,12 @@ func (h *serviceHandler) GetVHTLCSpendingTx(
 		return nil, status.Error(codes.InvalidArgument, "missing vhtlc id")
 	}
 
-	tx, err := h.svc.GetVHTLCSpendingTx(ctx, vhtlcId)
+	outpoint, err := parseInputOutpoint(req.GetOutpoint())
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := h.svc.GetVHTLCSpendingTx(ctx, vhtlcId, outpoint)
 	if err != nil {
 		return nil, err
 	}

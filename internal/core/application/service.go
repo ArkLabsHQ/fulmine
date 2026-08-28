@@ -821,7 +821,7 @@ func (s *Service) GetVirtualTxs(ctx context.Context, txids []string) ([]string, 
 }
 
 func (s *Service) GetVHTLCSpendingTx(
-	ctx context.Context, vhtlcId string,
+	ctx context.Context, vhtlcId string, outpoint *clientTypes.Outpoint,
 ) (string, error) {
 	if err := s.isInitializedAndUnlocked(ctx); err != nil {
 		return "", err
@@ -832,7 +832,7 @@ func (s *Service) GetVHTLCSpendingTx(
 		return "", fmt.Errorf("failed to get VHTLC %s: %w", vhtlcId, err)
 	}
 
-	tx, _, err := s.swapHandler.GetVHTLCSpendingTx(ctx, vhtlcRecord.Opts, nil)
+	tx, _, err := s.swapHandler.GetVHTLCSpendingTx(ctx, vhtlcRecord.Opts, outpoint)
 	return tx, err
 }
 

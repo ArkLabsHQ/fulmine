@@ -1246,6 +1246,127 @@ func TestGetVHTLCSpendingTxFinalized(t *testing.T) {
 	require.Equal(t, preimage, []byte(witnesses[0][0]))
 }
 
+// TestGetVHTLCSpendingTxWithOutpoint funds one VHTLC address twice and spends
+// only the newer VTXO. Without an outpoint the lookup falls back to creation
+// order and lands on the older, still unspent VTXO, which has no spending tx.
+// Passing the outpoint must resolve the VTXO that was actually spent.
+func TestGetVHTLCSpendingTxWithOutpoint(t *testing.T) {
+	f, err := newFulmineClient(clientFulmineURL)
+	require.NoError(t, err)
+
+	ctx := t.Context()
+
+	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+	require.NoError(t, err)
+
+	preimage := make([]byte, 32)
+	_, err = rand.Read(preimage)
+	require.NoError(t, err)
+	sha256Hash := sha256.Sum256(preimage)
+	preimageHash := hex.EncodeToString(input.Ripemd160H(sha256Hash[:]))
+
+	vhtlcResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+		PreimageHash:   preimageHash,
+		ReceiverPubkey: info.GetPubkey(),
+		UnilateralClaimDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 512,
+		},
+		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+			Value: 1024,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, vhtlcResp.Address)
+
+	// The older VTXO stands in for anything that reached the address first.
+	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlcResp.Address,
+		Amount:  1000,
+	})
+	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+
+	_, err = f.SendOffChain(ctx, &pb.SendOffChainRequest{
+		Address: vhtlcResp.Address,
+		Amount:  2000,
+	})
+	require.NoError(t, err)
+
+	vhtlcs, err := f.ListVHTLC(ctx, &pb.ListVHTLCRequest{VhtlcId: vhtlcResp.GetId()})
+	require.NoError(t, err)
+	require.Len(t, vhtlcs.GetVhtlcs(), 2, "expected exactly 2 VTXOs at the VHTLC address")
+
+	var targetVtxo, olderVtxo *pb.Vtxo
+	for _, v := range vhtlcs.GetVhtlcs() {
+		switch v.Amount {
+		case 2000:
+			targetVtxo = v
+		case 1000:
+			olderVtxo = v
+		}
+	}
+	require.NotNil(t, targetVtxo, "expected a 2000-sat VTXO")
+	require.NotNil(t, olderVtxo, "expected a 1000-sat VTXO")
+
+	targetOutpoint := &pb.Input{
+		Txid: targetVtxo.Outpoint.GetTxid(),
+		Vout: targetVtxo.Outpoint.GetVout(),
+	}
+
+	// Spend only the newer VTXO, leaving the older one unspent.
+	claimResp, err := f.ClaimVHTLC(ctx, &pb.ClaimVHTLCRequest{
+		VhtlcId:  vhtlcResp.GetId(),
+		Preimage: hex.EncodeToString(preimage),
+		Outpoint: targetOutpoint,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, claimResp.GetRedeemTxid())
+
+	// The spending tx is registered asynchronously after ClaimVHTLC; poll for it.
+	resp, err := f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{
+		VhtlcId:  vhtlcResp.GetId(),
+		Outpoint: targetOutpoint,
+	})
+	spendingDeadline := time.Now().Add(30 * time.Second)
+	for (err != nil || resp.GetTx() == "") && time.Now().Before(spendingDeadline) {
+		time.Sleep(1 * time.Second)
+		resp, err = f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{
+			VhtlcId:  vhtlcResp.GetId(),
+			Outpoint: targetOutpoint,
+		})
+	}
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.GetTx())
+
+	ptx, err := psbt.NewFromRawBytes(strings.NewReader(resp.GetTx()), true)
+	require.NoError(t, err)
+	require.Equal(t, claimResp.GetRedeemTxid(), ptx.UnsignedTx.TxID(),
+		"the outpoint must resolve the VTXO that was actually spent")
+
+	// Targeting the older, unspent VTXO must not hand back the claim tx: that
+	// is exactly what the outpoint disambiguates.
+	olderResp, err := f.GetVHTLCSpendingTx(ctx, &pb.GetVHTLCSpendingTxRequest{
+		VhtlcId: vhtlcResp.GetId(),
+		Outpoint: &pb.Input{
+			Txid: olderVtxo.Outpoint.GetTxid(),
+			Vout: olderVtxo.Outpoint.GetVout(),
+		},
+	})
+	if err == nil && olderResp.GetTx() != "" {
+		olderPtx, perr := psbt.NewFromRawBytes(strings.NewReader(olderResp.GetTx()), true)
+		require.NoError(t, perr)
+		require.NotEqual(t, claimResp.GetRedeemTxid(), olderPtx.UnsignedTx.TxID(),
+			"the unspent VTXO must not resolve to the other VTXO's spending tx")
+	}
+}
+
 // TestGetVHTLCSpendingTxPending verifies that GetVHTLCSpendingTx returns the fully signed ark
 // transaction for a VHTLC spent by a pending tx (only SubmitTx was called)
 func TestGetVHTLCSpendingTxPending(t *testing.T) {
