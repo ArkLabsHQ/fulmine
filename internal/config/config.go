@@ -13,6 +13,7 @@ import (
 	envunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/env"
 	fileunlocker "github.com/ArkLabsHQ/fulmine/internal/infrastructure/unlocker/file"
 	"github.com/ArkLabsHQ/fulmine/pkg/macaroon"
+	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/spf13/viper"
 )
 
@@ -44,6 +45,10 @@ type Config struct {
 	UnlockerType     string `mapstructure:"UNLOCKER_TYPE" envInfo:"Unlocker type: file or env"`
 	UnlockerFilePath string `mapstructure:"UNLOCKER_FILE_PATH" envInfo:"Path to the unlocker password file (file unlocker)"`
 	UnlockerPassword string `mapstructure:"UNLOCKER_PASSWORD" envInfo:"Unlocker password (env unlocker)"`
+
+	AutoInit         bool   `mapstructure:"AUTO_INIT" envDefault:"false" envInfo:"Create and unlock the wallet automatically on first boot; requires an unlocker and FULMINE_ARK_SERVER"`
+	Mnemonic         string `mapstructure:"MNEMONIC" envInfo:"12-word BIP39 mnemonic to restore during auto-init; omit to generate a new one (mutually exclusive with FULMINE_MNEMONIC_FILE_PATH)"`
+	MnemonicFilePath string `mapstructure:"MNEMONIC_FILE_PATH" envInfo:"Path to a file containing the 12-word mnemonic to restore during auto-init"`
 	DisableTelemetry bool   `mapstructure:"DISABLE_TELEMETRY" envDefault:"false" envInfo:"Disable telemetry"`
 	SwapTimeout      uint32 `mapstructure:"SWAP_TIMEOUT" envDefault:"15" envInfo:"Swap timeout in seconds"`
 	OtelCollectorURL string `mapstructure:"OTEL_COLLECTOR_URL" envInfo:"OpenTelemetry collector URL; enables OTel export when set"`
@@ -84,6 +89,11 @@ var (
 	UnlockerFilePath = "UNLOCKER_FILE_PATH"
 	UnlockerPassword = "UNLOCKER_PASSWORD"
 
+	// Auto-init configuration
+	AutoInit         = "AUTO_INIT"
+	Mnemonic         = "MNEMONIC"
+	MnemonicFilePath = "MNEMONIC_FILE_PATH"
+
 	defaultDatadir          = appDatadir("fulmine", false)
 	dbType                  = sqliteDb
 	defaultGRPCPort         = 7000
@@ -105,6 +115,7 @@ var (
 	defaultDelegatePort          = 7002
 	defaultDelegateFee           = 0
 	defaultDelegateEnabled       = false
+	defaultAutoInit              = false
 )
 
 func LoadConfig() (*Config, error) {
@@ -128,6 +139,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault(OtelPushInterval, defaultOtelPushInterval)
 	viper.SetDefault(DelegateFee, defaultDelegateFee)
 	viper.SetDefault(DelegateEnabled, defaultDelegateEnabled)
+	viper.SetDefault(AutoInit, defaultAutoInit)
 
 	// TODO: move to validate method
 	if err := initDatadir(); err != nil {
@@ -174,9 +186,16 @@ func LoadConfig() (*Config, error) {
 		DelegateFee:           viper.GetUint64(DelegateFee),
 		DelegateEnabled:       viper.GetBool(DelegateEnabled),
 		EmulatorPubkey:        viper.GetString(EmulatorPubkey),
+		AutoInit:              viper.GetBool(AutoInit),
+		Mnemonic:              viper.GetString(Mnemonic),
+		MnemonicFilePath:      viper.GetString(MnemonicFilePath),
 	}
 
 	if err := config.initUnlockerService(); err != nil {
+		return nil, err
+	}
+
+	if err := config.validateAutoInit(); err != nil {
 		return nil, err
 	}
 
@@ -211,6 +230,61 @@ func (c *Config) initUnlockerService() error {
 	}
 	c.unlocker = svc
 	return nil
+}
+
+func (c *Config) validateAutoInit() error {
+	if !c.AutoInit {
+		if len(c.Mnemonic) > 0 || len(c.MnemonicFilePath) > 0 {
+			return fmt.Errorf(
+				"FULMINE_MNEMONIC and FULMINE_MNEMONIC_FILE_PATH require FULMINE_AUTO_INIT=true",
+			)
+		}
+		return nil
+	}
+
+	if c.unlocker == nil {
+		return fmt.Errorf("auto-init requires an unlocker: set FULMINE_UNLOCKER_TYPE")
+	}
+	if len(c.ArkServer) <= 0 {
+		return fmt.Errorf("auto-init requires FULMINE_ARK_SERVER to be set")
+	}
+
+	mnemonic, err := resolveAutoInitMnemonic(c.Mnemonic, c.MnemonicFilePath)
+	if err != nil {
+		return err
+	}
+	c.Mnemonic = mnemonic
+	return nil
+}
+
+// resolveAutoInitMnemonic returns the mnemonic to restore during auto-init, taken
+// from the env value or read from the mnemonic file. An empty result means no
+// mnemonic was configured and a new one must be generated.
+func resolveAutoInitMnemonic(mnemonic, filePath string) (string, error) {
+	if len(mnemonic) > 0 && len(filePath) > 0 {
+		return "", fmt.Errorf("FULMINE_MNEMONIC and FULMINE_MNEMONIC_FILE_PATH are mutually exclusive")
+	}
+
+	if len(filePath) > 0 {
+		buf, err := os.ReadFile(filePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to read mnemonic file: %w", err)
+		}
+		mnemonic = string(buf)
+	}
+
+	// bip39 seed derivation is whitespace- and case-sensitive: normalize so a
+	// quoted env value or a file with a trailing newline can't derive a
+	// different identity than the words the operator backed up.
+	mnemonic = strings.ToLower(strings.Join(strings.Fields(mnemonic), " "))
+	if len(mnemonic) <= 0 {
+		return "", nil
+	}
+
+	if err := utils.IsValidMnemonic(mnemonic); err != nil {
+		return "", fmt.Errorf("invalid auto-init mnemonic: %w", err)
+	}
+	return mnemonic, nil
 }
 
 func (c Config) MacaroonSvc() macaroon.Service {

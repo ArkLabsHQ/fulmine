@@ -24,6 +24,9 @@ Generated from `config Structure`. **Do not edit manually.**
 | `FULMINE_UNLOCKER_TYPE` | `` | `string` | Unlocker type: file or env |
 | `FULMINE_UNLOCKER_FILE_PATH` | `` | `string` | Path to the unlocker password file (file unlocker) |
 | `FULMINE_UNLOCKER_PASSWORD` | `` | `string` | Unlocker password (env unlocker) |
+| `FULMINE_AUTO_INIT` | `false` | `bool` | Create and unlock the wallet automatically on first boot; requires an unlocker and FULMINE_ARK_SERVER |
+| `FULMINE_MNEMONIC` | `` | `string` | 12-word BIP39 mnemonic to restore during auto-init; omit to generate a new one (mutually exclusive with FULMINE_MNEMONIC_FILE_PATH) |
+| `FULMINE_MNEMONIC_FILE_PATH` | `` | `string` | Path to a file containing the 12-word mnemonic to restore during auto-init |
 | `FULMINE_DISABLE_TELEMETRY` | `false` | `bool` | Disable telemetry |
 | `FULMINE_SWAP_TIMEOUT` | `15` | `uint32` | Swap timeout in seconds |
 | `FULMINE_OTEL_COLLECTOR_URL` | `` | `string` | OpenTelemetry collector URL; enables OTel export when set |

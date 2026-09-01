@@ -11,6 +11,11 @@ type Config struct {
 	HTTPPort     uint32
 	DelegatePort uint32
 	WithTLS      bool
+	// AutoInit makes Start() create and unlock the wallet on first boot.
+	AutoInit bool
+	// AutoInitMnemonic is the mnemonic to restore during auto-init; empty means
+	// a new one is generated.
+	AutoInitMnemonic string
 }
 
 func (c Config) Validate() error {

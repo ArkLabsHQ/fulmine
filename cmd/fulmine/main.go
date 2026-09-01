@@ -81,10 +81,12 @@ func main() {
 	log.Info("starting fulmine...")
 
 	svcConfig := grpcservice.Config{
-		GRPCPort:     cfg.GRPCPort,
-		HTTPPort:     cfg.HTTPPort,
-		DelegatePort: cfg.DelegatePort,
-		WithTLS:      cfg.WithTLS,
+		GRPCPort:         cfg.GRPCPort,
+		HTTPPort:         cfg.HTTPPort,
+		DelegatePort:     cfg.DelegatePort,
+		WithTLS:          cfg.WithTLS,
+		AutoInit:         cfg.AutoInit,
+		AutoInitMnemonic: cfg.Mnemonic,
 	}
 
 	dbSvc, err := db.NewService(db.ServiceConfig{
@@ -124,6 +126,10 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("failed to init interface service")
 	}
+
+	// The mnemonic now lives in the interface service config, which clears it
+	// once the wallet is up; drop this copy so it is not retained here too.
+	cfg.Mnemonic = ""
 
 	log.RegisterExitHandler(svc.Stop)
 
