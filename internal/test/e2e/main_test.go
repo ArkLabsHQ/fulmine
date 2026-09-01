@@ -19,9 +19,23 @@ const (
 	// host gRPC 7020) that runs THIS repo's image but is separate from
 	// boltz-fulmine, which is Boltz's own Ark wallet. fulmine-delegator's gRPC is
 	// on host 7010 and stands in for the old in-repo "mock" Fulmine counterparty.
-	clientFulmineURL    = "localhost:7020"
 	delegatorFulmineURL = "localhost:7010"
 )
+
+// fulmineTarget is one user-Fulmine instance the client tests run against.
+type fulmineTarget struct {
+	name string
+	url  string
+}
+
+// The same suite runs against both identity types. "hd" (host gRPC 7020) is the
+// default for any wallet created fresh; "singlekey" (host gRPC 7030) boots from a
+// datadir seeded by internal/test/tools/seed-singlekey and covers the legacy
+// identity path that wallets upgraded from v0.3 still use.
+var clientTargets = []fulmineTarget{
+	{name: "hd", url: "localhost:7020"},
+	{name: "singlekey", url: "localhost:7030"},
+}
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
@@ -30,8 +44,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("❌ failed to refill Arkade server: %s", err)
 	}
 
-	if err := refillFulmine(ctx, clientFulmineURL); err != nil {
-		log.Fatalf("❌ failed to refill Fulmine used by Client: %s", err)
+	for _, target := range clientTargets {
+		if err := refillFulmine(ctx, target.url); err != nil {
+			log.Fatalf("❌ failed to refill Fulmine used by Client (%s): %s", target.name, err)
+		}
 	}
 
 	if err := refillFulmine(ctx, delegatorFulmineURL); err != nil {

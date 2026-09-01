@@ -4,28 +4,8 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/components"
 )
 
-templ BackupTab(kind string, active bool) {
-  <div
-	  id={kind}
-	  class={"flex", "rounded-lg", templ.KV("bg-white", active), templ.KV("text-black", active)}
-		hx-get={"/backup/tab/" + kind}
-		hx-target="#backupPartial">
-    <p class="px-3 py-2.5 flex items-center gap-2 mx-auto cursor-pointer">
-	    {kind}
-	  </p>
-	</div>
-}
-
-templ BackupTabs(active string) {
-  <div class="grid grid-cols-2 gap-2 my-4 text-sm text-white/80 font-semibold">
-    @BackupTab("nsec", active == "nsec")
-    @BackupTab("hex", active == "hex")
-  </div>
-}
-
 templ BackupPartialContent(active, secret string) {
 	<div id="backupPartial">
-	  @BackupTabs(active)
     <p class="border border-1 border-white/20 p-3 break-words" id="secret">{secret}</p>
 	</div>
 }
@@ -39,7 +19,7 @@ templ BackupInitialBodyContent() {
         @components.Steps(1, 3)
         <div class="flex flex-col gap-4">
           <p class="text-lg font-semibold">Backup info</p>
-          <p>In case of losing or forgeting your password, you will need your Private Key to log back in and continue   using the Fulmine wallet.</p>
+          <p>In case of losing or forgeting your password, you will need your mnemonic to log back in and continue using Fulmine.</p>
           <div class="bg-white/10 rounded-lg flex justify-start items-center gap-4 p-3">
             <p>@components.InfoLargeIcon()</p>
             <p>Backup is highly recomended to prevent loss of funds.</p>
@@ -58,12 +38,12 @@ templ BackupSecretBodyContent(hex, nsec string) {
 	      @components.Header("Backup wallet", "/settings/general")
         @components.Steps(2, 3)
         <div class="flex flex-col gap-4">
-          <p class="text-lg font-semibold">Private key</p>
-          <p>Write down your Private Key and save it on a safe place that is not accessible online.</p>
+          <p class="text-lg font-semibold">Mnemonic</p>
+          <p>Write down your mnemonic and save it on a safe place that is not accessible online.</p>
           @BackupPartialContent("nsec", nsec)
           <div class="bg-white/10 rounded-lg flex justify-start items-center gap-4 p-3">
             <p>@components.DangerIcon()</p>
-            <p>Do not share your Private Key or someone may gain access to your wallet.</p>
+            <p>Do not share your mnemonic or someone may gain access to your wallet.</p>
           </div>
         </div>
       </div>

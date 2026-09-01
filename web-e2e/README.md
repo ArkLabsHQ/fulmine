@@ -25,15 +25,19 @@ afterwards.
 
 - **`01-init`** — wallet create/unlock through the UI, and the #438 fix: a failed
   `Setup` shows the error instead of redirecting to `/done`.
-- **`02-send`** — client-side LN-address/LNURL detection, the "Send to lightning"
-  label, and the Exit-on-chain vs Swap-to-BTC radios (present for BTC, absent for
-  ARK).
-- **`03-receive`** — Lightning-invoice generation, and "Receive via BTC" creating
-  a BTC->ARK chain swap with a real boltz lockup address.
+- **`02-receive`** — the QR is a real encoded image (not a placeholder), the BIP21
+  carries the BTC address plus the `ark=` parameter, and the add-amount flow gates
+  Confirm on a positive amount and re-encodes the QR with `amount=`.
+- **`03-send`** — Preview-send button gating, the zero-balance "Not enough funds"
+  label, what `/send/preview` renders for a valid destination, rejection of an
+  invalid one, and a guard that the preview offers **no** send-method radios.
+
+These are UI-level checks and need no wallet funds. Funded, end-to-end payment
+flows belong to the Go e2e suite (`make integrationtest`), not here.
 
 ## Notes
 
 - `FULMINE_WEB_URL` overrides the target (default `http://localhost:7019`).
 - `FULMINE_WEB_KEEP=1` leaves `fulmine-web` running after the suite, for debugging.
 - The specs run **serially** (one shared wallet): `01-init` creates and unlocks
-  it before `02-send` / `03-receive` use it.
+  it before `02-receive` / `03-send` use it.

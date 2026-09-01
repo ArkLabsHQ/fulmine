@@ -16,8 +16,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/modals"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/templates/pages"
 	"github.com/ArkLabsHQ/fulmine/internal/interface/web/types"
-	"github.com/ArkLabsHQ/fulmine/pkg/boltz"
-	"github.com/ArkLabsHQ/fulmine/pkg/swap"
 	"github.com/ArkLabsHQ/fulmine/utils"
 	"github.com/a-h/templ"
 	"github.com/angelofallars/htmx-go"
@@ -54,13 +52,7 @@ func (s *service) backupSecret(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	nsec, err := utils.SeedToNsec(seed)
-	if err != nil {
-		toast := components.Toast("Unable to convert to nsec", true)
-		toastHandler(toast, c)
-		return
-	}
-	bodyContent := pages.BackupSecretBodyContent(seed, nsec)
+	bodyContent := pages.BackupSecretBodyContent(seed, seed)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -72,17 +64,7 @@ func (s *service) backupTabActive(c *gin.Context) {
 		toastHandler(toast, c)
 		return
 	}
-	secret := seed
-	if active == "nsec" {
-		nsec, err := utils.SeedToNsec(seed)
-		if err != nil {
-			toast := components.Toast("Unable to convert to nsec", true)
-			toastHandler(toast, c)
-			return
-		}
-		secret = nsec
-	}
-	bodyContent := pages.BackupPartialContent(active, secret)
+	bodyContent := pages.BackupPartialContent(active, seed)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -113,6 +95,9 @@ func (s *service) events(c *gin.Context) {
 			}
 		}
 
+	} else {
+		c.SSEvent("SYNCED", <-s.svc.GetSyncedUpdate())
+		c.Writer.Flush()
 	}
 
 	txsCh := s.svc.GetTransactionEventChannel(c.Request.Context())
@@ -159,13 +144,13 @@ func (s *service) initialize(c *gin.Context) {
 		return
 	}
 
-	privateKey := c.PostForm("privateKey")
-	if privateKey == "" {
-		toast := components.Toast("Private key can't be empty", true)
+	mnemonic := c.PostForm("mnemonic")
+	if mnemonic == "" {
+		toast := components.Toast("Mnemonic key can't be empty", true)
 		toastHandler(toast, c)
 		return
 	}
-	if err := utils.IsValidPrivateKey(privateKey); err != nil {
+	if err := utils.IsValidMnemonic(mnemonic); err != nil {
 		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
 		return
@@ -190,7 +175,7 @@ func (s *service) initialize(c *gin.Context) {
 		}
 	}
 
-	if err := s.svc.Setup(c, serverUrl, password, privateKey); err != nil {
+	if err := s.svc.Setup(c, serverUrl, password, mnemonic); err != nil {
 		log.WithError(err).Warn("failed to initialize")
 		errorContent := components.Error("Server initialization failed", "Please try again")
 		partialViewHandler(errorContent, c)
@@ -200,8 +185,8 @@ func (s *service) initialize(c *gin.Context) {
 	redirect("/done", c)
 }
 
-func (s *service) importWalletPrivateKey(c *gin.Context) {
-	bodyContent := pages.ManagePrivateKeyContent("")
+func (s *service) importMnemonic(c *gin.Context) {
+	bodyContent := pages.ManageMnemonicContent("")
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -222,14 +207,14 @@ func (s *service) unlock(c *gin.Context) {
 	s.pageViewHandler(bodyContent, c)
 }
 
-func (s *service) newWalletPrivateKey(c *gin.Context) {
-	nsec, err := utils.SeedToNsec(utils.GetNewPrivateKey())
+func (s *service) newMnemonic(c *gin.Context) {
+	mnemonic, err := utils.GetNewMnemonic()
 	if err != nil {
 		// nolint:all
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	bodyContent := pages.ManagePrivateKeyContent(nsec)
+	bodyContent := pages.ManageMnemonicContent(mnemonic)
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -296,7 +281,7 @@ func (s *service) receiveQrCode(c *gin.Context) {
 			return
 		}
 	}
-	bip21, offchainAddr, boardingAddr, invoice, _, err := s.svc.GetAddress(c, sats)
+	bip21, offchainAddr, boardingAddr, err := s.svc.NewAddress(c, sats)
 
 	if err != nil {
 		// nolint:all
@@ -310,34 +295,9 @@ func (s *service) receiveQrCode(c *gin.Context) {
 	}
 	encoded := base64.StdEncoding.EncodeToString(png)
 
-	bodyContent := pages.ReceiveQrCodeContent(bip21, offchainAddr, boardingAddr, invoice, encoded, fmt.Sprintf("%d", sats))
-	s.pageViewHandler(bodyContent, c)
-}
-
-func (s *service) receiveSwap(c *gin.Context) {
-	if s.redirectedBecauseWalletIsLocked(c) {
-		return
-	}
-	sats, err := strconv.ParseUint(c.PostForm("sats"), 10, 0)
-	if err != nil || sats == 0 {
-		toast := components.Toast("enter an amount to swap", true)
-		toastHandler(toast, c)
-		return
-	}
-	chainSwap, err := s.svc.CreateBtcToArkChainSwap(c, sats)
-	if err != nil {
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
-	}
-	png, err := qrcode.Encode(chainSwap.UserBtcLockupAddress, qrcode.Medium, 256)
-	if err != nil {
-		// nolint:all
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	encoded := base64.StdEncoding.EncodeToString(png)
-	bodyContent := pages.ReceiveSwapContent(chainSwap.UserBtcLockupAddress, fmt.Sprintf("%d", sats), encoded)
+	bodyContent := pages.ReceiveQrCodeContent(
+		bip21, offchainAddr, boardingAddr, encoded, fmt.Sprintf("%d", sats),
+	)
 	s.pageViewHandler(bodyContent, c)
 }
 
@@ -359,7 +319,7 @@ func (s *service) receiveSuccess(c *gin.Context) {
 	if len(lastTx.BoardingTxid) > 0 {
 		addr = utils.GetBtcAddress(bip21)
 	} else {
-		addr = utils.GetArkAddress(bip21)
+		addr = utils.GetOffchainAddress(bip21)
 	}
 
 	partial := pages.ReceiveSuccessContent(addr, sats)
@@ -394,7 +354,7 @@ func (s *service) sendPreview(c *gin.Context) {
 	}
 
 	dest := c.PostForm("address")
-	var addr, invoice, onchainAddr, offchainAddr, offer string
+	var addr, onchainAddr, offchainAddr string
 
 	sats, err := strconv.Atoi(c.PostForm("sats"))
 	if err != nil {
@@ -406,7 +366,7 @@ func (s *service) sendPreview(c *gin.Context) {
 	feeAmount := 0 // TODO
 	total := sats + feeAmount
 
-	if utils.IsValidArkNote(dest) {
+	if utils.IsValidNote(dest) {
 		sats := utils.SatsFromNote(dest)
 
 		if config.VtxoMaxAmount != -1 && int64(sats) > config.VtxoMaxAmount {
@@ -421,80 +381,41 @@ func (s *service) sendPreview(c *gin.Context) {
 	}
 
 	if utils.IsBip21(dest) {
-		offchainAddr = utils.GetArkAddress(dest)
+		offchainAddr = utils.GetOffchainAddress(dest)
 		onchainAddr = utils.GetBtcAddress(dest)
 	}
 	if utils.IsValidBtcAddress(dest) {
 		onchainAddr = dest
 	}
-	if utils.IsValidArkAddress(dest) {
+	if utils.IsValidOffchainAddress(dest) {
 		offchainAddr = dest
-	}
-	if utils.IsValidInvoice(dest) {
-		invoice = dest
-	}
-	if swap.IsBolt12Offer(dest) {
-		offer = dest
 	}
 
 	if len(offchainAddr) > 0 {
 		if config.VtxoMaxAmount != -1 && int64(total) > config.VtxoMaxAmount {
-			if len(onchainAddr) > 0 && (config.UtxoMaxAmount == -1 || int64(total) <= config.UtxoMaxAmount) {
-				addr = onchainAddr
-			} else {
-				toast := components.Toast("Amount too high", true)
-				toastHandler(toast, c)
-				return
-			}
-		} else {
-			addr = offchainAddr
+			toast := components.Toast("Amount too high", true)
+			toastHandler(toast, c)
+			return
 		}
-	} else if len(invoice) > 0 {
-		if config.VtxoMaxAmount != -1 && int64(total) > config.VtxoMaxAmount {
-			if len(onchainAddr) > 0 && (config.UtxoMaxAmount == -1 || int64(total) <= config.UtxoMaxAmount) {
-				addr = onchainAddr
-			} else {
-				toast := components.Toast("Amount too high", true)
-				toastHandler(toast, c)
-				return
-			}
-		} else {
-			addr = invoice
-		}
+		addr = offchainAddr
 	} else if len(onchainAddr) > 0 {
 		if config.UtxoMaxAmount != -1 && int64(total) > config.UtxoMaxAmount {
 			toast := components.Toast("Amount too high", true)
 			toastHandler(toast, c)
 			return
-		} else {
-			addr = onchainAddr
 		}
-	} else if len(offer) > 0 {
-		if config.VtxoMaxAmount != -1 && int64(total) > config.VtxoMaxAmount {
-			if len(onchainAddr) > 0 && (config.UtxoMaxAmount == -1 || int64(total) <= config.UtxoMaxAmount) {
-				addr = onchainAddr
-			} else {
-				toast := components.Toast("Amount too high", true)
-				toastHandler(toast, c)
-				return
-			}
-		} else {
-			addr = offer
-		}
-
+		addr = onchainAddr
 	}
 
-	if utils.IsLnAddressOrLnurl(dest) {
-		addr = dest
-	}
-
-	if len(addr) == 0 {
-		toast := components.Toast("Invalid address", true)
+	if len(addr) <= 0 {
+		toast := components.Toast("Missing address", true)
 		toastHandler(toast, c)
 		return
 	}
 
-	bodyContent := pages.SendPreviewContent(addr, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total), utils.IsValidBtcAddress(addr))
+	bodyContent := pages.SendPreviewContent(
+		addr, strconv.Itoa(sats), strconv.Itoa(feeAmount), strconv.Itoa(total),
+	)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -505,7 +426,6 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	address := c.PostForm("address")
 	sats := c.PostForm("sats")
-	txId := ""
 
 	value, err := strconv.ParseUint(sats, 10, 64)
 	if err != nil {
@@ -516,105 +436,16 @@ func (s *service) sendConfirm(c *gin.Context) {
 
 	receivers := []clientTypes.Receiver{{To: address, Amount: value}}
 
-	if utils.IsValidArkAddress(address) {
-		for range 3 {
-			txId, err = s.svc.SendOffChain(c, receivers)
-			if err != nil {
-				if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
-					continue
-				}
-				toast := components.Toast(err.Error(), true)
-				toastHandler(toast, c)
-				return
-			}
-			break
-		}
-		if err != nil {
-			log.WithError(err).Error("failed to pay to vHTLC address")
-			toast := components.Toast(err.Error(), true)
-			if strings.Contains(strings.ToLower(err.Error()), "vtxo_already_spent") {
-				toast = components.Toast("something went wrong, please try again", true)
-			}
-			toastHandler(toast, c)
-			return
-		}
+	if !utils.IsValidOffchainAddress(address) {
+		toast := components.Toast("Invalid address", true)
+		toastHandler(toast, c)
+		return
 	}
 
-	if utils.IsValidBtcAddress(address) {
-		if c.PostForm("method") == "swap" {
-			if _, err := s.svc.CreateChainSwapArkToBtc(c, value, address); err != nil {
-				toast := components.Toast(err.Error(), true)
-				toastHandler(toast, c)
-				return
-			}
-			// the chain swap settles asynchronously; it shows up in tx history.
-			redirect("/", c)
-			return
-		}
-		txId, err = s.svc.CollaborativeExit(c, address, value)
-		if err != nil {
-			toast := components.Toast(err.Error(), true)
-			toastHandler(toast, c)
-			return
-		}
-	}
-
-	if utils.IsValidInvoice(address) {
-		resp, err := s.svc.PayInvoice(c, address)
-		if err != nil {
-			toast := components.Toast(err.Error(), true)
-			toastHandler(toast, c)
-			return
-		}
-		txId = resp.TxId
-
-		if resp.SwapStatus == domain.SwapFailed {
-			bodyContent := pages.SendFailureContent(address, sats)
-			partialViewHandler(bodyContent, c)
-			return
-		}
-	}
-
-	if utils.IsLnAddressOrLnurl(address) {
-		invoice, err := utils.ResolveLightningAddressOrLnurl(nil, address, value)
-		if err != nil {
-			toast := components.Toast(err.Error(), true)
-			toastHandler(toast, c)
-			return
-		}
-		resp, err := s.svc.PayInvoice(c, invoice)
-		if err != nil {
-			toast := components.Toast(err.Error(), true)
-			toastHandler(toast, c)
-			return
-		}
-		txId = resp.TxId
-
-		if resp.SwapStatus == domain.SwapFailed {
-			bodyContent := pages.SendFailureContent(address, sats)
-			partialViewHandler(bodyContent, c)
-			return
-		}
-	}
-
-	if swap.IsValidBolt12Offer(address) {
-		resp, err := s.svc.PayOffer(c, address)
-		if err != nil {
-			toast := components.Toast(err.Error(), true)
-			toastHandler(toast, c)
-			return
-		}
-		txId = resp.TxId
-
-		if resp.SwapStatus == domain.SwapFailed {
-			bodyContent := pages.SendFailureContent(address, sats)
-			partialViewHandler(bodyContent, c)
-			return
-		}
-	}
-
-	if len(txId) == 0 {
-		toast := components.Toast("Something went wrong", true)
+	txid, err := s.svc.SendOffChain(c, receivers)
+	if err != nil {
+		log.WithError(err).Errorf("failed to send funds to receiveers %+v", receivers)
+		toast := components.Toast(err.Error(), true)
 		toastHandler(toast, c)
 		return
 	}
@@ -627,23 +458,17 @@ func (s *service) sendConfirm(c *gin.Context) {
 	}
 	explorerUrl := getExplorerUrl(data.Network.Name)
 
-	bodyContent := pages.SendSuccessContent(address, sats, txId, explorerUrl)
+	bodyContent := pages.SendSuccessContent(address, sats, txid, explorerUrl)
 	partialViewHandler(bodyContent, c)
 }
 
 func (s *service) setMnemonic(c *gin.Context) {
-	var words []string
-	for i := 1; i <= 12; i++ {
-		id := "word_" + strconv.Itoa(i)
-		word := c.PostForm(id)
-		if len(word) == 0 {
-			toast := components.Toast("Invalid mnemonic", true)
-			toastHandler(toast, c)
-			return
-		}
-		words = append(words, word)
+	mnemonic := c.PostForm("mnemonic")
+	if err := utils.IsValidMnemonic(mnemonic); err != nil {
+		toast := components.Toast("Invalid mnemonic", true)
+		toastHandler(toast, c)
+		return
 	}
-	mnemonic := strings.Join(words, " ")
 	bodyContent := pages.SetPasswordContent(mnemonic)
 	partialViewHandler(bodyContent, c)
 }
@@ -658,7 +483,7 @@ func (s *service) setPassword(c *gin.Context) {
 		return
 	}
 
-	privateKey := c.PostForm("privateKey")
+	mnemonic := c.PostForm("mnemonic")
 
 	// priority rules to serverUrl:
 	// 1. from query string (aka urlOnQuery)
@@ -669,37 +494,7 @@ func (s *service) setPassword(c *gin.Context) {
 		serverUrl = s.arkServer
 	}
 
-	bodyContent := pages.ServerUrlBodyContent(serverUrl, privateKey, password)
-	partialViewHandler(bodyContent, c)
-}
-
-func (s *service) setPrivateKey(c *gin.Context) {
-	privateKey := c.PostForm("privateKey")
-	if strings.HasPrefix(privateKey, "nsec") {
-		seed, err := utils.NsecToSeed(privateKey)
-		if err != nil {
-			toast := components.Toast("Invalid nsec", true)
-			toastHandler(toast, c)
-			return
-		}
-		privateKey = seed
-	}
-
-	// When an unlocker is configured (e.g. FULMINE_UNLOCKER_PASSWORD) and the
-	// wallet isn't initialized yet, the wallet must be created with the unlocker
-	// password so it can auto-unlock afterwards. Asking for a password here would
-	// be redundant (and a footgun), so skip straight to the server URL step.
-	if _, ok := s.autoUnlockPassword(c); ok && !s.svc.IsInitialized() {
-		serverUrl := c.PostForm("urlOnQuery")
-		if serverUrl == "" {
-			serverUrl = s.arkServer
-		}
-		bodyContent := pages.ServerUrlBodyContent(serverUrl, privateKey, "")
-		partialViewHandler(bodyContent, c)
-		return
-	}
-
-	bodyContent := pages.SetPasswordContent(privateKey)
+	bodyContent := pages.ServerUrlBodyContent(serverUrl, mnemonic, password)
 	partialViewHandler(bodyContent, c)
 }
 
@@ -731,16 +526,9 @@ func (s *service) settings(c *gin.Context) {
 		return
 	}
 
-	settings, err := s.svc.GetSettings(c)
-	if err != nil {
-		// nolint:all
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-
 	active := c.Param("active")
 	bodyContent := pages.SettingsBodyContent(
-		active, *settings, s.svc.IsLocked(c), s.svc.BuildInfo.Version,
+		active, types.Settings{}, s.svc.IsLocked(c), s.svc.BuildInfo.Version,
 	)
 	s.pageViewHandler(bodyContent, c)
 }
@@ -750,7 +538,7 @@ func (s *service) getTransfer(
 ) templ.Component {
 	if transfer.Status == "pending" {
 		var nextSettlementStr string
-		nextSettlement := s.svc.WhenNextSettlement(c)
+		nextSettlement := s.svc.WhenNextRenewal(c)
 		if nextSettlement.IsZero() {
 			// if no next settlement, it means it is about to be scheduled for a boarding tx
 			// fallback to now + boarding timelock to show a time closest to next settlement
@@ -772,37 +560,6 @@ func (s *service) getTransfer(
 	} else {
 		return pages.TransferTxBodyContent(transfer, explorerUrl, arkExplorerUrl)
 	}
-}
-
-// TODO: Ensure the correct Content are being displayed
-func (s *service) getSwap(swap types.Swap) templ.Component {
-	switch swap.Status {
-	case "pending":
-		return pages.SwapTxPendingContent(swap)
-	case "refunding":
-		return pages.SwapTxRefundingContent(swap)
-	case "failure":
-		return pages.SwapTxFailureContent(swap)
-	default:
-		return pages.SwapContent(swap)
-	}
-}
-
-func (s *service) getPayment(c *gin.Context, payment types.Payment) templ.Component {
-	switch payment.Status {
-	case "pending":
-		return pages.PaymentTxPendingContent(payment)
-	case "refunding":
-		return pages.PaymentTxRefundingContent(payment)
-	case "failure":
-		return pages.PaymentTxFailureContent(payment)
-	default:
-		return pages.PaymentContent(payment)
-	}
-}
-
-func (s *service) getChainSwap(cs types.ChainSwap) templ.Component {
-	return pages.ChainSwapContent(cs)
 }
 
 func (s *service) getTx(c *gin.Context) {
@@ -833,39 +590,6 @@ func (s *service) getTx(c *gin.Context) {
 			tx = transaction
 			break
 		}
-
-		if transaction.Kind == "swap" && transaction.Swap != nil {
-			swapTx := transaction.Swap
-
-			if swapTx.VHTLCTransfer != nil && swapTx.VHTLCTransfer.Txid == txid {
-				bodyContent := s.getTransfer(c, *swapTx.VHTLCTransfer, explorerUrl, arkExplorerUrl)
-				s.pageViewHandler(bodyContent, c)
-				return
-			}
-
-			if swapTx.RedeemTransfer != nil && swapTx.RedeemTransfer.Txid == txid {
-				bodyContent := s.getTransfer(c, *swapTx.RedeemTransfer, explorerUrl, arkExplorerUrl)
-				s.pageViewHandler(bodyContent, c)
-				return
-			}
-		}
-
-		if transaction.Kind == "payment" && transaction.Payment != nil {
-			paymentTx := transaction.Payment
-
-			if paymentTx.PaymentTransfer != nil && paymentTx.PaymentTransfer.Txid == txid {
-				bodyContent := s.getTransfer(c, *paymentTx.PaymentTransfer, explorerUrl, arkExplorerUrl)
-				s.pageViewHandler(bodyContent, c)
-				return
-			}
-
-			if paymentTx.ReclaimTransfer != nil && paymentTx.ReclaimTransfer.Txid == txid {
-				bodyContent := s.getTransfer(c, *paymentTx.ReclaimTransfer, explorerUrl, arkExplorerUrl)
-				s.pageViewHandler(bodyContent, c)
-				return
-			}
-
-		}
 	}
 
 	var bodyContent templ.Component
@@ -873,12 +597,6 @@ func (s *service) getTx(c *gin.Context) {
 		bodyContent = pages.TxNotFoundContent()
 	} else if tx.Kind == "transfer" {
 		bodyContent = s.getTransfer(c, *tx.Transfer, explorerUrl, arkExplorerUrl)
-	} else if tx.Kind == "payment" {
-		bodyContent = s.getPayment(c, *tx.Payment)
-	} else if tx.Kind == "chainswap" {
-		bodyContent = s.getChainSwap(*tx.ChainSwap)
-	} else {
-		bodyContent = s.getSwap(*tx.Swap)
 	}
 	s.pageViewHandler(bodyContent, c)
 }
@@ -938,11 +656,6 @@ func (s *service) getTxs(c *gin.Context) {
 }
 
 func (s *service) welcome(c *gin.Context) {
-	if _, err := s.svc.GetSettings(c); err != nil {
-		if err := s.svc.AddDefaultSettings(c); err != nil {
-			return
-		}
-	}
 	bodyContent := pages.Welcome()
 	s.pageViewHandler(bodyContent, c)
 }
@@ -962,143 +675,13 @@ func (s *service) getSpendableBalance(c *gin.Context) (string, error) {
 
 func (s *service) getTxHistory(c *gin.Context) (transactions []types.Transaction, err error) {
 	// get tx history from Server
-	transferTxns, err := s.svc.GetTransactionHistory(c)
+	txHistory, err := s.svc.GetTransactionHistory(c)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get Swap Transaction
-	swapTxs, err := s.svc.GetSwapHistory(c)
-	if err != nil {
-		return nil, err
-	}
-
-	payments, regularSwaps := Partition(swapTxs, func(s domain.Swap) bool {
-		return s.Type == domain.SwapPayment
-	})
-
-	history := make([]types.Transaction, 0, len(transferTxns)+len(swapTxs))
-
-	// add swaps to history
-	for _, swap := range regularSwaps {
-		transformedSwap := toSwap(swap)
-
-		if transformedSwap.Kind == "submarine" {
-			updatedTransfers, sendTransfer, ok := RemoveFind(
-				transferTxns, func(t clientTypes.Transaction) bool {
-					return swap.FundingTxId != "" && swap.FundingTxId == t.ArkTxid
-				},
-			)
-
-			if ok {
-				transferTxns = updatedTransfers
-				modifiedSendTransfer := toTransfer(sendTransfer)
-				transformedSwap.VHTLCTransfer = &modifiedSendTransfer
-			}
-
-			updatedTransfers, receiveTransfer, ok := RemoveFind(
-				transferTxns, func(t clientTypes.Transaction) bool {
-					return swap.RedeemTxId != "" && swap.RedeemTxId == t.ArkTxid
-				},
-			)
-			if ok {
-				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer)
-				transformedSwap.RedeemTransfer = &modifiedReceiveTransfer
-			}
-
-		} else {
-			updatedTransfers, receiveTransfer, ok := RemoveFind(
-				transferTxns, func(t clientTypes.Transaction) bool {
-					return swap.RedeemTxId != "" && swap.RedeemTxId == t.ArkTxid
-				},
-			)
-
-			if ok {
-				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer)
-				transformedSwap.RedeemTransfer = &modifiedReceiveTransfer
-			}
-		}
-
-		swapTxn := types.Transaction{
-			Kind:        "swap",
-			Swap:        &transformedSwap,
-			Id:          swap.Id,
-			DateCreated: swap.Timestamp,
-		}
-
-		history = append(history, swapTxn)
-
-	}
-
-	for _, p := range payments {
-		transformedPayment := toPayment(p)
-
-		if transformedPayment.Kind == "send" {
-			updatedTransfers, sendTransfer, ok := RemoveFind(
-				transferTxns, func(t clientTypes.Transaction) bool {
-					return p.FundingTxId != "" && p.FundingTxId == t.ArkTxid
-				},
-			)
-
-			if ok {
-				transferTxns = updatedTransfers
-				modifiedSendTransfer := toTransfer(sendTransfer)
-				transformedPayment.PaymentTransfer = &modifiedSendTransfer
-			}
-
-			updatedTransfers, receiveTransfer, ok := RemoveFind(
-				transferTxns, func(t clientTypes.Transaction) bool {
-					return p.RedeemTxId != "" && p.RedeemTxId == t.ArkTxid
-				},
-			)
-
-			if ok {
-				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer)
-				transformedPayment.ReclaimTransfer = &modifiedReceiveTransfer
-			}
-		} else {
-			updatedTransfers, receiveTransfer, ok := RemoveFind(
-				transferTxns, func(t clientTypes.Transaction) bool {
-					return p.RedeemTxId != "" && p.RedeemTxId == t.ArkTxid
-				},
-			)
-
-			if ok {
-				transferTxns = updatedTransfers
-				modifiedReceiveTransfer := toTransfer(receiveTransfer)
-				transformedPayment.PaymentTransfer = &modifiedReceiveTransfer
-			}
-		}
-		paymentTxn := types.Transaction{
-			Kind:        "payment",
-			Payment:     &transformedPayment,
-			Id:          p.Id,
-			DateCreated: p.Timestamp,
-		}
-
-		history = append(history, paymentTxn)
-	}
-
-	// add chain swaps (on-chain BTC<->ARK) to history
-	chainSwaps, err := s.svc.ListChainSwaps(c, nil)
-	if err != nil {
-		return nil, err
-	}
-	for _, cs := range chainSwaps {
-		transformedChainSwap := toChainSwap(cs)
-		history = append(history, types.Transaction{
-			Kind:        "chainswap",
-			ChainSwap:   &transformedChainSwap,
-			Id:          cs.Id,
-			DateCreated: cs.CreatedAt,
-		})
-	}
-
-	for _, tx := range transferTxns {
-
+	history := make([]types.Transaction, 0, len(txHistory))
+	for _, tx := range txHistory {
 		modifiedTransfer := toTransfer(tx)
 
 		transaction := types.Transaction{
@@ -1143,13 +726,7 @@ func (s *service) reversibleInfoModal(c *gin.Context) {
 }
 
 func (s *service) pageViewHandler(bodyContent templ.Component, c *gin.Context) {
-	settings, err := s.svc.GetSettings(c)
-	if err != nil {
-		// nolint:all
-		c.AbortWithError(http.StatusInternalServerError, err)
-		return
-	}
-	indexTemplate := templates.Layout(bodyContent, *settings)
+	indexTemplate := templates.Layout(bodyContent, types.Settings{})
 	if err := htmx.NewResponse().RenderTempl(c.Request.Context(), c.Writer, indexTemplate); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
@@ -1216,82 +793,6 @@ func (s *service) claimTx(c *gin.Context) {
 	partialViewHandler(partial, c)
 }
 
-// refundTx initiates a unilateral refund of a pending submarine swap / payment
-// from its detail page (the "Initiate Refund" button). It uses the same call the
-// startup auto-refund uses — RefundVHTLC -> RefundSwap(submarine, withoutReceiver,
-// nil outpoint) — and re-renders the detail in the "refunding" state.
-func (s *service) refundTx(c *gin.Context) {
-	if s.redirectedBecauseWalletIsLocked(c) {
-		return
-	}
-
-	txid := c.Param("txid")
-
-	swaps, err := s.svc.GetSwapHistory(c)
-	if err != nil {
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
-	}
-
-	var target *domain.Swap
-	for i := range swaps {
-		if swaps[i].Id == txid {
-			target = &swaps[i]
-			break
-		}
-	}
-	if target == nil {
-		toast := components.Toast("swap not found", true)
-		toastHandler(toast, c)
-		return
-	}
-
-	if _, err := s.svc.RefundVHTLC(c, target.Id, target.Vhtlc.Id, false, nil); err != nil {
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
-	}
-
-	if target.Type == domain.SwapPayment {
-		payment := toPayment(*target)
-		payment.Status = "refunding"
-		partialViewHandler(pages.PaymentTxRefundingContent(payment), c)
-		return
-	}
-
-	swap := toSwap(*target)
-	swap.Status = "refunding"
-	partialViewHandler(pages.SwapTxRefundingContent(swap), c)
-}
-
-// refundChainSwapTx initiates a refund of a chain swap (BTC<->ARK) from its
-// detail page and re-renders the result. RefundChainSwap handles both ARK->BTC
-// (cooperative) and BTC->ARK (unilateral) refunds.
-func (s *service) refundChainSwapTx(c *gin.Context) {
-	if s.redirectedBecauseWalletIsLocked(c) {
-		return
-	}
-
-	id := c.Param("id")
-
-	if err := s.svc.RefundChainSwap(c, id); err != nil {
-		toast := components.Toast(err.Error(), true)
-		toastHandler(toast, c)
-		return
-	}
-
-	chainSwaps, err := s.svc.ListChainSwaps(c, []string{id})
-	if err != nil || len(chainSwaps) == 0 {
-		toast := components.Toast("refund initiated", false)
-		toastHandler(toast, c)
-		return
-	}
-
-	cs := toChainSwap(chainSwaps[0])
-	partialViewHandler(pages.ChainSwapContent(cs), c)
-}
-
 func (s *service) getHero(c *gin.Context) {
 	if s.redirectedBecauseWalletIsLocked(c) {
 		return
@@ -1337,149 +838,6 @@ func RemoveFind[T any](slice []T, match func(T) bool) ([]T, T, bool) {
 		}
 	}
 	return slice, zero, false
-}
-
-func toSwap(swap domain.Swap) types.Swap {
-	selectSwapType := func(swap domain.Swap) string {
-		if swap.To == boltz.CurrencyBtc && swap.From == boltz.CurrencyArk {
-			return "submarine"
-		} else {
-			return "reverse"
-		}
-	}
-
-	selectSwapStatus := func(swap domain.Swap) string {
-		switch swap.Status {
-		case domain.SwapSuccess:
-			return "success"
-		case domain.SwapPending:
-			return "pending"
-		default:
-			if swap.RedeemTxId == "" && swap.FundingTxId != "" {
-				return "refunding"
-			}
-			return "failure"
-		}
-	}
-
-	expiry := prettyUnixTimestamp(0)
-	_, _, inv, err := utils.DecodeInvoice(swap.Invoice)
-	if err == nil {
-		at := swap.Timestamp + int64(inv.Expiry)
-		expiry = prettyUnixTimestamp(int64(at))
-	}
-
-	var refundLocktime types.LockTime
-
-	refundLT := swap.Vhtlc.RefundLocktime
-	if refundLT.IsSeconds() {
-		refundLocktime = types.LockTime{
-			Timelock:  prettyUnixTimestamp(int64(refundLT)),
-			IsSeconds: true,
-		}
-	} else {
-		refundLocktime = types.LockTime{
-			Timelock:  strconv.FormatUint(uint64(refundLT), 10),
-			IsSeconds: false,
-		}
-	}
-
-	return types.Swap{
-		Amount: strconv.FormatUint(swap.Amount, 10),
-		Date:   prettyDay(swap.Timestamp),
-		Hour:   prettyHour(swap.Timestamp),
-		Id:     swap.Id,
-		Kind:   selectSwapType(swap),
-		Status: selectSwapStatus(swap),
-
-		ExpiresAt:      expiry,
-		RefundLockTime: &refundLocktime,
-	}
-}
-
-func toPayment(payment domain.Swap) types.Payment {
-	selectPaymentType := func(swap domain.Swap) string {
-		if swap.To == boltz.CurrencyBtc && swap.From == boltz.CurrencyArk {
-			return "send"
-		} else {
-			return "receive"
-		}
-	}
-
-	selectPaymentStatus := func(swap domain.Swap) string {
-		switch swap.Status {
-		case domain.SwapSuccess:
-			return "success"
-		case domain.SwapPending:
-			return "pending"
-		default:
-			if swap.RedeemTxId == "" && swap.FundingTxId != "" {
-				return "refunding"
-			}
-			return "failure"
-		}
-	}
-
-	expiry := prettyUnixTimestamp(0)
-	_, _, inv, err := utils.DecodeInvoice(payment.Invoice)
-	if err == nil {
-		at := payment.Timestamp + int64(inv.Expiry)
-		expiry = prettyUnixTimestamp(int64(at))
-	}
-
-	var refundLocktime types.LockTime
-
-	refundLT := payment.Vhtlc.RefundLocktime
-	if refundLT.IsSeconds() {
-		refundLocktime = types.LockTime{
-			Timelock:  prettyUnixTimestamp(int64(refundLT)),
-			IsSeconds: true,
-		}
-	} else {
-		refundLocktime = types.LockTime{
-			Timelock:  strconv.FormatUint(uint64(refundLT), 10),
-			IsSeconds: false,
-		}
-	}
-
-	return types.Payment{
-		Amount:         strconv.FormatUint(payment.Amount, 10),
-		Date:           prettyDay(payment.Timestamp),
-		Hour:           prettyHour(payment.Timestamp),
-		Id:             payment.Id,
-		Kind:           selectPaymentType(payment),
-		Status:         selectPaymentStatus(payment),
-		RefundLockTime: &refundLocktime,
-		ExpiresAt:      expiry,
-	}
-
-}
-
-func toChainSwap(cs domain.ChainSwap) types.ChainSwap {
-	kind := "btc_to_ark"
-	if cs.From == boltz.CurrencyArk && cs.To == boltz.CurrencyBtc {
-		kind = "ark_to_btc"
-	}
-
-	status := "pending"
-	switch {
-	case cs.Status == domain.ChainSwapClaimed:
-		status = "success"
-	case cs.Status == domain.ChainSwapRefunded || cs.Status == domain.ChainSwapRefundedUnilaterally:
-		status = "failure"
-	case domain.ShouldRefundChainSwapStatus(cs.Status):
-		status = "refundable"
-	}
-
-	return types.ChainSwap{
-		Amount:               strconv.FormatUint(cs.Amount, 10),
-		Date:                 prettyDay(cs.CreatedAt),
-		Hour:                 prettyHour(cs.CreatedAt),
-		Id:                   cs.Id,
-		Kind:                 kind,
-		Status:               status,
-		UserBtcLockupAddress: cs.UserBtcLockupAddress,
-	}
 }
 
 func toTransfer(tx clientTypes.Transaction) types.Transfer {

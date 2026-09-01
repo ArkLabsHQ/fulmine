@@ -14,6 +14,7 @@ import (
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	"github.com/arkade-os/arkd/pkg/client-lib/indexer"
 	indexergrpc "github.com/arkade-os/arkd/pkg/client-lib/indexer/grpc"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
@@ -34,71 +35,78 @@ const (
 // reveal — no OP_RETURN packet in the funding tx). covclaimd then claims the
 // VHTLC through the emulator on the receiver's behalf.
 func TestNonInteractiveClaim(t *testing.T) {
-	f, err := newFulmineClient(clientFulmineURL)
-	require.NoError(t, err)
-	require.NotNil(t, f)
+	for _, target := range clientTargets {
+		t.Run(target.name, func(t *testing.T) {
+			f, err := newFulmineClient(target.url)
+			require.NoError(t, err)
+			require.NotNil(t, f)
 
-	ctx := t.Context()
+			ctx := t.Context()
 
-	info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
-	require.NoError(t, err)
-	require.NotEmpty(t, info)
+			info, err := f.GetInfo(ctx, &pb.GetInfoRequest{})
+			require.NoError(t, err)
+			require.NotEmpty(t, info)
 
-	// create receiver "wallet" (just a keypair)
-	receiverPriv, err := btcec.NewPrivateKey()
-	require.NoError(t, err)
-	receiverPkScript, err := txscript.PayToTaprootScript(receiverPriv.PubKey())
-	require.NoError(t, err)
+			// create receiver "wallet" (just a keypair)
+			receiverPriv, err := btcec.NewPrivateKey()
+			require.NoError(t, err)
+			receiverPkScript, err := txscript.PayToTaprootScript(receiverPriv.PubKey())
+			require.NoError(t, err)
 
-	// fetch covclaimd's encryption pubkey and its emulator (emulator) pubkey
-	covclaimdPub, _ := fetchCovclaimdPubKeys(t)
+			// fetch covclaimd's encryption pubkey and its emulator (emulator) pubkey
+			covclaimdPub, _ := fetchCovclaimdPubKeys(t)
 
-	// generate a preimage
-	preimg := make([]byte, 32)
-	_, err = rand.Read(preimg)
-	require.NoError(t, err)
-	sha := sha256.Sum256(preimg)
-	preimageHashHex := hex.EncodeToString(input.Ripemd160H(sha[:]))
+			// generate a preimage
+			preimg := make([]byte, 32)
+			_, err = rand.Read(preimg)
+			require.NoError(t, err)
+			sha := sha256.Sum256(preimg)
+			preimageHashHex := hex.EncodeToString(input.Ripemd160H(sha[:]))
 
-	// create the VHTLC with the non-interactive claim option
-	createResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
-		PreimageHash:   preimageHashHex,
-		ReceiverPubkey: hex.EncodeToString(receiverPriv.PubKey().SerializeCompressed()),
-		UnilateralClaimDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
-			Value: 512,
-		},
-		UnilateralRefundDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
-			Value: 512,
-		},
-		UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
-			Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
-			Value: 1024,
-		},
-		NonInteractiveClaim: &pb.NonInteractiveClaim{
-			ClaimAddress: receiverArkAddress(t, info, receiverPriv.PubKey()),
-		},
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, createResp.Address)
-	require.NotNil(t, createResp.SwapTree.NonInteractiveClaimLeaf)
+			// create the VHTLC with the non-interactive claim option
+			createResp, err := f.CreateVHTLC(ctx, &pb.CreateVHTLCRequest{
+				PreimageHash:   preimageHashHex,
+				ReceiverPubkey: hex.EncodeToString(receiverPriv.PubKey().SerializeCompressed()),
+				UnilateralClaimDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+					Value: 512,
+				},
+				UnilateralRefundDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+					Value: 512,
+				},
+				UnilateralRefundWithoutReceiverDelay: &pb.RelativeLocktime{
+					Type:  pb.RelativeLocktime_LOCKTIME_TYPE_SECOND,
+					Value: 1024,
+				},
+				NonInteractiveClaim: &pb.NonInteractiveClaim{
+					ClaimAddress: receiverArkAddress(t, info, receiverPriv.PubKey()),
+				},
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, createResp.Address)
+			require.NotNil(t, createResp.SwapTree.NonInteractiveClaimLeaf)
 
-	// direct reveal to claimer
-	revealToCovclaimd(t, createResp.Address, preimg, covclaimdPub, receiverPkScript)
+			// direct reveal to claimer
+			revealToCovclaimd(
+				t, createResp.Address, preimg, covclaimdPub, receiverPkScript,
+				encodeSwapTaptree(t, createResp.SwapTree),
+			)
 
-	// fund the VHTLC
-	const amount uint64 = 10_000
-	sendResp, err := f.SendOffChain(ctx, &pb.SendOffChainRequest{
-		Address: createResp.Address,
-		Amount:  amount,
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, sendResp.GetTxid())
+			// fund the VHTLC
+			const amount uint64 = 10_000
+			sendResp, err := f.SendOffChain(ctx, &pb.SendOffChainRequest{
+				Address: createResp.Address,
+				Amount:  amount,
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, sendResp.GetTxid())
 
-	// wait for covclaimd to auto claim to the receiver's script
-	v := pollForVtxoAtScript(t, ctx, receiverPkScript, 30*time.Second)
-	require.Equal(t, amount, v.Amount, "covclaimd should pay the full input value to the receiver")
+			// wait for covclaimd to auto claim to the receiver's script
+			v := pollForVtxoAtScript(t, ctx, receiverPkScript, 30*time.Second)
+			require.Equal(t, amount, v.Amount, "covclaimd should pay the full input value to the receiver")
+		})
+	}
 }
 
 // fetchCovclaimdPubKeys returns covclaimd's (encryption, emulator) pubkeys.
@@ -124,7 +132,7 @@ func fetchCovclaimdPubKeys(t *testing.T) (*btcec.PublicKey, *btcec.PublicKey) {
 // covclaimd's reveal endpoint (direct reveal mode).
 func revealToCovclaimd(
 	t *testing.T, swapAddress string, preimg []byte,
-	covclaimdPub *btcec.PublicKey, receiverPkScript []byte,
+	covclaimdPub *btcec.PublicKey, receiverPkScript []byte, taptree string,
 ) {
 	t.Helper()
 	ciphertext, err := preimage.Encrypt(covclaimdPub, preimg)
@@ -138,6 +146,7 @@ func revealToCovclaimd(
 			"ciphertext":    base64.StdEncoding.EncodeToString(ciphertext),
 			"arkade_script": base64.StdEncoding.EncodeToString(arkadeScript),
 		},
+		"taptree": taptree,
 	})
 	require.NoError(t, err)
 
@@ -149,6 +158,27 @@ func revealToCovclaimd(
 	var respBody bytes.Buffer
 	_, _ = respBody.ReadFrom(resp.Body)
 	require.Equal(t, http.StatusOK, resp.StatusCode, "reveal failed: %s", respBody.String())
+}
+
+func encodeSwapTaptree(t *testing.T, swapTree *pb.TaprootTree) string {
+	t.Helper()
+	leaves := []*pb.TaprootLeaf{
+		swapTree.GetClaimLeaf(),
+		swapTree.GetRefundLeaf(),
+		swapTree.GetRefundWithoutBoltzLeaf(),
+		swapTree.GetUnilateralClaimLeaf(),
+		swapTree.GetUnilateralRefundLeaf(),
+		swapTree.GetUnilateralRefundWithoutBoltzLeaf(),
+		swapTree.GetNonInteractiveClaimLeaf(),
+	}
+	tapscripts := make(txutils.TapTree, 0, len(leaves))
+	for _, leaf := range leaves {
+		require.NotNil(t, leaf)
+		tapscripts = append(tapscripts, leaf.GetOutput())
+	}
+	encoded, err := tapscripts.Encode()
+	require.NoError(t, err)
+	return hex.EncodeToString(encoded)
 }
 
 func pollForVtxoAtScript(
@@ -200,11 +230,11 @@ func receiverArkAddress(t *testing.T, info *pb.GetInfoResponse, receiverPub *btc
 	return addr
 }
 
-func addrHRPFromNetwork(network pb.GetInfoResponse_Network) string {
+func addrHRPFromNetwork(network pb.Network) string {
 	switch network {
-	case pb.GetInfoResponse_NETWORK_MAINNET:
+	case pb.Network_NETWORK_MAINNET:
 		return arklib.Bitcoin.Addr
-	case pb.GetInfoResponse_NETWORK_TESTNET:
+	case pb.Network_NETWORK_TESTNET:
 		return arklib.BitcoinTestNet.Addr
 	default:
 		return arklib.BitcoinRegTest.Addr

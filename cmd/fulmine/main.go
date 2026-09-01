@@ -104,15 +104,14 @@ func main() {
 	pollInterval := time.Duration(cfg.SchedulerPollInterval) * time.Second
 	schedulerSvc := scheduler.NewScheduler(cfg.EsploraURL, pollInterval)
 
+	delegateConfig := application.DelegateConfig{
+		Enabled: cfg.DelegateEnabled,
+		Fee:     cfg.DelegateFee,
+	}
+
 	appSvc, delegateSvc, err := application.NewServices(
-		buildInfo, cfg.Datadir, dbSvc, schedulerSvc,
-		cfg.EsploraURL, cfg.BoltzURL, cfg.BoltzWSURL, cfg.SwapTimeout,
-		cfg.RefreshDbInterval,
-		application.DelegateConfig{
-			Enabled: cfg.DelegateEnabled,
-			Fee:     cfg.DelegateFee,
-		},
-		cfg.EmulatorPubkey,
+		dbSvc, schedulerSvc, delegateConfig, buildInfo,
+		cfg.Datadir, cfg.EsploraURL, cfg.EmulatorPubkey, cfg.RefreshDbInterval,
 	)
 	if err != nil {
 		log.WithError(err).Fatal("failed to init application service")

@@ -20,13 +20,11 @@ var sensitiveRequestFields = map[string]struct{}{
 	"mnemonic":        {},
 	"preimage":        {},
 	"secret":          {},
+	"seed":            {},
 }
 
 func unaryLogger(
-	ctx context.Context,
-	req interface{},
-	info *grpc.UnaryServerInfo,
-	handler grpc.UnaryHandler,
+	ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler,
 ) (interface{}, error) {
 	start := time.Now()
 	resp, err := handler(ctx, req)
@@ -35,10 +33,8 @@ func unaryLogger(
 }
 
 func streamLogger(
-	srv interface{},
-	stream grpc.ServerStream,
-	info *grpc.StreamServerInfo,
-	handler grpc.StreamHandler,
+	srv interface{}, stream grpc.ServerStream,
+	info *grpc.StreamServerInfo, handler grpc.StreamHandler,
 ) error {
 	start := time.Now()
 	err := handler(srv, stream)

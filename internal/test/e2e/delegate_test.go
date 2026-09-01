@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
+	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/delegate/v1"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/asset"
 	"github.com/arkade-os/arkd/pkg/ark-lib/extension"
@@ -197,8 +197,12 @@ func TestDelegate(t *testing.T) {
 	unsignedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, map[string]string{"_": "m"})
+	// Identity-level for the same reason as the forfeit below: the proof spends
+	// the hand-built delegatorVtxoScript, which the contract manager cannot
+	// resolve, so the wallet-level call would leave that input unsigned.
+	signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, nil)
 	require.NoError(t, err)
+	require.NotEqual(t, unsignedIntentProof, signedIntentProof, "intent proof came back unsigned")
 
 	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
 	require.NoError(t, err)
@@ -258,8 +262,15 @@ func TestDelegate(t *testing.T) {
 	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 	require.NoError(t, err)
 
-	signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
+	// Sign via the identity, not the wallet. The vtxo lives under the hand-built
+	// delegatorVtxoScript above, which alice's contract manager never registered,
+	// so wallet.SignTransaction's getKeys lookup resolves nothing and it returns
+	// the tx UNSIGNED with a nil error (go-sdk sign.go:39). Alice is a party to
+	// aliceDelegatorClosure, so her single-key identity — which ignores the key
+	// map entirely — signs it correctly.
+	signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, nil)
 	require.NoError(t, err)
+	require.NotEqual(t, b64partialForfeitTx, signedPartialForfeitTx, "forfeit came back unsigned")
 
 	_, err = delegateClient.Delegate(ctx, &pb.DelegateRequest{
 		Intent: &pb.Intent{
@@ -452,8 +463,12 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	unsignedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, map[string]string{"_": "m"})
+	// Identity-level for the same reason as the forfeit below: the proof spends
+	// the hand-built delegatorVtxoScript, which the contract manager cannot
+	// resolve, so the wallet-level call would leave that input unsigned.
+	signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, nil)
 	require.NoError(t, err)
+	require.NotEqual(t, unsignedIntentProof, signedIntentProof, "intent proof came back unsigned")
 
 	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
 	require.NoError(t, err)
@@ -513,8 +528,9 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 	require.NoError(t, err)
 
-	signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
+	signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, nil)
 	require.NoError(t, err)
+	require.NotEqual(t, b64partialForfeitTx, signedPartialForfeitTx, "forfeit came back unsigned")
 
 	_, err = delegateClient.Delegate(ctx, &pb.DelegateRequest{
 		Intent: &pb.Intent{
@@ -530,7 +546,7 @@ func TestDelegateCollaborativeExit(t *testing.T) {
 	// round) instead of a fixed sleep, which is racy under load.
 	deadline := time.Now().Add(90 * time.Second)
 	for time.Now().Before(deadline) {
-		mineRegtestBlocks(t, ctx, 1)
+		generateBlocks(t, 1)
 		balance, err := alice.Balance(t.Context())
 		require.NoError(t, err)
 		if len(balance.OnchainBalance.LockedAmount) == 1 {
@@ -740,8 +756,9 @@ func TestMultipleDelegate(t *testing.T) {
 		unsignedIntentProof, err := intentProof.B64Encode()
 		require.NoError(t, err)
 
-		signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, map[string]string{"_": "m"})
+		signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, nil)
 		require.NoError(t, err)
+		require.NotEqual(t, unsignedIntentProof, signedIntentProof, "intent proof came back unsigned")
 
 		signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
 		require.NoError(t, err)
@@ -779,8 +796,9 @@ func TestMultipleDelegate(t *testing.T) {
 		b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 		require.NoError(t, err)
 
-		signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
+		signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, nil)
 		require.NoError(t, err)
+		require.NotEqual(t, b64partialForfeitTx, signedPartialForfeitTx, "forfeit came back unsigned")
 
 		delegateRequests = append(delegateRequests, &pb.DelegateRequest{
 			Intent: &pb.Intent{
@@ -989,10 +1007,11 @@ func TestDelegateSameInput(t *testing.T) {
 			return nil, err
 		}
 
-		signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, map[string]string{"_": "m"})
+		signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, nil)
 		if err != nil {
 			return nil, err
 		}
+		require.NotEqual(t, unsignedIntentProof, signedIntentProof, "intent proof came back unsigned")
 
 		signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
 		if err != nil {
@@ -1071,7 +1090,7 @@ func TestDelegateSameInput(t *testing.T) {
 			return nil, err
 		}
 
-		signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
+		signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -1333,8 +1352,9 @@ func TestDelegateSeveralInputs(t *testing.T) {
 	unsignedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, map[string]string{"_": "m"})
+	signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, nil)
 	require.NoError(t, err)
+	require.NotEqual(t, unsignedIntentProof, signedIntentProof, "intent proof came back unsigned")
 
 	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
 	require.NoError(t, err)
@@ -1380,8 +1400,9 @@ func TestDelegateSeveralInputs(t *testing.T) {
 		b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 		require.NoError(t, err)
 
-		signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
+		signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, nil)
 		require.NoError(t, err)
+		require.NotEqual(t, b64partialForfeitTx, signedPartialForfeitTx, "forfeit came back unsigned")
 
 		forfeits = append(forfeits, signedPartialForfeitTx)
 	}
@@ -1636,8 +1657,9 @@ func TestDelegateWithAssets(t *testing.T) {
 	unsignedIntentProof, err := intentProof.B64Encode()
 	require.NoError(t, err)
 
-	signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, map[string]string{"_": "m"})
+	signedIntentProof, err := alice.Identity().SignTransaction(ctx, unsignedIntentProof, nil)
 	require.NoError(t, err)
+	require.NotEqual(t, unsignedIntentProof, signedIntentProof, "intent proof came back unsigned")
 
 	signedIntentProofPsbt, err := psbt.NewFromRawBytes(strings.NewReader(signedIntentProof), true)
 	require.NoError(t, err)
@@ -1699,8 +1721,9 @@ func TestDelegateWithAssets(t *testing.T) {
 	b64partialForfeitTx, err := updater.Upsbt.B64Encode()
 	require.NoError(t, err)
 
-	signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, map[string]string{"_": "m"})
+	signedPartialForfeitTx, err := alice.Identity().SignTransaction(ctx, b64partialForfeitTx, nil)
 	require.NoError(t, err)
+	require.NotEqual(t, b64partialForfeitTx, signedPartialForfeitTx, "forfeit came back unsigned")
 
 	// --- Delegate ---
 	_, err = delegateClient.Delegate(ctx, &pb.DelegateRequest{

@@ -26,16 +26,16 @@ func TestUtils(t *testing.T) {
 
 func testAddresses(t *testing.T) {
 	t.Run("addresses", func(t *testing.T) {
-		addr := utils.GetArkAddress(bip21Invoice)
+		addr := utils.GetOffchainAddress(bip21Invoice)
 		require.Equal(t, arkAddress, addr)
 
 		addr = utils.GetBtcAddress(bip21Invoice)
 		require.Equal(t, btcAddress, addr)
 
-		res := utils.IsValidArkAddress("")
+		res := utils.IsValidOffchainAddress("")
 		require.Equal(t, false, res)
 
-		res = utils.IsValidArkAddress(arkAddress)
+		res = utils.IsValidOffchainAddress(arkAddress)
 		require.Equal(t, true, res)
 
 		res = utils.IsValidBtcAddress("")
@@ -61,13 +61,13 @@ func testBip21(t *testing.T) {
 
 func testNotes(t *testing.T) {
 	t.Run("notes", func(t *testing.T) {
-		res := utils.IsValidArkNote("")
+		res := utils.IsValidNote("")
 		require.Equal(t, false, res)
 
-		res = utils.IsValidArkNote("arknote")
+		res = utils.IsValidNote("arknote")
 		require.Equal(t, false, res)
 
-		res = utils.IsValidArkNote(arkNote)
+		res = utils.IsValidNote(arkNote)
 		require.Equal(t, true, res)
 	})
 }

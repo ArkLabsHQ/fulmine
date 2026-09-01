@@ -2,6 +2,13 @@ syntax = "proto3";
 
 package fulmine.v1;
 
+enum Network {
+    NETWORK_UNSPECIFIED = 0;
+    NETWORK_MAINNET = 1;
+    NETWORK_TESTNET = 2;
+    NETWORK_REGTEST = 3;
+  }
+
 message AccountInfo {
   string namespace = 1;
   string label = 2;
@@ -112,4 +119,38 @@ enum TxType {
   TX_TYPE_UNSPECIFIED = 0;
   TX_TYPE_SENT = 1;
   TX_TYPE_RECEIVED = 2;
+}
+
+message TaprootTree {
+  TaprootLeaf claim_leaf = 1;
+  TaprootLeaf refund_leaf = 2;
+  TaprootLeaf refund_without_boltz_leaf = 3;
+  TaprootLeaf unilateral_claim_leaf = 4;
+  TaprootLeaf unilateral_refund_leaf = 5;
+  TaprootLeaf unilateral_refund_without_boltz_leaf = 6;
+  optional TaprootLeaf non_interactive_claim_leaf = 7;
+}
+
+message TaprootLeaf {
+  int32 version = 1;
+  string output = 2;
+}
+
+message NonInteractiveClaim {
+  // ark address of the claim tx recipient
+  string claim_address = 1;
+}
+
+message RelativeLocktime {
+  enum LocktimeType {
+    LOCKTIME_TYPE_UNSPECIFIED = 0;
+    LOCKTIME_TYPE_BLOCK = 1;
+    LOCKTIME_TYPE_SECOND = 2;
+  }
+  LocktimeType type = 1;
+  uint32 value = 2;
+}
+
+message Tapscripts {
+  repeated string scripts = 1;
 }

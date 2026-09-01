@@ -31,12 +31,6 @@ service Service {
       body: "*"
     };
   };
-  // Returns round info for optional round_id (no round_id returns current round info)
-  rpc GetRoundInfo(GetRoundInfoRequest) returns (GetRoundInfoResponse) {
-    option (google.api.http) = {
-      get: "/v1/round/{round_id}"
-    };
-  };
   // GetTransactionHistory returns virtual transactions history
   rpc GetTransactionHistory(GetTransactionHistoryRequest) returns (GetTransactionHistoryResponse) {
     option (google.api.http) = {
@@ -96,12 +90,6 @@ service Service {
       body: "*"
     };
   }
-  rpc SettleVHTLC(SettleVHTLCRequest) returns (SettleVHTLCResponse) {
-    option (google.api.http) = {
-      post: "/v1/vhtlc/settle"
-      body: "*"
-    };
-  }
   // ListVHTLC = list all vhtlc OR filter by vhtlc_id
   rpc ListVHTLC(ListVHTLCRequest) returns (ListVHTLCResponse) {
     option (google.api.http) = {
@@ -120,18 +108,6 @@ service Service {
       get: "/v1/vhtlc/spendTx/{vhtlc_id}"
     };
   };
-  rpc GetInvoice(GetInvoiceRequest) returns (GetInvoiceResponse) {
-    option (google.api.http) = {
-      post: "/v1/invoice"
-      body: "*"
-    };
-  }
-  rpc PayInvoice(PayInvoiceRequest) returns (PayInvoiceResponse) {
-    option (google.api.http) = {
-      post: "/v1/invoice/pay"
-      body: "*"
-    };
-  }
   // GetVirtualTxs returns the virtual transactions in hex format for the specified txids.
   rpc GetVirtualTxs(GetVirtualTxsRequest) returns (GetVirtualTxsResponse) {
     option (google.api.http) = {
@@ -151,39 +127,11 @@ service Service {
       get: "/v1/settlement/next"
     };
   };
-  // CreateChainSwap initiates a chain swap between Ark and Bitcoin
-  rpc CreateChainSwap(CreateChainSwapRequest) returns (CreateChainSwapResponse) {
-    option (google.api.http) = {
-      post: "/v1/chainswap"
-      body: "*"
-    };
-  };
-  // ListChainSwaps retrieves all chain swaps
-  rpc ListChainSwaps(ListChainSwapsRequest) returns (ListChainSwapsResponse) {
-    option (google.api.http) = {
-      get: "/v1/chainswaps"
-    };
-  };
-  // RefundChainSwap initiates a cooperative refund for a chain swap
-  rpc RefundChainSwap(RefundChainSwapRequest) returns (RefundChainSwapResponse) {
-    option (google.api.http) = {
-      post: "/v1/chainswap/{id}/refund"
-      body: "*"
-    };
-  };
-
-  // ListDelegates returns delegate tasks filtered by status, paginated by limit/offset.
-  rpc ListDelegates(ListDelegatesRequest) returns (ListDelegatesResponse) {
-    option (google.api.http) = {
-      get: "/v1/delegates"
-    };
-  };
 }
 
 message GetAddressRequest {}
 message GetAddressResponse {
   string address = 1;
-  string pubkey = 2;
 }
 
 message GetBalanceRequest {}
@@ -193,12 +141,6 @@ message GetBalanceResponse {
 
 message GetInfoRequest {}
 message GetInfoResponse {
-  enum Network {
-    NETWORK_UNSPECIFIED = 0;
-    NETWORK_MAINNET = 1;
-    NETWORK_TESTNET = 2;
-    NETWORK_REGTEST = 3;
-  }
   // The bitcoin network on which Fulmine is running.
   Network network = 1;
   // The ark address prefix (ark | tark).
@@ -207,8 +149,6 @@ message GetInfoResponse {
   string server_url = 3;
   // info about the current version of the ark wallet.
   BuildInfo build_info = 4;
-  // The Fulmine's public key used in VTXO scripts.
-  string pubkey = 5;
   // The signer's public key used in VTXO scripts.
   string signer_pubkey = 6;
 }
@@ -293,6 +233,7 @@ message CreateVHTLCResponse {
   int64 unilateral_claim_delay = 8;
   int64 unilateral_refund_delay = 9;
   int64 unilateral_refund_without_receiver_delay = 10;
+  uint64 key_index = 11;
 }
 
 message ClaimVHTLCRequest {
@@ -312,34 +253,6 @@ message RefundVHTLCWithoutReceiverRequest {
 }
 message RefundVHTLCWithoutReceiverResponse {
   string redeem_txid = 1;
-}
-
-message SettleVHTLCRequest {
-  string vhtlc_id = 1;
-  oneof settlement_type {
-    ClaimPath claim = 2;
-    RefundPath refund = 3;
-  }
-  // Optional outpoint to target a specific VTXO when multiple VTXOs exist at the same VHTLC address.
-  Input outpoint = 4;
-}
-
-message ClaimPath {
-  string preimage = 1;
-}
-
-message RefundPath {
-  DelegateRefundParams delegate_params = 1;
-}
-
-message DelegateRefundParams {
-  string signed_intent_proof = 1;
-  string intent_message = 2;
-  string partial_forfeit_tx = 3;
-}
-
-message SettleVHTLCResponse {
-  string txid = 1;
 }
 
 message ListVHTLCRequest {
@@ -365,58 +278,9 @@ message GetVHTLCSpendingTxResponse {
   string tx = 1;
 }
 
-message GetInvoiceRequest {
-  uint64 amount = 1;
-}
-message GetInvoiceResponse {
-  string invoice = 1;
-}
-
-message PayInvoiceRequest {
-  string invoice = 1;
-}
-message PayInvoiceResponse {
-  string txid = 1;
-}
-
-message TaprootTree {
-  TaprootLeaf claim_leaf = 1;
-  TaprootLeaf refund_leaf = 2;
-  TaprootLeaf refund_without_boltz_leaf = 3;
-  TaprootLeaf unilateral_claim_leaf = 4;
-  TaprootLeaf unilateral_refund_leaf = 5;
-  TaprootLeaf unilateral_refund_without_boltz_leaf = 6;
-  optional TaprootLeaf non_interactive_claim_leaf = 7;
-}
-
-message TaprootLeaf {
-  int32 version = 1;
-  string output = 2;
-}
-
-message NonInteractiveClaim {
-  // ark address of the claim tx recipient
-  string claim_address = 1;
-}
-
-message RelativeLocktime {
-  enum LocktimeType {
-    LOCKTIME_TYPE_UNSPECIFIED = 0;
-    LOCKTIME_TYPE_BLOCK = 1;
-    LOCKTIME_TYPE_SECOND = 2;
-  }
-  LocktimeType type = 1;
-  uint32 value = 2;
-}
-
-message Tapscripts {
-  repeated string scripts = 1;
-}
-
 message GetVirtualTxsRequest {
   repeated string txids = 1;
 }
-
 message GetVirtualTxsResponse {
   repeated string txs = 1;
 }
@@ -437,96 +301,4 @@ message GetVtxosResponse {
 message NextSettlementRequest {}
 message NextSettlementResponse {
   int64 next_settlement_at = 1;
-}
-
-enum SwapDirection {
-  SWAP_DIRECTION_UNSPECIFIED = 0;
-  SWAP_DIRECTION_ARK_TO_BTC = 1;
-  SWAP_DIRECTION_BTC_TO_ARK = 2;
-}
-
-message CreateChainSwapRequest {
-  SwapDirection direction = 1;
-  uint64 amount = 2;
-  string btc_address = 3;
-
-}
-message CreateChainSwapResponse {
-  string id = 1;
-  string status = 2;
-  string user_lockup_txid = 3;
-
-  string lockup_address = 4;
-
-  uint64 expected_amount = 5;
-
-  uint64 timeout_block_height = 6;
-  string preimage = 7;
-  string error = 8;
-}
-
-message ChainSwapResponse {
-  string id = 1;
-  string from = 2;
-  string to = 3;
-  uint64 amount = 4;
-  string status = 5;
-  string preimage = 6;
-  string user_lockup_txid = 7;
-  string server_lockup_txid = 8;
-  string claim_txid = 9;
-  string refund_txid = 10;
-  string btc_address = 11;
-  int64 timestamp = 12;
-  string error_message = 13;
-}
-
-message ListChainSwapsRequest {
-  repeated string swap_ids = 1;
-}
-message ListChainSwapsResponse {
-  repeated ChainSwapResponse swaps = 1;
-}
-
-message RefundChainSwapRequest {
-  string id = 1;
-}
-message RefundChainSwapResponse {
-  string message = 1;
-}
-
-
-
-message DelegateIntent {
-  string txid = 1;
-  string message = 2;
-  string proof = 3;
-  repeated Input inputs = 4;
-}
-
-message DelegateForfeitTx {
-  Input input = 1;
-  string forfeit_tx = 2;
-}
-
-message Delegate {
-  string id = 1;
-  DelegateIntent intent = 2;
-  repeated DelegateForfeitTx forfeit_txs = 3;
-  uint64 fee = 4;
-  string delegate_public_key = 5;
-  int64 scheduled_at = 6;
-  string status = 7;
-  string fail_reason = 8;
-  string commitment_txid = 9;
-}
-
-message ListDelegatesRequest {
-  string status = 1;
-  uint32 limit = 2;
-  uint32 offset = 3;
-}
-
-message ListDelegatesResponse {
-  repeated Delegate delegates = 1;
 }

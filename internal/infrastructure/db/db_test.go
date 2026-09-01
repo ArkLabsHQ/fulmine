@@ -1,8 +1,8 @@
 package db_test
 
 import (
-	"context"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"testing"
 	"time"
@@ -10,10 +10,6 @@ import (
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/core/ports"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db"
-	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
-	"github.com/arkade-os/go-sdk/vhtlc"
-	"github.com/btcsuite/btcd/btcec/v2"
-	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/google/uuid"
@@ -21,17 +17,6 @@ import (
 )
 
 var (
-	ctx = context.Background()
-
-	testSettings = domain.Settings{
-		ApiRoot:     "apiroot",
-		ServerUrl:   "serverurl",
-		Currency:    "cur",
-		EventServer: "eventserver",
-		FullNode:    "fullnode",
-		Unit:        "unit",
-	}
-
 	testDelegateTask = func() domain.DelegateTask {
 		hash1, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000001")
 		input1 := wire.OutPoint{Hash: *hash1, Index: 0}
@@ -62,9 +47,6 @@ var (
 	}()
 
 	testVHTLC = makeVHTLC()
-
-	testSwap   = makeSwap()
-	secondSwap = makeSwap()
 
 	testSubscribedScripts = []string{
 		"script1",
@@ -101,21 +83,11 @@ func TestRepoManager(t *testing.T) {
 			require.NoError(t, err)
 			defer svc.Close()
 
-			testSettingsRepository(t, svc)
 			testVHTLCRepository(t, svc)
 			testDelegateRepository(t, svc)
-			testSwapRepository(t, svc)
 			testSubscribedScriptRepository(t, svc)
 		})
 	}
-}
-
-func testSettingsRepository(t *testing.T, svc ports.RepoManager) {
-	t.Run("settings repository", func(t *testing.T) {
-		testAddSettings(t, svc.Settings())
-		testUpdateSettings(t, svc.Settings())
-		testCleanSettings(t, svc.Settings())
-	})
 }
 
 func testVHTLCRepository(t *testing.T, svc ports.RepoManager) {
@@ -123,7 +95,6 @@ func testVHTLCRepository(t *testing.T, svc ports.RepoManager) {
 		testAddVHTLC(t, svc.VHTLC())
 		testGetAllVHTLC(t, svc.VHTLC())
 		testGetVHTLCsById(t, svc.VHTLC())
-		testAddNonInteractiveVHTLC(t, svc.VHTLC())
 	})
 }
 
@@ -140,14 +111,6 @@ func testDelegateRepository(t *testing.T, svc ports.RepoManager) {
 	})
 }
 
-func testSwapRepository(t *testing.T, svc ports.RepoManager) {
-	t.Run("swap repository", func(t *testing.T) {
-		testAddSwap(t, svc.Swap())
-		testGetAllSwap(t, svc.Swap())
-		testUpdateSwap(t, svc.Swap())
-	})
-}
-
 func testSubscribedScriptRepository(t *testing.T, svc ports.RepoManager) {
 	t.Run("subscribed script repository", func(t *testing.T) {
 		testAddSubscribedScripts(t, svc.SubscribedScript())
@@ -155,87 +118,9 @@ func testSubscribedScriptRepository(t *testing.T, svc ports.RepoManager) {
 	})
 }
 
-func testAddSettings(t *testing.T, repo domain.SettingsRepository) {
-	t.Run("add settings", func(t *testing.T) {
-		settings, err := repo.GetSettings(ctx)
-		require.Error(t, err)
-		require.Nil(t, settings)
-
-		err = repo.AddSettings(ctx, testSettings)
-		require.NoError(t, err)
-
-		settings, err = repo.GetSettings(ctx)
-		require.NoError(t, err)
-		require.Equal(t, testSettings, *settings)
-
-		err = repo.AddSettings(ctx, testSettings)
-		require.Error(t, err)
-
-		err = repo.CleanSettings(ctx)
-		require.NoError(t, err)
-	})
-}
-
-func testUpdateSettings(t *testing.T, repo domain.SettingsRepository) {
-	t.Run("update settings", func(t *testing.T) {
-		newSettings := domain.Settings{
-			ApiRoot: "updated apiroot",
-		}
-
-		err := repo.UpdateSettings(ctx, newSettings)
-		require.Error(t, err)
-
-		err = repo.AddSettings(ctx, testSettings)
-		require.NoError(t, err)
-
-		expectedSettings := testSettings
-		expectedSettings.ApiRoot = newSettings.ApiRoot
-
-		err = repo.UpdateSettings(ctx, newSettings)
-		require.NoError(t, err)
-
-		settings, err := repo.GetSettings(ctx)
-		require.NoError(t, err)
-		require.NotNil(t, settings)
-		require.Equal(t, expectedSettings, *settings)
-
-		newSettings = domain.Settings{
-			ServerUrl: "updated serverurl",
-			Currency:  "updated cur",
-		}
-		expectedSettings.ServerUrl = newSettings.ServerUrl
-		expectedSettings.Currency = newSettings.Currency
-
-		err = repo.UpdateSettings(ctx, newSettings)
-		require.NoError(t, err)
-		require.NotNil(t, settings)
-
-		settings, err = repo.GetSettings(ctx)
-		require.NoError(t, err)
-		require.NotNil(t, settings)
-		require.Equal(t, expectedSettings, *settings)
-	})
-}
-
-func testCleanSettings(t *testing.T, repo domain.SettingsRepository) {
-	t.Run("clean settings", func(t *testing.T) {
-		settings, err := repo.GetSettings(ctx)
-		require.NoError(t, err)
-		require.NotNil(t, settings)
-
-		err = repo.CleanSettings(ctx)
-		require.NoError(t, err)
-
-		settings, err = repo.GetSettings(ctx)
-		require.Error(t, err)
-		require.Nil(t, settings)
-
-		err = repo.CleanSettings(ctx)
-		require.Error(t, err)
-	})
-}
-
 func testAddVHTLC(t *testing.T, repo domain.VHTLCRepository) {
+	ctx := t.Context()
+
 	t.Run("add vHTLC", func(t *testing.T) {
 		vHTLC, err := repo.Get(ctx, testVHTLC.Id)
 		require.Error(t, err)
@@ -258,6 +143,8 @@ func testAddVHTLC(t *testing.T, repo domain.VHTLCRepository) {
 }
 
 func testGetAllVHTLC(t *testing.T, repo domain.VHTLCRepository) {
+	ctx := t.Context()
+
 	t.Run("get all vHTLCs", func(t *testing.T) {
 		vHTLC, err := repo.GetAll(ctx)
 		require.NoError(t, err)
@@ -277,6 +164,8 @@ func testGetAllVHTLC(t *testing.T, repo domain.VHTLCRepository) {
 }
 
 func testGetVHTLCsById(t *testing.T, repo domain.VHTLCRepository) {
+	ctx := t.Context()
+
 	t.Run("get vHTLCs by ids", func(t *testing.T) {
 		vHTLC, err := repo.GetByIds(ctx, nil)
 		require.NoError(t, err)
@@ -307,37 +196,9 @@ func testGetVHTLCsById(t *testing.T, repo domain.VHTLCRepository) {
 	})
 }
 
-func testAddNonInteractiveVHTLC(t *testing.T, repo domain.VHTLCRepository) {
-	t.Run("non-interactive claim round-trip", func(t *testing.T) {
-		v := makeVHTLC()
-		introKey, err := btcec.NewPrivateKey()
-		require.NoError(t, err)
-		recvKey, err := btcec.NewPrivateKey()
-		require.NoError(t, err)
-
-		xonly := schnorr.SerializePubKey(recvKey.PubKey())
-		pkScript := append([]byte{0x51, 0x20}, xonly...)
-		v.NonInteractiveClaim = &vhtlc.NonInteractiveClaimOpts{
-			ReceiverPkScript: pkScript,
-			EmulatorPubKey:   introKey.PubKey(),
-		}
-
-		err = repo.Add(ctx, v)
-		require.NoError(t, err)
-
-		got, err := repo.Get(ctx, v.Id)
-		require.NoError(t, err)
-		require.NotNil(t, got)
-		require.NotNil(t, got.NonInteractiveClaim)
-		require.Equal(t, v.NonInteractiveClaim.ReceiverPkScript, got.NonInteractiveClaim.ReceiverPkScript)
-		require.Equal(t,
-			v.NonInteractiveClaim.EmulatorPubKey.SerializeCompressed(),
-			got.NonInteractiveClaim.EmulatorPubKey.SerializeCompressed(),
-		)
-	})
-}
-
 func testAddDelegateTask(t *testing.T, repo domain.DelegateRepository) {
+	ctx := t.Context()
+
 	t.Run("add delegate task", func(t *testing.T) {
 		task, err := repo.GetByID(ctx, testDelegateTask.ID)
 		require.Error(t, err)
@@ -373,6 +234,8 @@ func testAddDelegateTask(t *testing.T, repo domain.DelegateRepository) {
 }
 
 func testGetAllPendingDelegateTasks(t *testing.T, repo domain.DelegateRepository) {
+	ctx := t.Context()
+
 	t.Run("get all pending delegate tasks", func(t *testing.T) {
 		pendingTask := testDelegateTask
 		pendingTask.ID = "pending_task_1"
@@ -413,6 +276,8 @@ func testGetAllPendingDelegateTasks(t *testing.T, repo domain.DelegateRepository
 }
 
 func testGetPendingTaskByInput(t *testing.T, repo domain.DelegateRepository) {
+	ctx := t.Context()
+
 	t.Run("get pending task by input", func(t *testing.T) {
 		hash1, _ := chainhash.NewHashFromStr("0000000000000000000000000000000000000000000000000000000000000003")
 		testInput := wire.OutPoint{Hash: *hash1, Index: 0}
@@ -494,6 +359,8 @@ func testGetPendingTaskByInput(t *testing.T, repo domain.DelegateRepository) {
 }
 
 func testGetPendingTaskByIntentTxID(t *testing.T, repo domain.DelegateRepository) {
+	ctx := t.Context()
+
 	t.Run("get pending task by intent txid", func(t *testing.T) {
 		testIntentTxid := "test_intent_txid_123"
 
@@ -572,6 +439,8 @@ func testGetPendingTaskByIntentTxID(t *testing.T, repo domain.DelegateRepository
 }
 
 func testGetAllDelegateTasks(t *testing.T, repo domain.DelegateRepository) {
+	ctx := t.Context()
+
 	t.Run("get all delegate tasks", func(t *testing.T) {
 		pendingTask1 := testDelegateTask
 		pendingTask1.ID = "getall_pending_1"
@@ -790,6 +659,8 @@ func testGetAllDelegateTasks(t *testing.T, repo domain.DelegateRepository) {
 }
 
 func testCancelTasks(t *testing.T, repo domain.DelegateRepository) {
+	ctx := t.Context()
+
 	t.Run("cancel tasks", func(t *testing.T) {
 		cancelTask1 := testDelegateTask
 		cancelTask1.ID = "cancel_task_1"
@@ -878,6 +749,8 @@ func testCancelTasks(t *testing.T, repo domain.DelegateRepository) {
 }
 
 func testCompleteTasks(t *testing.T, repo domain.DelegateRepository) {
+	ctx := t.Context()
+
 	t.Run("complete tasks", func(t *testing.T) {
 		successTask1 := testDelegateTask
 		successTask1.ID = "success_task_1"
@@ -968,6 +841,8 @@ func testCompleteTasks(t *testing.T, repo domain.DelegateRepository) {
 }
 
 func testFailTasks(t *testing.T, repo domain.DelegateRepository) {
+	ctx := t.Context()
+
 	t.Run("fail tasks", func(t *testing.T) {
 		failTask1 := testDelegateTask
 		failTask1.ID = "fail_task_1"
@@ -1075,66 +950,9 @@ func testFailTasks(t *testing.T, repo domain.DelegateRepository) {
 	})
 }
 
-func testAddSwap(t *testing.T, repo domain.SwapRepository) {
-	t.Run("add swap", func(t *testing.T) {
-		swap, err := repo.Get(ctx, testSwap.Id)
-		require.Error(t, err)
-		require.Nil(t, swap)
-
-		count, err := repo.Add(ctx, []domain.Swap{testSwap})
-		require.NoError(t, err)
-		require.Equal(t, 1, count)
-
-		count, err = repo.Add(ctx, []domain.Swap{testSwap})
-		require.NoError(t, err)
-		require.LessOrEqual(t, 0, count)
-
-		swap, err = repo.Get(ctx, testSwap.Id)
-		require.NoError(t, err)
-		require.NotNil(t, swap)
-		require.Equal(t, *swap, testSwap)
-	})
-}
-
-func testGetAllSwap(t *testing.T, repo domain.SwapRepository) {
-	t.Run("get all swaps", func(t *testing.T) {
-		swaps, err := repo.GetAll(ctx)
-		require.NoError(t, err)
-		require.Len(t, swaps, 1)
-
-		count, err := repo.Add(ctx, []domain.Swap{testSwap, secondSwap})
-		require.NoError(t, err)
-		require.Equal(t, 1, count)
-
-		count, err = repo.Add(ctx, []domain.Swap{testSwap, secondSwap})
-		require.NoError(t, err)
-		require.LessOrEqual(t, 0, count)
-
-		swaps, err = repo.GetAll(ctx)
-		require.NoError(t, err)
-		require.Len(t, swaps, 2)
-		require.Subset(t, []domain.Swap{testSwap, secondSwap}, swaps)
-	})
-}
-
-func testUpdateSwap(t *testing.T, repo domain.SwapRepository) {
-	t.Run("update swap", func(t *testing.T) {
-		modifiedTestSwap := testSwap
-		modifiedTestSwap.Status = domain.SwapSuccess
-		modifiedTestSwap.RedeemTxId = "redeemed_tx_id"
-
-		err := repo.Update(ctx, modifiedTestSwap)
-		require.NoError(t, err)
-
-		updatedSwap, err := repo.Get(ctx, testSwap.Id)
-		require.NoError(t, err)
-		require.NotNil(t, updatedSwap)
-		require.Equal(t, domain.SwapSuccess, updatedSwap.Status)
-		require.Equal(t, "redeemed_tx_id", updatedSwap.RedeemTxId)
-	})
-}
-
 func testAddSubscribedScripts(t *testing.T, repo domain.SubscribedScriptRepository) {
+	ctx := t.Context()
+
 	t.Run("add subscribed scripts", func(t *testing.T) {
 		scripts, err := repo.Get(ctx)
 		require.NoError(t, err)
@@ -1156,6 +974,8 @@ func testAddSubscribedScripts(t *testing.T, repo domain.SubscribedScriptReposito
 }
 
 func testDeleteSubscribedScripts(t *testing.T, repo domain.SubscribedScriptRepository) {
+	ctx := t.Context()
+
 	t.Run("delete subscribed scripts", func(t *testing.T) {
 		scripts, err := repo.Get(ctx)
 		require.NoError(t, err)
@@ -1191,48 +1011,10 @@ func testDeleteSubscribedScripts(t *testing.T, repo domain.SubscribedScriptRepos
 }
 
 func makeVHTLC() domain.Vhtlc {
-	randBytes := make([]byte, 20)
-	_, _ = rand.Read(randBytes)
-
-	serverKey, _ := btcec.NewPrivateKey()
-	senderKey, _ := btcec.NewPrivateKey()
-	receiverKey, _ := btcec.NewPrivateKey()
-
-	opts := vhtlc.Opts{
-		PreimageHash:   randBytes,
-		Sender:         senderKey.PubKey(),
-		Receiver:       receiverKey.PubKey(),
-		Server:         serverKey.PubKey(),
-		RefundLocktime: arklib.AbsoluteLocktime(100 * 600),
-		UnilateralClaimDelay: arklib.RelativeLocktime{
-			Type:  arklib.LocktimeTypeBlock,
-			Value: 300,
-		},
-		UnilateralRefundDelay: arklib.RelativeLocktime{
-			Type:  arklib.LocktimeTypeBlock,
-			Value: 400,
-		},
-		UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{
-			Type:  arklib.LocktimeTypeBlock,
-			Value: 500,
-		},
-	}
-
-	return domain.NewVhtlc(opts)
-}
-
-func makeSwap() domain.Swap {
-	return domain.Swap{
-		Id:          uuid.New().String(),
-		Amount:      1000,
-		Timestamp:   time.Now().Unix(),
-		To:          "test_to",
-		From:        "test_from",
-		Status:      domain.SwapSuccess,
-		Type:        domain.SwapPayment,
-		Invoice:     "test_invoice",
-		Vhtlc:       makeVHTLC(),
-		FundingTxId: "funding_tx_id",
-		RedeemTxId:  "redeem_tx_id",
+	script := make([]byte, 32)
+	rand.Read(script)
+	return domain.Vhtlc{
+		Id:     uuid.New().String(),
+		Script: hex.EncodeToString(script),
 	}
 }

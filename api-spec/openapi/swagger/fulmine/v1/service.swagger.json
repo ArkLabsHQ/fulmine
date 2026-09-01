@@ -62,158 +62,6 @@
         ]
       }
     },
-    "/v1/chainswap": {
-      "post": {
-        "summary": "CreateChainSwap initiates a chain swap between Ark and Bitcoin",
-        "operationId": "Service_CreateChainSwap",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1CreateChainSwapResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1CreateChainSwapRequest"
-            }
-          }
-        ],
-        "tags": [
-          "Service"
-        ]
-      }
-    },
-    "/v1/chainswap/{id}/refund": {
-      "post": {
-        "summary": "RefundChainSwap initiates a cooperative refund for a chain swap",
-        "operationId": "Service_RefundChainSwap",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1RefundChainSwapResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          },
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "type": "object"
-            }
-          }
-        ],
-        "tags": [
-          "Service"
-        ]
-      }
-    },
-    "/v1/chainswaps": {
-      "get": {
-        "summary": "ListChainSwaps retrieves all chain swaps",
-        "operationId": "Service_ListChainSwaps",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1ListChainSwapsResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "swapIds",
-            "in": "query",
-            "required": false,
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi"
-          }
-        ],
-        "tags": [
-          "Service"
-        ]
-      }
-    },
-    "/v1/delegates": {
-      "get": {
-        "summary": "ListDelegates returns delegate tasks filtered by status, paginated by limit/offset.",
-        "operationId": "Service_ListDelegates",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1ListDelegatesResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "status",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "type": "integer",
-            "format": "int64"
-          },
-          {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "type": "integer",
-            "format": "int64"
-          }
-        ],
-        "tags": [
-          "Service"
-        ]
-      }
-    },
     "/v1/info": {
       "get": {
         "summary": "GetInfo returns info about the ark account",
@@ -232,70 +80,6 @@
             }
           }
         },
-        "tags": [
-          "Service"
-        ]
-      }
-    },
-    "/v1/invoice": {
-      "post": {
-        "operationId": "Service_GetInvoice",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1GetInvoiceResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1GetInvoiceRequest"
-            }
-          }
-        ],
-        "tags": [
-          "Service"
-        ]
-      }
-    },
-    "/v1/invoice/pay": {
-      "post": {
-        "operationId": "Service_PayInvoice",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1PayInvoiceResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1PayInvoiceRequest"
-            }
-          }
-        ],
         "tags": [
           "Service"
         ]
@@ -360,37 +144,6 @@
             "schema": {
               "$ref": "#/definitions/v1GetOnboardAddressRequest"
             }
-          }
-        ],
-        "tags": [
-          "Service"
-        ]
-      }
-    },
-    "/v1/round/{roundId}": {
-      "get": {
-        "summary": "Returns round info for optional round_id (no round_id returns current round info)",
-        "operationId": "Service_GetRoundInfo",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1GetRoundInfoResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "roundId",
-            "in": "path",
-            "required": true,
-            "type": "string"
           }
         ],
         "tags": [
@@ -692,38 +445,6 @@
         ]
       }
     },
-    "/v1/vhtlc/settle": {
-      "post": {
-        "operationId": "Service_SettleVHTLC",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1SettleVHTLCResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1SettleVHTLCRequest"
-            }
-          }
-        ],
-        "tags": [
-          "Service"
-        ]
-      }
-    },
     "/v1/vhtlc/spendTx/{vhtlcId}": {
       "get": {
         "summary": "GetVHTLCSpendingTx returns the fully signed ark transaction for a spent VHTLC,\nwhether the VHTLC is spent by a finalized or pending tx.",
@@ -870,16 +591,6 @@
     }
   },
   "definitions": {
-    "GetInfoResponseNetwork": {
-      "type": "string",
-      "enum": [
-        "NETWORK_UNSPECIFIED",
-        "NETWORK_MAINNET",
-        "NETWORK_TESTNET",
-        "NETWORK_REGTEST"
-      ],
-      "default": "NETWORK_UNSPECIFIED"
-    },
     "RelativeLocktimeLocktimeType": {
       "type": "string",
       "enum": [
@@ -888,6 +599,18 @@
         "LOCKTIME_TYPE_SECOND"
       ],
       "default": "LOCKTIME_TYPE_UNSPECIFIED"
+    },
+    "fulminev1Input": {
+      "type": "object",
+      "properties": {
+        "txid": {
+          "type": "string"
+        },
+        "vout": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
     },
     "protobufAny": {
       "type": "object",
@@ -931,60 +654,6 @@
         }
       }
     },
-    "v1ChainSwapResponse": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "from": {
-          "type": "string"
-        },
-        "to": {
-          "type": "string"
-        },
-        "amount": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "status": {
-          "type": "string"
-        },
-        "preimage": {
-          "type": "string"
-        },
-        "userLockupTxid": {
-          "type": "string"
-        },
-        "serverLockupTxid": {
-          "type": "string"
-        },
-        "claimTxid": {
-          "type": "string"
-        },
-        "refundTxid": {
-          "type": "string"
-        },
-        "btcAddress": {
-          "type": "string"
-        },
-        "timestamp": {
-          "type": "string",
-          "format": "int64"
-        },
-        "errorMessage": {
-          "type": "string"
-        }
-      }
-    },
-    "v1ClaimPath": {
-      "type": "object",
-      "properties": {
-        "preimage": {
-          "type": "string"
-        }
-      }
-    },
     "v1ClaimVHTLCRequest": {
       "type": "object",
       "properties": {
@@ -995,7 +664,7 @@
           "type": "string"
         },
         "outpoint": {
-          "$ref": "#/definitions/v1Input",
+          "$ref": "#/definitions/fulminev1Input",
           "description": "Optional outpoint to target a specific VTXO when multiple VTXOs exist at the same VHTLC address."
         }
       }
@@ -1004,52 +673,6 @@
       "type": "object",
       "properties": {
         "redeemTxid": {
-          "type": "string"
-        }
-      }
-    },
-    "v1CreateChainSwapRequest": {
-      "type": "object",
-      "properties": {
-        "direction": {
-          "$ref": "#/definitions/v1SwapDirection"
-        },
-        "amount": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "btcAddress": {
-          "type": "string"
-        }
-      }
-    },
-    "v1CreateChainSwapResponse": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "userLockupTxid": {
-          "type": "string"
-        },
-        "lockupAddress": {
-          "type": "string"
-        },
-        "expectedAmount": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "timeoutBlockHeight": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "preimage": {
-          "type": "string"
-        },
-        "error": {
           "type": "string"
         }
       }
@@ -1125,90 +748,10 @@
         "unilateralRefundWithoutReceiverDelay": {
           "type": "string",
           "format": "int64"
-        }
-      }
-    },
-    "v1Delegate": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
         },
-        "intent": {
-          "$ref": "#/definitions/v1DelegateIntent"
-        },
-        "forfeitTxs": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1DelegateForfeitTx"
-          }
-        },
-        "fee": {
+        "keyIndex": {
           "type": "string",
           "format": "uint64"
-        },
-        "delegatePublicKey": {
-          "type": "string"
-        },
-        "scheduledAt": {
-          "type": "string",
-          "format": "int64"
-        },
-        "status": {
-          "type": "string"
-        },
-        "failReason": {
-          "type": "string"
-        },
-        "commitmentTxid": {
-          "type": "string"
-        }
-      }
-    },
-    "v1DelegateForfeitTx": {
-      "type": "object",
-      "properties": {
-        "input": {
-          "$ref": "#/definitions/v1Input"
-        },
-        "forfeitTx": {
-          "type": "string"
-        }
-      }
-    },
-    "v1DelegateIntent": {
-      "type": "object",
-      "properties": {
-        "txid": {
-          "type": "string"
-        },
-        "message": {
-          "type": "string"
-        },
-        "proof": {
-          "type": "string"
-        },
-        "inputs": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1Input"
-          }
-        }
-      }
-    },
-    "v1DelegateRefundParams": {
-      "type": "object",
-      "properties": {
-        "signedIntentProof": {
-          "type": "string"
-        },
-        "intentMessage": {
-          "type": "string"
-        },
-        "partialForfeitTx": {
-          "type": "string"
         }
       }
     },
@@ -1216,9 +759,6 @@
       "type": "object",
       "properties": {
         "address": {
-          "type": "string"
-        },
-        "pubkey": {
           "type": "string"
         }
       }
@@ -1236,7 +776,7 @@
       "type": "object",
       "properties": {
         "network": {
-          "$ref": "#/definitions/GetInfoResponseNetwork",
+          "$ref": "#/definitions/v1Network",
           "description": "The bitcoin network on which Fulmine is running."
         },
         "addrPrefix": {
@@ -1251,30 +791,9 @@
           "$ref": "#/definitions/v1BuildInfo",
           "description": "info about the current version of the ark wallet."
         },
-        "pubkey": {
-          "type": "string",
-          "description": "The Fulmine's public key used in VTXO scripts."
-        },
         "signerPubkey": {
           "type": "string",
           "description": "The signer's public key used in VTXO scripts."
-        }
-      }
-    },
-    "v1GetInvoiceRequest": {
-      "type": "object",
-      "properties": {
-        "amount": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
-    "v1GetInvoiceResponse": {
-      "type": "object",
-      "properties": {
-        "invoice": {
-          "type": "string"
         }
       }
     },
@@ -1292,14 +811,6 @@
       "properties": {
         "address": {
           "type": "string"
-        }
-      }
-    },
-    "v1GetRoundInfoResponse": {
-      "type": "object",
-      "properties": {
-        "round": {
-          "$ref": "#/definitions/v1Round"
         }
       }
     },
@@ -1347,42 +858,6 @@
         }
       }
     },
-    "v1Input": {
-      "type": "object",
-      "properties": {
-        "txid": {
-          "type": "string"
-        },
-        "vout": {
-          "type": "integer",
-          "format": "int64"
-        }
-      }
-    },
-    "v1ListChainSwapsResponse": {
-      "type": "object",
-      "properties": {
-        "swaps": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1ChainSwapResponse"
-          }
-        }
-      }
-    },
-    "v1ListDelegatesResponse": {
-      "type": "object",
-      "properties": {
-        "delegates": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1Delegate"
-          }
-        }
-      }
-    },
     "v1ListVHTLCResponse": {
       "type": "object",
       "properties": {
@@ -1407,6 +882,16 @@
         }
       }
     },
+    "v1Network": {
+      "type": "string",
+      "enum": [
+        "NETWORK_UNSPECIFIED",
+        "NETWORK_MAINNET",
+        "NETWORK_TESTNET",
+        "NETWORK_REGTEST"
+      ],
+      "default": "NETWORK_UNSPECIFIED"
+    },
     "v1NextSettlementResponse": {
       "type": "object",
       "properties": {
@@ -1422,22 +907,6 @@
         "claimAddress": {
           "type": "string",
           "title": "ark address of the claim tx recipient"
-        }
-      }
-    },
-    "v1PayInvoiceRequest": {
-      "type": "object",
-      "properties": {
-        "invoice": {
-          "type": "string"
-        }
-      }
-    },
-    "v1PayInvoiceResponse": {
-      "type": "object",
-      "properties": {
-        "txid": {
-          "type": "string"
         }
       }
     },
@@ -1457,22 +926,6 @@
         }
       }
     },
-    "v1RefundChainSwapResponse": {
-      "type": "object",
-      "properties": {
-        "message": {
-          "type": "string"
-        }
-      }
-    },
-    "v1RefundPath": {
-      "type": "object",
-      "properties": {
-        "delegateParams": {
-          "$ref": "#/definitions/v1DelegateRefundParams"
-        }
-      }
-    },
     "v1RefundVHTLCWithoutReceiverRequest": {
       "type": "object",
       "properties": {
@@ -1480,7 +933,7 @@
           "type": "string"
         },
         "outpoint": {
-          "$ref": "#/definitions/v1Input",
+          "$ref": "#/definitions/fulminev1Input",
           "description": "Optional outpoint to target a specific VTXO when multiple VTXOs exist at the same VHTLC address."
         }
       }
@@ -1501,22 +954,6 @@
         },
         "value": {
           "type": "integer",
-          "format": "int64"
-        }
-      }
-    },
-    "v1Round": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "start": {
-          "type": "string",
-          "format": "int64"
-        },
-        "end": {
-          "type": "string",
           "format": "int64"
         }
       }
@@ -1569,32 +1006,6 @@
         }
       }
     },
-    "v1SettleVHTLCRequest": {
-      "type": "object",
-      "properties": {
-        "vhtlcId": {
-          "type": "string"
-        },
-        "claim": {
-          "$ref": "#/definitions/v1ClaimPath"
-        },
-        "refund": {
-          "$ref": "#/definitions/v1RefundPath"
-        },
-        "outpoint": {
-          "$ref": "#/definitions/v1Input",
-          "description": "Optional outpoint to target a specific VTXO when multiple VTXOs exist at the same VHTLC address."
-        }
-      }
-    },
-    "v1SettleVHTLCResponse": {
-      "type": "object",
-      "properties": {
-        "txid": {
-          "type": "string"
-        }
-      }
-    },
     "v1SignTransactionRequest": {
       "type": "object",
       "properties": {
@@ -1610,15 +1021,6 @@
           "type": "string"
         }
       }
-    },
-    "v1SwapDirection": {
-      "type": "string",
-      "enum": [
-        "SWAP_DIRECTION_UNSPECIFIED",
-        "SWAP_DIRECTION_ARK_TO_BTC",
-        "SWAP_DIRECTION_BTC_TO_ARK"
-      ],
-      "default": "SWAP_DIRECTION_UNSPECIFIED"
     },
     "v1TaprootLeaf": {
       "type": "object",
@@ -1698,7 +1100,7 @@
       "type": "object",
       "properties": {
         "outpoint": {
-          "$ref": "#/definitions/v1Input"
+          "$ref": "#/definitions/fulminev1Input"
         },
         "createdAt": {
           "type": "string",

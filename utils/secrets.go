@@ -1,11 +1,11 @@
 package utils
 
 import (
-	"encoding/hex"
 	"fmt"
 	"strings"
 
-	"github.com/nbd-wtf/go-nostr/nip19"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/tyler-smith/go-bip32"
 	"github.com/tyler-smith/go-bip39"
 )
@@ -37,78 +37,52 @@ func IsValidPassword(password string) error {
 	// return nil
 }
 
-func IsValidPrivateKey(privateKey string) error {
-	if len(privateKey) != 64 {
-		return fmt.Errorf("invalid private key")
-	}
-	return nil
-}
-
-func PrivateKeyFromMnemonic(mnemonic string) (string, error) {
-	seed := bip39.NewSeed(mnemonic, "")
-	key, err := bip32.NewMasterKey(seed)
-	if err != nil {
-		return "", err
-	}
-
-	// TODO: validate this path
-	derivationPath := []uint32{
-		bip32.FirstHardenedChild + 44,
-		bip32.FirstHardenedChild + 1237,
-		bip32.FirstHardenedChild + 0,
-		0,
-		0,
-	}
-
-	next := key
-	for _, idx := range derivationPath {
-		var err error
-		if next, err = next.NewChildKey(idx); err != nil {
-			return "", err
-		}
-	}
-
-	return hex.EncodeToString(next.Key), nil
-}
-
-func getNewMnemonic() []string {
+func GetNewMnemonic() (string, error) {
 	// 128 bits of entropy for a 12-word mnemonic
 	entropy, err := bip39.NewEntropy(128)
 	if err != nil {
-		return strings.Fields("")
+		return "", fmt.Errorf("failed to generate entropy: %w", err)
 	}
 	mnemonic, err := bip39.NewMnemonic(entropy)
 	if err != nil {
-		return strings.Fields("")
+		return "", fmt.Errorf("failed to generate mnemonic: %w", err)
 	}
-	return strings.Fields(mnemonic)
+	return mnemonic, nil
 }
 
-func GetNewPrivateKey() string {
-	words := getNewMnemonic()
-	mnemonic := strings.Join(words, " ")
-	privateKey, err := PrivateKeyFromMnemonic(mnemonic)
+// PrivateKeyFromMnemonic returns the private key at path m/86'/coin'/0'/0/0 from the provided
+// mnemonic
+func PrivateKeyFromMnemonic(mnemonic, network string) (*btcec.PrivateKey, error) {
+	seed := bip39.NewSeed(mnemonic, "")
+	key, err := bip32.NewMasterKey(seed)
 	if err != nil {
-		return ""
+		return nil, err
 	}
-	return privateKey
+
+	next := key
+	derivationPath := getBIP86DerivationPath(network)
+	for _, idx := range derivationPath {
+		var err error
+		if next, err = next.NewChildKey(idx); err != nil {
+			return nil, err
+		}
+	}
+
+	privateKey, _ := btcec.PrivKeyFromBytes(next.Key)
+	return privateKey, nil
 }
 
-func SeedToNsec(seed string) (string, error) {
-	nsec, err := nip19.EncodePrivateKey(seed)
-	if err != nil {
-		return "", err
+func getBIP86DerivationPath(network string) []uint32 {
+	coinType := uint32(1)
+	if network == "bitcoin" || network == "mainnet" {
+		coinType = uint32(0)
 	}
-	return nsec, nil
-}
-
-func NsecToSeed(nsec string) (string, error) {
-	prefix, seed, err := nip19.Decode(nsec)
-	if err != nil {
-		return "", err
+	// m/86'/0'/0'/0/0 on mainnet
+	// m/86'/1'/0'/0/0 on any other network
+	return []uint32{
+		hdkeychain.HardenedKeyStart + 86,
+		uint32(hdkeychain.HardenedKeyStart) + coinType,
+		hdkeychain.HardenedKeyStart,
+		0, 0,
 	}
-	if prefix != "nsec" {
-		return "", fmt.Errorf("invalid prefix")
-	}
-	return fmt.Sprint(seed), nil
 }

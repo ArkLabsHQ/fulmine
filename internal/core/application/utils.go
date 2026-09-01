@@ -5,13 +5,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"time"
 
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
+	"github.com/arkade-os/arkd/pkg/ark-lib/intent"
+	"github.com/arkade-os/arkd/pkg/ark-lib/script"
 	"github.com/arkade-os/arkd/pkg/ark-lib/tree"
 	"github.com/arkade-os/arkd/pkg/ark-lib/txutils"
 	"github.com/arkade-os/arkd/pkg/client-lib/client"
 	clientTypes "github.com/arkade-os/arkd/pkg/client-lib/types"
-	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/psbt"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
@@ -44,24 +46,6 @@ func parseLocktime(locktime uint32) arklib.RelativeLocktime {
 	}
 
 	return arklib.RelativeLocktime{Type: arklib.LocktimeTypeBlock, Value: locktime}
-}
-
-func parsePubkey(pubkey string) (*btcec.PublicKey, error) {
-	if len(pubkey) <= 0 {
-		return nil, nil
-	}
-
-	dec, err := hex.DecodeString(pubkey)
-	if err != nil {
-		return nil, fmt.Errorf("invalid pubkey: %s", err)
-	}
-
-	pk, err := btcec.ParsePubKey(dec)
-	if err != nil {
-		return nil, fmt.Errorf("invalid pubkey: %s", err)
-	}
-
-	return pk, nil
 }
 
 func signVtxoTree(
@@ -144,4 +128,142 @@ func getSpentVtxosFromTransactionEvent(event client.TransactionEvent) []wire.Out
 	}
 
 	return outpoints
+}
+
+type pendingTxIntentInput struct {
+	Vtxo             clientTypes.VtxoWithTapTree
+	Closure          script.Closure
+	Sequence         uint32
+	ConditionWitness wire.TxWitness
+}
+
+func getPendingTxIntent(inputsData []pendingTxIntentInput, locktime uint32) (string, string, error) {
+	if len(inputsData) == 0 {
+		return "", "", fmt.Errorf("missing pending vtxos")
+	}
+
+	inputs := make([]intent.Input, 0, len(inputsData))
+	leafProofs := make([]*arklib.TaprootMerkleProof, 0, len(inputsData))
+	arkFields := make([][]*psbt.Unknown, 0, len(inputsData))
+
+	for _, inputData := range inputsData {
+		hash, err := chainhash.NewHashFromStr(inputData.Vtxo.Txid)
+		if err != nil {
+			return "", "", err
+		}
+
+		pkScript, leafProof, err := extractTaprootLeaf(inputData.Vtxo.Tapscripts, inputData.Closure)
+		if err != nil {
+			return "", "", err
+		}
+
+		taptreeField, err := txutils.VtxoTaprootTreeField.Encode(inputData.Vtxo.Tapscripts)
+		if err != nil {
+			return "", "", err
+		}
+
+		inputs = append(inputs, intent.Input{
+			OutPoint: wire.NewOutPoint(hash, inputData.Vtxo.VOut),
+			Sequence: inputData.Sequence,
+			WitnessUtxo: &wire.TxOut{
+				Value:    int64(inputData.Vtxo.Amount),
+				PkScript: pkScript,
+			},
+		})
+		leafProofs = append(leafProofs, leafProof)
+		arkFields = append(arkFields, []*psbt.Unknown{taptreeField})
+	}
+
+	message, err := intent.GetPendingTxMessage{
+		BaseMessage: intent.BaseMessage{
+			Type: intent.IntentMessageTypeGetPendingTx,
+		},
+		ExpireAt: time.Now().Add(10 * time.Minute).Unix(),
+	}.Encode()
+	if err != nil {
+		return "", "", err
+	}
+
+	proof, err := intent.New(message, inputs, nil)
+	if err != nil {
+		return "", "", err
+	}
+
+	proof.UnsignedTx.LockTime = locktime
+
+	// intent.New prepends a synthetic BIP-322 message input, so proof.Inputs is
+	// one longer than leafProofs and the real inputs sit at 1..n, mapping to
+	// leafProofs[i-1].
+	//
+	// Input 0 is given leafProofs[0] purely so every input carries a well-formed
+	// TaprootLeafScript; it is never spent, so which proof it holds is inert. The
+	// same proof is then assigned again, correctly, to the first real input at
+	// i == 1. Only real inputs get their ark fields.
+	for i, input := range proof.Inputs {
+		var leafProof *arklib.TaprootMerkleProof
+		if i == 0 {
+			leafProof = leafProofs[0]
+		} else {
+			leafProof = leafProofs[i-1]
+			input.Unknowns = arkFields[i-1]
+		}
+
+		input.TaprootLeafScript = []*psbt.TaprootTapLeafScript{{
+			ControlBlock: leafProof.ControlBlock,
+			Script:       leafProof.Script,
+			LeafVersion:  txscript.BaseLeafVersion,
+		}}
+		proof.Inputs[i] = input
+	}
+
+	for i, inputData := range inputsData {
+		if len(inputData.ConditionWitness) == 0 {
+			continue
+		}
+
+		if err := txutils.SetArkPsbtField(
+			&proof.Packet, i+1, txutils.ConditionWitnessField, inputData.ConditionWitness,
+		); err != nil {
+			return "", "", err
+		}
+	}
+
+	encodedProof, err := proof.B64Encode()
+	if err != nil {
+		return "", "", err
+	}
+
+	return encodedProof, message, nil
+}
+
+func extractTaprootLeaf(
+	tapscripts []string, closure script.Closure,
+) ([]byte, *arklib.TaprootMerkleProof, error) {
+	vtxoScript, err := script.ParseVtxoScript(tapscripts)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	leafScript, err := closure.Script()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	taprootKey, taprootTree, err := vtxoScript.TapTree()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tapLeaf := txscript.NewBaseTapLeaf(leafScript)
+	leafProof, err := taprootTree.GetTaprootMerkleProof(tapLeaf.TapHash())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get taproot merkle proof: %w", err)
+	}
+
+	pkScript, err := script.P2TRScript(taprootKey)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return pkScript, leafProof, nil
 }

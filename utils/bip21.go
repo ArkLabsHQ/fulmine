@@ -4,28 +4,33 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/btcsuite/btcd/btcutil"
 )
 
 func IsBip21(text string) bool {
 	if !startsWithBitcoinPrefix(text) {
 		return false
 	}
-	invoice := GetInvoice(text)
 	onchainAddr := GetBtcAddress(text)
-	offchainAddr := GetArkAddress(text)
-	return len(invoice)+len(onchainAddr)+len(offchainAddr) > 0
+	offchainAddr := GetOffchainAddress(text)
+	return len(onchainAddr)+len(offchainAddr) > 0
 }
 
-func GetArkAddress(bip21 string) string {
+func GetOffchainAddress(bip21 string) string {
 	aux := strings.Split(bip21, "?")
 	if len(aux) < 2 {
 		return ""
 	}
-	params := strings.Split(aux[1], "&")
-	for _, param := range params {
-		if kv := strings.Split(param, "="); len(kv) > 0 {
+	params := strings.SplitSeq(aux[1], "&")
+	for param := range params {
+		// SplitN with a limit of 2 keeps any "=" inside the value, and the
+		// len > 1 check is load-bearing: a valueless parameter such as
+		// "bitcoin:<addr>?ark" splits into one element, and indexing kv[1]
+		// would panic on input that reaches here straight from the send form.
+		if kv := strings.SplitN(param, "=", 2); len(kv) > 1 {
 			if kv[0] == "ark" {
-				if IsValidArkAddress(kv[1]) {
+				if IsValidOffchainAddress(kv[1]) {
 					return kv[1]
 				}
 			}
@@ -46,25 +51,12 @@ func GetBtcAddress(bip21 string) string {
 	return ""
 }
 
-func GetInvoice(bip21 string) string {
-	aux := strings.Split(bip21, "?")
-	if len(aux) < 2 {
-		return ""
-	}
-	params := strings.Split(aux[1], "&")
-	for _, param := range params {
-		if kv := strings.Split(param, "="); len(kv) > 0 {
-			if kv[0] == "lightning" {
-				if IsValidInvoice(kv[1]) {
-					return kv[1]
-				}
-			}
-		}
-	}
-	return ""
-}
-
-func SatsFromBip21(bip21 string) int {
+// SatsFromBip21 returns the amount carried by a bip21 URI in satoshis, or 0 if
+// it carries none.
+//
+// BIP21 denominates amount in decimal BTC, which is what Service.NewAddress
+// emits (`fmt.Sprintf("%.8f", btc)` -> "?amount=0.00001000").
+func SatsFromBip21(bip21 string) uint64 {
 	if !IsBip21(bip21) {
 		return 0
 	}
@@ -74,11 +66,19 @@ func SatsFromBip21(bip21 string) int {
 	}
 	params := strings.Split(aux[1], "&")
 	for _, param := range params {
-		if kv := strings.Split(param, "="); len(kv) > 0 {
+		// Same guard as GetOffchainAddress: "?amount" with no value would
+		// otherwise panic on kv[1].
+		if kv := strings.SplitN(param, "=", 2); len(kv) > 1 {
 			if kv[0] == "amount" {
-				if amount, err := strconv.Atoi(kv[1]); err == nil {
-					return int(amount * 100000000)
+				btc, err := strconv.ParseFloat(kv[1], 64)
+				if err != nil {
+					return 0
 				}
+				sats, err := btcutil.NewAmount(btc)
+				if err != nil || sats <= 0 {
+					return 0
+				}
+				return uint64(sats)
 			}
 		}
 	}
@@ -89,7 +89,7 @@ func startsWithBitcoinPrefix(s string) bool {
 	return len(s) >= 8 && s[:8] == "bitcoin:"
 }
 
-func IsValidArkAddress(address string) bool {
+func IsValidOffchainAddress(address string) bool {
 	var re = regexp.MustCompile(`^(tark|ark)[a-zA-Z0-9]{110,118}$`)
 	return re.MatchString(address)
 }

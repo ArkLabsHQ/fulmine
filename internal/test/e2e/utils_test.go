@@ -18,7 +18,8 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
+	delegatev1 "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/delegate/v1"
+	fulminev1 "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
 	"github.com/arkade-os/arkd/pkg/ark-lib/offchain"
 	"github.com/arkade-os/arkd/pkg/ark-lib/script"
@@ -45,32 +46,33 @@ import (
 )
 
 const (
-	lnd = "docker exec lnd lncli --network=regtest"
-	cln = "docker exec cln lightning-cli --network=regtest"
+	lnd      = "docker exec lnd lncli --network=regtest"
+	bitcoind = "docker exec bitcoin bitcoin-cli"
+	cln      = "docker exec cln lightning-cli --network=regtest"
 )
 
-func newFulmineClient(url string) (pb.ServiceClient, error) {
+func newFulmineClient(url string) (fulminev1.ServiceClient, error) {
 	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
 	conn, err := grpc.NewClient(url, opts)
 	if err != nil {
 		return nil, err
 	}
-	return pb.NewServiceClient(conn), nil
+	return fulminev1.NewServiceClient(conn), nil
 }
 
-func newFulmineWalletClient(url string) (pb.WalletServiceClient, error) {
+func newFulmineWalletClient(url string) (fulminev1.WalletServiceClient, error) {
 	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
 	conn, err := grpc.NewClient(url, opts)
 	if err != nil {
 		return nil, err
 	}
-	return pb.NewWalletServiceClient(conn), nil
+	return fulminev1.NewWalletServiceClient(conn), nil
 }
 
-func newFulmineOffchainAddress(t *testing.T, client pb.ServiceClient) string {
+func newFulmineOffchainAddress(t *testing.T, client fulminev1.ServiceClient) string {
 	t.Helper()
 
-	resp, err := client.GetAddress(t.Context(), &pb.GetAddressRequest{})
+	resp, err := client.GetAddress(t.Context(), &fulminev1.GetAddressRequest{})
 	require.NoError(t, err)
 
 	addr, err := url.Parse(resp.GetAddress())
@@ -184,8 +186,8 @@ func restartDockerComposeServices(t *testing.T, ctx context.Context, services ..
 }
 
 func unlockAndSettle(addr string, pass string) error {
-	var walletClient pb.WalletServiceClient
-	var serviceClient pb.ServiceClient
+	var walletClient fulminev1.WalletServiceClient
+	var serviceClient fulminev1.ServiceClient
 
 	// Retry loop: after a docker restart the gRPC server may need a few
 	// seconds before it starts accepting connections.
@@ -196,7 +198,7 @@ func unlockAndSettle(addr string, pass string) error {
 			time.Sleep(500 * time.Millisecond)
 			continue
 		}
-		_, err = wc.Unlock(context.Background(), &pb.UnlockRequest{Password: pass})
+		_, err = wc.Unlock(context.Background(), &fulminev1.UnlockRequest{Password: pass})
 		if err != nil {
 			// "connection reset" / "connection refused" means the server
 			// isn't ready yet – keep retrying.
@@ -226,7 +228,7 @@ func unlockAndSettle(addr string, pass string) error {
 	// Retry Settle until it succeeds or the deadline is reached.
 	settleDeadline := time.Now().Add(60 * time.Second)
 	for time.Now().Before(settleDeadline) {
-		_, err = serviceClient.Settle(context.Background(), &pb.SettleRequest{})
+		_, err = serviceClient.Settle(context.Background(), &fulminev1.SettleRequest{})
 		if err == nil {
 			return nil
 		}
@@ -317,13 +319,13 @@ func faucetOffchain(t *testing.T, client arksdk.Wallet, amount float64) clientTy
 	return incomingFunds[0]
 }
 
-func newDelegateClient(url string) (pb.DelegateServiceClient, error) {
+func newDelegateClient(url string) (delegatev1.DelegateServiceClient, error) {
 	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
 	conn, err := grpc.NewClient(url, opts)
 	if err != nil {
 		return nil, err
 	}
-	return pb.NewDelegateServiceClient(conn), nil
+	return delegatev1.NewDelegateServiceClient(conn), nil
 }
 
 func setupArkSDKwithPublicKey(
@@ -445,8 +447,8 @@ type testVHTLC struct {
 
 func buildTestVHTLC(
 	t *testing.T,
-	fulmineClient pb.ServiceClient,
-	vhtlcResp *pb.CreateVHTLCResponse,
+	fulmineClient fulminev1.ServiceClient,
+	vhtlcResp *fulminev1.CreateVHTLCResponse,
 	preimageHash string,
 ) testVHTLC {
 	t.Helper()
@@ -458,15 +460,15 @@ func buildTestVHTLC(
 		PreimageHash:   mustDecodeHex(t, preimageHash),
 		RefundLocktime: arklib.AbsoluteLocktime(vhtlcResp.GetRefundLocktime()),
 		UnilateralClaimDelay: arklib.RelativeLocktime{
-			Type:  arklib.LocktimeTypeSecond,
+			Type:  arklib.LocktimeTypeBlock,
 			Value: uint32(vhtlcResp.GetUnilateralClaimDelay()),
 		},
 		UnilateralRefundDelay: arklib.RelativeLocktime{
-			Type:  arklib.LocktimeTypeSecond,
+			Type:  arklib.LocktimeTypeBlock,
 			Value: uint32(vhtlcResp.GetUnilateralRefundDelay()),
 		},
 		UnilateralRefundWithoutReceiverDelay: arklib.RelativeLocktime{
-			Type:  arklib.LocktimeTypeSecond,
+			Type:  arklib.LocktimeTypeBlock,
 			Value: uint32(vhtlcResp.GetUnilateralRefundWithoutReceiverDelay()),
 		},
 	})
@@ -480,17 +482,17 @@ func buildTestVHTLC(
 
 func findUnspentVHTLCVtxo(
 	t *testing.T,
-	fulmineClient pb.ServiceClient,
+	fulmineClient fulminev1.ServiceClient,
 	vhtlcID string,
 ) *clientTypes.Vtxo {
 	t.Helper()
 
 	// The VHTLC vtxo is indexed asynchronously after SendOffChain; poll until an
 	// unspent vtxo is listable instead of racing the indexer.
-	var unspent *pb.Vtxo
+	var unspent *fulminev1.Vtxo
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
-		resp, err := fulmineClient.ListVHTLC(t.Context(), &pb.ListVHTLCRequest{VhtlcId: vhtlcID})
+		resp, err := fulmineClient.ListVHTLC(t.Context(), &fulminev1.ListVHTLCRequest{VhtlcId: vhtlcID})
 		require.NoError(t, err)
 		for _, vtxo := range resp.GetVhtlcs() {
 			if !vtxo.IsSpent {
@@ -551,7 +553,7 @@ func mustDecodeHex(t *testing.T, value string) []byte {
 func submitPendingClaimVHTLC(
 	t *testing.T,
 	arkClient arksdk.Wallet,
-	fulmineClient pb.ServiceClient,
+	fulmineClient fulminev1.ServiceClient,
 	vhtlc testVHTLC,
 	preimage []byte,
 ) string {
@@ -613,7 +615,7 @@ func submitPendingClaimVHTLC(
 		encoded, err := tx.B64Encode()
 		require.NoError(t, err)
 
-		resp, err := fulmineClient.SignTransaction(ctx, &pb.SignTransactionRequest{
+		resp, err := fulmineClient.SignTransaction(ctx, &fulminev1.SignTransactionRequest{
 			Tx: encoded,
 		})
 		require.NoError(t, err)
@@ -649,7 +651,7 @@ func submitPendingClaimVHTLC(
 func submitPendingRefundVHTLCWithoutReceiver(
 	t *testing.T,
 	arkClient arksdk.Wallet,
-	fulmineClient pb.ServiceClient,
+	fulmineClient fulminev1.ServiceClient,
 	vhtlc testVHTLC,
 ) string {
 	t.Helper()
@@ -704,7 +706,7 @@ func submitPendingRefundVHTLCWithoutReceiver(
 	encodedArkTx, err := arkTx.B64Encode()
 	require.NoError(t, err)
 
-	resp, err := fulmineClient.SignTransaction(ctx, &pb.SignTransactionRequest{
+	resp, err := fulmineClient.SignTransaction(ctx, &fulminev1.SignTransactionRequest{
 		Tx: encodedArkTx,
 	})
 	require.NoError(t, err)
@@ -894,4 +896,10 @@ func waitForSettle(ctx context.Context, settle func(context.Context) error) erro
 		}
 	}
 	return fmt.Errorf("settle never succeeded within 30s: last err: %w", lastErr)
+}
+
+func generateBlocks(t *testing.T, n int) {
+	cmd := fmt.Sprintf("%s -regtest -rpcuser=admin1 -rpcpassword=123 --generate %d", bitcoind, n)
+	_, err := runCommand(t.Context(), cmd)
+	require.NoError(t, err)
 }

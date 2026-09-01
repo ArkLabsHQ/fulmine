@@ -3,15 +3,11 @@ package sqlitedb
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"errors"
 	"fmt"
 
 	"github.com/ArkLabsHQ/fulmine/internal/core/domain"
 	"github.com/ArkLabsHQ/fulmine/internal/infrastructure/db/sqlite/sqlc/queries"
-	arklib "github.com/arkade-os/arkd/pkg/ark-lib"
-	"github.com/arkade-os/go-sdk/vhtlc"
-	"github.com/btcsuite/btcd/btcec/v2"
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
 )
@@ -29,15 +25,13 @@ func NewVHTLCRepository(db *sql.DB) (domain.VHTLCRepository, error) {
 }
 
 func (r *vhtlcRepository) Add(ctx context.Context, vhtlc domain.Vhtlc) error {
-	optsParams := toVhtlcRow(vhtlc)
-	if _, err := r.Get(ctx, optsParams.ID); err == nil {
-		return fmt.Errorf("vHTLC with ID %s already exists", optsParams.ID)
-	}
-
-	if err := r.querier.InsertVHTLC(ctx, optsParams); err != nil {
+	if err := r.querier.InsertVHTLC(ctx, queries.InsertVHTLCParams{
+		ID:     vhtlc.Id,
+		Script: vhtlc.Script,
+	}); err != nil {
 		if sqlErr, ok := err.(*sqlite.Error); ok {
 			if sqlErr.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
-				return fmt.Errorf("vHTLC with ID %s already exists", optsParams.ID)
+				return fmt.Errorf("vHTLC with ID %s already exists", vhtlc.Id)
 			}
 		}
 		return err
@@ -55,12 +49,10 @@ func (r *vhtlcRepository) Get(ctx context.Context, id string) (*domain.Vhtlc, er
 		return nil, err
 	}
 
-	vhtlc, err := toVhtlc(row)
-	if err != nil {
-		return nil, err
-	}
-
-	return &vhtlc, nil
+	return &domain.Vhtlc{
+		Id:     row.ID,
+		Script: row.Script,
+	}, nil
 }
 
 func (r *vhtlcRepository) GetByIds(ctx context.Context, ids []string) ([]domain.Vhtlc, error) {
@@ -70,11 +62,10 @@ func (r *vhtlcRepository) GetByIds(ctx context.Context, ids []string) ([]domain.
 	}
 	out := make([]domain.Vhtlc, 0, len(rows))
 	for _, row := range rows {
-		vhtlcs, err := toVhtlc(row)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, vhtlcs)
+		out = append(out, domain.Vhtlc{
+			Id:     row.ID,
+			Script: row.Script,
+		})
 	}
 	return out, nil
 }
@@ -86,151 +77,61 @@ func (r *vhtlcRepository) GetAll(ctx context.Context) ([]domain.Vhtlc, error) {
 	}
 	out := make([]domain.Vhtlc, 0, len(rows))
 	for _, row := range rows {
-		vhtlc, err := toVhtlc(row)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, vhtlc)
+		out = append(out, domain.Vhtlc{
+			Id:     row.ID,
+			Script: row.Script,
+		})
 	}
 	return out, nil
+}
+
+func (r *vhtlcRepository) HasLegacy(ctx context.Context) (bool, error) {
+	var count int
+	if err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='vhtlc_legacy'`,
+	).Scan(&count); err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *vhtlcRepository) GetLegacy(ctx context.Context) ([]domain.LegacyVhtlc, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT preimage_hash, sender, receiver, server, refund_locktime,
+			unilateral_claim_delay_type, unilateral_claim_delay_value,
+			unilateral_refund_delay_type, unilateral_refund_delay_value,
+			unilateral_refund_without_receiver_delay_type,
+			unilateral_refund_without_receiver_delay_value
+		FROM vhtlc_legacy`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]domain.LegacyVhtlc, 0)
+	for rows.Next() {
+		var v domain.LegacyVhtlc
+		if err := rows.Scan(
+			&v.PreimageHash, &v.Sender, &v.Receiver, &v.Server, &v.RefundLocktime,
+			&v.UnilateralClaimDelayType, &v.UnilateralClaimDelayValue,
+			&v.UnilateralRefundDelayType, &v.UnilateralRefundDelayValue,
+			&v.UnilateralRefundWithoutReceiverDelayType,
+			&v.UnilateralRefundWithoutReceiverDelayValue,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}
+
+func (r *vhtlcRepository) DropLegacy(ctx context.Context) error {
+	_, err := r.db.ExecContext(ctx, `DROP TABLE IF EXISTS vhtlc_legacy`)
+	return err
 }
 
 func (r *vhtlcRepository) Close() {
 	if r.db != nil {
 		r.db.Close()
 	}
-}
-
-func toVhtlc(row queries.Vhtlc) (domain.Vhtlc, error) {
-	senderBytes, err := hex.DecodeString(row.Sender)
-	if err != nil {
-		return domain.Vhtlc{}, err
-	}
-	receiverBytes, err := hex.DecodeString(row.Receiver)
-	if err != nil {
-		return domain.Vhtlc{}, err
-	}
-	serverBytes, err := hex.DecodeString(row.Server)
-	if err != nil {
-		return domain.Vhtlc{}, err
-	}
-
-	sender, err := btcec.ParsePubKey(senderBytes)
-	if err != nil {
-		return domain.Vhtlc{}, err
-	}
-	receiver, err := btcec.ParsePubKey(receiverBytes)
-	if err != nil {
-		return domain.Vhtlc{}, err
-	}
-	server, err := btcec.ParsePubKey(serverBytes)
-	if err != nil {
-		return domain.Vhtlc{}, err
-	}
-
-	preimageHashBytes, err := hex.DecodeString(row.PreimageHash)
-	if err != nil {
-		return domain.Vhtlc{}, err
-	}
-
-	unilateralClaimDelay := arklib.RelativeLocktime{
-		Type:  arklib.RelativeLocktimeType(row.UnilateralClaimDelayType),
-		Value: uint32(row.UnilateralClaimDelayValue),
-	}
-	unilateralRefundDelay := arklib.RelativeLocktime{
-		Type:  arklib.RelativeLocktimeType(row.UnilateralRefundDelayType),
-		Value: uint32(row.UnilateralRefundDelayValue),
-	}
-	unilateralRefundWithoutReceiverDelay := arklib.RelativeLocktime{
-		Type:  arklib.RelativeLocktimeType(row.UnilateralRefundWithoutReceiverDelayType),
-		Value: uint32(row.UnilateralRefundWithoutReceiverDelayValue),
-	}
-
-	opts := vhtlc.Opts{
-		Sender:                               sender,
-		Receiver:                             receiver,
-		Server:                               server,
-		RefundLocktime:                       arklib.AbsoluteLocktime(row.RefundLocktime),
-		UnilateralClaimDelay:                 unilateralClaimDelay,
-		UnilateralRefundDelay:                unilateralRefundDelay,
-		UnilateralRefundWithoutReceiverDelay: unilateralRefundWithoutReceiverDelay,
-		PreimageHash:                         preimageHashBytes,
-	}
-
-	nic, err := parseNonInteractiveClaim(
-		row.NonInteractiveReceiverPkscript.String, row.NonInteractiveEmulatorPubkey.String,
-	)
-	if err != nil {
-		return domain.Vhtlc{}, err
-	}
-	opts.NonInteractiveClaim = nic
-
-	return domain.NewVhtlc(opts), nil
-}
-
-func toVhtlcRow(vhtlc domain.Vhtlc) queries.InsertVHTLCParams {
-	preimageHash := vhtlc.PreimageHash
-	sender := vhtlc.Sender.SerializeCompressed()
-	receiver := vhtlc.Receiver.SerializeCompressed()
-	server := hex.EncodeToString(vhtlc.Server.SerializeCompressed())
-
-	vhtlcId := domain.GetVhtlcId(preimageHash, sender, receiver)
-
-	params := queries.InsertVHTLCParams{
-		ID:                                       vhtlcId,
-		PreimageHash:                             hex.EncodeToString(preimageHash),
-		Sender:                                   hex.EncodeToString(sender),
-		Receiver:                                 hex.EncodeToString(receiver),
-		Server:                                   server,
-		RefundLocktime:                           int64(vhtlc.RefundLocktime),
-		UnilateralClaimDelayType:                 int64(vhtlc.UnilateralClaimDelay.Type),
-		UnilateralClaimDelayValue:                int64(vhtlc.UnilateralClaimDelay.Value),
-		UnilateralRefundDelayType:                int64(vhtlc.UnilateralRefundDelay.Type),
-		UnilateralRefundDelayValue:               int64(vhtlc.UnilateralRefundDelay.Value),
-		UnilateralRefundWithoutReceiverDelayType: int64(vhtlc.UnilateralRefundWithoutReceiverDelay.Type),
-		UnilateralRefundWithoutReceiverDelayValue: int64(vhtlc.UnilateralRefundWithoutReceiverDelay.Value),
-	}
-	if vhtlc.NonInteractiveClaim != nil {
-		params.NonInteractiveReceiverPkscript = sql.NullString{
-			String: hex.EncodeToString(vhtlc.NonInteractiveClaim.ReceiverPkScript),
-			Valid:  true,
-		}
-		params.NonInteractiveEmulatorPubkey = sql.NullString{
-			String: hex.EncodeToString(
-				vhtlc.NonInteractiveClaim.EmulatorPubKey.SerializeCompressed(),
-			),
-			Valid: true,
-		}
-	}
-	return params
-}
-
-func parseNonInteractiveClaim(pkScriptHex, emulatorPubKeyHex string) (
-	*vhtlc.NonInteractiveClaimOpts, error,
-) {
-	if (len(pkScriptHex) == 0) != (len(emulatorPubKeyHex) == 0) {
-		return nil, fmt.Errorf(
-			"inconsistent non-interactive data: both receiver pkScript and emulator pubkey must be set together",
-		)
-	}
-	if len(pkScriptHex) == 0 {
-		return nil, nil
-	}
-
-	pkScript, err := hex.DecodeString(pkScriptHex)
-	if err != nil {
-		return nil, fmt.Errorf("decode non-interactive receiver pkScript: %w", err)
-	}
-	pubBytes, err := hex.DecodeString(emulatorPubKeyHex)
-	if err != nil {
-		return nil, fmt.Errorf("decode non-interactive emulator pubkey: %w", err)
-	}
-	pub, err := btcec.ParsePubKey(pubBytes)
-	if err != nil {
-		return nil, fmt.Errorf("parse non-interactive emulator pubkey: %w", err)
-	}
-	return &vhtlc.NonInteractiveClaimOpts{
-		ReceiverPkScript: pkScript,
-		EmulatorPubKey:   pub,
-	}, nil
 }

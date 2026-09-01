@@ -1,0 +1,14 @@
+-- Downgrading past the cleanup migration is not supported.
+-- To roll back, restore the datadir from a backup taken before the upgrade.
+--
+-- Reason: the up migration dropped settings, vtxo_rollover, swap and chain_swap, and
+-- renamed vhtlc to vhtlc_legacy before creating a new vhtlc. A down migration
+-- can recreate those tables but not their rows, so the rollback it appears to
+-- perform is schema-only.
+--
+-- Fail loudly instead of losing data quietly. SQLite only allows
+-- RAISE(FAIL, ...) inside a trigger body, so this references a table that does
+-- not exist and lets the error text carry the explanation:
+--
+--   no such table: downgrade_past_20260720000000_cleanup_is_not_supported
+SELECT 1 FROM downgrade_past_20260720000000_cleanup_is_not_supported;

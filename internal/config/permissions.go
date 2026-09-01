@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 
+	delegatev1 "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/delegate/v1"
 	fulminev1 "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"gopkg.in/macaroon-bakery.v2/bakery"
 )
@@ -46,8 +47,8 @@ func WhitelistedByMethod() map[string][]bakery.Op {
 		fmt.Sprintf("/%s/Status", fulminev1.WalletService_ServiceDesc.ServiceName):         {{Entity: EntityWallet, Action: ActionAccess}},
 		fmt.Sprintf("/%s/Auth", fulminev1.WalletService_ServiceDesc.ServiceName):           {{Entity: EntityWallet, Action: ActionAccess}},
 		// delegate.proto methods
-		fmt.Sprintf("/%s/GetDelegateInfo", fulminev1.DelegateService_ServiceDesc.ServiceName): {{Entity: EntityDelegate, Action: ActionAccess}},
-		fmt.Sprintf("/%s/Delegate", fulminev1.DelegateService_ServiceDesc.ServiceName):        {{Entity: EntityDelegate, Action: ActionAccess}},
+		fmt.Sprintf("/%s/GetDelegateInfo", delegatev1.DelegateService_ServiceDesc.ServiceName): {{Entity: EntityDelegate, Action: ActionAccess}},
+		fmt.Sprintf("/%s/Delegate", delegatev1.DelegateService_ServiceDesc.ServiceName):        {{Entity: EntityDelegate, Action: ActionAccess}},
 		// gRPC reflection (for grpcurl / dev tooling)
 		"/grpc.reflection.v1.ServerReflection/ServerReflectionInfo":      {{Entity: EntityService, Action: ActionAccess}},
 		"/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo": {{Entity: EntityService, Action: ActionAccess}},
@@ -62,7 +63,6 @@ func ProtectedByMethod() map[string][]bakery.Op {
 		fmt.Sprintf("/%s/GetBalance", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/GetInfo", fulminev1.Service_ServiceDesc.ServiceName):                    {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/GetOnboardAddress", fulminev1.Service_ServiceDesc.ServiceName):          {{Entity: EntityService, Action: ActionAccess}},
-		fmt.Sprintf("/%s/GetRoundInfo", fulminev1.Service_ServiceDesc.ServiceName):               {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/GetTransactionHistory", fulminev1.Service_ServiceDesc.ServiceName):      {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/RedeemNote", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/Settle", fulminev1.Service_ServiceDesc.ServiceName):                     {{Entity: EntityService, Action: ActionAccess}},
@@ -72,20 +72,13 @@ func ProtectedByMethod() map[string][]bakery.Op {
 		fmt.Sprintf("/%s/CreateVHTLC", fulminev1.Service_ServiceDesc.ServiceName):                {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/ClaimVHTLC", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/RefundVHTLCWithoutReceiver", fulminev1.Service_ServiceDesc.ServiceName): {{Entity: EntityService, Action: ActionAccess}},
-		fmt.Sprintf("/%s/SettleVHTLC", fulminev1.Service_ServiceDesc.ServiceName):                {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/ListVHTLC", fulminev1.Service_ServiceDesc.ServiceName):                  {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/ListVHTLCs", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/GetVHTLCSpendingTx", fulminev1.Service_ServiceDesc.ServiceName):         {{Entity: EntityService, Action: ActionAccess}},
-		fmt.Sprintf("/%s/GetInvoice", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
-		fmt.Sprintf("/%s/PayInvoice", fulminev1.Service_ServiceDesc.ServiceName):                 {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/GetVirtualTxs", fulminev1.Service_ServiceDesc.ServiceName):              {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/GetVtxos", fulminev1.Service_ServiceDesc.ServiceName):                   {{Entity: EntityService, Action: ActionAccess}},
 		fmt.Sprintf("/%s/NextSettlement", fulminev1.Service_ServiceDesc.ServiceName):             {{Entity: EntityService, Action: ActionAccess}},
-		fmt.Sprintf("/%s/CreateChainSwap", fulminev1.Service_ServiceDesc.ServiceName):            {{Entity: EntityService, Action: ActionAccess}},
-		fmt.Sprintf("/%s/GetChainSwap", fulminev1.Service_ServiceDesc.ServiceName):               {{Entity: EntityService, Action: ActionAccess}},
-		fmt.Sprintf("/%s/ListChainSwaps", fulminev1.Service_ServiceDesc.ServiceName):             {{Entity: EntityService, Action: ActionAccess}},
-		fmt.Sprintf("/%s/RefundChainSwap", fulminev1.Service_ServiceDesc.ServiceName):            {{Entity: EntityService, Action: ActionAccess}},
-		fmt.Sprintf("/%s/ListDelegates", fulminev1.Service_ServiceDesc.ServiceName):              {{Entity: EntityService, Action: ActionAccess}},
+		fmt.Sprintf("/%s/ListDelegates", delegatev1.AdminService_ServiceDesc.ServiceName):        {{Entity: EntityService, Action: ActionAccess}},
 		// Notification.proto methods
 		fmt.Sprintf("/%s/SubscribeForAddresses", fulminev1.NotificationService_ServiceDesc.ServiceName):   {{Entity: EntityNotification, Action: ActionAccess}},
 		fmt.Sprintf("/%s/UnsubscribeForAddresses", fulminev1.NotificationService_ServiceDesc.ServiceName): {{Entity: EntityNotification, Action: ActionAccess}},

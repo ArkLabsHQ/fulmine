@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	pb "github.com/ArkLabsHQ/fulmine/api-spec/protobuf/gen/go/fulmine/v1"
 	"github.com/ArkLabsHQ/fulmine/internal/core/application"
@@ -25,12 +26,11 @@ func NewWalletHandler(appSvc *application.Service, unlocker ports.Unlocker) pb.W
 func (h *walletHandler) GenSeed(
 	ctx context.Context, req *pb.GenSeedRequest,
 ) (*pb.GenSeedResponse, error) {
-	hex := utils.GetNewPrivateKey()
-	nsec, err := utils.SeedToNsec(hex)
+	mnemonic, err := utils.GetNewMnemonic()
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	return &pb.GenSeedResponse{Hex: hex, Nsec: nsec}, nil
+	return &pb.GenSeedResponse{Mnemonic: mnemonic}, nil
 }
 
 // CreateWallet creates an HD Wallet based on signing seeds,
@@ -55,11 +55,11 @@ func (h *walletHandler) CreateWallet(
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 	}
-	privateKey, err := parsePrivateKey(req.GetPrivateKey())
+	mnemonic, err := parseMnemonic(req.GetMnemonic())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if err := h.svc.Setup(ctx, serverUrl, password, privateKey); err != nil {
+	if err := h.svc.Setup(ctx, serverUrl, password, mnemonic); err != nil {
 		return nil, err
 	}
 
@@ -105,9 +105,7 @@ func (h *walletHandler) Unlock(
 }
 
 // Lock locks the HD wallet.
-func (h *walletHandler) Lock(
-	ctx context.Context, req *pb.LockRequest,
-) (*pb.LockResponse, error) {
+func (h *walletHandler) Lock(ctx context.Context, req *pb.LockRequest) (*pb.LockResponse, error) {
 	if err := h.svc.LockNode(ctx); err != nil {
 		return nil, err
 	}
@@ -147,8 +145,18 @@ func (h *walletHandler) Status(
 }
 
 // Auth verifies whether the given password is valid without unlocking the wallet
-func (h *walletHandler) Auth(
-	ctx context.Context, req *pb.AuthRequest,
-) (*pb.AuthResponse, error) {
+func (h *walletHandler) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
 	return nil, fmt.Errorf("not implemented")
+}
+
+func (h *walletHandler) GetPubKey(
+	ctx context.Context, req *pb.GetPubKeyRequest,
+) (*pb.GetPubKeyResponse, error) {
+	// HD wallet supports key id in several formats: "m/0/keyIndex", "0/keyIndex", "keyIndex".
+	// We chose here "keyIndex" format for simplicity.
+	pubkey, err := h.svc.GetPubkey(ctx, strconv.Itoa(int(req.GetKeyIndex())))
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetPubKeyResponse{Pubkey: pubkey}, nil
 }

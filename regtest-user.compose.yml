@@ -39,7 +39,7 @@ services:
       - default
 
   covclaimd:
-    image: ghcr.io/arkade-os/covclaimd:v0.0.1-rc.0
+    image: ghcr.io/arkade-os/covclaimd:v0.0.1-rc.2
     container_name: covclaimd
     restart: unless-stopped
     environment:
@@ -54,6 +54,43 @@ services:
       - "127.0.0.1:7271:7071"
     networks:
       - default
+
+  # Second user Fulmine running a SINGLE-KEY (legacy, pre-HD) identity, so the
+  # e2e suite covers the legacy identity paths that fulmine still supports for
+  # wallets upgraded from v0.3 and earlier.
+  #
+  # Its datadir is seeded by fulmine-seeder:e2e BEFORE this service starts — the
+  # identity is read once, at boot, by newService(). Starting it against an
+  # unseeded volume silently produces an ordinary HD wallet.
+  fulmine-user-legacy:
+    image: fulmine:e2e
+    container_name: fulmine-user-legacy
+    restart: unless-stopped
+    environment:
+      - FULMINE_ARK_SERVER=http://arkd:7070
+      - FULMINE_ESPLORA_URL=http://mempool_web/api
+      - FULMINE_BOLTZ_URL=http://boltz:9001
+      - FULMINE_BOLTZ_WS_URL=ws://boltz:9004
+      - FULMINE_NO_MACAROONS=true
+      - FULMINE_DISABLE_TELEMETRY=true
+      - FULMINE_SWAP_TIMEOUT=120
+      - FULMINE_SCHEDULER_POLL_INTERVAL=10
+      - FULMINE_UNLOCKER_TYPE=env
+      - FULMINE_UNLOCKER_PASSWORD=password
+      - FULMINE_DELEGATE_ENABLED=true
+      - FULMINE_EMULATOR_PUBKEY=02999413c46fa10ada5cbc4bcc79a1d09160c2ba3cfc812705d7a13e5e545fb2a9
+    volumes:
+      - fulmine-user-legacy-data:/app/data
+    ports:
+      - "127.0.0.1:7030:7000" # gRPC  (clientTargets "singlekey")
+      - "127.0.0.1:7031:7001" # REST/admin
+    networks:
+      - default
+
+volumes:
+  fulmine-user-legacy-data:
+    name: fulmine-user-legacy-data
+    external: true
 
 # Join the stack's network (compose project name=arkade-regtest -> *_default) so
 # fulmine-user resolves arkd/boltz/mempool_web by service name.

@@ -1,4 +1,4 @@
-.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint run run-mutinynet run-2 test test-vhtlc vet proto proto-lint regtest-build regtest-up regtest-user-up regtest-down regtest-logs web-e2e
+.PHONY: build build-all build-static-assets build-templates clean cov help integrationtest lint migrate run run-mutinynet run-2 test test-vhtlc vet proto proto-lint regtest-build regtest-seeder-build regtest-up regtest-user-up regtest-down regtest-logs web-e2e
 
 GOLANGCI_LINT ?= $(shell \
 	echo "docker run --rm -v $$(pwd):/app -w /app golangci/golangci-lint:v2.9.0 golangci-lint"; \
@@ -92,23 +92,36 @@ regtest-build:
 	@echo "Building Fulmine image (under test)..."
 	@docker build -t fulmine:e2e .
 
+## regtest-seeder-build: build the test-only single-key datadir seeder image
+regtest-seeder-build:
+	@echo "Building single-key seeder image..."
+	@docker build -t fulmine-seeder:e2e -f internal/test/tools/seed-singlekey/Dockerfile .
+
 ## regtest-up: build the image and start the arkade-regtest stack + user Fulmine
 regtest-up: regtest-build
 	@echo "Starting arkade-regtest stack..."
-	@git submodule update --init regtest
-	@node regtest/regtest.mjs start --profile boltz,delegate,emulator
+	@git -c submodule.regtest.branch=bump-fulmine submodule update --init --remote regtest
+	@node regtest/regtest.mjs start --profile delegate,emulator
 	@$(MAKE) regtest-user-up
 
-## regtest-user-up: start + initialise the dedicated swap-user Fulmine
-regtest-user-up:
-	@echo "Starting user Fulmine (fulmine-user)..."
-	@docker compose -f regtest-user.compose.yml up -d
-	@node regtest-user-setup.mjs
+## regtest-user-up: start + initialise the dedicated swap-user Fulmines (HD + single-key)
+regtest-user-up: regtest-seeder-build
+	@echo "Seeding legacy single-key datadir..."
+	@docker volume create fulmine-user-legacy-data >/dev/null
+	@set -e; \
+	LEGACY_PUBKEY=$$(docker run --rm --network arkade-regtest_default \
+		-v fulmine-user-legacy-data:/app/data fulmine-seeder:e2e \
+		-datadir /app/data -server-url http://arkd:7070 \
+		-explorer-url http://mempool_web/api -password password); \
+	echo "Starting user Fulmines (fulmine-user, fulmine-user-legacy)..."; \
+	docker compose -f regtest-user.compose.yml up -d; \
+	FULMINE_LEGACY_PUBKEY="$$LEGACY_PUBKEY" node regtest-user-setup.mjs
 
 ## regtest-down: stop and remove the arkade-regtest stack + volumes + user Fulmine
 regtest-down:
 	@echo "Stopping arkade-regtest stack..."
-	@docker rm -f fulmine-user covclaimd >/dev/null 2>&1 || true
+	@docker rm -f fulmine-user fulmine-user-legacy covclaimd >/dev/null 2>&1 || true
+	@docker volume rm -f fulmine-user-legacy-data >/dev/null 2>&1 || true
 	@node regtest/regtest.mjs clean || true
 
 ## regtest-logs: tail arkade-regtest stack logs
@@ -118,7 +131,7 @@ regtest-logs:
 ## integrationtest: runs e2e tests (requires the arkade-regtest stack: make regtest-up)
 integrationtest:
 	@echo "Running e2e tests..."
-	@go test -v -count=1 -timeout=20m -race -p=1 ./internal/test/e2e/...
+	@go test -v -count=1 -timeout=40m -race -p=1 ./internal/test/e2e/...
 
 ## web-e2e: run the Playwright web-UI e2e suite (requires the stack: make regtest-up)
 web-e2e:
@@ -130,24 +143,9 @@ web-e2e:
 # Path to the database directory (change as needed)
 DB_PATH?=./data
 
-## mig_file: creates SQLite migration file (eg. make FILE=init mig_file)
-mig_file:
-	@migrate create -ext sql -dir ./internal/infrastructure/db/sqlite/migration/ $(FILE)
-
-## mig_up: apply up migration
-mig_up:
-	@echo "migration up..."
-	@migrate -database "sqlite://$(DB_PATH)/sqlite.db" -path ./internal/infrastructure/db/sqlite/migration/ up
-
-## mig_down: apply down migration
-mig_down:
-	@echo "migration down..."
-	@migrate -database "sqlite://$(DB_PATH)/sqlite.db" -path ./internal/infrastructure/db/sqlite/migration/ down
-
-## mig_down_yes: apply down migration without prompt
-mig_down_yes:
-	@echo "migration down..."
-	@"yes" | migrate -database "sqlite://$(DB_PATH)/sqlite.db" -path ./internal/infrastructure/db/sqlite/migration/ down
+## migrate: creates SQLite migration file (eg. make FILE=init migrate)
+migrate:
+	@@docker run --rm -v ./internal/infrastructure/db/sqlite/migration:/migration migrate/migrate create -ext sql -dir /migration $(FILE)
 
 ## vet_db: check if mig_up and mig_down are ok
 vet_db: mig_up mig_down_yes
@@ -156,4 +154,4 @@ vet_db: mig_up mig_down_yes
 ## sqlc: generate Go code from SQLC
 sqlc:
 	@echo "gen sql..."
-	cd ./internal/infrastructure/db/sqlite; sqlc generate
+	@docker run --rm -v ./internal/infrastructure/db/sqlite:/src -w /src sqlc/sqlc:1.30.0 generate
