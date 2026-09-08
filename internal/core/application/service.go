@@ -285,11 +285,17 @@ func (s *Service) LockNode(ctx context.Context) error {
 		s.vtxoListenerCancel = nil
 	}
 
+	if s.syncLock != nil {
+		s.syncLock.Lock()
+	}
 	s.walletReady.Store(false)
 	s.syncEvent = nil
 	if s.syncCh != nil {
 		close(s.syncCh)
 		s.syncCh = nil
+	}
+	if s.syncLock != nil {
+		s.syncLock.Unlock()
 	}
 
 	go func() {
@@ -301,9 +307,9 @@ func (s *Service) LockNode(ctx context.Context) error {
 
 // unwindFailedUnlock rolls back a partially-completed unlock so the wallet
 // returns to a clean locked state and a fresh unlock can retry, instead of being
-// stuck "finalizing unlock" until a restart. It runs only from UnlockNode's
-// post-sync goroutine after wg.Wait, and LockNode is gated out while walletReady
-// is false, so there is no concurrent teardown to race with.
+// stuck "finalizing unlock" until a restart. It runs from UnlockNode's post-sync
+// goroutine after wg.Wait. LockNode may run while finalization is still in
+// progress; both coordinate sync teardown via syncLock.
 func (s *Service) unwindFailedUnlock() {
 	if s.schedulerSvc != nil {
 		s.schedulerSvc.Stop()
@@ -328,11 +334,17 @@ func (s *Service) unwindFailedUnlock() {
 	// failing; drop it rather than leaving a live key behind a locked wallet.
 	s.clearSignerKey()
 
+	if s.syncLock != nil {
+		s.syncLock.Lock()
+	}
 	s.walletReady.Store(false)
 	s.syncEvent = nil
 	if s.syncCh != nil {
 		close(s.syncCh)
 		s.syncCh = nil
+	}
+	if s.syncLock != nil {
+		s.syncLock.Unlock()
 	}
 
 	// Re-lock LAST. s.Lock makes IsLocked() return true, which reopens UnlockNode's
