@@ -255,7 +255,7 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, mnemonic strin
 }
 
 func (s *Service) LockNode(ctx context.Context) error {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+	if err := s.isInitializedForLock(ctx); err != nil {
 		return err
 	}
 
@@ -914,6 +914,18 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 	return nil
 }
 
+func (s *Service) isInitializedForLock(ctx context.Context) error {
+	if !s.isInitialized {
+		return fmt.Errorf("service not initialized")
+	}
+
+	if s.IsLocked(ctx) {
+		return fmt.Errorf("service is locked")
+	}
+
+	return nil
+}
+
 // handleAddressEventChannel is used to forward address events to the notifications channel
 func (s *Service) handleAddressEventChannel(
 	config *clientTypes.Config,
@@ -1153,15 +1165,15 @@ func (s *Service) getVHTLCKeyIndex(ctx context.Context, script string) (uint64, 
 
 	handler, err := s.Wallet.ContractManager().GetHandler(ctx, contract)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get contract handler for vhtlc %s: %w", err)
+		return 0, fmt.Errorf("failed to get contract handler for vhtlc %s: %w", script, err)
 	}
 	keyRef, err := handler.GetKeyRef(contract)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get key ref for vhtlc %s: %w", err)
+		return 0, fmt.Errorf("failed to get key ref for vhtlc %s: %w", script, err)
 	}
 	keyIndex, err := identity.GetKeyIndex(ctx, keyRef.Id)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get key index for vhtlc %s: %w", err)
+		return 0, fmt.Errorf("failed to get key index for vhtlc %s: %w", script, err)
 	}
 	return uint64(keyIndex), nil
 }
