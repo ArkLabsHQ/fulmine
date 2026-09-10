@@ -73,9 +73,12 @@ type Service struct {
 
 	isInitialized bool
 	walletReady   atomic.Bool // true once UnlockNode has done syncing
+	lifecycleLock sync.Mutex
 	syncLock      *sync.RWMutex
 	syncEvent     *types.SyncEvent
 	syncCh        chan types.SyncEvent
+	syncCancel    context.CancelFunc
+	syncDone      chan struct{}
 
 	externalSubscription *subscriptionHandler
 
@@ -255,8 +258,18 @@ func (s *Service) Setup(ctx context.Context, serverUrl, password, mnemonic strin
 }
 
 func (s *Service) LockNode(ctx context.Context) error {
-	if err := s.isInitializedAndUnlocked(ctx); err != nil {
+	if err := s.isInitializedForLock(ctx); err != nil {
 		return err
+	}
+
+	s.lifecycleLock.Lock()
+	defer s.lifecycleLock.Unlock()
+
+	if s.syncCancel != nil {
+		s.syncCancel()
+		<-s.syncDone
+		s.syncCancel = nil
+		s.syncDone = nil
 	}
 
 	err := s.Lock(ctx)
@@ -285,11 +298,17 @@ func (s *Service) LockNode(ctx context.Context) error {
 		s.vtxoListenerCancel = nil
 	}
 
+	if s.syncLock != nil {
+		s.syncLock.Lock()
+	}
 	s.walletReady.Store(false)
 	s.syncEvent = nil
 	if s.syncCh != nil {
 		close(s.syncCh)
 		s.syncCh = nil
+	}
+	if s.syncLock != nil {
+		s.syncLock.Unlock()
 	}
 
 	go func() {
@@ -301,9 +320,9 @@ func (s *Service) LockNode(ctx context.Context) error {
 
 // unwindFailedUnlock rolls back a partially-completed unlock so the wallet
 // returns to a clean locked state and a fresh unlock can retry, instead of being
-// stuck "finalizing unlock" until a restart. It runs only from UnlockNode's
-// post-sync goroutine after wg.Wait, and LockNode is gated out while walletReady
-// is false, so there is no concurrent teardown to race with.
+// stuck "finalizing unlock" until a restart. It runs from UnlockNode's post-sync
+// goroutine after wg.Wait. LockNode may run while finalization is still in
+// progress; both coordinate sync teardown via syncLock.
 func (s *Service) unwindFailedUnlock() {
 	if s.schedulerSvc != nil {
 		s.schedulerSvc.Stop()
@@ -328,11 +347,17 @@ func (s *Service) unwindFailedUnlock() {
 	// failing; drop it rather than leaving a live key behind a locked wallet.
 	s.clearSignerKey()
 
+	if s.syncLock != nil {
+		s.syncLock.Lock()
+	}
 	s.walletReady.Store(false)
 	s.syncEvent = nil
 	if s.syncCh != nil {
 		close(s.syncCh)
 		s.syncCh = nil
+	}
+	if s.syncLock != nil {
+		s.syncLock.Unlock()
 	}
 
 	// Re-lock LAST. s.Lock makes IsLocked() return true, which reopens UnlockNode's
@@ -351,6 +376,9 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	if !s.Wallet.IsLocked(ctx) {
 		return nil
 	}
+
+	s.lifecycleLock.Lock()
+	defer s.lifecycleLock.Unlock()
 
 	// Stays closed until the post-sync goroutine below finishes assembling the
 	// wallet, so the unlock window can't expose a nil publicKey/privateKey/swapHandler.
@@ -382,13 +410,24 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	// failed unlock never syncs), wedging every later retry. Starting it here can't
 	// miss the event: IsSynced replays a completed sync via its syncDone fast-path.
 	s.syncCh = make(chan types.SyncEvent, 1)
+	syncCtx, syncCancel := context.WithCancel(context.Background())
+	s.syncCancel = syncCancel
+	s.syncDone = make(chan struct{})
 	wg := &sync.WaitGroup{}
 	wg.Go(func() {
-		s.syncLock.Lock()
-		defer s.syncLock.Unlock()
-		ev := <-s.Wallet.IsSynced(context.Background())
-		s.syncEvent = &ev
-		s.syncCh <- ev
+		defer close(s.syncDone)
+		synced := s.Wallet.IsSynced(syncCtx)
+		select {
+		case ev := <-synced:
+			s.syncLock.Lock()
+			defer s.syncLock.Unlock()
+			if syncCtx.Err() != nil || s.syncCh == nil {
+				return
+			}
+			s.syncEvent = &ev
+			s.syncCh <- ev
+		case <-syncCtx.Done():
+		}
 	})
 
 	// This go routine takes care of scheduling the next settlement and restore the watch
@@ -405,9 +444,13 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 		// We must wait for the client to be synced before doing anything.
 		wg.Wait()
+		s.lifecycleLock.Lock()
+		defer s.lifecycleLock.Unlock()
+		s.syncCancel = nil
+		s.syncDone = nil
 
 		// Do nothing here if restore failed.
-		if s.syncEvent == nil {
+		if s.syncEvent == nil || s.IsLocked(finalizeCtx) {
 			return
 		}
 
@@ -914,6 +957,18 @@ func (s *Service) isInitializedAndUnlocked(ctx context.Context) error {
 	return nil
 }
 
+func (s *Service) isInitializedForLock(ctx context.Context) error {
+	if !s.isInitialized {
+		return fmt.Errorf("service not initialized")
+	}
+
+	if s.IsLocked(ctx) {
+		return fmt.Errorf("service is locked")
+	}
+
+	return nil
+}
+
 // handleAddressEventChannel is used to forward address events to the notifications channel
 func (s *Service) handleAddressEventChannel(
 	config *clientTypes.Config,
@@ -1153,15 +1208,15 @@ func (s *Service) getVHTLCKeyIndex(ctx context.Context, script string) (uint64, 
 
 	handler, err := s.Wallet.ContractManager().GetHandler(ctx, contract)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get contract handler for vhtlc %s: %w", err)
+		return 0, fmt.Errorf("failed to get contract handler for vhtlc %s: %w", script, err)
 	}
 	keyRef, err := handler.GetKeyRef(contract)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get key ref for vhtlc %s: %w", err)
+		return 0, fmt.Errorf("failed to get key ref for vhtlc %s: %w", script, err)
 	}
 	keyIndex, err := identity.GetKeyIndex(ctx, keyRef.Id)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get key index for vhtlc %s: %w", err)
+		return 0, fmt.Errorf("failed to get key index for vhtlc %s: %w", script, err)
 	}
 	return uint64(keyIndex), nil
 }
