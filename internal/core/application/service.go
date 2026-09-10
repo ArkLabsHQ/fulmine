@@ -77,6 +77,8 @@ type Service struct {
 	syncLock      *sync.RWMutex
 	syncEvent     *types.SyncEvent
 	syncCh        chan types.SyncEvent
+	syncCancel    context.CancelFunc
+	syncDone      chan struct{}
 
 	externalSubscription *subscriptionHandler
 
@@ -263,6 +265,13 @@ func (s *Service) LockNode(ctx context.Context) error {
 	s.lifecycleLock.Lock()
 	defer s.lifecycleLock.Unlock()
 
+	if s.syncCancel != nil {
+		s.syncCancel()
+		<-s.syncDone
+		s.syncCancel = nil
+		s.syncDone = nil
+	}
+
 	err := s.Lock(ctx)
 	if err != nil {
 		return err
@@ -368,6 +377,9 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		return nil
 	}
 
+	s.lifecycleLock.Lock()
+	defer s.lifecycleLock.Unlock()
+
 	// Stays closed until the post-sync goroutine below finishes assembling the
 	// wallet, so the unlock window can't expose a nil publicKey/privateKey/swapHandler.
 	s.walletReady.Store(false)
@@ -398,13 +410,24 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 	// failed unlock never syncs), wedging every later retry. Starting it here can't
 	// miss the event: IsSynced replays a completed sync via its syncDone fast-path.
 	s.syncCh = make(chan types.SyncEvent, 1)
+	syncCtx, syncCancel := context.WithCancel(context.Background())
+	s.syncCancel = syncCancel
+	s.syncDone = make(chan struct{})
 	wg := &sync.WaitGroup{}
 	wg.Go(func() {
-		s.syncLock.Lock()
-		defer s.syncLock.Unlock()
-		ev := <-s.Wallet.IsSynced(context.Background())
-		s.syncEvent = &ev
-		s.syncCh <- ev
+		defer close(s.syncDone)
+		synced := s.Wallet.IsSynced(syncCtx)
+		select {
+		case ev := <-synced:
+			s.syncLock.Lock()
+			defer s.syncLock.Unlock()
+			if syncCtx.Err() != nil || s.syncCh == nil {
+				return
+			}
+			s.syncEvent = &ev
+			s.syncCh <- ev
+		case <-syncCtx.Done():
+		}
 	})
 
 	// This go routine takes care of scheduling the next settlement and restore the watch
@@ -423,6 +446,8 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 		wg.Wait()
 		s.lifecycleLock.Lock()
 		defer s.lifecycleLock.Unlock()
+		s.syncCancel = nil
+		s.syncDone = nil
 
 		// Do nothing here if restore failed.
 		if s.syncEvent == nil || s.IsLocked(finalizeCtx) {

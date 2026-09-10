@@ -64,6 +64,27 @@ func TestLockNodeDuringActiveSync(t *testing.T) {
 	require.True(t, fake.locked)
 }
 
+func TestLockNodeCancelsActiveSync(t *testing.T) {
+	fake := newLockingFakeArkClient()
+	syncCtx, syncCancel := context.WithCancel(context.Background())
+	syncDone := make(chan struct{})
+	svc := &Service{
+		Wallet:        fake,
+		isInitialized: true,
+		walletUpdates: make(chan WalletUpdate, 1),
+		syncLock:      &sync.RWMutex{},
+		syncCancel:    syncCancel,
+		syncDone:      syncDone,
+	}
+	go func() {
+		<-syncCtx.Done()
+		close(syncDone)
+	}()
+
+	require.NoError(t, svc.LockNode(t.Context()))
+	require.True(t, fake.locked)
+}
+
 func TestLockNodeWaitsForUnlockFinalization(t *testing.T) {
 	fake := newLockingFakeArkClient()
 	svc := &Service{
