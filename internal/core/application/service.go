@@ -73,6 +73,7 @@ type Service struct {
 
 	isInitialized bool
 	walletReady   atomic.Bool // true once UnlockNode has done syncing
+	lifecycleLock sync.Mutex
 	syncLock      *sync.RWMutex
 	syncEvent     *types.SyncEvent
 	syncCh        chan types.SyncEvent
@@ -259,6 +260,9 @@ func (s *Service) LockNode(ctx context.Context) error {
 		return err
 	}
 
+	s.lifecycleLock.Lock()
+	defer s.lifecycleLock.Unlock()
+
 	err := s.Lock(ctx)
 	if err != nil {
 		return err
@@ -417,9 +421,11 @@ func (s *Service) UnlockNode(ctx context.Context, password string) error {
 
 		// We must wait for the client to be synced before doing anything.
 		wg.Wait()
+		s.lifecycleLock.Lock()
+		defer s.lifecycleLock.Unlock()
 
 		// Do nothing here if restore failed.
-		if s.syncEvent == nil {
+		if s.syncEvent == nil || s.IsLocked(finalizeCtx) {
 			return
 		}
 
